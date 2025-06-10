@@ -1,0 +1,31 @@
+{
+    "compileOnSave": false,
+    "compilerOptions": {
+        "rootDir": ".",
+        "sourceMap": true,
+        "declaration": false,
+        "moduleResolution": "node",
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "importHelpers": true,
+        "target": "es2015",
+        "module": "esnext",
+        "lib": ["es2020", "dom"],
+        "skipLibCheck": true,
+        "skipDefaultLibCheck": true,
+        "baseUrl": ".",
+        "paths": {
+            "@lemon/assets": ["assets/src/index.ts"],
+            "@lemon/board-types": ["libs/board-types/src/index.ts"],
+            "@lemon/boards": ["libs/boards/src/index.ts"],
+            "@lemon/lib/utils": ["libs/ui-kit/src/utils/index.ts"],
+            "@lemon/posts": ["libs/posts/src/index.ts"],
+            "@lemon/shared": ["libs/shared/src/index.ts"],
+            "@lemon/theme": ["libs/theme/src/index.ts"],
+            "@lemon/ui-kit": ["libs/ui-kit/src/index.ts"],
+            "@lemon/ui-kit/*": ["libs/ui-kit/src/*"],
+            "@lemon/web-core": ["libs/web-core/src/index.ts"]
+        }
+    },
+    "exclude": ["node_modules", "tmp"]
+}

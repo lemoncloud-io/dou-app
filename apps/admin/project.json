@@ -1,0 +1,36 @@
+{
+    "name": "admin",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/admin/src",
+    "projectType": "application",
+    "tags": [],
+    "// targets": "to see all targets run: nx show project web --web",
+    "targets": {
+        "build": {
+            "defaultConfiguration": "production",
+            "configurations": {
+                "development": {
+                    "mode": "development"
+                },
+                "dev": {
+                    "mode": "dev",
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/admin/.env.local",
+                            "with": "apps/admin/.env.dev"
+                        }
+                    ]
+                },
+                "prod": {
+                    "mode": "production",
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/admin/.env.local",
+                            "with": "apps/admin/.env.prod"
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

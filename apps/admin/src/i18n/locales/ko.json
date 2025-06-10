@@ -1,0 +1,177 @@
+{
+    "generalError": "오류가 발생했습니다.",
+    "login": {
+        "welcome": "레몬에 오신 것을 환영합니다",
+        "googleButton": "구글 계정으로 로그인",
+        "kakaoButton": "카카오 계정으로 로그인"
+    },
+    "oauth": {
+        "signing": "로그인 중...",
+        "signout": "로그아웃",
+        "logout": "성공적으로 로그아웃되었습니다.",
+        "error": {
+            "general": "오류가 발생했습니다.",
+            "stateParam": "상태 매개변수 파싱 실패:"
+        }
+    },
+    "menu": {
+        "dashboard": "대시보드",
+        "profile": "프로필",
+        "settings": "설정",
+        "boardTypes": "게시판 유형",
+        "boards": "게시판",
+        "boardList": "게시판 목록"
+    },
+    "boardTypes": {
+        "title": "게시판 유형",
+        "description": "게시판 유형과 기능을 관리합니다",
+        "createButton": "새 게시판 유형 만들기",
+        "totalCount": "총 {{count}}개의 게시판 유형",
+        "error": {
+            "loadFailed": "게시판 유형을 불러올 수 없습니다. 다시 시도해 주세요.",
+            "updateFailed": "게시판 유형 수정에 실패했습니다.",
+            "createFailed": "게시판 유형 생성에 실패했습니다."
+        },
+        "noData": "게시판 유형이 없습니다",
+        "table": {
+            "id": "ID",
+            "name": "이름",
+            "type": "게시판 유형",
+            "features": "기능",
+            "createdAt": "생성일"
+        },
+        "types": {
+            "bbs": "자유게시판",
+            "notice": "운영게시판",
+            "qna": "FAQ",
+            "question": "1:1 문의",
+            "banner": "배너게시판",
+            "review": "리뷰게시판"
+        },
+        "features": {
+            "투표": "투표",
+            "좋아요": "좋아요",
+            "북마크": "북마크",
+            "댓글": "댓글",
+            "글작성": "글작성",
+            "클릭수": "클릭수"
+        },
+        "form": {
+            "createTitle": "게시판 유형 만들기",
+            "editTitle": "게시판 유형 수정",
+            "nameLabel": "이름",
+            "typeLabel": "게시판 유형",
+            "typePlaceholder": "게시판 유형을 선택하세요",
+            "featuresLabel": "기능"
+        },
+        "toast": {
+            "createSuccess": "새 게시판 유형이 생성되었습니다",
+            "updateSuccess": "게시판 유형이 수정되었습니다"
+        }
+    },
+    "boards": {
+        "title": "게시판",
+        "description": "게시판을 관리합니다",
+        "createButton": "새 게시판 만들기",
+        "totalCount": "총 {{count}}개의 게시판",
+        "searchPlaceholder": "게시판 이름으로 검색",
+        "error": {
+            "loadFailed": "게시판을 불러올 수 없습니다. 다시 시도해 주세요.",
+            "createFailed": "게시판 생성에 실패했습니다.",
+            "updateFailed": "게시판 수정에 실패했습니다."
+        },
+        "noData": "게시판이 없습니다",
+        "table": {
+            "id": "ID",
+            "name": "이름",
+            "type": "게시판 유형",
+            "createdAt": "생성일",
+            "updatedAt": "수정일"
+        },
+        "form": {
+            "useMainLabel": "메인 페이지 노출",
+            "colorLabel": "테마 색상",
+            "orderLabel": "표시 순서",
+            "useBadgeLabel": "뱃지 사용",
+            "badgeColorLabel": "뱃지 색상",
+            "badgesLabel": "뱃지 목록",
+            "badgesPlaceholder": "뱃지를 입력하고 Enter를 누르세요",
+            "questionBadgesPlaceholder": "상태 뱃지를 입력하고 Enter를 누르세요",
+            "anonymousLabel": "익명 게시 허용",
+            "hideLabel": "게시판 숨김",
+            "mainLabel": "메인 노출",
+            "titleLabel": "게시판 이름",
+            "typeLabel": "게시판 유형",
+            "typePlaceholder": "게시판 유형을 선택하세요",
+            "common": {
+                "maxImages": "이미지 첨부 개수",
+                "maxCommentDepth": "댓글 깊이",
+                "categories": "카테고리",
+                "sortBy": "게시물 정렬",
+                "features": "허용 범위 설정",
+                "reasons": "신고 사유"
+            },
+            "commentDepth": {
+                "0": "댓글 사용 안함",
+                "1": "댓글만 허용",
+                "2": "대댓글 허용"
+            },
+            "sort": {
+                "latest": "최신순",
+                "oldest": "등록순"
+            }
+        },
+        "toast": {
+            "createSuccess": "게시판이 생성되었습니다",
+            "updateSuccess": "게시판이 수정되었습니다"
+        }
+    },
+    "posts": {
+        "title": "게시글",
+        "description": "게시관을 관리합니다",
+        "createButton": "새 게시글 만들기",
+        "totalCount": "총 {{count}} 게시글",
+        "searchPlaceholder": "게시글 제목으로 검색",
+        "titlePlaceholder": "게시글 제목을 입력해주세요.",
+        "contentPlaceholder": "게시글 내용을 입력해주세요.",
+        "categoryPlaceholder": "카테고리를 선택해주세요.",
+        "error": {
+            "loadFailed": "게시글을 불러올 수 없습니다. 다시 시도해 주세요.",
+            "createFailed": "게시글 생성에 실패했습니다.",
+            "updateFailed": "게시글 수정에 실패했습니다."
+        },
+        "noData": "게시글이 없습니다",
+        "table": {
+            "id": "아이디",
+            "title": "제목",
+            "author": "작성자",
+            "category": "카테고리",
+            "hidden": "숨김여부",
+            "createdAt": "생성일",
+            "text": "내용"
+        },
+        "toast": {
+            "createSuccess": "게시글이 생성되었습니다",
+            "updateSuccess": "게시글이 수정되었습니다",
+            "deleteSuccess": "게시글이 삭제되었습니다"
+        },
+        "cardTitle": {
+            "update": "게시글 수정",
+            "create": "게시글 생성"
+        },
+        "requiredMessage": {
+            "title": "제목을 입력해주세요.",
+            "text": "내용을 입력해주세요.",
+            "category": "카테고리를 선택해주세요."
+        },
+        "deleteConfirmText": "정말 이 게시글을 삭제하시겠습니까?"
+    },
+    "common": {
+        "cancel": "취소",
+        "create": "만들기",
+        "update": "수정",
+        "retry": "다시 시도",
+        "updating": "수정중..",
+        "creating": "생성중.."
+    }
+}

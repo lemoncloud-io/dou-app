@@ -1,0 +1,179 @@
+{
+    "generalError": "An error occurred.",
+    "login": {
+        "welcome": "Welcome to Lemon",
+        "googleButton": "Log in with Google account",
+        "kakaoButton": "Log in with Kakao account"
+    },
+    "oauth": {
+        "signing": "Signing...",
+        "signout": "Sign out",
+        "logout": "You have been successfully logged out.",
+        "error": {
+            "general": "An error occurred.",
+            "stateParam": "Failed to parse state parameter:"
+        }
+    },
+    "menu": {
+        "dashboard": "Dashboard",
+        "profile": "Profile",
+        "settings": "Settings",
+        "boardTypes": "Board Types",
+        "boards": "Boards",
+        "boardList": "Board List"
+    },
+    "boardTypes": {
+        "title": "Board Types",
+        "description": "Manage your board types and their features",
+        "createButton": "Create New Board Type",
+        "totalCount": "Total {{count}} board types",
+        "error": {
+            "loadFailed": "Unable to load board types. Please try again.",
+            "updateFailed": "Fail to update board types. Please try again.",
+            "createFailed": "Fail to create board types. Please try again."
+        },
+        "noData": "No board types found",
+        "table": {
+            "id": "ID",
+            "name": "Name",
+            "type": "Board Type",
+            "features": "Features",
+            "createdAt": "Created At"
+        },
+        "types": {
+            "bbs": "자유게시판",
+            "notice": "운영게시판",
+            "qna": "FAQ",
+            "question": "1:1 문의",
+            "banner": "배너게시판",
+            "review": "리뷰게시판"
+        },
+        "features": {
+            "투표": "Vote",
+            "좋아요": "Like",
+            "북마크": "Bookmark",
+            "댓글": "Comment",
+            "글작성": "Write",
+            "클릭수": "View Count"
+        },
+        "form": {
+            "createTitle": "Create Board Type",
+            "editTitle": "Edit Board Type",
+            "nameLabel": "Name",
+            "typeLabel": "Board Type",
+            "typePlaceholder": "Select board type",
+            "featuresLabel": "Features"
+        },
+        "toast": {
+            "createSuccess": "Success to Create new board type",
+            "updateSuccess": "Success to update board type"
+        }
+    },
+    "boards": {
+        "title": "Boards",
+        "description": "Manage your boards",
+        "createButton": "Create New Board",
+        "totalCount": "Total {{count}} boards",
+        "searchPlaceholder": "Search by board name",
+        "error": {
+            "loadFailed": "Unable to load boards. Please try again.",
+            "createFailed": "Failed to create board.",
+            "updateFailed": "Failed to update board."
+        },
+        "noData": "No boards found",
+        "table": {
+            "id": "ID",
+            "name": "Name",
+            "type": "Board Type",
+            "createdAt": "Created At",
+            "updatedAt": "Updated At"
+        },
+        "form": {
+            "createTitle": "Create Board",
+            "editTitle": "Edit Board",
+            "titleLabel": "Board Name",
+            "typeLabel": "Board Type",
+            "typePlaceholder": "Select board type",
+            "hideLabel": "Hide board",
+            "mainLabel": "Use main",
+            "useMainLabel": "Show on main page",
+            "colorLabel": "Theme Color",
+            "orderLabel": "Display Order",
+            "useBadgeLabel": "Use Badge",
+            "badgeColorLabel": "Badge Color",
+            "badgesLabel": "Badge List",
+            "badgesPlaceholder": "Enter badge and press Enter",
+            "questionBadgesPlaceholder": "Enter status badge and press Enter",
+            "anonymousLabel": "Allow Anonymous Posts",
+            "common": {
+                "maxImages": "Maximum Images",
+                "maxCommentDepth": "Comment Depth",
+                "categories": "Categories",
+                "sortBy": "Sort Posts By",
+                "features": "Features",
+                "reasons": "Report Reasons"
+            },
+            "commentDepth": {
+                "0": "No comments",
+                "1": "Comments only",
+                "2": "Allow replies"
+            },
+            "sort": {
+                "latest": "Latest first",
+                "oldest": "Oldest first"
+            }
+        },
+        "toast": {
+            "createSuccess": "Board created successfully",
+            "updateSuccess": "Board updated successfully"
+        }
+    },
+    "posts": {
+        "title": "Posts",
+        "description": "Manage your posts",
+        "createButton": "Create New Post",
+        "totalCount": "Total {{count}} Posts",
+        "searchPlaceholder": "Search by post name",
+        "titlePlaceholder": "Please enter a title.",
+        "contentPlaceholder": "Please enter content",
+        "categoryPlaceholder": "Please select a category.",
+        "error": {
+            "loadFailed": "Unable to load boards. Please try again.",
+            "createFailed": "Faile to create post.",
+            "updateFailed": "Failed to update post."
+        },
+        "noData": "No posts found",
+        "table": {
+            "id": "ID",
+            "title": "Title",
+            "author": "Author",
+            "category": "Category",
+            "hidden": "Hidden",
+            "createdAt": "Created At",
+            "text": "Text"
+        },
+        "toast": {
+            "createSuccess": "Post created successfully",
+            "updateSuccess": "Post updated successfully",
+            "deleteSuccess": "Post deleted successfully"
+        },
+        "cardTitle": {
+            "update": "Edit Post",
+            "create": "Create Post"
+        },
+        "requiredMessage": {
+            "title": "Please enter a title.",
+            "text": "Please enter content.",
+            "category": "Please select a category."
+        },
+        "deleteConfirmText": "Are you sure you want to delete this post?"
+    },
+    "common": {
+        "cancel": "Cancel",
+        "create": "Create",
+        "update": "Update",
+        "retry": "Retry",
+        "updating": "Updating..",
+        "creating": "Creating.."
+    }
+}
