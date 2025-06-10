@@ -17,9 +17,21 @@ interface LoaderProps {
 
 export const Loader: React.FC<LoaderProps> = ({ size = 'sm', message = '', className = '' }) => {
     return (
-        <div className={cn('animate-pulse flex items-center space-x-2 text-primary', className)}>
-            <Loader2 className={cn('animate-spin', sizes[size])} />
-            <span className="text-sm font-medium">{message}</span>
+        <div className={cn('flex items-center space-x-3', className)}>
+            <div className="relative">
+                <Loader2 className={cn('animate-spin text-orange-500 dark:text-orange-400', sizes[size])} />
+                {size !== 'sm' && (
+                    <div
+                        className={cn(
+                            'absolute inset-0 animate-ping text-orange-500/20 dark:text-orange-400/20',
+                            sizes[size]
+                        )}
+                    >
+                        <Loader2 className={sizes[size]} />
+                    </div>
+                )}
+            </div>
+            {message && <span className="text-sm font-medium text-primary-content animate-pulse">{message}</span>}
         </div>
     );
 };

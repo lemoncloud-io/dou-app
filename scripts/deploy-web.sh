@@ -1,7 +1,7 @@
 #!/bin/bash
 
 APP_NAME=web
-BUCKET_NAME=lemon-front-web
+BUCKET_NAME=codes-front-sample
 DEV_DISTRIBUTION_ID=TODO
 PROD_DISTRIBUTION_ID=TODO
 
