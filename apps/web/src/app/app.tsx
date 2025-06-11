@@ -14,7 +14,6 @@ import { useInitWebCore, useRefreshToken } from '@lemon/web-core';
 import { Router } from './routes';
 import i18n from '../i18n';
 
-
 export function App() {
     const queryClient = new QueryClient({
         defaultOptions: {

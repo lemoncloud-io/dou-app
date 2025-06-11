@@ -1,81 +1,123 @@
-# LemonFrontStarter
+# codes-front-sample
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+### Project Structure
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is almost ready ✨.
-
-[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/tutorials/react-monorepo-tutorial?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
-
-## Finish your CI setup
-
-[Click here to finish setting up your workspace!](https://cloud.nx.app/connect/yJQBjA4L9x)
-
-## Run tasks
-
-To run the dev server for your app, use:
-
-```sh
-npx nx serve web
+```plaintext
+codes-front-sample/
+├── apps/
+│   └── web/              # Main application entry point
+├── libs/
+│   ├── web-core/         # Core authentication and initialization
+│   ├── ui-kit/           # Shared UI components library
+│   ├── shared/           # Utilities and shared logic
+│   └── theme/            # Theme management system
+├── scripts/              # Development scripts and configs
+├── nx.json               # `nx.json`
+└── package.json          # Workspace package manager configuration
 ```
 
-To create a production bundle:
+### Getting Started
 
-```sh
-npx nx build web
+#### Prerequisites
+
+-   Node.js (v20 or higher)
+-   npm or yarn
+-   Git
+
+#### Installation
+
+1. Clone the repository
+
+```bash
+$ git clone https://github.com/lemoncloud-io/codes-front-sample.git
+$ cd codes-front-sample
 ```
 
-To see all available targets to run for a project, run:
+2. Install dependencies
 
-```sh
-npx nx show project web
+```bash
+$ yarn install
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+3. Set up environment variables
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Add new projects
-
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
-
-Use the plugin's generator to create new projects.
-
-To generate a new application, use:
-
-```sh
-npx nx g @nx/react:app demo
+```bash
+$ cp apps/web/.env.example apps/web/.env.local
 ```
 
-To generate a new library, use:
+4. Start the development server
 
-```sh
-npx nx g @nx/react:lib mylib
+```
+$ yarn web:start
 ```
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
+The application will be available at http://localhost:5003
 
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+### Build
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+#### Building for Different Environments
 
-## Install Nx Console
+The project supports environment-specific builds using different configuration files:
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+```bash
+# Production build
+$ yarn web:build:prod
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+# Development build
+$ yarn web:build:dev
+```
 
-## Useful links
+**Required Environment Files:**
 
-Learn more:
+-   `apps/web/.env.prod` - Production environment variables
+-   `apps/web/.env.dev` - Development environment variables
 
--   [Learn more about this workspace setup](https://nx.dev/getting-started/tutorials/react-monorepo-tutorial?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
--   [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
--   [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
--   [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+Make sure these files exist before running the build commands. You can copy from the example:
 
-And join the Nx community:
+```bash
+$ cp apps/web/.env.example apps/web/.env.prod
+$ cp apps/web/.env.example apps/web/.env.dev
+```
 
--   [Discord](https://go.nx.dev/community)
--   [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
--   [Our Youtube channel](https://www.youtube.com/@nxdevtools)
--   [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+#### Build Output
+
+Built files are generated in:
+
+```
+dist/apps/web/
+```
+
+This directory contains the complete static application ready for deployment.
+
+#### Testing Built Application
+
+To test the production build locally, use `http-server`:
+
+```bash
+# Install http-server globally if not already installed
+$ npm install -g http-server
+
+# Serve the built application
+$ http-server dist/apps/web -p 8080
+
+# Or with specific options
+$ http-server dist/apps/web -p 8080 -o --cors
+```
+
+The built application will be available at http://localhost:8080
+
+### Tech Stack
+
+-   **Frontend Framework:** React with TypeScript
+-   **Project Structure:** Nx Monorepo
+-   **Styling:** Tailwind CSS
+-   **UI Components:** Radix UI
+-   **Internationalization:** i18next
+
+### Contributing
+
+1. Fork the repository
+2. Create your feature branch ( git checkout -b feature/amazing-feature )
+3. Commit your changes ( git commit -m 'feat: add amazing feature' )
+4. Push to the branch ( git push origin feature/amazing-feature )
+5. Open a Pull Request
