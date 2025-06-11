@@ -45,7 +45,7 @@ export const handleAuthError = (error: any, shouldLogout: boolean, message?: str
 
     if (shouldLogout) {
         alert(`인증 오류: ${errorMessage}`);
-        window.location.href = '/logout';
+        window.location.href = '/auth/logout';
     } else {
         console.error(`요청 오류: ${errorMessage}`);
     }

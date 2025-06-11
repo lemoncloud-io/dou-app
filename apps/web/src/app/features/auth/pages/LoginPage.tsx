@@ -8,6 +8,7 @@ import { Images } from '@lemon/assets';
 import { useGlobalLoader } from '@lemon/shared';
 import { Button } from '@lemon/ui-kit/components/ui/button';
 import { Card } from '@lemon/ui-kit/components/ui/card';
+import { HOST, SOCIAL_OAUTH_ENDPOINT } from '@lemon/web-core';
 
 import { SettingsControl } from '../../../shared';
 
@@ -22,12 +23,10 @@ export const LoginPage = () => {
     const onClickLogin = (provider: string) => {
         setIsLoading(true);
         setGlobalLoading(true);
-        const HOST = import.meta.env.VITE_HOST.toLowerCase();
-        const SOCIAL_OAUTH = import.meta.env.VITE_SOCIAL_OAUTH_ENDPOINT.toLowerCase();
         const state = encodeURIComponent(JSON.stringify({ from }));
         const redirectUrl = `${HOST}/auth/oauth-response?state=${state}`;
 
-        window.location.replace(`${SOCIAL_OAUTH}/oauth/${provider}/authorize?redirect=${redirectUrl}`);
+        window.location.replace(`${SOCIAL_OAUTH_ENDPOINT}/oauth/${provider}/authorize?redirect=${redirectUrl}`);
     };
 
     return (

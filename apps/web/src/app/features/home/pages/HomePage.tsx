@@ -137,7 +137,7 @@ export const HomePage = () => {
                                     variant="ghost"
                                     size="sm"
                                     className="text-secondary-content hover:text-primary-content hover:bg-white/10 dark:hover:bg-white/5"
-                                    onClick={() => navigate('/logout')}
+                                    onClick={() => navigate('/auth/logout')}
                                 >
                                     <LogOut className="w-5 h-5" />
                                 </Button>

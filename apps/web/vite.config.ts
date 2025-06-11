@@ -5,6 +5,36 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import svgr from 'vite-plugin-svgr';
 
+const removeVitePrefix = (envVar: string) => envVar.replace('VITE_', '');
+
+const htmlEnvInjectionPlugin = () => {
+    return {
+        name: 'html-env-injection',
+        transformIndexHtml: {
+            transform(html: string) {
+                const envVars = Object.entries(process.env)
+                    .filter(([key]) => key.startsWith('VITE_'))
+                    .reduce((acc, [key, value]) => {
+                        acc[removeVitePrefix(key)] = value || '';
+                        return acc;
+                    }, {} as Record<string, string>);
+
+                const envScript = `
+                <script>
+                    (function() {
+                        ${Object.entries(envVars)
+                            .map(([key, value]) => `window.${key}="${value}";`)
+                            .join('\n')}
+                    })();
+                </script>
+            `;
+
+                return html.replace(/<body>/, `${envScript}\n<body>`);
+            },
+        },
+    };
+};
+
 export default defineConfig({
     root: __dirname,
     cacheDir: '../../node_modules/.vite/apps/web',
@@ -44,7 +74,7 @@ export default defineConfig({
         host: 'localhost',
     },
 
-    plugins: [svgr(), react(), nxViteTsPaths(), nxCopyAssetsPlugin(['*.md'])],
+    plugins: [htmlEnvInjectionPlugin(), svgr(), react(), nxViteTsPaths(), nxCopyAssetsPlugin(['*.md'])],
 
     // Uncomment this if you are using workers.
     // worker: {
