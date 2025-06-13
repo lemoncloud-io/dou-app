@@ -55,6 +55,57 @@ export const refreshAuthToken = async () => {
     );
 };
 
+export const fetchProfile = async () => {
+    try {
+        return await withRetry(
+            async () => {
+                const { data } = await webCore
+                    .buildSignedRequest({
+                        method: 'GET',
+                        baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
+                    })
+                    .execute<UserProfile>();
+                return data;
+            },
+            MAX_RETRIES,
+            'Profile fetch'
+        );
+    } catch (error: any) {
+        const is403 =
+            error?.status === 403 ||
+            error?.response?.status === 403 ||
+            (error?.message && error.message.includes('403'));
+
+        if (is403) {
+            console.log('Profile fetch got 403, attempting token refresh...');
+            try {
+                await refreshAuthToken();
+                // Retry profile fetch once after successful token refresh
+                return await withRetry(
+                    async () => {
+                        const { data } = await webCore
+                            .buildSignedRequest({
+                                method: 'GET',
+                                baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
+                            })
+                            .execute<UserProfile>();
+                        return data;
+                    },
+                    1,
+                    'Profile fetch after token refresh'
+                );
+            } catch (refreshError) {
+                // If refreshAuthToken fails with 403, it will handle logout automatically
+                // For other refresh errors, re-throw the original profile fetch error
+                console.error('Token refresh failed during profile fetch:', refreshError);
+                throw error;
+            }
+        }
+        // For non-403 errors, just re-throw
+        throw error;
+    }
+};
+
 export const updateProfile = async (body: Partial<UserProfile>) => {
     try {
         return await withRetry(

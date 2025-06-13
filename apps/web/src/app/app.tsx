@@ -9,7 +9,7 @@ import { Toaster } from 'sonner';
 
 import { ErrorFallback, GlobalLoader, LoadingFallback } from '@lemon/shared';
 import { ThemeProvider } from '@lemon/theme';
-import { useInitWebCore, useRefreshToken } from '@lemon/web-core';
+import { useInitWebCore, useTokenRefresh, useWebCoreStore } from '@lemon/web-core';
 
 import { Router } from './routes';
 import i18n from '../i18n';
@@ -24,10 +24,12 @@ export function App() {
         },
     });
 
-    const isInitialized = useInitWebCore();
-    useRefreshToken();
+    const isWebCoreReady = useInitWebCore();
+    const { isAuthenticated } = useWebCoreStore();
+    const { isInitialized: isTokenInitialized } = useTokenRefresh(isWebCoreReady);
+    const canRenderApp = isWebCoreReady && (!isAuthenticated || isTokenInitialized);
 
-    if (!isInitialized) {
+    if (!canRenderApp) {
         return <LoadingFallback />;
     }
 

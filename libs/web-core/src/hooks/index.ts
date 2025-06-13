@@ -1,4 +1,4 @@
 export * from './useInitWebCore';
-export * from './useRefreshToken';
 export * from './useLogout';
+export * from './useTokenRefresh';
 export * from './useProfile';
