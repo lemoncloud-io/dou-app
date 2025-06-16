@@ -1727,10 +1727,10 @@
   dependencies:
     lemon-model "^1.0.3"
 
-"@lemoncloud/lemon-web-core@^1.2.13":
-  version "1.2.13"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/lemon-web-core/-/lemon-web-core-1.2.13.tgz#cd6edb9daeee234ba6e527d634848866301b8139"
-  integrity sha512-vr/jqCrPbioDaRZTznTNE0nE4b8JxpHKSTAD1S81Ka3quLtXPkcwTE1+PnR9CpdsUpiTX593zHCWybYKf7E7NA==
+"@lemoncloud/lemon-web-core@^1.4.1":
+  version "1.4.1"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/lemon-web-core/-/lemon-web-core-1.4.1.tgz#d70b4f4a580ec356f03dd3f0cc51c63c91c54dfd"
+  integrity sha512-CvJ40KEwSAoTux3Cf2tOIq6AGmLyvG3MQ6G6213d0wkx8yskVgA4ddgQgdNexSoHrvamLwzhsUtPqKKKbaNPkw==
   dependencies:
     aws-sdk "^2.1630.0"
     axios "^1.7.2"
