@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { fetchProfile, refreshAuthToken } from '../api';
 import { useWebCoreStore } from '../stores';
+import { classifyError } from '../utils';
+
+import type { ErrorClassification } from '../utils';
 
 const REFRESH_INTERVAL = 1000 * 60; // 1분
 const MIN_REFRESH_GAP = 5000; // 5초 간격 제한
@@ -29,17 +32,12 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             return true;
         } catch (error) {
             console.error('❌ Token refresh failed:', error);
-
-            const is403 =
-                error?.status === 403 ||
-                error?.response?.status === 403 ||
-                (error?.message && error.message.includes('403'));
-            if (is403) {
-                console.log('🚪 Token completely expired - logging out...');
+            const errorClassification: ErrorClassification = classifyError(error);
+            if (errorClassification.shouldLogout) {
+                console.log('🚪 Token completely expired or invalid - logging out...');
                 await logout();
                 return false;
             }
-
             console.log('⚠️ Temporary refresh failure, will retry later');
             return true;
         } finally {
@@ -87,6 +85,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
                 error?.status === 403 ||
                 error?.response?.status === 403 ||
                 (error?.message && error.message.includes('403'));
+
             if (is403) {
                 console.log('🔄 Profile fetch got 403, refreshing token once more...');
                 const refreshSuccess = await refreshToken();
@@ -106,7 +105,6 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
 
     useEffect(() => {
         if (isAuthenticated && webCoreReady) {
-            // webCoreReady 조건 추가
             initialize().then(() => {
                 if (isInitializedRef.current) {
                     startInterval();

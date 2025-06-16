@@ -1,5 +1,5 @@
 import { OAUTH_ENDPOINT, webCore } from '../core';
-import { MAX_RETRIES, withRetry } from '../utils';
+import { MAX_RETRIES, validateTokenResponse, withRetry } from '../utils';
 
 import type { UserProfile } from '../stores';
 import type { LemonOAuthToken, RefreshTokenBody } from '@lemoncloud/lemon-web-core';
@@ -42,13 +42,12 @@ export const refreshAuthToken = async () => {
                 .setBody({ ...body })
                 .execute<LemonOAuthToken>();
 
-            const refreshToken = {
-                ...response.data.Token,
-                identityToken: response.data.identityToken || originToken.identityToken || '',
-                identityPoolId: response.data.identityPoolId || originToken.identityPoolId || '',
+            const tokenData = {
+                identityPoolId: originToken.identityPoolId,
+                ...(response.data.Token ? response.data.Token : response.data),
             };
-
-            await webCore.buildCredentialsByToken(refreshToken);
+            const validatedToken: LemonOAuthToken = validateTokenResponse(tokenData);
+            await webCore.buildCredentialsByToken(validatedToken);
         },
         MAX_RETRIES,
         'Token refresh'
@@ -56,54 +55,19 @@ export const refreshAuthToken = async () => {
 };
 
 export const fetchProfile = async () => {
-    try {
-        return await withRetry(
-            async () => {
-                const { data } = await webCore
-                    .buildSignedRequest({
-                        method: 'GET',
-                        baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
-                    })
-                    .execute<UserProfile>();
-                return data;
-            },
-            MAX_RETRIES,
-            'Profile fetch'
-        );
-    } catch (error: any) {
-        const is403 =
-            error?.status === 403 ||
-            error?.response?.status === 403 ||
-            (error?.message && error.message.includes('403'));
-
-        if (is403) {
-            console.log('Profile fetch got 403, attempting token refresh...');
-            try {
-                await refreshAuthToken();
-                // Retry profile fetch once after successful token refresh
-                return await withRetry(
-                    async () => {
-                        const { data } = await webCore
-                            .buildSignedRequest({
-                                method: 'GET',
-                                baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
-                            })
-                            .execute<UserProfile>();
-                        return data;
-                    },
-                    1,
-                    'Profile fetch after token refresh'
-                );
-            } catch (refreshError) {
-                // If refreshAuthToken fails with 403, it will handle logout automatically
-                // For other refresh errors, re-throw the original profile fetch error
-                console.error('Token refresh failed during profile fetch:', refreshError);
-                throw error;
-            }
-        }
-        // For non-403 errors, just re-throw
-        throw error;
-    }
+    return await withRetry(
+        async () => {
+            const { data } = await webCore
+                .buildSignedRequest({
+                    method: 'GET',
+                    baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
+                })
+                .execute<UserProfile>();
+            return data;
+        },
+        MAX_RETRIES,
+        'Profile fetch'
+    );
 };
 
 export const updateProfile = async (body: Partial<UserProfile>) => {
