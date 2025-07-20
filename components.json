@@ -1,0 +1,20 @@
+{
+    "$schema": "https://ui.shadcn.com/schema.json",
+    "style": "new-york",
+    "rsc": false,
+    "tsx": true,
+    "tailwind": {
+        "config": "apps/**/tailwind.config.js",
+        "css": "apps/**/app/style.css",
+        "baseColor": "stone",
+        "cssVariables": true
+    },
+    "aliases": {
+        "components": "@lemon/ui-kit/components",
+        "utils": "@lemon/ui-kit/utils",
+        "ui": "@lemon/ui-kit/components/ui",
+        "lib": "@lemon/ui-kit/utils",
+        "hooks": "@lemon/ui-kit/hooks"
+    },
+    "iconLibrary": "lucide"
+}

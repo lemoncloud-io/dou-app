@@ -1,0 +1,240 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --background: 0 0% 100%;
+        --foreground: 20 14.3% 4.1%;
+        --card: 0 0% 100%;
+        --card-foreground: 20 14.3% 4.1%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 20 14.3% 4.1%;
+        --primary: 18 83% 56%; /* #ED6F31 */
+        --primary-foreground: 0 0% 98%;
+        --secondary: 35 89% 62%; /* #F6AD46 */
+        --secondary-foreground: 20 14.3% 4.1%;
+        --muted: 60 4.8% 95.9%;
+        --muted-foreground: 25 5.3% 44.7%;
+        --accent: 60 4.8% 95.9%;
+        --accent-foreground: 20 14.3% 4.1%;
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 20 5.9% 90%;
+        --input: 20 5.9% 90%;
+        --ring: 18 83% 56%;
+        --radius: 0.5rem;
+
+        /* LemonCloud Brand Colors - Light Mode */
+        --lemon-primary: 18 83% 56%; /* #ED6F31 */
+        --lemon-secondary: 35 89% 62%; /* #F6AD46 */
+        --lemon-gradient-start: 35 89% 62%;
+        --lemon-gradient-end: 18 83% 56%;
+
+        /* Light Mode Backgrounds */
+        --cosmic-bg: linear-gradient(-45deg, #f8f9fa, #e9ecef, #dee2e6, #ced4da);
+        --aurora-bg: linear-gradient(
+            135deg,
+            hsla(35, 89%, 62%, 0.1) 0%,
+            hsla(18, 83%, 56%, 0.1) 25%,
+            hsla(35, 89%, 62%, 0.05) 50%,
+            hsla(18, 83%, 56%, 0.1) 75%,
+            hsla(35, 89%, 62%, 0.1) 100%
+        );
+    }
+
+    .dark {
+        --background: 20 14.3% 4.1%;
+        --foreground: 0 0% 95%;
+        --card: 20 14.3% 4.1%;
+        --card-foreground: 0 0% 95%;
+        --popover: 20 14.3% 4.1%;
+        --popover-foreground: 0 0% 95%;
+        --primary: 18 75% 50%; /* Darker for dark mode */
+        --primary-foreground: 0 0% 9%;
+        --secondary: 35 80% 55%; /* Darker for dark mode */
+        --secondary-foreground: 0 0% 9%;
+        --muted: 12 6.5% 15.1%;
+        --muted-foreground: 24 5.4% 63.9%;
+        --accent: 12 6.5% 15.1%;
+        --accent-foreground: 0 0% 95%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 0 0% 95%;
+        --border: 12 6.5% 15.1%;
+        --input: 12 6.5% 15.1%;
+        --ring: 35 80% 55%;
+
+        /* LemonCloud Brand Colors - Dark Mode */
+        --lemon-primary: 18 75% 50%; /* Darker orange */
+        --lemon-secondary: 35 80% 55%; /* Darker yellow */
+        --lemon-gradient-start: 35 80% 55%;
+        --lemon-gradient-end: 18 75% 50%;
+
+        /* Dark Mode Backgrounds */
+        --cosmic-bg: linear-gradient(-45deg, #0a0a0a, #1a1410, #2d1f10, #3d2818);
+        --aurora-bg: linear-gradient(
+            135deg,
+            hsla(35, 80%, 55%, 0.08) 0%,
+            hsla(18, 75%, 50%, 0.08) 25%,
+            hsla(35, 80%, 55%, 0.04) 50%,
+            hsla(18, 75%, 50%, 0.08) 75%,
+            hsla(35, 80%, 55%, 0.08) 100%
+        );
+    }
+}
+
+@layer utilities {
+    .glass {
+        @apply backdrop-blur-xl bg-white/10 dark:bg-black/20 border border-white/20 dark:border-white/10;
+    }
+
+    .glass-strong {
+        @apply backdrop-blur-2xl bg-white/15 dark:bg-black/30 border border-white/30 dark:border-white/15;
+    }
+
+    /* Theme-aware backgrounds */
+    .bg-lemon-cosmic {
+        background: var(--cosmic-bg);
+    }
+
+    .bg-lemon-aurora {
+        background: var(--aurora-bg);
+    }
+
+    .bg-lemon-gradient {
+        background: linear-gradient(135deg, hsl(var(--lemon-gradient-start)), hsl(var(--lemon-gradient-end)));
+    }
+
+    .text-lemon-gradient {
+        background: linear-gradient(135deg, hsl(var(--lemon-gradient-start)), hsl(var(--lemon-gradient-end)));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    /* Explicit text colors for better contrast */
+    .text-primary-content {
+        @apply text-gray-900 dark:text-white;
+    }
+
+    .text-secondary-content {
+        @apply text-gray-700 dark:text-gray-200;
+    }
+
+    .text-muted-content {
+        @apply text-gray-600 dark:text-gray-400;
+    }
+
+    /* Animation utilities remain the same */
+    .animate-float {
+        animation: float 6s ease-in-out infinite;
+    }
+
+    .animate-glow {
+        animation: glow 3s ease-in-out infinite alternate;
+    }
+
+    .animate-slide-up {
+        animation: slideUp 0.8s ease-out forwards;
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 1s ease-out forwards;
+    }
+
+    .animate-gradient {
+        background-size: 200% 200%;
+        animation: gradientShift 8s ease infinite;
+    }
+
+    .z-background {
+        z-index: 1;
+    }
+    .z-content {
+        z-index: 10;
+    }
+    .z-header {
+        z-index: 20;
+    }
+    .z-dropdown {
+        z-index: 30;
+    }
+    .z-modal {
+        z-index: 40;
+    }
+    .z-tooltip {
+        z-index: 50;
+    }
+    .z-debug {
+        z-index: 9999;
+    }
+}
+
+@keyframes float {
+    0%,
+    100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+    33% {
+        transform: translateY(-10px) rotate(1deg);
+    }
+    66% {
+        transform: translateY(-5px) rotate(-1deg);
+    }
+}
+
+@keyframes glow {
+    from {
+        box-shadow: 0 0 20px hsla(var(--lemon-primary), 0.3);
+    }
+    to {
+        box-shadow: 0 0 40px hsla(var(--lemon-primary), 0.6);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes scale-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.animate-scale-in {
+    animation: scale-in 0.2s ease-out;
+}
