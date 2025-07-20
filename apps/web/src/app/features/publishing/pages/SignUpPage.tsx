@@ -197,7 +197,7 @@ export const SignUpPage: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col h-screen mx-auto bg-white">
+        <div className="flex flex-col h-screen mx-auto bg-background">
             {/* Header */}
             <BrandHeader showBorder={false} />
 
@@ -249,7 +249,7 @@ export const SignUpPage: React.FC = () => {
             </div>
 
             {/* Chat Input */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white px-4 py-4">
+            <div className="fixed bottom-0 left-0 right-0 bg-background px-4 py-4">
                 <ChatInput
                     ref={chatInputRef}
                     placeholder={getPlaceholder()}
