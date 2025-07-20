@@ -145,12 +145,7 @@ export const SignUpPage: React.FC = () => {
 
             // 기존 메시지 삭제 후 새로운 메시지 표시
             setTimeout(async () => {
-                await addTypingMessage('이메일 인증 페이지로 이동할게요! ✈️', true, 0);
-
-                // 페이지 이동
-                setTimeout(() => {
-                    navigate('/publishing/email-verification', { state: { email: message } });
-                }, 1500);
+                navigate('/publishing/email-verification', { state: { email: message } });
             }, 1000);
         } else if (currentStep === 'verification') {
             // 인증번호 입력 단계
