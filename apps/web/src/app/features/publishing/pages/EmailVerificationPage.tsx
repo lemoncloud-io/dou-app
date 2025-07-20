@@ -28,6 +28,7 @@ export const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ em
 
     // ChatInput에 대한 ref 생성
     const chatInputRef = React.useRef<HTMLInputElement>(null);
+    const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
     const validateEmail = (email: string): boolean => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -170,6 +171,15 @@ export const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ em
         }, 800);
     };
 
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // 메시지가 변경될 때마다 자동 스크롤
+    React.useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
     const getPlaceholder = (): string => {
         return '인증번호를 입력해 주세요';
     };
@@ -216,6 +226,7 @@ export const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ em
                             />
                         );
                     })}
+                    <div ref={messagesEndRef} />
                 </div>
             </div>
 

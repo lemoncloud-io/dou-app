@@ -29,6 +29,7 @@ export const SignUpPage: React.FC = () => {
 
     // ChatInput에 대한 ref 생성
     const chatInputRef = React.useRef<HTMLInputElement>(null);
+    const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
     const validateEmail = (email: string): boolean => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -186,6 +187,15 @@ export const SignUpPage: React.FC = () => {
         }
     };
 
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // 메시지가 변경될 때마다 자동 스크롤
+    React.useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
     const getPlaceholder = (): string => {
         switch (currentStep) {
             case 'email':
@@ -246,6 +256,7 @@ export const SignUpPage: React.FC = () => {
                             />
                         );
                     })}
+                    <div ref={messagesEndRef} />
                 </div>
             </div>
 

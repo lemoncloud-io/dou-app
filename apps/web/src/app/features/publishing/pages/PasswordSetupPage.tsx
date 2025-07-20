@@ -28,6 +28,7 @@ export const PasswordSetupPage: React.FC<PasswordSetupPageProps> = ({ email, onC
 
     const chatInputRef = useRef<HTMLInputElement>(null);
     const isComponentMountedRef = useRef(true);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Cleanup effect
     useEffect(() => {
@@ -166,6 +167,15 @@ export const PasswordSetupPage: React.FC<PasswordSetupPageProps> = ({ email, onC
         }
     }, [addTypingMessage]);
 
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // 메시지가 변경될 때마다 자동 스크롤
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
     const getPlaceholder = useCallback(() => {
         return currentStep === 'password' ? '비밀번호를 입력해 주세요 (8자 이상)' : '비밀번호를 다시 입력해 주세요';
     }, [currentStep]);
@@ -203,6 +213,7 @@ export const PasswordSetupPage: React.FC<PasswordSetupPageProps> = ({ email, onC
                             />
                         );
                     })}
+                    <div ref={messagesEndRef} />
                 </div>
             </div>
 
