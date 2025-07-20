@@ -110,6 +110,9 @@ module.exports = {
                 'chatic-lg': '24px',
                 'chatic-xl': '32px',
             },
+            animation: {
+                'typing-pulse': 'pulse 1.4s ease-in-out infinite',
+            },
         },
     },
     plugins: [],

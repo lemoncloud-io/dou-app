@@ -53,32 +53,43 @@ interface ChatInputProps extends React.InputHTMLAttributes<HTMLInputElement>, Va
 }
 
 const ChatInput = React.forwardRef<HTMLInputElement, ChatInputProps>(
-    ({ className, variant, size, onSend, sendButtonVariant, sendButtonSize, containerClassName, ...props }, ref) => {
+    (
+        { className, variant, size, onSend, sendButtonVariant, sendButtonSize, containerClassName, disabled, ...props },
+        ref
+    ) => {
         const [value, setValue] = React.useState('');
 
         const handleSend = () => {
-            if (value.trim() && onSend) {
+            if (value.trim() && onSend && !disabled) {
                 onSend(value);
                 setValue('');
             }
         };
 
         const handleKeyPress = (e: React.KeyboardEvent) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === 'Enter' && !e.shiftKey && !disabled) {
                 e.preventDefault();
                 handleSend();
             }
         };
 
         return (
-            <div className={cn(chatInputVariants({ variant, size }), containerClassName)}>
+            <div
+                className={cn(
+                    chatInputVariants({ variant, size }),
+                    disabled && 'opacity-50 cursor-not-allowed',
+                    containerClassName
+                )}
+            >
                 <input
                     ref={ref}
                     value={value}
-                    onChange={e => setValue(e.target.value)}
+                    onChange={e => !disabled && setValue(e.target.value)}
                     onKeyPress={handleKeyPress}
+                    disabled={disabled}
                     className={cn(
                         'flex-1 bg-transparent focus:outline-none font-chatic text-chatic-md leading-6 text-chatic-text-primary placeholder:text-chatic-text-secondary',
+                        disabled && 'cursor-not-allowed',
                         className
                     )}
                     {...props}
@@ -86,7 +97,7 @@ const ChatInput = React.forwardRef<HTMLInputElement, ChatInputProps>(
                 <div className="ml-3">
                     <button
                         onClick={handleSend}
-                        disabled={!value.trim()}
+                        disabled={!value.trim() || disabled}
                         className={cn(
                             chatInputButtonVariants({
                                 variant: sendButtonVariant || 'default',

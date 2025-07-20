@@ -32,3 +32,5 @@ export * from './components/ui/chat-input';
 export * from './components/ui/chat-message';
 export * from './components/ui/chat-button';
 export * from './components/ui/brand-header';
+export * from './components/ui/typing-indicator';
+export * from './components/ui/typing-message';
