@@ -19,19 +19,18 @@ export const Loader: React.FC<LoaderProps> = ({ size = 'sm', message = '', class
     return (
         <div className={cn('flex items-center space-x-3', className)}>
             <div className="relative">
-                <Loader2 className={cn('animate-spin text-orange-500 dark:text-orange-400', sizes[size])} />
+                <Loader2 className={cn('animate-spin text-chatic-primary', sizes[size])} />
                 {size !== 'sm' && (
-                    <div
-                        className={cn(
-                            'absolute inset-0 animate-ping text-orange-500/20 dark:text-orange-400/20',
-                            sizes[size]
-                        )}
-                    >
+                    <div className={cn('absolute inset-0 animate-ping text-chatic-primary/20', sizes[size])}>
                         <Loader2 className={sizes[size]} />
                     </div>
                 )}
             </div>
-            {message && <span className="text-sm font-medium text-primary-content animate-pulse">{message}</span>}
+            {message && (
+                <span className="text-chatic-sm font-chatic font-medium text-chatic-text-primary animate-pulse">
+                    {message}
+                </span>
+            )}
         </div>
     );
 };

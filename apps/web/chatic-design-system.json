@@ -1,0 +1,527 @@
+{
+    "designSystem": {
+        "name": "Chatic Design System",
+        "version": "2.0.0",
+        "description": "A comprehensive messaging app design system with Korean language support, extensive component library, and mobile-first approach",
+
+        "brand": {
+            "name": "Chatic",
+            "logo": {
+                "font": "Aldrich:Regular",
+                "size": 23,
+                "letterSpacing": -1.38,
+                "gradient": {
+                    "type": "linear",
+                    "direction": "to-right",
+                    "stops": [
+                        { "color": "#0b1933", "position": "3.75%" },
+                        { "color": "#102f6b", "position": "46.884%" },
+                        { "color": "#3968c3", "position": "94.375%" }
+                    ]
+                }
+            },
+            "iconPack": {
+                "style": "stroke",
+                "weight": "regular",
+                "size": 16,
+                "color": "#3A3C40"
+            }
+        },
+
+        "colors": {
+            "primary": {
+                "gradient": {
+                    "from": "#0b1933",
+                    "via": "#102f6b",
+                    "to": "#3968c3"
+                },
+                "main": "#3968c3",
+                "border": "#3968c3",
+                "shadow": "#c7daff"
+            },
+            "secondary": {
+                "BK_50": "#F4F5F5",
+                "BK_100": "#EAEAEC",
+                "BK_200": "#DFE0E2",
+                "BK_300": "#CFD0D3",
+                "BK_400": "#BABCC0",
+                "BK_500": "#9FA2A7",
+                "BK_600": "#84888F",
+                "BK_700": "#53555B",
+                "BK_800": "#3A3C40",
+                "BK_900": "#222325"
+            },
+            "neutral": {
+                "white": "#FFFFFF",
+                "black": "#081837",
+                "background": "#E6E6E6",
+                "surface": "#FDFDFD",
+                "divider": "#EAEAEC"
+            },
+            "accent": {
+                "blue": "#2a7ef4",
+                "purple": "#c139e3",
+                "error": "#f34822"
+            },
+            "gradients": {
+                "primary": "linear-gradient(to right, #0b1933 3.75%, #102f6b 46.884%, #3968c3 94.375%)",
+                "secondary": "linear-gradient(to right, #3968c3 3.75%, #102f6b 46.884%, #2a63d1 94.375%)"
+            },
+            "text": {
+                "primary": "#3A3C40",
+                "secondary": "#BABCC0",
+                "tertiary": "#84888F",
+                "inverse": "#FFFFFF",
+                "accent": "#081837"
+            }
+        },
+
+        "typography": {
+            "fontFamilies": {
+                "primary": "Pretendard",
+                "brand": "Aldrich",
+                "system": "SF Pro Display"
+            },
+            "scale": {
+                "xs": 10,
+                "sm": 12,
+                "base": 14,
+                "md": 16,
+                "lg": 18,
+                "xl": 20,
+                "2xl": 23,
+                "3xl": 28,
+                "4xl": 80
+            },
+            "weights": {
+                "regular": 400,
+                "medium": 500,
+                "semibold": 600,
+                "bold": 700
+            },
+            "variants": {
+                "display": {
+                    "fontFamily": "SF Pro Display",
+                    "fontSize": 80,
+                    "fontWeight": 700,
+                    "lineHeight": 1.3
+                },
+                "h1": {
+                    "fontFamily": "Aldrich",
+                    "fontSize": 28,
+                    "fontWeight": 400,
+                    "letterSpacing": -1.38
+                },
+                "h2": {
+                    "fontFamily": "Aldrich",
+                    "fontSize": 23,
+                    "fontWeight": 400,
+                    "letterSpacing": -1.38
+                },
+                "h3": {
+                    "fontFamily": "Aldrich",
+                    "fontSize": 16,
+                    "fontWeight": 400,
+                    "letterSpacing": -0.96
+                },
+                "body_large_semibold": {
+                    "fontFamily": "Pretendard",
+                    "fontSize": 16,
+                    "fontWeight": 600,
+                    "lineHeight": 1.5
+                },
+                "body_large_medium": {
+                    "fontFamily": "Pretendard",
+                    "fontSize": 16,
+                    "fontWeight": 500,
+                    "lineHeight": 1.5
+                },
+                "body_large_regular": {
+                    "fontFamily": "Pretendard",
+                    "fontSize": 16,
+                    "fontWeight": 400,
+                    "lineHeight": 1.5
+                },
+                "body_medium": {
+                    "fontFamily": "Pretendard",
+                    "fontSize": 14,
+                    "fontWeight": 500,
+                    "lineHeight": 1.5
+                },
+                "body_regular": {
+                    "fontFamily": "Pretendard",
+                    "fontSize": 14,
+                    "fontWeight": 400,
+                    "lineHeight": 1.5
+                },
+                "caption_medium": {
+                    "fontFamily": "Pretendard",
+                    "fontSize": 12,
+                    "fontWeight": 500,
+                    "lineHeight": 1.5
+                },
+                "caption_regular": {
+                    "fontFamily": "Pretendard",
+                    "fontSize": 12,
+                    "fontWeight": 400,
+                    "lineHeight": 1.5
+                }
+            }
+        },
+
+        "spacing": {
+            "unit": 4,
+            "scale": {
+                "xs": 4,
+                "sm": 8,
+                "md": 16,
+                "lg": 24,
+                "xl": 32
+            }
+        },
+
+        "borderRadius": {
+            "xs": 4.5,
+            "sm": 16,
+            "md": 36,
+            "lg": 100,
+            "full": "100%"
+        },
+
+        "shadows": {
+            "keyboard": "0px 1px 1px 0px rgba(0,0,0,0.14)",
+            "inputFocus": "0px 0px 3px 20px #c7daff"
+        },
+
+        "layout": {
+            "mobile": {
+                "width": 360,
+                "statusBarHeight": 24,
+                "headerHeight": 48,
+                "bottomNavigationHeight": 48,
+                "keyboardHeight": 250
+            },
+            "padding": {
+                "horizontal": 16,
+                "vertical": 8
+            }
+        },
+
+        "components": {
+            "header": {
+                "mobile": {
+                    "height": 64,
+                    "padding": { "top": 24, "bottom": 4, "horizontal": 16 },
+                    "borderBottom": {
+                        "show": false,
+                        "color": "#EAEAEC",
+                        "width": 1
+                    }
+                },
+                "desktop": {
+                    "height": 60,
+                    "padding": { "horizontal": 16, "vertical": 12 }
+                }
+            },
+
+            "topBar": {
+                "height": 56,
+                "backgroundColor": "#FFFFFF",
+                "padding": { "horizontal": 16, "vertical": 12 },
+                "centerTitle": true,
+                "leftAction": "menu",
+                "rightAction": "more"
+            },
+
+            "profile": {
+                "avatar": {
+                    "sizes": {
+                        "small": 20,
+                        "medium": 32,
+                        "large": 38
+                    },
+                    "borderWidth": 0.5,
+                    "borderColor": "#CFD0D3",
+                    "backgroundColor": "#FFFFFF"
+                },
+                "card": {
+                    "padding": { "horizontal": 11, "vertical": 10 },
+                    "borderRadius": 16,
+                    "borderWidth": 0.5,
+                    "borderColor": "#3968c3",
+                    "shadow": "0px 0px 8px 0px rgba(0,0,0,0.1)",
+                    "backgroundColor": "#FFFFFF"
+                },
+                "badge": {
+                    "padding": { "horizontal": 5, "vertical": 5 },
+                    "borderRadius": 6,
+                    "backgroundColor": "#F4F5F5",
+                    "gradient": "linear-gradient(to right, #3968c3 3.75%, #102f6b 46.884%, #2a63d1 94.375%)"
+                }
+            },
+
+            "list": {
+                "item": {
+                    "height": 52,
+                    "padding": { "horizontal": 0, "vertical": 0 },
+                    "gap": 6
+                },
+                "divider": {
+                    "height": 1,
+                    "color": "#EAEAEC"
+                }
+            },
+
+            "badge": {
+                "small": {
+                    "padding": { "horizontal": 8, "vertical": 5 },
+                    "borderRadius": 100,
+                    "backgroundColor": "#EAEAEC",
+                    "fontSize": 12,
+                    "removable": true
+                }
+            },
+
+            "radioButton": {
+                "size": 20,
+                "borderWidth": 2,
+                "borderColor": "#BABCC0",
+                "selectedColor": "#3968c3",
+                "innerSize": 8
+            },
+
+            "dropdown": {
+                "padding": { "horizontal": 25, "vertical": 10 },
+                "borderRadius": 8,
+                "borderWidth": 1,
+                "borderColor": "#EAEAEC",
+                "shadow": "0px 2px 4px 0px rgba(0,0,0,0.12)",
+                "backgroundColor": "#FFFFFF",
+                "minWidth": 100
+            },
+
+            "snackbar": {
+                "height": 48,
+                "padding": { "horizontal": 16, "vertical": 14 },
+                "borderRadius": 0,
+                "backgroundColor": "#3A3C40",
+                "textColor": "#FFFFFF",
+                "shadow": "0px 4px 8px 3px rgba(0,0,0,0.15), 0px 1px 3px 0px rgba(0,0,0,0.3)",
+                "width": 344
+            },
+
+            "iconButton": {
+                "sizes": {
+                    "small": 16,
+                    "medium": 20,
+                    "large": 24
+                },
+                "padding": 2,
+                "borderRadius": 4,
+                "hoverBackground": "#F4F5F5"
+            },
+
+            "logoButton": {
+                "sizes": {
+                    "small": 60,
+                    "medium": 80,
+                    "large": 100
+                },
+                "borderRadius": 12,
+                "borderWidth": 0.5,
+                "variants": {
+                    "light": {
+                        "backgroundColor": "#FFFFFF",
+                        "borderColor": "#000000",
+                        "textColor": "#081837"
+                    },
+                    "dark": {
+                        "backgroundColor": "#000000",
+                        "borderColor": "#000000",
+                        "textColor": "#FFFFFF"
+                    }
+                }
+            },
+
+            "chatInput": {
+                "borderRadius": 100,
+                "borderWidth": 2,
+                "borderColor": "#E5E7EB",
+                "focusBorderColor": "#3968c3",
+                "padding": { "horizontal": 20, "vertical": 12 },
+                "fontSize": 16,
+                "sendButton": {
+                    "size": 32,
+                    "borderRadius": 100,
+                    "padding": 8
+                }
+            },
+
+            "overlay": {
+                "backgroundColor": "rgba(34, 35, 37, 0.38)",
+                "backdropBlur": 0
+            }
+        },
+
+        "iconLibrary": {
+            "style": "stroke",
+            "weight": "regular",
+            "categories": {
+                "navigation": [
+                    "chevron-left",
+                    "chevron-right",
+                    "chevron-up",
+                    "chevron-down",
+                    "chevrons-left",
+                    "chevrons-right",
+                    "menu",
+                    "more-vertical"
+                ],
+                "actions": [
+                    "plus",
+                    "x",
+                    "x-circle",
+                    "check",
+                    "search",
+                    "settings",
+                    "share-2",
+                    "download",
+                    "image",
+                    "link"
+                ],
+                "communication": ["message-circle", "user", "user-plus"],
+                "auth": ["log-in", "log-out"],
+                "system": ["qrcode", "android"]
+            },
+            "sizes": {
+                "xs": 12,
+                "sm": 14,
+                "base": 16,
+                "md": 18,
+                "lg": 20,
+                "xl": 24
+            }
+        },
+
+        "patterns": {
+            "gradientText": {
+                "usage": "Used for emphasis and branding",
+                "implementation": {
+                    "backgroundClip": "text",
+                    "webkitTextFillColor": "transparent",
+                    "backgroundImage": "linear-gradient"
+                }
+            },
+
+            "cardStack": {
+                "usage": "Mobile screens with chat-like interfaces",
+                "borderRadius": 16,
+                "shadow": "0px 0px 8px 0px rgba(0,0,0,0.1)",
+                "spacing": 10
+            },
+
+            "listPattern": {
+                "usage": "Settings, options, friend lists",
+                "itemHeight": 52,
+                "dividerColor": "#EAEAEC",
+                "spacing": 0
+            },
+
+            "modalOverlay": {
+                "usage": "Full screen overlays and modals",
+                "backgroundColor": "rgba(34, 35, 37, 0.38)",
+                "backdropBlur": "none"
+            },
+
+            "mobileFirst": {
+                "viewport": 360,
+                "scalingStrategy": "responsive",
+                "touchTargets": {
+                    "minimum": 44,
+                    "recommended": 48
+                }
+            }
+        },
+
+        "states": {
+            "interactive": {
+                "default": {
+                    "opacity": 1,
+                    "scale": 1
+                },
+                "hover": {
+                    "opacity": 0.8,
+                    "scale": 1.02,
+                    "transition": "all 0.2s ease"
+                },
+                "active": {
+                    "opacity": 0.6,
+                    "scale": 0.98,
+                    "transition": "all 0.1s ease"
+                },
+                "disabled": {
+                    "opacity": 0.4,
+                    "cursor": "not-allowed"
+                }
+            },
+            "form": {
+                "default": {
+                    "borderColor": "#E5E7EB"
+                },
+                "focus": {
+                    "borderColor": "#3968c3",
+                    "shadow": "0px 0px 3px 20px #c7daff"
+                },
+                "error": {
+                    "borderColor": "#f34822",
+                    "shadow": "0px 0px 3px 20px rgba(243, 72, 34, 0.2)"
+                }
+            }
+        },
+
+        "accessibility": {
+            "touchTargets": {
+                "minimum": 44,
+                "recommended": 48
+            },
+            "contrast": {
+                "text": {
+                    "normal": 4.5,
+                    "large": 3
+                }
+            },
+            "focus": {
+                "outlineWidth": 2,
+                "outlineColor": "#3968c3",
+                "outlineOffset": 2
+            }
+        },
+
+        "animations": {
+            "duration": {
+                "fast": "150ms",
+                "normal": "200ms",
+                "slow": "300ms"
+            },
+            "easing": {
+                "linear": "linear",
+                "ease": "ease",
+                "easeIn": "ease-in",
+                "easeOut": "ease-out",
+                "easeInOut": "ease-in-out"
+            },
+            "transitions": {
+                "default": "all 0.2s ease",
+                "fast": "all 0.15s ease",
+                "slow": "all 0.3s ease"
+            }
+        },
+
+        "breakpoints": {
+            "mobile": 360,
+            "tablet": 768,
+            "desktop": 1024,
+            "large": 1440
+        }
+    }
+}
