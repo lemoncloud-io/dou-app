@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { BrandHeader, ChatButton, ChatInput, ChatMessage, TypingIndicator, TypingMessage } from '@lemon/ui-kit';
 
@@ -11,21 +10,21 @@ interface Message {
     isTyping?: boolean;
 }
 
-type SignUpStep = 'email' | 'verification';
-
 // 타이핑 속도 상수
 const TYPING_SPEED = 40; // ms per character
 const TYPING_INITIAL_DELAY = 200; // ms
 
-export const SignUpPage: React.FC = () => {
-    const navigate = useNavigate();
-    const [currentStep, setCurrentStep] = useState<SignUpStep>('email');
-    const [userEmail, setUserEmail] = useState('');
+interface EmailVerificationPageProps {
+    email: string;
+}
+
+export const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ email }) => {
     const [isTyping, setIsTyping] = useState(false);
     const [isSystemTyping, setIsSystemTyping] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [hasInitialized, setHasInitialized] = useState(false);
     const [isInitialMessagesComplete, setIsInitialMessagesComplete] = useState(false);
+    const [attemptCount, setAttemptCount] = useState(0);
 
     // ChatInput에 대한 ref 생성
     const chatInputRef = React.useRef<HTMLInputElement>(null);
@@ -43,6 +42,11 @@ export const SignUpPage: React.FC = () => {
             type: 'typing',
         };
         setMessages(prev => [...prev, typingMessage]);
+    };
+
+    const hideTypingIndicator = () => {
+        setIsTyping(false);
+        setMessages(prev => prev.filter(msg => msg.type !== 'typing'));
     };
 
     const addTypingMessage = (text: string, gradient = false, delay = 0) => {
@@ -84,13 +88,10 @@ export const SignUpPage: React.FC = () => {
 
             const initializeChat = async () => {
                 // 첫 번째 메시지
-                await addTypingMessage('안녕! Chatic에 온걸 환영해 😄', false, 500);
+                await addTypingMessage(`${email}로 인증 번호를 전송했어요 📧`, false, 500);
 
-                // 두 번째 메시지
-                await addTypingMessage('회원가입을 시작하기 위해', false, 800);
-
-                // 세 번째 메시지 (그라디언트)
-                await addTypingMessage('너의 이메일을 입력해줘!', true, 500);
+                // 두 번째 메시지 (그라디언트)
+                await addTypingMessage('인증 번호를 입력해 주세요!', true, 800);
 
                 // 모든 초기 메시지 완료
                 setIsInitialMessagesComplete(true);
@@ -103,74 +104,43 @@ export const SignUpPage: React.FC = () => {
 
             initializeChat();
         }
-    }, []); // 빈 의존성 배열
+    }, [email]); // 빈 의존성 배열
 
     const handleSendMessage = async (message: string) => {
-        if (currentStep === 'email') {
-            // 이메일 입력 단계
-            if (!validateEmail(message)) {
-                // 유효하지 않은 이메일 형식
-                const userMessage: Message = {
-                    id: Date.now() + Math.random(),
-                    text: message,
-                    type: 'user',
-                };
-                setMessages(prev => [...prev, userMessage]);
+        // 사용자 메시지 추가
+        const userMessage: Message = {
+            id: Date.now() + Math.random(),
+            text: message,
+            type: 'user',
+        };
+        setMessages(prev => [...prev, userMessage]);
 
-                // 타이핑 인디케이터 표시 후 타이핑 메시지
-                setTimeout(() => {
-                    showTypingIndicator();
-                }, 300);
+        // 타이핑 인디케이터 표시
+        setTimeout(() => {
+            showTypingIndicator();
+        }, 300);
 
+        // 인증번호 검증 (예시: 123456)
+        setTimeout(async () => {
+            if (message === '123456') {
+                await addTypingMessage('인증이 완료되었습니다! 🎉', true, 0);
+
+                // 성공 후 추가 메시지
                 setTimeout(async () => {
-                    await addTypingMessage('올바른 이메일 형식이 아니에요. 다시 입력해주세요!', false, 0);
-                }, 800);
-                return;
-            }
+                    await addTypingMessage('이제 비밀번호를 설정해주세요!', false, 0);
+                }, 1000);
+            } else {
+                const newAttemptCount = attemptCount + 1;
+                setAttemptCount(newAttemptCount);
 
-            // 유효한 이메일인 경우
-            const userMessage: Message = {
-                id: Date.now() + Math.random(),
-                text: message,
-                type: 'user',
-            };
-            setMessages(prev => [...prev, userMessage]);
-            setUserEmail(message);
-
-            // 타이핑 인디케이터 표시
-            setTimeout(() => {
-                showTypingIndicator();
-            }, 500);
-
-            // 기존 메시지 삭제 후 새로운 메시지 표시
-            setTimeout(async () => {
-                await addTypingMessage('이메일 인증 페이지로 이동할게요! ✈️', true, 0);
-
-                // 페이지 이동
-                setTimeout(() => {
-                    navigate('/publishing/email-verification', { state: { email: message } });
-                }, 1500);
-            }, 1000);
-        } else if (currentStep === 'verification') {
-            // 인증번호 입력 단계
-            const userMessage: Message = {
-                id: Date.now() + Math.random(),
-                text: message,
-                type: 'user',
-            };
-            setMessages(prev => [...prev, userMessage]);
-
-            // 타이핑 인디케이터 표시
-            setTimeout(() => {
-                showTypingIndicator();
-            }, 300);
-
-            // 인증번호 검증 (예시: 123456)
-            setTimeout(async () => {
-                if (message === '123456') {
-                    await addTypingMessage('인증이 완료되었습니다! 🎉', true, 0);
+                if (newAttemptCount >= 5) {
+                    await addTypingMessage(
+                        '인증 횟수 5번을 초과했습니다.😢 1분 뒤 다시 이메일 인증을 진행해 주세요!',
+                        false,
+                        0
+                    );
                 } else {
-                    await addTypingMessage('입력한 인증번호가 정확하지 않아요😥\n다시 확인해 주세요!', false, 0);
+                    await addTypingMessage('입력한 인증번호가 정확하지 않아요 😥\n다시 확인해 주세요!', false, 0);
 
                     // 버튼 추가
                     setTimeout(() => {
@@ -182,19 +152,26 @@ export const SignUpPage: React.FC = () => {
                         setMessages(prev => [...prev, buttonMessage]);
                     }, 300);
                 }
-            }, 800);
-        }
+            }
+        }, 800);
+    };
+
+    const handleResendCode = async () => {
+        // 버튼 메시지 제거
+        setMessages(prev => prev.filter(msg => msg.type !== 'button'));
+
+        // 재전송 메시지 표시
+        setTimeout(() => {
+            showTypingIndicator();
+        }, 300);
+
+        setTimeout(async () => {
+            await addTypingMessage('인증번호를 다시 전송했어요! 📧', false, 0);
+        }, 800);
     };
 
     const getPlaceholder = (): string => {
-        switch (currentStep) {
-            case 'email':
-                return '이메일을 입력해 주세요';
-            case 'verification':
-                return '인증번호를 입력해 주세요';
-            default:
-                return '메시지를 입력해 주세요';
-        }
+        return '인증번호를 입력해 주세요';
     };
 
     return (
@@ -209,14 +186,7 @@ export const SignUpPage: React.FC = () => {
                         if (message.type === 'button') {
                             return (
                                 <div key={message.id} className="flex justify-start mt-2">
-                                    <ChatButton
-                                        variant="default"
-                                        size="default"
-                                        onClick={() => {
-                                            // 인증번호 재전송 로직
-                                            console.log('인증번호 재전송');
-                                        }}
-                                    >
+                                    <ChatButton variant="default" size="default" onClick={handleResendCode}>
                                         {message.text}
                                     </ChatButton>
                                 </div>
