@@ -16,7 +16,9 @@
         "web:build:dev": "yarn clean:cache && npx nx build --configuration=dev web",
         "web:build:prod": "yarn clean:cache && npx nx build --configuration=prod web",
         "web:deploy:dev": "(rm -rf ./dist/apps/web || true) && yarn web:build:dev && ./scripts/deploy-web.sh dev",
-        "web:deploy:prod": "(rm -rf ./dist/apps/web || true) && yarn web:build:prod && ./scripts/deploy-web.sh prod"
+        "web:deploy:prod": "(rm -rf ./dist/apps/web || true) && yarn web:build:prod && ./scripts/deploy-web.sh prod",
+        "web:docker:build": "yarn clean:cache && docker build -t codes-front-sample:prod -f docker/web/Dockerfile .",
+        "web:docker:deploy": "./scripts/docker-deploy.sh"
     },
     "private": true,
     "dependencies": {
