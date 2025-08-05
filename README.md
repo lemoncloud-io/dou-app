@@ -1,12 +1,12 @@
-# codes-front-sample
+# chatic-front
 
 Modern React application built with **Nx monorepo**, **TypeScript**, and **Tailwind CSS** for scalable enterprise development.
 
 ## 🚀 Quick Start
 
 ```bash
-git clone https://github.com/lemoncloud-io/codes-front-sample.git
-cd codes-front-sample
+git clone https://github.com/lemoncloud-io/chatic-front.git
+cd chatic-front
 yarn install
 cp apps/web/.env.example apps/web/.env.local
 yarn web:start  # → http://localhost:5003
@@ -41,16 +41,20 @@ yarn web:docker:deploy # → Containerized deployment
 
 **Stack**: React 18.3 • TypeScript • Vite • Nx • Tailwind CSS • Radix UI • Zustand • TanStack Query
 
-```
-codes-front-sample/
-├── apps/web/              # Main React app
-├── libs/                  # Shared libraries
-│   ├── web-core/         # Auth & core logic
-│   ├── ui-kit/           # UI components
-│   ├── shared/           # Utilities
-│   └── theme/            # Theme system
-├── scripts/              # Deployment scripts
-└── docker/               # Container configs
+### Project Structure
+
+```plaintext
+chatic-front/
+├── apps/
+│   └── web/              # Main application entry point
+├── libs/
+│   ├── web-core/         # Core authentication and initialization
+│   ├── ui-kit/           # Shared UI components library
+│   ├── shared/           # Utilities and shared logic
+│   └── theme/            # Theme management system
+├── scripts/              # Development scripts and configs
+├── nx.json               # `nx.json`
+└── package.json          # Workspace package manager configuration
 ```
 
 **Infrastructure**: AWS S3 + CloudFront • GitHub Actions CI/CD • Docker deployment
