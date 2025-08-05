@@ -8,23 +8,29 @@ import type { FallbackProps } from 'react-error-boundary';
 
 export const ErrorFallback: ComponentType<FallbackProps> = ({ error, resetErrorBoundary }) => {
     return (
-        <div className="min-h-screen bg-white flex items-center justify-center p-chatic-md">
-            <Card className="w-full max-w-md p-chatic-lg space-y-chatic-md bg-white border border-chatic-neutral-200 rounded-chatic-sm shadow-sm">
-                <div className="text-center space-y-chatic-md">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-[#0b1933] via-[#102f6b] to-[#3968c3] rounded-full mb-2">
+        <div className="min-h-screen relative overflow-hidden bg-lemon-cosmic animate-gradient flex items-center justify-center p-4">
+            {/* Background Effects */}
+            <div className="absolute inset-0 bg-lemon-aurora animate-gradient opacity-30" />
+            <div className="absolute top-20 left-20 w-64 h-64 bg-orange-500/10 dark:bg-orange-400/5 rounded-full blur-3xl animate-float" />
+            <div
+                className="absolute bottom-20 right-20 w-48 h-48 bg-yellow-500/10 dark:bg-yellow-400/5 rounded-full blur-3xl animate-float"
+                style={{ animationDelay: '3s' }}
+            />
+
+            <Card className="relative z-10 w-full max-w-md p-8 space-y-6 glass-strong border-0">
+                <div className="text-center space-y-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full mb-2">
                         <AlertTriangle className="h-8 w-8 text-white" />
                     </div>
-                    <h2 className="text-chatic-3xl font-chatic-brand font-normal tracking-[-1.38px] bg-gradient-to-r from-[#0b1933] via-[#102f6b] to-[#3968c3] bg-clip-text text-transparent">
-                        오류가 발생했습니다
-                    </h2>
+                    <h2 className="text-2xl font-bold text-lemon-gradient">Oops! Something went wrong</h2>
                 </div>
 
-                <p className="text-center text-chatic-text-primary font-chatic text-chatic-md leading-relaxed">
-                    죄송합니다. 예상치 못한 오류가 발생했습니다.
+                <p className="text-center text-secondary-content leading-relaxed">
+                    We apologize for the inconvenience. An unexpected error has occurred.
                 </p>
 
-                <div className="bg-chatic-neutral-50 p-chatic-md rounded-chatic-xs border border-chatic-neutral-200">
-                    <pre className="text-chatic-sm text-chatic-text-tertiary font-chatic overflow-auto whitespace-pre-wrap break-words">
+                <div className="glass p-4 rounded-lg border border-white/10 dark:border-white/5">
+                    <pre className="text-sm text-primary-content overflow-auto whitespace-pre-wrap break-words">
                         {error.message}
                     </pre>
                 </div>
@@ -32,10 +38,10 @@ export const ErrorFallback: ComponentType<FallbackProps> = ({ error, resetErrorB
                 <div className="flex justify-center pt-2">
                     <Button
                         onClick={resetErrorBoundary}
-                        className="bg-chatic-text-accent hover:bg-chatic-text-accent/90 text-white border-0 px-chatic-md py-2 rounded-chatic-xs font-chatic text-chatic-base transition-all duration-200"
+                        className="bg-lemon-gradient hover:opacity-90 text-white border-0 hover:scale-105 transition-transform duration-200"
                     >
                         <RefreshCw className="h-4 w-4 mr-2" />
-                        <span>다시 시도</span>
+                        <span>Try again</span>
                     </Button>
                 </div>
             </Card>

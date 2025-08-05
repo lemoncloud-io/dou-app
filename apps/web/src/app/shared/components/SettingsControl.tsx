@@ -78,25 +78,27 @@ export const SettingsControl = ({ className = '' }: SettingsControlProps) => {
 
                 {/* Settings Panel */}
                 <Card
-                    className="fixed border border-chatic-neutral-200 p-chatic-md space-y-3 bg-white/95 backdrop-blur-md rounded-chatic-sm shadow-lg"
+                    className="fixed border-0 p-4 space-y-3"
                     style={{
                         top: `${buttonPosition.top}px`,
                         right: `${buttonPosition.right}px`,
                         width: '192px',
                         zIndex: 1000,
+                        backgroundColor: 'hsl(var(--background) / 0.95)',
+                        backdropFilter: 'blur(12px)',
+                        border: '1px solid hsl(var(--border) / 0.2)',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
                         pointerEvents: 'auto',
                     }}
                 >
                     {/* Theme Toggle */}
                     <div className="flex items-center justify-between">
-                        <span className="text-chatic-sm text-chatic-text-primary font-chatic font-medium">
-                            {t('settings.theme', '테마')}
-                        </span>
+                        <span className="text-sm text-foreground/80 font-medium">{t('settings.theme', 'Theme')}</span>
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={handleThemeToggle}
-                            className="h-8 w-8 p-0 hover:bg-chatic-neutral-50 rounded-chatic-xs text-chatic-text-primary"
+                            className="h-8 w-8 p-0 hover:bg-primary/10 rounded-md"
                             style={{ pointerEvents: 'auto' }}
                         >
                             {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
@@ -105,14 +107,14 @@ export const SettingsControl = ({ className = '' }: SettingsControlProps) => {
 
                     {/* Language Toggle */}
                     <div className="flex items-center justify-between">
-                        <span className="text-chatic-sm text-chatic-text-primary font-chatic font-medium">
-                            {t('settings.language', '언어')}
+                        <span className="text-sm text-foreground/80 font-medium">
+                            {t('settings.language', 'Language')}
                         </span>
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={handleLanguageToggle}
-                            className="h-8 px-2 text-chatic-xs hover:bg-chatic-neutral-50 rounded-chatic-xs font-chatic font-medium text-chatic-text-primary"
+                            className="h-8 px-2 text-xs hover:bg-primary/10 rounded-md font-medium"
                             style={{ pointerEvents: 'auto' }}
                         >
                             {currentLanguage === 'en' ? '한글' : 'EN'}
@@ -132,7 +134,7 @@ export const SettingsControl = ({ className = '' }: SettingsControlProps) => {
                 variant="ghost"
                 size="sm"
                 onClick={handleSettingsClick}
-                className="text-chatic-text-secondary hover:text-chatic-text-primary hover:bg-chatic-neutral-50 rounded-chatic-xs"
+                className="text-foreground/70 hover:text-foreground hover:bg-foreground/10"
                 style={{
                     zIndex: 30,
                     pointerEvents: 'auto',

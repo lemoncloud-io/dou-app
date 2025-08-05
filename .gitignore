@@ -4,6 +4,7 @@
 apps/web/.env.*
 !apps/web/.env.example
 
+.env.docker
 # compiled output
 dist
 tmp

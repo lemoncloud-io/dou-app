@@ -4,6 +4,7 @@ import { HelmetProvider } from 'react-helmet-async';
 import { I18nextProvider } from 'react-i18next';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster } from 'sonner';
 
 import { ErrorFallback, GlobalLoader, LoadingFallback } from '@lemon/shared';
@@ -43,6 +44,7 @@ export function App() {
                                 <GlobalLoader />
                                 <Toaster />
                             </ThemeProvider>
+                            {process.env.NODE_ENV !== 'prod' && <ReactQueryDevtools />}
                         </QueryClientProvider>
                     </HelmetProvider>
                 </ErrorBoundary>
