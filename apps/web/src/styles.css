@@ -31,6 +31,26 @@
         --lemon-gradient-start: 35 89% 62%;
         --lemon-gradient-end: 18 83% 56%;
 
+        /* Chatic Design System Colors - Light Mode */
+        --chatic-primary: 220 85% 56%; /* #3968c3 from design system */
+        --chatic-primary-border: 220 85% 56%;
+        --chatic-primary-shadow: 220 85% 85%;
+        --chatic-neutral-50: 204 20% 96%;
+        --chatic-neutral-100: 204 17% 92%;
+        --chatic-neutral-200: 204 17% 88%;
+        --chatic-neutral-300: 204 12% 81%;
+        --chatic-neutral-400: 204 12% 73%;
+        --chatic-neutral-500: 204 12% 65%;
+        --chatic-neutral-600: 204 12% 57%;
+        --chatic-neutral-700: 204 12% 33%;
+        --chatic-neutral-800: 204 12% 23%;
+        --chatic-neutral-900: 204 20% 13%;
+        --chatic-text-primary: 204 12% 23%;
+        --chatic-text-secondary: 204 12% 73%;
+        --chatic-text-tertiary: 204 12% 57%;
+        --chatic-text-inverse: 0 0% 100%;
+        --chatic-text-accent: 233 100% 10%;
+
         /* Light Mode Backgrounds */
         --cosmic-bg: linear-gradient(-45deg, #f8f9fa, #e9ecef, #dee2e6, #ced4da);
         --aurora-bg: linear-gradient(
@@ -44,41 +64,62 @@
     }
 
     .dark {
-        --background: 20 14.3% 4.1%;
-        --foreground: 0 0% 95%;
-        --card: 20 14.3% 4.1%;
-        --card-foreground: 0 0% 95%;
-        --popover: 20 14.3% 4.1%;
-        --popover-foreground: 0 0% 95%;
-        --primary: 18 75% 50%; /* Darker for dark mode */
-        --primary-foreground: 0 0% 9%;
-        --secondary: 35 80% 55%; /* Darker for dark mode */
-        --secondary-foreground: 0 0% 9%;
-        --muted: 12 6.5% 15.1%;
-        --muted-foreground: 24 5.4% 63.9%;
-        --accent: 12 6.5% 15.1%;
-        --accent-foreground: 0 0% 95%;
-        --destructive: 0 62.8% 30.6%;
-        --destructive-foreground: 0 0% 95%;
-        --border: 12 6.5% 15.1%;
-        --input: 12 6.5% 15.1%;
-        --ring: 35 80% 55%;
+        --background: 222 84% 5%; /* Very dark blue-gray #0D1117 */
+        --foreground: 213 31% 91%; /* Light grayish-blue #E6EDF3 */
+        --card: 222 84% 7%; /* Slightly lighter than background #161B22 */
+        --card-foreground: 213 31% 91%;
+        --popover: 222 84% 7%;
+        --popover-foreground: 213 31% 91%;
+        --primary: 217 91% 60%; /* Modern blue #2563EB */
+        --primary-foreground: 0 0% 98%;
+        --secondary: 217 32% 17%; /* Dark blue-gray #21262D */
+        --secondary-foreground: 213 31% 91%;
+        --muted: 215 28% 17%; /* Dark gray-blue #252A31 */
+        --muted-foreground: 217 33% 64%; /* Medium gray-blue #8B949E */
+        --accent: 215 28% 17%;
+        --accent-foreground: 213 31% 91%;
+        --destructive: 0 63% 55%; /* Modern red #E53E3E */
+        --destructive-foreground: 0 0% 98%;
+        --border: 215 28% 17%; /* Subtle border */
+        --input: 215 28% 17%;
+        --ring: 217 91% 60%;
 
         /* LemonCloud Brand Colors - Dark Mode */
-        --lemon-primary: 18 75% 50%; /* Darker orange */
-        --lemon-secondary: 35 80% 55%; /* Darker yellow */
+        --lemon-primary: 18 75% 50%;
+        --lemon-secondary: 35 80% 55%;
         --lemon-gradient-start: 35 80% 55%;
         --lemon-gradient-end: 18 75% 50%;
 
         /* Dark Mode Backgrounds */
-        --cosmic-bg: linear-gradient(-45deg, #0a0a0a, #1a1410, #2d1f10, #3d2818);
+        /* Chatic Design System Colors - Modern Dark Mode */
+        --chatic-primary: 220 85% 70%; /* #3968c3 lighter for dark mode */
+        --chatic-primary-border: 220 85% 70%;
+        --chatic-primary-shadow: 220 85% 20%;
+        --chatic-neutral-50: 222 84% 7%; /* Very dark base */
+        --chatic-neutral-100: 215 28% 17%; /* Dark elements */
+        --chatic-neutral-200: 217 32% 17%; /* Slightly lighter */
+        --chatic-neutral-300: 215 14% 34%; /* Medium dark */
+        --chatic-neutral-400: 217 33% 64%; /* Medium */
+        --chatic-neutral-500: 217 10% 70%; /* Medium light */
+        --chatic-neutral-600: 213 27% 78%; /* Light */
+        --chatic-neutral-700: 213 31% 85%; /* Very light */
+        --chatic-neutral-800: 213 31% 91%; /* Almost white */
+        --chatic-neutral-900: 0 0% 98%; /* Pure white */
+        --chatic-text-primary: 213 31% 91%; /* Primary text - light */
+        --chatic-text-secondary: 217 33% 64%; /* Secondary text - medium */
+        --chatic-text-tertiary: 215 14% 34%; /* Tertiary text - dark */
+        --chatic-text-inverse: 222 84% 5%; /* Inverse - very dark */
+        --chatic-text-accent: 217 91% 60%; /* Accent - blue */
+
+        /* Modern Dark Mode Backgrounds */
+        --cosmic-bg: linear-gradient(-45deg, #0d1117, #161b22, #21262d, #30363d);
         --aurora-bg: linear-gradient(
             135deg,
-            hsla(35, 80%, 55%, 0.08) 0%,
-            hsla(18, 75%, 50%, 0.08) 25%,
-            hsla(35, 80%, 55%, 0.04) 50%,
-            hsla(18, 75%, 50%, 0.08) 75%,
-            hsla(35, 80%, 55%, 0.08) 100%
+            hsla(217, 91%, 60%, 0.03) 0%,
+            hsla(217, 91%, 60%, 0.08) 25%,
+            hsla(217, 91%, 60%, 0.02) 50%,
+            hsla(217, 91%, 60%, 0.08) 75%,
+            hsla(217, 91%, 60%, 0.03) 100%
         );
     }
 }

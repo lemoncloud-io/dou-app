@@ -4,6 +4,7 @@ import { AuthGuard } from './guards';
 import { AuthRoutes } from '../features/auth';
 import { HomeRoutes } from '../features/home';
 import { LandingRoutes } from '../features/landing';
+import { PublishingRoutes } from '../features/publishing';
 
 const router = createBrowserRouter([
     {
@@ -17,6 +18,10 @@ const router = createBrowserRouter([
     {
         path: '/auth/*',
         element: <AuthRoutes />,
+    },
+    {
+        path: '/publishing/*',
+        element: <PublishingRoutes />,
     },
     {
         path: '/*',
