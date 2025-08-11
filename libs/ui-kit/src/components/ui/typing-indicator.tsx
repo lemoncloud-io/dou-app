@@ -17,7 +17,7 @@ const typingIndicatorVariants = cva('flex items-center space-x-1', {
     },
 });
 
-const dotVariants = cva('rounded-full bg-chatic-neutral-400 animate-typing-pulse', {
+const dotVariants = cva('rounded-full bg-chatic-400 animate-typing-pulse', {
     variants: {
         size: {
             default: 'w-2 h-2',

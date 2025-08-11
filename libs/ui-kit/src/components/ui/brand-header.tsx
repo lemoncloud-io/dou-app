@@ -7,7 +7,7 @@ import { cn } from '@lemon/lib/utils';
 const brandHeaderVariants = cva('fixed top-0 left-0 right-0 z-10 bg-background', {
     variants: {
         showBorder: {
-            true: 'border-b border-chatic-neutral-100',
+            true: 'border-b border-chatic-100',
             false: '',
         },
     },
@@ -19,9 +19,9 @@ const brandHeaderVariants = cva('fixed top-0 left-0 right-0 z-10 bg-background',
 const brandLogoVariants = cva('font-chatic-brand font-normal tracking-[-1.38px]', {
     variants: {
         size: {
-            default: 'text-chatic-3xl',
-            sm: 'text-chatic-2xl',
-            lg: 'text-chatic-4xl',
+            default: 'text-[23px]',
+            sm: 'text-xl',
+            lg: 'text-[30px]',
         },
     },
     defaultVariants: {
@@ -38,7 +38,7 @@ const BrandHeader = React.forwardRef<HTMLDivElement, BrandHeaderProps>(
     ({ className, showBorder, logoSize, logoClassName, ...props }, ref) => {
         return (
             <div ref={ref} className={cn(brandHeaderVariants({ showBorder }), className)} {...props}>
-                <div className="flex items-center justify-start px-chatic-md py-chatic-md">
+                <div className="flex items-center justify-start px-4 pt-6 pb-1 text-2xl">
                     <h1
                         className={cn(brandLogoVariants({ size: logoSize }), logoClassName)}
                         style={{

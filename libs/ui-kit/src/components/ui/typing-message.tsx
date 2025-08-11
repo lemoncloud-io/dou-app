@@ -4,16 +4,16 @@ import { type VariantProps, cva } from 'class-variance-authority';
 
 import { cn } from '@lemon/lib/utils';
 
-const typingMessageVariants = cva('flex font-chatic text-chatic-md leading-6', {
+const typingMessageVariants = cva('flex text-[15px] leading-6', {
     variants: {
         type: {
             system: 'justify-start',
             user: 'justify-end',
         },
         size: {
-            default: 'text-chatic-md',
-            sm: 'text-chatic-sm',
-            lg: 'text-chatic-lg',
+            default: 'text-sm',
+            sm: 'text-[13px]',
+            lg: 'text-base',
         },
     },
     defaultVariants: {
@@ -71,9 +71,9 @@ const TypingMessage = React.forwardRef<HTMLDivElement, TypingMessageProps>(
         return (
             <div ref={ref} className={cn(typingMessageVariants({ type, size }), className)} {...props}>
                 {type === 'system' && gradient ? (
-                    <div className="max-w-[280px] font-chatic leading-relaxed text-chatic-text-primary">
+                    <div className="leading-relaxed text-chatic-text-800">
                         <span
-                            className="bg-gradient-to-r from-[#0b1933] via-[#102f6b] to-[#3968c3] bg-clip-text text-transparent font-medium"
+                            className="bg-gradient-to-r from-[#0b1933] via-[#102f6b] to-[#3968c3] bg-clip-text text-transparent font-semibold"
                             style={{ WebkitTextFillColor: 'transparent' }}
                         >
                             {displayedText}
@@ -81,12 +81,12 @@ const TypingMessage = React.forwardRef<HTMLDivElement, TypingMessageProps>(
                         </span>
                     </div>
                 ) : type === 'user' ? (
-                    <div className="max-w-[280px] border-2 border-chatic-primary text-chatic-text-primary rounded-2xl px-4 py-3 bg-transparent font-chatic leading-relaxed">
+                    <div className="border-2 border-chatic-primary text-chatic-text-800 rounded-2xl px-4 py-3 bg-transparent leading-relaxed">
                         {displayedText}
                         {!isTypingComplete && <span className="animate-pulse ml-1">|</span>}
                     </div>
                 ) : (
-                    <div className="max-w-[280px] text-chatic-text-primary font-chatic leading-relaxed">
+                    <div className="text-chatic-text-800 leading-relaxed">
                         {displayedText}
                         {!isTypingComplete && <span className="animate-pulse ml-1">|</span>}
                     </div>

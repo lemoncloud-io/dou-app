@@ -5,19 +5,18 @@ import { type VariantProps, cva } from 'class-variance-authority';
 import { cn } from '@lemon/lib/utils';
 
 const chatButtonVariants = cva(
-    'inline-flex items-center justify-center font-chatic font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+    'inline-flex items-center justify-center w-[140px] h-[41px] rounded-full font-semibold text-[15px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:bg-chatic-300',
     {
         variants: {
             variant: {
-                default: 'bg-chatic-text-accent text-white hover:bg-chatic-text-accent/90',
-                outline:
-                    'border border-chatic-neutral-300 bg-white text-chatic-text-primary hover:bg-chatic-neutral-50',
-                ghost: 'text-chatic-text-primary hover:bg-chatic-neutral-50',
+                default: 'bg-chatic-primary text-white',
+                outline: 'border border-chatic-primary bg-white',
+                ghost: 'text-chatic-text-800 hover:bg-chatic-neutral-50',
             },
             size: {
-                default: 'px-4 py-2 text-chatic-base rounded-xl',
-                sm: 'px-3 py-1.5 text-chatic-sm rounded-lg',
-                lg: 'px-6 py-3 text-chatic-md rounded-xl',
+                default: '',
+                sm: 'px-3 py-1.5 text-[13px] rounded-lg',
+                lg: 'px-6 py-3 text-base rounded-xl',
             },
         },
         defaultVariants: {

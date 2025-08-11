@@ -1,6 +1,36 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+@import url('https://fonts.googleapis.com/css2?family=Aldrich&display=swap');
+
+@import 'swiper/css';
+@import 'swiper/css/navigation';
+@import 'swiper/css/pagination';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+    color: hsl(var(--chatic-text-primary));
+    min-height: 100vh;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+.custom-pagination .swiper-pagination-bullet {
+    background-color: #d9d9d9;
+    opacity: 1;
+    width: 6px;
+    height: 6px;
+}
+
+.custom-pagination .swiper-pagination-bullet-active {
+    background-color: hsl(var(--chatic-primary));
+}
+
+::placeholder {
+    color: hsl(var(--chatic-600));
+    font-weight: 500;
+}
 
 @layer base {
     :root {
@@ -18,7 +48,7 @@
         --muted-foreground: 25 5.3% 44.7%;
         --accent: 60 4.8% 95.9%;
         --accent-foreground: 20 14.3% 4.1%;
-        --destructive: 0 84.2% 60.2%;
+        --destructive: 11 90% 54%;
         --destructive-foreground: 0 0% 98%;
         --border: 20 5.9% 90%;
         --input: 20 5.9% 90%;
@@ -32,24 +62,16 @@
         --lemon-gradient-end: 18 83% 56%;
 
         /* Chatic Design System Colors - Light Mode */
-        --chatic-primary: 220 85% 56%; /* #3968c3 from design system */
-        --chatic-primary-border: 220 85% 56%;
-        --chatic-primary-shadow: 220 85% 85%;
-        --chatic-neutral-50: 204 20% 96%;
-        --chatic-neutral-100: 204 17% 92%;
-        --chatic-neutral-200: 204 17% 88%;
-        --chatic-neutral-300: 204 12% 81%;
-        --chatic-neutral-400: 204 12% 73%;
-        --chatic-neutral-500: 204 12% 65%;
-        --chatic-neutral-600: 204 12% 57%;
-        --chatic-neutral-700: 204 12% 33%;
-        --chatic-neutral-800: 204 12% 23%;
-        --chatic-neutral-900: 204 20% 13%;
-        --chatic-text-primary: 204 12% 23%;
-        --chatic-text-secondary: 204 12% 73%;
-        --chatic-text-tertiary: 204 12% 57%;
-        --chatic-text-inverse: 0 0% 100%;
-        --chatic-text-accent: 233 100% 10%;
+        --chatic-primary: 220 75% 12%; /* #081837 from design system */
+        --chatic-accent: 215 90% 56%;
+        --chatic-50: 180 5% 96%; /* #f4f5f5 */
+        --chatic-100: 240 5% 92%; /* #EAEAEC */
+        --chatic-300: 225 4% 82%; /* #CFD0D3 */
+        --chatic-400: 220 5% 74%; /* #BABCC0 */
+        --chatic-500: 218 4% 64%; /* #9FA2A7 */
+        --chatic-600: 218 5% 54%; /* #84888F */
+        --chatic-700: 225 5% 34%; /* #53555B */
+        --chatic-800: 220 5% 24%; /* #081837 */
 
         /* Light Mode Backgrounds */
         --cosmic-bg: linear-gradient(-45deg, #f8f9fa, #e9ecef, #dee2e6, #ced4da);

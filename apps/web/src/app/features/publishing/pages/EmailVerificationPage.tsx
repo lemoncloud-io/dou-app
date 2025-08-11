@@ -27,7 +27,7 @@ export const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ em
     const [attemptCount, setAttemptCount] = useState(0);
 
     // ChatInput에 대한 ref 생성
-    const chatInputRef = React.useRef<HTMLInputElement>(null);
+    const chatInputRef = React.useRef<HTMLTextAreaElement>(null);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
     const validateEmail = (email: string): boolean => {
@@ -195,10 +195,8 @@ export const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ em
                     {messages.map(message => {
                         if (message.type === 'button') {
                             return (
-                                <div key={message.id} className="flex justify-start mt-2">
-                                    <ChatButton variant="default" size="default" onClick={handleResendCode}>
-                                        {message.text}
-                                    </ChatButton>
+                                <div key={message.id} className="flex justify-center !mt-8">
+                                    <ChatButton onClick={handleResendCode}>{message.text}</ChatButton>
                                 </div>
                             );
                         }
@@ -231,7 +229,7 @@ export const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ em
             </div>
 
             {/* Chat Input */}
-            <div className="fixed bottom-0 left-0 right-0 bg-background px-4 py-4">
+            <div className="fixed bottom-0 left-0 right-0 bg-background">
                 <ChatInput
                     ref={chatInputRef}
                     placeholder={getPlaceholder()}

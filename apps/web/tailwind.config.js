@@ -1,6 +1,7 @@
 const { join } = require('path');
 
 const { createGlobPatternsForDependencies } = require('@nx/react/tailwind');
+const plugin = require('tailwindcss/plugin');
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -55,65 +56,52 @@ module.exports = {
                 },
                 // Chatic Design System Colors - Theme Aware
                 'chatic-primary': 'hsl(var(--chatic-primary))',
-                'chatic-primary-border': 'hsl(var(--chatic-primary-border))',
-                'chatic-primary-shadow': 'hsl(var(--chatic-primary-shadow))',
-                'chatic-neutral': {
-                    50: 'hsl(var(--chatic-neutral-50))',
-                    100: 'hsl(var(--chatic-neutral-100))',
-                    200: 'hsl(var(--chatic-neutral-200))',
-                    300: 'hsl(var(--chatic-neutral-300))',
-                    400: 'hsl(var(--chatic-neutral-400))',
-                    500: 'hsl(var(--chatic-neutral-500))',
-                    600: 'hsl(var(--chatic-neutral-600))',
-                    700: 'hsl(var(--chatic-neutral-700))',
-                    800: 'hsl(var(--chatic-neutral-800))',
-                    900: 'hsl(var(--chatic-neutral-900))',
-                },
+                'chatic-accent': 'hsl(var(--chatic-accent))',
+                'chatic-50': 'hsl(var(--chatic-50))',
+                'chatic-100': 'hsl(var(--chatic-100))',
+                'chatic-300': 'hsl(var(--chatic-300))',
+                'chatic-400': 'hsl(var(--chatic-400))',
+                'chatic-500': 'hsl(var(--chatic-500))',
+                'chatic-600': 'hsl(var(--chatic-600))',
+                'chatic-700': 'hsl(var(--chatic-700))',
+                'chatic-800': 'hsl(var(--chatic-800))',
+
                 'chatic-text': {
-                    primary: 'hsl(var(--chatic-text-primary))',
-                    secondary: 'hsl(var(--chatic-text-secondary))',
-                    tertiary: 'hsl(var(--chatic-text-tertiary))',
-                    inverse: 'hsl(var(--chatic-text-inverse))',
-                    accent: 'hsl(var(--chatic-text-accent))',
+                    100: 'hsl(var(--chatic-100))',
+                    300: 'hsl(var(--chatic-300))',
+                    400: 'hsl(var(--chatic-400))',
+                    500: 'hsl(var(--chatic-500))',
+                    600: 'hsl(var(--chatic-600))',
+                    700: 'hsl(var(--chatic-700))',
+                    800: 'hsl(var(--chatic-800))',
+                    primary: 'hsl(var(--chatic-primary))',
                 },
             },
-            borderRadius: {
-                lg: 'var(--radius)',
-                md: 'calc(var(--radius) - 2px)',
-                sm: 'calc(var(--radius) - 4px)',
-                // Chatic Design System Border Radius
-                'chatic-xs': '4.5px',
-                'chatic-sm': '16px',
-                'chatic-md': '36px',
-                'chatic-lg': '100px',
+            boxShadow: {
+                chatic: '0 0 8px 0 rgba(0, 0, 0, 0.10)',
             },
             fontFamily: {
-                chatic: ['Pretendard', 'sans-serif'],
+                chatic: ['Pretendard', 'Aldrich', 'sans-serif'],
                 'chatic-brand': ['Aldrich', 'sans-serif'],
                 'chatic-system': ['SF Pro Display', 'sans-serif'],
-            },
-            fontSize: {
-                'chatic-xs': '10px',
-                'chatic-sm': '12px',
-                'chatic-base': '14px',
-                'chatic-md': '16px',
-                'chatic-lg': '18px',
-                'chatic-xl': '20px',
-                'chatic-2xl': '23px',
-                'chatic-3xl': '28px',
-                'chatic-4xl': '80px',
-            },
-            spacing: {
-                'chatic-xs': '4px',
-                'chatic-sm': '8px',
-                'chatic-md': '16px',
-                'chatic-lg': '24px',
-                'chatic-xl': '32px',
             },
             animation: {
                 'typing-pulse': 'pulse 1.4s ease-in-out infinite',
             },
         },
     },
-    plugins: [],
+    plugins: [
+        require('tailwindcss-animate'),
+        plugin(({ addUtilities }) =>
+            addUtilities({
+                '.scrollbar-hide': {
+                    '-ms-overflow-style': 'none',
+                    'scrollbar-width': 'none',
+                    '&::-webkit-scrollbar': {
+                        display: 'none',
+                    },
+                },
+            })
+        ),
+    ],
 };

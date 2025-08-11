@@ -4,16 +4,16 @@ import { type VariantProps, cva } from 'class-variance-authority';
 
 import { cn } from '@lemon/lib/utils';
 
-const chatMessageVariants = cva('flex font-chatic text-chatic-md leading-6', {
+const chatMessageVariants = cva('flex font-chatic text-sm leading-6', {
     variants: {
         type: {
             system: 'justify-start',
             user: 'justify-end',
         },
         size: {
-            default: 'text-chatic-md',
-            sm: 'text-chatic-sm',
-            lg: 'text-chatic-lg',
+            default: 'text-sm',
+            sm: 'text-[13px]',
+            lg: 'text-base',
         },
     },
     defaultVariants: {
@@ -22,11 +22,11 @@ const chatMessageVariants = cva('flex font-chatic text-chatic-md leading-6', {
     },
 });
 
-const chatMessageBubbleVariants = cva('max-w-[280px] font-chatic leading-relaxed', {
+const chatMessageBubbleVariants = cva('text-sm leading-relaxed', {
     variants: {
         type: {
-            system: 'text-chatic-text-primary',
-            user: 'border border-chatic-primary text-chatic-text-primary rounded-2xl px-4 py-3 bg-transparent',
+            system: 'text-chatic-text-800',
+            user: 'border-[0.5px] border-chatic-100 bg-chatic-50 text-chatic-text-800 rounded-xl px-3 py-[6px]',
         },
         gradient: {
             true: 'bg-gradient-to-r from-[#0b1933] via-[#102f6b] to-[#3968c3] bg-clip-text text-transparent',
@@ -50,14 +50,9 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(
         return (
             <div ref={ref} className={cn(chatMessageVariants({ type, size }), className)} {...props}>
                 {type === 'system' && gradient ? (
-                    <div
-                        className={cn(
-                            'max-w-[280px] font-chatic leading-relaxed text-chatic-text-primary',
-                            bubbleClassName
-                        )}
-                    >
+                    <div className={cn('leading-relaxed text-chatic-text-800', bubbleClassName)}>
                         <span
-                            className="bg-gradient-to-r from-[#0b1933] via-[#102f6b] to-[#3968c3] bg-clip-text text-transparent font-medium"
+                            className="bg-gradient-to-r from-[#0b1933] via-[#102f6b] to-[#3968c3] bg-clip-text text-transparent font-semibold"
                             style={{ WebkitTextFillColor: 'transparent' }}
                         >
                             {message}
@@ -68,6 +63,7 @@ const ChatMessage = React.forwardRef<HTMLDivElement, ChatMessageProps>(
                         className={cn(chatMessageBubbleVariants({ type, gradient: false }), bubbleClassName)}
                         style={{
                             whiteSpace: 'pre-line', // 줄바꿈 지원
+                            wordBreak: 'break-all',
                         }}
                     >
                         {message}

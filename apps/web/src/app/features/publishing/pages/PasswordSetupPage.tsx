@@ -26,7 +26,7 @@ export const PasswordSetupPage: React.FC<PasswordSetupPageProps> = ({ email, onC
     const [currentStep, setCurrentStep] = useState<'password' | 'confirm'>('password');
     const [password, setPassword] = useState('');
 
-    const chatInputRef = useRef<HTMLInputElement>(null);
+    const chatInputRef = useRef<HTMLTextAreaElement>(null);
     const isComponentMountedRef = useRef(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -218,7 +218,7 @@ export const PasswordSetupPage: React.FC<PasswordSetupPageProps> = ({ email, onC
             </div>
 
             {/* Chat Input */}
-            <div className="fixed bottom-0 left-0 right-0 bg-background px-4 py-4">
+            <div className="fixed bottom-0 left-0 right-0 bg-background">
                 <ChatInput
                     ref={chatInputRef}
                     placeholder={getPlaceholder()}
