@@ -11,7 +11,7 @@ const { assetExts, sourceExts } = defaultConfig.resolver;
  * @type {import('metro-config').MetroConfig}
  */
 const customConfig = {
-  cacheVersion: '@REDACTED_BUCKET_NAME/Chatic',
+  cacheVersion: '@chatic/mobile',
   transformer: {
     babelTransformerPath: require.resolve('react-native-svg-transformer'),
   },

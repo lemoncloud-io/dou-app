@@ -1,5 +1,5 @@
 {
-  "name": "@REDACTED_BUCKET_NAME/Chatic",
+  "name": "@chatic/mobile",
   "version": "0.0.1",
   "private": true,
   "dependencies": {
