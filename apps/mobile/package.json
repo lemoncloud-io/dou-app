@@ -1,5 +1,5 @@
 {
-  "name": "@chatic-front/Chatic",
+  "name": "@chatic/mobile",
   "version": "0.0.1",
   "private": true,
   "dependencies": {

@@ -1,8 +1,22 @@
 {
-  "name": "@chatic-front/source",
+  "name": "@chatic/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "clean:cache": "(rm -rf ./node_modules/.vite ./node_modules/.cache || true) && (rm -rf ./.nx || true)",
+    "postinstall": "([ \"$CI\" != \"true\" ] || [ \"$RUNNER_OS\" = \"macOS\" ]) && yarn mobile:pod",
+    "!mobile": "------------- Mobile scripts -------------",
+    "mobile:sync": "npx nx sync-deps mobile",
+    "mobile:start": "npx nx start mobile --reset-cache",
+    "mobile:pod": "npx nx pod-install mobile",
+    "mobile:ios": "npx nx run-ios mobile --simulator=\"iPhone 16 Pro\" --scheme \"Chatic\"",
+    "mobile:ios:device": "npx nx run-ios mobile --device --scheme \"Chatic\"",
+    "mobile:ios:release": "npx nx build-ios mobile --mode=Release",
+    "mobile:android": "npx nx run-android mobile",
+    "mobile:android:clean": "cd apps/mobile/android && (rm -rf ./app/build || true) && ./gradlew clean && cd ../../../",
+    "mobile:android:release:build": "yarn mobile:android:clean && ./scripts/build_mobile.sh",
+    "mobile:android:release:install": "./scripts/install_test_mobile.sh"
+  },
   "private": true,
   "dependencies": {
     "react": "^19.2.0",
