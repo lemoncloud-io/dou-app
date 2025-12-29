@@ -1,7 +1,6 @@
 /* eslint-disable jsx-a11y/accessible-emoji */
 import React, { useRef, useState } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   ScrollView,
   View,
@@ -10,6 +9,7 @@ import {
   TouchableOpacity,
   Linking,
 } from 'react-native';
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import Svg, { G, Path } from 'react-native-svg';
 
 export const App = () => {
@@ -17,7 +17,7 @@ export const App = () => {
   const scrollViewRef = useRef<null | ScrollView>(null);
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar barStyle="dark-content" />
       <SafeAreaView
         style={{
@@ -593,7 +593,7 @@ export const App = () => {
           </View>
         </ScrollView>
       </SafeAreaView>
-    </>
+    </SafeAreaProvider>
   );
 };
 const styles = StyleSheet.create({
