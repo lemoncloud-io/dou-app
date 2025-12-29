@@ -1,4 +1,7 @@
 {
   "name": "Chatic",
-  "displayName": "Chatic"
+  "displayName": "Chatic",
+  "experiments": {
+"reactCanary": true
+}
 }

@@ -7,6 +7,15 @@
     "react": "*",
     "react-native": "*",
     "react-native-svg": "*",
-    "metro-config": "*"
-  }
+    "metro-config": "*",
+    "@nx/eslint-plugin": "*",
+    "react-native-svg-transformer": "*",
+    "react-dom": "*",
+    "vite": "*",
+    "@vitejs/plugin-react": "*",
+    "@nx/vite": "*",
+    "esbuild": "*",
+    "react-native-safe-area-context": "*"
+  },
+  "devDependencies": {}
 }
