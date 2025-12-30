@@ -1,6 +1,6 @@
 /**
  * Chatic React Native App
- * Test Screen with various components
+ * Navigation Test with multiple screens
  *
  * @format
  */
@@ -20,37 +20,34 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import {
-  SafeAreaProvider,
-  SafeAreaView,
-} from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+// Navigation Types
+type RootStackParamList = {
+  Home: undefined;
+  Details: { itemId: number; title: string };
+  Settings: undefined;
+  Profile: { userId: string; name: string };
+};
 
-  return (
-    <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <SafeAreaView style={styles.container}>
-        <TestScreen />
-      </SafeAreaView>
-    </SafeAreaProvider>
-  );
-}
+type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
+type DetailsScreenProps = NativeStackScreenProps<RootStackParamList, 'Details'>;
+type SettingsScreenProps = NativeStackScreenProps<RootStackParamList, 'Settings'>;
+type ProfileScreenProps = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
-function TestScreen() {
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// ============ HOME SCREEN ============
+function HomeScreen({ navigation }: HomeScreenProps) {
   const [count, setCount] = useState(0);
-  const [text, setText] = useState('');
-  const [isEnabled, setIsEnabled] = useState(false);
-
-  const handlePress = (buttonName: string) => {
-    Alert.alert('Button Pressed', `You pressed: ${buttonName}`);
-  };
 
   return (
-    <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Chatic Test Screen</Text>
-      <Text style={styles.subtitle}>React Native 0.83</Text>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>Home Screen</Text>
+      <Text style={styles.subtitle}>React Native 0.83 + Navigation</Text>
 
       {/* Counter Section */}
       <View style={styles.section}>
@@ -70,82 +67,44 @@ function TestScreen() {
             <Text style={styles.buttonText}>+ 1</Text>
           </TouchableOpacity>
         </View>
-        <Button title="Reset" onPress={() => setCount(0)} />
       </View>
 
-      {/* Text Input Section */}
+      {/* Navigation Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Text Input Test</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Type something..."
-          value={text}
-          onChangeText={setText}
-        />
-        <Text style={styles.inputResult}>You typed: {text}</Text>
-      </View>
-
-      {/* Switch Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Switch Test</Text>
-        <View style={styles.row}>
-          <Text>Toggle: {isEnabled ? 'ON' : 'OFF'}</Text>
-          <Switch
-            value={isEnabled}
-            onValueChange={setIsEnabled}
-            trackColor={{ false: '#767577', true: '#81b0ff' }}
-            thumbColor={isEnabled ? '#007AFF' : '#f4f3f4'}
-          />
-        </View>
-      </View>
-
-      {/* Button Types Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Button Types</Text>
+        <Text style={styles.sectionTitle}>Navigation Test</Text>
 
         <TouchableOpacity
-          style={styles.touchableButton}
-          onPress={() => handlePress('TouchableOpacity')}
+          style={styles.navButton}
+          onPress={() => navigation.navigate('Details', { itemId: 42, title: 'First Item' })}
         >
-          <Text style={styles.touchableButtonText}>TouchableOpacity</Text>
+          <Text style={styles.navButtonText}>Go to Details (ID: 42)</Text>
         </TouchableOpacity>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.pressableButton,
-            pressed && styles.pressableButtonPressed,
-          ]}
-          onPress={() => handlePress('Pressable')}
+        <TouchableOpacity
+          style={styles.navButton}
+          onPress={() => navigation.navigate('Details', { itemId: 100, title: 'Second Item' })}
         >
-          <Text style={styles.pressableButtonText}>Pressable</Text>
-        </Pressable>
+          <Text style={styles.navButtonText}>Go to Details (ID: 100)</Text>
+        </TouchableOpacity>
 
-        <Button
-          title="Native Button"
-          onPress={() => handlePress('Native Button')}
-        />
+        <TouchableOpacity
+          style={[styles.navButton, styles.navButtonPurple]}
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <Text style={styles.navButtonText}>Go to Settings</Text>
+        </TouchableOpacity>
 
-        <View style={styles.spacer} />
-
-        <Button
-          title="Show Alert"
-          color="#FF6B6B"
-          onPress={() => {
-            Alert.alert(
-              'Alert Title',
-              'This is an alert message!',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'OK', onPress: () => console.log('OK Pressed') },
-              ]
-            );
-          }}
-        />
+        <TouchableOpacity
+          style={[styles.navButton, styles.navButtonOrange]}
+          onPress={() => navigation.navigate('Profile', { userId: 'user123', name: 'John Doe' })}
+        >
+          <Text style={styles.navButtonText}>Go to Profile</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Colors Section */}
+      {/* Color Boxes */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Color Boxes</Text>
+        <Text style={styles.sectionTitle}>Touch Test</Text>
         <View style={styles.colorRow}>
           {['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'].map((color, i) => (
             <TouchableOpacity
@@ -156,21 +115,233 @@ function TestScreen() {
           ))}
         </View>
       </View>
+    </ScrollView>
+  );
+}
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Chatic v0.0.1</Text>
+// ============ DETAILS SCREEN ============
+function DetailsScreen({ route, navigation }: DetailsScreenProps) {
+  const { itemId, title } = route.params;
+  const [inputText, setInputText] = useState('');
+
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>Details Screen</Text>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Received Params</Text>
+        <Text style={styles.paramText}>Item ID: {itemId}</Text>
+        <Text style={styles.paramText}>Title: {title}</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Text Input Test</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Type something..."
+          value={inputText}
+          onChangeText={setInputText}
+        />
+        <Text style={styles.inputResult}>You typed: {inputText}</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Navigation Actions</Text>
+
+        <TouchableOpacity
+          style={styles.navButton}
+          onPress={() => navigation.navigate('Details', { itemId: itemId + 1, title: 'New Item' })}
+        >
+          <Text style={styles.navButtonText}>Go to Next Details (ID: {itemId + 1})</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.navButton, styles.navButtonGray]}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.navButtonText}>Go Back</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.navButton, styles.navButtonRed]}
+          onPress={() => navigation.popToTop()}
+        >
+          <Text style={styles.navButtonText}>Pop to Home</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
 
+// ============ SETTINGS SCREEN ============
+function SettingsScreen({ navigation }: SettingsScreenProps) {
+  const [notifications, setNotifications] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+  const [autoSave, setAutoSave] = useState(true);
+
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>Settings Screen</Text>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Preferences</Text>
+
+        <View style={styles.settingRow}>
+          <Text style={styles.settingLabel}>Notifications</Text>
+          <Switch
+            value={notifications}
+            onValueChange={setNotifications}
+            trackColor={{ false: '#767577', true: '#81b0ff' }}
+          />
+        </View>
+
+        <View style={styles.settingRow}>
+          <Text style={styles.settingLabel}>Dark Mode</Text>
+          <Switch
+            value={darkMode}
+            onValueChange={setDarkMode}
+            trackColor={{ false: '#767577', true: '#81b0ff' }}
+          />
+        </View>
+
+        <View style={styles.settingRow}>
+          <Text style={styles.settingLabel}>Auto Save</Text>
+          <Switch
+            value={autoSave}
+            onValueChange={setAutoSave}
+            trackColor={{ false: '#767577', true: '#81b0ff' }}
+          />
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Actions</Text>
+
+        <Button
+          title="Show Alert"
+          onPress={() => Alert.alert('Settings', 'Settings saved!')}
+        />
+
+        <View style={styles.spacer} />
+
+        <Button
+          title="Clear Cache"
+          color="#FF6B6B"
+          onPress={() => Alert.alert('Cache', 'Cache cleared!')}
+        />
+      </View>
+
+      <View style={styles.section}>
+        <TouchableOpacity
+          style={[styles.navButton, styles.navButtonGray]}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.navButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+}
+
+// ============ PROFILE SCREEN ============
+function ProfileScreen({ route, navigation }: ProfileScreenProps) {
+  const { userId, name } = route.params;
+
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>Profile Screen</Text>
+
+      <View style={styles.section}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{name.charAt(0)}</Text>
+        </View>
+        <Text style={styles.profileName}>{name}</Text>
+        <Text style={styles.profileId}>ID: {userId}</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.pressableButton,
+            pressed && styles.pressableButtonPressed,
+          ]}
+          onPress={() => Alert.alert('Edit', 'Edit profile pressed!')}
+        >
+          <Text style={styles.pressableButtonText}>Edit Profile</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.pressableButton,
+            styles.pressableButtonSecondary,
+            pressed && styles.pressableButtonPressed,
+          ]}
+          onPress={() => Alert.alert('Logout', 'Logout pressed!')}
+        >
+          <Text style={styles.pressableButtonText}>Logout</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.section}>
+        <TouchableOpacity
+          style={[styles.navButton, styles.navButtonGray]}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.navButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+}
+
+// ============ MAIN APP ============
+function App() {
+  const isDarkMode = useColorScheme() === 'dark';
+
+  return (
+    <SafeAreaProvider>
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+      <NavigationContainer>
+        <Stack.Navigator
+          initialRouteName="Home"
+          screenOptions={{
+            headerStyle: { backgroundColor: '#007AFF' },
+            headerTintColor: '#fff',
+            headerTitleStyle: { fontWeight: 'bold' },
+          }}
+        >
+          <Stack.Screen
+            name="Home"
+            component={HomeScreen}
+            options={{ title: 'Chatic Home' }}
+          />
+          <Stack.Screen
+            name="Details"
+            component={DetailsScreen}
+            options={({ route }) => ({ title: route.params.title })}
+          />
+          <Stack.Screen
+            name="Settings"
+            component={SettingsScreen}
+            options={{ title: 'Settings' }}
+          />
+          <Stack.Screen
+            name="Profile"
+            component={ProfileScreen}
+            options={({ route }) => ({ title: route.params.name })}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaProvider>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
     backgroundColor: '#F5F5F5',
-  },
-  scrollView: {
-    flex: 1,
   },
   content: {
     padding: 20,
@@ -234,6 +405,44 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
+  navButton: {
+    backgroundColor: '#007AFF',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  navButtonPurple: {
+    backgroundColor: '#5856D6',
+  },
+  navButtonOrange: {
+    backgroundColor: '#FF9500',
+  },
+  navButtonGray: {
+    backgroundColor: '#8E8E93',
+  },
+  navButtonRed: {
+    backgroundColor: '#FF3B30',
+  },
+  navButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  colorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  colorBox: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+  },
+  paramText: {
+    fontSize: 16,
+    marginBottom: 8,
+    color: '#333',
+  },
   input: {
     borderWidth: 1,
     borderColor: '#DDD',
@@ -246,24 +455,57 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#666',
   },
-  touchableButton: {
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEE',
+  },
+  settingLabel: {
+    fontSize: 16,
+    color: '#333',
+  },
+  spacer: {
+    height: 12,
+  },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  avatarText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  profileName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#333',
+  },
+  profileId: {
+    fontSize: 14,
+    textAlign: 'center',
+    color: '#666',
+    marginTop: 4,
+  },
+  pressableButton: {
     backgroundColor: '#007AFF',
     padding: 14,
     borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  touchableButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  pressableButton: {
-    backgroundColor: '#5856D6',
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 12,
+  pressableButtonSecondary: {
+    backgroundColor: '#FF3B30',
   },
   pressableButtonPressed: {
     opacity: 0.7,
@@ -273,26 +515,6 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  spacer: {
-    height: 12,
-  },
-  colorRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  colorBox: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-  },
-  footer: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  footerText: {
-    color: '#999',
-    fontSize: 12,
   },
 });
 
