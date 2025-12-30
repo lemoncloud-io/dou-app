@@ -5,8 +5,11 @@
   "dependencies": {
     "@react-native/metro-config": "*",
     "@react-native/new-app-screen": "*",
+    "@react-navigation/native": "*",
+    "@react-navigation/native-stack": "*",
     "react": "*",
     "react-native": "*",
+    "react-native-screens": "*",
     "react-native-svg": "*",
     "metro-config": "*",
     "@nx/eslint-plugin": "*",
