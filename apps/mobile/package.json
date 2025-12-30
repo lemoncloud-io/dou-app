@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@react-native/metro-config": "*",
+    "@react-native/new-app-screen": "*",
     "react": "*",
     "react-native": "*",
     "react-native-svg": "*",
