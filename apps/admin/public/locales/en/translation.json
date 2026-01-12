@@ -1,0 +1,43 @@
+{
+    "common": {
+        "signout": "Sign Out"
+    },
+    "oauth": {
+        "signing": "Signing in...",
+        "logout": "You have been signed out successfully.",
+        "error": {
+            "general": "Authentication failed.",
+            "stateParam": "Failed to parse state parameter:"
+        }
+    },
+    "settings": {
+        "theme": "Theme",
+        "language": "Language"
+    },
+    "login": {
+        "adminTitle": "Admin Portal",
+        "adminSubtitle": "Sign in to admin dashboard",
+        "testUserId": "Test User ID",
+        "testUserIdPlaceholder": "Enter test user ID",
+        "signingIn": "Signing in...",
+        "testLogin": "Test Login",
+        "success": "Login successful",
+        "failed": "Login failed"
+    },
+    "dashboard": {
+        "welcome": "Welcome, {{name}}",
+        "defaultName": "Admin",
+        "subtitle": "Admin dashboard overview",
+        "stats": {
+            "totalUsers": "Total Users",
+            "activeSessions": "Active Sessions",
+            "pendingTasks": "Pending Tasks"
+        },
+        "quickActions": "Quick Actions",
+        "actions": {
+            "manageUsers": "Manage Users",
+            "viewAnalytics": "View Analytics",
+            "settings": "Settings"
+        }
+    }
+}
