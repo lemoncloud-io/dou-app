@@ -5,6 +5,12 @@
   "references": [
     {
       "path": "./apps/mobile"
+    },
+    {
+      "path": "./apps/admin"
+    },
+    {
+      "path": "./apps/web"
     }
   ]
 }
