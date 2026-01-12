@@ -1,23 +1,18 @@
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 
-import { AuthRoutes } from '../features/auth';
-import { HomeRoutes } from '../features/home';
+import { useWebCoreStore } from '@chatic/web-core';
 
-const router = createBrowserRouter([
-    {
-        path: '/home/*',
-        element: <HomeRoutes />,
-    },
-    {
-        path: '/auth/*',
-        element: <AuthRoutes />,
-    },
-    {
-        path: '/*',
-        element: <HomeRoutes />,
-    },
-]);
+import { CommonRoutes } from './common/CommonRoutes';
+import { usePrivateRoutes } from './private/usePrivateRoutes';
+import { publicRoutes } from './public/PublicRoutes';
 
 export const Router = () => {
+    const { isAuthenticated } = useWebCoreStore();
+    const privateRoutes = usePrivateRoutes();
+
+    const routes = isAuthenticated ? privateRoutes : publicRoutes;
+
+    const router = createBrowserRouter([...routes, ...CommonRoutes]);
+
     return <RouterProvider router={router} />;
 };

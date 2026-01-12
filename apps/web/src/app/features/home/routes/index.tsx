@@ -5,8 +5,8 @@ import { ResultPage } from '../pages';
 export const HomeRoutes = () => {
     return (
         <Routes>
-            <Route path="/" element={<ResultPage />} />
-            <Route path="*" element={<Navigate to="/home"></Navigate>} />
+            <Route index element={<ResultPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );
 };
