@@ -1,0 +1,9 @@
+{
+    "name": "@chatic/device-utils",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/device-utils/src",
+    "projectType": "library",
+    "tags": [],
+    "// targets": "to see all targets run: nx show project device-utils --web",
+    "targets": {}
+}
