@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { calcTestSignature } from '@lemoncloud/lemon-web-core';
@@ -12,6 +13,7 @@ import { Label } from '@chatic/ui-kit/components/ui/label';
 import { snsTestLogin, useWebCoreStore } from '@chatic/web-core';
 
 export const LoginPage = (): JSX.Element => {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const setIsAuthenticated = useWebCoreStore(state => state.setIsAuthenticated);
 
@@ -40,10 +42,10 @@ export const LoginPage = (): JSX.Element => {
             await snsTestLogin(body);
             setIsAuthenticated(true);
             navigate('/', { replace: true });
-            toast.success('Login successful');
+            toast.success(t('login.success'));
         } catch (error) {
             console.error('SNS Test Login failed:', error);
-            toast.error('Login failed');
+            toast.error(t('login.failed'));
         } finally {
             setIsLoading(false);
         }
@@ -57,23 +59,23 @@ export const LoginPage = (): JSX.Element => {
                         <MessageCircle className="w-8 h-8 text-primary-foreground" />
                     </div>
                     <div>
-                        <CardTitle className="text-2xl">Chatic</CardTitle>
-                        <CardDescription>Sign in to your account</CardDescription>
+                        <CardTitle className="text-2xl">{t('login.title')}</CardTitle>
+                        <CardDescription>{t('login.subtitle')}</CardDescription>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="testUid">Test User ID</Label>
+                        <Label htmlFor="testUid">{t('login.testUserId')}</Label>
                         <Input
                             id="testUid"
                             type="text"
-                            placeholder="Enter test user ID"
+                            placeholder={t('login.testUserIdPlaceholder')}
                             value={snsTestUid}
                             onChange={e => setSnsTestUid(e.target.value)}
                         />
                     </div>
                     <Button className="w-full" onClick={onClickSnsTestLogin} disabled={isLoading || !snsTestUid}>
-                        {isLoading ? 'Signing in...' : 'Test Login'}
+                        {isLoading ? t('login.signingIn') : t('login.testLogin')}
                     </Button>
                 </CardContent>
             </Card>

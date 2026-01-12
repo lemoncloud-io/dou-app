@@ -29,14 +29,12 @@ replacers:
       replace: '루이'
     - search: 'alice-0130'
       replace: '앨리스'
-    - search: 'caleb-lemon'
-      replace: '케일럽'
     - search: 'shy-lemon'
       replace: '샤이'
-    - search: 'luke-lemon'
-      replace: '루크'
+    - search: 'raine-lemon'
+      replace: '레인'
     - search: '/#(\d+)/g'
-      replace: '[#$1](https://github.com/lemoncloud-io/lemon-front-starter/pull/$1)'
+      replace: '[#$1](https://github.com/lemoncloud-io/chatic-front/pull/$1)'
 version-resolver:
     major:
         labels:

@@ -1,122 +1,43 @@
 {
     "common": {
-        "back": "뒤로",
-        "signout": "로그아웃",
-        "cancel": "취소",
-        "save": "변경사항 저장",
-        "saving": "저장 중...",
-        "required": "필수"
+        "signout": "로그아웃"
     },
     "oauth": {
         "signing": "로그인 중...",
         "logout": "로그아웃하였습니다.",
         "error": {
-            "general": "에러가 발생했습니다.",
+            "general": "인증에 실패했습니다.",
             "stateParam": "상태 파라미터 파싱 실패:"
         }
-    },
-    "landing": {
-        "signIn": "로그인",
-        "hero": {
-            "welcome": "미래를 향한",
-            "future": "여정의 시작",
-            "description": "차세대 클라우드 혁신을 경험하세요. 빠르고 안전하며 현대적인 세상을 위해 아름답게 설계되었습니다.",
-            "getStarted": "시작하기",
-            "learnMore": "자세히 보기"
-        },
-        "features": {
-            "title": "LemonCloud를 선택하는 이유",
-            "fast": {
-                "title": "번개같이 빠른 속도",
-                "desc": "최첨단 기술로 구현된 속도와 성능"
-            },
-            "secure": {
-                "title": "안전하고 개인적인",
-                "desc": "엔터프라이즈급 보안으로 당신의 데이터를 보호합니다"
-            },
-            "global": {
-                "title": "전 세계 접근",
-                "desc": "언제든지, 어디서든지, 어떤 기기에서든 콘텐츠에 접근하세요"
-            }
-        },
-        "cta": {
-            "title": "시작할 준비가 되셨나요?",
-            "description": "이미 미래를 경험하고 있는 수많은 사용자들과 함께 하세요.",
-            "button": "여정 시작하기"
-        }
-    },
-    "login": {
-        "welcomeBack": "다시 오신 것을 환영합니다",
-        "subtitle": "LemonCloud 계속 사용하기",
-        "googleButton": "Google로 계속하기",
-        "connecting": "연결 중...",
-        "terms": "로그인하면 서비스 약관에 동의하는 것으로 간주됩니다"
     },
     "settings": {
         "theme": "테마",
         "language": "언어"
     },
+    "login": {
+        "adminTitle": "관리자 포털",
+        "adminSubtitle": "관리자 대시보드에 로그인",
+        "testUserId": "테스트 사용자 ID",
+        "testUserIdPlaceholder": "테스트 사용자 ID 입력",
+        "signingIn": "로그인 중...",
+        "testLogin": "테스트 로그인",
+        "success": "로그인 성공",
+        "failed": "로그인 실패"
+    },
     "dashboard": {
-        "title": "대시보드",
-        "welcome": "다시 오신 것을 환영합니다!",
-        "subtitle": "오늘 프로젝트에 일어난 일들을 확인해보세요.",
+        "welcome": "환영합니다, {{name}}",
+        "defaultName": "관리자",
+        "subtitle": "관리자 대시보드 개요",
         "stats": {
-            "projects": "전체 프로젝트",
-            "tasks": "활성 작업",
-            "completed": "완료됨",
-            "thisMonth": "이번 달"
+            "totalUsers": "전체 사용자",
+            "activeSessions": "활성 세션",
+            "pendingTasks": "대기 중인 작업"
         },
-        "editProfile": "프로필 편집",
-        "recentActivity": "최근 활동",
         "quickActions": "빠른 작업",
         "actions": {
-            "newProject": "새 프로젝트 만들기",
-            "newTask": "새 작업 추가",
-            "analytics": "분석 보기"
-        },
-        "activity": {
-            "created": "새 프로젝트를 생성했습니다",
-            "completed": "\"디자인 리뷰\" 작업을 완료했습니다",
-            "updated": "프로젝트 설정을 업데이트했습니다",
-            "shared": "팀과 프로젝트를 공유했습니다"
-        },
-        "time": {
-            "hoursAgo": "{{count}}시간 전",
-            "dayAgo": "1일 전",
-            "daysAgo": "{{count}}일 전"
-        }
-    },
-    "profile": {
-        "editTitle": "프로필 수정",
-        "editSubtitle": "개인 정보를 업데이트하세요",
-        "updateSuccess": "프로필이 성공적으로 업데이트되었습니다",
-        "updateError": "프로필 업데이트에 실패했습니다. 다시 시도해주세요.",
-
-        "name": "이름",
-        "email": "이메일 주소",
-        "phone": "전화번호",
-        "role": "역할",
-        "nickname": "닉네임",
-        "bio": "소개",
-
-        "editableSection": "수정 가능한 정보",
-        "nicknamePlaceholder": "닉네임을 입력하세요",
-        "bioPlaceholder": "자신에 대해 소개해주세요...",
-        "selectGender": "성별을 선택하세요",
-
-        "gender": {
-            "title": "성별",
-            "male": "남성",
-            "female": "여성",
-            "other": "기타",
-            "preferNotToSay": "선택하지 않음"
-        },
-
-        "validation": {
-            "nickRequired": "닉네임은 필수입니다",
-            "nickTooShort": "닉네임은 최소 2자 이상이어야 합니다",
-            "nickTooLong": "닉네임은 50자 미만이어야 합니다",
-            "genderRequired": "성별을 선택해주세요"
+            "manageUsers": "사용자 관리",
+            "viewAnalytics": "분석 보기",
+            "settings": "설정"
         }
     }
 }

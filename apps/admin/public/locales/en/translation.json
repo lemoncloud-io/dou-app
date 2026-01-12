@@ -1,11 +1,6 @@
 {
     "common": {
-        "back": "Back",
-        "signout": "Sign Out",
-        "cancel": "Cancel",
-        "save": "Save Changes",
-        "saving": "Saving...",
-        "required": "Required"
+        "signout": "Sign Out"
     },
     "oauth": {
         "signing": "Signing in...",
@@ -15,104 +10,34 @@
             "stateParam": "Failed to parse state parameter:"
         }
     },
-    "landing": {
-        "signIn": "Sign In",
-        "hero": {
-            "welcome": "Welcome to the",
-            "future": "Future",
-            "description": "Experience the next generation of cloud innovation. Fast, secure, and beautifully designed for the modern world.",
-            "getStarted": "Get Started",
-            "learnMore": "Learn More"
-        },
-        "features": {
-            "title": "Why Choose LemonCloud?",
-            "fast": {
-                "title": "Lightning Fast",
-                "desc": "Built for speed and performance with cutting-edge technology"
-            },
-            "secure": {
-                "title": "Secure & Private",
-                "desc": "Your data is protected with enterprise-grade security"
-            },
-            "global": {
-                "title": "Global Access",
-                "desc": "Access your content anywhere, anytime, on any device"
-            }
-        },
-        "cta": {
-            "title": "Ready to Get Started?",
-            "description": "Join thousands of users who are already experiencing the future.",
-            "button": "Start Your Journey"
-        }
-    },
-    "login": {
-        "welcomeBack": "Welcome Back",
-        "subtitle": "Sign in to continue to LemonCloud",
-        "googleButton": "Continue with Google",
-        "connecting": "Connecting...",
-        "terms": "By signing in, you agree to our Terms of Service"
-    },
     "settings": {
         "theme": "Theme",
         "language": "Language"
     },
+    "login": {
+        "adminTitle": "Admin Portal",
+        "adminSubtitle": "Sign in to admin dashboard",
+        "testUserId": "Test User ID",
+        "testUserIdPlaceholder": "Enter test user ID",
+        "signingIn": "Signing in...",
+        "testLogin": "Test Login",
+        "success": "Login successful",
+        "failed": "Login failed"
+    },
     "dashboard": {
-        "title": "Dashboard",
-        "welcome": "Welcome back!",
-        "subtitle": "Here's what's happening with your projects today.",
+        "welcome": "Welcome, {{name}}",
+        "defaultName": "Admin",
+        "subtitle": "Admin dashboard overview",
         "stats": {
-            "projects": "Total Projects",
-            "tasks": "Active Tasks",
-            "completed": "Completed",
-            "thisMonth": "This Month"
+            "totalUsers": "Total Users",
+            "activeSessions": "Active Sessions",
+            "pendingTasks": "Pending Tasks"
         },
-        "editProfile": "Edit Profile",
-        "recentActivity": "Recent Activity",
         "quickActions": "Quick Actions",
         "actions": {
-            "newProject": "Create New Project",
-            "newTask": "Add New Task",
-            "analytics": "View Analytics"
-        },
-        "activity": {
-            "created": "Created new project",
-            "completed": "Completed task \"Design Review\"",
-            "updated": "Updated project settings",
-            "shared": "Shared project with team"
-        },
-        "time": {
-            "hoursAgo": "{{count}} hours ago",
-            "dayAgo": "1 day ago",
-            "daysAgo": "{{count}} days ago"
-        }
-    },
-    "profile": {
-        "editTitle": "Edit Profile",
-        "editSubtitle": "Update your personal information",
-        "updateSuccess": "Profile updated successfully",
-        "updateError": "Failed to update profile. Please try again.",
-        "name": "Full Name",
-        "email": "Email Address",
-        "phone": "Phone Number",
-        "role": "Role",
-        "nickname": "Nickname",
-        "bio": "Bio",
-        "editableSection": "Editable Information",
-        "nicknamePlaceholder": "Enter your nickname",
-        "bioPlaceholder": "Tell us about yourself...",
-        "selectGender": "Select your gender",
-        "gender": {
-            "title": "Gender",
-            "male": "Male",
-            "female": "Female",
-            "other": "Other",
-            "preferNotToSay": "Prefer not to say"
-        },
-        "validation": {
-            "nickRequired": "Nickname is required",
-            "nickTooShort": "Nickname must be at least 2 characters",
-            "nickTooLong": "Nickname must be less than 50 characters",
-            "genderRequired": "Please select your gender"
+            "manageUsers": "Manage Users",
+            "viewAnalytics": "View Analytics",
+            "settings": "Settings"
         }
     }
 }

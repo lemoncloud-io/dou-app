@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 import { LayoutDashboard, Settings, Users } from 'lucide-react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -5,20 +7,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@chatic/ui-kit/compone
 import { useWebCoreStore } from '@chatic/web-core';
 
 export const DashboardPage = (): JSX.Element => {
+    const { t } = useTranslation();
     const profile = useWebCoreStore(state => state.profile);
 
     const stats = [
-        { label: 'Total Users', value: '2,847', icon: Users },
-        { label: 'Active Sessions', value: '124', icon: LayoutDashboard },
-        { label: 'Pending Tasks', value: '18', icon: Settings },
+        { label: t('dashboard.stats.totalUsers'), value: '2,847', icon: Users },
+        { label: t('dashboard.stats.activeSessions'), value: '124', icon: LayoutDashboard },
+        { label: t('dashboard.stats.pendingTasks'), value: '18', icon: Settings },
     ];
 
     return (
         <div className="p-6">
             {/* Welcome */}
             <div className="mb-8">
-                <h1 className="text-3xl font-bold mb-2">Welcome, {profile?.nick || 'Admin'}</h1>
-                <p className="text-muted-foreground">Admin dashboard overview</p>
+                <h1 className="text-3xl font-bold mb-2">
+                    {t('dashboard.welcome', { name: profile?.nick || t('dashboard.defaultName') })}
+                </h1>
+                <p className="text-muted-foreground">{t('dashboard.subtitle')}</p>
             </div>
 
             {/* Stats Grid */}
@@ -39,20 +44,20 @@ export const DashboardPage = (): JSX.Element => {
             {/* Quick Actions */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Quick Actions</CardTitle>
+                    <CardTitle>{t('dashboard.quickActions')}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex gap-3">
                     <Button>
                         <Users className="w-4 h-4 mr-2" />
-                        Manage Users
+                        {t('dashboard.actions.manageUsers')}
                     </Button>
                     <Button variant="outline">
                         <LayoutDashboard className="w-4 h-4 mr-2" />
-                        View Analytics
+                        {t('dashboard.actions.viewAnalytics')}
                     </Button>
                     <Button variant="outline">
                         <Settings className="w-4 h-4 mr-2" />
-                        Settings
+                        {t('dashboard.actions.settings')}
                     </Button>
                 </CardContent>
             </Card>
