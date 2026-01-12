@@ -1,10 +1,40 @@
 {
-  "extends": "./tsconfig.base.json",
-  "compileOnSave": false,
-  "files": [],
-  "references": [
-    {
-      "path": "./apps/mobile"
-    }
-  ]
+    "extends": "./tsconfig.base.json",
+    "compileOnSave": false,
+    "files": [],
+    "references": [
+        {
+            "path": "./apps/mobile"
+        },
+        {
+            "path": "./apps/admin"
+        },
+        {
+            "path": "./apps/web"
+        },
+        {
+            "path": "./libs/app-messages"
+        },
+        {
+            "path": "./libs/device-utils"
+        },
+        {
+            "path": "./libs/web-core"
+        },
+        {
+            "path": "./libs/pouches"
+        },
+        {
+            "path": "./libs/shared"
+        },
+        {
+            "path": "./libs/ui-kit"
+        },
+        {
+            "path": "./libs/theme"
+        },
+        {
+            "path": "./assets"
+        }
+    ]
 }

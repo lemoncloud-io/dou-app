@@ -1,0 +1,75 @@
+{
+    "common": {
+        "signout": "로그아웃",
+        "cancel": "취소",
+        "save": "변경사항 저장",
+        "saving": "저장 중..."
+    },
+    "oauth": {
+        "signing": "로그인 중...",
+        "logout": "로그아웃하였습니다.",
+        "error": {
+            "general": "인증에 실패했습니다.",
+            "stateParam": "상태 파라미터 파싱 실패:"
+        }
+    },
+    "settings": {
+        "theme": "테마",
+        "language": "언어"
+    },
+    "login": {
+        "title": "Chatic",
+        "subtitle": "계정에 로그인",
+        "testUserId": "테스트 사용자 ID",
+        "testUserIdPlaceholder": "테스트 사용자 ID 입력",
+        "signingIn": "로그인 중...",
+        "testLogin": "테스트 로그인",
+        "success": "로그인 성공",
+        "failed": "로그인 실패"
+    },
+    "home": {
+        "welcome": "환영합니다",
+        "subtitle": "아래에서 설정을 관리하세요",
+        "settings": "설정",
+        "theme": "테마",
+        "lightMode": "라이트 모드",
+        "darkMode": "다크 모드",
+        "toDark": "다크",
+        "toLight": "라이트",
+        "language": "언어",
+        "logout": "로그아웃",
+        "logoutDesc": "계정에서 로그아웃",
+        "loggingOut": "로그아웃 중...",
+        "logoutSuccess": "로그아웃 성공",
+        "logoutFailed": "로그아웃 실패"
+    },
+    "profile": {
+        "editTitle": "프로필 수정",
+        "editSubtitle": "개인 정보를 업데이트하세요",
+        "updateSuccess": "프로필이 성공적으로 업데이트되었습니다",
+        "updateError": "프로필 업데이트에 실패했습니다. 다시 시도해주세요.",
+        "name": "이름",
+        "email": "이메일 주소",
+        "phone": "전화번호",
+        "role": "역할",
+        "nickname": "닉네임",
+        "bio": "소개",
+        "editableSection": "수정 가능한 정보",
+        "nicknamePlaceholder": "닉네임을 입력하세요",
+        "bioPlaceholder": "자신에 대해 소개해주세요...",
+        "selectGender": "성별을 선택하세요",
+        "gender": {
+            "title": "성별",
+            "male": "남성",
+            "female": "여성",
+            "other": "기타",
+            "preferNotToSay": "선택하지 않음"
+        },
+        "validation": {
+            "nickRequired": "닉네임은 필수입니다",
+            "nickTooShort": "닉네임은 최소 2자 이상이어야 합니다",
+            "nickTooLong": "닉네임은 50자 미만이어야 합니다",
+            "genderRequired": "성별을 선택해주세요"
+        }
+    }
+}
