@@ -14,7 +14,7 @@
         "build:all:prod": "npx nx run-many --target=build --configuration=prod --all",
         "!mobile": "------------- Mobile scripts -------------",
         "mobile:sync": "npx nx sync-deps mobile",
-        "mobile:start": "npx nx start mobile --reset-cache",
+        "mobile:start": "npx dotenv -e apps/mobile/.env -- npx nx start mobile --reset-cache",
         "mobile:pod": "npx nx pod-install mobile",
         "mobile:ios": "npx nx run-ios mobile --simulator=\"iPhone 16 Pro\" --scheme \"Chatic\"",
         "mobile:ios:device": "npx nx run-ios mobile --device --scheme \"Chatic\"",
