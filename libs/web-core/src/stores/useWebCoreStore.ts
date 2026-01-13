@@ -31,7 +31,14 @@ export interface WebCoreStore extends WebCoreState {
     setIsAuthenticated: (isAuth: boolean) => void;
     setProfile: (profile: UserProfile) => void;
     updateProfile: (user: UserView) => Promise<void>;
+    registerLogoutCallback: (callback: () => void) => () => void;
 }
+
+/**
+ * Logout callback registry
+ * Stores callbacks to be executed before logout (e.g., WebSocket disconnect)
+ */
+const logoutCallbacks = new Set<() => void>();
 
 /**
  * Initial state configuration for the web core store
@@ -79,11 +86,22 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
 
     /**
      * Handles user logout
+     * - Executes registered logout callbacks
      * - Clears authentication state
      * - Removes user profile data
      * - Redirects to login page
      */
     logout: async () => {
+        // Execute all registered callbacks before logout
+        logoutCallbacks.forEach(callback => {
+            try {
+                callback();
+            } catch (error) {
+                console.error('Logout callback error:', error);
+            }
+        });
+        logoutCallbacks.clear();
+
         await webCore.logout();
         set({ isAuthenticated: false, profile: null, userName: '' });
         window.location.href = '/';
@@ -117,5 +135,17 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         //     const userName = user['name'];
         //     return { ...state, profile, userName };
         // });
+    },
+
+    /**
+     * Registers a callback to be executed before logout
+     * @param callback - Function to call before logout
+     * @returns Unregister function to remove the callback
+     */
+    registerLogoutCallback: (callback: () => void) => {
+        logoutCallbacks.add(callback);
+        return () => {
+            logoutCallbacks.delete(callback);
+        };
     },
 }));

@@ -28,7 +28,8 @@
                     "buildDepsName": "build-deps",
                     "watchDepsName": "watch-deps"
                 }
-            }
+            },
+            "exclude": ["libs/socket/*"]
         },
         {
             "plugin": "@nx/react-native/plugin",
@@ -68,6 +69,15 @@
             "plugin": "@nx/jest/plugin",
             "options": {
                 "targetName": "test"
+            }
+        },
+        {
+            "plugin": "@nx/js/typescript",
+            "include": ["libs/socket/*"],
+            "options": {
+                "typecheck": {
+                    "targetName": "typecheck"
+                }
             }
         }
     ],
