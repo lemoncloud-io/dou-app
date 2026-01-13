@@ -1,0 +1,12 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "outDir": "../../dist/out-tsc",
+        "declaration": true,
+        "types": ["node", "vite/client"],
+        "jsx": "react-jsx"
+    },
+    "include": ["src/**/*.ts", "src/**/*.tsx", "../../vite-env.d.ts"],
+    "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+    "references": []
+}
