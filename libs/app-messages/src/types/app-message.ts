@@ -7,6 +7,7 @@ import type { DeviceInfo, VersionInfo } from './common';
 export const AppMessageTypes = {
     SuccessSetDeviceInfo: 'SuccessSetDeviceInfo',
     SuccessSyncCredential: 'SuccessSyncCredential',
+    SetSafeArea: 'SetSafeArea',
 } as const;
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
 
@@ -19,9 +20,18 @@ export interface SuccessSetDeviceInfoData<T extends 'SuccessSetDeviceInfo'> exte
     data: DeviceInfo & VersionInfo;
 }
 
+export interface SetSafeArea<T extends 'SetSafeArea'> extends DefaultMessage<T> {
+    data: {
+        top: number;
+        bottom: number;
+        left: number;
+        right: number;
+    };
+}
+
 // prettier-ignore
 export type AppMessageData<T extends AppMessageType>
     = T extends 'SuccessSetDeviceInfo' ? SuccessSetDeviceInfoData<T>
-    : DefaultMessage<T>;
+    : T extends 'SetSafeArea' ? SetSafeArea<T> : DefaultMessage<T>
 
 export type AppMessage = AppMessageData<AppMessageType>;
