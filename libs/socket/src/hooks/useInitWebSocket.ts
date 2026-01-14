@@ -47,7 +47,7 @@ const parseWebSocketMessage = (data: unknown): WebSocketMessage | null => {
  * - Prods messages: ID starts with PROD*
  * - Items messages: ID starts with ITEM*
  */
-export const useInitWebSocket = (): void => {
+export const useInitWebSocket = (sessionId?: string): void => {
     const { isAuthenticated } = useWebCoreStore();
     const setId = useWebSocketStore(state => state.setId);
     const setConnectionStatus = useWebSocketStore(state => state.setConnectionStatus);
@@ -70,6 +70,7 @@ export const useInitWebSocket = (): void => {
         messageParser: parseWebSocketMessage,
         enabled: isAuthenticated,
         logPrefix: '[WebSocket]',
+        sessionId,
     });
 
     // Sync WebSocket state to store

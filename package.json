@@ -37,6 +37,7 @@
     "private": true,
     "dependencies": {
         "@hookform/resolvers": "^3.9.1",
+        "@lemoncloud/chatic-sockets-api": "^0.26.110",
         "@lemoncloud/lemon-web-core": "^1.5.0",
         "@radix-ui/react-accordion": "^1.2.1",
         "@radix-ui/react-alert-dialog": "^1.1.2",
@@ -59,6 +60,7 @@
         "@tanstack/react-query": "^5.62.2",
         "@tanstack/react-query-devtools": "^5.62.2",
         "@tanstack/react-table": "^8.21.2",
+        "@types/uuid": "^11.0.0",
         "axios": "^1.8.2",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -88,6 +90,7 @@
         "sonner": "^2.0.5",
         "tailwind-merge": "^2.5.5",
         "tailwindcss-animate": "^1.0.7",
+        "uuid": "^13.0.0",
         "zustand": "^5.0.2",
         "zustand-persist": "^0.4.0"
     },

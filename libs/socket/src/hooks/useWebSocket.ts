@@ -22,6 +22,8 @@ export interface UseWebSocketConfig<TMessage extends BaseWebSocketMessage> {
     pingInterval?: number;
     /** Log prefix for console messages (default: '[WebSocket]') */
     logPrefix?: string;
+    /** Optional session ID to include in connection */
+    sessionId?: string;
 }
 
 /**
@@ -72,7 +74,16 @@ export interface UseWebSocketReturn<TMessage extends BaseWebSocketMessage> {
 export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSocketMessage>(
     config: UseWebSocketConfig<TMessage>
 ): UseWebSocketReturn<TMessage> => {
-    const { endpoint, tokenProvider, messageParser, enabled = true, authQueryParam, pingInterval, logPrefix } = config;
+    const {
+        endpoint,
+        tokenProvider,
+        messageParser,
+        enabled = true,
+        authQueryParam,
+        pingInterval,
+        logPrefix,
+        sessionId,
+    } = config;
 
     const wsService = useRef<WebSocketService<TMessage> | null>(null);
 
@@ -106,6 +117,7 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
                     authQueryParam,
                     pingInterval,
                     logPrefix,
+                    sessionId,
                 });
 
                 // Set custom message parser if provided
@@ -139,6 +151,7 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
                     authQueryParam,
                     pingInterval,
                     logPrefix,
+                    sessionId,
                 });
             }
 
@@ -148,7 +161,7 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
         } catch (error) {
             console.error(`${logPrefix || '[useWebSocket]'} Failed to get token:`, error);
         }
-    }, [endpoint, tokenProvider, messageParser, authQueryParam, pingInterval, logPrefix]);
+    }, [endpoint, tokenProvider, messageParser, authQueryParam, pingInterval, logPrefix, sessionId]);
 
     // Disconnect from WebSocket
     const disconnect = useCallback((): void => {

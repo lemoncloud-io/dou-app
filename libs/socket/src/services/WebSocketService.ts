@@ -63,6 +63,7 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
             pingInterval: config.pingInterval || 180000, // 3 minutes
             logPrefix: config.logPrefix || '[WebSocket]',
             requestConnectionId: config.requestConnectionId ?? true,
+            sessionId: config.sessionId || '',
         };
     }
 
@@ -106,9 +107,14 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
         this.hasError = false;
 
         // Build WebSocket URL with authentication query parameter
-        const wsUrl = `${this.config.endpoint}?${this.config.authQueryParam}=${this.config.token}&default=&info=`;
+        let wsUrl = `${this.config.endpoint}?${this.config.authQueryParam}=${this.config.token}&default=&info=`;
+        if (this.config.sessionId) {
+            wsUrl += `&id=${this.config.sessionId}`;
+        }
 
         console.log(`${this.config.logPrefix} Connecting to:`, this.config.endpoint);
+        console.log(`${this.config.logPrefix} Session ID:`, this.config.sessionId);
+        console.log(`${this.config.logPrefix} Full URL:`, wsUrl);
 
         try {
             this.statusCallback?.('connecting');
@@ -140,6 +146,7 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
             pingInterval: config.pingInterval || this.config.pingInterval,
             logPrefix: config.logPrefix || this.config.logPrefix,
             requestConnectionId: config.requestConnectionId ?? this.config.requestConnectionId,
+            sessionId: config.sessionId || this.config.sessionId,
         };
 
         if (wasConnected) {

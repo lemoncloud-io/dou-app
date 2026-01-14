@@ -4,16 +4,24 @@ import { useNavigate } from 'react-router-dom';
 import { Globe, LogOut, MessageCircle, Moon, Sun } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { useInitWebSocket } from '@chatic/socket';
 import { useTheme } from '@chatic/theme';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@chatic/ui-kit/components/ui/card';
 import { useLogout, useWebCoreStore } from '@chatic/web-core';
+
+import { useSessionId } from '../hooks';
 
 export const HomePage = (): JSX.Element => {
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
     const { theme, setTheme } = useTheme();
     const userName = useWebCoreStore(state => state.userName);
+    const sessionId = useSessionId();
+
+    console.log('[HomePage] Session ID:', sessionId);
+
+    useInitWebSocket(sessionId);
 
     const { mutate: logout, isPending: isLoggingOut } = useLogout(
         () => {
