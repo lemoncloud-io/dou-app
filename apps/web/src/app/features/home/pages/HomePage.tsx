@@ -142,36 +142,41 @@ export const HomePage = (): JSX.Element => {
                     </DropdownMenu>
                 </div>
 
-                {/* Event Trigger Panel */}
-                <div className="mt-8">
-                    <h2 className="text-xl font-semibold mb-4">Tab Lifecycle Events</h2>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 rounded-lg border">
-                            <p className="text-sm font-medium mb-2">Tab State</p>
-                            <div className="flex items-center gap-2">
-                                <div
-                                    className={`h-3 w-3 rounded-full ${tabState.isVisible ? 'bg-green-500' : 'bg-gray-500'}`}
-                                />
-                                <span className="text-sm">{tabState.isVisible ? 'Foreground' : 'Background'}</span>
-                            </div>
+                {/* App Lifecycle Panel */}
+                <div className="mt-8 p-4 rounded-lg border bg-card">
+                    <h2 className="text-sm font-medium text-muted-foreground mb-3">App Lifecycle</h2>
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <div
+                                className={`h-2 w-2 rounded-full ${tabState.isVisible ? 'bg-green-500' : 'bg-gray-400'}`}
+                            />
+                            <span className="text-sm font-medium">
+                                {tabState.isVisible ? 'Foreground' : 'Background'}
+                            </span>
                             {tabState.lastVisibilityChange && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    Last: {tabState.lastVisibilityChange.toLocaleTimeString()}
-                                </p>
+                                <span className="text-xs text-muted-foreground font-mono">
+                                    {tabState.lastVisibilityChange.toLocaleTimeString('ko-KR', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit',
+                                    })}
+                                </span>
                             )}
                         </div>
-                        <div className="p-4 rounded-lg border">
-                            <p className="text-sm font-medium mb-2">Focus</p>
-                            <div className="flex items-center gap-2">
-                                <div
-                                    className={`h-3 w-3 rounded-full ${tabState.isFocused ? 'bg-blue-500' : 'bg-gray-500'}`}
-                                />
-                                <span className="text-sm">{tabState.isFocused ? 'Focused' : 'Blurred'}</span>
-                            </div>
+                        <div className="h-4 w-px bg-border" />
+                        <div className="flex items-center gap-2">
+                            <div
+                                className={`h-2 w-2 rounded-full ${tabState.isFocused ? 'bg-blue-500' : 'bg-gray-400'}`}
+                            />
+                            <span className="text-sm font-medium">{tabState.isFocused ? 'Focused' : 'Blurred'}</span>
                             {tabState.lastFocusChange && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    Last: {tabState.lastFocusChange.toLocaleTimeString()}
-                                </p>
+                                <span className="text-xs text-muted-foreground font-mono">
+                                    {tabState.lastFocusChange.toLocaleTimeString('ko-KR', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit',
+                                    })}
+                                </span>
                             )}
                         </div>
                     </div>
