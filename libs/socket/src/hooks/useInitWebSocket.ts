@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react';
+import { AppState } from 'react-native';
 
 import { useWebCoreStore, webCore } from '@chatic/web-core';
 
@@ -47,7 +48,7 @@ const parseWebSocketMessage = (data: unknown): WebSocketMessage | null => {
  * - Prods messages: ID starts with PROD*
  * - Items messages: ID starts with ITEM*
  */
-export const useInitWebSocket = (): void => {
+export const useInitWebSocket = (sessionId?: string) => {
     const { isAuthenticated } = useWebCoreStore();
     const setId = useWebSocketStore(state => state.setId);
     const setConnectionStatus = useWebSocketStore(state => state.setConnectionStatus);
@@ -64,12 +65,13 @@ export const useInitWebSocket = (): void => {
         }
     }, []);
 
-    const { id, connectionStatus, lastMessage, disconnect } = useWebSocket<WebSocketMessage>({
+    const { id, connectionStatus, lastMessage, disconnect, connect } = useWebSocket<WebSocketMessage>({
         endpoint: WS_ENDPOINT,
         tokenProvider,
         messageParser: parseWebSocketMessage,
         enabled: isAuthenticated,
         logPrefix: '[WebSocket]',
+        sessionId,
     });
 
     // Sync WebSocket state to store
@@ -78,6 +80,7 @@ export const useInitWebSocket = (): void => {
     }, [id, setId]);
 
     useEffect(() => {
+        console.log('[useInitWebSocket] connectionStatus changed:', connectionStatus);
         setConnectionStatus(connectionStatus);
     }, [connectionStatus, setConnectionStatus]);
 
@@ -101,4 +104,26 @@ export const useInitWebSocket = (): void => {
 
         return unregister;
     }, [isAuthenticated, disconnect, reset]);
+
+    // Handle AppState changes - disconnect when background, reconnect when foreground
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        const subscription = AppState.addEventListener('change', nextAppState => {
+            if (nextAppState === 'active') {
+                console.log('[useInitWebSocket] App became active - reconnecting');
+                connect();
+            } else if (nextAppState === 'background' || nextAppState === 'inactive') {
+                console.log('[useInitWebSocket] App went to background/inactive - disconnecting');
+                disconnect();
+            }
+        });
+
+        return () => {
+            subscription.remove();
+        };
+    }, [isAuthenticated, connect, disconnect]);
+
+    // Return connect/disconnect for manual control
+    return { connect, disconnect };
 };

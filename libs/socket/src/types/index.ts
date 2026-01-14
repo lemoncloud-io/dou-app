@@ -42,4 +42,6 @@ export interface WebSocketServiceConfig {
     logPrefix?: string;
     /** Whether to automatically request connection ID on connect (default: true) */
     requestConnectionId?: boolean;
+    /** Optional session ID to include in connection */
+    sessionId?: string;
 }
