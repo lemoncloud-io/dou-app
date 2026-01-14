@@ -7,10 +7,14 @@ import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
 
 // ============================================================================
 // Error Report Types & API
+// @see clipbiz-backend-api@0.26.103
 // ============================================================================
 
 export type AppType = 'web' | 'admin' | 'mobile';
 
+/**
+ * 에러 상세 정보 (message에 JSON string으로 전달)
+ */
 export interface ErrorReportPayload {
     message: string;
     stack?: string;
@@ -21,11 +25,18 @@ export interface ErrorReportPayload {
     timestamp: string;
     userId?: string;
     userAgent?: string;
-    metadata?: Record<string, unknown>;
 }
 
-// TODO: 백엔드 개발자로부터 실제 엔드포인트 받으면 교체
-const ERROR_REPORT_ENDPOINT = `${OAUTH_ENDPOINT}/errors`;
+/**
+ * POST /d1/hello/report Body
+ * @see SlackReportBody from clipbiz-backend-api
+ */
+interface SlackReportBody {
+    title?: string;
+    message: string;
+}
+
+const ERROR_REPORT_ENDPOINT = `${OAUTH_ENDPOINT}/d1/hello/report`;
 
 export const reportError = async (
     error: Error,
@@ -46,12 +57,17 @@ export const reportError = async (
             userAgent: navigator.userAgent,
         };
 
+        const body: SlackReportBody = {
+            title: `${app}-error`,
+            message: JSON.stringify(payload, null, 2),
+        };
+
         await webCore
             .buildSignedRequest({
                 method: 'POST',
                 baseURL: ERROR_REPORT_ENDPOINT,
             })
-            .setBody(payload)
+            .setBody(body)
             .execute();
     } catch (reportingError) {
         console.error('Failed to report error:', reportingError);
