@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react';
+import { AppState } from 'react-native';
 
 import { useWebCoreStore, webCore } from '@chatic/web-core';
 
@@ -103,6 +104,25 @@ export const useInitWebSocket = (sessionId?: string) => {
 
         return unregister;
     }, [isAuthenticated, disconnect, reset]);
+
+    // Handle AppState changes - disconnect when background, reconnect when foreground
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        const subscription = AppState.addEventListener('change', nextAppState => {
+            if (nextAppState === 'active') {
+                console.log('[useInitWebSocket] App became active - reconnecting');
+                connect();
+            } else if (nextAppState === 'background' || nextAppState === 'inactive') {
+                console.log('[useInitWebSocket] App went to background/inactive - disconnecting');
+                disconnect();
+            }
+        });
+
+        return () => {
+            subscription.remove();
+        };
+    }, [isAuthenticated, connect, disconnect]);
 
     // Return connect/disconnect for manual control
     return { connect, disconnect };
