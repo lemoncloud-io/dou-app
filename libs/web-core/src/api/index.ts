@@ -36,6 +36,7 @@ interface SlackReportBody {
     message: string;
 }
 
+// TODO: chatic 백엔드에 /d1/hello/report 엔드포인트 구현 후 OAUTH_ENDPOINT 교체 필요
 const ERROR_REPORT_ENDPOINT = `${OAUTH_ENDPOINT}/d1/hello/report`;
 
 export const reportError = async (
