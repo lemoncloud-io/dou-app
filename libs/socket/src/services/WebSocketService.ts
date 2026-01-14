@@ -60,7 +60,7 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
             endpoint: config.endpoint || '',
             token: config.token || '',
             authQueryParam: config.authQueryParam || 'x-lemon-identity',
-            pingInterval: config.pingInterval || 180000, // 3 minutes
+            pingInterval: config.pingInterval || 60000, // 1 minute
             logPrefix: config.logPrefix || '[WebSocket]',
             requestConnectionId: config.requestConnectionId ?? true,
             sessionId: config.sessionId || '',
@@ -253,11 +253,13 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
 
             // Handle ping/pong
             if (data.action === 'ping') {
+                console.log(`${this.config.logPrefix} Received ping, sending pong`);
                 this.sendPong();
                 return;
             }
 
             if (data.action === 'pong') {
+                console.log(`${this.config.logPrefix} Received pong`);
                 // Ignore pong response
                 return;
             }
@@ -318,9 +320,11 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
     }
 
     private startPingPong(): void {
+        console.log(`${this.config.logPrefix} Starting ping/pong with interval:`, this.config.pingInterval);
         // Send ping at configured interval
         this.pingInterval = setInterval(() => {
             if (this.ws?.readyState === WebSocket.OPEN) {
+                console.log(`${this.config.logPrefix} Sending ping`);
                 this.ws.send(
                     JSON.stringify({
                         action: 'ping',
@@ -340,6 +344,7 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
 
     private sendPong(): void {
         if (this.ws?.readyState === WebSocket.OPEN) {
+            console.log(`${this.config.logPrefix} Sending pong`);
             this.ws.send(
                 JSON.stringify({
                     action: 'pong',

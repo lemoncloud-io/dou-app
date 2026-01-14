@@ -1,13 +1,20 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Globe, LogOut, MessageCircle, Moon, Sun } from 'lucide-react';
+import { Globe, LogOut, Moon, Settings, Sun } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { useInitWebSocket } from '@chatic/socket';
+import { useInitWebSocket, useWebSocketStore } from '@chatic/socket';
 import { useTheme } from '@chatic/theme';
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@chatic/ui-kit/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useLogout, useWebCoreStore } from '@chatic/web-core';
 
 import { useSessionId } from '../hooks';
@@ -18,8 +25,7 @@ export const HomePage = (): JSX.Element => {
     const { theme, setTheme } = useTheme();
     const userName = useWebCoreStore(state => state.userName);
     const sessionId = useSessionId();
-
-    console.log('[HomePage] Session ID:', sessionId);
+    const { isConnected, connectionStatus } = useWebSocketStore();
 
     useInitWebSocket(sessionId);
 
@@ -49,81 +55,76 @@ export const HomePage = (): JSX.Element => {
 
     return (
         <div className="min-h-screen bg-background p-6">
-            <div className="max-w-2xl mx-auto space-y-6">
-                {/* Welcome Card */}
-                <Card>
-                    <CardHeader className="text-center">
-                        <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4">
-                            <MessageCircle className="w-8 h-8 text-white" />
-                        </div>
-                        <CardTitle className="text-2xl">
+            <div className="max-w-4xl mx-auto">
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h1 className="text-3xl font-bold">
                             {t('home.welcome', 'Welcome')}, {userName || 'User'}
-                        </CardTitle>
-                        <CardDescription>{t('home.subtitle', 'Manage your settings below')}</CardDescription>
-                    </CardHeader>
-                </Card>
+                        </h1>
+                        <p className="text-muted-foreground mt-1">dou chat 채널용(웹)</p>
+                        <div className="flex items-center gap-3 mt-2">
+                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50">
+                                <div
+                                    className={`h-2 w-2 rounded-full ${
+                                        isConnected
+                                            ? 'bg-green-500 animate-pulse'
+                                            : connectionStatus === 'connecting'
+                                              ? 'bg-yellow-500 animate-pulse'
+                                              : 'bg-red-500'
+                                    }`}
+                                />
+                                <span className="text-xs font-medium">
+                                    {connectionStatus === 'connected'
+                                        ? 'Connected'
+                                        : connectionStatus === 'connecting'
+                                          ? 'Connecting...'
+                                          : connectionStatus === 'error'
+                                            ? 'Error'
+                                            : 'Disconnected'}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50">
+                                <span className="text-xs text-muted-foreground">ID:</span>
+                                <span className="text-xs font-mono">{sessionId?.slice(0, 8)}...</span>
+                            </div>
+                        </div>
+                    </div>
 
-                {/* Settings Card */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{t('home.settings', 'Settings')}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {/* Theme Toggle */}
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                            <div className="flex items-center gap-3">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="icon">
+                                <Settings className="h-5 w-5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuLabel>{t('home.settings', 'Settings')}</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuItem onSelect={e => e.preventDefault()} onClick={handleThemeToggle}>
                                 {theme === 'light' ? (
-                                    <Sun className="w-5 h-5 text-amber-500" />
+                                    <Sun className="mr-2 h-4 w-4" />
                                 ) : (
-                                    <Moon className="w-5 h-5 text-blue-400" />
+                                    <Moon className="mr-2 h-4 w-4" />
                                 )}
-                                <div>
-                                    <p className="font-medium">{t('home.theme', 'Theme')}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {theme === 'light'
-                                            ? t('home.lightMode', 'Light Mode')
-                                            : t('home.darkMode', 'Dark Mode')}
-                                    </p>
-                                </div>
-                            </div>
-                            <Button variant="outline" size="sm" onClick={handleThemeToggle}>
-                                {theme === 'light' ? t('home.toDark', 'Dark') : t('home.toLight', 'Light')}
-                            </Button>
-                        </div>
+                                <span>{theme === 'light' ? 'Light Mode' : 'Dark Mode'}</span>
+                            </DropdownMenuItem>
 
-                        {/* Language Toggle */}
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                            <div className="flex items-center gap-3">
-                                <Globe className="w-5 h-5 text-green-500" />
-                                <div>
-                                    <p className="font-medium">{t('home.language', 'Language')}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {i18n.language === 'en' ? 'English' : '한국어'}
-                                    </p>
-                                </div>
-                            </div>
-                            <Button variant="outline" size="sm" onClick={handleLanguageToggle}>
-                                {i18n.language === 'en' ? '한국어' : 'English'}
-                            </Button>
-                        </div>
+                            <DropdownMenuItem onSelect={e => e.preventDefault()} onClick={handleLanguageToggle}>
+                                <Globe className="mr-2 h-4 w-4" />
+                                <span>{i18n.language === 'en' ? 'English' : '한국어'}</span>
+                            </DropdownMenuItem>
 
-                        {/* Logout */}
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                            <div className="flex items-center gap-3">
-                                <LogOut className="w-5 h-5 text-red-500" />
-                                <div>
-                                    <p className="font-medium">{t('home.logout', 'Logout')}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {t('home.logoutDesc', 'Sign out of your account')}
-                                    </p>
-                                </div>
-                            </div>
-                            <Button variant="destructive" size="sm" onClick={handleLogout} disabled={isLoggingOut}>
-                                {isLoggingOut ? t('home.loggingOut', 'Logging out...') : t('home.logout', 'Logout')}
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
+                                <LogOut className="mr-2 h-4 w-4" />
+                                <span>
+                                    {isLoggingOut ? t('home.loggingOut', 'Logging out...') : t('home.logout', 'Logout')}
+                                </span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             </div>
         </div>
     );
