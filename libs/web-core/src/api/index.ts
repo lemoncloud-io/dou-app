@@ -1,9 +1,66 @@
-import { OAUTH_ENDPOINT, webCore } from '../core';
+import { ENV, OAUTH_ENDPOINT, webCore } from '../core';
 import { MAX_RETRIES, validateTokenResponse, withRetry } from '../utils';
 
 import type { UserProfile } from '../stores';
 import type { LemonRefreshTokenResult, VerifyNativeTokenBody } from '../types';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
+
+// ============================================================================
+// Error Report Types & API
+// ============================================================================
+
+export type AppType = 'web' | 'admin' | 'mobile';
+
+export interface ErrorReportPayload {
+    message: string;
+    stack?: string;
+    componentStack?: string;
+    app: AppType;
+    env: string;
+    url: string;
+    timestamp: string;
+    userId?: string;
+    userAgent?: string;
+    metadata?: Record<string, unknown>;
+}
+
+// TODO: 백엔드 개발자로부터 실제 엔드포인트 받으면 교체
+const ERROR_REPORT_ENDPOINT = `${OAUTH_ENDPOINT}/errors`;
+
+export const reportError = async (
+    error: Error,
+    errorInfo: { componentStack?: string },
+    app: AppType,
+    userId?: string
+): Promise<void> => {
+    try {
+        const payload: ErrorReportPayload = {
+            message: error.message,
+            stack: error.stack,
+            componentStack: errorInfo.componentStack,
+            app,
+            env: ENV,
+            url: window.location.href,
+            timestamp: new Date().toISOString(),
+            userId,
+            userAgent: navigator.userAgent,
+        };
+
+        await webCore
+            .buildSignedRequest({
+                method: 'POST',
+                baseURL: ERROR_REPORT_ENDPOINT,
+            })
+            .setBody(payload)
+            .execute();
+    } catch (reportingError) {
+        console.error('Failed to report error:', reportingError);
+    }
+};
+
+// ============================================================================
+// Auth APIs
+// ============================================================================
 
 export const snsTestLogin = async (tokenBody: VerifyNativeTokenBody) => {
     const { data } = await webCore
