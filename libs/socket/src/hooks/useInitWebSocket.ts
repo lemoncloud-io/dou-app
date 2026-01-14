@@ -47,7 +47,7 @@ const parseWebSocketMessage = (data: unknown): WebSocketMessage | null => {
  * - Prods messages: ID starts with PROD*
  * - Items messages: ID starts with ITEM*
  */
-export const useInitWebSocket = (sessionId?: string): void => {
+export const useInitWebSocket = (sessionId?: string) => {
     const { isAuthenticated } = useWebCoreStore();
     const setId = useWebSocketStore(state => state.setId);
     const setConnectionStatus = useWebSocketStore(state => state.setConnectionStatus);
@@ -64,7 +64,7 @@ export const useInitWebSocket = (sessionId?: string): void => {
         }
     }, []);
 
-    const { id, connectionStatus, lastMessage, disconnect } = useWebSocket<WebSocketMessage>({
+    const { id, connectionStatus, lastMessage, disconnect, connect } = useWebSocket<WebSocketMessage>({
         endpoint: WS_ENDPOINT,
         tokenProvider,
         messageParser: parseWebSocketMessage,
@@ -79,6 +79,7 @@ export const useInitWebSocket = (sessionId?: string): void => {
     }, [id, setId]);
 
     useEffect(() => {
+        console.log('[useInitWebSocket] connectionStatus changed:', connectionStatus);
         setConnectionStatus(connectionStatus);
     }, [connectionStatus, setConnectionStatus]);
 
@@ -102,4 +103,7 @@ export const useInitWebSocket = (sessionId?: string): void => {
 
         return unregister;
     }, [isAuthenticated, disconnect, reset]);
+
+    // Return connect/disconnect for manual control
+    return { connect, disconnect };
 };

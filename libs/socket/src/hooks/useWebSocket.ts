@@ -95,6 +95,10 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
 
     // Connect to WebSocket (async)
     const connect = useCallback(async (): Promise<void> => {
+        console.log('[useWebSocket] connect() called');
+        console.log('[useWebSocket] wsService.current exists:', !!wsService.current);
+        console.log('[useWebSocket] endpoint:', endpoint);
+
         if (!endpoint) {
             console.error(`${logPrefix || '[useWebSocket]'} Endpoint not configured`);
             return;
@@ -167,10 +171,8 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
     const disconnect = useCallback((): void => {
         if (wsService.current) {
             wsService.current.disconnect();
-            wsService.current = null;
+            // Don't set to null to allow reconnection
         }
-        setId(null);
-        setConnectionId(null);
         setConnectionStatus('disconnected');
         setIsConnected(false);
     }, []);
@@ -178,22 +180,21 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
     // Auto-connect when enabled
     useEffect(() => {
         if (!enabled) {
+            // If disabled, disconnect but keep service instance
+            if (wsService.current) {
+                wsService.current.disconnect();
+            }
             return;
         }
 
         // Call async connect function
         void connect();
 
-        // Cleanup on unmount
+        // Cleanup on unmount only
         return () => {
             if (wsService.current) {
                 wsService.current.disconnect();
-                wsService.current = null;
             }
-            setId(null);
-            setConnectionId(null);
-            setConnectionStatus('disconnected');
-            setIsConnected(false);
         };
     }, [enabled, connect]);
 

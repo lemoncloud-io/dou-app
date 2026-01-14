@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -17,7 +18,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useLogout, useWebCoreStore } from '@chatic/web-core';
 
-import { useSessionId } from '../hooks';
+import { useSessionId, useTabLifecycle } from '../hooks';
 
 export const HomePage = (): JSX.Element => {
     const navigate = useNavigate();
@@ -26,8 +27,23 @@ export const HomePage = (): JSX.Element => {
     const userName = useWebCoreStore(state => state.userName);
     const sessionId = useSessionId();
     const { isConnected, connectionStatus } = useWebSocketStore();
+    const tabState = useTabLifecycle();
 
-    useInitWebSocket(sessionId);
+    const { connect, disconnect } = useInitWebSocket(sessionId);
+
+    // Handle tab visibility changes
+    useEffect(() => {
+        console.log('[HomePage] Tab visibility changed:', tabState.isVisible);
+        console.log('[HomePage] Current connection status:', connectionStatus);
+
+        if (tabState.isVisible) {
+            console.log('[HomePage] Tab foreground - reconnecting WebSocket');
+            void connect();
+        } else {
+            console.log('[HomePage] Tab background - disconnecting WebSocket');
+            disconnect();
+        }
+    }, [tabState.isVisible, connect, disconnect]);
 
     const { mutate: logout, isPending: isLoggingOut } = useLogout(
         () => {
@@ -124,6 +140,41 @@ export const HomePage = (): JSX.Element => {
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
+                </div>
+
+                {/* Event Trigger Panel */}
+                <div className="mt-8">
+                    <h2 className="text-xl font-semibold mb-4">Tab Lifecycle Events</h2>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 rounded-lg border">
+                            <p className="text-sm font-medium mb-2">Tab State</p>
+                            <div className="flex items-center gap-2">
+                                <div
+                                    className={`h-3 w-3 rounded-full ${tabState.isVisible ? 'bg-green-500' : 'bg-gray-500'}`}
+                                />
+                                <span className="text-sm">{tabState.isVisible ? 'Foreground' : 'Background'}</span>
+                            </div>
+                            {tabState.lastVisibilityChange && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Last: {tabState.lastVisibilityChange.toLocaleTimeString()}
+                                </p>
+                            )}
+                        </div>
+                        <div className="p-4 rounded-lg border">
+                            <p className="text-sm font-medium mb-2">Focus</p>
+                            <div className="flex items-center gap-2">
+                                <div
+                                    className={`h-3 w-3 rounded-full ${tabState.isFocused ? 'bg-blue-500' : 'bg-gray-500'}`}
+                                />
+                                <span className="text-sm">{tabState.isFocused ? 'Focused' : 'Blurred'}</span>
+                            </div>
+                            {tabState.lastFocusChange && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Last: {tabState.lastFocusChange.toLocaleTimeString()}
+                                </p>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
