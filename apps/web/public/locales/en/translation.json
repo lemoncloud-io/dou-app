@@ -5,6 +5,11 @@
         "save": "Save Changes",
         "saving": "Saving..."
     },
+    "version": {
+        "updateAvailable": "A new version is available",
+        "refresh": "Refresh",
+        "unknown": "Unknown"
+    },
     "oauth": {
         "signing": "Signing in...",
         "logout": "You have been signed out successfully.",
