@@ -132,7 +132,6 @@ export const handleAuthError = (error: any, shouldLogout: boolean, message?: str
     console.error(message || 'Authentication error:', error);
     const errorMessage = extractErrorMessage(error);
 
-    console.log('213', shouldLogout);
     if (shouldLogout) {
         alert(`인증 오류: ${errorMessage}`);
         window.location.href = '/auth/logout';

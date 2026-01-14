@@ -1,9 +1,83 @@
-import { OAUTH_ENDPOINT, webCore } from '../core';
+import { ENV, OAUTH_ENDPOINT, webCore } from '../core';
 import { MAX_RETRIES, validateTokenResponse, withRetry } from '../utils';
 
 import type { UserProfile } from '../stores';
 import type { LemonRefreshTokenResult, VerifyNativeTokenBody } from '../types';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
+
+// ============================================================================
+// Error Report Types & API
+// @see clipbiz-backend-api@0.26.103
+// ============================================================================
+
+export type AppType = 'web' | 'admin' | 'mobile';
+
+/**
+ * 에러 상세 정보 (message에 JSON string으로 전달)
+ */
+export interface ErrorReportPayload {
+    message: string;
+    stack?: string;
+    componentStack?: string;
+    app: AppType;
+    env: string;
+    url: string;
+    timestamp: string;
+    userId?: string;
+    userAgent?: string;
+}
+
+/**
+ * POST /d1/hello/report Body
+ * @see SlackReportBody from clipbiz-backend-api
+ */
+interface SlackReportBody {
+    title?: string;
+    message: string;
+}
+
+// TODO: chatic 백엔드에 /d1/hello/report 엔드포인트 구현 후 OAUTH_ENDPOINT 교체 필요
+const ERROR_REPORT_ENDPOINT = `${OAUTH_ENDPOINT}/d1/hello/report`;
+
+export const reportError = async (
+    error: Error,
+    errorInfo: { componentStack?: string },
+    app: AppType,
+    userId?: string
+): Promise<void> => {
+    try {
+        const payload: ErrorReportPayload = {
+            message: error.message,
+            stack: error.stack,
+            componentStack: errorInfo.componentStack,
+            app,
+            env: ENV,
+            url: window.location.href,
+            timestamp: new Date().toISOString(),
+            userId,
+            userAgent: navigator.userAgent,
+        };
+
+        const body: SlackReportBody = {
+            title: `${app}-error`,
+            message: JSON.stringify(payload, null, 2),
+        };
+
+        await webCore
+            .buildSignedRequest({
+                method: 'POST',
+                baseURL: ERROR_REPORT_ENDPOINT,
+            })
+            .setBody(body)
+            .execute();
+    } catch (reportingError) {
+        console.error('Failed to report error:', reportingError);
+    }
+};
+
+// ============================================================================
+// Auth APIs
+// ============================================================================
 
 export const snsTestLogin = async (tokenBody: VerifyNativeTokenBody) => {
     const { data } = await webCore
