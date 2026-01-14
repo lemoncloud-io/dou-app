@@ -3,7 +3,7 @@ import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import { styles } from '../common/style';
 
-import type { HomeScreenProps } from '../navigation/types';
+import type { HomeScreenProps } from '../../../navigation';
 
 export const HomeScreen = ({ navigation }: HomeScreenProps) => {
     const [count, setCount] = useState(0);

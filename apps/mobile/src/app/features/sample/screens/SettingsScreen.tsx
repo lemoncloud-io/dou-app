@@ -3,7 +3,7 @@ import { Alert, Button, ScrollView, Switch, Text, TouchableOpacity, View } from 
 
 import { styles } from '../common/style';
 
-import type { SettingsScreenProps } from '../navigation/types';
+import type { SettingsScreenProps } from '../../../navigation';
 
 export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     const [notifications, setNotifications] = useState(true);

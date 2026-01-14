@@ -1,3 +1,4 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 export type SampleStackParamList = {
@@ -5,6 +6,11 @@ export type SampleStackParamList = {
     Details: { itemId: number; title: string };
     Settings: undefined;
     Profile: { userId: string; name: string };
+};
+
+export type RootStackParamList = {
+    Sample: NavigatorScreenParams<SampleStackParamList>;
+    Main: undefined;
 };
 
 export type HomeScreenProps = NativeStackScreenProps<SampleStackParamList, 'Home'>;

@@ -3,7 +3,7 @@ import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-nativ
 
 import { styles } from '../common/style';
 
-import type { DetailsScreenProps } from '../navigation/types';
+import type { DetailsScreenProps } from '../../../navigation';
 
 export const DetailsScreen = ({ route, navigation }: DetailsScreenProps) => {
     const { itemId, title } = route.params;

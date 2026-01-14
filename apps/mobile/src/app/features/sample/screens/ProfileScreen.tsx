@@ -2,7 +2,7 @@ import { Alert, Pressable, ScrollView, Text, TouchableOpacity, View } from 'reac
 
 import { styles } from '../common/style';
 
-import type { ProfileScreenProps } from '../navigation/types';
+import type { ProfileScreenProps } from '../../../navigation';
 
 export const ProfileScreen = ({ route, navigation }: ProfileScreenProps) => {
     const { userId, name } = route.params;

@@ -5,7 +5,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 
-import type { SampleStackParamList } from './types';
+import type { SampleStackParamList } from '../../../navigation';
 
 const Stack = createNativeStackNavigator<SampleStackParamList>();
 
