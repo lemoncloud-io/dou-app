@@ -1,0 +1,1 @@
+export { SampleNavigator } from './navigation';
