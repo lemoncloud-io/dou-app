@@ -62,6 +62,7 @@ export default defineConfig({
         alias: {
             '@chatic/assets': '/assets/src/index.ts',
             'react-native': 'react-native-web',
+
             ...(process.env.NODE_ENV !== 'development'
                 ? {
                       './runtimeConfig': './runtimeConfig.browser',
