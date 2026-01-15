@@ -1,6 +1,6 @@
 import { type RefObject, useCallback, useMemo } from 'react';
 
-import { createBridge, postAppMessage, receiveWebMessage } from './bridge';
+import { createBridge, postAppMessage, receiveWebMessage } from '../core';
 
 import type { AppMessageData, AppMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { WebView, WebViewMessageEvent } from 'react-native-webview';
