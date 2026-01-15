@@ -5,6 +5,13 @@
         "save": "Save Changes",
         "saving": "Saving..."
     },
+    "version": {
+        "updateAvailable": "A new version is available",
+        "newVersionReleased": "Version {{latestVersion}} has been released. Current version: {{currentVersion}}",
+        "refresh": "Refresh",
+        "later": "Later",
+        "unknown": "Unknown"
+    },
     "oauth": {
         "signing": "Signing in...",
         "logout": "You have been signed out successfully.",
