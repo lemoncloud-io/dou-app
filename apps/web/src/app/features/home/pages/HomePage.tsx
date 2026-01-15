@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -26,10 +26,36 @@ export const HomePage = (): JSX.Element => {
     const { theme, setTheme } = useTheme();
     const userName = useWebCoreStore(state => state.userName);
     const sessionId = useSessionId();
-    const { isConnected, connectionStatus } = useWebSocketStore();
+    const { isConnected, connectionStatus, id } = useWebSocketStore();
     const tabState = useTabLifecycle();
+    const [connectionData, setConnectionData] = useState<Record<string, unknown> | null>(null);
 
     const { connect, disconnect } = useInitWebSocket(sessionId);
+    const unsubscribeRef = useRef<(() => void) | null>(null);
+
+    // Subscribe to WebSocket messages to capture connection data
+    useEffect(() => {
+        if (!isConnected) return;
+
+        console.log('[HomePage] Setting up subscription');
+        unsubscribeRef.current = useWebSocketStore.getState().subscribe(message => {
+            if (message.data && typeof message.data === 'object') {
+                const data = message.data as Record<string, unknown>;
+                // Check if it's an info action with payload
+                if (data.action === 'info' && data.payload && typeof data.payload === 'object') {
+                    const payload = data.payload as Record<string, unknown>;
+                    if (payload.connectionId && payload.deviceId && payload.remote) {
+                        setConnectionData(payload);
+                    }
+                }
+            }
+        });
+
+        return () => {
+            console.log('[HomePage] Cleaning up subscription');
+            unsubscribeRef.current?.();
+        };
+    }, [isConnected]);
 
     // Handle tab visibility changes
     useEffect(() => {
@@ -141,6 +167,41 @@ export const HomePage = (): JSX.Element => {
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
+
+                {/* Connection Data Panel */}
+                {connectionData && (
+                    <div className="mt-4 p-4 rounded-lg border bg-card">
+                        <h2 className="text-sm font-medium text-muted-foreground mb-3">Connection Info</h2>
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div>
+                                <span className="text-muted-foreground">Connection ID:</span>
+                                <p className="font-mono mt-1">{connectionData.connectionId as string}</p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">Device ID:</span>
+                                <p className="font-mono mt-1">{(connectionData.deviceId as string)?.slice(0, 13)}...</p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">Remote IP:</span>
+                                <p className="font-mono mt-1">{connectionData.remote as string}</p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">Domain:</span>
+                                <p className="font-mono mt-1">{connectionData.domain as string}</p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">Stage:</span>
+                                <p className="font-mono mt-1">{connectionData.stage as string}</p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">Connected At:</span>
+                                <p className="font-mono mt-1">
+                                    {new Date(connectionData.connectedAt as number).toLocaleTimeString('ko-KR')}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* App Lifecycle Panel */}
                 <div className="mt-8 p-4 rounded-lg border bg-card">

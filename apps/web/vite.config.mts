@@ -42,6 +42,10 @@ export default defineConfig({
     root: import.meta.dirname,
     cacheDir: '../../node_modules/.vite/apps/web',
 
+    optimizeDeps: {
+        exclude: ['react-native'],
+    },
+
     define: {
         'process.env': {},
         'process.env.I18N_VERSION': JSON.stringify(Date.now().toString()),
@@ -57,6 +61,7 @@ export default defineConfig({
     resolve: {
         alias: {
             '@chatic/assets': '/assets/src/index.ts',
+            'react-native': 'react-native-web',
             ...(process.env.NODE_ENV !== 'development'
                 ? {
                       './runtimeConfig': './runtimeConfig.browser',
