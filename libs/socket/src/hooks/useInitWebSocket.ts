@@ -18,7 +18,6 @@ const parseWebSocketMessage = (data: unknown): WebSocketMessage | null => {
     if (typeof data !== 'object' || data === null) {
         return null;
     }
-
     const msg = data as Record<string, unknown>;
 
     const payload =
@@ -26,9 +25,12 @@ const parseWebSocketMessage = (data: unknown): WebSocketMessage | null => {
             ? (msg['data'] as Record<string, unknown>)
             : msg;
 
-    if ('id' in payload && payload['id']) {
+    // Check for id field or mid field
+    const messageId = (payload['id'] as string) || (payload['mid'] as string);
+
+    if (messageId) {
         return {
-            id: payload['id'] as string,
+            id: messageId,
             data: payload,
         };
     }

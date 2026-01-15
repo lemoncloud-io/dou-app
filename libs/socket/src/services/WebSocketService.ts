@@ -109,7 +109,7 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
         // Build WebSocket URL with authentication query parameter
         let wsUrl = `${this.config.endpoint}?${this.config.authQueryParam}=${this.config.token}&default=&info=`;
         if (this.config.sessionId) {
-            wsUrl += `&id=${this.config.sessionId}`;
+            wsUrl += `&deviceId=${this.config.sessionId}`;
         }
 
         console.log(`${this.config.logPrefix} Connecting to:`, this.config.endpoint);
