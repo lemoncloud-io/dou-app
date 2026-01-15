@@ -87,6 +87,39 @@ get_distribution_id() {
     fi
 }
 
+generate_version_json() {
+    local pkg_file="${PROJECT_ROOT}/apps/web/package.json"
+    local version=$(node -p "require('${pkg_file}').version")
+    local build_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    cat > "${DIST_DIR}/version.json" << EOF
+{
+  "version": "${version}",
+  "buildTime": "${build_time}"
+}
+EOF
+
+    log_info "Generated version.json: v${version} (${build_time})"
+}
+
+upload_version_json() {
+    local deploy_env="$1"
+    local s3_target="s3://${BUCKET_NAME}/${deploy_env}"
+
+    log_info "Uploading version.json with no-cache headers..."
+
+    if ! aws s3 ${AWS_PROFILE} cp "${DIST_DIR}/version.json" "${s3_target}/version.json" \
+        --metadata-directive REPLACE \
+        --cache-control "${CACHE_CONTROL_NO_CACHE}" \
+        --content-type "application/json" \
+        --acl public-read; then
+        log_error "Failed to upload version.json"
+        return 1
+    fi
+
+    log_success "version.json uploaded"
+}
+
 print_deployment_info() {
     local deploy_env="$1"
     local distribution_id="$2"
@@ -242,12 +275,16 @@ main() {
     distribution_id=$(get_distribution_id "$deploy_env")
     print_deployment_info "$deploy_env" "$distribution_id"
 
+    # Generate version.json before upload
+    generate_version_json
+
     # Execute deployment steps
     local steps=(
         "sync_static_assets"
         "sync_css_js_files"
         "sync_asset_files"
         "sync_locales"
+        "upload_version_json"
         "upload_index_html"
         "invalidate_cloudfront"
     )

@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import svgr from 'vite-plugin-svgr';
 
+import webPkg from './package.json' with { type: 'json' };
+
 const removeVitePrefix = (envVar: string) => envVar.replace('VITE_', '');
 
 const htmlEnvInjectionPlugin = () => {
@@ -43,6 +45,7 @@ export default defineConfig({
     define: {
         'process.env': {},
         'process.env.I18N_VERSION': JSON.stringify(Date.now().toString()),
+        __APP_VERSION__: JSON.stringify(webPkg.version),
         ...(process.env.NODE_ENV === 'development'
             ? {
                   global: 'window',

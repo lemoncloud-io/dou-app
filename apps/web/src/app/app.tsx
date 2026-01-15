@@ -7,7 +7,7 @@ import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster } from 'sonner';
 
-import { ErrorFallback, GlobalLoader, LoadingFallback } from '@chatic/shared';
+import { ErrorFallback, GlobalLoader, LoadingFallback, VersionUpdateBanner, useVersionCheck } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
 import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
 
@@ -38,6 +38,7 @@ export function App() {
     const { isAuthenticated, profile } = useWebCoreStore();
     const { isInitialized: isTokenInitialized } = useTokenRefresh(isWebCoreReady);
     const canRenderApp = isWebCoreReady && (!isAuthenticated || isTokenInitialized);
+    const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
     const handleError = useCallback(
         (error: Error, info: ErrorInfo): void => {
@@ -53,6 +54,12 @@ export function App() {
 
     return (
         <I18nextProvider i18n={i18n}>
+            <VersionUpdateBanner
+                isVisible={hasUpdate}
+                currentVersion={currentVersion}
+                latestVersion={latestVersion}
+                onDismiss={dismissUpdate}
+            />
             <Suspense fallback={<LoadingFallback />}>
                 <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
                     <HelmetProvider>
