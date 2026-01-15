@@ -103,7 +103,7 @@ export const HomePage = (): JSX.Element => {
                         <h1 className="text-3xl font-bold">
                             {t('home.welcome', 'Welcome')}, {userName || 'User'}
                         </h1>
-                        <p className="text-muted-foreground mt-1">dou chat 채널용(웹)</p>
+                        <p className="text-muted-foreground mt-1">두유 채널용(웹)</p>
                         <div className="flex items-center gap-3 mt-2">
                             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50">
                                 <div
