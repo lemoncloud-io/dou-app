@@ -8,7 +8,7 @@ import type { AppMessageData, WebMessageData, WebMessageType } from '@chatic/app
 import type { WebView, WebViewMessageEvent } from 'react-native-webview';
 import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
 
-const webviewUrl: string = process.env.WEBVIEW_BASE_URL;
+const webviewUrl: string = process.env.VITE_WEBVIEW_BASE_URL;
 
 export const MainScreen = () => {
     const webViewRef = useRef<WebView>(null);
