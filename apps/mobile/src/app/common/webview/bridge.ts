@@ -1,10 +1,11 @@
-import type { AppMessageData, AppMessageType } from '@chatic/app-messages';
+import type { AppMessageData, AppMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { RefObject } from 'react';
-import type { WebView } from 'react-native-webview';
+import type { WebView, WebViewMessageEvent } from 'react-native-webview';
 
 /**
  * Create a bridge for communication between the App and Web.
  * @param webViewRef If null or unmounted, the message will be ignored.
+ * @author raine@lemoncloud.io
  */
 export const createBridge = (webViewRef: RefObject<WebView | null>) => ({
     /**
@@ -16,6 +17,29 @@ export const createBridge = (webViewRef: RefObject<WebView | null>) => ({
         if (!webViewRef.current) return;
         webViewRef.current.postMessage(JSON.stringify(message));
     },
+
+    /**
+     * Handles messages received from the Web.
+     * This function is designed to be used with the `onMessage` props of the `WebView`.
+     *
+     * @param onSuccess Callback function to execute after successful message reception.
+     * @param onError Callback function to handle errors occurring during message processing.
+     * @see WebMessageData
+     */
+    receive: (
+        onSuccess: (message: WebMessageData<WebMessageType>, nativeEvent: WebViewMessageEvent['nativeEvent']) => void,
+        onError: (error: any, nativeEvent: WebViewMessageEvent['nativeEvent']) => void
+    ) => {
+        return (event: WebViewMessageEvent) => {
+            try {
+                const { data } = event.nativeEvent;
+                const message = JSON.parse(data) as WebMessageData<WebMessageType>;
+                onSuccess(message, event.nativeEvent);
+            } catch (error) {
+                onError(error, event.nativeEvent);
+            }
+        };
+    },
 });
 
 /**
@@ -23,6 +47,7 @@ export const createBridge = (webViewRef: RefObject<WebView | null>) => ({
  * @param webViewRef If null or unmounted, the message will be ignored.
  * @param message The structured message object following the AppMessageData specification. (see AppMessageData.)
  * @see AppMessageData
+ * @author raine@lemoncloud.io
  */
 export const postAppMessage = <T extends AppMessageType>(
     webViewRef: RefObject<WebView | null>,
@@ -30,4 +55,28 @@ export const postAppMessage = <T extends AppMessageType>(
 ) => {
     if (!webViewRef.current) return;
     webViewRef.current.postMessage(JSON.stringify(message));
+};
+
+/**
+ * Handles messages received from the Web.
+ * This function is designed to be used with the `onMessage` props of the `WebView`.
+ *
+ * @param onSuccess Callback function to execute after successful message reception.
+ * @param onError Callback function to handle errors occurring during message processing.
+ * @see WebMessageData
+ * @author raine@lemoncloud.io
+ */
+export const receiveWebMessage = <T extends WebMessageType>(
+    onSuccess: (message: WebMessageData<T>, nativeEvent: WebViewMessageEvent['nativeEvent']) => void,
+    onError: (error: any, nativeEvent: WebViewMessageEvent['nativeEvent']) => void
+) => {
+    return (event: WebViewMessageEvent) => {
+        try {
+            const { data } = event.nativeEvent;
+            const message = JSON.parse(data) as WebMessageData<T>;
+            onSuccess(message, event.nativeEvent);
+        } catch (error) {
+            onError(error, event.nativeEvent);
+        }
+    };
 };
