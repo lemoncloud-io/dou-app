@@ -60,12 +60,8 @@ export default defineConfig({
 
     resolve: {
         alias: {
-            'react-native': 'react-native-web',
-            'react-native-svg': 'react-native-svg-web',
-            '@react-native/assets-registry/registry': 'react-native-web/dist/modules/AssetRegistry/index',
             '@chatic/assets': '/assets/src/index.ts',
             'react-native': 'react-native-web',
-
             ...(process.env.NODE_ENV !== 'development'
                 ? {
                       './runtimeConfig': './runtimeConfig.browser',
