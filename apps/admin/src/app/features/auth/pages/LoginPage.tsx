@@ -1,54 +1,23 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
-import { calcTestSignature } from '@lemoncloud/lemon-web-core';
 import { Shield } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@chatic/ui-kit/components/ui/card';
-import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
-import { snsTestLogin, useWebCoreStore } from '@chatic/web-core';
 
 export const LoginPage = (): JSX.Element => {
     const { t } = useTranslation();
-    const navigate = useNavigate();
-    const setIsAuthenticated = useWebCoreStore(state => state.setIsAuthenticated);
+    const location = useLocation();
+    const from = location.state?.from || '/';
 
-    const [snsTestUid, setSnsTestUid] = useState('test');
-    const [isLoading, setIsLoading] = useState(false);
+    const onClickSocialLogin = (provider: string) => {
+        const HOST = import.meta.env.VITE_HOST.toLowerCase();
+        const SOCIAL_OAUTH = import.meta.env.VITE_SOCIAL_OAUTH_ENDPOINT.toLowerCase();
+        const state = encodeURIComponent(JSON.stringify({ from }));
+        const redirectUrl = `${HOST}/auth/oauth-response?state=${state}`;
 
-    const onClickSnsTestLogin = async () => {
-        const date = new Date();
-        const body = {
-            provider: 'test',
-            idToken: snsTestUid,
-            refreshToken: date.toISOString(),
-            signature: calcTestSignature(
-                {
-                    authId: snsTestUid,
-                    accountId: snsTestUid,
-                    identityId: snsTestUid,
-                    identityToken: '*jjukkumi-test-token-250211*',
-                },
-                date.toISOString()
-            ),
-        };
-
-        setIsLoading(true);
-        try {
-            await snsTestLogin(body);
-            setIsAuthenticated(true);
-            navigate('/', { replace: true });
-            toast.success(t('login.success'));
-        } catch (error) {
-            console.error('SNS Test Login failed:', error);
-            toast.error(t('login.failed'));
-        } finally {
-            setIsLoading(false);
-        }
+        window.location.replace(`${SOCIAL_OAUTH}/oauth/${provider}/authorize?redirect=${redirectUrl}`);
     };
 
     return (
@@ -64,18 +33,11 @@ export const LoginPage = (): JSX.Element => {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="testUid">{t('login.testUserId')}</Label>
-                        <Input
-                            id="testUid"
-                            type="text"
-                            placeholder={t('login.testUserIdPlaceholder')}
-                            value={snsTestUid}
-                            onChange={e => setSnsTestUid(e.target.value)}
-                        />
-                    </div>
-                    <Button className="w-full" onClick={onClickSnsTestLogin} disabled={isLoading || !snsTestUid}>
-                        {isLoading ? t('login.signingIn') : t('login.testLogin')}
+                    <Button variant="outline" className="w-full h-12" onClick={() => onClickSocialLogin('google')}>
+                        {t('login.google')}
+                    </Button>
+                    <Button variant="outline" className="w-full h-12" onClick={() => onClickSocialLogin('kakao')}>
+                        {t('login.kakao')}
                     </Button>
                 </CardContent>
             </Card>
