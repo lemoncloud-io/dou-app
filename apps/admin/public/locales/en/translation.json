@@ -17,12 +17,8 @@
     "login": {
         "adminTitle": "Admin Portal",
         "adminSubtitle": "Sign in to admin dashboard",
-        "testUserId": "Test User ID",
-        "testUserIdPlaceholder": "Enter test user ID",
-        "signingIn": "Signing in...",
-        "testLogin": "Test Login",
-        "success": "Login successful",
-        "failed": "Login failed"
+        "google": "Sign in with Google",
+        "kakao": "Sign in with Kakao"
     },
     "dashboard": {
         "welcome": "Welcome, {{name}}",

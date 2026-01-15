@@ -30,21 +30,6 @@
     "references": [
         {
             "path": "../../libs/app-messages/tsconfig.lib.json"
-        },
-        {
-            "path": "../../assets/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/ui-kit/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/web-core/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/theme/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/shared/tsconfig.lib.json"
         }
     ]
 }
