@@ -17,12 +17,8 @@
     "login": {
         "adminTitle": "관리자 포털",
         "adminSubtitle": "관리자 대시보드에 로그인",
-        "testUserId": "테스트 사용자 ID",
-        "testUserIdPlaceholder": "테스트 사용자 ID 입력",
-        "signingIn": "로그인 중...",
-        "testLogin": "테스트 로그인",
-        "success": "로그인 성공",
-        "failed": "로그인 실패"
+        "google": "Google로 로그인",
+        "kakao": "Kakao로 로그인"
     },
     "dashboard": {
         "welcome": "환영합니다, {{name}}",
