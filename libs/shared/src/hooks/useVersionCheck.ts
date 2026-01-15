@@ -6,6 +6,29 @@ const IS_PROD = import.meta.env.VITE_ENV === 'PROD';
 const DEFAULT_INTERVAL = IS_PROD ? 5 * 60 * 1000 : 1 * 60 * 1000;
 const MIN_CHECK_GAP = 10000;
 
+const parseVersion = (version: string): number[] => {
+    return version
+        .replace(/^v/, '')
+        .split('.')
+        .map(part => parseInt(part, 10) || 0);
+};
+
+const isNewerVersion = (latest: string, current: string): boolean => {
+    const latestParts = parseVersion(latest);
+    const currentParts = parseVersion(current);
+    const maxLength = Math.max(latestParts.length, currentParts.length);
+
+    for (let i = 0; i < maxLength; i++) {
+        const latestPart = latestParts[i] || 0;
+        const currentPart = currentParts[i] || 0;
+
+        if (latestPart > currentPart) return true;
+        if (latestPart < currentPart) return false;
+    }
+
+    return false;
+};
+
 export interface VersionInfo {
     version: string;
     buildTime?: string;
@@ -81,7 +104,7 @@ export const useVersionCheck = (config?: VersionCheckConfig): VersionCheckResult
             setLatestVersion(info.version);
             setLastChecked(new Date());
 
-            if (info.version !== currentVersion) {
+            if (isNewerVersion(info.version, currentVersion)) {
                 setHasUpdate(true);
                 onNewVersionDetectedRef.current?.(info.version, currentVersion);
             }
