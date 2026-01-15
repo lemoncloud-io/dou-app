@@ -1,8 +1,8 @@
 import { Alert, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-import { styles } from '../common/style';
+import { styles } from '../common';
 
-import type { ProfileScreenProps } from '../../../navigation';
+import type { ProfileScreenProps } from '../navigation';
 
 export const ProfileScreen = ({ route, navigation }: ProfileScreenProps) => {
     const { userId, name } = route.params;

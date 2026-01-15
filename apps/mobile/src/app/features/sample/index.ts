@@ -1,1 +1,1 @@
-export { SampleNavigator } from './navigation/Navigator';
+export { SampleNavigator } from './navigation';

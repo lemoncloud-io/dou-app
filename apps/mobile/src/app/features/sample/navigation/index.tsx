@@ -1,11 +1,17 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import { DetailsScreen } from '../screens/DetailsScreen';
-import { HomeScreen } from '../screens/HomeScreen';
-import { ProfileScreen } from '../screens/ProfileScreen';
-import { SettingsScreen } from '../screens/SettingsScreen';
+import { DetailsScreen } from '../screens';
+import { HomeScreen } from '../screens';
+import { ProfileScreen } from '../screens';
+import { SettingsScreen } from '../screens';
 
 import type { SampleStackParamList } from '../../../navigation';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+
+export type HomeScreenProps = NativeStackScreenProps<SampleStackParamList, 'Home'>;
+export type DetailsScreenProps = NativeStackScreenProps<SampleStackParamList, 'Details'>;
+export type SettingsScreenProps = NativeStackScreenProps<SampleStackParamList, 'Settings'>;
+export type ProfileScreenProps = NativeStackScreenProps<SampleStackParamList, 'Profile'>;
 
 const Stack = createNativeStackNavigator<SampleStackParamList>();
 

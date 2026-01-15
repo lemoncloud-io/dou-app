@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Alert, Button, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 
-import { styles } from '../common/style';
+import { styles } from '../common';
 
-import type { SettingsScreenProps } from '../../../navigation';
+import type { SettingsScreenProps } from '../navigation';
 
 export const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     const [notifications, setNotifications] = useState(true);

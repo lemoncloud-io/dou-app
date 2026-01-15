@@ -1,1 +1,1 @@
-export { MainWebViewScreen } from './screens/MainWebViewScreen';
+export * from './screens';

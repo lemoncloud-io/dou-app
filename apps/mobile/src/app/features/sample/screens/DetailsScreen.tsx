@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import { styles } from '../common/style';
+import { styles } from '../common';
 
-import type { DetailsScreenProps } from '../../../navigation';
+import type { DetailsScreenProps } from '../navigation';
 
 export const DetailsScreen = ({ route, navigation }: DetailsScreenProps) => {
     const { itemId, title } = route.params;
