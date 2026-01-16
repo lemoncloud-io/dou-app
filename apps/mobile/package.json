@@ -20,7 +20,9 @@
         "@nx/vite": "*",
         "esbuild": "*",
         "react-native-safe-area-context": "*",
-        "react-native-webview": "*"
+        "react-native-webview": "*",
+        "zustand": "*",
+        "@lemoncloud/chatic-sockets-api": "*"
     },
     "devDependencies": {}
 }

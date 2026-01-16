@@ -30,6 +30,12 @@
     "references": [
         {
             "path": "../../libs/app-messages/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/socket/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/device-utils/tsconfig.lib.json"
         }
     ]
 }
