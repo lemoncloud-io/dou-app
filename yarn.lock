@@ -2019,10 +2019,10 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-sockets-api@^0.26.113":
-  version "0.26.113"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.113.tgz#ece0de7bcf643089da4039a6955fec61868a37ac"
-  integrity sha512-dsYtr5AjkE+SunN018Xu6IiqpnZMhmq2HsobxQvuVdE1mEWv4MYucDa6SPPppAuxaHdcxzmQDWuTtATqV+cqWA==
+"@lemoncloud/chatic-sockets-api@^0.26.114":
+  version "0.26.114"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.114.tgz#829046ef17222f5baf1481bb5d606cbec3ca1a2f"
+  integrity sha512-Lec/3Bhq3XuSaDYTdvp2GZ2eQRcajamZkFum2+XIveNutMBOYFFSsAfG3LuyB1rESuJvgyrGGBkhLN774ZT+nA==
   dependencies:
     lemon-model "^1.1.1"
 
@@ -3480,7 +3480,7 @@
   resolved "https://registry.yarnpkg.com/@radix-ui/rect/-/rect-1.1.1.tgz#78244efe12930c56fd255d7923865857c41ac8cb"
   integrity sha512-HPwpGIzkl28mWyZqG52jiqDJ12waP11Pa1lGoiyUkIEuMLBP0oeK/C89esbXrxsky5we7dfd8U58nm0SgAWpVw==
 
-"@react-native-async-storage/async-storage@^2.2.0":
+"@react-native-async-storage/async-storage@*", "@react-native-async-storage/async-storage@^2.2.0":
   version "2.2.0"
   resolved "https://registry.yarnpkg.com/@react-native-async-storage/async-storage/-/async-storage-2.2.0.tgz#a3aa565253e46286655560172f4e366e8969f5ad"
   integrity sha512-gvRvjR5JAaUZF8tv2Kcq/Gbt3JHwbKFYfmb445rhOj6NUMx3qPLixmDx5pZAyb9at1bYvJ4/eTUipU5aki45xw==
@@ -12636,7 +12636,7 @@ react-native-svg@*, react-native-svg@~15.15.1:
     css-tree "^1.1.3"
     warn-once "0.1.1"
 
-react-native-uuid@^2.0.3:
+react-native-uuid@*, react-native-uuid@^2.0.3:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/react-native-uuid/-/react-native-uuid-2.0.3.tgz#f85f8a8d68e52e3f1c18ba0f02ec7776f9d4a0da"
   integrity sha512-f/YfIS2f5UB+gut7t/9BKGSCYbRA9/74A5R1MDp+FLYsuS+OSWoiM/D8Jko6OJB6Jcu3v6ONuddvZKHdIGpeiw==
