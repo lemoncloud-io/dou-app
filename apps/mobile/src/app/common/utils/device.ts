@@ -9,7 +9,7 @@ import { STORAGE_KEYS, storage } from '../services';
  * @returns A promise that resolves to the device ID or null if an error occurs.
  * @author raine@lemoncloud.io
  */
-export const useDeviceId = async (): Promise<string | null> => {
+export const getDeviceId = async (): Promise<string | null> => {
     try {
         const storedId = await storage.get<string>(STORAGE_KEYS.USER.DEVICE_ID);
 
