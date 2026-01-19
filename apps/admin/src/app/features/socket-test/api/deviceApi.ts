@@ -3,7 +3,7 @@ import { webCore } from '@chatic/web-core';
 import type { DeviceListResponse } from '../types';
 
 // Toggle for mock data - set to false to use real API
-const USE_MOCK_DATA = true;
+const USE_MOCK_DATA = false;
 
 const mockDeviceList: DeviceListResponse = {
     total: 10,
