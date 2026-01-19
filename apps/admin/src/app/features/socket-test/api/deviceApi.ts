@@ -11,7 +11,7 @@ export const fetchDeviceList = async (): Promise<DeviceListResponse> => {
     const { data } = await webCore
         .buildSignedRequest({
             method: 'GET',
-            baseURL: `${getSocketApiEndpoint()}/skt-d1/devices/0/list`,
+            baseURL: `${getSocketApiEndpoint()}/skt-d1/hello/device/list`,
         })
         .setParams({ view: 'admin' })
         .execute<DeviceListResponse>();

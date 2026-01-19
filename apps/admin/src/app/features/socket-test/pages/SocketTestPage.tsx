@@ -49,9 +49,9 @@ export const SocketTestPage = (): JSX.Element => {
     const counts = useMemo(
         () => ({
             total: devices.length,
-            online: devices.filter(d => d.status === 'online').length,
-            away: devices.filter(d => d.status === 'away').length,
-            offline: devices.filter(d => d.status === 'offline').length,
+            green: devices.filter(d => d.status === 'green').length,
+            yellow: devices.filter(d => d.status === 'yellow').length,
+            red: devices.filter(d => d.status === 'red').length,
         }),
         [devices]
     );

@@ -30,7 +30,7 @@ export const DeviceList = ({ devices, isLoading }: DeviceListProps): JSX.Element
     return (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {devices.map(device => (
-                <DeviceCard key={device.deviceId} device={device} />
+                <DeviceCard key={device.id} device={device} />
             ))}
         </div>
     );

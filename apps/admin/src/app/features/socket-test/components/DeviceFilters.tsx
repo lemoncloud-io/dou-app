@@ -1,4 +1,4 @@
-import { Clock, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { Circle, RefreshCw } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -16,17 +16,17 @@ interface DeviceFiltersProps {
     isRefreshing: boolean;
     counts: {
         total: number;
-        online: number;
-        away: number;
-        offline: number;
+        green: number;
+        yellow: number;
+        red: number;
     };
 }
 
-const filterOptions: { value: FilterStatus; label: string; icon: typeof Wifi }[] = [
-    { value: 'all', label: 'All', icon: Wifi },
-    { value: 'online', label: 'Online', icon: Wifi },
-    { value: 'away', label: 'Away', icon: Clock },
-    { value: 'offline', label: 'Offline', icon: WifiOff },
+const filterOptions: { value: FilterStatus; label: string; color: string }[] = [
+    { value: 'all', label: 'All', color: 'bg-gray-400' },
+    { value: 'green', label: 'Online', color: 'bg-green-500' },
+    { value: 'yellow', label: 'Away', color: 'bg-yellow-500' },
+    { value: 'red', label: 'Offline', color: 'bg-red-500' },
 ];
 
 export const DeviceFilters = ({
@@ -47,7 +47,6 @@ export const DeviceFilters = ({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap gap-1.5">
                 {filterOptions.map(option => {
-                    const Icon = option.icon;
                     const count = getCount(option.value);
                     const isActive = filter === option.value;
 
@@ -57,13 +56,13 @@ export const DeviceFilters = ({
                             variant={isActive ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => onFilterChange(option.value)}
-                            className={cn('gap-1.5', !isActive && 'text-muted-foreground')}
+                            className={cn('gap-2', !isActive && 'text-muted-foreground')}
                         >
-                            <Icon className="h-3.5 w-3.5" />
+                            <Circle className={cn('h-2 w-2 fill-current', option.color, 'text-transparent')} />
                             {option.label}
                             <span
                                 className={cn(
-                                    'ml-1 rounded-full px-1.5 py-0.5 text-xs',
+                                    'rounded-full px-1.5 py-0.5 text-xs font-medium',
                                     isActive ? 'bg-primary-foreground/20' : 'bg-muted'
                                 )}
                             >
@@ -78,7 +77,7 @@ export const DeviceFilters = ({
                 <div className="flex items-center gap-2">
                     <Switch id="auto-refresh" checked={autoRefresh} onCheckedChange={onAutoRefreshChange} />
                     <Label htmlFor="auto-refresh" className="text-sm text-muted-foreground cursor-pointer">
-                        Auto-refresh
+                        Auto (10s)
                     </Label>
                 </div>
 
