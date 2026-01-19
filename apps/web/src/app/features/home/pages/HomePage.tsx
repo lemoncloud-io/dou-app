@@ -28,10 +28,17 @@ export const HomePage = (): JSX.Element => {
     const sessionId = useSessionId();
     const { isConnected, connectionStatus, id } = useWebSocketStore();
     const tabState = useTabLifecycle();
-    const [connectionData, setConnectionData] = useState<Record<string, unknown> | null>(null);
+    const [presenceData, setPresenceData] = useState<Record<string, unknown> | null>(null);
 
-    const { connect, disconnect } = useInitWebSocket(sessionId);
+    const { connect, disconnect, send } = useInitWebSocket(sessionId);
     const unsubscribeRef = useRef<(() => void) | null>(null);
+
+    // Send presence info when connected
+    useEffect(() => {
+        if (isConnected) {
+            send({ type: 'presence', action: 'info' });
+        }
+    }, [isConnected, send]);
 
     // Subscribe to WebSocket messages to capture connection data
     useEffect(() => {
@@ -41,12 +48,11 @@ export const HomePage = (): JSX.Element => {
         unsubscribeRef.current = useWebSocketStore.getState().subscribe(message => {
             if (message.data && typeof message.data === 'object') {
                 const data = message.data as Record<string, unknown>;
-                // Check if it's an info action with payload
-                if (data.action === 'info' && data.payload && typeof data.payload === 'object') {
+
+                // Check if it's presence info
+                if (data.type === 'presence' && data.payload) {
                     const payload = data.payload as Record<string, unknown>;
-                    if (payload.connectionId && payload.deviceId && payload.remote) {
-                        setConnectionData(payload);
-                    }
+                    setPresenceData(payload);
                 }
             }
         });
@@ -168,37 +174,86 @@ export const HomePage = (): JSX.Element => {
                     </DropdownMenu>
                 </div>
 
-                {/* Connection Data Panel */}
-                {connectionData && (
+                {/* Presence Status Panel */}
+                {presenceData && (
                     <div className="mt-4 p-4 rounded-lg border bg-card">
-                        <h2 className="text-sm font-medium text-muted-foreground mb-3">Connection Info</h2>
+                        <div className="flex items-center justify-between mb-3">
+                            <h2 className="text-sm font-medium text-muted-foreground">Presence Status</h2>
+                            <div className="flex gap-2">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-3 text-xs"
+                                    onClick={() =>
+                                        send({ type: 'presence', action: 'status', payload: { status: 'green' } })
+                                    }
+                                >
+                                    GREEN
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-3 text-xs"
+                                    onClick={() =>
+                                        send({ type: 'presence', action: 'status', payload: { status: 'yellow' } })
+                                    }
+                                >
+                                    YELLOW
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-3 text-xs"
+                                    onClick={() =>
+                                        send({ type: 'presence', action: 'status', payload: { status: 'red' } })
+                                    }
+                                >
+                                    RED
+                                </Button>
+                            </div>
+                        </div>
                         <div className="grid grid-cols-2 gap-3 text-xs">
                             <div>
-                                <span className="text-muted-foreground">Connection ID:</span>
-                                <p className="font-mono mt-1">{connectionData.connectionId as string}</p>
+                                <span className="text-muted-foreground">Status:</span>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <div
+                                        className={`h-3 w-3 rounded-full ${
+                                            presenceData.status === 'green'
+                                                ? 'bg-green-500'
+                                                : presenceData.status === 'yellow'
+                                                  ? 'bg-yellow-500'
+                                                  : 'bg-red-500'
+                                        }`}
+                                    />
+                                    <span className="font-mono">{presenceData.status as string}</span>
+                                </div>
                             </div>
                             <div>
-                                <span className="text-muted-foreground">Device ID:</span>
-                                <p className="font-mono mt-1">{(connectionData.deviceId as string)?.slice(0, 13)}...</p>
+                                <span className="text-muted-foreground">Platform:</span>
+                                <p className="font-mono mt-1">{presenceData.platform as string}</p>
                             </div>
                             <div>
-                                <span className="text-muted-foreground">Remote IP:</span>
-                                <p className="font-mono mt-1">{connectionData.remote as string}</p>
-                            </div>
-                            <div>
-                                <span className="text-muted-foreground">Domain:</span>
-                                <p className="font-mono mt-1">{connectionData.domain as string}</p>
-                            </div>
-                            <div>
-                                <span className="text-muted-foreground">Stage:</span>
-                                <p className="font-mono mt-1">{connectionData.stage as string}</p>
+                                <span className="text-muted-foreground">Tick:</span>
+                                <p className="font-mono mt-1">{presenceData.tick as number}</p>
                             </div>
                             <div>
                                 <span className="text-muted-foreground">Connected At:</span>
                                 <p className="font-mono mt-1">
-                                    {new Date(connectionData.connectedAt as number).toLocaleTimeString('ko-KR')}
+                                    {new Date(presenceData.connectedAt as number).toLocaleTimeString('ko-KR')}
                                 </p>
                             </div>
+                            <div>
+                                <span className="text-muted-foreground">Connection ID:</span>
+                                <p className="font-mono mt-1">{presenceData.connId as string}</p>
+                            </div>
+                            {presenceData.disconnectedAt !== 0 && (
+                                <div>
+                                    <span className="text-muted-foreground">Disconnected At:</span>
+                                    <p className="font-mono mt-1">
+                                        {new Date(presenceData.disconnectedAt as number).toLocaleTimeString('ko-KR')}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

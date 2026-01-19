@@ -44,6 +44,8 @@ export interface UseWebSocketReturn<TMessage extends BaseWebSocketMessage> {
     connect: () => Promise<void>;
     /** Manually disconnect */
     disconnect: () => void;
+    /** Send message through WebSocket */
+    send: (data: unknown) => void;
 }
 
 /**
@@ -172,6 +174,18 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
         setIsConnected(false);
     }, []);
 
+    // Send message through WebSocket
+    const send = useCallback(
+        (data: unknown): void => {
+            if (wsService.current) {
+                wsService.current.send(data);
+            } else {
+                console.warn(`${logPrefix || '[useWebSocket]'} Cannot send - service not initialized`);
+            }
+        },
+        [logPrefix]
+    );
+
     // Auto-connect when enabled
     useEffect(() => {
         if (!enabled) {
@@ -215,5 +229,6 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
         lastMessage,
         connect,
         disconnect,
+        send,
     };
 };

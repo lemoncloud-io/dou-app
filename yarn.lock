@@ -1999,10 +1999,10 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
-"@lemoncloud/chatic-sockets-api@^0.26.110":
-  version "0.26.110"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.110.tgz#b7b3cd82d67bdbae66d991ae55c049bb2fbcaa7f"
-  integrity sha512-SRRsu3P5a+kJbWX5NqI4sOXrhkJIj64PjiCDrXcyYbPtCCYScRr8TpajNs43dPI9ZMWBL5h4YuEMG2Rxfbx+Mg==
+"@lemoncloud/chatic-sockets-api@^0.26.114":
+  version "0.26.114"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.114.tgz#829046ef17222f5baf1481bb5d606cbec3ca1a2f"
+  integrity sha512-Lec/3Bhq3XuSaDYTdvp2GZ2eQRcajamZkFum2+XIveNutMBOYFFSsAfG3LuyB1rESuJvgyrGGBkhLN774ZT+nA==
   dependencies:
     lemon-model "^1.1.1"
 
@@ -14993,6 +14993,11 @@ zustand-persist@^0.4.0:
   version "0.4.0"
   resolved "https://registry.yarnpkg.com/zustand-persist/-/zustand-persist-0.4.0.tgz#55f32c3cd98ea91b89f07ae249d20e471f0a5ba3"
   integrity sha512-u6bBIc4yZRpSKBKuTNhoqvoIb09gGHk2NkiPg4K7MPIWTYZg70PlpBn48QEDnKZwfNurnf58TaW5BuMGIMf5hw==
+
+zustand@*:
+  version "5.0.10"
+  resolved "https://registry.yarnpkg.com/zustand/-/zustand-5.0.10.tgz#4db510c0c4c25a5f1ae43227b307ddf1641a3210"
+  integrity sha512-U1AiltS1O9hSy3rul+Ub82ut2fqIAefiSuwECWt6jlMVUGejvf+5omLcRBSzqbRagSM3hQZbtzdeRc6QVScXTg==
 
 zustand@^5.0.2:
   version "5.0.9"

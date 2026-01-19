@@ -67,7 +67,7 @@ export const useInitWebSocket = (sessionId?: string) => {
         }
     }, []);
 
-    const { id, connectionStatus, lastMessage, disconnect, connect } = useWebSocket<WebSocketMessage>({
+    const { id, connectionStatus, lastMessage, disconnect, connect, send } = useWebSocket<WebSocketMessage>({
         endpoint: WS_ENDPOINT,
         tokenProvider,
         messageParser: parseWebSocketMessage,
@@ -126,6 +126,6 @@ export const useInitWebSocket = (sessionId?: string) => {
         };
     }, [isAuthenticated, connect, disconnect]);
 
-    // Return connect/disconnect for manual control
-    return { connect, disconnect };
+    // Return connect/disconnect/send for manual control
+    return { connect, disconnect, send };
 };
