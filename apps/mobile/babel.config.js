@@ -4,7 +4,7 @@ module.exports = {
         [
             'transform-inline-environment-variables',
             {
-                include: ['WEBVIEW_BASE_URL', 'APP_ENV'],
+                include: ['VITE_WEBVIEW_BASE_URL', 'VITE_ENV', 'VITE_WS_ENDPOINT'],
             },
         ],
     ],
