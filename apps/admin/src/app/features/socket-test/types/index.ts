@@ -1,5 +1,7 @@
 export type DeviceStatus = 'online' | 'away' | 'offline';
 
+export type FilterStatus = DeviceStatus | 'all';
+
 export interface DeviceView {
     deviceId: string;
     deviceName?: string;

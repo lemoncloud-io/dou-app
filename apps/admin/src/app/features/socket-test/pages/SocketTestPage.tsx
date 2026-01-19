@@ -1,20 +1,23 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 import { useWebSocket } from '@chatic/socket';
 import { Alert, AlertDescription } from '@chatic/ui-kit/components/ui/alert';
-import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@chatic/ui-kit/components/ui/card';
 import { webCore } from '@chatic/web-core';
 
-import { ConnectionStatus, DeviceList } from '../components';
+import { DeviceFilters, DeviceList, SocketControls } from '../components';
 import { useDevices, useSessionId } from '../hooks';
+
+import type { FilterStatus } from '../types';
 
 const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT || '';
 
 export const SocketTestPage = (): JSX.Element => {
     const sessionId = useSessionId();
+    const [filter, setFilter] = useState<FilterStatus>('all');
+    const [autoRefresh, setAutoRefresh] = useState(true);
 
     const tokenProvider = useCallback(async (): Promise<string | null> => {
         try {
@@ -26,7 +29,7 @@ export const SocketTestPage = (): JSX.Element => {
         }
     }, []);
 
-    const { connectionId, connectionStatus } = useWebSocket({
+    const { connectionId, connectionStatus, connect, disconnect } = useWebSocket({
         endpoint: WS_ENDPOINT,
         tokenProvider,
         enabled: true,
@@ -34,16 +37,46 @@ export const SocketTestPage = (): JSX.Element => {
         sessionId,
     });
 
-    const { data, isLoading, refetch, isFetching, error } = useDevices();
+    const { data, isLoading, refetch, isFetching, error } = useDevices(autoRefresh);
+
+    const devices = data?.list ?? [];
+
+    const filteredDevices = useMemo(() => {
+        if (filter === 'all') return devices;
+        return devices.filter(device => device.status === filter);
+    }, [devices, filter]);
+
+    const counts = useMemo(
+        () => ({
+            total: devices.length,
+            online: devices.filter(d => d.status === 'online').length,
+            away: devices.filter(d => d.status === 'away').length,
+            offline: devices.filter(d => d.status === 'offline').length,
+        }),
+        [devices]
+    );
+
+    const handleConnect = useCallback(() => {
+        void connect();
+    }, [connect]);
 
     return (
         <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
+            <div>
                 <h1 className="text-2xl font-bold">Socket Test</h1>
-                <div className="text-sm text-muted-foreground">Session: {sessionId.slice(0, 8)}...</div>
+                <p className="text-sm text-muted-foreground mt-1">
+                    Monitor WebSocket connections and connected devices
+                </p>
             </div>
 
-            <ConnectionStatus status={connectionStatus} connectionId={connectionId ?? undefined} />
+            <SocketControls
+                status={connectionStatus}
+                endpoint={WS_ENDPOINT}
+                sessionId={sessionId}
+                connectionId={connectionId ?? undefined}
+                onConnect={handleConnect}
+                onDisconnect={disconnect}
+            />
 
             {error && (
                 <Alert variant="destructive">
@@ -53,20 +86,20 @@ export const SocketTestPage = (): JSX.Element => {
             )}
 
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                    <CardTitle className="text-lg">
-                        Connected Devices
-                        {data?.total !== undefined && (
-                            <span className="ml-2 text-sm font-normal text-muted-foreground">({data.total})</span>
-                        )}
-                    </CardTitle>
-                    <Button onClick={() => void refetch()} variant="outline" size="sm" disabled={isFetching}>
-                        <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
-                        Refresh
-                    </Button>
+                <CardHeader className="pb-4">
+                    <CardTitle className="text-lg">Connected Devices</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <DeviceList devices={data?.list ?? []} isLoading={isLoading} />
+                <CardContent className="space-y-4">
+                    <DeviceFilters
+                        filter={filter}
+                        onFilterChange={setFilter}
+                        autoRefresh={autoRefresh}
+                        onAutoRefreshChange={setAutoRefresh}
+                        onRefresh={() => void refetch()}
+                        isRefreshing={isFetching}
+                        counts={counts}
+                    />
+                    <DeviceList devices={filteredDevices} isLoading={isLoading} />
                 </CardContent>
             </Card>
         </div>

@@ -4,10 +4,10 @@ import { fetchDeviceList } from '../api/deviceApi';
 
 const REFETCH_INTERVAL_MS = 10000;
 
-export const useDevices = () => {
+export const useDevices = (autoRefresh = true) => {
     return useQuery({
         queryKey: ['admin', 'devices'],
         queryFn: fetchDeviceList,
-        refetchInterval: REFETCH_INTERVAL_MS,
+        refetchInterval: autoRefresh ? REFETCH_INTERVAL_MS : false,
     });
 };
