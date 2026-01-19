@@ -63,19 +63,10 @@ export const HomePage = (): JSX.Element => {
         };
     }, [isConnected]);
 
-    // Handle tab visibility changes
+    // Initial connection
     useEffect(() => {
-        console.log('[HomePage] Tab visibility changed:', tabState.isVisible);
-        console.log('[HomePage] Current connection status:', connectionStatus);
-
-        if (tabState.isVisible) {
-            console.log('[HomePage] Tab foreground - reconnecting WebSocket');
-            void connect();
-        } else {
-            console.log('[HomePage] Tab background - disconnecting WebSocket');
-            disconnect();
-        }
-    }, [tabState.isVisible, connect, disconnect]);
+        void connect();
+    }, [connect]);
 
     const { mutate: logout, isPending: isLoggingOut } = useLogout(
         () => {
