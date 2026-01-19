@@ -1,4 +1,4 @@
-import { BarChart3, LayoutDashboard, MessageSquare, Settings, Users } from 'lucide-react';
+import { Wifi } from 'lucide-react';
 
 import type { LucideIcon } from 'lucide-react';
 
@@ -10,28 +10,8 @@ export interface MenuItem {
 
 export const adminMenuItems: MenuItem[] = [
     {
-        label: 'Dashboard',
-        icon: LayoutDashboard,
-        path: '/',
-    },
-    {
-        label: 'Users',
-        icon: Users,
-        path: '/users',
-    },
-    {
-        label: 'Chats',
-        icon: MessageSquare,
-        path: '/chats',
-    },
-    {
-        label: 'Analytics',
-        icon: BarChart3,
-        path: '/analytics',
-    },
-    {
-        label: 'Settings',
-        icon: Settings,
-        path: '/settings',
+        label: 'Socket Test',
+        icon: Wifi,
+        path: '/socket-test',
     },
 ];
