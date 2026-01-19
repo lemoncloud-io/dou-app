@@ -1,4 +1,4 @@
-import { Circle, Clock, Globe, Link, Monitor, Power } from 'lucide-react';
+import { Circle, Clock, Globe, Laptop, Link, Monitor, Power, Smartphone, TabletSmartphone } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '@chatic/lib/utils';
@@ -31,12 +31,22 @@ const statusConfig: Record<DeviceStatus, { label: string; color: string; badgeCl
     },
 };
 
-const platformIcons: Record<string, string> = {
-    web: '🌐',
-    macos: '🍎',
-    windows: '🪟',
-    ios: '📱',
-    android: '🤖',
+const PlatformIcon = ({ platform }: { platform: string }): JSX.Element => {
+    const className = 'h-5 w-5 text-muted-foreground';
+    switch (platform) {
+        case 'web':
+            return <Globe className={className} />;
+        case 'macos':
+            return <Laptop className={className} />;
+        case 'windows':
+            return <Monitor className={className} />;
+        case 'ios':
+            return <Smartphone className={className} />;
+        case 'android':
+            return <TabletSmartphone className={className} />;
+        default:
+            return <Monitor className={className} />;
+    }
 };
 
 const formatTimestamp = (timestamp: number): string => {
@@ -82,7 +92,6 @@ const getDeviceName = (name: string | null | undefined, id: string): string => {
 
 export const DeviceCard = ({ device }: DeviceCardProps): JSX.Element => {
     const config = statusConfig[device.status];
-    const platformIcon = platformIcons[device.platform] || '💻';
     const displayName = getDeviceName(device.name, device.id);
     const isOnline = device.status === 'green';
     const canDisconnect = device.status !== 'red';
@@ -98,8 +107,8 @@ export const DeviceCard = ({ device }: DeviceCardProps): JSX.Element => {
             <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-lg">
-                            {platformIcon}
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                            <PlatformIcon platform={device.platform} />
                         </div>
                         <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
