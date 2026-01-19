@@ -5,7 +5,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
-import type { FilterStatus } from '../types';
+import type { DeviceStatusAggr, FilterStatus } from '../types';
 
 interface DeviceFiltersProps {
     filter: FilterStatus;
@@ -14,12 +14,7 @@ interface DeviceFiltersProps {
     onAutoRefreshChange: (enabled: boolean) => void;
     onRefresh: () => void;
     isRefreshing: boolean;
-    counts: {
-        total: number;
-        green: number;
-        yellow: number;
-        red: number;
-    };
+    statusAggr?: DeviceStatusAggr;
 }
 
 const filterOptions: { value: FilterStatus; label: string; color: string }[] = [
@@ -36,19 +31,22 @@ export const DeviceFilters = ({
     onAutoRefreshChange,
     onRefresh,
     isRefreshing,
-    counts,
+    statusAggr,
 }: DeviceFiltersProps): JSX.Element => {
-    const getCount = (value: FilterStatus): number => {
-        if (value === 'all') return counts.total;
-        return counts[value];
+    const getCount = (value: FilterStatus): number | undefined => {
+        if (!statusAggr) return undefined;
+        if (value === 'all') {
+            return (statusAggr.green ?? 0) + (statusAggr.yellow ?? 0) + (statusAggr.red ?? 0);
+        }
+        return statusAggr[value];
     };
 
     return (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap gap-1.5">
                 {filterOptions.map(option => {
-                    const count = getCount(option.value);
                     const isActive = filter === option.value;
+                    const count = getCount(option.value);
 
                     return (
                         <Button
@@ -60,14 +58,16 @@ export const DeviceFilters = ({
                         >
                             <Circle className={cn('h-2 w-2 fill-current', option.color, 'text-transparent')} />
                             {option.label}
-                            <span
-                                className={cn(
-                                    'rounded-full px-1.5 py-0.5 text-xs font-medium',
-                                    isActive ? 'bg-primary-foreground/20' : 'bg-muted'
-                                )}
-                            >
-                                {count}
-                            </span>
+                            {count !== undefined && (
+                                <span
+                                    className={cn(
+                                        'rounded-full px-1.5 py-0.5 text-xs font-medium',
+                                        isActive ? 'bg-primary-foreground/20' : 'bg-muted'
+                                    )}
+                                >
+                                    {count}
+                                </span>
+                            )}
                         </Button>
                     );
                 })}

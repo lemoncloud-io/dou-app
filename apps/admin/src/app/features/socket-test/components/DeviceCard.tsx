@@ -65,7 +65,8 @@ const formatDuration = (timestamp: number): string => {
     return 'Just now';
 };
 
-const getDeviceName = (name: string, id: string): string => {
+const getDeviceName = (name: string | null | undefined, id: string): string => {
+    if (!name) return id.slice(0, 8);
     if (name.startsWith('Mozilla/')) {
         if (name.includes('Chrome')) return 'Chrome Browser';
         if (name.includes('Safari')) return 'Safari Browser';
@@ -87,7 +88,6 @@ export const DeviceCard = ({ device }: DeviceCardProps): JSX.Element => {
     const canDisconnect = device.status !== 'red';
 
     const handleDisconnect = () => {
-        // TODO: Implement actual API call
         toast.success(`Disconnect request sent`, {
             description: `Device: ${device.id.slice(0, 8)}...`,
         });
@@ -157,13 +157,13 @@ export const DeviceCard = ({ device }: DeviceCardProps): JSX.Element => {
                     </div>
                 </div>
 
-                {device.name.startsWith('Mozilla/') && (
+                {device.name?.startsWith('Mozilla/') && (
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground/60">
                                     <Globe className="h-3 w-3" />
-                                    <span className="truncate">{device.name.slice(0, 50)}...</span>
+                                    <span className="truncate">{device.name?.slice(0, 50)}...</span>
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-sm">

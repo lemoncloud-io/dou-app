@@ -2,7 +2,6 @@ import { webCore } from '@chatic/web-core';
 
 import type { DeviceListResponse } from '../types';
 
-// Toggle for mock data - set to false to use real API
 const USE_MOCK_DATA = false;
 
 const mockDeviceList: DeviceListResponse = {
@@ -160,7 +159,17 @@ const getSocketApiEndpoint = (): string => {
     return backendEndpoint.replace('/d1', '');
 };
 
-export const fetchDeviceList = async (): Promise<DeviceListResponse> => {
+interface FetchDeviceListParams {
+    page?: number;
+    limit?: number;
+    status?: 'green' | 'yellow' | 'red';
+}
+
+export const fetchDeviceList = async ({
+    page = 0,
+    limit = 10,
+    status,
+}: FetchDeviceListParams = {}): Promise<DeviceListResponse> => {
     if (USE_MOCK_DATA) {
         await new Promise(resolve => setTimeout(resolve, 500));
         return mockDeviceList;
@@ -171,7 +180,7 @@ export const fetchDeviceList = async (): Promise<DeviceListResponse> => {
             method: 'GET',
             baseURL: `${getSocketApiEndpoint()}/skt-d1/hello/device/list`,
         })
-        .setParams({ view: 'admin' })
+        .setParams({ page, limit, ...(status && { status }) })
         .execute<DeviceListResponse>();
     return data;
 };

@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { AlertCircle } from 'lucide-react';
 
@@ -7,17 +8,27 @@ import { Alert, AlertDescription } from '@chatic/ui-kit/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@chatic/ui-kit/components/ui/card';
 import { webCore } from '@chatic/web-core';
 
-import { DeviceFilters, DeviceList, SocketControls } from '../components';
+import { DeviceFilters, DeviceList, DevicePagination, SocketControls } from '../components';
 import { useDevices, useSessionId } from '../hooks';
 
-import type { FilterStatus } from '../types';
+import type { DeviceStatus, FilterStatus } from '../types';
 
 const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT || '';
+const PAGE_SIZE = 10;
+
+const isValidStatus = (value: string | null): value is DeviceStatus => {
+    return value === 'green' || value === 'yellow' || value === 'red';
+};
 
 export const SocketTestPage = (): JSX.Element => {
     const sessionId = useSessionId();
-    const [filter, setFilter] = useState<FilterStatus>('all');
-    const [autoRefresh, setAutoRefresh] = useState(true);
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    const filter: FilterStatus = isValidStatus(searchParams.get('status'))
+        ? (searchParams.get('status') as DeviceStatus)
+        : 'all';
+    const page = Number(searchParams.get('page')) || 0;
+    const autoRefresh = searchParams.get('autoRefresh') !== 'false';
 
     const tokenProvider = useCallback(async (): Promise<string | null> => {
         try {
@@ -37,28 +48,64 @@ export const SocketTestPage = (): JSX.Element => {
         sessionId,
     });
 
-    const { data, isLoading, refetch, isFetching, error } = useDevices(autoRefresh);
+    const { data, isLoading, refetch, isFetching, error } = useDevices({
+        page,
+        limit: PAGE_SIZE,
+        status: filter === 'all' ? undefined : filter,
+        autoRefresh,
+    });
 
     const devices = data?.list ?? [];
-
-    const filteredDevices = useMemo(() => {
-        if (filter === 'all') return devices;
-        return devices.filter(device => device.status === filter);
-    }, [devices, filter]);
-
-    const counts = useMemo(
-        () => ({
-            total: devices.length,
-            green: devices.filter(d => d.status === 'green').length,
-            yellow: devices.filter(d => d.status === 'yellow').length,
-            red: devices.filter(d => d.status === 'red').length,
-        }),
-        [devices]
-    );
+    const total = data?.total ?? 0;
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+    const statusAggr = data?.aggr?.status;
 
     const handleConnect = useCallback(() => {
         void connect();
     }, [connect]);
+
+    const handleFilterChange = useCallback(
+        (newFilter: FilterStatus) => {
+            setSearchParams(prev => {
+                if (newFilter === 'all') {
+                    prev.delete('status');
+                } else {
+                    prev.set('status', newFilter);
+                }
+                prev.delete('page');
+                return prev;
+            });
+        },
+        [setSearchParams]
+    );
+
+    const handlePageChange = useCallback(
+        (newPage: number) => {
+            setSearchParams(prev => {
+                if (newPage === 0) {
+                    prev.delete('page');
+                } else {
+                    prev.set('page', String(newPage));
+                }
+                return prev;
+            });
+        },
+        [setSearchParams]
+    );
+
+    const handleAutoRefreshChange = useCallback(
+        (enabled: boolean) => {
+            setSearchParams(prev => {
+                if (enabled) {
+                    prev.delete('autoRefresh');
+                } else {
+                    prev.set('autoRefresh', 'false');
+                }
+                return prev;
+            });
+        },
+        [setSearchParams]
+    );
 
     return (
         <div className="p-6 space-y-6">
@@ -87,19 +134,25 @@ export const SocketTestPage = (): JSX.Element => {
 
             <Card>
                 <CardHeader className="pb-4">
-                    <CardTitle className="text-lg">Connected Devices</CardTitle>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg">Connected Devices</CardTitle>
+                        <span className="text-sm text-muted-foreground">Total: {total}</span>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <DeviceFilters
                         filter={filter}
-                        onFilterChange={setFilter}
+                        onFilterChange={handleFilterChange}
                         autoRefresh={autoRefresh}
-                        onAutoRefreshChange={setAutoRefresh}
+                        onAutoRefreshChange={handleAutoRefreshChange}
                         onRefresh={() => void refetch()}
                         isRefreshing={isFetching}
-                        counts={counts}
+                        statusAggr={statusAggr}
                     />
-                    <DeviceList devices={filteredDevices} isLoading={isLoading} />
+                    <DeviceList devices={devices} isLoading={isLoading} />
+                    {totalPages > 1 && (
+                        <DevicePagination currentPage={page} totalPages={totalPages} onPageChange={handlePageChange} />
+                    )}
                 </CardContent>
             </Card>
         </div>
