@@ -98,10 +98,10 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
             return;
         }
 
-        if (!this.config.token) {
-            console.error(`${this.config.logPrefix} Token not provided`);
-            return;
-        }
+        // if (!this.config.token) {
+        //     console.error(`${this.config.logPrefix} Token not provided`);
+        //     return;
+        // }
 
         this.isManualDisconnect = false;
         this.hasError = false;
