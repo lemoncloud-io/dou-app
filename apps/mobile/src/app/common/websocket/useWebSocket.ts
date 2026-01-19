@@ -32,11 +32,6 @@ interface SocketOptions<P extends Record<string, any>> {
      * `false`로 설정되면 연결 즉시 종료
      */
     enabled?: boolean;
-    /**
-     * 개발용 로그 출력 여부
-     * `true`일 경우 콘솔 로그 출력
-     */
-    debug?: boolean;
 }
 
 /**
@@ -61,22 +56,7 @@ export const useWebSocket = <
         maxReconnectDelay = 30_000,
         params = {} as P,
         enabled = true,
-        debug = false,
     } = options;
-
-    const debugRef = useRef(debug);
-    useEffect(() => {
-        debugRef.current = debug;
-    }, [debug]);
-
-    const log: (type: 'log' | 'warn' | 'error', ...args: any[]) => void = useCallback(
-        (type: 'log' | 'warn' | 'error', ...args: any[]) => {
-            if (debugRef.current) {
-                console[type](...args);
-            }
-        },
-        []
-    );
 
     const queryString = useQueryString(params);
     const finalUrl = useMemo(() => {
@@ -117,16 +97,16 @@ export const useWebSocket = <
 
         pingTimerRef.current = setInterval(() => {
             if (socketRef.current?.readyState === WebSocket.OPEN) {
-                log('log', '[Socket] Sending Ping...');
+                console.log('log', '[Socket] Sending Ping...');
                 socketRef.current.send('ping');
 
                 pongTimerRef.current = setTimeout(() => {
-                    log('warn', '[Socket] Pong timeout. Closing connection...');
+                    console.log('warn', '[Socket] Pong timeout. Closing connection...');
                     socketRef.current?.close();
                 }, pongTimeout);
             }
         }, pingInterval);
-    }, [pingInterval, pongTimeout, log]);
+    }, [pingInterval, pongTimeout]);
 
     /**
      * `pongTimeout` 초기화
@@ -143,13 +123,17 @@ export const useWebSocket = <
      * 메모리 정리 및 변수 초기화
      */
     const cleanup = useCallback(() => {
-        if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+        if (reconnectTimerRef.current) {
+            clearTimeout(reconnectTimerRef.current);
+            reconnectTimerRef.current = null;
+        }
         if (pingTimerRef.current) clearInterval(pingTimerRef.current);
         if (pongTimerRef.current) clearTimeout(pongTimerRef.current);
 
         if (socketRef.current) {
-            socketRef.current.close();
+            const ws = socketRef.current;
             socketRef.current = null;
+            ws.close();
         }
         setIsConnected(false);
     }, []);
@@ -166,17 +150,15 @@ export const useWebSocket = <
     /**
      * 메시지 보내기
      */
-    const sendMessage = useCallback(
-        (message: S) => {
-            if (socketRef.current?.readyState === WebSocket.OPEN) {
-                const payload = JSON.stringify(message);
-                socketRef.current.send(payload);
-            } else {
-                log('warn', '[Socket] Cannot send: Not connected');
-            }
-        },
-        [log]
-    );
+    const sendMessage = useCallback((message: S) => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            const payload = JSON.stringify(message);
+            socketRef.current.send(payload);
+            console.log('log', message, payload);
+        } else {
+            console.log('warn', '[Socket] Cannot send: Not connected');
+        }
+    }, []);
 
     /**
      * 소켓 연결
@@ -186,12 +168,12 @@ export const useWebSocket = <
         if (socketRef.current) return;
 
         isForceDisconnect.current = false;
-        log('log', `[Socket] Connecting to: ${finalUrl}`);
+        console.log('log', `[Socket] Connecting to: ${finalUrl}`);
         const ws = new WebSocket(finalUrl);
         socketRef.current = ws;
 
         ws.onopen = () => {
-            log('log', '[Socket] Connected');
+            console.log('log', '[Socket] Connected');
             setIsConnected(true);
             reconnectAttempts.current = 0;
             startHeartbeat();
@@ -203,27 +185,34 @@ export const useWebSocket = <
             try {
                 const parsedData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
                 if (typeof parsedData === 'object' && parsedData !== null) {
+                    console.log('log', '[Socket] Received data:', rawData);
                     setLastMessage(parsedData as T);
                 } else {
-                    log('warn', '[Socket] Received incorrect data:', rawData);
+                    console.log('warn', '[Socket] Received incorrect data:', rawData);
                 }
             } catch (err) {
-                log('error', '[Socket] JSON Parse Error:', err, rawData);
+                console.log('error', '[Socket] JSON Parse Error:', err, rawData);
             }
         };
 
         ws.onclose = e => {
-            log('log', '[Socket] Closed', e);
+            console.log('log', '[Socket] Closed', e);
             setIsConnected(false);
+
+            if (socketRef.current === null) {
+                return;
+            }
             socketRef.current = null;
 
             if (pingTimerRef.current) clearInterval(pingTimerRef.current);
             if (pongTimerRef.current) clearTimeout(pongTimerRef.current);
 
-            if (!isForceDisconnect.current && appState.current === 'active') {
+            if (!isForceDisconnect.current && appState.current === 'active' && enabled) {
                 const nextDelay = Math.min(reconnectDelay * 2 ** reconnectAttempts.current, maxReconnectDelay);
-
-                log('log', `[Socket] Reconnecting in ${nextDelay}ms... (Attempt ${reconnectAttempts.current + 1})`);
+                console.log(
+                    'log',
+                    `[Socket] Reconnecting in ${nextDelay}ms... (Attempt ${reconnectAttempts.current + 1})`
+                );
 
                 reconnectTimerRef.current = setTimeout(() => {
                     reconnectAttempts.current += 1;
@@ -233,9 +222,9 @@ export const useWebSocket = <
         };
 
         ws.onerror = e => {
-            log('log', '[Socket] Error', e);
+            console.log('log', '[Socket] Error', e);
         };
-    }, [url, enabled, finalUrl, startHeartbeat, resetHeartbeat, reconnectDelay, maxReconnectDelay, log]);
+    }, [url, enabled, finalUrl, startHeartbeat, resetHeartbeat, reconnectDelay, maxReconnectDelay]);
 
     /**
      * 강제 연결을 끊지 않고 `enabled`가 활성화 되어있을 경우 연결
@@ -261,10 +250,10 @@ export const useWebSocket = <
             appState.current = nextAppState;
 
             if (oldState === 'active' && nextAppState.match(/inactive|background/)) {
-                log('log', '[Socket] App background. Pausing connection...');
+                console.log('log', '[Socket] App background. Pausing connection...');
                 cleanup();
             } else if (oldState.match(/inactive|background/) && nextAppState === 'active') {
-                log('log', '[Socket] App foreground. Resuming...');
+                console.log('log', '[Socket] App foreground. Resuming...');
 
                 if (enabled && !isForceDisconnect.current) {
                     reconnectAttempts.current = 0;
@@ -275,7 +264,7 @@ export const useWebSocket = <
 
         const subscription = AppState.addEventListener('change', handleAppStateChange);
         return () => subscription.remove();
-    }, [enabled, connect, disconnect, cleanup, log]);
+    }, [enabled, connect, disconnect, cleanup]);
 
     return {
         isConnected,
