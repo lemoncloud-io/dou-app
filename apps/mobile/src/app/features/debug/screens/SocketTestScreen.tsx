@@ -12,18 +12,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useDeviceId } from '../../../common';
-import { useWebSocket } from '../../../common';
+import { useDeviceId, useWebSocket } from '../../../common';
 
 import type { DeviceStatus, WSSConnectParam, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
-// 1. 고정된 시스템 메시지 정의
-const MSG_INFO: WSSEnvelope = {
-    type: 'system',
-    action: 'info',
-};
-
-// 로그 타입 정의
 type LogType = 'sent' | 'received' | 'info' | 'error';
 
 interface LogItem {
@@ -36,6 +28,13 @@ interface LogItem {
 const socketUrl: string = process.env.VITE_WS_ENDPOINT || '';
 
 export const SocketTestScreen = () => {
+    const STATUS_ICONS: Record<string, string> = {
+        green: '🟢',
+        yellow: '🟡',
+        red: '🔴',
+        unknown: '⚪',
+    };
+
     const insets = useSafeAreaInsets();
     const deviceId = useDeviceId();
 
@@ -46,22 +45,41 @@ export const SocketTestScreen = () => {
     >(socketUrl, {
         params: {
             deviceId: deviceId ?? undefined,
-            deviceName: '레인의 디바이스',
+            deviceName: deviceId ? 'TEST:' + deviceId : undefined,
         } as WSSConnectParam,
         enabled: !!deviceId,
-        debug: true,
     });
 
-    // 2. UI 상태 관리
     const [text, setText] = useState('');
     const [logs, setLogs] = useState<LogItem[]>([]);
-
-    // ★ 디바이스 현재 상태 (서버에서 받은 값 저장)
-    const [deviceStatus, setDeviceStatus] = useState<DeviceStatus | 'unknown'>('unknown');
-
+    const [deviceStatus, setDeviceStatus] = useState<DeviceStatus | unknown>('unknown');
     const flatListRef = useRef<FlatList>(null);
+    const statusIcon = STATUS_ICONS[deviceStatus as string] ?? STATUS_ICONS.unknown;
 
-    // 로그 추가 헬퍼
+    const createInfoMessage = (): WSSEnvelope => ({
+        type: 'system',
+        action: 'info',
+    });
+
+    const createStatusMessage = (status: DeviceStatus): WSSEnvelope => ({
+        type: 'presence',
+        action: 'status',
+        payload: {
+            status: status,
+        },
+    });
+
+    const createTextMessage = (message: string): WSSEnvelope => ({
+        type: 'system',
+        action: 'message',
+        payload: { message },
+    });
+
+    /**
+     * 로그 추가하기
+     * @param type 로그 타입 색상 표기 목적
+     * @param message 로그 본문
+     */
     const addLog = (type: LogType, message: string) => {
         const now = new Date();
         const timeString = now.toLocaleTimeString('ko-KR', {
@@ -85,39 +103,6 @@ export const SocketTestScreen = () => {
         }, 100);
     };
 
-    // 3. [Logic] 연결되면 자동으로 Info 요청 (초기 상태 조회)
-    useEffect(() => {
-        if (isConnected) {
-            addLog('info', '✅ 서버에 연결되었습니다. 상태 정보를 요청합니다...');
-
-            // ★ 연결 직후 Info 메시지 자동 전송
-            sendMessage(MSG_INFO);
-            addLog('sent', `[Auto-Init] ${JSON.stringify(MSG_INFO)}`);
-        } else {
-            if (logs.length > 0) {
-                addLog('error', '❌ 연결이 해제되었습니다.');
-                setDeviceStatus('unknown'); // 연결 끊기면 상태도 초기화
-            }
-        }
-    }, [isConnected]);
-
-    // 4. [Logic] 메시지 수신 처리 및 상태($device.status) 파싱
-    useEffect(() => {
-        if (lastMessage) {
-            if (lastMessage.action === 'pong') return;
-
-            if (lastMessage.payload && lastMessage.payload.status) {
-                setDeviceStatus(lastMessage.payload.status);
-            }
-
-            // 로그 남기기
-            const messageString =
-                typeof lastMessage === 'object' ? JSON.stringify(lastMessage, null, 2) : String(lastMessage);
-            addLog('received', messageString);
-        }
-    }, [lastMessage]);
-
-    // 연결 체크 공통 함수
     const checkConnection = (): boolean => {
         if (!isConnected) {
             Alert.alert('알림', '먼저 서버에 연결(Connect)해주세요.');
@@ -126,26 +111,27 @@ export const SocketTestScreen = () => {
         return true;
     };
 
-    // Info 전송 핸들러 (수동 요청용)
+    /**
+     * 디바이스 정보 전달
+     */
     const handleSendInfo = () => {
         if (!checkConnection()) return;
-        sendMessage(MSG_INFO);
-        addLog('sent', `[Info] ${JSON.stringify(MSG_INFO)}`);
+        const infoMessage: WSSEnvelope = createInfoMessage();
+
+        sendMessage(infoMessage);
+        addLog('sent', `[Info] ${JSON.stringify(infoMessage)}`);
     };
 
-    // 상태 변경 핸들러
+    /**
+     * 상태 변경
+     * @param status red | green | yellow
+     */
     const handleChangeStatus = (status: 'red' | 'green' | 'yellow') => {
         if (!checkConnection()) return;
 
-        const statusMsg: WSSEnvelope = {
-            type: 'presence',
-            action: 'status',
-            payload: {
-                status: status as DeviceStatus,
-            },
-        };
+        const statusMessage: WSSEnvelope = createStatusMessage(status as DeviceStatus);
 
-        sendMessage(statusMsg);
+        sendMessage(statusMessage);
 
         let icon = '';
         switch (status) {
@@ -162,28 +148,27 @@ export const SocketTestScreen = () => {
                 icon = '⚪';
                 break;
         }
-        addLog('sent', `${icon} [Status:${status}] ${JSON.stringify(statusMsg)}`);
+        addLog('sent', `${icon} [Status:${status}] ${JSON.stringify(statusMessage)}`);
     };
 
-    // 커스텀 메시지 전송
+    /**
+     * 메시지 전송
+     */
     const handleSendMessage = () => {
         if (!text.trim()) return;
         if (!checkConnection()) return;
 
-        const customMsg: WSSEnvelope = {
-            type: 'system',
-            action: 'message',
-            payload: {
-                message: text,
-            },
-        };
+        const textMessage: WSSEnvelope = createTextMessage(text);
 
-        sendMessage(customMsg);
-        addLog('sent', JSON.stringify(customMsg));
+        sendMessage(textMessage);
+        addLog('sent', JSON.stringify(textMessage));
         setText('');
     };
 
-    // 로그 렌더링
+    /**
+     * 로그 텍스트 UI 컴포넌트 렌더링
+     * @param item
+     */
     const renderLogItem = ({ item }: { item: LogItem }) => {
         let color = '#888';
         if (item.type === 'sent') color = '#4A90E2';
@@ -193,27 +178,42 @@ export const SocketTestScreen = () => {
         return (
             <View style={styles.logRow}>
                 <Text style={styles.logTime}>[{item.timestamp}]</Text>
-                <Text style={[styles.logText, { color }]}>
-                    {item.type === 'sent' ? '📤 ' : item.type === 'received' ? '📥 ' : ''}
-                    {item.message}
-                </Text>
+                <Text style={[styles.logText, { color }]}>{item.message}</Text>
             </View>
         );
     };
 
-    // ★ 상태 아이콘 헬퍼
-    const getStatusIcon = () => {
-        switch (deviceStatus) {
-            case 'green':
-                return '🟢';
-            case 'yellow':
-                return '🟡';
-            case 'red':
-                return '🔴';
-            default:
-                return '⚪';
+    /**
+     * 최초 연결시, 소켓 정보 읽어오기
+     */
+    useEffect(() => {
+        if (isConnected) {
+            addLog('info', '서버에 연결되었습니다. 상태 정보를 요청합니다...');
+            try {
+                const infoMessage: WSSEnvelope = createInfoMessage();
+                sendMessage(infoMessage);
+            } catch {
+                addLog('error', '초기 메시지 전송 실패');
+            }
         }
-    };
+    }, [isConnected]);
+
+    /**
+     * 응답 데이터(lastMessage) 도착 시 핸들링
+     */
+    useEffect(() => {
+        if (lastMessage?.payload) {
+            if (lastMessage.action === 'pong') return;
+
+            const status = lastMessage.payload.$device?.status || lastMessage.payload.status;
+
+            if (status) {
+                setDeviceStatus(status);
+            }
+
+            addLog('received', JSON.stringify(lastMessage, null, 2));
+        }
+    }, [lastMessage]);
 
     return (
         <KeyboardAvoidingView
@@ -221,20 +221,17 @@ export const SocketTestScreen = () => {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         >
-            {/* 상단 컨트롤 패널 */}
             <View style={styles.controlPanel}>
                 <View>
-                    {/* 연결 상태 */}
                     <View style={styles.statusIndicator}>
                         <View style={[styles.dot, { backgroundColor: isConnected ? '#50E3C2' : '#FF5A5F' }]} />
                         <Text style={styles.statusText}>{isConnected ? 'Connected' : 'Disconnected'}</Text>
                     </View>
 
-                    {/* ★ 추가됨: 디바이스 상태 표시 */}
                     <View style={styles.deviceStatusRow}>
                         <Text style={styles.deviceStatusLabel}>Device Status:</Text>
                         <Text style={styles.deviceStatusValue}>
-                            {getStatusIcon()} {deviceStatus}
+                            {statusIcon} {deviceStatus}
                         </Text>
                     </View>
                 </View>
@@ -247,7 +244,6 @@ export const SocketTestScreen = () => {
                 </TouchableOpacity>
             </View>
 
-            {/* 로그 리스트 */}
             <FlatList
                 ref={flatListRef}
                 data={logs}
@@ -258,9 +254,7 @@ export const SocketTestScreen = () => {
                 ListEmptyComponent={<Text style={styles.emptyText}>로그가 비어있습니다.</Text>}
             />
 
-            {/* 하단 컨트롤 영역 */}
             <View style={styles.bottomContainer}>
-                {/* 1. 빠른 액션 */}
                 <View style={styles.actionRow}>
                     <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: '#8E44AD' }]}
@@ -271,7 +265,6 @@ export const SocketTestScreen = () => {
                     </TouchableOpacity>
                 </View>
 
-                {/* 2. 상태 변경 버튼 */}
                 <Text style={styles.sectionLabel}>Change Status</Text>
                 <View style={styles.statusRow}>
                     <TouchableOpacity
@@ -299,13 +292,12 @@ export const SocketTestScreen = () => {
                     </TouchableOpacity>
                 </View>
 
-                {/* 3. 메시지 입력창 */}
                 <View style={styles.inputRow}>
                     <TextInput
                         style={styles.input}
                         value={text}
                         onChangeText={setText}
-                        placeholder="메시지 입력 (payload.message)"
+                        placeholder="메시지 입력"
                         placeholderTextColor="#666"
                         onSubmitEditing={handleSendMessage}
                         returnKeyType="send"
