@@ -1,7 +1,9 @@
-import { Circle, Clock, Globe, Link, Monitor } from 'lucide-react';
+import { Circle, Clock, Globe, Link, Monitor, Power } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { cn } from '@chatic/lib/utils';
 import { Badge } from '@chatic/ui-kit/components/ui/badge';
+import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Card, CardContent } from '@chatic/ui-kit/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@chatic/ui-kit/components/ui/tooltip';
 
@@ -82,6 +84,14 @@ export const DeviceCard = ({ device }: DeviceCardProps): JSX.Element => {
     const platformIcon = platformIcons[device.platform] || '💻';
     const displayName = getDeviceName(device.name, device.id);
     const isOnline = device.status === 'green';
+    const canDisconnect = device.status !== 'red';
+
+    const handleDisconnect = () => {
+        // TODO: Implement actual API call
+        toast.success(`Disconnect request sent`, {
+            description: `Device: ${device.id.slice(0, 8)}...`,
+        });
+    };
 
     return (
         <Card className={cn('transition-all hover:shadow-md', device.status === 'red' && 'opacity-60')}>
@@ -161,6 +171,20 @@ export const DeviceCard = ({ device }: DeviceCardProps): JSX.Element => {
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
+                )}
+
+                {canDisconnect && (
+                    <div className="mt-4 pt-3 border-t">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={handleDisconnect}
+                        >
+                            <Power className="h-3.5 w-3.5 mr-2" />
+                            Disconnect
+                        </Button>
+                    </div>
                 )}
             </CardContent>
         </Card>
