@@ -4,7 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 
-import { FloatingMenu } from './common/components';
+import { FloatingMenu } from './common';
 import { RootNavigator } from './navigation';
 
 import type { RootStackParamList } from './navigation';

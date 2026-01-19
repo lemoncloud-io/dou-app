@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
-import type { RootStackParamList } from '../../navigation';
+import type { RootStackParamList } from '../../../navigation';
 
 interface FloatingMenuProps {
     onNavigate: (screenName: keyof RootStackParamList) => void;
@@ -33,6 +33,7 @@ export const FloatingMenu = ({ onNavigate }: FloatingMenuProps) => {
     const menuItems: { id: string; label: string; target: keyof RootStackParamList }[] = [
         { id: 'web', label: 'WebView Screen', target: 'Main' },
         { id: 'sample', label: 'Sample Screen', target: 'Sample' },
+        { id: 'debug', label: 'Debug Menu Screen', target: 'Debug' },
     ];
 
     const menuStyle = {
