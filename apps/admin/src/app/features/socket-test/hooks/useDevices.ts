@@ -43,13 +43,11 @@ export const useDevices = ({ page = 0, limit = 10, status }: UseDevicesOptions =
     const queryClient = useQueryClient();
     const subscribe = useWebSocketStore(state => state.subscribe);
 
-    // Subscribe to WebSocket messages for real-time updates
     useEffect(() => {
         const unsubscribe = subscribe(message => {
             if (isDeviceUpdateMessage(message.data)) {
                 const updatedDevice = mapPayloadToDeviceView(message.data.payload);
 
-                // Update all cached device queries
                 queryClient.setQueriesData<DeviceListResponse>({ queryKey: ['admin', 'devices'] }, oldData => {
                     if (!oldData) return oldData;
 
@@ -60,7 +58,6 @@ export const useDevices = ({ page = 0, limit = 10, status }: UseDevicesOptions =
                     const newList = [...oldData.list];
                     newList[deviceIndex] = updatedDevice;
 
-                    // Update status aggregation if status changed
                     let newAggr = oldData.aggr;
                     if (oldDevice.status !== updatedDevice.status && oldData.aggr?.status) {
                         const oldStatus = oldData.aggr.status;
@@ -88,5 +85,6 @@ export const useDevices = ({ page = 0, limit = 10, status }: UseDevicesOptions =
     return useQuery({
         queryKey: ['admin', 'devices', { page, limit, status }],
         queryFn: () => fetchDeviceList({ page, limit, status }),
+        gcTime: 0,
     });
 };

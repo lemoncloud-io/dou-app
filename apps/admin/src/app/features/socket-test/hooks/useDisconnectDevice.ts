@@ -13,6 +13,5 @@ interface UseDisconnectDeviceParams {
 export const useDisconnectDevice = () => {
     return useMutation({
         mutationFn: ({ cid, body, force }: UseDisconnectDeviceParams) => disconnectDevice({ cid, body, force }),
-        // WebSocket handles real-time updates via setQueriesData in useDevices
     });
 };
