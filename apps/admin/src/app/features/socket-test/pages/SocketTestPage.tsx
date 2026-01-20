@@ -3,15 +3,15 @@ import { useSearchParams } from 'react-router-dom';
 
 import { AlertCircle } from 'lucide-react';
 
-import { useWebSocket } from '@chatic/socket';
+import { useWebSocketStore } from '@chatic/socket';
 import { Alert, AlertDescription } from '@chatic/ui-kit/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@chatic/ui-kit/components/ui/card';
-import { webCore } from '@chatic/web-core';
 
 import { DeviceFilters, DeviceList, DevicePagination, SocketControls } from '../components';
-import { useDevices, useSessionId } from '../hooks';
+import { useDevices, useInitAdminWebSocket, useSessionId } from '../hooks';
 
 import type { DeviceStatus, FilterStatus } from '../types';
+import type { JSX } from 'react';
 
 const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT || '';
 const PAGE_SIZE = 10;
@@ -30,23 +30,9 @@ export const SocketTestPage = (): JSX.Element => {
     const page = Number(searchParams.get('page')) || 0;
     const autoRefresh = searchParams.get('autoRefresh') !== 'false';
 
-    const tokenProvider = useCallback(async (): Promise<string | null> => {
-        try {
-            const tokenData = await webCore.getTokenSignature();
-            return tokenData?.originToken?.identityToken ?? null;
-        } catch (error) {
-            console.error('[SocketTest] Failed to get token:', error);
-            return null;
-        }
-    }, []);
-
-    const { connectionId, connectionStatus, connect, disconnect } = useWebSocket({
-        endpoint: WS_ENDPOINT,
-        tokenProvider,
-        enabled: true,
-        logPrefix: '[AdminSocket]',
-        sessionId,
-    });
+    // Use Worker-based WebSocket with Store integration
+    const { connectionStatus } = useWebSocketStore();
+    const { connectionId, connect, disconnect, pingCount, pongCount } = useInitAdminWebSocket(sessionId);
 
     const { data, isLoading, refetch, isFetching, error } = useDevices({
         page,
@@ -121,6 +107,8 @@ export const SocketTestPage = (): JSX.Element => {
                 endpoint={WS_ENDPOINT}
                 sessionId={sessionId}
                 connectionId={connectionId ?? undefined}
+                pingCount={pingCount}
+                pongCount={pongCount}
                 onConnect={handleConnect}
                 onDisconnect={disconnect}
             />

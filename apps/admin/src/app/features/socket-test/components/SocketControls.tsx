@@ -11,6 +11,8 @@ interface SocketControlsProps {
     endpoint: string;
     sessionId: string;
     connectionId?: string;
+    pingCount?: number;
+    pongCount?: number;
     onConnect: () => void;
     onDisconnect: () => void;
 }
@@ -43,6 +45,8 @@ export const SocketControls = ({
     endpoint,
     sessionId,
     connectionId,
+    pingCount = 0,
+    pongCount = 0,
     onConnect,
     onDisconnect,
 }: SocketControlsProps): JSX.Element => {
@@ -74,6 +78,16 @@ export const SocketControls = ({
                                 <span className="text-muted-foreground">Session:</span>
                                 <span className="font-mono">{sessionId.slice(0, 8)}...</span>
                             </div>
+                            {isConnected && (
+                                <div className="flex items-center gap-3">
+                                    <span>
+                                        Ping: <span className="font-mono">{pingCount}</span>
+                                    </span>
+                                    <span>
+                                        Pong: <span className="font-mono">{pongCount}</span>
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
