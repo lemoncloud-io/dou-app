@@ -6,14 +6,18 @@ let isManualDisconnect = false;
 let currentConfig = null;
 let reconnectAttempts = 0;
 let pongTimeout = null;
+let pingCount = 0;
+let pongCount = 0;
 
 const startPingPong = interval => {
     if (pingInterval) clearInterval(pingInterval);
 
     pingInterval = setInterval(() => {
         if (ws?.readyState === 1) {
+            pingCount++;
             ws.send(JSON.stringify({ action: 'ping', data: { timestamp: Date.now() } }));
             self.postMessage({ type: 'log', message: 'Sent ping' });
+            self.postMessage({ type: 'stats', pingCount, pongCount });
 
             if (pongTimeout) clearTimeout(pongTimeout);
             pongTimeout = setTimeout(() => {
@@ -33,6 +37,8 @@ const stopPingPong = () => {
         clearTimeout(pongTimeout);
         pongTimeout = null;
     }
+    pingCount = 0;
+    pongCount = 0;
 };
 
 const attemptReconnect = () => {
@@ -110,7 +116,9 @@ const connectWebSocket = config => {
 
             if (data.action === 'pong') {
                 if (pongTimeout) clearTimeout(pongTimeout);
+                pongCount++;
                 self.postMessage({ type: 'log', message: 'Received pong' });
+                self.postMessage({ type: 'stats', pingCount, pongCount });
                 return;
             }
 
@@ -172,8 +180,16 @@ self.onmessage = e => {
 
         case 'send':
             if (ws?.readyState === 1) {
-                ws.send(JSON.stringify(data));
-                self.postMessage({ type: 'log', message: 'Sent: ' + JSON.stringify(data) });
+                const jsonData = JSON.stringify(data);
+                ws.send(jsonData);
+
+                // Track manual ping
+                if (data && typeof data === 'object' && data.action === 'ping') {
+                    pingCount++;
+                    self.postMessage({ type: 'stats', pingCount, pongCount });
+                }
+
+                self.postMessage({ type: 'log', message: 'Sent: ' + jsonData });
             } else {
                 self.postMessage({ type: 'log', message: 'Cannot send - not connected' });
             }

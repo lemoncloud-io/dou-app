@@ -22,6 +22,8 @@ export interface UseWebSocketWorkerReturn<TMessage extends BaseWebSocketMessage>
     connect: () => Promise<void>;
     disconnect: () => void;
     send: (data: unknown) => void;
+    pingCount: number;
+    pongCount: number;
 }
 
 export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseWebSocketMessage>(
@@ -44,6 +46,8 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
     const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
     const [lastMessage, setLastMessage] = useState<TMessage | null>(null);
     const [isConnected, setIsConnected] = useState<boolean>(false);
+    const [pingCount, setPingCount] = useState<number>(0);
+    const [pongCount, setPongCount] = useState<number>(0);
 
     const connect = useCallback(async (): Promise<void> => {
         if (!endpoint) {
@@ -58,7 +62,17 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
                 workerRef.current = new Worker('/websocket.worker.js');
 
                 workerRef.current.onmessage = (e: MessageEvent) => {
-                    const { type, status, id: msgId, connectionId: connId, data, message, error } = e.data;
+                    const {
+                        type,
+                        status,
+                        id: msgId,
+                        connectionId: connId,
+                        data,
+                        message,
+                        error,
+                        pingCount,
+                        pongCount,
+                    } = e.data;
 
                     switch (type) {
                         case 'status':
@@ -71,6 +85,11 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
                             setConnectionId(connId);
                             console.log(`${logPrefix} ID:`, msgId);
                             console.log(`${logPrefix} Connection ID:`, connId);
+                            break;
+
+                        case 'stats':
+                            setPingCount(pingCount);
+                            setPongCount(pongCount);
                             break;
 
                         case 'message':
@@ -156,5 +175,7 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
         connect,
         disconnect,
         send,
+        pingCount,
+        pongCount,
     };
 };

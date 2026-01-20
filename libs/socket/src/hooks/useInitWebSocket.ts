@@ -68,14 +68,15 @@ export const useInitWebSocket = (sessionId?: string) => {
         }
     }, []);
 
-    const { id, connectionStatus, lastMessage, disconnect, connect, send } = useWebSocketWorker<WebSocketMessage>({
-        endpoint: WS_ENDPOINT,
-        tokenProvider,
-        messageParser: parseWebSocketMessage,
-        enabled: isAuthenticated,
-        logPrefix: '[WebSocket]',
-        sessionId,
-    });
+    const { id, connectionStatus, lastMessage, disconnect, connect, send, pingCount, pongCount } =
+        useWebSocketWorker<WebSocketMessage>({
+            endpoint: WS_ENDPOINT,
+            tokenProvider,
+            messageParser: parseWebSocketMessage,
+            enabled: isAuthenticated,
+            logPrefix: '[WebSocket]',
+            sessionId,
+        });
 
     // Sync WebSocket state to store
     useEffect(() => {
@@ -128,5 +129,5 @@ export const useInitWebSocket = (sessionId?: string) => {
     }, [isAuthenticated, connect, disconnect]);
 
     // Return connect/disconnect/send for manual control
-    return { connect, disconnect, send };
+    return { connect, disconnect, send, pingCount, pongCount };
 };

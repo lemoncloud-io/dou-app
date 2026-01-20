@@ -29,7 +29,7 @@ export const HomePage = (): JSX.Element => {
     const { isConnected, connectionStatus, id } = useWebSocketStore();
     const [presenceData, setPresenceData] = useState<Record<string, unknown> | null>(null);
 
-    const { connect, disconnect, send } = useInitWebSocket(sessionId);
+    const { connect, disconnect, send, pingCount, pongCount } = useInitWebSocket(sessionId);
     const unsubscribeRef = useRef<(() => void) | null>(null);
 
     // Send presence info when connected
@@ -125,7 +125,7 @@ export const HomePage = (): JSX.Element => {
                                 <span className="text-xs text-muted-foreground">ID:</span>
                                 <span className="text-xs font-mono">{sessionId?.slice(0, 8)}...</span>
                             </div>
-                            {isConnected ? (
+                            {connectionStatus === 'connected' ? (
                                 <Button
                                     size="sm"
                                     variant="destructive"
@@ -134,7 +134,7 @@ export const HomePage = (): JSX.Element => {
                                 >
                                     연결 끊기
                                 </Button>
-                            ) : (
+                            ) : connectionStatus === 'disconnected' || connectionStatus === 'error' ? (
                                 <Button
                                     size="sm"
                                     variant="default"
@@ -143,7 +143,7 @@ export const HomePage = (): JSX.Element => {
                                 >
                                     재연결
                                 </Button>
-                            )}
+                            ) : null}
                         </div>
                     </div>
 
@@ -186,41 +186,7 @@ export const HomePage = (): JSX.Element => {
                 {/* Presence Status Panel */}
                 {presenceData && (
                     <div className="mt-4 p-4 rounded-lg border bg-card">
-                        <div className="flex items-center justify-between mb-3">
-                            <h2 className="text-sm font-medium text-muted-foreground">Presence Status</h2>
-                            <div className="flex gap-2">
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 px-3 text-xs"
-                                    onClick={() =>
-                                        send({ type: 'presence', action: 'status', payload: { status: 'green' } })
-                                    }
-                                >
-                                    GREEN
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 px-3 text-xs"
-                                    onClick={() =>
-                                        send({ type: 'presence', action: 'status', payload: { status: 'yellow' } })
-                                    }
-                                >
-                                    YELLOW
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 px-3 text-xs"
-                                    onClick={() =>
-                                        send({ type: 'presence', action: 'status', payload: { status: 'red' } })
-                                    }
-                                >
-                                    RED
-                                </Button>
-                            </div>
-                        </div>
+                        <h2 className="text-sm font-medium text-muted-foreground mb-3">Presence Status</h2>
                         <div className="grid grid-cols-2 gap-3 text-xs">
                             <div>
                                 <span className="text-muted-foreground">Status:</span>
@@ -266,6 +232,105 @@ export const HomePage = (): JSX.Element => {
                         </div>
                     </div>
                 )}
+
+                {/* Test Panel */}
+                <div className="mt-4 p-4 rounded-lg border bg-card">
+                    <h2 className="text-sm font-medium text-muted-foreground mb-4">WebSocket Test</h2>
+                    <div className="space-y-4">
+                        {/* Ping/Pong Stats */}
+                        <div className="p-3 rounded-md bg-muted/30">
+                            <p className="text-xs font-medium text-muted-foreground mb-3">📊 Ping/Pong Statistics</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="flex items-center justify-between p-2 rounded bg-background">
+                                    <span className="text-xs text-muted-foreground">Interval</span>
+                                    <span className="text-sm font-bold font-mono">30s</span>
+                                </div>
+                                <div className="flex items-center justify-between p-2 rounded bg-background">
+                                    <span className="text-xs text-muted-foreground">Timeout</span>
+                                    <span className="text-sm font-bold font-mono">5s</span>
+                                </div>
+                                <div className="flex items-center justify-between p-2 rounded bg-blue-500/10">
+                                    <span className="text-xs text-muted-foreground">📤 Ping Sent</span>
+                                    <span className="text-lg font-bold font-mono text-blue-600 dark:text-blue-400">
+                                        {pingCount}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between p-2 rounded bg-green-500/10">
+                                    <span className="text-xs text-muted-foreground">📥 Pong Received</span>
+                                    <span className="text-lg font-bold font-mono text-green-600 dark:text-green-400">
+                                        {pongCount}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Manual Ping */}
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-2">🔧 Manual Ping Test</p>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-9 px-4 text-xs font-medium"
+                                onClick={() => send({ action: 'ping', data: { timestamp: Date.now() } })}
+                                disabled={!isConnected}
+                            >
+                                📤 Send Ping
+                            </Button>
+                        </div>
+
+                        {/* Presence Status */}
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-2">🎯 Presence Status Test</p>
+                            <div className="flex gap-2">
+                                <Button
+                                    size="sm"
+                                    variant={presenceData?.status === 'green' ? 'default' : 'outline'}
+                                    className={`h-9 px-4 text-xs font-medium ${
+                                        presenceData?.status === 'green'
+                                            ? 'bg-green-600 hover:bg-green-700 text-white'
+                                            : 'border-green-500/50 hover:bg-green-500/10'
+                                    }`}
+                                    onClick={() =>
+                                        send({ type: 'presence', action: 'status', payload: { status: 'green' } })
+                                    }
+                                    disabled={!isConnected}
+                                >
+                                    🟢 GREEN
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={presenceData?.status === 'yellow' ? 'default' : 'outline'}
+                                    className={`h-9 px-4 text-xs font-medium ${
+                                        presenceData?.status === 'yellow'
+                                            ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                                            : 'border-yellow-500/50 hover:bg-yellow-500/10'
+                                    }`}
+                                    onClick={() =>
+                                        send({ type: 'presence', action: 'status', payload: { status: 'yellow' } })
+                                    }
+                                    disabled={!isConnected}
+                                >
+                                    🟡 YELLOW
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={presenceData?.status === 'red' ? 'default' : 'outline'}
+                                    className={`h-9 px-4 text-xs font-medium ${
+                                        presenceData?.status === 'red'
+                                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                                            : 'border-red-500/50 hover:bg-red-500/10'
+                                    }`}
+                                    onClick={() =>
+                                        send({ type: 'presence', action: 'status', payload: { status: 'red' } })
+                                    }
+                                    disabled={!isConnected}
+                                >
+                                    🔴 RED
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
