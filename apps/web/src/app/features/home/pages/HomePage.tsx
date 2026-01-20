@@ -18,7 +18,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useLogout, useWebCoreStore } from '@chatic/web-core';
 
-import { useSessionId, useTabLifecycle } from '../hooks';
+import { useSessionId } from '../hooks';
 
 export const HomePage = (): JSX.Element => {
     const navigate = useNavigate();
@@ -27,7 +27,6 @@ export const HomePage = (): JSX.Element => {
     const userName = useWebCoreStore(state => state.userName);
     const sessionId = useSessionId();
     const { isConnected, connectionStatus, id } = useWebSocketStore();
-    const tabState = useTabLifecycle();
     const [presenceData, setPresenceData] = useState<Record<string, unknown> | null>(null);
 
     const { connect, disconnect, send } = useInitWebSocket(sessionId);
@@ -267,46 +266,6 @@ export const HomePage = (): JSX.Element => {
                         </div>
                     </div>
                 )}
-
-                {/* App Lifecycle Panel */}
-                <div className="mt-8 p-4 rounded-lg border bg-card">
-                    <h2 className="text-sm font-medium text-muted-foreground mb-3">App Lifecycle</h2>
-                    <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-2">
-                            <div
-                                className={`h-2 w-2 rounded-full ${tabState.isVisible ? 'bg-green-500' : 'bg-gray-400'}`}
-                            />
-                            <span className="text-sm font-medium">
-                                {tabState.isVisible ? 'Foreground' : 'Background'}
-                            </span>
-                            {tabState.lastVisibilityChange && (
-                                <span className="text-xs text-muted-foreground font-mono">
-                                    {tabState.lastVisibilityChange.toLocaleTimeString('ko-KR', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        second: '2-digit',
-                                    })}
-                                </span>
-                            )}
-                        </div>
-                        <div className="h-4 w-px bg-border" />
-                        <div className="flex items-center gap-2">
-                            <div
-                                className={`h-2 w-2 rounded-full ${tabState.isFocused ? 'bg-blue-500' : 'bg-gray-400'}`}
-                            />
-                            <span className="text-sm font-medium">{tabState.isFocused ? 'Focused' : 'Blurred'}</span>
-                            {tabState.lastFocusChange && (
-                                <span className="text-xs text-muted-foreground font-mono">
-                                    {tabState.lastFocusChange.toLocaleTimeString('ko-KR', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        second: '2-digit',
-                                    })}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     );
