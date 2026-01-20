@@ -3,15 +3,15 @@ import { useSearchParams } from 'react-router-dom';
 
 import { AlertCircle } from 'lucide-react';
 
-import { useWebSocket } from '@chatic/socket';
+import { useWebSocketStore } from '@chatic/socket';
 import { Alert, AlertDescription } from '@chatic/ui-kit/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@chatic/ui-kit/components/ui/card';
-import { webCore } from '@chatic/web-core';
 
 import { DeviceFilters, DeviceList, DevicePagination, SocketControls } from '../components';
-import { useDevices, useSessionId } from '../hooks';
+import { useDevices, useInitAdminWebSocket, useSessionId } from '../hooks';
 
 import type { DeviceStatus, FilterStatus } from '../types';
+import type { JSX } from 'react';
 
 const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT || '';
 const PAGE_SIZE = 10;
@@ -28,31 +28,15 @@ export const SocketTestPage = (): JSX.Element => {
         ? (searchParams.get('status') as DeviceStatus)
         : 'all';
     const page = Number(searchParams.get('page')) || 0;
-    const autoRefresh = searchParams.get('autoRefresh') !== 'false';
 
-    const tokenProvider = useCallback(async (): Promise<string | null> => {
-        try {
-            const tokenData = await webCore.getTokenSignature();
-            return tokenData?.originToken?.identityToken ?? null;
-        } catch (error) {
-            console.error('[SocketTest] Failed to get token:', error);
-            return null;
-        }
-    }, []);
-
-    const { connectionId, connectionStatus, connect, disconnect } = useWebSocket({
-        endpoint: WS_ENDPOINT,
-        tokenProvider,
-        enabled: true,
-        logPrefix: '[AdminSocket]',
-        sessionId,
-    });
+    // Use Worker-based WebSocket with Store integration
+    const { connectionStatus } = useWebSocketStore();
+    const { connectionId, connect, disconnect, pingCount, pongCount } = useInitAdminWebSocket(sessionId);
 
     const { data, isLoading, refetch, isFetching, error } = useDevices({
         page,
         limit: PAGE_SIZE,
         status: filter === 'all' ? undefined : filter,
-        autoRefresh,
     });
 
     const devices = data?.list ?? [];
@@ -93,20 +77,6 @@ export const SocketTestPage = (): JSX.Element => {
         [setSearchParams]
     );
 
-    const handleAutoRefreshChange = useCallback(
-        (enabled: boolean) => {
-            setSearchParams(prev => {
-                if (enabled) {
-                    prev.delete('autoRefresh');
-                } else {
-                    prev.set('autoRefresh', 'false');
-                }
-                return prev;
-            });
-        },
-        [setSearchParams]
-    );
-
     return (
         <div className="p-6 space-y-6">
             <div>
@@ -121,6 +91,8 @@ export const SocketTestPage = (): JSX.Element => {
                 endpoint={WS_ENDPOINT}
                 sessionId={sessionId}
                 connectionId={connectionId ?? undefined}
+                pingCount={pingCount}
+                pongCount={pongCount}
                 onConnect={handleConnect}
                 onDisconnect={disconnect}
             />
@@ -143,8 +115,6 @@ export const SocketTestPage = (): JSX.Element => {
                     <DeviceFilters
                         filter={filter}
                         onFilterChange={handleFilterChange}
-                        autoRefresh={autoRefresh}
-                        onAutoRefreshChange={handleAutoRefreshChange}
                         onRefresh={() => void refetch()}
                         isRefreshing={isFetching}
                         statusAggr={statusAggr}
