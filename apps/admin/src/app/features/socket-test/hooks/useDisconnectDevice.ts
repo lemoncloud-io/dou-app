@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
 import { disconnectDevice } from '../api/deviceApi';
 
@@ -11,12 +11,8 @@ interface UseDisconnectDeviceParams {
 }
 
 export const useDisconnectDevice = () => {
-    const queryClient = useQueryClient();
-
     return useMutation({
         mutationFn: ({ cid, body, force }: UseDisconnectDeviceParams) => disconnectDevice({ cid, body, force }),
-        onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ['admin', 'devices'] });
-        },
+        // WebSocket handles real-time updates via setQueriesData in useDevices
     });
 };

@@ -45,6 +45,9 @@ export const reportError = async (
     app: AppType,
     userId?: string
 ): Promise<void> => {
+    // NOTE: add report error
+    return;
+
     try {
         const payload: ErrorReportPayload = {
             message: error.message,
