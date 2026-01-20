@@ -6,6 +6,8 @@ import { Shield } from 'lucide-react';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@chatic/ui-kit/components/ui/card';
 
+import type { JSX } from 'react';
+
 export const LoginPage = (): JSX.Element => {
     const { t } = useTranslation();
     const location = useLocation();

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -18,7 +18,9 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useLogout, useWebCoreStore } from '@chatic/web-core';
 
-import { useSessionId, useTabLifecycle } from '../hooks';
+import { useSessionId } from '../hooks';
+
+import type { JSX } from 'react';
 
 export const HomePage = (): JSX.Element => {
     const navigate = useNavigate();
@@ -27,11 +29,25 @@ export const HomePage = (): JSX.Element => {
     const userName = useWebCoreStore(state => state.userName);
     const sessionId = useSessionId();
     const { isConnected, connectionStatus, id } = useWebSocketStore();
-    const tabState = useTabLifecycle();
     const [presenceData, setPresenceData] = useState<Record<string, unknown> | null>(null);
 
-    const { connect, disconnect, send } = useInitWebSocket(sessionId);
+    const { connect, disconnect, send: originalSend, pingCount, pongCount } = useInitWebSocket(sessionId);
     const unsubscribeRef = useRef<(() => void) | null>(null);
+    const [messageFields, setMessageFields] = useState<Array<{ key: string; value: string }>>([
+        { key: 'type', value: 'test' },
+    ]);
+    const [messageHistory, setMessageHistory] = useState<
+        Array<{ type: 'sent' | 'received'; data: unknown; time: Date }>
+    >([]);
+
+    // Wrap send to track sent messages
+    const send = useCallback(
+        (data: unknown) => {
+            originalSend(data);
+            setMessageHistory(prev => [{ type: 'sent', data, time: new Date() }, ...prev].slice(0, 10));
+        },
+        [originalSend]
+    );
 
     // Send presence info when connected
     useEffect(() => {
@@ -46,6 +62,11 @@ export const HomePage = (): JSX.Element => {
 
         console.log('[HomePage] Setting up subscription');
         unsubscribeRef.current = useWebSocketStore.getState().subscribe(message => {
+            // Add to message history
+            setMessageHistory(prev =>
+                [{ type: 'received', data: message.data, time: new Date() }, ...prev].slice(0, 10)
+            );
+
             if (message.data && typeof message.data === 'object') {
                 const data = message.data as Record<string, unknown>;
 
@@ -126,6 +147,25 @@ export const HomePage = (): JSX.Element => {
                                 <span className="text-xs text-muted-foreground">ID:</span>
                                 <span className="text-xs font-mono">{sessionId?.slice(0, 8)}...</span>
                             </div>
+                            {connectionStatus === 'connected' ? (
+                                <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="h-7 px-3 text-xs"
+                                    onClick={disconnect}
+                                >
+                                    연결 끊기
+                                </Button>
+                            ) : connectionStatus === 'disconnected' || connectionStatus === 'error' ? (
+                                <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="h-7 px-3 text-xs"
+                                    onClick={() => void connect()}
+                                >
+                                    재연결
+                                </Button>
+                            ) : null}
                         </div>
                     </div>
 
@@ -168,41 +208,7 @@ export const HomePage = (): JSX.Element => {
                 {/* Presence Status Panel */}
                 {presenceData && (
                     <div className="mt-4 p-4 rounded-lg border bg-card">
-                        <div className="flex items-center justify-between mb-3">
-                            <h2 className="text-sm font-medium text-muted-foreground">Presence Status</h2>
-                            <div className="flex gap-2">
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 px-3 text-xs"
-                                    onClick={() =>
-                                        send({ type: 'presence', action: 'status', payload: { status: 'green' } })
-                                    }
-                                >
-                                    GREEN
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 px-3 text-xs"
-                                    onClick={() =>
-                                        send({ type: 'presence', action: 'status', payload: { status: 'yellow' } })
-                                    }
-                                >
-                                    YELLOW
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 px-3 text-xs"
-                                    onClick={() =>
-                                        send({ type: 'presence', action: 'status', payload: { status: 'red' } })
-                                    }
-                                >
-                                    RED
-                                </Button>
-                            </div>
-                        </div>
+                        <h2 className="text-sm font-medium text-muted-foreground mb-3">Presence Status</h2>
                         <div className="grid grid-cols-2 gap-3 text-xs">
                             <div>
                                 <span className="text-muted-foreground">Status:</span>
@@ -249,42 +255,230 @@ export const HomePage = (): JSX.Element => {
                     </div>
                 )}
 
-                {/* App Lifecycle Panel */}
-                <div className="mt-8 p-4 rounded-lg border bg-card">
-                    <h2 className="text-sm font-medium text-muted-foreground mb-3">App Lifecycle</h2>
-                    <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-2">
-                            <div
-                                className={`h-2 w-2 rounded-full ${tabState.isVisible ? 'bg-green-500' : 'bg-gray-400'}`}
-                            />
-                            <span className="text-sm font-medium">
-                                {tabState.isVisible ? 'Foreground' : 'Background'}
-                            </span>
-                            {tabState.lastVisibilityChange && (
-                                <span className="text-xs text-muted-foreground font-mono">
-                                    {tabState.lastVisibilityChange.toLocaleTimeString('ko-KR', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        second: '2-digit',
-                                    })}
-                                </span>
-                            )}
+                {/* Test Panel */}
+                <div className="mt-4 p-4 rounded-lg border bg-card">
+                    <h2 className="text-sm font-medium text-muted-foreground mb-4">WebSocket Test</h2>
+                    <div className="space-y-4 divide-y">
+                        {/* Ping/Pong Stats */}
+                        <div className="p-3 rounded-md bg-muted/30">
+                            <p className="text-sm font-semibold text-foreground mb-3">📊 Ping/Pong Statistics</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="flex items-center justify-between p-2 rounded bg-background">
+                                    <span className="text-xs text-muted-foreground">Interval</span>
+                                    <span className="text-sm font-bold font-mono">30s</span>
+                                </div>
+                                <div className="flex items-center justify-between p-2 rounded bg-background">
+                                    <span className="text-xs text-muted-foreground">Timeout</span>
+                                    <span className="text-sm font-bold font-mono">5s</span>
+                                </div>
+                                <div className="flex items-center justify-between p-2 rounded bg-blue-500/10">
+                                    <span className="text-xs text-muted-foreground">📤 Ping Sent</span>
+                                    <span className="text-lg font-bold font-mono text-blue-600 dark:text-blue-400">
+                                        {pingCount}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between p-2 rounded bg-green-500/10">
+                                    <span className="text-xs text-muted-foreground">📥 Pong Received</span>
+                                    <span className="text-lg font-bold font-mono text-green-600 dark:text-green-400">
+                                        {pongCount}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="h-4 w-px bg-border" />
-                        <div className="flex items-center gap-2">
-                            <div
-                                className={`h-2 w-2 rounded-full ${tabState.isFocused ? 'bg-blue-500' : 'bg-gray-400'}`}
-                            />
-                            <span className="text-sm font-medium">{tabState.isFocused ? 'Focused' : 'Blurred'}</span>
-                            {tabState.lastFocusChange && (
-                                <span className="text-xs text-muted-foreground font-mono">
-                                    {tabState.lastFocusChange.toLocaleTimeString('ko-KR', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        second: '2-digit',
-                                    })}
-                                </span>
-                            )}
+
+                        {/* Manual Ping */}
+                        <div className="pt-4">
+                            <p className="text-sm font-semibold text-foreground mb-2">🔧 Manual Ping Test</p>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-9 px-4 text-xs font-medium"
+                                onClick={() => send({ action: 'ping', data: { timestamp: Date.now() } })}
+                                disabled={!isConnected}
+                            >
+                                📤 Send Ping
+                            </Button>
+                        </div>
+
+                        {/* Custom Message */}
+                        <div className="pt-4">
+                            <p className="text-sm font-semibold text-foreground mb-2">📝 Custom Message</p>
+                            <div className="space-y-2">
+                                {messageFields.map((field, idx) => (
+                                    <div key={idx} className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            className="flex-1 h-8 px-2 text-xs rounded-md border bg-background"
+                                            placeholder="Key"
+                                            value={field.key}
+                                            onChange={e => {
+                                                const newFields = [...messageFields];
+                                                newFields[idx].key = e.target.value;
+                                                setMessageFields(newFields);
+                                            }}
+                                            disabled={!isConnected}
+                                        />
+                                        <input
+                                            type="text"
+                                            className="flex-1 h-8 px-2 text-xs rounded-md border bg-background"
+                                            placeholder="Value"
+                                            value={field.value}
+                                            onChange={e => {
+                                                const newFields = [...messageFields];
+                                                newFields[idx].value = e.target.value;
+                                                setMessageFields(newFields);
+                                            }}
+                                            disabled={!isConnected}
+                                        />
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-8 px-2 text-xs"
+                                            onClick={() => setMessageFields(messageFields.filter((_, i) => i !== idx))}
+                                            disabled={!isConnected || messageFields.length === 1}
+                                        >
+                                            ✖
+                                        </Button>
+                                    </div>
+                                ))}
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 px-3 text-xs"
+                                        onClick={() => setMessageFields([...messageFields, { key: '', value: '' }])}
+                                        disabled={!isConnected}
+                                    >
+                                        + Add Field
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="default"
+                                        className="h-9 px-4 text-xs font-medium"
+                                        onClick={() => {
+                                            const message = messageFields.reduce(
+                                                (acc, field) => {
+                                                    if (field.key) {
+                                                        acc[field.key] = field.value;
+                                                    }
+                                                    return acc;
+                                                },
+                                                {} as Record<string, string>
+                                            );
+                                            send(message);
+                                            toast.success('Message sent');
+                                        }}
+                                        disabled={!isConnected}
+                                    >
+                                        📤 Send Message
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Message History */}
+                        <div className="pt-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-sm font-semibold text-foreground">📜 Message History</p>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={() => setMessageHistory([])}
+                                >
+                                    Clear
+                                </Button>
+                            </div>
+                            <div className="space-y-2 h-96 overflow-y-auto rounded-md border bg-muted/20 p-3">
+                                {messageHistory.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground text-center py-8">No messages yet</p>
+                                ) : (
+                                    messageHistory.map((msg, idx) => (
+                                        <div
+                                            key={idx}
+                                            className={`flex ${msg.type === 'sent' ? 'justify-end' : 'justify-start'}`}
+                                        >
+                                            <div
+                                                className={`max-w-[80%] p-2 rounded-lg text-xs ${
+                                                    msg.type === 'sent'
+                                                        ? 'bg-blue-500 text-white'
+                                                        : 'bg-green-500 text-white'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-semibold text-[10px] opacity-80">
+                                                        {msg.type === 'sent' ? 'SENT' : 'RECV'}
+                                                    </span>
+                                                    <span className="text-[10px] opacity-70">
+                                                        {msg.time.toLocaleTimeString('ko-KR', {
+                                                            hour: '2-digit',
+                                                            minute: '2-digit',
+                                                            second: '2-digit',
+                                                        })}
+                                                    </span>
+                                                </div>
+                                                <div className="font-mono text-xs break-all">
+                                                    {typeof msg.data === 'object'
+                                                        ? JSON.stringify(msg.data)
+                                                        : String(msg.data)}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Presence Status */}
+                        <div className="pt-4">
+                            <p className="text-sm font-semibold text-foreground mb-2">🎯 Presence Status Test</p>
+                            <div className="flex gap-2">
+                                <Button
+                                    size="sm"
+                                    variant={presenceData?.status === 'green' ? 'default' : 'outline'}
+                                    className={`h-9 px-4 text-xs font-medium ${
+                                        presenceData?.status === 'green'
+                                            ? 'bg-green-600 hover:bg-green-700 text-white'
+                                            : 'border-green-500/50 hover:bg-green-500/10'
+                                    }`}
+                                    onClick={() =>
+                                        send({ type: 'presence', action: 'status', payload: { status: 'green' } })
+                                    }
+                                    disabled={!isConnected}
+                                >
+                                    🟢 GREEN
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={presenceData?.status === 'yellow' ? 'default' : 'outline'}
+                                    className={`h-9 px-4 text-xs font-medium ${
+                                        presenceData?.status === 'yellow'
+                                            ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                                            : 'border-yellow-500/50 hover:bg-yellow-500/10'
+                                    }`}
+                                    onClick={() =>
+                                        send({ type: 'presence', action: 'status', payload: { status: 'yellow' } })
+                                    }
+                                    disabled={!isConnected}
+                                >
+                                    🟡 YELLOW
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={presenceData?.status === 'red' ? 'default' : 'outline'}
+                                    className={`h-9 px-4 text-xs font-medium ${
+                                        presenceData?.status === 'red'
+                                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                                            : 'border-red-500/50 hover:bg-red-500/10'
+                                    }`}
+                                    onClick={() =>
+                                        send({ type: 'presence', action: 'status', payload: { status: 'red' } })
+                                    }
+                                    disabled={!isConnected}
+                                >
+                                    🔴 RED
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>
