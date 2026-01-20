@@ -126,6 +126,25 @@ export const HomePage = (): JSX.Element => {
                                 <span className="text-xs text-muted-foreground">ID:</span>
                                 <span className="text-xs font-mono">{sessionId?.slice(0, 8)}...</span>
                             </div>
+                            {isConnected ? (
+                                <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="h-7 px-3 text-xs"
+                                    onClick={disconnect}
+                                >
+                                    연결 끊기
+                                </Button>
+                            ) : (
+                                <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="h-7 px-3 text-xs"
+                                    onClick={() => void connect()}
+                                >
+                                    재연결
+                                </Button>
+                            )}
                         </div>
                     </div>
 
