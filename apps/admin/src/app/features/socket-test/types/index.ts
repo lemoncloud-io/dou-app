@@ -33,3 +33,32 @@ export interface DeviceListResponse {
         status: DeviceStatusAggr;
     };
 }
+
+export interface WSSEnvelope<T> {
+    mid: string;
+    type: 'system';
+    action: 'updated' | 'created' | 'deleted';
+    payload: T;
+    meta: {
+        ts: number;
+        channel: string;
+    };
+}
+
+export interface DevicePayload extends DeviceView {
+    ns: string;
+    type: 'device';
+    count?: number;
+}
+
+export interface ConnectionBody {
+    id: string;
+    reason?: string;
+    disconnectCode?: number;
+}
+
+export interface ConnectionView {
+    id?: string;
+    connId?: string;
+    disconnectedAt?: number;
+}

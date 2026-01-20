@@ -24,7 +24,7 @@
         "mobile:android:release:build": "yarn mobile:android:clean && ./scripts/build_mobile.sh",
         "mobile:android:release:install": "./scripts/install_test_mobile.sh",
         "!web": "------------- Web scripts -------------",
-        "web:start": "yarn clean:cache && npx nx serve web --port 5003",
+        "web:start": "npx nx serve web --port 5003",
         "web:build:dev": "yarn clean:cache && npx nx build --configuration=dev web",
         "web:build:prod": "yarn clean:cache && npx nx build --configuration=prod web",
         "web:deploy:dev": "(rm -rf ./dist/apps/web || true) && yarn web:build:dev && ./scripts/deploy-web.sh dev",
