@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,6 +20,8 @@ import { useLogout, useWebCoreStore } from '@chatic/web-core';
 
 import { useSessionId } from '../hooks';
 
+import type { JSX } from 'react';
+
 export const HomePage = (): JSX.Element => {
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
@@ -29,8 +31,21 @@ export const HomePage = (): JSX.Element => {
     const { isConnected, connectionStatus, id } = useWebSocketStore();
     const [presenceData, setPresenceData] = useState<Record<string, unknown> | null>(null);
 
-    const { connect, disconnect, send, pingCount, pongCount } = useInitWebSocket(sessionId);
+    const { connect, disconnect, send: originalSend, pingCount, pongCount } = useInitWebSocket(sessionId);
     const unsubscribeRef = useRef<(() => void) | null>(null);
+    const [customMessage, setCustomMessage] = useState('{ "type": "test", "data": "hello" }');
+    const [messageHistory, setMessageHistory] = useState<
+        Array<{ type: 'sent' | 'received'; data: unknown; time: Date }>
+    >([]);
+
+    // Wrap send to track sent messages
+    const send = useCallback(
+        (data: unknown) => {
+            originalSend(data);
+            setMessageHistory(prev => [{ type: 'sent', data, time: new Date() }, ...prev].slice(0, 10));
+        },
+        [originalSend]
+    );
 
     // Send presence info when connected
     useEffect(() => {
@@ -45,6 +60,11 @@ export const HomePage = (): JSX.Element => {
 
         console.log('[HomePage] Setting up subscription');
         unsubscribeRef.current = useWebSocketStore.getState().subscribe(message => {
+            // Add to message history
+            setMessageHistory(prev =>
+                [{ type: 'received', data: message.data, time: new Date() }, ...prev].slice(0, 10)
+            );
+
             if (message.data && typeof message.data === 'object') {
                 const data = message.data as Record<string, unknown>;
 
@@ -276,6 +296,90 @@ export const HomePage = (): JSX.Element => {
                             >
                                 📤 Send Ping
                             </Button>
+                        </div>
+
+                        {/* Custom Message */}
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-2">📝 Custom Message</p>
+                            <div className="space-y-2">
+                                <textarea
+                                    className="w-full h-20 px-3 py-2 text-xs font-mono rounded-md border bg-background resize-none"
+                                    value={customMessage}
+                                    onChange={e => setCustomMessage(e.target.value)}
+                                    placeholder='{ "type": "test", "data": "hello" }'
+                                    disabled={!isConnected}
+                                />
+                                <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="h-9 px-4 text-xs font-medium"
+                                    onClick={() => {
+                                        try {
+                                            const parsed = JSON.parse(customMessage);
+                                            send(parsed);
+                                            toast.success('Message sent');
+                                        } catch (error) {
+                                            toast.error('Invalid JSON format');
+                                        }
+                                    }}
+                                    disabled={!isConnected}
+                                >
+                                    📤 Send Message
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Message History */}
+                        <div>
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs font-medium text-muted-foreground">📜 Message History</p>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={() => setMessageHistory([])}
+                                >
+                                    Clear
+                                </Button>
+                            </div>
+                            <div className="space-y-2 h-96 overflow-y-auto rounded-md border bg-muted/20 p-3">
+                                {messageHistory.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground text-center py-8">No messages yet</p>
+                                ) : (
+                                    messageHistory.map((msg, idx) => (
+                                        <div
+                                            key={idx}
+                                            className={`flex ${msg.type === 'sent' ? 'justify-end' : 'justify-start'}`}
+                                        >
+                                            <div
+                                                className={`max-w-[80%] p-2 rounded-lg text-xs ${
+                                                    msg.type === 'sent'
+                                                        ? 'bg-blue-500 text-white'
+                                                        : 'bg-green-500 text-white'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-semibold text-[10px] opacity-80">
+                                                        {msg.type === 'sent' ? 'SENT' : 'RECV'}
+                                                    </span>
+                                                    <span className="text-[10px] opacity-70">
+                                                        {msg.time.toLocaleTimeString('ko-KR', {
+                                                            hour: '2-digit',
+                                                            minute: '2-digit',
+                                                            second: '2-digit',
+                                                        })}
+                                                    </span>
+                                                </div>
+                                                <div className="font-mono text-xs break-all">
+                                                    {typeof msg.data === 'object'
+                                                        ? JSON.stringify(msg.data)
+                                                        : String(msg.data)}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </div>
 
                         {/* Presence Status */}
