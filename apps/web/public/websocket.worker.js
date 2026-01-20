@@ -5,6 +5,8 @@ let reconnectTimeout = null;
 let isManualDisconnect = false;
 let currentConfig = null;
 let reconnectAttempts = 0;
+let pongTimeout = null;
+let missedPongs = 0;
 
 const startPingPong = interval => {
     if (pingInterval) clearInterval(pingInterval);
@@ -13,6 +15,16 @@ const startPingPong = interval => {
         if (ws?.readyState === 1) {
             ws.send(JSON.stringify({ action: 'ping', data: { timestamp: Date.now() } }));
             self.postMessage({ type: 'log', message: 'Sent ping' });
+
+            if (pongTimeout) clearTimeout(pongTimeout);
+            pongTimeout = setTimeout(() => {
+                missedPongs++;
+                self.postMessage({ type: 'log', message: `Missed pong (${missedPongs})` });
+                if (missedPongs >= 3) {
+                    self.postMessage({ type: 'log', message: 'Connection dead, forcing reconnect' });
+                    ws?.close();
+                }
+            }, 5000);
         }
     }, interval);
 };
@@ -22,6 +34,11 @@ const stopPingPong = () => {
         clearInterval(pingInterval);
         pingInterval = null;
     }
+    if (pongTimeout) {
+        clearTimeout(pongTimeout);
+        pongTimeout = null;
+    }
+    missedPongs = 0;
 };
 
 const attemptReconnect = () => {
@@ -65,6 +82,7 @@ const connectWebSocket = config => {
 
     ws.onopen = () => {
         reconnectAttempts = 0;
+        missedPongs = 0;
         self.postMessage({ type: 'status', status: 'connected' });
         self.postMessage({ type: 'log', message: 'Connected' });
 
@@ -98,6 +116,8 @@ const connectWebSocket = config => {
             }
 
             if (data.action === 'pong') {
+                if (pongTimeout) clearTimeout(pongTimeout);
+                missedPongs = 0;
                 self.postMessage({ type: 'log', message: 'Received pong' });
                 return;
             }
