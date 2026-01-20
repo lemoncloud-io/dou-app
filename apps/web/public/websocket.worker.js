@@ -111,6 +111,7 @@ const connectWebSocket = config => {
             if (data.action === 'ping') {
                 ws?.send(JSON.stringify({ action: 'pong', data: { timestamp: Date.now() } }));
                 self.postMessage({ type: 'log', message: 'Received ping, sent pong' });
+                self.postMessage({ type: 'message', data });
                 return;
             }
 
@@ -119,6 +120,7 @@ const connectWebSocket = config => {
                 pongCount++;
                 self.postMessage({ type: 'log', message: 'Received pong' });
                 self.postMessage({ type: 'stats', pingCount, pongCount });
+                self.postMessage({ type: 'message', data });
                 return;
             }
 

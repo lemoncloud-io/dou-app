@@ -33,7 +33,9 @@ export const HomePage = (): JSX.Element => {
 
     const { connect, disconnect, send: originalSend, pingCount, pongCount } = useInitWebSocket(sessionId);
     const unsubscribeRef = useRef<(() => void) | null>(null);
-    const [customMessage, setCustomMessage] = useState('{ "type": "test", "data": "hello" }');
+    const [messageFields, setMessageFields] = useState<Array<{ key: string; value: string }>>([
+        { key: 'type', value: 'test' },
+    ]);
     const [messageHistory, setMessageHistory] = useState<
         Array<{ type: 'sent' | 'received'; data: unknown; time: Date }>
     >([]);
@@ -256,10 +258,10 @@ export const HomePage = (): JSX.Element => {
                 {/* Test Panel */}
                 <div className="mt-4 p-4 rounded-lg border bg-card">
                     <h2 className="text-sm font-medium text-muted-foreground mb-4">WebSocket Test</h2>
-                    <div className="space-y-4">
+                    <div className="space-y-4 divide-y">
                         {/* Ping/Pong Stats */}
                         <div className="p-3 rounded-md bg-muted/30">
-                            <p className="text-xs font-medium text-muted-foreground mb-3">📊 Ping/Pong Statistics</p>
+                            <p className="text-sm font-semibold text-foreground mb-3">📊 Ping/Pong Statistics</p>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="flex items-center justify-between p-2 rounded bg-background">
                                     <span className="text-xs text-muted-foreground">Interval</span>
@@ -285,8 +287,8 @@ export const HomePage = (): JSX.Element => {
                         </div>
 
                         {/* Manual Ping */}
-                        <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-2">🔧 Manual Ping Test</p>
+                        <div className="pt-4">
+                            <p className="text-sm font-semibold text-foreground mb-2">🔧 Manual Ping Test</p>
                             <Button
                                 size="sm"
                                 variant="outline"
@@ -299,40 +301,85 @@ export const HomePage = (): JSX.Element => {
                         </div>
 
                         {/* Custom Message */}
-                        <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-2">📝 Custom Message</p>
+                        <div className="pt-4">
+                            <p className="text-sm font-semibold text-foreground mb-2">📝 Custom Message</p>
                             <div className="space-y-2">
-                                <textarea
-                                    className="w-full h-20 px-3 py-2 text-xs font-mono rounded-md border bg-background resize-none"
-                                    value={customMessage}
-                                    onChange={e => setCustomMessage(e.target.value)}
-                                    placeholder='{ "type": "test", "data": "hello" }'
-                                    disabled={!isConnected}
-                                />
-                                <Button
-                                    size="sm"
-                                    variant="default"
-                                    className="h-9 px-4 text-xs font-medium"
-                                    onClick={() => {
-                                        try {
-                                            const parsed = JSON.parse(customMessage);
-                                            send(parsed);
+                                {messageFields.map((field, idx) => (
+                                    <div key={idx} className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            className="flex-1 h-8 px-2 text-xs rounded-md border bg-background"
+                                            placeholder="Key"
+                                            value={field.key}
+                                            onChange={e => {
+                                                const newFields = [...messageFields];
+                                                newFields[idx].key = e.target.value;
+                                                setMessageFields(newFields);
+                                            }}
+                                            disabled={!isConnected}
+                                        />
+                                        <input
+                                            type="text"
+                                            className="flex-1 h-8 px-2 text-xs rounded-md border bg-background"
+                                            placeholder="Value"
+                                            value={field.value}
+                                            onChange={e => {
+                                                const newFields = [...messageFields];
+                                                newFields[idx].value = e.target.value;
+                                                setMessageFields(newFields);
+                                            }}
+                                            disabled={!isConnected}
+                                        />
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-8 px-2 text-xs"
+                                            onClick={() => setMessageFields(messageFields.filter((_, i) => i !== idx))}
+                                            disabled={!isConnected || messageFields.length === 1}
+                                        >
+                                            ✖
+                                        </Button>
+                                    </div>
+                                ))}
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 px-3 text-xs"
+                                        onClick={() => setMessageFields([...messageFields, { key: '', value: '' }])}
+                                        disabled={!isConnected}
+                                    >
+                                        + Add Field
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="default"
+                                        className="h-9 px-4 text-xs font-medium"
+                                        onClick={() => {
+                                            const message = messageFields.reduce(
+                                                (acc, field) => {
+                                                    if (field.key) {
+                                                        acc[field.key] = field.value;
+                                                    }
+                                                    return acc;
+                                                },
+                                                {} as Record<string, string>
+                                            );
+                                            send(message);
                                             toast.success('Message sent');
-                                        } catch (error) {
-                                            toast.error('Invalid JSON format');
-                                        }
-                                    }}
-                                    disabled={!isConnected}
-                                >
-                                    📤 Send Message
-                                </Button>
+                                        }}
+                                        disabled={!isConnected}
+                                    >
+                                        📤 Send Message
+                                    </Button>
+                                </div>
                             </div>
                         </div>
 
                         {/* Message History */}
-                        <div>
+                        <div className="pt-4">
                             <div className="flex items-center justify-between mb-2">
-                                <p className="text-xs font-medium text-muted-foreground">📜 Message History</p>
+                                <p className="text-sm font-semibold text-foreground">📜 Message History</p>
                                 <Button
                                     size="sm"
                                     variant="ghost"
@@ -383,8 +430,8 @@ export const HomePage = (): JSX.Element => {
                         </div>
 
                         {/* Presence Status */}
-                        <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-2">🎯 Presence Status Test</p>
+                        <div className="pt-4">
+                            <p className="text-sm font-semibold text-foreground mb-2">🎯 Presence Status Test</p>
                             <div className="flex gap-2">
                                 <Button
                                     size="sm"
