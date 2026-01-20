@@ -113,7 +113,7 @@ export const DeviceCard = ({ device }: DeviceCardProps): JSX.Element => {
 
     const handleDisconnect = () => {
         disconnectDevice(
-            { cid: device.connId },
+            { connId: device.connId },
             {
                 onSuccess: () => {
                     toast.success('Disconnect request sent', {

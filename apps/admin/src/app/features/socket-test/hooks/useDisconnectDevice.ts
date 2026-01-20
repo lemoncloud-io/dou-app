@@ -2,16 +2,15 @@ import { useMutation } from '@tanstack/react-query';
 
 import { disconnectDevice } from '../api/deviceApi';
 
-import type { ConnectionBody } from '../types';
-
 interface UseDisconnectDeviceParams {
-    cid: string;
-    body?: ConnectionBody;
+    connId: string;
+    reason?: string;
+    disconnectCode?: number;
     force?: boolean;
 }
 
 export const useDisconnectDevice = () => {
     return useMutation({
-        mutationFn: ({ cid, body, force }: UseDisconnectDeviceParams) => disconnectDevice({ cid, body, force }),
+        mutationFn: (params: UseDisconnectDeviceParams) => disconnectDevice(params),
     });
 };

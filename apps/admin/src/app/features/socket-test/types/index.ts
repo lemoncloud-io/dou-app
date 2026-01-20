@@ -52,6 +52,7 @@ export interface DevicePayload extends DeviceView {
 }
 
 export interface ConnectionBody {
+    id: string;
     reason?: string;
     disconnectCode?: number;
 }
