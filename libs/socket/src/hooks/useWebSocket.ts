@@ -10,8 +10,8 @@ import type { BaseWebSocketMessage, ConnectionStatus } from '../types';
 export interface UseWebSocketConfig<TMessage extends BaseWebSocketMessage> {
     /** WebSocket endpoint URL (e.g., wss://api.example.com/ws) */
     endpoint: string;
-    /** Async function to retrieve authentication token */
-    tokenProvider: () => Promise<string | null>;
+    /** Async function to retrieve authentication token (optional) */
+    tokenProvider?: () => Promise<string | null>;
     /** Optional custom message parser function */
     messageParser?: (data: unknown) => TMessage | null;
     /** Whether to auto-connect on mount (default: true) */
@@ -44,6 +44,8 @@ export interface UseWebSocketReturn<TMessage extends BaseWebSocketMessage> {
     connect: () => Promise<void>;
     /** Manually disconnect */
     disconnect: () => void;
+    /** Send message through WebSocket */
+    send: (data: unknown) => void;
 }
 
 /**
@@ -105,13 +107,8 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
         }
 
         try {
-            // Get authentication token
-            const token = await tokenProvider();
-
-            if (!token) {
-                console.error(`${logPrefix || '[useWebSocket]'} No token available`);
-                return;
-            }
+            // Get authentication token if provider exists
+            const token = tokenProvider ? (await tokenProvider()) || '' : '';
 
             // Create service instance if not exists
             if (!wsService.current) {
@@ -160,10 +157,10 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
             }
 
             // Connect
-            console.log(`${logPrefix || '[useWebSocket]'} Connecting with token...`);
+            console.log(`${logPrefix || '[useWebSocket]'} Connecting...`);
             wsService.current.connect();
         } catch (error) {
-            console.error(`${logPrefix || '[useWebSocket]'} Failed to get token:`, error);
+            console.error(`${logPrefix || '[useWebSocket]'} Failed to connect:`, error);
         }
     }, [endpoint, tokenProvider, messageParser, authQueryParam, pingInterval, logPrefix, sessionId]);
 
@@ -176,6 +173,18 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
         setConnectionStatus('disconnected');
         setIsConnected(false);
     }, []);
+
+    // Send message through WebSocket
+    const send = useCallback(
+        (data: unknown): void => {
+            if (wsService.current) {
+                wsService.current.send(data);
+            } else {
+                console.warn(`${logPrefix || '[useWebSocket]'} Cannot send - service not initialized`);
+            }
+        },
+        [logPrefix]
+    );
 
     // Auto-connect when enabled
     useEffect(() => {
@@ -220,5 +229,6 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
         lastMessage,
         connect,
         disconnect,
+        send,
     };
 };

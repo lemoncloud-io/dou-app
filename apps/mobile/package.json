@@ -21,6 +21,7 @@
         "esbuild": "*",
         "react-native-safe-area-context": "*",
         "react-native-webview": "*",
+        "zustand": "*"
         "zustand": "*",
         "@lemoncloud/chatic-sockets-api": "*",
         "react-native-uuid": "*",

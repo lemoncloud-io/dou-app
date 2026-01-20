@@ -98,10 +98,10 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
             return;
         }
 
-        if (!this.config.token) {
-            console.error(`${this.config.logPrefix} Token not provided`);
-            return;
-        }
+        // if (!this.config.token) {
+        //     console.error(`${this.config.logPrefix} Token not provided`);
+        //     return;
+        // }
 
         this.isManualDisconnect = false;
         this.hasError = false;
@@ -218,6 +218,19 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
      */
     isConnected(): boolean {
         return this.ws?.readyState === WebSocket.OPEN;
+    }
+
+    /**
+     * Send message through WebSocket
+     * @param data - Data to send (will be JSON stringified)
+     */
+    send(data: unknown): void {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify(data));
+            console.log(`${this.config.logPrefix} Sent:`, data);
+        } else {
+            console.warn(`${this.config.logPrefix} Cannot send - not connected`);
+        }
     }
 
     // Private methods
