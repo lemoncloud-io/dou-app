@@ -4,6 +4,7 @@ let connectionId = null;
 let reconnectTimeout = null;
 let isManualDisconnect = false;
 let currentConfig = null;
+let reconnectAttempts = 0;
 
 const startPingPong = interval => {
     if (pingInterval) clearInterval(pingInterval);
@@ -26,11 +27,17 @@ const stopPingPong = () => {
 const attemptReconnect = () => {
     if (isManualDisconnect || !currentConfig) return;
 
-    self.postMessage({ type: 'log', message: 'Attempting reconnect in 3s...' });
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+    reconnectAttempts++;
+
+    self.postMessage({
+        type: 'log',
+        message: `Attempting reconnect in ${delay / 1000}s... (attempt ${reconnectAttempts})`,
+    });
     reconnectTimeout = setTimeout(() => {
         self.postMessage({ type: 'log', message: 'Reconnecting...' });
         connectWebSocket(currentConfig);
-    }, 3000);
+    }, delay);
 };
 
 const connectWebSocket = config => {
@@ -57,6 +64,7 @@ const connectWebSocket = config => {
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
+        reconnectAttempts = 0;
         self.postMessage({ type: 'status', status: 'connected' });
         self.postMessage({ type: 'log', message: 'Connected' });
 
@@ -125,6 +133,7 @@ self.onmessage = e => {
     switch (type) {
         case 'connect':
             isManualDisconnect = false;
+            reconnectAttempts = 0;
             currentConfig = config;
             if (reconnectTimeout) {
                 clearTimeout(reconnectTimeout);
