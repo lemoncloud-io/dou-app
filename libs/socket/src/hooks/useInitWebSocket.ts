@@ -3,7 +3,8 @@ import { AppState } from 'react-native';
 
 import { useWebCoreStore, webCore } from '@chatic/web-core';
 
-import { useWebSocket } from './useWebSocket';
+// import { useWebSocket } from './useWebSocket';
+import { useWebSocketWorker } from './useWebSocketWorker';
 import { useWebSocketStore } from '../stores/useWebSocketStore';
 
 import type { WebSocketMessage } from '../stores/useWebSocketStore';
@@ -67,7 +68,7 @@ export const useInitWebSocket = (sessionId?: string) => {
         }
     }, []);
 
-    const { id, connectionStatus, lastMessage, disconnect, connect, send } = useWebSocket<WebSocketMessage>({
+    const { id, connectionStatus, lastMessage, disconnect, connect, send } = useWebSocketWorker<WebSocketMessage>({
         endpoint: WS_ENDPOINT,
         tokenProvider,
         messageParser: parseWebSocketMessage,
