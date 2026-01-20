@@ -33,7 +33,7 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
         messageParser,
         enabled = true,
         authQueryParam = 'x-lemon-identity',
-        pingInterval = 60000,
+        pingInterval = 30000,
         logPrefix = '[WebSocketWorker]',
         sessionId,
     } = config;
