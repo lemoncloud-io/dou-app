@@ -28,7 +28,6 @@ export const SocketTestPage = (): JSX.Element => {
         ? (searchParams.get('status') as DeviceStatus)
         : 'all';
     const page = Number(searchParams.get('page')) || 0;
-    const autoRefresh = searchParams.get('autoRefresh') !== 'false';
 
     // Use Worker-based WebSocket with Store integration
     const { connectionStatus } = useWebSocketStore();
@@ -38,7 +37,6 @@ export const SocketTestPage = (): JSX.Element => {
         page,
         limit: PAGE_SIZE,
         status: filter === 'all' ? undefined : filter,
-        autoRefresh,
     });
 
     const devices = data?.list ?? [];
@@ -72,20 +70,6 @@ export const SocketTestPage = (): JSX.Element => {
                     prev.delete('page');
                 } else {
                     prev.set('page', String(newPage));
-                }
-                return prev;
-            });
-        },
-        [setSearchParams]
-    );
-
-    const handleAutoRefreshChange = useCallback(
-        (enabled: boolean) => {
-            setSearchParams(prev => {
-                if (enabled) {
-                    prev.delete('autoRefresh');
-                } else {
-                    prev.set('autoRefresh', 'false');
                 }
                 return prev;
             });
@@ -131,8 +115,6 @@ export const SocketTestPage = (): JSX.Element => {
                     <DeviceFilters
                         filter={filter}
                         onFilterChange={handleFilterChange}
-                        autoRefresh={autoRefresh}
-                        onAutoRefreshChange={handleAutoRefreshChange}
                         onRefresh={() => void refetch()}
                         isRefreshing={isFetching}
                         statusAggr={statusAggr}

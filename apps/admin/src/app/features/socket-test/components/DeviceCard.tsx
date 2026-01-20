@@ -1,4 +1,15 @@
-import { Circle, Clock, Globe, Laptop, Link, Monitor, Power, Smartphone, TabletSmartphone } from 'lucide-react';
+import {
+    Circle,
+    Clock,
+    Globe,
+    Laptop,
+    Link,
+    Loader2,
+    Monitor,
+    Power,
+    Smartphone,
+    TabletSmartphone,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '@chatic/lib/utils';
@@ -6,6 +17,8 @@ import { Badge } from '@chatic/ui-kit/components/ui/badge';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Card, CardContent } from '@chatic/ui-kit/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@chatic/ui-kit/components/ui/tooltip';
+
+import { useDisconnectDevice } from '../hooks';
 
 import type { DeviceStatus, DeviceView } from '../types';
 
@@ -96,10 +109,24 @@ export const DeviceCard = ({ device }: DeviceCardProps): JSX.Element => {
     const isOnline = device.status === 'green';
     const canDisconnect = device.status !== 'red';
 
+    const { mutate: disconnectDevice, isPending: isDisconnecting } = useDisconnectDevice();
+
     const handleDisconnect = () => {
-        toast.success(`Disconnect request sent`, {
-            description: `Device: ${device.id.slice(0, 8)}...`,
-        });
+        disconnectDevice(
+            { cid: device.connId },
+            {
+                onSuccess: () => {
+                    toast.success('Disconnect request sent', {
+                        description: `Device: ${device.id.slice(0, 8)}...`,
+                    });
+                },
+                onError: error => {
+                    toast.error('Failed to disconnect device', {
+                        description: error instanceof Error ? error.message : 'Unknown error',
+                    });
+                },
+            }
+        );
     };
 
     return (
@@ -189,9 +216,14 @@ export const DeviceCard = ({ device }: DeviceCardProps): JSX.Element => {
                             size="sm"
                             className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={handleDisconnect}
+                            disabled={isDisconnecting}
                         >
-                            <Power className="h-3.5 w-3.5 mr-2" />
-                            Disconnect
+                            {isDisconnecting ? (
+                                <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                            ) : (
+                                <Power className="h-3.5 w-3.5 mr-2" />
+                            )}
+                            {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
                         </Button>
                     </div>
                 )}

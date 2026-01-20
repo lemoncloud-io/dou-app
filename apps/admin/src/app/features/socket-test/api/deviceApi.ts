@@ -1,6 +1,6 @@
 import { webCore } from '@chatic/web-core';
 
-import type { DeviceListResponse } from '../types';
+import type { ConnectionBody, ConnectionView, DeviceListResponse } from '../types';
 
 const USE_MOCK_DATA = false;
 
@@ -182,5 +182,27 @@ export const fetchDeviceList = async ({
         })
         .setParams({ page, limit, ...(status && { status }) })
         .execute<DeviceListResponse>();
+    return data;
+};
+
+interface DisconnectDeviceParams {
+    cid: string;
+    body?: ConnectionBody;
+    force?: boolean;
+}
+
+export const disconnectDevice = async ({
+    cid,
+    body,
+    force = true,
+}: DisconnectDeviceParams): Promise<ConnectionView> => {
+    const { data } = await webCore
+        .buildSignedRequest({
+            method: 'POST',
+            baseURL: `${getSocketApiEndpoint()}/skt-d1/devices/${cid}/disconnect`,
+        })
+        .setParams({ force })
+        .setBody(body ?? {})
+        .execute<ConnectionView>();
     return data;
 };

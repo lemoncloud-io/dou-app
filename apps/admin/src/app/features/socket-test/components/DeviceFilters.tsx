@@ -2,16 +2,12 @@ import { Circle, RefreshCw } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Label } from '@chatic/ui-kit/components/ui/label';
-import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
 import type { DeviceStatusAggr, FilterStatus } from '../types';
 
 interface DeviceFiltersProps {
     filter: FilterStatus;
     onFilterChange: (filter: FilterStatus) => void;
-    autoRefresh: boolean;
-    onAutoRefreshChange: (enabled: boolean) => void;
     onRefresh: () => void;
     isRefreshing: boolean;
     statusAggr?: DeviceStatusAggr;
@@ -27,8 +23,6 @@ const filterOptions: { value: FilterStatus; label: string; color: string }[] = [
 export const DeviceFilters = ({
     filter,
     onFilterChange,
-    autoRefresh,
-    onAutoRefreshChange,
     onRefresh,
     isRefreshing,
     statusAggr,
@@ -73,19 +67,10 @@ export const DeviceFilters = ({
                 })}
             </div>
 
-            <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                    <Switch id="auto-refresh" checked={autoRefresh} onCheckedChange={onAutoRefreshChange} />
-                    <Label htmlFor="auto-refresh" className="text-sm text-muted-foreground cursor-pointer">
-                        Auto (10s)
-                    </Label>
-                </div>
-
-                <Button variant="outline" size="sm" onClick={onRefresh} disabled={isRefreshing} className="gap-2">
-                    <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
-                    Refresh
-                </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={onRefresh} disabled={isRefreshing} className="gap-2">
+                <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                Refresh
+            </Button>
         </div>
     );
 };

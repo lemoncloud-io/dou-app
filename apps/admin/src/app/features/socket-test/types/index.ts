@@ -33,3 +33,35 @@ export interface DeviceListResponse {
         status: DeviceStatusAggr;
     };
 }
+
+// WebSocket message envelope for device updates
+export interface WSSEnvelope<T> {
+    mid: string;
+    type: 'system';
+    action: 'updated' | 'created' | 'deleted';
+    payload: T;
+    meta: {
+        ts: number;
+        channel: string;
+    };
+}
+
+// Device payload from WebSocket (includes 'type' field)
+export interface DevicePayload extends DeviceView {
+    ns: string;
+    type: 'device';
+    count?: number;
+}
+
+// Disconnect request body
+export interface ConnectionBody {
+    reason?: string;
+    disconnectCode?: number;
+}
+
+// Disconnect response
+export interface ConnectionView {
+    id?: string;
+    connId?: string;
+    disconnectedAt?: number;
+}
