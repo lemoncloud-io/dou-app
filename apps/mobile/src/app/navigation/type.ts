@@ -10,4 +10,10 @@ export type SampleStackParamList = {
 export type RootStackParamList = {
     Sample: NavigatorScreenParams<SampleStackParamList>;
     Main: undefined;
+    Debug: NavigatorScreenParams<DebugStackParamList>;
+};
+
+export type DebugStackParamList = {
+    Home: undefined;
+    SocketTest: undefined;
 };
