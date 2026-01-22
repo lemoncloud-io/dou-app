@@ -15,7 +15,7 @@ const startPingPong = interval => {
     pingInterval = setInterval(() => {
         if (ws?.readyState === 1) {
             pingCount++;
-            ws.send(JSON.stringify({ action: 'ping', data: { timestamp: Date.now() } }));
+            ws.send(JSON.stringify({ type: 'system', action: 'ping', data: { timestamp: Date.now() } }));
             self.postMessage({ type: 'log', message: 'Sent ping' });
             self.postMessage({ type: 'stats', pingCount, pongCount });
 
@@ -58,7 +58,7 @@ const attemptReconnect = () => {
 };
 
 const connectWebSocket = config => {
-    const { endpoint, token, authQueryParam, pingInterval: interval, sessionId } = config;
+    const { endpoint, token, authQueryParam, pingInterval: interval, sessionId, channels } = config;
 
     if (ws?.readyState === 1 || ws?.readyState === 0) {
         self.postMessage({ type: 'log', message: 'Already connected or connecting' });
@@ -74,6 +74,9 @@ const connectWebSocket = config => {
     if (sessionId) {
         wsUrl += '&deviceId=' + sessionId;
     }
+    if (channels) {
+        wsUrl += '&channels=' + channels;
+    }
 
     self.postMessage({ type: 'status', status: 'connecting' });
     self.postMessage({ type: 'log', message: 'Connecting to: ' + endpoint });
@@ -87,7 +90,7 @@ const connectWebSocket = config => {
 
         setTimeout(() => {
             if (ws?.readyState === 1) {
-                ws.send(JSON.stringify({ action: 'info', data: {} }));
+                ws.send(JSON.stringify({ type: 'system', action: 'info', data: {} }));
             }
         }, 100);
 
@@ -109,7 +112,7 @@ const connectWebSocket = config => {
             }
 
             if (data.action === 'ping') {
-                ws?.send(JSON.stringify({ action: 'pong', data: { timestamp: Date.now() } }));
+                ws?.send(JSON.stringify({ type: 'system', action: 'pong', data: { timestamp: Date.now() } }));
                 self.postMessage({ type: 'log', message: 'Received ping, sent pong' });
                 self.postMessage({ type: 'message', data });
                 return;
