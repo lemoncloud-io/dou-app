@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useInitWebSocket, useWebSocketStore } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
+import { useSessionId } from '../../home/hooks/useSessionId';
 import { PointerCanvas } from '../components';
 import { usePointerSync } from '../hooks';
 
@@ -19,8 +20,9 @@ const CANVAS_HEIGHT = 400;
  * Admin can view this position in real-time
  */
 export const PointerTestPage = (): JSX.Element => {
+    const sessionId = useSessionId();
     const { isConnected, connectionStatus } = useWebSocketStore();
-    const { connect, disconnect, send } = useInitWebSocket();
+    const { connect, disconnect, send } = useInitWebSocket(sessionId);
     const { sendPosition } = usePointerSync({ send, isConnected });
 
     const handlePointerMove = useCallback(
