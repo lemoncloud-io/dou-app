@@ -321,7 +321,9 @@ export const HomePage = (): JSX.Element => {
                                 size="sm"
                                 variant="outline"
                                 className="h-9 px-4 text-xs font-medium"
-                                onClick={() => send({ action: 'ping', data: { timestamp: Date.now() } })}
+                                onClick={() =>
+                                    send({ type: 'system', action: 'ping', data: { timestamp: Date.now() } })
+                                }
                                 disabled={!isConnected}
                             >
                                 📤 Send Ping
