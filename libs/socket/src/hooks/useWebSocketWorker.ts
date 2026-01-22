@@ -11,6 +11,7 @@ export interface UseWebSocketWorkerConfig<TMessage extends BaseWebSocketMessage>
     pingInterval?: number;
     logPrefix?: string;
     sessionId?: string;
+    channels?: string;
 }
 
 export interface UseWebSocketWorkerReturn<TMessage extends BaseWebSocketMessage> {
@@ -38,6 +39,7 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
         pingInterval = 30000,
         logPrefix = '[WebSocketWorker]',
         sessionId,
+        channels,
     } = config;
 
     const workerRef = useRef<Worker | null>(null);
@@ -123,12 +125,13 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
                     authQueryParam,
                     pingInterval,
                     sessionId,
+                    channels,
                 },
             });
         } catch (error) {
             console.error(`${logPrefix} Failed to connect:`, error);
         }
-    }, [endpoint, tokenProvider, messageParser, authQueryParam, pingInterval, logPrefix, sessionId]);
+    }, [endpoint, tokenProvider, messageParser, authQueryParam, pingInterval, logPrefix, sessionId, channels]);
 
     const disconnect = useCallback((): void => {
         if (workerRef.current) {

@@ -1,0 +1,1 @@
+export { usePointerSync } from './usePointerSync';
