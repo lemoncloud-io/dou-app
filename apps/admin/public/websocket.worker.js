@@ -58,7 +58,7 @@ const attemptReconnect = () => {
 };
 
 const connectWebSocket = config => {
-    const { endpoint, token, authQueryParam, pingInterval: interval, sessionId } = config;
+    const { endpoint, token, authQueryParam, pingInterval: interval, sessionId, channels } = config;
 
     if (ws?.readyState === 1 || ws?.readyState === 0) {
         self.postMessage({ type: 'log', message: 'Already connected or connecting' });
@@ -73,6 +73,9 @@ const connectWebSocket = config => {
     let wsUrl = endpoint + '?' + authQueryParam + '=' + token + '&default=&info=';
     if (sessionId) {
         wsUrl += '&deviceId=' + sessionId;
+    }
+    if (channels) {
+        wsUrl += '&channels=' + channels;
     }
 
     self.postMessage({ type: 'status', status: 'connecting' });

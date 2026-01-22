@@ -2019,10 +2019,10 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-sockets-api@^0.26.114":
-  version "0.26.114"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.114.tgz#829046ef17222f5baf1481bb5d606cbec3ca1a2f"
-  integrity sha512-Lec/3Bhq3XuSaDYTdvp2GZ2eQRcajamZkFum2+XIveNutMBOYFFSsAfG3LuyB1rESuJvgyrGGBkhLN774ZT+nA==
+"@lemoncloud/chatic-sockets-api@^0.26.115":
+  version "0.26.115"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.115.tgz#98212db6fec801288efe90d01d51485b441351a8"
+  integrity sha512-VXQqFqQg5ovBV+N4zhn+lW/2E+eMldQC7l8C4x4RsqvIpnBi3qnRAbZS5t81eVxZTOjggwX+XZwjML/u8LeXXw==
   dependencies:
     lemon-model "^1.1.1"
 
