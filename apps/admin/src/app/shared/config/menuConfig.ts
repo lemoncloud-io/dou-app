@@ -1,4 +1,4 @@
-import { Wifi } from 'lucide-react';
+import { MousePointer2, Wifi } from 'lucide-react';
 
 import type { LucideIcon } from 'lucide-react';
 
@@ -13,5 +13,10 @@ export const adminMenuItems: MenuItem[] = [
         label: 'Socket Test',
         icon: Wifi,
         path: '/socket-test',
+    },
+    {
+        label: 'Pointer Test',
+        icon: MousePointer2,
+        path: '/pointer-test',
     },
 ];

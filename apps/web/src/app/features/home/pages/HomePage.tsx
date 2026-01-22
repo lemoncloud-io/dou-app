@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Globe, LogOut, Moon, Settings, Sun } from 'lucide-react';
+import { Globe, LogOut, Moon, MousePointer2, Settings, Sun } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useInitWebSocket, useWebSocketStore } from '@chatic/socket';
@@ -169,40 +169,49 @@ export const HomePage = (): JSX.Element => {
                         </div>
                     </div>
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="icon">
-                                <Settings className="h-5 w-5" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuLabel>{t('home.settings', 'Settings')}</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => navigate('/pointer-test')}>
+                            <MousePointer2 className="h-4 w-4 mr-2" />
+                            Pointer Test
+                        </Button>
 
-                            <DropdownMenuItem onSelect={e => e.preventDefault()} onClick={handleThemeToggle}>
-                                {theme === 'light' ? (
-                                    <Sun className="mr-2 h-4 w-4" />
-                                ) : (
-                                    <Moon className="mr-2 h-4 w-4" />
-                                )}
-                                <span>{theme === 'light' ? 'Light Mode' : 'Dark Mode'}</span>
-                            </DropdownMenuItem>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon">
+                                    <Settings className="h-5 w-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuLabel>{t('home.settings', 'Settings')}</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
 
-                            <DropdownMenuItem onSelect={e => e.preventDefault()} onClick={handleLanguageToggle}>
-                                <Globe className="mr-2 h-4 w-4" />
-                                <span>{i18n.language === 'en' ? 'English' : '한국어'}</span>
-                            </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={e => e.preventDefault()} onClick={handleThemeToggle}>
+                                    {theme === 'light' ? (
+                                        <Sun className="mr-2 h-4 w-4" />
+                                    ) : (
+                                        <Moon className="mr-2 h-4 w-4" />
+                                    )}
+                                    <span>{theme === 'light' ? 'Light Mode' : 'Dark Mode'}</span>
+                                </DropdownMenuItem>
 
-                            <DropdownMenuSeparator />
+                                <DropdownMenuItem onSelect={e => e.preventDefault()} onClick={handleLanguageToggle}>
+                                    <Globe className="mr-2 h-4 w-4" />
+                                    <span>{i18n.language === 'en' ? 'English' : '한국어'}</span>
+                                </DropdownMenuItem>
 
-                            <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
-                                <LogOut className="mr-2 h-4 w-4" />
-                                <span>
-                                    {isLoggingOut ? t('home.loggingOut', 'Logging out...') : t('home.logout', 'Logout')}
-                                </span>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                                <DropdownMenuSeparator />
+
+                                <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
+                                    <LogOut className="mr-2 h-4 w-4" />
+                                    <span>
+                                        {isLoggingOut
+                                            ? t('home.loggingOut', 'Logging out...')
+                                            : t('home.logout', 'Logout')}
+                                    </span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
 
                 {/* Presence Status Panel */}
