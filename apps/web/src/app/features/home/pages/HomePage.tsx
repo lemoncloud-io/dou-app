@@ -40,19 +40,35 @@ export const HomePage = (): JSX.Element => {
         Array<{ type: 'sent' | 'received'; data: unknown; time: Date }>
     >([]);
 
+    // Tick management
+    const getTickKey = () => `presence_tick_${sessionId}`;
+    const getTick = (): number => {
+        const stored = sessionStorage.getItem(getTickKey());
+        return stored ? parseInt(stored, 10) : 0;
+    };
+    const setTick = (tick: number): void => {
+        sessionStorage.setItem(getTickKey(), tick.toString());
+    };
+
     // Wrap send to track sent messages
     const send = useCallback(
         (data: unknown) => {
             originalSend(data);
-            setMessageHistory(prev => [{ type: 'sent', data, time: new Date() }, ...prev].slice(0, 10));
+            setMessageHistory(prev => [...prev, { type: 'sent', data, time: new Date() }].slice(-10));
         },
         [originalSend]
     );
 
-    // Send presence info when connected
+    // Send presence info when connected (only once)
+    const hasRequestedInfoRef = useRef(false);
     useEffect(() => {
-        if (isConnected) {
+        if (isConnected && !hasRequestedInfoRef.current) {
             send({ type: 'presence', action: 'info' });
+            hasRequestedInfoRef.current = true;
+        }
+
+        if (!isConnected) {
+            hasRequestedInfoRef.current = false;
         }
     }, [isConnected, send]);
 
@@ -63,17 +79,20 @@ export const HomePage = (): JSX.Element => {
         console.log('[HomePage] Setting up subscription');
         unsubscribeRef.current = useWebSocketStore.getState().subscribe(message => {
             // Add to message history
-            setMessageHistory(prev =>
-                [{ type: 'received', data: message.data, time: new Date() }, ...prev].slice(0, 10)
-            );
+            setMessageHistory(prev => [...prev, { type: 'received', data: message.data, time: new Date() }].slice(-10));
 
             if (message.data && typeof message.data === 'object') {
                 const data = message.data as Record<string, unknown>;
 
-                // Check if it's presence info
+                // Check if it's presence info or updated
                 if (data.type === 'presence' && data.payload) {
                     const payload = data.payload as Record<string, unknown>;
                     setPresenceData(payload);
+
+                    // Update tick from server response
+                    if (typeof payload.tick === 'number') {
+                        setTick(payload.tick);
+                    }
                 }
             }
         });
@@ -302,7 +321,9 @@ export const HomePage = (): JSX.Element => {
                                 size="sm"
                                 variant="outline"
                                 className="h-9 px-4 text-xs font-medium"
-                                onClick={() => send({ action: 'ping', data: { timestamp: Date.now() } })}
+                                onClick={() =>
+                                    send({ type: 'system', action: 'ping', data: { timestamp: Date.now() } })
+                                }
                                 disabled={!isConnected}
                             >
                                 📤 Send Ping
@@ -450,9 +471,16 @@ export const HomePage = (): JSX.Element => {
                                             ? 'bg-green-600 hover:bg-green-700 text-white'
                                             : 'border-green-500/50 hover:bg-green-500/10'
                                     }`}
-                                    onClick={() =>
-                                        send({ type: 'presence', action: 'status', payload: { status: 'green' } })
-                                    }
+                                    onClick={() => {
+                                        const currentTick = getTick();
+                                        const nextTick = currentTick + 1;
+                                        send({
+                                            type: 'presence',
+                                            action: 'sync',
+                                            payload: { status: 'green', tick: nextTick },
+                                        });
+                                        setTick(nextTick);
+                                    }}
                                     disabled={!isConnected}
                                 >
                                     🟢 GREEN
@@ -465,9 +493,16 @@ export const HomePage = (): JSX.Element => {
                                             ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
                                             : 'border-yellow-500/50 hover:bg-yellow-500/10'
                                     }`}
-                                    onClick={() =>
-                                        send({ type: 'presence', action: 'status', payload: { status: 'yellow' } })
-                                    }
+                                    onClick={() => {
+                                        const currentTick = getTick();
+                                        const nextTick = currentTick + 1;
+                                        send({
+                                            type: 'presence',
+                                            action: 'sync',
+                                            payload: { status: 'yellow', tick: nextTick },
+                                        });
+                                        setTick(nextTick);
+                                    }}
                                     disabled={!isConnected}
                                 >
                                     🟡 YELLOW
@@ -480,9 +515,16 @@ export const HomePage = (): JSX.Element => {
                                             ? 'bg-red-600 hover:bg-red-700 text-white'
                                             : 'border-red-500/50 hover:bg-red-500/10'
                                     }`}
-                                    onClick={() =>
-                                        send({ type: 'presence', action: 'status', payload: { status: 'red' } })
-                                    }
+                                    onClick={() => {
+                                        const currentTick = getTick();
+                                        const nextTick = currentTick + 1;
+                                        send({
+                                            type: 'presence',
+                                            action: 'sync',
+                                            payload: { status: 'red', tick: nextTick },
+                                        });
+                                        setTick(nextTick);
+                                    }}
                                     disabled={!isConnected}
                                 >
                                     🔴 RED
