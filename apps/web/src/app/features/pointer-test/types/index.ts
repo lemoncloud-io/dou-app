@@ -1,4 +1,9 @@
 /**
+ * Channel ID for pointer sync WebSocket communication
+ */
+export const POINTER_CHANNEL = '1000001';
+
+/**
  * Position payload for WebSocket communication
  * Matches server-defined PositionPayload interface
  */

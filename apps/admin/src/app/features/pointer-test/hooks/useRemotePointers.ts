@@ -30,31 +30,14 @@ export const useRemotePointers = (): void => {
     const setPointer = usePointerStore(state => state.setPointer);
 
     useEffect(() => {
-        console.log('[useRemotePointers] Setting up subscription');
-
         const unsubscribe = subscribe(message => {
-            console.log('[useRemotePointers] Received message:', message);
-            console.log('[useRemotePointers] message.data:', JSON.stringify(message.data, null, 2));
-
-            const isPosition = isPositionMessage(message.data);
-            console.log('[useRemotePointers] isPositionMessage:', isPosition);
-
-            if (isPosition) {
+            if (isPositionMessage(message.data)) {
                 const { payload } = message.data;
                 const deviceId = payload.deviceId || 'unknown';
-
-                console.log('[useRemotePointers] Position update:', {
-                    deviceId,
-                    posX: payload.posX,
-                    posY: payload.posY,
-                });
                 setPointer(deviceId, payload.posX, payload.posY, payload.ts);
             }
         });
 
-        return () => {
-            console.log('[useRemotePointers] Cleaning up subscription');
-            unsubscribe();
-        };
+        return unsubscribe;
     }, [subscribe, setPointer]);
 };

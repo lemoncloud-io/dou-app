@@ -5,27 +5,30 @@ import { usePointerStore } from '../stores';
 import type { RemotePointer } from '../types';
 import type { JSX } from 'react';
 
+/** Threshold in ms after which a pointer is considered stale */
+const STALE_THRESHOLD_MS = 5000;
+
 interface RemotePointerCanvasProps {
     width?: number;
     height?: number;
 }
 
-// Generate consistent color from deviceId
-const getPointerColor = (deviceId: string): string => {
-    const colors = [
-        'rgb(59, 130, 246)', // blue
-        'rgb(16, 185, 129)', // green
-        'rgb(245, 158, 11)', // amber
-        'rgb(239, 68, 68)', // red
-        'rgb(168, 85, 247)', // purple
-        'rgb(236, 72, 153)', // pink
-        'rgb(20, 184, 166)', // teal
-    ];
+/**
+ * Generate consistent HSL color from deviceId
+ * Uses full hue spectrum (0-360) for better color distribution
+ * Returns [solidColor, transparentColor] for border and background
+ */
+const getPointerColors = (deviceId: string): { solid: string; transparent: string } => {
     let hash = 0;
     for (let i = 0; i < deviceId.length; i++) {
         hash = deviceId.charCodeAt(i) + ((hash << 5) - hash);
+        hash = hash ^ (deviceId.charCodeAt(i) << i % 16);
     }
-    return colors[Math.abs(hash) % colors.length];
+    const hue = Math.abs(hash) % 360;
+    return {
+        solid: `hsl(${hue}, 70%, 50%)`,
+        transparent: `hsl(${hue}, 70%, 50%, 0.5)`,
+    };
 };
 
 /**
@@ -65,7 +68,7 @@ export const RemotePointerCanvas = ({ width = 600, height = 400 }: RemotePointer
 
                 {/* Remote cursors */}
                 {pointerList.map((pointer: RemotePointer) => {
-                    const color = getPointerColor(pointer.deviceId);
+                    const colors = getPointerColors(pointer.deviceId);
                     return (
                         <div
                             key={pointer.deviceId}
@@ -80,15 +83,15 @@ export const RemotePointerCanvas = ({ width = 600, height = 400 }: RemotePointer
                             <div
                                 className="w-4 h-4 rounded-full border-2 shadow-lg"
                                 style={{
-                                    backgroundColor: `${color}80`,
-                                    borderColor: color,
+                                    backgroundColor: colors.transparent,
+                                    borderColor: colors.solid,
                                 }}
                             />
                             {/* Device ID label */}
                             <div
                                 className="absolute top-5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded text-[10px] font-mono whitespace-nowrap shadow-md"
                                 style={{
-                                    backgroundColor: color,
+                                    backgroundColor: colors.solid,
                                     color: 'white',
                                 }}
                             >
@@ -125,9 +128,9 @@ export const RemotePointerCanvas = ({ width = 600, height = 400 }: RemotePointer
                     <h4 className="text-xs font-medium text-muted-foreground">Active Pointers</h4>
                     <div className="grid gap-2">
                         {pointerList.map((pointer: RemotePointer) => {
-                            const color = getPointerColor(pointer.deviceId);
+                            const colors = getPointerColors(pointer.deviceId);
                             const age = Date.now() - pointer.lastUpdated;
-                            const isStale = age > 5000;
+                            const isStale = age > STALE_THRESHOLD_MS;
 
                             return (
                                 <div
@@ -137,7 +140,10 @@ export const RemotePointerCanvas = ({ width = 600, height = 400 }: RemotePointer
                                     }`}
                                 >
                                     <div className="flex items-center gap-2">
-                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                                        <div
+                                            className="w-3 h-3 rounded-full"
+                                            style={{ backgroundColor: colors.solid }}
+                                        />
                                         <span className="text-xs font-mono">{pointer.deviceId.slice(0, 12)}...</span>
                                     </div>
                                     <div className="text-xs text-muted-foreground font-mono">

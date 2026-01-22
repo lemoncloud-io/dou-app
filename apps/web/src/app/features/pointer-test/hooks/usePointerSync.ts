@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 
+import { POINTER_CHANNEL } from '../types';
+
 import type { PositionPayload } from '../types';
 
 const THROTTLE_MS = 50; // 20fps
@@ -40,11 +42,10 @@ export const usePointerSync = ({ send, isConnected }: UsePointerSyncOptions): Us
                 action: 'sync',
                 payload,
                 meta: {
-                    channel: '1000001', // TODO: make configurable
+                    channel: POINTER_CHANNEL,
                 },
             };
 
-            console.log('[usePointerSync] Sending position:', message);
             send(message);
         },
         [send, isConnected]

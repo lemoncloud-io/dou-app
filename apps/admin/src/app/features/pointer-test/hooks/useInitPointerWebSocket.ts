@@ -3,10 +3,11 @@ import { useCallback, useEffect } from 'react';
 import { useWebSocketStore, useWebSocketWorker } from '@chatic/socket';
 import { webCore } from '@chatic/web-core';
 
+import { POINTER_CHANNEL } from '../types';
+
 import type { WebSocketMessage } from '@chatic/socket';
 
 const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT || '';
-const POINTER_CHANNEL = '1000001'; // Channel for pointer sync
 
 /**
  * Type guard to check if value is a non-null object
@@ -98,7 +99,6 @@ export const useInitPointerWebSocket = (sessionId?: string): UseInitPointerWebSo
     // Broadcast messages to subscribers
     useEffect(() => {
         if (lastMessage) {
-            console.log('[PointerSocket] Broadcasting message:', lastMessage);
             broadcastMessage(lastMessage);
         }
     }, [lastMessage, broadcastMessage]);
