@@ -6,7 +6,6 @@ import type {
     StatusCallback,
     WebSocketServiceConfig,
 } from '../types';
-
 /**
  * Generic WebSocket service class
  * Handles connection lifecycle, ping/pong, and message routing

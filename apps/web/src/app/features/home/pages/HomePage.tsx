@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type JSX, type MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Globe, LogOut, Moon, MousePointer2, Settings, Sun } from 'lucide-react';
+import { Globe, LogOut, Moon, Settings, Sun } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useInitWebSocket, useWebSocketStore } from '@chatic/socket';
@@ -20,8 +20,6 @@ import { useLogout, useWebCoreStore } from '@chatic/web-core';
 
 import { useSessionId } from '../hooks';
 
-import type { JSX } from 'react';
-
 export const HomePage = (): JSX.Element => {
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
@@ -30,15 +28,19 @@ export const HomePage = (): JSX.Element => {
     const sessionId = useSessionId();
     const { isConnected, connectionStatus, id } = useWebSocketStore();
     const [presenceData, setPresenceData] = useState<Record<string, unknown> | null>(null);
+    const [localStatus, setLocalStatus] = useState<'green' | 'yellow' | 'red'>('green');
 
     const { connect, disconnect, send: originalSend, pingCount, pongCount } = useInitWebSocket(sessionId);
     const unsubscribeRef = useRef<(() => void) | null>(null);
     const [messageFields, setMessageFields] = useState<Array<{ key: string; value: string }>>([
         { key: 'type', value: 'test' },
     ]);
-    const [messageHistory, setMessageHistory] = useState<
-        Array<{ type: 'sent' | 'received'; data: unknown; time: Date }>
-    >([]);
+
+    const [localPointerPosition, setLocalPointerPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const lastSentPointerRef = useRef<number>(0);
+    const pointerCanvasRef = useRef<HTMLDivElement>(null);
+    const retryCountRef = useRef<number>(0);
+    const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Tick management
     const getTickKey = () => `presence_tick_${sessionId}`;
@@ -46,18 +48,12 @@ export const HomePage = (): JSX.Element => {
         const stored = sessionStorage.getItem(getTickKey());
         return stored ? parseInt(stored, 10) : 0;
     };
+
     const setTick = (tick: number): void => {
         sessionStorage.setItem(getTickKey(), tick.toString());
     };
 
-    // Wrap send to track sent messages
-    const send = useCallback(
-        (data: unknown) => {
-            originalSend(data);
-            setMessageHistory(prev => [...prev, { type: 'sent', data, time: new Date() }].slice(-10));
-        },
-        [originalSend]
-    );
+    const send = originalSend;
 
     // Send presence info when connected (only once)
     const hasRequestedInfoRef = useRef(false);
@@ -72,36 +68,70 @@ export const HomePage = (): JSX.Element => {
         }
     }, [isConnected, send]);
 
-    // Subscribe to WebSocket messages to capture connection data
+    // Subscribe to WebSocket messages
     useEffect(() => {
         if (!isConnected) return;
 
-        console.log('[HomePage] Setting up subscription');
         unsubscribeRef.current = useWebSocketStore.getState().subscribe(message => {
-            // Add to message history
-            setMessageHistory(prev => [...prev, { type: 'received', data: message.data, time: new Date() }].slice(-10));
-
             if (message.data && typeof message.data === 'object') {
                 const data = message.data as Record<string, unknown>;
 
-                // Check if it's presence info or updated
                 if (data.type === 'presence' && data.payload) {
-                    const payload = data.payload as Record<string, unknown>;
-                    setPresenceData(payload);
+                    setPresenceData(data.payload as Record<string, unknown>);
+                }
 
-                    // Update tick from server response
-                    if (typeof payload.tick === 'number') {
-                        setTick(payload.tick);
+                if (data.type === 'sync' && data.payload) {
+                    const payload = data.payload as Record<string, unknown>;
+                    const serverTick = payload.tick as number;
+                    const myTick = getTick();
+                    if (serverTick > myTick) {
+                        // 서버 tick이 크면 서버 상태 적용
+                        retryCountRef.current = 0; // 성공하면 리셋
+                        if (retryTimeoutRef.current) {
+                            clearTimeout(retryTimeoutRef.current);
+                            retryTimeoutRef.current = null;
+                        }
+                        setTick(serverTick);
+                        if (payload.status) {
+                            setLocalStatus(payload.status as 'green' | 'yellow' | 'red');
+                        }
+                        if (payload.posX !== undefined && payload.posY !== undefined) {
+                            setLocalPointerPosition({
+                                x: payload.posX as number,
+                                y: payload.posY as number,
+                            });
+                        }
+                    } else {
+                        // 서버 tick이 작거나 같으면 지수 백오프로 재전송
+                        if (retryTimeoutRef.current) return; // 이미 대기 중이면 스킵
+
+                        const delay = Math.min(1000 * Math.pow(2, retryCountRef.current), 30000); // max 30s
+                        retryCountRef.current += 1;
+
+                        retryTimeoutRef.current = setTimeout(() => {
+                            retryTimeoutRef.current = null;
+                            send({
+                                type: 'sync',
+                                action: 'update',
+                                payload: {
+                                    id: sessionId,
+                                    status: localStatus,
+                                    posX: Math.round(localPointerPosition.x),
+                                    posY: Math.round(localPointerPosition.y),
+                                    ts: Date.now(),
+                                    tick: myTick,
+                                },
+                            });
+                        }, delay);
                     }
                 }
             }
         });
 
         return () => {
-            console.log('[HomePage] Cleaning up subscription');
             unsubscribeRef.current?.();
         };
-    }, [isConnected]);
+    }, [isConnected, send, sessionId, localStatus, localPointerPosition]);
 
     // Initial connection
     useEffect(() => {
@@ -131,6 +161,66 @@ export const HomePage = (): JSX.Element => {
     const handleLogout = () => {
         logout();
     };
+
+    // Pointer sync handler
+    const handlePointerMove = useCallback(
+        (e: MouseEvent<HTMLDivElement>) => {
+            if (!pointerCanvasRef.current || !isConnected) return;
+
+            const rect = pointerCanvasRef.current.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            setLocalPointerPosition({ x, y });
+
+            // Throttle to 50ms (20fps)
+            const now = Date.now();
+            if (now - lastSentPointerRef.current < 50) return;
+            lastSentPointerRef.current = now;
+
+            const currentTick = getTick();
+            send({
+                type: 'sync',
+                action: 'update',
+                payload: {
+                    id: sessionId,
+                    status: localStatus,
+                    posX: Math.round(x),
+                    posY: Math.round(y),
+                    ts: now,
+                    tick: currentTick,
+                },
+            });
+        },
+        [isConnected, send, localStatus, sessionId]
+    );
+
+    const handlePointerLeave = useCallback(() => {
+        setLocalPointerPosition({ x: 0, y: 0 });
+    }, []);
+
+    // Status change handler
+    const handleStatusChange = useCallback(
+        (status: 'green' | 'yellow' | 'red') => {
+            setLocalStatus(status);
+            const nextTick = getTick() + 1;
+            setTick(nextTick);
+
+            send({
+                type: 'sync',
+                action: 'update',
+                payload: {
+                    id: sessionId,
+                    status,
+                    posX: Math.round(localPointerPosition.x),
+                    posY: Math.round(localPointerPosition.y),
+                    ts: Date.now(),
+                    tick: nextTick,
+                },
+            });
+        },
+        [send, localPointerPosition, sessionId]
+    );
 
     return (
         <div className="min-h-screen bg-background p-6">
@@ -188,49 +278,40 @@ export const HomePage = (): JSX.Element => {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => navigate('/pointer-test')}>
-                            <MousePointer2 className="h-4 w-4 mr-2" />
-                            Pointer Test
-                        </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="icon">
+                                <Settings className="h-5 w-5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuLabel>{t('home.settings', 'Settings')}</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="icon">
-                                    <Settings className="h-5 w-5" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuLabel>{t('home.settings', 'Settings')}</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
+                            <DropdownMenuItem onSelect={e => e.preventDefault()} onClick={handleThemeToggle}>
+                                {theme === 'light' ? (
+                                    <Sun className="mr-2 h-4 w-4" />
+                                ) : (
+                                    <Moon className="mr-2 h-4 w-4" />
+                                )}
+                                <span>{theme === 'light' ? 'Light Mode' : 'Dark Mode'}</span>
+                            </DropdownMenuItem>
 
-                                <DropdownMenuItem onSelect={e => e.preventDefault()} onClick={handleThemeToggle}>
-                                    {theme === 'light' ? (
-                                        <Sun className="mr-2 h-4 w-4" />
-                                    ) : (
-                                        <Moon className="mr-2 h-4 w-4" />
-                                    )}
-                                    <span>{theme === 'light' ? 'Light Mode' : 'Dark Mode'}</span>
-                                </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={e => e.preventDefault()} onClick={handleLanguageToggle}>
+                                <Globe className="mr-2 h-4 w-4" />
+                                <span>{i18n.language === 'en' ? 'English' : '한국어'}</span>
+                            </DropdownMenuItem>
 
-                                <DropdownMenuItem onSelect={e => e.preventDefault()} onClick={handleLanguageToggle}>
-                                    <Globe className="mr-2 h-4 w-4" />
-                                    <span>{i18n.language === 'en' ? 'English' : '한국어'}</span>
-                                </DropdownMenuItem>
+                            <DropdownMenuSeparator />
 
-                                <DropdownMenuSeparator />
-
-                                <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
-                                    <LogOut className="mr-2 h-4 w-4" />
-                                    <span>
-                                        {isLoggingOut
-                                            ? t('home.loggingOut', 'Logging out...')
-                                            : t('home.logout', 'Logout')}
-                                    </span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
+                            <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
+                                <LogOut className="mr-2 h-4 w-4" />
+                                <span>
+                                    {isLoggingOut ? t('home.loggingOut', 'Logging out...') : t('home.logout', 'Logout')}
+                                </span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
 
                 {/* Presence Status Panel */}
@@ -406,130 +487,130 @@ export const HomePage = (): JSX.Element => {
                             </div>
                         </div>
 
-                        {/* Message History */}
-                        <div className="pt-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-semibold text-foreground">📜 Message History</p>
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 px-2 text-xs"
-                                    onClick={() => setMessageHistory([])}
-                                >
-                                    Clear
-                                </Button>
-                            </div>
-                            <div className="space-y-2 h-96 overflow-y-auto rounded-md border bg-muted/20 p-3">
-                                {messageHistory.length === 0 ? (
-                                    <p className="text-xs text-muted-foreground text-center py-8">No messages yet</p>
-                                ) : (
-                                    messageHistory.map((msg, idx) => (
-                                        <div
-                                            key={idx}
-                                            className={`flex ${msg.type === 'sent' ? 'justify-end' : 'justify-start'}`}
-                                        >
-                                            <div
-                                                className={`max-w-[80%] p-2 rounded-lg text-xs ${
-                                                    msg.type === 'sent'
-                                                        ? 'bg-blue-500 text-white'
-                                                        : 'bg-green-500 text-white'
-                                                }`}
-                                            >
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="font-semibold text-[10px] opacity-80">
-                                                        {msg.type === 'sent' ? 'SENT' : 'RECV'}
-                                                    </span>
-                                                    <span className="text-[10px] opacity-70">
-                                                        {msg.time.toLocaleTimeString('ko-KR', {
-                                                            hour: '2-digit',
-                                                            minute: '2-digit',
-                                                            second: '2-digit',
-                                                        })}
-                                                    </span>
-                                                </div>
-                                                <div className="font-mono text-xs break-all">
-                                                    {typeof msg.data === 'object'
-                                                        ? JSON.stringify(msg.data)
-                                                        : String(msg.data)}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-
                         {/* Presence Status */}
                         <div className="pt-4">
                             <p className="text-sm font-semibold text-foreground mb-2">🎯 Presence Status Test</p>
+                            <div className="mb-3 p-3 rounded-md bg-muted/30">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xs text-muted-foreground">Current Status:</span>
+                                    <div className="flex items-center gap-2">
+                                        <div
+                                            className={`h-4 w-4 rounded-full ${
+                                                localStatus === 'green'
+                                                    ? 'bg-green-500'
+                                                    : localStatus === 'yellow'
+                                                      ? 'bg-yellow-500'
+                                                      : 'bg-red-500'
+                                            }`}
+                                        />
+                                        <span className="text-sm font-bold font-mono uppercase">{localStatus}</span>
+                                    </div>
+                                    <span className="text-xs text-muted-foreground ml-4">Tick:</span>
+                                    <span className="text-sm font-bold font-mono">{getTick()}</span>
+                                </div>
+                            </div>
                             <div className="flex gap-2">
                                 <Button
                                     size="sm"
-                                    variant={presenceData?.status === 'green' ? 'default' : 'outline'}
+                                    variant={localStatus === 'green' ? 'default' : 'outline'}
                                     className={`h-9 px-4 text-xs font-medium ${
-                                        presenceData?.status === 'green'
+                                        localStatus === 'green'
                                             ? 'bg-green-600 hover:bg-green-700 text-white'
                                             : 'border-green-500/50 hover:bg-green-500/10'
                                     }`}
-                                    onClick={() => {
-                                        const currentTick = getTick();
-                                        const nextTick = currentTick + 1;
-                                        send({
-                                            type: 'presence',
-                                            action: 'sync',
-                                            payload: { status: 'green', tick: nextTick },
-                                        });
-                                        setTick(nextTick);
-                                    }}
+                                    onClick={() => handleStatusChange('green')}
                                     disabled={!isConnected}
                                 >
                                     🟢 GREEN
                                 </Button>
                                 <Button
                                     size="sm"
-                                    variant={presenceData?.status === 'yellow' ? 'default' : 'outline'}
+                                    variant={localStatus === 'yellow' ? 'default' : 'outline'}
                                     className={`h-9 px-4 text-xs font-medium ${
-                                        presenceData?.status === 'yellow'
+                                        localStatus === 'yellow'
                                             ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
                                             : 'border-yellow-500/50 hover:bg-yellow-500/10'
                                     }`}
-                                    onClick={() => {
-                                        const currentTick = getTick();
-                                        const nextTick = currentTick + 1;
-                                        send({
-                                            type: 'presence',
-                                            action: 'sync',
-                                            payload: { status: 'yellow', tick: nextTick },
-                                        });
-                                        setTick(nextTick);
-                                    }}
+                                    onClick={() => handleStatusChange('yellow')}
                                     disabled={!isConnected}
                                 >
                                     🟡 YELLOW
                                 </Button>
                                 <Button
                                     size="sm"
-                                    variant={presenceData?.status === 'red' ? 'default' : 'outline'}
+                                    variant={localStatus === 'red' ? 'default' : 'outline'}
                                     className={`h-9 px-4 text-xs font-medium ${
-                                        presenceData?.status === 'red'
+                                        localStatus === 'red'
                                             ? 'bg-red-600 hover:bg-red-700 text-white'
                                             : 'border-red-500/50 hover:bg-red-500/10'
                                     }`}
-                                    onClick={() => {
-                                        const currentTick = getTick();
-                                        const nextTick = currentTick + 1;
-                                        send({
-                                            type: 'presence',
-                                            action: 'sync',
-                                            payload: { status: 'red', tick: nextTick },
-                                        });
-                                        setTick(nextTick);
-                                    }}
+                                    onClick={() => handleStatusChange('red')}
                                     disabled={!isConnected}
                                 >
                                     🔴 RED
                                 </Button>
                             </div>
+                        </div>
+
+                        {/* Pointer Sync */}
+                        <div className="pt-4">
+                            <p className="text-sm font-semibold text-foreground mb-2">👆 Pointer Sync Test</p>
+                            <div
+                                ref={pointerCanvasRef}
+                                className="relative border-2 border-dashed border-border rounded-lg bg-muted/20 cursor-crosshair overflow-hidden"
+                                style={{ width: 600, height: 300 }}
+                                onMouseMove={handlePointerMove}
+                                onMouseLeave={handlePointerLeave}
+                            >
+                                {/* Grid pattern */}
+                                <div
+                                    className="absolute inset-0 opacity-10"
+                                    style={{
+                                        backgroundImage: `
+                                            linear-gradient(to right, currentColor 1px, transparent 1px),
+                                            linear-gradient(to bottom, currentColor 1px, transparent 1px)
+                                        `,
+                                        backgroundSize: '50px 50px',
+                                    }}
+                                />
+
+                                {/* Center crosshair */}
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <div className="w-px h-full bg-border/30" />
+                                </div>
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <div className="w-full h-px bg-border/30" />
+                                </div>
+
+                                {/* Local cursor indicator */}
+                                {localPointerPosition.x > 0 && localPointerPosition.y > 0 && (
+                                    <div
+                                        className="absolute pointer-events-none"
+                                        style={{
+                                            left: localPointerPosition.x,
+                                            top: localPointerPosition.y,
+                                            transform: 'translate(-50%, -50%)',
+                                        }}
+                                    >
+                                        <div className="w-4 h-4 rounded-full bg-blue-500/50 border-2 border-blue-500 animate-pulse" />
+                                    </div>
+                                )}
+
+                                {/* Canvas label */}
+                                <div className="absolute top-2 left-2 px-2 py-1 rounded bg-background/80 text-xs font-medium">
+                                    Pointer Area (600 × 300)
+                                </div>
+
+                                {/* Coordinate display */}
+                                {localPointerPosition.x > 0 && localPointerPosition.y > 0 && (
+                                    <div className="absolute bottom-2 right-2 px-2 py-1 rounded bg-background/80 text-xs font-mono">
+                                        X: {Math.round(localPointerPosition.x)} Y: {Math.round(localPointerPosition.y)}
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                                Move your mouse in the canvas to sync position (throttled to 20fps)
+                            </p>
                         </div>
                     </div>
                 </div>
