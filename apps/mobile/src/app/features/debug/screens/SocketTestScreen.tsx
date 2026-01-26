@@ -6,7 +6,6 @@ import {
     Platform,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -14,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDeviceId, useWebSocket } from '../../../common';
 
-import type { DeviceStatus, WSSConnectParam, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
+import type { ClientStatusType, ClientSyncPayload, WSSConnectParam, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
 type LogType = 'sent' | 'received' | 'info' | 'error';
 
@@ -28,11 +27,11 @@ interface LogItem {
 const socketUrl: string = process.env.VITE_WS_ENDPOINT || '';
 
 export const SocketTestScreen = () => {
-    const STATUS_ICONS: Record<string, string> = {
+    const STATUS_ICONS: Record<ClientStatusType, string> = {
         green: '🟢',
         yellow: '🟡',
         red: '🔴',
-        unknown: '⚪',
+        '': '⚪',
     };
 
     const insets = useSafeAreaInsets();
@@ -50,29 +49,35 @@ export const SocketTestScreen = () => {
         enabled: !!deviceId,
     });
 
-    const [text, setText] = useState('');
     const [logs, setLogs] = useState<LogItem[]>([]);
-    const [deviceStatus, setDeviceStatus] = useState<DeviceStatus | unknown>('unknown');
+    const [clientStatus, setClientStatus] = useState<ClientStatusType>('');
+    const [lastMessageId, setLastMessageId] = useState<string | null>(null);
+    const [tick, setTick] = useState(0);
     const flatListRef = useRef<FlatList>(null);
-    const statusIcon = STATUS_ICONS[deviceStatus as string] ?? STATUS_ICONS.unknown;
+    const statusIcon = STATUS_ICONS[clientStatus];
 
-    const createInfoMessage = (): WSSEnvelope => ({
+    const createSystemInfoMessage = (): WSSEnvelope => ({
         type: 'system',
         action: 'info',
     });
 
-    const createStatusMessage = (status: DeviceStatus): WSSEnvelope => ({
-        type: 'presence',
-        action: 'status',
-        payload: {
-            status: status,
-        },
+    const createSyncInfoMessage = (): WSSEnvelope => ({
+        type: 'sync',
+        action: 'info',
     });
 
-    const createTextMessage = (message: string): WSSEnvelope => ({
-        type: 'system',
-        action: 'message',
-        payload: { message },
+    const createStatusMessage = (
+        status: ClientStatusType,
+        tick: number,
+        lastMessageId: string
+    ): WSSEnvelope<ClientSyncPayload> => ({
+        type: 'sync',
+        action: 'update',
+        payload: {
+            tick: tick,
+            ref: lastMessageId,
+            status: status,
+        } as ClientSyncPayload,
     });
 
     /**
@@ -112,24 +117,36 @@ export const SocketTestScreen = () => {
     };
 
     /**
-     * 디바이스 정보 전달
+     * 디바이스 정보 요청
      */
-    const handleSendInfo = () => {
+    const handleSendSystemInfo = () => {
         if (!checkConnection()) return;
-        const infoMessage: WSSEnvelope = createInfoMessage();
+        const systemInfoMessage: WSSEnvelope = createSystemInfoMessage();
 
-        sendMessage(infoMessage);
-        addLog('sent', `[Info] ${JSON.stringify(infoMessage)}`);
+        sendMessage(systemInfoMessage);
+        addLog('sent', `[Info] ${JSON.stringify(systemInfoMessage)}`);
+    };
+
+    /**
+     * 동기화 정보 요청
+     */
+    const handleSendSyncInfo = () => {
+        if (!checkConnection()) return;
+        const syncInfoMessage: WSSEnvelope = createSyncInfoMessage();
+
+        sendMessage(syncInfoMessage);
+        addLog('sent', `[Info] ${JSON.stringify(syncInfoMessage)}`);
     };
 
     /**
      * 상태 변경
      * @param status red | green | yellow
      */
-    const handleChangeStatus = (status: 'red' | 'green' | 'yellow') => {
+    const handleChangeStatus = (status: ClientStatusType) => {
         if (!checkConnection()) return;
+        if (!lastMessageId) return;
 
-        const statusMessage: WSSEnvelope = createStatusMessage(status as DeviceStatus);
+        const statusMessage = createStatusMessage(status, tick, lastMessageId);
 
         sendMessage(statusMessage);
 
@@ -149,20 +166,6 @@ export const SocketTestScreen = () => {
                 break;
         }
         addLog('sent', `${icon} [Status:${status}] ${JSON.stringify(statusMessage)}`);
-    };
-
-    /**
-     * 메시지 전송
-     */
-    const handleSendMessage = () => {
-        if (!text.trim()) return;
-        if (!checkConnection()) return;
-
-        const textMessage: WSSEnvelope = createTextMessage(text);
-
-        sendMessage(textMessage);
-        addLog('sent', JSON.stringify(textMessage));
-        setText('');
     };
 
     /**
@@ -190,8 +193,11 @@ export const SocketTestScreen = () => {
         if (isConnected) {
             addLog('info', '서버에 연결되었습니다. 상태 정보를 요청합니다...');
             try {
-                const infoMessage: WSSEnvelope = createInfoMessage();
-                sendMessage(infoMessage);
+                const systemInfoMessage: WSSEnvelope = createSystemInfoMessage();
+                const syncInfoMessage: WSSEnvelope = createSyncInfoMessage();
+
+                sendMessage(systemInfoMessage);
+                sendMessage(syncInfoMessage);
             } catch {
                 addLog('error', '초기 메시지 전송 실패');
             }
@@ -199,20 +205,29 @@ export const SocketTestScreen = () => {
     }, [isConnected]);
 
     /**
-     * 응답 데이터(lastMessage) 도착 시 핸들링
+     * 응답 데이터 도착 시 핸들링
      */
     useEffect(() => {
-        if (lastMessage?.payload) {
-            if (lastMessage.action === 'pong') return;
+        if (!lastMessage) return;
 
-            const status = lastMessage.payload.$device?.status || lastMessage.payload.status;
+        if (lastMessage.action === 'pong') return;
+        if (lastMessage.action === 'ping') return;
 
-            if (status) {
-                setDeviceStatus(status);
+        addLog('received', lastMessage.action);
+        addLog('received', JSON.stringify(lastMessage.payload, null, 2));
+
+        if (lastMessage.type === 'sync' && lastMessage.payload) {
+            const payload = lastMessage.payload as ClientSyncPayload;
+
+            if (lastMessage.payload.id) {
+                setLastMessageId(lastMessage.payload.id);
             }
 
-            addLog('received', JSON.stringify(lastMessage, null, 2));
+            setClientStatus(payload.status);
+            setTick(payload.tick);
         }
+
+        addLog('received', JSON.stringify(lastMessage, null, 2));
     }, [lastMessage]);
 
     return (
@@ -228,11 +243,35 @@ export const SocketTestScreen = () => {
                         <Text style={styles.statusText}>{isConnected ? 'Connected' : 'Disconnected'}</Text>
                     </View>
 
-                    <View style={styles.deviceStatusRow}>
-                        <Text style={styles.deviceStatusLabel}>Device Status:</Text>
-                        <Text style={styles.deviceStatusValue}>
-                            {statusIcon} {deviceStatus}
-                        </Text>
+                    <View style={styles.infoContainer}>
+                        <View style={styles.deviceStatusRow}>
+                            <Text style={styles.deviceStatusLabel}>Client Status:</Text>
+                            <Text style={styles.deviceStatusValue}>
+                                {statusIcon} {clientStatus}
+                            </Text>
+                        </View>
+                        <View style={styles.deviceStatusRow}>
+                            <Text style={styles.deviceStatusLabel}>Device ID:</Text>
+                            <Text
+                                style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}
+                                numberOfLines={1}
+                                ellipsizeMode="middle"
+                            >
+                                {deviceId ?? 'Unknown'}
+                            </Text>
+                        </View>
+
+                        <View style={styles.deviceStatusRow}>
+                            <Text style={styles.deviceStatusLabel}>Server Tick:</Text>
+                            <Text style={styles.deviceStatusValue}>#{tick}</Text>
+                        </View>
+
+                        <View style={styles.deviceStatusRow}>
+                            <Text style={styles.deviceStatusLabel}>Last Msg ID:</Text>
+                            <Text style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}>
+                                {lastMessageId ?? '-'}
+                            </Text>
+                        </View>
                     </View>
                 </View>
 
@@ -257,11 +296,19 @@ export const SocketTestScreen = () => {
             <View style={styles.bottomContainer}>
                 <View style={styles.actionRow}>
                     <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: '#8E44AD' }]}
-                        onPress={handleSendInfo}
+                        style={[styles.actionButton, { backgroundColor: '#8E44AD', marginRight: 8 }]}
+                        onPress={handleSendSystemInfo}
                         disabled={!isConnected}
                     >
-                        <Text style={styles.buttonText}>Info</Text>
+                        <Text style={styles.buttonText}>System Info</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#2980B9' }]}
+                        onPress={handleSendSyncInfo}
+                        disabled={!isConnected}
+                    >
+                        <Text style={styles.buttonText}>Sync Info</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -291,25 +338,6 @@ export const SocketTestScreen = () => {
                         <Text style={styles.buttonText}>Green</Text>
                     </TouchableOpacity>
                 </View>
-
-                <View style={styles.inputRow}>
-                    <TextInput
-                        style={styles.input}
-                        value={text}
-                        onChangeText={setText}
-                        placeholder="메시지 입력"
-                        placeholderTextColor="#666"
-                        onSubmitEditing={handleSendMessage}
-                        returnKeyType="send"
-                    />
-                    <TouchableOpacity
-                        style={[styles.sendButton, { opacity: isConnected ? 1 : 0.5 }]}
-                        onPress={handleSendMessage}
-                        disabled={!isConnected}
-                    >
-                        <Text style={styles.buttonText}>Send</Text>
-                    </TouchableOpacity>
-                </View>
             </View>
         </KeyboardAvoidingView>
     );
@@ -323,7 +351,7 @@ const styles = StyleSheet.create({
     controlPanel: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start', // 상단 정렬로 변경
         padding: 16,
         borderBottomWidth: 1,
         borderBottomColor: '#333',
@@ -332,6 +360,7 @@ const styles = StyleSheet.create({
     statusIndicator: {
         flexDirection: 'row',
         alignItems: 'center',
+        marginBottom: 8,
     },
     dot: {
         width: 10,
@@ -344,16 +373,18 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
     },
-    // ★ 추가됨: 디바이스 상태 스타일
+    // ★ 복구 및 개선된 스타일
+    infoContainer: {
+        gap: 4, // 간격 조정
+    },
     deviceStatusRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 6,
     },
     deviceStatusLabel: {
         color: '#888',
         fontSize: 12,
-        marginRight: 6,
+        width: 80,
     },
     deviceStatusValue: {
         color: '#FFFFFF',
@@ -364,6 +395,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         paddingHorizontal: 16,
         borderRadius: 8,
+        marginTop: 4,
     },
     logList: {
         flex: 1,
@@ -427,25 +459,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderRadius: 8,
         opacity: 0.9,
-    },
-    inputRow: {
-        flexDirection: 'row',
-        marginTop: 4,
-    },
-    input: {
-        flex: 1,
-        backgroundColor: '#333',
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        color: '#FFFFFF',
-        marginRight: 10,
-    },
-    sendButton: {
-        backgroundColor: '#4A90E2',
-        justifyContent: 'center',
-        paddingHorizontal: 20,
-        borderRadius: 8,
     },
     buttonText: {
         color: '#FFFFFF',
