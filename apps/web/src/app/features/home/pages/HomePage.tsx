@@ -30,6 +30,7 @@ export const HomePage = (): JSX.Element => {
     const [presenceData, setPresenceData] = useState<Record<string, unknown> | null>(null);
     const [localStatus, setLocalStatus] = useState<'green' | 'yellow' | 'red'>('green');
 
+    // channels 미지정 → default 파라미터 사용 → 기본 채널(0000)로 연결하여 Admin과 통신
     const { connect, disconnect, send: originalSend, pingCount, pongCount } = useInitWebSocket(sessionId);
     const unsubscribeRef = useRef<(() => void) | null>(null);
     const [messageFields, setMessageFields] = useState<Array<{ key: string; value: string }>>([

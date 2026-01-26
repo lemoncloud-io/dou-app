@@ -1,30 +1,18 @@
-/**
- * Channel ID for pointer sync WebSocket communication
- */
-export const POINTER_CHANNEL = '1000001';
+import type { ClientSyncPayload, DeviceModel } from '@lemoncloud/chatic-sockets-api';
 
 /**
- * Position payload for WebSocket communication
- * Matches server-defined PositionPayload interface
+ * Client status type
  */
-export interface PositionPayload {
-    /** x position (pixel) */
-    posX: number;
-    /** y position (pixel) */
-    posY: number;
-    /** client timestamp (ms) */
-    ts: number;
-    /** source device id (added by server) */
-    readonly deviceId?: string;
-}
+export type ClientStatusType = 'green' | 'yellow' | 'red' | '';
 
 /**
- * WSSEnvelope wrapper for position messages
+ * Sync message envelope (type: 'sync', action: 'update')
+ * @see chatic-sockets-api #0.26.116
  */
-export interface PositionEnvelope {
-    type: 'position';
-    action: 'sync';
-    payload: PositionPayload;
+export interface SyncEnvelope {
+    type: 'sync';
+    action: 'update';
+    payload: ClientSyncPayload;
     mid?: string;
     meta?: {
         ts?: number;
@@ -34,6 +22,27 @@ export interface PositionEnvelope {
 }
 
 /**
+ * Model message envelope (type: 'model', action: 'update')
+ * @see chatic-sockets-api #0.26.116
+ */
+export interface ModelEnvelope {
+    type: 'model';
+    action: 'update';
+    payload: ClientSyncPayload & DeviceModel;
+    mid?: string;
+    meta?: {
+        ts?: number;
+        seq?: number;
+        channel?: string;
+    };
+}
+
+/**
+ * Combined type for pointer-related messages
+ */
+export type PointerMessage = SyncEnvelope | ModelEnvelope;
+
+/**
  * Remote pointer state for display
  */
 export interface RemotePointer {
@@ -41,5 +50,10 @@ export interface RemotePointer {
     posX: number;
     posY: number;
     ts: number;
+    tick: number;
+    status: ClientStatusType;
     lastUpdated: number;
 }
+
+// Re-export types from chatic-sockets-api for convenience
+export type { ClientSyncPayload, DeviceModel };

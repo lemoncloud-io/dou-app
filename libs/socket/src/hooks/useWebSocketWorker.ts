@@ -167,7 +167,8 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
                 workerRef.current = null;
             }
         };
-    }, [enabled, disconnect]);
+         
+    }, [enabled]);
 
     return {
         id,

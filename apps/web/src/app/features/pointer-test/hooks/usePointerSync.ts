@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef } from 'react';
 
 import { POINTER_CHANNEL } from '../types';
 
-import type { PositionPayload } from '../types';
+import type { PositionPayload, SyncEnvelope } from '../types';
 
 const THROTTLE_MS = 50; // 20fps
 
@@ -18,6 +18,7 @@ interface UsePointerSyncReturn {
 /**
  * Hook for sending mouse pointer position via WebSocket
  * Throttles updates to 20fps (50ms) for network efficiency
+ * @see chatic-sockets-api #0.26.116 - uses type: 'sync', action: 'update'
  */
 export const usePointerSync = ({ send, isConnected }: UsePointerSyncOptions): UsePointerSyncReturn => {
     const lastSentRef = useRef<number>(0);
@@ -35,11 +36,13 @@ export const usePointerSync = ({ send, isConnected }: UsePointerSyncOptions): Us
                 posX: Math.round(posX),
                 posY: Math.round(posY),
                 ts: now,
+                tick: 0,
+                status: 'green',
             };
 
-            const message = {
-                type: 'position',
-                action: 'sync',
+            const message: SyncEnvelope = {
+                type: 'sync',
+                action: 'update',
                 payload,
                 meta: {
                     channel: POINTER_CHANNEL,

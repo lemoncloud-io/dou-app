@@ -1,3 +1,4 @@
+/* eslint-disable */
 let ws = null;
 let pingInterval = null;
 let connectionId = null;
@@ -70,7 +71,12 @@ const connectWebSocket = config => {
         ws = null;
     }
 
-    let wsUrl = endpoint + '?' + authQueryParam + '=' + token + '&default=&info=';
+    // channels가 지정되면 default 파라미터를 제외 (default가 있으면 기본 채널 0000으로 연결됨)
+    let wsUrl = endpoint + '?' + authQueryParam + '=' + token;
+    if (!channels) {
+        wsUrl += '&default=';
+    }
+    wsUrl += '&info=';
     if (sessionId) {
         wsUrl += '&deviceId=' + sessionId;
     }
@@ -79,7 +85,7 @@ const connectWebSocket = config => {
     }
 
     self.postMessage({ type: 'status', status: 'connecting' });
-    self.postMessage({ type: 'log', message: 'Connecting to: ' + endpoint });
+    self.postMessage({ type: 'log', message: 'Connecting to: ' + wsUrl });
 
     ws = new WebSocket(wsUrl);
 
@@ -157,6 +163,7 @@ self.onmessage = e => {
 
     switch (type) {
         case 'connect':
+            self.postMessage({ type: 'log', message: 'Connect config: ' + JSON.stringify(config) });
             isManualDisconnect = false;
             reconnectAttempts = 0;
             currentConfig = config;

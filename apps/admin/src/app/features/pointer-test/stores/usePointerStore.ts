@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 
-import type { RemotePointer } from '../types';
+import type { ClientStatusType, RemotePointer } from '../types';
 
 interface PointerState {
     pointers: Map<string, RemotePointer>;
 }
 
 interface PointerActions {
-    setPointer: (deviceId: string, posX: number, posY: number, ts: number) => void;
+    setPointer: (deviceId: string, posX: number, posY: number, ts: number, tick?: number, status?: string) => void;
     removePointer: (deviceId: string) => void;
     clearPointers: () => void;
 }
@@ -19,7 +19,7 @@ interface PointerActions {
 const store = create<PointerState & PointerActions>(set => ({
     pointers: new Map(),
 
-    setPointer: (deviceId: string, posX: number, posY: number, ts: number): void => {
+    setPointer: (deviceId: string, posX: number, posY: number, ts: number, tick = 0, status = ''): void => {
         set(state => {
             const newPointers = new Map(state.pointers);
             newPointers.set(deviceId, {
@@ -27,6 +27,8 @@ const store = create<PointerState & PointerActions>(set => ({
                 posX,
                 posY,
                 ts,
+                tick,
+                status: status as ClientStatusType,
                 lastUpdated: Date.now(),
             });
             return { pointers: newPointers };

@@ -4,8 +4,8 @@ set -euo pipefail
 # Constants
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-APP_NAME="web"
-BUCKET_NAME="chatic-front-web"
+APP_NAME="admin"
+BUCKET_NAME="chatic-front-admin"
 DEV_DISTRIBUTION_ID="TODO"        # TODO: Update with actual CloudFront distribution ID
 PROD_DISTRIBUTION_ID="TODO"       # TODO: Update with actual CloudFront distribution ID
 DIST_DIR="${PROJECT_ROOT}/dist/apps/${APP_NAME}"
@@ -72,9 +72,9 @@ validate_environment() {
     if [ ! -d "${DIST_DIR}" ]; then
         log_error "Build directory ${DIST_DIR} does not exist"
         if [ -n "$deploy_env" ]; then
-            log_error "Please run 'yarn web:build:${deploy_env}' first"
+            log_error "Please run 'yarn admin:build:${deploy_env}' first"
         else
-            log_error "Please run 'yarn web:build' first"
+            log_error "Please run 'yarn admin:build' first"
         fi
         exit 1
     fi
