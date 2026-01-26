@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 
 import { ArrowLeft } from 'lucide-react';
 
-import { useInitWebSocket, useWebSocketStore } from '@chatic/socket';
+import { useWebSocketStore } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { useSessionId } from '../../home/hooks/useSessionId';
 import { PointerCanvas } from '../components';
-import { usePointerSync } from '../hooks';
+import { useInitPointerWebSocket, usePointerSync } from '../hooks';
 
 import type { JSX } from 'react';
 
@@ -22,7 +22,7 @@ const CANVAS_HEIGHT = 400;
 export const PointerTestPage = (): JSX.Element => {
     const sessionId = useSessionId();
     const { isConnected, connectionStatus } = useWebSocketStore();
-    const { connect, disconnect, send } = useInitWebSocket(sessionId);
+    const { connect, disconnect, send } = useInitPointerWebSocket(sessionId);
     const { sendPosition } = usePointerSync({ send, isConnected });
 
     const handlePointerMove = useCallback(
@@ -110,7 +110,10 @@ export const PointerTestPage = (): JSX.Element => {
                             1. Mouse position is captured on canvas ({CANVAS_WIDTH}×{CANVAS_HEIGHT} pixels)
                         </p>
                         <p>2. Position is throttled to 50ms intervals (20fps)</p>
-                        <p>3. WebSocket sends: {'{ type: "position", action: "sync", payload: { posX, posY, ts } }'}</p>
+                        <p>
+                            3. WebSocket sends:{' '}
+                            {'{ type: "sync", action: "update", payload: { posX, posY, ts, tick, status } }'}
+                        </p>
                         <p>4. Server broadcasts to Admin channel</p>
                     </div>
                 </div>
