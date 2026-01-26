@@ -1,11 +1,6 @@
 import type { ClientSyncPayload, DeviceModel } from '@lemoncloud/chatic-sockets-api';
 
 /**
- * Channel ID for pointer sync WebSocket communication
- */
-export const POINTER_CHANNEL = '1000001';
-
-/**
  * Client status type
  */
 export type ClientStatusType = 'green' | 'yellow' | 'red' | '';

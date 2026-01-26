@@ -1,55 +1,11 @@
 import { useCallback, useEffect } from 'react';
 
-import { useWebSocketStore, useWebSocketWorker } from '@chatic/socket';
+import { parsePointerWebSocketMessage, useWebSocketStore, useWebSocketWorker } from '@chatic/socket';
 import { webCore } from '@chatic/web-core';
 
 import type { WebSocketMessage } from '@chatic/socket';
 
 const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT || '';
-
-/**
- * Type guard to check if value is a non-null object
- */
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
-
-/**
- * Safely extract string value from object
- */
-const getStringValue = (obj: Record<string, unknown>, key: string): string | undefined => {
-    const value = obj[key];
-    return typeof value === 'string' ? value : undefined;
-};
-
-/**
- * Parse raw WebSocket message data into generic WebSocketMessage
- * For pointer messages, uses 'type' as fallback ID since position messages don't have id/mid
- */
-const parseWebSocketMessage = (data: unknown): WebSocketMessage | null => {
-    if (!isObject(data)) {
-        console.log('[PointerSocket] parseWebSocketMessage: not an object', data);
-        return null;
-    }
-
-    const payload =
-        'action' in data && data['action'] === 'message' && 'data' in data && isObject(data['data'])
-            ? data['data']
-            : data;
-
-    // Try to get messageId from id, mid, or fallback to type for routing
-    const messageId =
-        getStringValue(payload, 'id') ?? getStringValue(payload, 'mid') ?? getStringValue(payload, 'type') ?? 'unknown';
-
-    console.log('[PointerSocket] parseWebSocketMessage:', {
-        messageId,
-        type: getStringValue(payload, 'type'),
-        data: payload,
-    });
-
-    return {
-        id: messageId,
-        data: payload,
-    };
-};
 
 export interface UseInitPointerWebSocketReturn {
     connectionId: string | null;
@@ -85,7 +41,7 @@ export const useInitPointerWebSocket = (sessionId?: string): UseInitPointerWebSo
         useWebSocketWorker<WebSocketMessage>({
             endpoint: WS_ENDPOINT,
             tokenProvider,
-            messageParser: parseWebSocketMessage,
+            messageParser: parsePointerWebSocketMessage,
             enabled: true,
             logPrefix: '[PointerSocket]',
             sessionId,
@@ -104,7 +60,6 @@ export const useInitPointerWebSocket = (sessionId?: string): UseInitPointerWebSo
     // Broadcast messages to subscribers
     useEffect(() => {
         if (lastMessage) {
-            console.log('[PointerSocket] Broadcasting message:', lastMessage.data);
             broadcastMessage(lastMessage);
         }
     }, [lastMessage, broadcastMessage]);

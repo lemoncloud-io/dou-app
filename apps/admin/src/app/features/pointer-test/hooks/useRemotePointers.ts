@@ -61,15 +61,12 @@ export const useRemotePointers = (mySessionId?: string): void => {
 
     useEffect(() => {
         const unsubscribe = subscribe(message => {
-            console.log('[useRemotePointers] Received message:', message.data);
-
             if (isPointerMessage(message.data)) {
                 const { payload } = message.data;
                 const deviceId = extractDeviceId(message.data);
 
                 // Filter out own messages
                 if (mySessionId && deviceId === mySessionId) {
-                    console.log('[useRemotePointers] Ignoring own message:', deviceId);
                     return;
                 }
 
@@ -77,11 +74,6 @@ export const useRemotePointers = (mySessionId?: string): void => {
                 const tick = payload.tick ?? 0;
                 const status = payload.status ?? '';
 
-                console.log('[useRemotePointers] Pointer update:', {
-                    deviceId,
-                    posX: payload.posX,
-                    posY: payload.posY,
-                });
                 setPointer(deviceId, payload.posX, payload.posY, ts, tick, status);
             }
         });
