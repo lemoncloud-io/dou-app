@@ -3,6 +3,8 @@ import { useCallback, useEffect } from 'react';
 import { useWebSocketStore, useWebSocketWorker } from '@chatic/socket';
 import { webCore } from '@chatic/web-core';
 
+import { POINTER_CHANNEL } from '../types';
+
 import type { WebSocketMessage } from '@chatic/socket';
 
 const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT || '';
@@ -22,11 +24,9 @@ const getStringValue = (obj: Record<string, unknown>, key: string): string | und
 
 /**
  * Parse raw WebSocket message data into generic WebSocketMessage
- * For pointer messages, uses 'type' as fallback ID since position messages don't have id/mid
  */
 const parseWebSocketMessage = (data: unknown): WebSocketMessage | null => {
     if (!isObject(data)) {
-        console.log('[PointerSocket] parseWebSocketMessage: not an object', data);
         return null;
     }
 
@@ -35,15 +35,8 @@ const parseWebSocketMessage = (data: unknown): WebSocketMessage | null => {
             ? data['data']
             : data;
 
-    // Try to get messageId from id, mid, or fallback to type for routing
     const messageId =
         getStringValue(payload, 'id') ?? getStringValue(payload, 'mid') ?? getStringValue(payload, 'type') ?? 'unknown';
-
-    console.log('[PointerSocket] parseWebSocketMessage:', {
-        messageId,
-        type: getStringValue(payload, 'type'),
-        data: payload,
-    });
 
     return {
         id: messageId,
@@ -61,10 +54,9 @@ export interface UseInitPointerWebSocketReturn {
 }
 
 /**
- * Pointer-specific WebSocket initialization hook
+ * Pointer-specific WebSocket initialization hook for Web
+ * - Subscribes to POINTER_CHANNEL for receiving messages
  * - Uses Web Worker to prevent background tab throttling
- * - Syncs connection state to useWebSocketStore
- * - Broadcasts ALL messages (including those without id/mid)
  */
 export const useInitPointerWebSocket = (sessionId?: string): UseInitPointerWebSocketReturn => {
     const setId = useWebSocketStore(state => state.setId);
@@ -81,15 +73,17 @@ export const useInitPointerWebSocket = (sessionId?: string): UseInitPointerWebSo
         }
     }, []);
 
+    console.log('[useInitPointerWebSocket] POINTER_CHANNEL:', POINTER_CHANNEL);
+
     const { id, connectionId, connectionStatus, lastMessage, disconnect, connect, send, pingCount, pongCount } =
         useWebSocketWorker<WebSocketMessage>({
             endpoint: WS_ENDPOINT,
             tokenProvider,
             messageParser: parseWebSocketMessage,
-            enabled: true,
+            enabled: false,
             logPrefix: '[PointerSocket]',
             sessionId,
-            // channels 미지정 → default 파라미터 사용 → 기본 채널(0000)로 연결하여 디바이스 브로드캐스트 수신
+            channels: POINTER_CHANNEL,
         });
 
     // Sync state to store
@@ -104,7 +98,6 @@ export const useInitPointerWebSocket = (sessionId?: string): UseInitPointerWebSo
     // Broadcast messages to subscribers
     useEffect(() => {
         if (lastMessage) {
-            console.log('[PointerSocket] Broadcasting message:', lastMessage.data);
             broadcastMessage(lastMessage);
         }
     }, [lastMessage, broadcastMessage]);

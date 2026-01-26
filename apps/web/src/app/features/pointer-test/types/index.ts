@@ -1,3 +1,5 @@
+import type { ClientSyncPayload } from '@lemoncloud/chatic-sockets-api';
+
 /**
  * Channel ID for pointer sync WebSocket communication
  */
@@ -5,7 +7,7 @@ export const POINTER_CHANNEL = '1000001';
 
 /**
  * Position payload for WebSocket communication
- * Matches server-defined PositionPayload interface
+ * @see chatic-sockets-api #0.26.116 ClientSyncPayload
  */
 export interface PositionPayload {
     /** x position (pixel) */
@@ -14,16 +16,19 @@ export interface PositionPayload {
     posY: number;
     /** client timestamp (ms) */
     ts: number;
-    /** (readonly) source device id (added by server) */
-    readonly deviceId?: string;
+    /** tick count (server sync) */
+    tick: number;
+    /** status indicator */
+    status: string;
 }
 
 /**
- * WSSEnvelope wrapper for position messages
+ * Sync message envelope for position updates
+ * @see chatic-sockets-api #0.26.116
  */
-export interface PositionEnvelope {
-    type: 'position';
-    action: 'sync';
+export interface SyncEnvelope {
+    type: 'sync';
+    action: 'update';
     payload: PositionPayload;
     mid?: string;
     meta?: {
@@ -40,3 +45,6 @@ export interface CanvasDimensions {
     width: number;
     height: number;
 }
+
+// Re-export for convenience
+export type { ClientSyncPayload };

@@ -117,7 +117,7 @@ export const DeviceCard = ({ device }: DeviceCardProps): JSX.Element => {
             {
                 onSuccess: () => {
                     toast.success('Disconnect request sent', {
-                        description: `Device: ${device.id.slice(0, 8)}...`,
+                        description: `Device: ${device.id?.slice(0, 8) ?? '-'}...`,
                     });
                 },
                 onError: error => {
@@ -160,11 +160,11 @@ export const DeviceCard = ({ device }: DeviceCardProps): JSX.Element => {
                             <TooltipTrigger asChild>
                                 <div className="flex items-center gap-1.5 text-muted-foreground">
                                     <Monitor className="h-3 w-3" />
-                                    <span className="font-mono truncate">{device.id.slice(0, 8)}...</span>
+                                    <span className="font-mono truncate">{device.id?.slice(0, 8) ?? '-'}...</span>
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p className="font-mono text-xs">{device.id}</p>
+                                <p className="font-mono text-xs">{device.id ?? '-'}</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
@@ -174,11 +174,11 @@ export const DeviceCard = ({ device }: DeviceCardProps): JSX.Element => {
                             <TooltipTrigger asChild>
                                 <div className="flex items-center gap-1.5 text-muted-foreground">
                                     <Link className="h-3 w-3" />
-                                    <span className="font-mono truncate">{device.connId.slice(0, 8)}...</span>
+                                    <span className="font-mono truncate">{device.connId?.slice(0, 8) ?? '-'}...</span>
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p className="font-mono text-xs">{device.connId}</p>
+                                <p className="font-mono text-xs">{device.connId ?? '-'}</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>

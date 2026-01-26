@@ -1,6 +1,7 @@
 import nx from '@nx/eslint-plugin';
 import unusedImports from 'eslint-plugin-unused-imports';
 import importPlugin from 'eslint-plugin-import';
+import reactHooks from 'eslint-plugin-react-hooks';
 
 export default [
     ...nx.configs['flat/base'],
@@ -13,6 +14,7 @@ export default [
         plugins: {
             import: importPlugin,
             'unused-imports': unusedImports,
+            'react-hooks': reactHooks,
         },
     },
     {
