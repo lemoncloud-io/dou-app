@@ -22,7 +22,6 @@
         "react-native-safe-area-context": "*",
         "react-native-webview": "*",
         "zustand": "*",
-        "@lemoncloud/chatic-sockets-api": "*",
         "react-native-uuid": "*",
         "@react-native-async-storage/async-storage": "*"
     },
