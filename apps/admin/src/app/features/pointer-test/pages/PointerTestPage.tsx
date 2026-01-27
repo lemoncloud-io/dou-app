@@ -41,7 +41,6 @@ export const PointerTestPage = (): JSX.Element => {
         ts: number;
     } | null>(null);
 
-    const lastSentPointerRef = useRef<number>(0);
     const pointerCanvasRef = useRef<HTMLDivElement>(null);
     const retryCountRef = useRef<number>(0);
     const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -49,15 +48,10 @@ export const PointerTestPage = (): JSX.Element => {
 
     // Refs for latest values (to avoid useEffect re-subscription)
     const localStatusRef = useRef(localStatus);
-    const localPointerPositionRef = useRef(localPointerPosition);
 
     useEffect(() => {
         localStatusRef.current = localStatus;
     }, [localStatus]);
-
-    useEffect(() => {
-        localPointerPositionRef.current = localPointerPosition;
-    }, [localPointerPosition]);
 
     // Tick management
     const getTickKey = useCallback(() => `pointer_tick_${sessionId}`, [sessionId]);
@@ -119,12 +113,6 @@ export const PointerTestPage = (): JSX.Element => {
                         if (payload.status) {
                             setLocalStatus(payload.status as ClientStatusType);
                         }
-                        if (payload.posX !== undefined && payload.posY !== undefined) {
-                            setLocalPointerPosition({
-                                x: payload.posX as number,
-                                y: payload.posY as number,
-                            });
-                        }
                     } else {
                         // Server tick is smaller or equal - exponential backoff retry
                         if (retryTimeoutRef.current) return;
@@ -140,8 +128,8 @@ export const PointerTestPage = (): JSX.Element => {
                                 payload: {
                                     id: sessionId,
                                     status: localStatusRef.current,
-                                    posX: Math.round(localPointerPositionRef.current.x),
-                                    posY: Math.round(localPointerPositionRef.current.y),
+                                    posX: 0,
+                                    posY: 0,
                                     ts: Date.now(),
                                     tick: myTick,
                                 },
@@ -162,7 +150,10 @@ export const PointerTestPage = (): JSX.Element => {
         void connect();
     }, [connect]);
 
-    // Pointer sync handler
+    // Ref for throttling pointer broadcasts
+    const lastSentPointerRef = useRef<number>(0);
+
+    // Pointer position handler - updates local state AND broadcasts
     const handlePointerMove = useCallback(
         (e: MouseEvent<HTMLDivElement>) => {
             if (!pointerCanvasRef.current || !isConnected) return;
@@ -457,9 +448,9 @@ export const PointerTestPage = (): JSX.Element => {
                     </div>
                 </div>
 
-                {/* Local Pointer Sync Area */}
+                {/* Local Pointer Area - broadcasts Admin pointer position */}
                 <div className="p-4 rounded-lg border bg-card mb-6">
-                    <h2 className="text-sm font-medium text-muted-foreground mb-3">👆 Local Pointer Sync</h2>
+                    <h2 className="text-sm font-medium text-muted-foreground mb-3">👆 Local Pointer (Admin)</h2>
                     <div
                         ref={pointerCanvasRef}
                         className="relative border-2 border-dashed border-border rounded-lg bg-muted/20 cursor-crosshair overflow-hidden"
@@ -495,7 +486,7 @@ export const PointerTestPage = (): JSX.Element => {
 
                         {/* Canvas label */}
                         <div className="absolute top-2 left-2 px-2 py-1 rounded bg-background/80 text-xs font-medium">
-                            Local Pointer Area ({CANVAS_WIDTH} × 200)
+                            Admin Pointer Area ({CANVAS_WIDTH} × 200)
                         </div>
 
                         {/* Coordinate display */}
@@ -506,7 +497,7 @@ export const PointerTestPage = (): JSX.Element => {
                         )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
-                        Move your mouse in the canvas to sync position (throttled to 20fps)
+                        Move your mouse to broadcast position (throttled to 20fps)
                     </p>
                 </div>
 
