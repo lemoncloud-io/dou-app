@@ -31,8 +31,7 @@ export const FloatingMenu = ({ onNavigate }: FloatingMenuProps) => {
     };
 
     const menuItems: { id: string; label: string; target: keyof RootStackParamList }[] = [
-        { id: 'web', label: 'WebView Screen', target: 'Main' },
-        { id: 'sample', label: 'Sample Screen', target: 'Sample' },
+        { id: 'web', label: 'Main Screen', target: 'Main' },
         { id: 'debug', label: 'Debug Menu Screen', target: 'Debug' },
     ];
 
