@@ -110,26 +110,33 @@ export const HomePage = (): JSX.Element => {
                         return;
                     }
 
-                    const serverTick = (payload.tick as number) ?? 0;
+                    const incomingTick = (payload.tick as number) ?? 0;
+                    const currentServerTick = serverData?.tick ?? 0;
+
+                    // 새로 들어온 tick이 현재 저장된 serverTick보다 작으면 무시
+                    if (incomingTick < currentServerTick) {
+                        return;
+                    }
+
                     const myTick = getTick();
 
                     // Update server data for comparison UI
                     setServerData({
-                        tick: serverTick,
+                        tick: incomingTick,
                         status: (payload.status as 'green' | 'yellow' | 'red') ?? 'green',
                         posX: (payload.posX as number) ?? 0,
                         posY: (payload.posY as number) ?? 0,
                         ts: (payload.ts as number) ?? Date.now(),
                     });
 
-                    if (serverTick > myTick) {
+                    if (incomingTick > myTick) {
                         // 서버 tick이 크면 서버 상태 적용
                         retryCountRef.current = 0; // 성공하면 리셋
                         if (retryTimeoutRef.current) {
                             clearTimeout(retryTimeoutRef.current);
                             retryTimeoutRef.current = null;
                         }
-                        setTick(serverTick);
+                        setTick(incomingTick);
                         if (payload.status) {
                             setLocalStatus(payload.status as 'green' | 'yellow' | 'red');
                         }
@@ -205,9 +212,9 @@ export const HomePage = (): JSX.Element => {
 
             setLocalPointerPosition({ x, y });
 
-            // Throttle to 50ms (20fps)
+            // Throttle to 62.5ms (16fps)
             const now = Date.now();
-            if (now - lastSentPointerRef.current < 50) return;
+            if (now - lastSentPointerRef.current < 62.5) return;
             lastSentPointerRef.current = now;
 
             const currentTick = getTick();
@@ -229,7 +236,23 @@ export const HomePage = (): JSX.Element => {
 
     const handlePointerLeave = useCallback(() => {
         setLocalPointerPosition({ x: 0, y: 0 });
-    }, []);
+
+        if (!isConnected) return;
+
+        const currentTick = getTick();
+        send({
+            type: 'sync',
+            action: 'update',
+            payload: {
+                id: sessionId,
+                status: localStatus,
+                posX: 0,
+                posY: 0,
+                ts: Date.now(),
+                tick: currentTick,
+            },
+        });
+    }, [isConnected, send, localStatus, sessionId]);
 
     // Status change handler
     const handleStatusChange = useCallback(
@@ -735,7 +758,21 @@ export const HomePage = (): JSX.Element => {
                                             transform: 'translate(-50%, -50%)',
                                         }}
                                     >
-                                        <div className="w-4 h-4 rounded-full bg-blue-500/50 border-2 border-blue-500 animate-pulse" />
+                                        <div className="w-4 h-4 rounded-full bg-green-500/50 border-2 border-green-500 animate-pulse" />
+                                    </div>
+                                )}
+
+                                {/* Server cursor indicator */}
+                                {serverData && serverData.posX > 0 && serverData.posY > 0 && (
+                                    <div
+                                        className="absolute pointer-events-none"
+                                        style={{
+                                            left: serverData.posX,
+                                            top: serverData.posY,
+                                            transform: 'translate(-50%, -50%)',
+                                        }}
+                                    >
+                                        <div className="w-4 h-4 rounded-full bg-blue-500/50 border-2 border-blue-500" />
                                     </div>
                                 )}
 
