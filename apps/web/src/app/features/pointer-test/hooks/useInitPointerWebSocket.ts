@@ -3,6 +3,8 @@ import { useCallback, useEffect } from 'react';
 import { parsePointerWebSocketMessage, useWebSocketStore, useWebSocketWorker } from '@chatic/socket';
 import { webCore } from '@chatic/web-core';
 
+import { POINTER_CHANNEL } from '../types';
+
 import type { WebSocketMessage } from '@chatic/socket';
 
 const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT || '';
@@ -17,10 +19,9 @@ export interface UseInitPointerWebSocketReturn {
 }
 
 /**
- * Pointer-specific WebSocket initialization hook
+ * Pointer-specific WebSocket initialization hook for Web
+ * - Subscribes to POINTER_CHANNEL for receiving messages
  * - Uses Web Worker to prevent background tab throttling
- * - Syncs connection state to useWebSocketStore
- * - Broadcasts ALL messages (including those without id/mid)
  */
 export const useInitPointerWebSocket = (sessionId?: string): UseInitPointerWebSocketReturn => {
     const setId = useWebSocketStore(state => state.setId);
@@ -42,10 +43,10 @@ export const useInitPointerWebSocket = (sessionId?: string): UseInitPointerWebSo
             endpoint: WS_ENDPOINT,
             tokenProvider,
             messageParser: parsePointerWebSocketMessage,
-            enabled: true,
+            enabled: false,
             logPrefix: '[PointerSocket]',
             sessionId,
-            // channels 미지정 → default 파라미터 사용 → 기본 채널(0000)로 연결하여 디바이스 브로드캐스트 수신
+            channels: POINTER_CHANNEL,
         });
 
     // Sync state to store

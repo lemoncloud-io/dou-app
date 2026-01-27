@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { type JSX, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { ArrowLeft, Home } from 'lucide-react';
