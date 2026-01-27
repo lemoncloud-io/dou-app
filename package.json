@@ -29,12 +29,14 @@
         "web:build:prod": "yarn clean:cache && npx nx build --configuration=prod web",
         "web:deploy:dev": "(rm -rf ./dist/apps/web || true) && yarn web:build:dev && ./scripts/deploy-web.sh dev",
         "web:deploy:prod": "(rm -rf ./dist/apps/web || true) && yarn web:build:prod && ./scripts/deploy-web.sh prod",
-        "web:deploy": "yarn web:build:dev && ./scripts/deploy-web.sh",
+        "web:deploy": "(rm -rf ./dist/apps/web || true) && yarn web:build:dev && ./scripts/deploy-web.sh",
         "!admin": "------------- Admin scripts -------------",
-        "admin:start": "yarn clean:cache && npx nx serve admin --port 5001",
+        "admin:start": "npx nx serve admin --port 5001",
         "admin:build:dev": "yarn clean:cache && npx nx build --configuration=dev admin",
         "admin:build:prod": "yarn clean:cache && npx nx build --configuration=prod admin",
-        "admin:deploy": "yarn admin:build:dev && ./scripts/deploy-admin.sh"
+        "admin:deploy:dev": "(rm -rf ./dist/apps/admin || true) && yarn admin:build:dev && ./scripts/deploy-admin.sh dev",
+        "admin:deploy:prod": "(rm -rf ./dist/apps/admin || true) && yarn admin:build:prod && ./scripts/deploy-admin.sh prod",
+        "admin:deploy": "(rm -rf ./dist/apps/admin || true) && yarn admin:build:dev && ./scripts/deploy-admin.sh"
     },
     "private": true,
     "dependencies": {
