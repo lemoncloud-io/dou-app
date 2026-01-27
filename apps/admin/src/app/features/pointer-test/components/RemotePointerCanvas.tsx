@@ -34,127 +34,127 @@ const getPointerColors = (deviceId: string): { solid: string; transparent: strin
 /**
  * Canvas component that displays remote pointer positions
  * Shows cursors from all connected devices
+ * Optimized for dashboard display
  */
-export const RemotePointerCanvas = ({ width = 600, height = 400 }: RemotePointerCanvasProps): JSX.Element => {
+export const RemotePointerCanvas = ({ width = 800, height = 500 }: RemotePointerCanvasProps): JSX.Element => {
     const pointers = usePointerStore(state => state.pointers);
 
     const pointerList = useMemo(() => Array.from(pointers.values()), [pointers]);
 
     return (
-        <div className="relative">
+        <div
+            className="relative rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900 overflow-hidden shadow-inner"
+            style={{ width, height }}
+        >
+            {/* Dot grid pattern */}
             <div
-                className="relative border-2 border-dashed border-border rounded-lg bg-muted/20 overflow-hidden"
-                style={{ width, height }}
-            >
-                {/* Grid pattern */}
+                className="absolute inset-0 opacity-20"
+                style={{
+                    backgroundImage: `radial-gradient(circle, currentColor 1px, transparent 1px)`,
+                    backgroundSize: '40px 40px',
+                }}
+            />
+
+            {/* Axis lines */}
+            <div className="absolute inset-0">
+                {/* Vertical center line */}
                 <div
-                    className="absolute inset-0 opacity-10"
-                    style={{
-                        backgroundImage: `
-                            linear-gradient(to right, currentColor 1px, transparent 1px),
-                            linear-gradient(to bottom, currentColor 1px, transparent 1px)
-                        `,
-                        backgroundSize: '50px 50px',
-                    }}
+                    className="absolute top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-slate-500/30 to-transparent"
+                    style={{ left: '50%' }}
                 />
-
-                {/* Center crosshair */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-px h-full bg-border/30" />
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-full h-px bg-border/30" />
-                </div>
-
-                {/* Remote cursors */}
-                {pointerList.map((pointer: RemotePointer) => {
-                    const colors = getPointerColors(pointer.deviceId);
-                    return (
-                        <div
-                            key={pointer.deviceId}
-                            className="absolute pointer-events-none transition-all duration-75 ease-out"
-                            style={{
-                                left: pointer.posX,
-                                top: pointer.posY,
-                                transform: 'translate(-50%, -50%)',
-                            }}
-                        >
-                            {/* Cursor dot */}
-                            <div
-                                className="w-4 h-4 rounded-full border-2 shadow-lg"
-                                style={{
-                                    backgroundColor: colors.transparent,
-                                    borderColor: colors.solid,
-                                }}
-                            />
-                            {/* Device ID label */}
-                            <div
-                                className="absolute top-5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded text-[10px] font-mono whitespace-nowrap shadow-md"
-                                style={{
-                                    backgroundColor: colors.solid,
-                                    color: 'white',
-                                }}
-                            >
-                                {pointer.deviceId.slice(0, 8)}
-                            </div>
-                        </div>
-                    );
-                })}
-
-                {/* Canvas label */}
-                <div className="absolute top-2 left-2 px-2 py-1 rounded bg-background/80 text-xs font-medium">
-                    Remote Pointers ({width} × {height})
-                </div>
-
-                {/* Connection count */}
-                <div className="absolute top-2 right-2 px-2 py-1 rounded bg-background/80 text-xs font-mono">
-                    {pointerList.length} device{pointerList.length !== 1 ? 's' : ''}
-                </div>
-
-                {/* No pointers message */}
-                {pointerList.length === 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="text-center text-muted-foreground">
-                            <p className="text-sm">No remote pointers</p>
-                            <p className="text-xs mt-1">Waiting for Web App connections...</p>
-                        </div>
-                    </div>
-                )}
+                {/* Horizontal center line */}
+                <div
+                    className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-500/30 to-transparent"
+                    style={{ top: '50%' }}
+                />
             </div>
 
-            {/* Pointer list */}
-            {pointerList.length > 0 && (
-                <div className="mt-4 space-y-2">
-                    <h4 className="text-xs font-medium text-muted-foreground">Active Pointers</h4>
-                    <div className="grid gap-2">
-                        {pointerList.map((pointer: RemotePointer) => {
-                            const colors = getPointerColors(pointer.deviceId);
-                            const age = Date.now() - pointer.lastUpdated;
-                            const isStale = age > STALE_THRESHOLD_MS;
+            {/* Quadrant labels */}
+            <div className="absolute top-3 left-3 text-[10px] font-mono text-slate-500">0,0</div>
+            <div className="absolute top-3 right-3 text-[10px] font-mono text-slate-500">{width},0</div>
+            <div className="absolute bottom-3 left-3 text-[10px] font-mono text-slate-500">0,{height}</div>
+            <div className="absolute bottom-3 right-3 text-[10px] font-mono text-slate-500">
+                {width},{height}
+            </div>
 
-                            return (
-                                <div
-                                    key={pointer.deviceId}
-                                    className={`flex items-center justify-between p-2 rounded-md border ${
-                                        isStale ? 'opacity-50' : ''
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <div
-                                            className="w-3 h-3 rounded-full"
-                                            style={{ backgroundColor: colors.solid }}
-                                        />
-                                        <span className="text-xs font-mono">{pointer.deviceId.slice(0, 12)}...</span>
-                                    </div>
-                                    <div className="text-xs text-muted-foreground font-mono">
-                                        ({pointer.posX}, {pointer.posY})
-                                    </div>
-                                </div>
-                            );
-                        })}
+            {/* Remote cursors */}
+            {pointerList.map((pointer: RemotePointer) => {
+                const colors = getPointerColors(pointer.deviceId);
+                const age = Date.now() - pointer.lastUpdated;
+                const isStale = age > STALE_THRESHOLD_MS;
+
+                return (
+                    <div
+                        key={pointer.deviceId}
+                        className={`absolute pointer-events-none transition-all duration-100 ease-out ${isStale ? 'opacity-40' : ''}`}
+                        style={{
+                            left: pointer.posX,
+                            top: pointer.posY,
+                            transform: 'translate(-50%, -50%)',
+                        }}
+                    >
+                        {/* Cursor outer ring */}
+                        <div
+                            className="absolute w-8 h-8 rounded-full -translate-x-1/2 -translate-y-1/2 animate-ping"
+                            style={{
+                                backgroundColor: colors.transparent,
+                                opacity: 0.3,
+                                animationDuration: '2s',
+                            }}
+                        />
+                        {/* Cursor dot */}
+                        <div
+                            className="w-5 h-5 rounded-full border-2 shadow-lg shadow-black/30"
+                            style={{
+                                backgroundColor: colors.transparent,
+                                borderColor: colors.solid,
+                            }}
+                        />
+                        {/* Device ID label */}
+                        <div
+                            className="absolute top-6 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md text-[11px] font-mono whitespace-nowrap shadow-lg"
+                            style={{
+                                backgroundColor: colors.solid,
+                                color: 'white',
+                            }}
+                        >
+                            {pointer.deviceId.slice(0, 8)}
+                        </div>
+                        {/* Status indicator */}
+                        <div
+                            className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white/50 ${
+                                pointer.status === 'green'
+                                    ? 'bg-green-500'
+                                    : pointer.status === 'yellow'
+                                      ? 'bg-yellow-500'
+                                      : pointer.status === 'red'
+                                        ? 'bg-red-500'
+                                        : 'bg-gray-400'
+                            }`}
+                        />
+                    </div>
+                );
+            })}
+
+            {/* No pointers message */}
+            {pointerList.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-700/50 flex items-center justify-center">
+                            <span className="text-3xl">👆</span>
+                        </div>
+                        <p className="text-sm text-slate-400 font-medium">Waiting for connections</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                            Remote pointers will appear here when Web App users move their mouse
+                        </p>
                     </div>
                 </div>
             )}
+
+            {/* Canvas info overlay */}
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm text-xs font-medium text-slate-300">
+                Remote Canvas ({width} × {height})
+            </div>
         </div>
     );
 };
