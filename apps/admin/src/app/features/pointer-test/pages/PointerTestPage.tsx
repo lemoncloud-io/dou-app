@@ -15,13 +15,14 @@ import type { ClientStatusType } from '../types';
 import type { WebSocketMessage } from '@chatic/socket';
 import type { JSX, MouseEvent } from 'react';
 
-const CANVAS_WIDTH = 600;
-const CANVAS_HEIGHT = 400;
+const REMOTE_CANVAS_WIDTH = 800;
+const REMOTE_CANVAS_HEIGHT = 500;
+const LOCAL_CANVAS_HEIGHT = 150;
 
 /**
- * Admin Pointer Test Page - Displays remote mouse positions
- * Receives pointer positions from Web App via WebSocket
- * Now includes tick/status management and server vs client comparison
+ * Admin Pointer Dashboard - Real-time remote pointer monitoring
+ * Main feature: Remote Pointer Display (monitoring Web clients)
+ * Secondary: Local Pointer broadcasting for testing
  */
 export const PointerTestPage = (): JSX.Element => {
     const sessionId = useSessionId();
@@ -222,80 +223,167 @@ export const PointerTestPage = (): JSX.Element => {
     );
 
     return (
-        <div className="min-h-screen bg-background p-6">
-            <div className="max-w-4xl mx-auto">
-                {/* Header */}
-                <div className="flex items-center gap-4 mb-6">
-                    <Link to="/socket-test">
-                        <Button variant="ghost" size="icon">
-                            <ArrowLeft className="h-5 w-5" />
-                        </Button>
-                    </Link>
-                    <div>
-                        <h1 className="text-2xl font-bold">Remote Pointer Viewer</h1>
-                        <p className="text-sm text-muted-foreground">
-                            View real-time mouse positions from connected Web App clients
-                        </p>
+        <div className="min-h-screen bg-background">
+            {/* Header */}
+            <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                <div className="flex items-center justify-between px-6 py-3">
+                    <div className="flex items-center gap-4">
+                        <Link to="/socket-test">
+                            <Button variant="ghost" size="icon">
+                                <ArrowLeft className="h-5 w-5" />
+                            </Button>
+                        </Link>
+                        <div>
+                            <h1 className="text-xl font-bold">Pointer Dashboard</h1>
+                            <p className="text-xs text-muted-foreground">Real-time remote pointer monitoring</p>
+                        </div>
                     </div>
-                </div>
 
-                {/* Connection Status */}
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-muted/50">
-                        <div
-                            className={`h-2.5 w-2.5 rounded-full ${
-                                isConnected
-                                    ? 'bg-green-500 animate-pulse'
+                    {/* Connection Status */}
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-muted/50">
+                            <div
+                                className={`h-2.5 w-2.5 rounded-full ${
+                                    isConnected
+                                        ? 'bg-green-500 animate-pulse'
+                                        : connectionStatus === 'connecting'
+                                          ? 'bg-yellow-500 animate-pulse'
+                                          : 'bg-red-500'
+                                }`}
+                            />
+                            <span className="text-sm font-medium">
+                                {connectionStatus === 'connected'
+                                    ? 'Connected'
                                     : connectionStatus === 'connecting'
-                                      ? 'bg-yellow-500 animate-pulse'
-                                      : 'bg-red-500'
-                            }`}
-                        />
-                        <span className="text-sm font-medium">
-                            {connectionStatus === 'connected'
-                                ? 'Connected'
-                                : connectionStatus === 'connecting'
-                                  ? 'Connecting...'
-                                  : connectionStatus === 'error'
-                                    ? 'Error'
-                                    : 'Disconnected'}
-                        </span>
+                                      ? 'Connecting...'
+                                      : connectionStatus === 'error'
+                                        ? 'Error'
+                                        : 'Disconnected'}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted/30 text-xs">
+                            <span className="text-muted-foreground">ID:</span>
+                            <span className="font-mono">{sessionId?.slice(0, 8)}...</span>
+                        </div>
+                        {connectionStatus === 'connected' ? (
+                            <Button size="sm" variant="destructive" className="h-8" onClick={disconnect}>
+                                Disconnect
+                            </Button>
+                        ) : connectionStatus === 'disconnected' || connectionStatus === 'error' ? (
+                            <Button size="sm" variant="default" className="h-8" onClick={() => void connect()}>
+                                Reconnect
+                            </Button>
+                        ) : null}
                     </div>
-
-                    {connectionStatus === 'connected' ? (
-                        <Button size="sm" variant="destructive" className="h-8" onClick={disconnect}>
-                            Disconnect
-                        </Button>
-                    ) : connectionStatus === 'disconnected' || connectionStatus === 'error' ? (
-                        <Button size="sm" variant="default" className="h-8" onClick={() => void connect()}>
-                            Reconnect
-                        </Button>
-                    ) : null}
-
-                    <Button size="sm" variant="outline" className="h-8" onClick={clearPointers}>
-                        Clear Pointers
-                    </Button>
                 </div>
+            </header>
 
-                {/* Tick/Status Comparison Panel */}
-                <div className="p-4 rounded-lg border bg-card mb-6">
-                    <h2 className="text-sm font-medium text-muted-foreground mb-4">📊 Server vs Client Comparison</h2>
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* Server Data */}
-                        <div className="p-3 rounded-md bg-blue-500/10 border border-blue-500/30">
-                            <h3 className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-2">
-                                🖥️ Server (Last Received)
-                            </h3>
-                            <div className="space-y-2 text-xs">
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Tick:</span>
-                                    <span className="font-mono font-bold text-lg">{serverData?.tick ?? '-'}</span>
+            <div className="flex">
+                {/* Main Content - Remote Pointer Display */}
+                <main className="flex-1 p-6">
+                    <div className="rounded-xl border bg-card shadow-sm">
+                        {/* Remote Canvas Header */}
+                        <div className="flex items-center justify-between border-b px-6 py-4">
+                            <div>
+                                <h2 className="text-lg font-semibold flex items-center gap-2">
+                                    <span className="text-2xl">📍</span> Remote Pointer Display
+                                </h2>
+                                <p className="text-sm text-muted-foreground mt-0.5">
+                                    Web App clients&apos; mouse positions in real-time
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary">
+                                    <span className="relative flex h-2 w-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                                    </span>
+                                    <span className="text-sm font-medium">{pointers.size} device(s)</span>
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-muted-foreground">Status:</span>
-                                    <div className="flex items-center gap-2">
+                                <Button size="sm" variant="outline" onClick={clearPointers}>
+                                    Clear All
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Remote Canvas */}
+                        <div className="p-6">
+                            <RemotePointerCanvas width={REMOTE_CANVAS_WIDTH} height={REMOTE_CANVAS_HEIGHT} />
+                        </div>
+
+                        {/* Connected Devices List */}
+                        {pointers.size > 0 && (
+                            <div className="border-t px-6 py-4">
+                                <h3 className="text-sm font-semibold text-foreground mb-3">Connected Devices</h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {Array.from(pointers.values()).map(pointer => (
                                         <div
-                                            className={`h-3 w-3 rounded-full ${
+                                            key={pointer.deviceId}
+                                            className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <div
+                                                    className={`h-3 w-3 rounded-full ${
+                                                        pointer.status === 'green'
+                                                            ? 'bg-green-500'
+                                                            : pointer.status === 'yellow'
+                                                              ? 'bg-yellow-500'
+                                                              : pointer.status === 'red'
+                                                                ? 'bg-red-500'
+                                                                : 'bg-gray-400'
+                                                    }`}
+                                                />
+                                                <span className="font-mono text-sm">
+                                                    {pointer.deviceId.slice(0, 12)}...
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                                <span>
+                                                    ({pointer.posX}, {pointer.posY})
+                                                </span>
+                                                <span className="font-mono">tick: {pointer.tick}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Empty State */}
+                        {pointers.size === 0 && (
+                            <div className="border-t px-6 py-8 text-center">
+                                <p className="text-muted-foreground">No remote pointers detected</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Open the Web App and move your mouse on the canvas
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </main>
+
+                {/* Sidebar - Controls & Local Pointer */}
+                <aside className="w-80 border-l bg-muted/10 p-4 space-y-4 overflow-y-auto max-h-[calc(100vh-57px)]">
+                    {/* Server vs Client Comparison */}
+                    <div className="rounded-lg border bg-card p-4">
+                        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <span>📊</span> Server vs Client
+                        </h3>
+                        <div className="space-y-3">
+                            {/* Server Data */}
+                            <div className="p-2.5 rounded-md bg-blue-500/10 border border-blue-500/20">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+                                        🖥️ SERVER
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {serverData?.ts ? new Date(serverData.ts).toLocaleTimeString('ko-KR') : '-'}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-2xl font-bold font-mono">{serverData?.tick ?? '-'}</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <div
+                                            className={`h-2.5 w-2.5 rounded-full ${
                                                 serverData?.status === 'green'
                                                     ? 'bg-green-500'
                                                     : serverData?.status === 'yellow'
@@ -305,39 +393,26 @@ export const PointerTestPage = (): JSX.Element => {
                                                         : 'bg-gray-400'
                                             }`}
                                         />
-                                        <span className="font-mono">{serverData?.status || '-'}</span>
+                                        <span className="text-xs font-mono">{serverData?.status || '-'}</span>
                                     </div>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Position:</span>
-                                    <span className="font-mono">
-                                        ({serverData?.posX ?? '-'}, {serverData?.posY ?? '-'})
-                                    </span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Timestamp:</span>
-                                    <span className="font-mono text-[10px]">
-                                        {serverData?.ts ? new Date(serverData.ts).toLocaleTimeString('ko-KR') : '-'}
-                                    </span>
-                                </div>
                             </div>
-                        </div>
 
-                        {/* Client Data */}
-                        <div className="p-3 rounded-md bg-green-500/10 border border-green-500/30">
-                            <h3 className="text-xs font-semibold text-green-600 dark:text-green-400 mb-2">
-                                💻 Client (Local)
-                            </h3>
-                            <div className="space-y-2 text-xs">
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Tick:</span>
-                                    <span className="font-mono font-bold text-lg">{displayTick}</span>
+                            {/* Client Data */}
+                            <div className="p-2.5 rounded-md bg-green-500/10 border border-green-500/20">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[10px] font-semibold text-green-600 dark:text-green-400">
+                                        💻 CLIENT
+                                    </span>
+                                    <span className="text-xs font-mono text-muted-foreground">
+                                        ({Math.round(localPointerPosition.x)}, {Math.round(localPointerPosition.y)})
+                                    </span>
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-muted-foreground">Status:</span>
-                                    <div className="flex items-center gap-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-2xl font-bold font-mono">{displayTick}</span>
+                                    <div className="flex items-center gap-1.5">
                                         <div
-                                            className={`h-3 w-3 rounded-full ${
+                                            className={`h-2.5 w-2.5 rounded-full ${
                                                 localStatus === 'green'
                                                     ? 'bg-green-500'
                                                     : localStatus === 'yellow'
@@ -345,231 +420,160 @@ export const PointerTestPage = (): JSX.Element => {
                                                       : 'bg-red-500'
                                             }`}
                                         />
-                                        <span className="font-mono">{localStatus}</span>
+                                        <span className="text-xs font-mono">{localStatus}</span>
                                     </div>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Position:</span>
-                                    <span className="font-mono">
-                                        ({Math.round(localPointerPosition.x)}, {Math.round(localPointerPosition.y)})
+                            </div>
+
+                            {/* Tick Diff */}
+                            {serverData && (
+                                <div className="p-2 rounded bg-muted/50 text-center">
+                                    <span className="text-[10px] text-muted-foreground">DIFF: </span>
+                                    <span
+                                        className={`font-mono font-bold ${
+                                            displayTick > serverData.tick
+                                                ? 'text-green-600'
+                                                : displayTick < serverData.tick
+                                                  ? 'text-red-600'
+                                                  : 'text-yellow-600'
+                                        }`}
+                                    >
+                                        {displayTick - serverData.tick > 0 ? '+' : ''}
+                                        {displayTick - serverData.tick}
                                     </span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Session ID:</span>
-                                    <span className="font-mono text-[10px]">{sessionId?.slice(0, 8) ?? '-'}...</span>
-                                </div>
-                            </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* Tick Diff */}
-                    {serverData && (
-                        <div className="mt-3 p-2 rounded bg-muted/50 text-center">
-                            <span className="text-xs text-muted-foreground">Tick Diff: </span>
-                            <span
-                                className={`font-mono font-bold ${
-                                    displayTick > serverData.tick
-                                        ? 'text-green-600'
-                                        : displayTick < serverData.tick
-                                          ? 'text-red-600'
-                                          : 'text-yellow-600'
+                    {/* Status Control */}
+                    <div className="rounded-lg border bg-card p-4">
+                        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <span>🎯</span> Status Control
+                        </h3>
+                        <div className="flex gap-1.5">
+                            <Button
+                                size="sm"
+                                variant={localStatus === 'green' ? 'default' : 'outline'}
+                                className={`flex-1 h-8 text-xs ${
+                                    localStatus === 'green'
+                                        ? 'bg-green-600 hover:bg-green-700'
+                                        : 'hover:bg-green-500/10'
                                 }`}
+                                onClick={() => handleStatusChange('green')}
+                                disabled={!isConnected}
                             >
-                                {displayTick - serverData.tick > 0 ? '+' : ''}
-                                {displayTick - serverData.tick}
-                            </span>
-                            <span className="text-xs text-muted-foreground ml-2">
-                                (
-                                {displayTick > serverData.tick
-                                    ? 'Client ahead'
-                                    : displayTick < serverData.tick
-                                      ? 'Server ahead'
-                                      : 'In sync'}
-                                )
-                            </span>
-                        </div>
-                    )}
-                </div>
-
-                {/* Status Change Buttons */}
-                <div className="p-4 rounded-lg border bg-card mb-6">
-                    <h2 className="text-sm font-medium text-muted-foreground mb-3">🎯 Status Control</h2>
-                    <div className="flex gap-2">
-                        <Button
-                            size="sm"
-                            variant={localStatus === 'green' ? 'default' : 'outline'}
-                            className={`h-9 px-4 text-xs font-medium ${
-                                localStatus === 'green'
-                                    ? 'bg-green-600 hover:bg-green-700 text-white'
-                                    : 'border-green-500/50 hover:bg-green-500/10'
-                            }`}
-                            onClick={() => handleStatusChange('green')}
-                            disabled={!isConnected}
-                        >
-                            🟢 GREEN
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant={localStatus === 'yellow' ? 'default' : 'outline'}
-                            className={`h-9 px-4 text-xs font-medium ${
-                                localStatus === 'yellow'
-                                    ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                                    : 'border-yellow-500/50 hover:bg-yellow-500/10'
-                            }`}
-                            onClick={() => handleStatusChange('yellow')}
-                            disabled={!isConnected}
-                        >
-                            🟡 YELLOW
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant={localStatus === 'red' ? 'default' : 'outline'}
-                            className={`h-9 px-4 text-xs font-medium ${
-                                localStatus === 'red'
-                                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                                    : 'border-red-500/50 hover:bg-red-500/10'
-                            }`}
-                            onClick={() => handleStatusChange('red')}
-                            disabled={!isConnected}
-                        >
-                            🔴 RED
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Ping/Pong Stats */}
-                <div className="p-4 rounded-lg border bg-card mb-6">
-                    <h2 className="text-sm font-medium text-muted-foreground mb-3">📡 Ping/Pong Statistics</h2>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="flex items-center justify-between p-2 rounded bg-blue-500/10">
-                            <span className="text-xs text-muted-foreground">📤 Ping Sent</span>
-                            <span className="text-lg font-bold font-mono text-blue-600 dark:text-blue-400">
-                                {pingCount}
-                            </span>
-                        </div>
-                        <div className="flex items-center justify-between p-2 rounded bg-green-500/10">
-                            <span className="text-xs text-muted-foreground">📥 Pong Received</span>
-                            <span className="text-lg font-bold font-mono text-green-600 dark:text-green-400">
-                                {pongCount}
-                            </span>
+                                🟢
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant={localStatus === 'yellow' ? 'default' : 'outline'}
+                                className={`flex-1 h-8 text-xs ${
+                                    localStatus === 'yellow'
+                                        ? 'bg-yellow-600 hover:bg-yellow-700'
+                                        : 'hover:bg-yellow-500/10'
+                                }`}
+                                onClick={() => handleStatusChange('yellow')}
+                                disabled={!isConnected}
+                            >
+                                🟡
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant={localStatus === 'red' ? 'default' : 'outline'}
+                                className={`flex-1 h-8 text-xs ${
+                                    localStatus === 'red' ? 'bg-red-600 hover:bg-red-700' : 'hover:bg-red-500/10'
+                                }`}
+                                onClick={() => handleStatusChange('red')}
+                                disabled={!isConnected}
+                            >
+                                🔴
+                            </Button>
                         </div>
                     </div>
-                </div>
 
-                {/* Local Pointer Area - broadcasts Admin pointer position */}
-                <div className="p-4 rounded-lg border bg-card mb-6">
-                    <h2 className="text-sm font-medium text-muted-foreground mb-3">👆 Local Pointer (Admin)</h2>
-                    <div
-                        ref={pointerCanvasRef}
-                        className="relative border-2 border-dashed border-border rounded-lg bg-muted/20 cursor-crosshair overflow-hidden"
-                        style={{ width: CANVAS_WIDTH, height: 200 }}
-                        onMouseMove={handlePointerMove}
-                        onMouseLeave={handlePointerLeave}
-                    >
-                        {/* Grid pattern */}
+                    {/* Ping/Pong Stats */}
+                    <div className="rounded-lg border bg-card p-4">
+                        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <span>📡</span> Ping/Pong
+                        </h3>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="flex flex-col items-center p-2 rounded bg-blue-500/10">
+                                <span className="text-[10px] text-muted-foreground">PING</span>
+                                <span className="text-xl font-bold font-mono text-blue-600 dark:text-blue-400">
+                                    {pingCount}
+                                </span>
+                            </div>
+                            <div className="flex flex-col items-center p-2 rounded bg-green-500/10">
+                                <span className="text-[10px] text-muted-foreground">PONG</span>
+                                <span className="text-xl font-bold font-mono text-green-600 dark:text-green-400">
+                                    {pongCount}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Local Pointer Area */}
+                    <div className="rounded-lg border bg-card p-4">
+                        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <span>👆</span> Local Pointer (Admin)
+                        </h3>
                         <div
-                            className="absolute inset-0 opacity-10"
-                            style={{
-                                backgroundImage: `
-                                    linear-gradient(to right, currentColor 1px, transparent 1px),
-                                    linear-gradient(to bottom, currentColor 1px, transparent 1px)
-                                `,
-                                backgroundSize: '50px 50px',
-                            }}
-                        />
-
-                        {/* Local cursor indicator */}
-                        {localPointerPosition.x > 0 && localPointerPosition.y > 0 && (
+                            ref={pointerCanvasRef}
+                            className="relative border-2 border-dashed border-border rounded-lg bg-muted/20 cursor-crosshair overflow-hidden"
+                            style={{ width: '100%', height: LOCAL_CANVAS_HEIGHT }}
+                            onMouseMove={handlePointerMove}
+                            onMouseLeave={handlePointerLeave}
+                        >
+                            {/* Grid pattern */}
                             <div
-                                className="absolute pointer-events-none"
+                                className="absolute inset-0 opacity-10"
                                 style={{
-                                    left: localPointerPosition.x,
-                                    top: localPointerPosition.y,
-                                    transform: 'translate(-50%, -50%)',
+                                    backgroundImage: `
+                                        linear-gradient(to right, currentColor 1px, transparent 1px),
+                                        linear-gradient(to bottom, currentColor 1px, transparent 1px)
+                                    `,
+                                    backgroundSize: '30px 30px',
                                 }}
-                            >
-                                <div className="w-4 h-4 rounded-full bg-blue-500/50 border-2 border-blue-500 animate-pulse" />
-                            </div>
-                        )}
+                            />
 
-                        {/* Canvas label */}
-                        <div className="absolute top-2 left-2 px-2 py-1 rounded bg-background/80 text-xs font-medium">
-                            Admin Pointer Area ({CANVAS_WIDTH} × 200)
+                            {/* Local cursor indicator */}
+                            {localPointerPosition.x > 0 && localPointerPosition.y > 0 && (
+                                <div
+                                    className="absolute pointer-events-none"
+                                    style={{
+                                        left: localPointerPosition.x,
+                                        top: localPointerPosition.y,
+                                        transform: 'translate(-50%, -50%)',
+                                    }}
+                                >
+                                    <div className="w-3 h-3 rounded-full bg-blue-500/50 border-2 border-blue-500 animate-pulse" />
+                                </div>
+                            )}
+
+                            {/* Coordinate display */}
+                            {localPointerPosition.x > 0 && localPointerPosition.y > 0 && (
+                                <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-background/80 text-[10px] font-mono">
+                                    {Math.round(localPointerPosition.x)}, {Math.round(localPointerPosition.y)}
+                                </div>
+                            )}
                         </div>
-
-                        {/* Coordinate display */}
-                        {localPointerPosition.x > 0 && localPointerPosition.y > 0 && (
-                            <div className="absolute bottom-2 right-2 px-2 py-1 rounded bg-background/80 text-xs font-mono">
-                                X: {Math.round(localPointerPosition.x)} Y: {Math.round(localPointerPosition.y)}
-                            </div>
-                        )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                        Move your mouse to broadcast position (throttled to 20fps)
-                    </p>
-                </div>
-
-                {/* Remote Pointer Canvas */}
-                <div className="p-6 rounded-lg border bg-card">
-                    <h2 className="text-sm font-medium text-muted-foreground mb-4">📍 Remote Pointer Display</h2>
-
-                    <RemotePointerCanvas width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
-
-                    {/* Remote pointers list */}
-                    {pointers.size > 0 && (
-                        <div className="mt-4 p-3 rounded bg-muted/30">
-                            <h3 className="text-xs font-semibold text-foreground mb-2">
-                                Connected Devices ({pointers.size})
-                            </h3>
-                            <div className="space-y-1 text-xs">
-                                {Array.from(pointers.values()).map(pointer => (
-                                    <div
-                                        key={pointer.deviceId}
-                                        className="flex items-center justify-between p-1 rounded bg-background/50"
-                                    >
-                                        <span className="font-mono">{pointer.deviceId.slice(0, 8)}...</span>
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-muted-foreground">
-                                                pos: ({pointer.posX}, {pointer.posY})
-                                            </span>
-                                            <span className="text-muted-foreground">tick: {pointer.tick}</span>
-                                            <div
-                                                className={`h-2 w-2 rounded-full ${
-                                                    pointer.status === 'green'
-                                                        ? 'bg-green-500'
-                                                        : pointer.status === 'yellow'
-                                                          ? 'bg-yellow-500'
-                                                          : pointer.status === 'red'
-                                                            ? 'bg-red-500'
-                                                            : 'bg-gray-400'
-                                                }`}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="mt-4 text-xs text-muted-foreground">
-                        <p>• Remote cursors appear when Web App users move their mouse</p>
-                        <p>• Each device gets a unique color</p>
-                        <p>• Stale pointers (no update for 5s) are dimmed</p>
-                    </div>
-                </div>
-
-                {/* Info */}
-                <div className="mt-6 p-4 rounded-lg border bg-muted/20">
-                    <h3 className="text-sm font-medium mb-2">How it works</h3>
-                    <div className="text-xs text-muted-foreground space-y-1">
-                        <p>1. Web App users move their mouse on their canvas</p>
-                        <p>2. Position is sent via WebSocket: {'{ type: "sync", action: "update", payload: {...} }'}</p>
-                        <p>3. Server adds payload.id (deviceId) and broadcasts to Admin channel</p>
-                        <p>
-                            4. Admin receives and displays cursor at position ({CANVAS_WIDTH}×{CANVAS_HEIGHT})
+                        <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                            Move mouse to broadcast (20fps)
                         </p>
                     </div>
-                </div>
+
+                    {/* Info */}
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                        <h3 className="text-xs font-semibold mb-2">How it works</h3>
+                        <ol className="text-[10px] text-muted-foreground space-y-0.5 list-decimal list-inside">
+                            <li>Web App users move mouse</li>
+                            <li>Position sent via WebSocket</li>
+                            <li>Server broadcasts to Admin</li>
+                            <li>Admin displays remote cursors</li>
+                        </ol>
+                    </div>
+                </aside>
             </div>
         </div>
     );

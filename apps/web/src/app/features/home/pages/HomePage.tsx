@@ -38,6 +38,14 @@ export const HomePage = (): JSX.Element => {
     ]);
 
     const [localPointerPosition, setLocalPointerPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const [serverData, setServerData] = useState<{
+        tick: number;
+        status: 'green' | 'yellow' | 'red';
+        posX: number;
+        posY: number;
+        ts: number;
+    } | null>(null);
+    const [displayTick, setDisplayTick] = useState<number>(0);
     const lastSentPointerRef = useRef<number>(0);
     const pointerCanvasRef = useRef<HTMLDivElement>(null);
     const retryCountRef = useRef<number>(0);
@@ -55,6 +63,13 @@ export const HomePage = (): JSX.Element => {
     };
 
     const send = originalSend;
+
+    // Update displayTick periodically
+    useEffect(() => {
+        setDisplayTick(getTick());
+        const interval = setInterval(() => setDisplayTick(getTick()), 500);
+        return () => clearInterval(interval);
+    }, []);
 
     // Send presence info when connected (only once)
     const hasRequestedInfoRef = useRef(false);
@@ -91,8 +106,18 @@ export const HomePage = (): JSX.Element => {
                         return;
                     }
 
-                    const serverTick = payload.tick as number;
+                    const serverTick = (payload.tick as number) ?? 0;
                     const myTick = getTick();
+
+                    // Update server data for comparison UI
+                    setServerData({
+                        tick: serverTick,
+                        status: (payload.status as 'green' | 'yellow' | 'red') ?? 'green',
+                        posX: (payload.posX as number) ?? 0,
+                        posY: (payload.posY as number) ?? 0,
+                        ts: (payload.ts as number) ?? Date.now(),
+                    });
+
                     if (serverTick > myTick) {
                         // 서버 tick이 크면 서버 상태 적용
                         retryCountRef.current = 0; // 성공하면 리셋
@@ -557,11 +582,122 @@ export const HomePage = (): JSX.Element => {
 
                         {/* Pointer Sync */}
                         <div className="pt-4">
-                            <p className="text-sm font-semibold text-foreground mb-2">👆 Pointer Sync Test</p>
+                            <p className="text-sm font-semibold text-foreground mb-3">👆 Pointer Sync Test</p>
+
+                            {/* Server vs Client Comparison */}
+                            <div className="mb-4 p-3 rounded-lg bg-muted/30 border">
+                                <p className="text-xs font-semibold text-muted-foreground mb-3">
+                                    📊 Server vs Client Comparison
+                                </p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {/* Server Data */}
+                                    <div className="p-2.5 rounded-md bg-blue-500/10 border border-blue-500/20">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+                                                🖥️ SERVER
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground">
+                                                {serverData?.ts
+                                                    ? new Date(serverData.ts).toLocaleTimeString('ko-KR')
+                                                    : '-'}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xl font-bold font-mono">
+                                                    {serverData?.tick ?? '-'}
+                                                </span>
+                                                <span className="text-[10px] text-muted-foreground">tick</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <div
+                                                    className={`h-2.5 w-2.5 rounded-full ${
+                                                        serverData?.status === 'green'
+                                                            ? 'bg-green-500'
+                                                            : serverData?.status === 'yellow'
+                                                              ? 'bg-yellow-500'
+                                                              : serverData?.status === 'red'
+                                                                ? 'bg-red-500'
+                                                                : 'bg-gray-400'
+                                                    }`}
+                                                />
+                                                <span className="text-xs font-mono">{serverData?.status || '-'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="mt-1.5 text-[10px] text-muted-foreground font-mono">
+                                            pos: ({serverData?.posX ?? '-'}, {serverData?.posY ?? '-'})
+                                        </div>
+                                    </div>
+
+                                    {/* Client Data */}
+                                    <div className="p-2.5 rounded-md bg-green-500/10 border border-green-500/20">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-[10px] font-semibold text-green-600 dark:text-green-400">
+                                                💻 CLIENT
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground font-mono">
+                                                {sessionId?.slice(0, 8)}...
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xl font-bold font-mono">{displayTick}</span>
+                                                <span className="text-[10px] text-muted-foreground">tick</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <div
+                                                    className={`h-2.5 w-2.5 rounded-full ${
+                                                        localStatus === 'green'
+                                                            ? 'bg-green-500'
+                                                            : localStatus === 'yellow'
+                                                              ? 'bg-yellow-500'
+                                                              : 'bg-red-500'
+                                                    }`}
+                                                />
+                                                <span className="text-xs font-mono">{localStatus}</span>
+                                            </div>
+                                        </div>
+                                        <div className="mt-1.5 text-[10px] text-muted-foreground font-mono">
+                                            pos: ({Math.round(localPointerPosition.x)},{' '}
+                                            {Math.round(localPointerPosition.y)})
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Tick Diff */}
+                                {serverData && (
+                                    <div className="mt-2 p-1.5 rounded bg-muted/50 text-center">
+                                        <span className="text-[10px] text-muted-foreground">Tick Diff: </span>
+                                        <span
+                                            className={`font-mono font-bold ${
+                                                displayTick > serverData.tick
+                                                    ? 'text-green-600'
+                                                    : displayTick < serverData.tick
+                                                      ? 'text-red-600'
+                                                      : 'text-yellow-600'
+                                            }`}
+                                        >
+                                            {displayTick - serverData.tick > 0 ? '+' : ''}
+                                            {displayTick - serverData.tick}
+                                        </span>
+                                        <span className="text-[10px] text-muted-foreground ml-2">
+                                            (
+                                            {displayTick > serverData.tick
+                                                ? 'Client ahead'
+                                                : displayTick < serverData.tick
+                                                  ? 'Server ahead'
+                                                  : 'In sync'}
+                                            )
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Pointer Canvas - same size as Admin Remote Canvas (800×500) */}
                             <div
                                 ref={pointerCanvasRef}
                                 className="relative border-2 border-dashed border-border rounded-lg bg-muted/20 cursor-crosshair overflow-hidden"
-                                style={{ width: 600, height: 300 }}
+                                style={{ width: 800, height: 500 }}
                                 onMouseMove={handlePointerMove}
                                 onMouseLeave={handlePointerLeave}
                             >
@@ -601,7 +737,7 @@ export const HomePage = (): JSX.Element => {
 
                                 {/* Canvas label */}
                                 <div className="absolute top-2 left-2 px-2 py-1 rounded bg-background/80 text-xs font-medium">
-                                    Pointer Area (600 × 300)
+                                    Web Pointer Area (800 × 500)
                                 </div>
 
                                 {/* Coordinate display */}
@@ -612,7 +748,7 @@ export const HomePage = (): JSX.Element => {
                                 )}
                             </div>
                             <p className="text-xs text-muted-foreground mt-2">
-                                Move your mouse in the canvas to sync position (throttled to 20fps)
+                                Move mouse to broadcast position to Admin (throttled to 20fps)
                             </p>
                         </div>
                     </div>
