@@ -54,6 +54,7 @@ export const HomePage = (): JSX.Element => {
     const pointerCanvasRef = useRef<HTMLDivElement>(null);
     const retryCountRef = useRef<number>(0);
     const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const previousStatusRef = useRef<'green' | 'yellow' | 'red'>('green');
 
     // Tick management
     const getTickKey = () => `presence_tick_${sessionId}`;
@@ -133,8 +134,15 @@ export const HomePage = (): JSX.Element => {
                         if (payload.status) {
                             setLocalStatus(payload.status as 'green' | 'yellow' | 'red');
                         }
-                    } else {
-                        // 서버 tick이 작거나 같으면 지수 백오프로 재전송
+                        if (payload.posX !== undefined && payload.posY !== undefined) {
+                            setLocalPointerPosition({
+                                x: payload.posX as number,
+                                y: payload.posY as number,
+                            });
+                        }
+                    } else if (serverTick < myTick) {
+                        // 서버 tick이 작을 때만 지수 백오프로 재전송
+
                         if (retryTimeoutRef.current) return; // 이미 대기 중이면 스킵
 
                         const delay = Math.min(1000 * Math.pow(2, retryCountRef.current), 30000); // max 30s
@@ -234,6 +242,9 @@ export const HomePage = (): JSX.Element => {
     // Status change handler
     const handleStatusChange = useCallback(
         (status: 'green' | 'yellow' | 'red') => {
+            if (previousStatusRef.current === status) return; // 상태가 같으면 전송 안 함
+
+            previousStatusRef.current = status;
             setLocalStatus(status);
             const nextTick = getTick() + 1;
             setTick(nextTick);
@@ -253,6 +264,22 @@ export const HomePage = (): JSX.Element => {
         },
         [send, localPointerPosition, sessionId]
     );
+
+    // App visibility change handler
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!isConnected) return;
+
+            const newStatus = document.hidden ? 'yellow' : 'green';
+            handleStatusChange(newStatus);
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [isConnected, handleStatusChange]);
 
     return (
         <div className="min-h-screen bg-background p-6">
