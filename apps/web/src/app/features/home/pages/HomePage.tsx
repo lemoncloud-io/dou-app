@@ -83,6 +83,14 @@ export const HomePage = (): JSX.Element => {
 
                 if (data.type === 'sync' && data.payload) {
                     const payload = data.payload as Record<string, unknown>;
+                    const messageId = payload.id as string | undefined;
+
+                    // Only process own messages (for tick sync)
+                    // Ignore other devices' messages
+                    if (messageId !== sessionId) {
+                        return;
+                    }
+
                     const serverTick = payload.tick as number;
                     const myTick = getTick();
                     if (serverTick > myTick) {
@@ -95,12 +103,6 @@ export const HomePage = (): JSX.Element => {
                         setTick(serverTick);
                         if (payload.status) {
                             setLocalStatus(payload.status as 'green' | 'yellow' | 'red');
-                        }
-                        if (payload.posX !== undefined && payload.posY !== undefined) {
-                            setLocalPointerPosition({
-                                x: payload.posX as number,
-                                y: payload.posY as number,
-                            });
                         }
                     } else {
                         // 서버 tick이 작거나 같으면 지수 백오프로 재전송

@@ -90,10 +90,18 @@ export const PointerTestPage = (): JSX.Element => {
 
                 if (data.type === 'sync' && data.payload) {
                     const payload = data.payload as Record<string, unknown>;
+                    const messageId = payload.id as string | undefined;
+
+                    // Only process own messages (for tick sync)
+                    // Other devices' messages are handled by useRemotePointers
+                    if (messageId !== sessionId) {
+                        return;
+                    }
+
                     const serverTick = (payload.tick as number) ?? 0;
                     const myTick = getTick();
 
-                    // Update server data for comparison UI
+                    // Update server data for comparison UI (own data only)
                     setServerData({
                         tick: serverTick,
                         status: (payload.status as ClientStatusType) ?? '',
