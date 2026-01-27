@@ -277,12 +277,10 @@ export const SocketTestScreen = () => {
     return (
         <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
             <View style={styles.controlPanel}>
-                {/* 1. Header Row: 상태 표시(클릭 시 토글) + 우측 버튼 */}
                 <View style={styles.panelHeader}>
                     <TouchableOpacity style={styles.statusIndicatorButton} onPress={togglePanel} activeOpacity={0.7}>
                         <View style={[styles.dot, { backgroundColor: isConnected ? '#50E3C2' : '#FF5A5F' }]} />
                         <Text style={styles.statusText}>{isConnected ? 'Connected' : 'Disconnected'}</Text>
-                        {/* 토글 화살표 아이콘 대체 */}
                         <Text style={styles.toggleIcon}>{isExpanded ? '▲' : '▼'}</Text>
                     </TouchableOpacity>
 
@@ -294,7 +292,6 @@ export const SocketTestScreen = () => {
                     </TouchableOpacity>
                 </View>
 
-                {/* 2. Collapsible Info Body */}
                 {isExpanded && (
                     <View style={styles.infoContainer}>
                         <View style={styles.dividerHorizontal} />
@@ -411,7 +408,6 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#121212',
     },
-    // ★ Control Panel 스타일 변경: column으로 변경
     controlPanel: {
         flexDirection: 'column',
         padding: 16,
@@ -419,7 +415,6 @@ const styles = StyleSheet.create({
         borderBottomColor: '#333',
         backgroundColor: '#1E1E1E',
     },
-    // ★ Header Row 스타일 추가
     panelHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -429,7 +424,7 @@ const styles = StyleSheet.create({
     statusIndicatorButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 4, // 터치 영역 확보
+        paddingVertical: 4,
     },
     dot: {
         width: 10,
@@ -447,7 +442,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         marginLeft: 8,
     },
-    // ★ 상세 정보 컨테이너 스타일
     infoContainer: {
         marginTop: 4,
         gap: 4,

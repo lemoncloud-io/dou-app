@@ -30,8 +30,7 @@ interface SocketOptions<S extends Record<string, any>, P extends Record<string, 
     params?: P;
 
     /**
-     * Ping 메시지 페이로드 (외부 주입)
-     * 타입은 S (WSSEnvelope 호환)
+     * Ping 메시지 페이로드
      */
     pingPayload?: S;
 
