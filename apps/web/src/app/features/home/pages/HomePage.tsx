@@ -59,6 +59,7 @@ export const HomePage = (): JSX.Element => {
     const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const waitingForResponseRef = useRef<boolean>(false);
     const responseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const previousStatusRef = useRef<'green' | 'yellow' | 'red'>('green');
 
     // Tick management
     const getTickKey = () => `presence_tick_${sessionId}`;
@@ -216,7 +217,7 @@ export const HomePage = (): JSX.Element => {
                                 y: payload.posY as number,
                             });
                         }
-                    } else if (serverTick < myTick) {
+                    } else if (incomingTick < myTick) {
                         // 서버 tick이 작을 때만 지수 백오프로 재전송
 
                         if (retryTimeoutRef.current) return; // 이미 대기 중이면 스킵
