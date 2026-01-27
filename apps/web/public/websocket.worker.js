@@ -1,46 +1,10 @@
 /* eslint-disable */
 let ws = null;
-let pingInterval = null;
 let connectionId = null;
 let reconnectTimeout = null;
 let isManualDisconnect = false;
 let currentConfig = null;
 let reconnectAttempts = 0;
-let pongTimeout = null;
-let pingCount = 0;
-let pongCount = 0;
-
-const startPingPong = interval => {
-    if (pingInterval) clearInterval(pingInterval);
-
-    pingInterval = setInterval(() => {
-        if (ws?.readyState === 1) {
-            pingCount++;
-            ws.send(JSON.stringify({ type: 'system', action: 'ping', data: { timestamp: Date.now() } }));
-            self.postMessage({ type: 'log', message: 'Sent ping' });
-            self.postMessage({ type: 'stats', pingCount, pongCount });
-
-            if (pongTimeout) clearTimeout(pongTimeout);
-            pongTimeout = setTimeout(() => {
-                self.postMessage({ type: 'log', message: 'Pong timeout, forcing reconnect' });
-                ws?.close();
-            }, 5000);
-        }
-    }, interval);
-};
-
-const stopPingPong = () => {
-    if (pingInterval) {
-        clearInterval(pingInterval);
-        pingInterval = null;
-    }
-    if (pongTimeout) {
-        clearTimeout(pongTimeout);
-        pongTimeout = null;
-    }
-    pingCount = 0;
-    pongCount = 0;
-};
 
 const attemptReconnect = () => {
     if (isManualDisconnect || !currentConfig) return;
@@ -59,7 +23,7 @@ const attemptReconnect = () => {
 };
 
 const connectWebSocket = config => {
-    const { endpoint, token, authQueryParam, pingInterval: interval, sessionId, channels } = config;
+    const { endpoint, token, authQueryParam, sessionId, channels } = config;
 
     if (ws?.readyState === 1 || ws?.readyState === 0) {
         self.postMessage({ type: 'log', message: 'Already connected or connecting' });
@@ -99,8 +63,6 @@ const connectWebSocket = config => {
                 ws.send(JSON.stringify({ type: 'system', action: 'info', data: {} }));
             }
         }, 100);
-
-        startPingPong(interval);
     };
 
     ws.onmessage = event => {
@@ -124,15 +86,6 @@ const connectWebSocket = config => {
                 return;
             }
 
-            if (data.action === 'pong') {
-                if (pongTimeout) clearTimeout(pongTimeout);
-                pongCount++;
-                self.postMessage({ type: 'log', message: 'Received pong' });
-                self.postMessage({ type: 'stats', pingCount, pongCount });
-                self.postMessage({ type: 'message', data });
-                return;
-            }
-
             self.postMessage({ type: 'message', data });
         } catch (error) {
             self.postMessage({ type: 'error', error: 'Failed to parse message' });
@@ -144,7 +97,6 @@ const connectWebSocket = config => {
             type: 'log',
             message: 'Disconnected: ' + event.code + ' ' + event.reason,
         });
-        stopPingPong();
         self.postMessage({ type: 'status', status: 'disconnected' });
 
         if (!isManualDisconnect) {
@@ -180,7 +132,6 @@ self.onmessage = e => {
                 clearTimeout(reconnectTimeout);
                 reconnectTimeout = null;
             }
-            stopPingPong();
             if (ws) {
                 ws.close();
                 ws = null;
@@ -194,13 +145,6 @@ self.onmessage = e => {
             if (ws?.readyState === 1) {
                 const jsonData = JSON.stringify(data);
                 ws.send(jsonData);
-
-                // Track manual ping
-                if (data && typeof data === 'object' && data.action === 'ping') {
-                    pingCount++;
-                    self.postMessage({ type: 'stats', pingCount, pongCount });
-                }
-
                 self.postMessage({ type: 'log', message: 'Sent: ' + jsonData });
             } else {
                 self.postMessage({ type: 'log', message: 'Cannot send - not connected' });

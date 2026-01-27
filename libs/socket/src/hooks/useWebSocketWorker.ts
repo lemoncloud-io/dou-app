@@ -8,7 +8,6 @@ export interface UseWebSocketWorkerConfig<TMessage extends BaseWebSocketMessage>
     messageParser?: (data: unknown) => TMessage | null;
     enabled?: boolean;
     authQueryParam?: string;
-    pingInterval?: number;
     logPrefix?: string;
     sessionId?: string;
     channels?: string;
@@ -23,8 +22,6 @@ export interface UseWebSocketWorkerReturn<TMessage extends BaseWebSocketMessage>
     connect: () => Promise<void>;
     disconnect: () => void;
     send: (data: unknown) => void;
-    pingCount: number;
-    pongCount: number;
 }
 
 export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseWebSocketMessage>(
@@ -36,7 +33,6 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
         messageParser,
         enabled = true,
         authQueryParam = 'x-lemon-identity',
-        pingInterval = 30000,
         logPrefix = '[WebSocketWorker]',
         sessionId,
         channels,
@@ -48,8 +44,6 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
     const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
     const [lastMessage, setLastMessage] = useState<TMessage | null>(null);
     const [isConnected, setIsConnected] = useState<boolean>(false);
-    const [pingCount, setPingCount] = useState<number>(0);
-    const [pongCount, setPongCount] = useState<number>(0);
 
     const connect = useCallback(async (): Promise<void> => {
         if (!endpoint) {
@@ -64,17 +58,7 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
                 workerRef.current = new Worker('/websocket.worker.js');
 
                 workerRef.current.onmessage = (e: MessageEvent) => {
-                    const {
-                        type,
-                        status,
-                        id: msgId,
-                        connectionId: connId,
-                        data,
-                        message,
-                        error,
-                        pingCount,
-                        pongCount,
-                    } = e.data;
+                    const { type, status, id: msgId, connectionId: connId, data, message, error } = e.data;
 
                     switch (type) {
                         case 'status':
@@ -87,11 +71,6 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
                             setConnectionId(connId);
                             console.log(`${logPrefix} ID:`, msgId);
                             console.log(`${logPrefix} Connection ID:`, connId);
-                            break;
-
-                        case 'stats':
-                            setPingCount(pingCount);
-                            setPongCount(pongCount);
                             break;
 
                         case 'message':
@@ -123,7 +102,6 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
                     endpoint,
                     token,
                     authQueryParam,
-                    pingInterval,
                     sessionId,
                     channels,
                 },
@@ -131,7 +109,7 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
         } catch (error) {
             console.error(`${logPrefix} Failed to connect:`, error);
         }
-    }, [endpoint, tokenProvider, messageParser, authQueryParam, pingInterval, logPrefix, sessionId, channels]);
+    }, [endpoint, tokenProvider, messageParser, authQueryParam, logPrefix, sessionId, channels]);
 
     const disconnect = useCallback((): void => {
         if (workerRef.current) {
@@ -167,7 +145,6 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
                 workerRef.current = null;
             }
         };
-         
     }, [enabled]);
 
     return {
@@ -179,7 +156,5 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
         connect,
         disconnect,
         send,
-        pingCount,
-        pongCount,
     };
 };
