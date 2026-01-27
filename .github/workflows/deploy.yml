@@ -39,9 +39,6 @@ jobs:
               if: ${{ steps.cache-dependencies.outputs.cache-hit != 'true' }}
               run: yarn install --frozen-lockfile
 
-            - name: Build
-              run: yarn web:build
-
             - name: Configure AWS Credentials
               uses: aws-actions/configure-aws-credentials@v4
               with:
@@ -49,8 +46,14 @@ jobs:
                   aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
                   aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
-            - name: Deploy to S3
+            - name: Deploy Web to S3
               run: |
                   set -e
                   chmod +x scripts/deploy-web.sh
                   yarn web:deploy
+
+            - name: Deploy Admin to S3
+              run: |
+                  set -e
+                  chmod +x scripts/deploy-admin.sh
+                  yarn admin:deploy
