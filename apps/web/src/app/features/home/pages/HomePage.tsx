@@ -20,13 +20,17 @@ import { useLogout, useWebCoreStore } from '@chatic/web-core';
 
 import { useSessionId } from '../hooks';
 
+/** Canvas dimensions - must match Admin's Remote Canvas for accurate position mapping */
+const CANVAS_WIDTH = 800;
+const CANVAS_HEIGHT = 500;
+
 export const HomePage = (): JSX.Element => {
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
     const { theme, setTheme } = useTheme();
     const userName = useWebCoreStore(state => state.userName);
     const sessionId = useSessionId();
-    const { isConnected, connectionStatus, id } = useWebSocketStore();
+    const { isConnected, connectionStatus } = useWebSocketStore();
     const [presenceData, setPresenceData] = useState<Record<string, unknown> | null>(null);
     const [localStatus, setLocalStatus] = useState<'green' | 'yellow' | 'red'>('green');
 
@@ -693,11 +697,11 @@ export const HomePage = (): JSX.Element => {
                                 )}
                             </div>
 
-                            {/* Pointer Canvas - same size as Admin Remote Canvas (800×500) */}
+                            {/* Pointer Canvas - same size as Admin Remote Canvas */}
                             <div
                                 ref={pointerCanvasRef}
                                 className="relative border-2 border-dashed border-border rounded-lg bg-muted/20 cursor-crosshair overflow-hidden"
-                                style={{ width: 800, height: 500 }}
+                                style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
                                 onMouseMove={handlePointerMove}
                                 onMouseLeave={handlePointerLeave}
                             >
@@ -737,7 +741,7 @@ export const HomePage = (): JSX.Element => {
 
                                 {/* Canvas label */}
                                 <div className="absolute top-2 left-2 px-2 py-1 rounded bg-background/80 text-xs font-medium">
-                                    Web Pointer Area (800 × 500)
+                                    Web Pointer Area ({CANVAS_WIDTH} × {CANVAS_HEIGHT})
                                 </div>
 
                                 {/* Coordinate display */}
