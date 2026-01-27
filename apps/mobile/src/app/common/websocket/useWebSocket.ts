@@ -3,9 +3,10 @@ import { AppState } from 'react-native';
 
 import { useQueryString } from '../utils';
 
+import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { AppStateStatus } from 'react-native';
 
-interface SocketOptions<P extends Record<string, any>> {
+interface SocketOptions<S extends Record<string, any>, P extends Record<string, any>> {
     /**
      * 서버의 생존 여부를 확인하기 위해 `ping` 메시지를 보내는 주기
      */
@@ -27,6 +28,12 @@ interface SocketOptions<P extends Record<string, any>> {
      * 소켓 연결 요청에 대한 파라미터 객체
      */
     params?: P;
+
+    /**
+     * Ping 메시지 페이로드
+     */
+    pingPayload?: S;
+
     /**
      * 소켓 연결 활성화 여부
      * `false`로 설정되면 연결 즉시 종료
@@ -43,19 +50,25 @@ interface SocketOptions<P extends Record<string, any>> {
  */
 export const useWebSocket = <
     T = unknown,
-    S extends Record<string, any> = Record<string, any>,
+    S extends Record<string, any> = WSSEnvelope, // 기본값을 WSSEnvelope로 설정 가능
     P extends Record<string, any> = Record<string, any>,
 >(
     url: string,
-    options: SocketOptions<P>
+    options: SocketOptions<S, P>
 ) => {
+    const defaultPingPayload = {
+        type: 'sync',
+        action: 'info',
+    } as unknown as S;
+
     const {
-        pingInterval = 10_000,
+        pingInterval = 30_000,
         pongTimeout = 5_000,
         reconnectDelay = 3_000,
         maxReconnectDelay = 30_000,
         params = {} as P,
         enabled = true,
+        pingPayload = defaultPingPayload,
     } = options;
 
     const queryString = useQueryString(params);
@@ -98,7 +111,8 @@ export const useWebSocket = <
         pingTimerRef.current = setInterval(() => {
             if (socketRef.current?.readyState === WebSocket.OPEN) {
                 console.log('log', '[Socket] Sending Ping...');
-                socketRef.current.send('ping');
+
+                sendMessage(pingPayload);
 
                 pongTimerRef.current = setTimeout(() => {
                     console.log('warn', '[Socket] Pong timeout. Closing connection...');
