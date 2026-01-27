@@ -338,8 +338,8 @@ export const HomePage = (): JSX.Element => {
 
             previousStatusRef.current = status;
             setLocalStatus(status);
-            const nextTick = getTick() + 1;
-            setTick(nextTick);
+            const nowTick = getTick();
+            setTick(nowTick);
 
             send({
                 type: 'sync',
@@ -350,7 +350,7 @@ export const HomePage = (): JSX.Element => {
                     posX: Math.round(localPointerPosition.x),
                     posY: Math.round(localPointerPosition.y),
                     ts: Date.now(),
-                    tick: nextTick,
+                    tick: nowTick,
                 },
             });
         },
