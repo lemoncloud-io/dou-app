@@ -2,11 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
     Alert,
     FlatList,
-    KeyboardAvoidingView,
+    LayoutAnimation,
     Platform,
+    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
+    UIManager,
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +16,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDeviceId, useWebSocket } from '../../../common';
 
 import type { ClientStatusType, ClientSyncPayload, WSSConnectParam, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 type LogType = 'sent' | 'received' | 'info' | 'error';
 
@@ -37,6 +43,11 @@ export const SocketTestScreen = () => {
     const insets = useSafeAreaInsets();
     const deviceId = useDeviceId();
 
+    const userAgent =
+        typeof navigator !== 'undefined' && navigator.userAgent
+            ? navigator.userAgent
+            : `${Platform.OS}/${Platform.Version}`;
+
     const { isConnected, lastMessage, connect, disconnect, sendMessage } = useWebSocket<
         WSSEnvelope,
         WSSEnvelope,
@@ -44,7 +55,7 @@ export const SocketTestScreen = () => {
     >(socketUrl, {
         params: {
             deviceId: deviceId ?? undefined,
-            deviceName: deviceId ? 'TEST:' + deviceId : undefined,
+            deviceName: userAgent,
         } as WSSConnectParam,
         enabled: !!deviceId,
     });
@@ -53,8 +64,25 @@ export const SocketTestScreen = () => {
     const [clientStatus, setClientStatus] = useState<ClientStatusType>('');
     const [lastMessageId, setLastMessageId] = useState<string | null>(null);
     const [tick, setTick] = useState(0);
+    const [pongCount, setPongCount] = useState(0);
+    const [connectionDuration, setConnectionDuration] = useState(0);
+
+    const [isExpanded, setIsExpanded] = useState(true);
+
     const flatListRef = useRef<FlatList>(null);
     const statusIcon = STATUS_ICONS[clientStatus];
+
+    const formatDuration = (seconds: number) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    const togglePanel = () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setIsExpanded(!isExpanded);
+    };
 
     const createSystemInfoMessage = (): WSSEnvelope => ({
         type: 'system',
@@ -204,6 +232,24 @@ export const SocketTestScreen = () => {
         }
     }, [isConnected]);
 
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+
+        if (isConnected) {
+            setConnectionDuration(0);
+            const startTime = Date.now();
+            interval = setInterval(() => {
+                setConnectionDuration(Math.floor((Date.now() - startTime) / 1000));
+            }, 1000);
+        } else {
+            setConnectionDuration(0);
+        }
+
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isConnected]);
+
     /**
      * 응답 데이터 도착 시 핸들링
      */
@@ -213,37 +259,46 @@ export const SocketTestScreen = () => {
         if (lastMessage.action === 'pong') return;
         if (lastMessage.action === 'ping') return;
 
-        addLog('received', lastMessage.action);
-        addLog('received', JSON.stringify(lastMessage.payload, null, 2));
-
         if (lastMessage.type === 'sync' && lastMessage.payload) {
             const payload = lastMessage.payload as ClientSyncPayload;
 
-            if (lastMessage.payload.id) {
-                setLastMessageId(lastMessage.payload.id);
+            if (lastMessage.mid) {
+                setLastMessageId(lastMessage.mid);
             }
 
             setClientStatus(payload.status);
             setTick(payload.tick);
+            setPongCount(prev => prev + 1);
         }
 
         addLog('received', JSON.stringify(lastMessage, null, 2));
     }, [lastMessage]);
 
     return (
-        <KeyboardAvoidingView
-            style={[styles.screen, { paddingBottom: insets.bottom }]}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-        >
+        <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
             <View style={styles.controlPanel}>
-                <View>
-                    <View style={styles.statusIndicator}>
+                {/* 1. Header Row: 상태 표시(클릭 시 토글) + 우측 버튼 */}
+                <View style={styles.panelHeader}>
+                    <TouchableOpacity style={styles.statusIndicatorButton} onPress={togglePanel} activeOpacity={0.7}>
                         <View style={[styles.dot, { backgroundColor: isConnected ? '#50E3C2' : '#FF5A5F' }]} />
                         <Text style={styles.statusText}>{isConnected ? 'Connected' : 'Disconnected'}</Text>
-                    </View>
+                        {/* 토글 화살표 아이콘 대체 */}
+                        <Text style={styles.toggleIcon}>{isExpanded ? '▲' : '▼'}</Text>
+                    </TouchableOpacity>
 
+                    <TouchableOpacity
+                        style={[styles.connectButton, { backgroundColor: isConnected ? '#FF5A5F' : '#4A90E2' }]}
+                        onPress={isConnected ? disconnect : connect}
+                    >
+                        <Text style={styles.buttonText}>{isConnected ? 'Disconnect' : 'Connect'}</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* 2. Collapsible Info Body */}
+                {isExpanded && (
                     <View style={styles.infoContainer}>
+                        <View style={styles.dividerHorizontal} />
+
                         <View style={styles.deviceStatusRow}>
                             <Text style={styles.deviceStatusLabel}>Client Status:</Text>
                             <Text style={styles.deviceStatusValue}>
@@ -260,27 +315,32 @@ export const SocketTestScreen = () => {
                                 {deviceId ?? 'Unknown'}
                             </Text>
                         </View>
-
+                        <View style={styles.deviceStatusRow}>
+                            <Text style={styles.deviceStatusLabel}>Sync Count:</Text>
+                            <Text style={styles.deviceStatusValue}>{pongCount}</Text>
+                        </View>
+                        <View style={styles.deviceStatusRow}>
+                            <Text style={styles.deviceStatusLabel}>Uptime:</Text>
+                            <Text style={[styles.deviceStatusValue, { color: '#50E3C2' }]}>
+                                {formatDuration(connectionDuration)}
+                            </Text>
+                        </View>
                         <View style={styles.deviceStatusRow}>
                             <Text style={styles.deviceStatusLabel}>Server Tick:</Text>
                             <Text style={styles.deviceStatusValue}>#{tick}</Text>
                         </View>
-
                         <View style={styles.deviceStatusRow}>
                             <Text style={styles.deviceStatusLabel}>Last Msg ID:</Text>
-                            <Text style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}>
+                            <Text
+                                style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                            >
                                 {lastMessageId ?? '-'}
                             </Text>
                         </View>
                     </View>
-                </View>
-
-                <TouchableOpacity
-                    style={[styles.connectButton, { backgroundColor: isConnected ? '#FF5A5F' : '#4A90E2' }]}
-                    onPress={isConnected ? disconnect : connect}
-                >
-                    <Text style={styles.buttonText}>{isConnected ? 'Disconnect' : 'Connect'}</Text>
-                </TouchableOpacity>
+                )}
             </View>
 
             <FlatList
@@ -294,13 +354,17 @@ export const SocketTestScreen = () => {
             />
 
             <View style={styles.bottomContainer}>
-                <View style={styles.actionRow}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollActionContainer}
+                >
                     <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: '#8E44AD', marginRight: 8 }]}
+                        style={[styles.actionButton, { backgroundColor: '#8E44AD' }]}
                         onPress={handleSendSystemInfo}
                         disabled={!isConnected}
                     >
-                        <Text style={styles.buttonText}>System Info</Text>
+                        <Text style={styles.buttonText}>Sys Info</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -310,12 +374,11 @@ export const SocketTestScreen = () => {
                     >
                         <Text style={styles.buttonText}>Sync Info</Text>
                     </TouchableOpacity>
-                </View>
 
-                <Text style={styles.sectionLabel}>Change Status</Text>
-                <View style={styles.statusRow}>
+                    <View style={styles.divider} />
+
                     <TouchableOpacity
-                        style={[styles.statusButton, { backgroundColor: '#FF5A5F' }]} // Red
+                        style={[styles.actionButton, { backgroundColor: '#FF5A5F' }]}
                         onPress={() => handleChangeStatus('red')}
                         disabled={!isConnected}
                     >
@@ -323,7 +386,7 @@ export const SocketTestScreen = () => {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.statusButton, { backgroundColor: '#F5A623', marginHorizontal: 8 }]} // Yellow
+                        style={[styles.actionButton, { backgroundColor: '#F5A623' }]}
                         onPress={() => handleChangeStatus('yellow')}
                         disabled={!isConnected}
                     >
@@ -331,15 +394,15 @@ export const SocketTestScreen = () => {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.statusButton, { backgroundColor: '#50E3C2' }]} // Green
+                        style={[styles.actionButton, { backgroundColor: '#50E3C2' }]}
                         onPress={() => handleChangeStatus('green')}
                         disabled={!isConnected}
                     >
                         <Text style={styles.buttonText}>Green</Text>
                     </TouchableOpacity>
-                </View>
+                </ScrollView>
             </View>
-        </KeyboardAvoidingView>
+        </View>
     );
 };
 
@@ -348,19 +411,25 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#121212',
     },
+    // ★ Control Panel 스타일 변경: column으로 변경
     controlPanel: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start', // 상단 정렬로 변경
+        flexDirection: 'column',
         padding: 16,
         borderBottomWidth: 1,
         borderBottomColor: '#333',
         backgroundColor: '#1E1E1E',
     },
-    statusIndicator: {
+    // ★ Header Row 스타일 추가
+    panelHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+    },
+    statusIndicatorButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 8,
+        paddingVertical: 4, // 터치 영역 확보
     },
     dot: {
         width: 10,
@@ -373,9 +442,20 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
     },
-    // ★ 복구 및 개선된 스타일
+    toggleIcon: {
+        color: '#888',
+        fontSize: 12,
+        marginLeft: 8,
+    },
+    // ★ 상세 정보 컨테이너 스타일
     infoContainer: {
-        gap: 4, // 간격 조정
+        marginTop: 4,
+        gap: 4,
+    },
+    dividerHorizontal: {
+        height: 1,
+        backgroundColor: '#333',
+        marginVertical: 8,
     },
     deviceStatusRow: {
         flexDirection: 'row',
@@ -383,19 +463,21 @@ const styles = StyleSheet.create({
     },
     deviceStatusLabel: {
         color: '#888',
-        fontSize: 12,
-        width: 80,
+        fontSize: 11,
+        width: 85,
     },
     deviceStatusValue: {
         color: '#FFFFFF',
         fontSize: 12,
         fontWeight: 'bold',
+        flex: 1,
     },
     connectButton: {
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 8,
-        marginTop: 4,
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 6,
+        minWidth: 90,
+        alignItems: 'center',
     },
     logList: {
         flex: 1,
@@ -428,37 +510,26 @@ const styles = StyleSheet.create({
         backgroundColor: '#1E1E1E',
         borderTopWidth: 1,
         borderTopColor: '#333',
-        padding: 12,
+        paddingVertical: 12,
     },
-    actionRow: {
-        flexDirection: 'row',
-        marginBottom: 12,
+    scrollActionContainer: {
+        paddingHorizontal: 12,
+        alignItems: 'center',
+        gap: 8,
     },
     actionButton: {
-        flex: 1,
-        height: 40,
+        height: 44,
+        paddingHorizontal: 20,
         justifyContent: 'center',
         alignItems: 'center',
         borderRadius: 8,
         opacity: 0.9,
     },
-    sectionLabel: {
-        color: '#888',
-        fontSize: 12,
-        marginBottom: 6,
-        marginLeft: 2,
-    },
-    statusRow: {
-        flexDirection: 'row',
-        marginBottom: 12,
-    },
-    statusButton: {
-        flex: 1,
-        height: 36,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 8,
-        opacity: 0.9,
+    divider: {
+        width: 1,
+        height: 24,
+        backgroundColor: '#444',
+        marginHorizontal: 4,
     },
     buttonText: {
         color: '#FFFFFF',
