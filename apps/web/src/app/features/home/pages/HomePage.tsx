@@ -35,7 +35,7 @@ export const HomePage = (): JSX.Element => {
     const [localStatus, setLocalStatus] = useState<'green' | 'yellow' | 'red'>('green');
 
     // channels 미지정 → default 파라미터 사용 → 기본 채널(0000)로 연결하여 Admin과 통신
-    const { connect, disconnect, send: originalSend, pingCount, pongCount } = useInitWebSocket(sessionId);
+    const { connect, disconnect, send: originalSend } = useInitWebSocket(sessionId);
     const unsubscribeRef = useRef<(() => void) | null>(null);
     const [messageFields, setMessageFields] = useState<Array<{ key: string; value: string }>>([
         { key: 'type', value: 'test' },
@@ -54,6 +54,11 @@ export const HomePage = (): JSX.Element => {
     const pointerCanvasRef = useRef<HTMLDivElement>(null);
     const retryCountRef = useRef<number>(0);
     const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lastReceivedSyncRef = useRef<number>(Date.now());
+    const reconnectAttemptsRef = useRef<number>(0);
+    const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const waitingForResponseRef = useRef<boolean>(false);
+    const responseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const previousStatusRef = useRef<'green' | 'yellow' | 'red'>('green');
 
     // Tick management
@@ -76,16 +81,72 @@ export const HomePage = (): JSX.Element => {
         return () => clearInterval(interval);
     }, []);
 
+    // Check last message and send sync if 1 minute passed
+    useEffect(() => {
+        if (!isConnected) return;
+
+        heartbeatIntervalRef.current = setInterval(() => {
+            const now = Date.now();
+            const timeSinceLastSync = now - lastReceivedSyncRef.current;
+
+            if (timeSinceLastSync >= 60000) {
+                const currentTick = getTick();
+                send({
+                    type: 'sync',
+                    action: 'update',
+                    payload: {
+                        id: sessionId,
+                        status: localStatus,
+                        posX: Math.round(localPointerPosition.x),
+                        posY: Math.round(localPointerPosition.y),
+                        ts: now,
+                        tick: currentTick,
+                    },
+                });
+
+                waitingForResponseRef.current = true;
+
+                responseTimeoutRef.current = setTimeout(() => {
+                    if (waitingForResponseRef.current) {
+                        const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+                        reconnectAttemptsRef.current += 1;
+                        disconnect();
+                        setTimeout(() => {
+                            void connect();
+                        }, delay);
+                    }
+                }, 5000);
+            }
+        }, 1000);
+
+        return () => {
+            if (heartbeatIntervalRef.current) {
+                clearInterval(heartbeatIntervalRef.current);
+            }
+            if (responseTimeoutRef.current) {
+                clearTimeout(responseTimeoutRef.current);
+            }
+        };
+    }, [isConnected, send, sessionId, localStatus, localPointerPosition, connect, disconnect]);
+
     // Send presence info when connected (only once)
     const hasRequestedInfoRef = useRef(false);
     useEffect(() => {
         if (isConnected && !hasRequestedInfoRef.current) {
             send({ type: 'presence', action: 'info' });
             hasRequestedInfoRef.current = true;
+            lastReceivedSyncRef.current = Date.now();
+            reconnectAttemptsRef.current = 0;
+            waitingForResponseRef.current = false;
         }
 
         if (!isConnected) {
             hasRequestedInfoRef.current = false;
+            waitingForResponseRef.current = false;
+            if (responseTimeoutRef.current) {
+                clearTimeout(responseTimeoutRef.current);
+                responseTimeoutRef.current = null;
+            }
         }
     }, [isConnected, send]);
 
@@ -105,32 +166,48 @@ export const HomePage = (): JSX.Element => {
                     const payload = data.payload as Record<string, unknown>;
                     const messageId = payload.id as string | undefined;
 
+                    // Update last received time and clear waiting flag
+                    lastReceivedSyncRef.current = Date.now();
+                    reconnectAttemptsRef.current = 0;
+                    waitingForResponseRef.current = false;
+                    if (responseTimeoutRef.current) {
+                        clearTimeout(responseTimeoutRef.current);
+                        responseTimeoutRef.current = null;
+                    }
+
                     // Only process own messages (for tick sync)
                     // Ignore other devices' messages
                     if (messageId !== sessionId) {
                         return;
                     }
 
-                    const serverTick = (payload.tick as number) ?? 0;
+                    const incomingTick = (payload.tick as number) ?? 0;
+                    const currentServerTick = serverData?.tick ?? 0;
+
+                    // 새로 들어온 tick이 현재 저장된 serverTick보다 작으면 무시
+                    if (incomingTick < currentServerTick) {
+                        return;
+                    }
+
                     const myTick = getTick();
 
                     // Update server data for comparison UI
                     setServerData({
-                        tick: serverTick,
+                        tick: incomingTick,
                         status: (payload.status as 'green' | 'yellow' | 'red') ?? 'green',
                         posX: (payload.posX as number) ?? 0,
                         posY: (payload.posY as number) ?? 0,
                         ts: (payload.ts as number) ?? Date.now(),
                     });
 
-                    if (serverTick > myTick) {
+                    if (incomingTick > myTick) {
                         // 서버 tick이 크면 서버 상태 적용
                         retryCountRef.current = 0; // 성공하면 리셋
                         if (retryTimeoutRef.current) {
                             clearTimeout(retryTimeoutRef.current);
                             retryTimeoutRef.current = null;
                         }
-                        setTick(serverTick);
+                        setTick(incomingTick);
                         if (payload.status) {
                             setLocalStatus(payload.status as 'green' | 'yellow' | 'red');
                         }
@@ -140,7 +217,7 @@ export const HomePage = (): JSX.Element => {
                                 y: payload.posY as number,
                             });
                         }
-                    } else if (serverTick < myTick) {
+                    } else if (incomingTick < myTick) {
                         // 서버 tick이 작을 때만 지수 백오프로 재전송
 
                         if (retryTimeoutRef.current) return; // 이미 대기 중이면 스킵
@@ -213,9 +290,9 @@ export const HomePage = (): JSX.Element => {
 
             setLocalPointerPosition({ x, y });
 
-            // Throttle to 50ms (20fps)
+            // Throttle to 62.5ms (16fps)
             const now = Date.now();
-            if (now - lastSentPointerRef.current < 50) return;
+            if (now - lastSentPointerRef.current < 62.5) return;
             lastSentPointerRef.current = now;
 
             const currentTick = getTick();
@@ -237,7 +314,23 @@ export const HomePage = (): JSX.Element => {
 
     const handlePointerLeave = useCallback(() => {
         setLocalPointerPosition({ x: 0, y: 0 });
-    }, []);
+
+        if (!isConnected) return;
+
+        const currentTick = getTick();
+        send({
+            type: 'sync',
+            action: 'update',
+            payload: {
+                id: sessionId,
+                status: localStatus,
+                posX: 0,
+                posY: 0,
+                ts: Date.now(),
+                tick: currentTick,
+            },
+        });
+    }, [isConnected, send, localStatus, sessionId]);
 
     // Status change handler
     const handleStatusChange = useCallback(
@@ -246,8 +339,8 @@ export const HomePage = (): JSX.Element => {
 
             previousStatusRef.current = status;
             setLocalStatus(status);
-            const nextTick = getTick() + 1;
-            setTick(nextTick);
+            const nowTick = getTick();
+            setTick(nowTick);
 
             send({
                 type: 'sync',
@@ -258,7 +351,7 @@ export const HomePage = (): JSX.Element => {
                     posX: Math.round(localPointerPosition.x),
                     posY: Math.round(localPointerPosition.y),
                     ts: Date.now(),
-                    tick: nextTick,
+                    tick: nowTick,
                 },
             });
         },
@@ -427,51 +520,8 @@ export const HomePage = (): JSX.Element => {
                 <div className="mt-4 p-4 rounded-lg border bg-card">
                     <h2 className="text-sm font-medium text-muted-foreground mb-4">WebSocket Test</h2>
                     <div className="space-y-4 divide-y">
-                        {/* Ping/Pong Stats */}
-                        <div className="p-3 rounded-md bg-muted/30">
-                            <p className="text-sm font-semibold text-foreground mb-3">📊 Ping/Pong Statistics</p>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="flex items-center justify-between p-2 rounded bg-background">
-                                    <span className="text-xs text-muted-foreground">Interval</span>
-                                    <span className="text-sm font-bold font-mono">30s</span>
-                                </div>
-                                <div className="flex items-center justify-between p-2 rounded bg-background">
-                                    <span className="text-xs text-muted-foreground">Timeout</span>
-                                    <span className="text-sm font-bold font-mono">5s</span>
-                                </div>
-                                <div className="flex items-center justify-between p-2 rounded bg-blue-500/10">
-                                    <span className="text-xs text-muted-foreground">📤 Ping Sent</span>
-                                    <span className="text-lg font-bold font-mono text-blue-600 dark:text-blue-400">
-                                        {pingCount}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between p-2 rounded bg-green-500/10">
-                                    <span className="text-xs text-muted-foreground">📥 Pong Received</span>
-                                    <span className="text-lg font-bold font-mono text-green-600 dark:text-green-400">
-                                        {pongCount}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Manual Ping */}
-                        <div className="pt-4">
-                            <p className="text-sm font-semibold text-foreground mb-2">🔧 Manual Ping Test</p>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-9 px-4 text-xs font-medium"
-                                onClick={() =>
-                                    send({ type: 'system', action: 'ping', data: { timestamp: Date.now() } })
-                                }
-                                disabled={!isConnected}
-                            >
-                                📤 Send Ping
-                            </Button>
-                        </div>
-
                         {/* Custom Message */}
-                        <div className="pt-4">
+                        <div>
                             <p className="text-sm font-semibold text-foreground mb-2">📝 Custom Message</p>
                             <div className="space-y-2">
                                 {messageFields.map((field, idx) => (
@@ -762,7 +812,21 @@ export const HomePage = (): JSX.Element => {
                                             transform: 'translate(-50%, -50%)',
                                         }}
                                     >
-                                        <div className="w-4 h-4 rounded-full bg-blue-500/50 border-2 border-blue-500 animate-pulse" />
+                                        <div className="w-4 h-4 rounded-full bg-green-500/50 border-2 border-green-500 animate-pulse" />
+                                    </div>
+                                )}
+
+                                {/* Server cursor indicator */}
+                                {serverData && serverData.posX > 0 && serverData.posY > 0 && (
+                                    <div
+                                        className="absolute pointer-events-none"
+                                        style={{
+                                            left: serverData.posX,
+                                            top: serverData.posY,
+                                            transform: 'translate(-50%, -50%)',
+                                        }}
+                                    >
+                                        <div className="w-4 h-4 rounded-full bg-blue-500/50 border-2 border-blue-500" />
                                     </div>
                                 )}
 
