@@ -5,6 +5,44 @@ let reconnectTimeout = null;
 let isManualDisconnect = false;
 let currentConfig = null;
 let reconnectAttempts = 0;
+let syncInfoInterval = null;
+let syncInfoTimeout = null;
+let waitingForSyncInfo = false;
+
+const SYNC_INFO_INTERVAL = 60000; // 60s
+const SYNC_INFO_TIMEOUT = 5000; // 5s
+
+const startSyncInfoHeartbeat = () => {
+    if (syncInfoInterval) clearInterval(syncInfoInterval);
+
+    syncInfoInterval = setInterval(() => {
+        if (ws?.readyState === 1) {
+            ws.send(JSON.stringify({ type: 'sync', action: 'info' }));
+            self.postMessage({ type: 'log', message: 'Sent sync info heartbeat' });
+            waitingForSyncInfo = true;
+
+            if (syncInfoTimeout) clearTimeout(syncInfoTimeout);
+            syncInfoTimeout = setTimeout(() => {
+                if (waitingForSyncInfo) {
+                    self.postMessage({ type: 'log', message: 'Sync info timeout, forcing reconnect' });
+                    ws?.close();
+                }
+            }, SYNC_INFO_TIMEOUT);
+        }
+    }, SYNC_INFO_INTERVAL);
+};
+
+const stopSyncInfoHeartbeat = () => {
+    if (syncInfoInterval) {
+        clearInterval(syncInfoInterval);
+        syncInfoInterval = null;
+    }
+    if (syncInfoTimeout) {
+        clearTimeout(syncInfoTimeout);
+        syncInfoTimeout = null;
+    }
+    waitingForSyncInfo = false;
+};
 
 const attemptReconnect = () => {
     if (isManualDisconnect || !currentConfig) return;
@@ -63,6 +101,8 @@ const connectWebSocket = config => {
                 ws.send(JSON.stringify({ type: 'system', action: 'info', data: {} }));
             }
         }, 100);
+
+        startSyncInfoHeartbeat();
     };
 
     ws.onmessage = event => {
@@ -86,6 +126,12 @@ const connectWebSocket = config => {
                 return;
             }
 
+            if (data.type === 'sync' && data.action === 'info') {
+                if (syncInfoTimeout) clearTimeout(syncInfoTimeout);
+                waitingForSyncInfo = false;
+                self.postMessage({ type: 'log', message: 'Received sync info response' });
+            }
+
             self.postMessage({ type: 'message', data });
         } catch (error) {
             self.postMessage({ type: 'error', error: 'Failed to parse message' });
@@ -97,6 +143,7 @@ const connectWebSocket = config => {
             type: 'log',
             message: 'Disconnected: ' + event.code + ' ' + event.reason,
         });
+        stopSyncInfoHeartbeat();
         self.postMessage({ type: 'status', status: 'disconnected' });
 
         if (!isManualDisconnect) {
@@ -132,6 +179,7 @@ self.onmessage = e => {
                 clearTimeout(reconnectTimeout);
                 reconnectTimeout = null;
             }
+            stopSyncInfoHeartbeat();
             if (ws) {
                 ws.close();
                 ws = null;
