@@ -54,11 +54,6 @@ export const HomePage = (): JSX.Element => {
     const pointerCanvasRef = useRef<HTMLDivElement>(null);
     const retryCountRef = useRef<number>(0);
     const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const lastReceivedSyncRef = useRef<number>(Date.now());
-    const reconnectAttemptsRef = useRef<number>(0);
-    const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const waitingForResponseRef = useRef<boolean>(false);
-    const responseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const previousStatusRef = useRef<'green' | 'yellow' | 'red'>('green');
 
     // Tick management
@@ -81,72 +76,16 @@ export const HomePage = (): JSX.Element => {
         return () => clearInterval(interval);
     }, []);
 
-    // Check last message and send sync if 1 minute passed
-    useEffect(() => {
-        if (!isConnected) return;
-
-        heartbeatIntervalRef.current = setInterval(() => {
-            const now = Date.now();
-            const timeSinceLastSync = now - lastReceivedSyncRef.current;
-
-            if (timeSinceLastSync >= 60000) {
-                const currentTick = getTick();
-                send({
-                    type: 'sync',
-                    action: 'update',
-                    payload: {
-                        id: sessionId,
-                        status: localStatus,
-                        posX: Math.round(localPointerPosition.x),
-                        posY: Math.round(localPointerPosition.y),
-                        ts: now,
-                        tick: currentTick,
-                    },
-                });
-
-                waitingForResponseRef.current = true;
-
-                responseTimeoutRef.current = setTimeout(() => {
-                    if (waitingForResponseRef.current) {
-                        const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
-                        reconnectAttemptsRef.current += 1;
-                        disconnect();
-                        setTimeout(() => {
-                            void connect();
-                        }, delay);
-                    }
-                }, 5000);
-            }
-        }, 1000);
-
-        return () => {
-            if (heartbeatIntervalRef.current) {
-                clearInterval(heartbeatIntervalRef.current);
-            }
-            if (responseTimeoutRef.current) {
-                clearTimeout(responseTimeoutRef.current);
-            }
-        };
-    }, [isConnected, send, sessionId, localStatus, localPointerPosition, connect, disconnect]);
-
     // Send presence info when connected (only once)
     const hasRequestedInfoRef = useRef(false);
     useEffect(() => {
         if (isConnected && !hasRequestedInfoRef.current) {
             send({ type: 'presence', action: 'info' });
             hasRequestedInfoRef.current = true;
-            lastReceivedSyncRef.current = Date.now();
-            reconnectAttemptsRef.current = 0;
-            waitingForResponseRef.current = false;
         }
 
         if (!isConnected) {
             hasRequestedInfoRef.current = false;
-            waitingForResponseRef.current = false;
-            if (responseTimeoutRef.current) {
-                clearTimeout(responseTimeoutRef.current);
-                responseTimeoutRef.current = null;
-            }
         }
     }, [isConnected, send]);
 
@@ -165,15 +104,6 @@ export const HomePage = (): JSX.Element => {
                 if (data.type === 'sync' && data.payload) {
                     const payload = data.payload as Record<string, unknown>;
                     const messageId = payload.id as string | undefined;
-
-                    // Update last received time and clear waiting flag
-                    lastReceivedSyncRef.current = Date.now();
-                    reconnectAttemptsRef.current = 0;
-                    waitingForResponseRef.current = false;
-                    if (responseTimeoutRef.current) {
-                        clearTimeout(responseTimeoutRef.current);
-                        responseTimeoutRef.current = null;
-                    }
 
                     // Only process own messages (for tick sync)
                     // Ignore other devices' messages
