@@ -1,45 +1,47 @@
 /* eslint-disable */
 let ws = null;
-let pingInterval = null;
 let connectionId = null;
 let reconnectTimeout = null;
 let isManualDisconnect = false;
 let currentConfig = null;
 let reconnectAttempts = 0;
-let pongTimeout = null;
-let pingCount = 0;
-let pongCount = 0;
+let syncInfoInterval = null;
+let syncInfoTimeout = null;
+let waitingForSyncInfo = false;
 
-const startPingPong = interval => {
-    if (pingInterval) clearInterval(pingInterval);
+const SYNC_INFO_INTERVAL = 60000; // 60s
+const SYNC_INFO_TIMEOUT = 5000; // 5s
 
-    pingInterval = setInterval(() => {
+const startSyncInfoHeartbeat = () => {
+    if (syncInfoInterval) clearInterval(syncInfoInterval);
+
+    syncInfoInterval = setInterval(() => {
         if (ws?.readyState === 1) {
-            pingCount++;
-            ws.send(JSON.stringify({ type: 'system', action: 'ping', data: { timestamp: Date.now() } }));
-            self.postMessage({ type: 'log', message: 'Sent ping' });
-            self.postMessage({ type: 'stats', pingCount, pongCount });
+            ws.send(JSON.stringify({ type: 'sync', action: 'info' }));
+            self.postMessage({ type: 'log', message: 'Sent sync info heartbeat' });
+            waitingForSyncInfo = true;
 
-            if (pongTimeout) clearTimeout(pongTimeout);
-            pongTimeout = setTimeout(() => {
-                self.postMessage({ type: 'log', message: 'Pong timeout, forcing reconnect' });
-                ws?.close();
-            }, 5000);
+            if (syncInfoTimeout) clearTimeout(syncInfoTimeout);
+            syncInfoTimeout = setTimeout(() => {
+                if (waitingForSyncInfo) {
+                    self.postMessage({ type: 'log', message: 'Sync info timeout, forcing reconnect' });
+                    ws?.close();
+                }
+            }, SYNC_INFO_TIMEOUT);
         }
-    }, interval);
+    }, SYNC_INFO_INTERVAL);
 };
 
-const stopPingPong = () => {
-    if (pingInterval) {
-        clearInterval(pingInterval);
-        pingInterval = null;
+const stopSyncInfoHeartbeat = () => {
+    if (syncInfoInterval) {
+        clearInterval(syncInfoInterval);
+        syncInfoInterval = null;
     }
-    if (pongTimeout) {
-        clearTimeout(pongTimeout);
-        pongTimeout = null;
+    if (syncInfoTimeout) {
+        clearTimeout(syncInfoTimeout);
+        syncInfoTimeout = null;
     }
-    pingCount = 0;
-    pongCount = 0;
+    waitingForSyncInfo = false;
 };
 
 const attemptReconnect = () => {
@@ -59,7 +61,7 @@ const attemptReconnect = () => {
 };
 
 const connectWebSocket = config => {
-    const { endpoint, token, authQueryParam, pingInterval: interval, sessionId, channels } = config;
+    const { endpoint, token, authQueryParam, sessionId, channels } = config;
 
     if (ws?.readyState === 1 || ws?.readyState === 0) {
         self.postMessage({ type: 'log', message: 'Already connected or connecting' });
@@ -100,7 +102,7 @@ const connectWebSocket = config => {
             }
         }, 100);
 
-        startPingPong(interval);
+        startSyncInfoHeartbeat();
     };
 
     ws.onmessage = event => {
@@ -124,13 +126,10 @@ const connectWebSocket = config => {
                 return;
             }
 
-            if (data.action === 'pong') {
-                if (pongTimeout) clearTimeout(pongTimeout);
-                pongCount++;
-                self.postMessage({ type: 'log', message: 'Received pong' });
-                self.postMessage({ type: 'stats', pingCount, pongCount });
-                self.postMessage({ type: 'message', data });
-                return;
+            if (data.type === 'sync' && data.action === 'info') {
+                if (syncInfoTimeout) clearTimeout(syncInfoTimeout);
+                waitingForSyncInfo = false;
+                self.postMessage({ type: 'log', message: 'Received sync info response' });
             }
 
             self.postMessage({ type: 'message', data });
@@ -144,7 +143,7 @@ const connectWebSocket = config => {
             type: 'log',
             message: 'Disconnected: ' + event.code + ' ' + event.reason,
         });
-        stopPingPong();
+        stopSyncInfoHeartbeat();
         self.postMessage({ type: 'status', status: 'disconnected' });
 
         if (!isManualDisconnect) {
@@ -180,7 +179,7 @@ self.onmessage = e => {
                 clearTimeout(reconnectTimeout);
                 reconnectTimeout = null;
             }
-            stopPingPong();
+            stopSyncInfoHeartbeat();
             if (ws) {
                 ws.close();
                 ws = null;
@@ -194,13 +193,6 @@ self.onmessage = e => {
             if (ws?.readyState === 1) {
                 const jsonData = JSON.stringify(data);
                 ws.send(jsonData);
-
-                // Track manual ping
-                if (data && typeof data === 'object' && data.action === 'ping') {
-                    pingCount++;
-                    self.postMessage({ type: 'stats', pingCount, pongCount });
-                }
-
                 self.postMessage({ type: 'log', message: 'Sent: ' + jsonData });
             } else {
                 self.postMessage({ type: 'log', message: 'Cannot send - not connected' });
