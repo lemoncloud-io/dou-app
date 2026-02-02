@@ -1,4 +1,4 @@
-package com.chatic
+package io.chatic.dou
 
 import android.app.Application
 import com.facebook.react.PackageList
