@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useWebSocketStore } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -19,11 +20,13 @@ interface AdminAuthTestPanelProps {
  * - Own auth testing
  */
 export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): JSX.Element => {
+    const { t } = useTranslation();
     const { isConnected } = useWebSocketStore();
     const { connect, disconnect, sendAuthUpdate } = ws;
 
     const ownAuthState = useAuthMonitorStore(state => state.ownAuthState);
-    const [dryRun, setDryRun] = useState(true);
+    const dryRun = useAuthMonitorStore(state => state.dryRun);
+    const setDryRun = useAuthMonitorStore(state => state.setDryRun);
     const [customToken, setCustomToken] = useState<string>('test');
 
     const handleConnect = useCallback(async () => {
@@ -40,12 +43,12 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
     return (
         <div className="rounded-lg border bg-card p-4 space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2">
-                <span>🔧</span> Admin Controls
+                <span>🔧</span> {t('authTest.title')}
             </h3>
 
             {/* Device ID */}
             <div className="p-2 rounded bg-muted/50">
-                <span className="text-[10px] text-muted-foreground">Admin Device ID</span>
+                <span className="text-[10px] text-muted-foreground">{t('authTest.deviceId')}</span>
                 <div className="font-mono text-xs truncate" title={deviceId}>
                     {deviceId}
                 </div>
@@ -55,7 +58,7 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
             <div className="flex items-center gap-2">
                 <div className={`h-3 w-3 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
                 <span className="text-sm">
-                    {isConnected ? 'Connected' : 'Disconnected'}
+                    {isConnected ? t('authTest.connected') : t('authTest.disconnected')}
                     {ownAuthState && ` (${ownAuthState})`}
                 </span>
             </div>
@@ -63,8 +66,8 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
             {/* dryRun Toggle */}
             <div className="flex items-center justify-between p-2 rounded bg-muted/30">
                 <div>
-                    <span className="text-sm font-medium">Dry Run</span>
-                    <p className="text-[10px] text-muted-foreground">Skip validation</p>
+                    <span className="text-sm font-medium">{t('authTest.dryRunMode')}</span>
+                    <p className="text-[10px] text-muted-foreground">{t('authTest.dryRunDesc')}</p>
                 </div>
                 <button
                     type="button"
@@ -83,7 +86,7 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
 
             {/* Custom Token Input */}
             <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Custom Token</label>
+                <label className="text-xs text-muted-foreground">{t('authTest.customToken')}</label>
                 <input
                     type="text"
                     value={customToken}
@@ -103,7 +106,7 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
                         disabled={isConnected}
                         variant={isConnected ? 'outline' : 'default'}
                     >
-                        Connect
+                        {t('authTest.connect')}
                     </Button>
                     <Button
                         size="sm"
@@ -112,7 +115,7 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
                         disabled={!isConnected}
                         variant="destructive"
                     >
-                        Disconnect
+                        {t('authTest.disconnect')}
                     </Button>
                 </div>
 
@@ -123,7 +126,7 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
                     disabled={!isConnected || ownAuthState === 'authenticated'}
                     variant="secondary"
                 >
-                    Authenticate
+                    {t('authTest.authenticate')}
                 </Button>
 
                 <Button
@@ -133,7 +136,7 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
                     disabled={!isConnected}
                     variant="destructive"
                 >
-                    Send Invalid Token
+                    {t('authTest.sendInvalidToken')}
                 </Button>
             </div>
         </div>

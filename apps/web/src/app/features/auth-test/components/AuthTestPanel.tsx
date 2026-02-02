@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useWebSocketStore } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -21,6 +22,7 @@ interface AuthTestPanelProps {
  * - Custom token input
  */
 export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPanelProps): JSX.Element => {
+    const { t } = useTranslation();
     const { isConnected } = useWebSocketStore();
     const { connect, disconnect, sendAuthUpdate } = ws;
 
@@ -83,12 +85,12 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
     return (
         <div className="rounded-lg border bg-card p-4 space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2">
-                <span>🧪</span> 테스트 패널
+                <span>🧪</span> {t('authTest.title')}
             </h3>
 
             {/* Device ID Display */}
             <div className="p-2 rounded bg-muted/50">
-                <span className="text-[10px] text-muted-foreground">디바이스 ID</span>
+                <span className="text-[10px] text-muted-foreground">{t('authTest.deviceId')}</span>
                 <div className="font-mono text-xs truncate" title={deviceId}>
                     {deviceId}
                 </div>
@@ -97,8 +99,8 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
             {/* dryRun Toggle */}
             <div className="flex items-center justify-between p-2 rounded bg-muted/30">
                 <div>
-                    <span className="text-sm font-medium">Dry Run 모드</span>
-                    <p className="text-[10px] text-muted-foreground">토큰 검증 생략 (테스트용)</p>
+                    <span className="text-sm font-medium">{t('authTest.dryRunMode')}</span>
+                    <p className="text-[10px] text-muted-foreground">{t('authTest.dryRunDesc')}</p>
                 </div>
                 <button
                     type="button"
@@ -117,19 +119,19 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
 
             {/* Custom Token Input */}
             <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">커스텀 토큰 (선택)</label>
+                <label className="text-xs text-muted-foreground">{t('authTest.customToken')}</label>
                 <input
                     type="text"
                     value={customToken}
                     onChange={e => setCustomToken(e.target.value)}
-                    placeholder="비워두면 webCore 토큰 사용"
+                    placeholder={t('authTest.customTokenPlaceholder')}
                     className="w-full px-2 py-1.5 text-xs rounded border bg-background"
                 />
             </div>
 
             {/* Scenario Buttons */}
             <div className="space-y-2">
-                <div className="text-xs text-muted-foreground font-medium">시나리오</div>
+                <div className="text-xs text-muted-foreground font-medium">{t('authTest.scenarios')}</div>
 
                 {/* Scenario 1: Connect */}
                 <div className="flex gap-2">
@@ -140,7 +142,7 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
                         disabled={isConnected}
                         variant={isConnected ? 'outline' : 'default'}
                     >
-                        1. 연결
+                        1. {t('authTest.connect')}
                     </Button>
                     <Button
                         size="sm"
@@ -149,7 +151,7 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
                         disabled={!isConnected || authState === 'authenticated'}
                         variant="default"
                     >
-                        2. 인증
+                        2. {t('authTest.authenticate')}
                     </Button>
                 </div>
 
@@ -161,7 +163,7 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
                     disabled={!isConnected}
                     variant="destructive"
                 >
-                    3. 잘못된 토큰 전송 (실패 테스트)
+                    3. {t('authTest.sendInvalidToken')}
                 </Button>
 
                 {/* Scenario 4: Disconnect/Reconnect */}
@@ -173,7 +175,7 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
                         disabled={!isConnected}
                         variant="outline"
                     >
-                        4a. 연결 해제
+                        4a. {t('authTest.disconnect')}
                     </Button>
                     <Button
                         size="sm"
@@ -182,13 +184,13 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
                         disabled={isConnected}
                         variant="outline"
                     >
-                        4b. 재연결
+                        4b. {t('authTest.reconnect')}
                     </Button>
                 </div>
 
                 {/* Scenario 3: Multi-device */}
                 <Button size="sm" className="w-full h-8 text-xs" onClick={handleNewDevice} variant="secondary">
-                    5. 새 디바이스 (ID 재생성)
+                    5. {t('authTest.newDevice')}
                 </Button>
             </div>
 
@@ -196,17 +198,16 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
             <div className="pt-2 border-t">
                 <div className="text-[10px] text-muted-foreground space-y-1">
                     <p>
-                        <strong>시나리오 1:</strong> 연결 → state가 &apos;pending&apos;으로 변경
+                        <strong>1:</strong> {t('authTest.help.scenario1')}
                     </p>
                     <p>
-                        <strong>시나리오 2:</strong> 인증 → dryRun 시 &apos;authenticated&apos;, 아니면
-                        &apos;validating&apos; → &apos;authenticated/failed&apos;
+                        <strong>2:</strong> {t('authTest.help.scenario2')}
                     </p>
                     <p>
-                        <strong>시나리오 3:</strong> 멀티 디바이스 테스트 - 여러 탭 열기
+                        <strong>3:</strong> {t('authTest.help.scenario3')}
                     </p>
                     <p>
-                        <strong>시나리오 4:</strong> 연결 해제/재연결 - 동일한 deviceId 유지
+                        <strong>4:</strong> {t('authTest.help.scenario4')}
                     </p>
                 </div>
             </div>

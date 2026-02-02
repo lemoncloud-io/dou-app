@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { useAuthMonitorStore } from '../stores';
@@ -9,6 +11,7 @@ import type { JSX } from 'react';
  * - Displays all auth events from all devices
  */
 export const AuthEventLog = (): JSX.Element => {
+    const { t } = useTranslation();
     const eventLog = useAuthMonitorStore(state => state.eventLog);
     const clearEventLog = useAuthMonitorStore(state => state.clearEventLog);
     const ownDeviceId = useAuthMonitorStore(state => state.ownDeviceId);
@@ -18,18 +21,20 @@ export const AuthEventLog = (): JSX.Element => {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b">
                 <h3 className="text-sm font-semibold flex items-center gap-2">
-                    <span>📋</span> Event Log
+                    <span>📋</span> {t('authTest.eventLog.title')}
                     <span className="text-xs text-muted-foreground font-normal">({eventLog.length})</span>
                 </h3>
                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={clearEventLog}>
-                    Clear
+                    {t('authTest.eventLog.clear')}
                 </Button>
             </div>
 
             {/* Log Entries */}
             <div className="max-h-[400px] overflow-y-auto">
                 {eventLog.length === 0 ? (
-                    <div className="px-4 py-8 text-center text-sm text-muted-foreground">No events yet</div>
+                    <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                        {t('authTest.eventLog.noEvents')}
+                    </div>
                 ) : (
                     <div className="divide-y">
                         {eventLog.map(entry => {
@@ -52,7 +57,9 @@ export const AuthEventLog = (): JSX.Element => {
                                                 entry.direction === 'sent' ? 'text-blue-500' : 'text-green-500'
                                             }`}
                                         >
-                                            {entry.direction === 'sent' ? '→ SENT' : '← RECV'}
+                                            {entry.direction === 'sent'
+                                                ? `→ ${t('authTest.eventLog.sent')}`
+                                                : `← ${t('authTest.eventLog.received')}`}
                                         </span>
 
                                         {/* Type:Action */}
@@ -64,7 +71,11 @@ export const AuthEventLog = (): JSX.Element => {
                                         {entry.sourceDeviceId && (
                                             <span className="text-[10px] text-muted-foreground font-mono">
                                                 [{entry.sourceDeviceId.slice(0, 8)}...]
-                                                {isOwnEvent && <span className="text-blue-500 ml-1">(you)</span>}
+                                                {isOwnEvent && (
+                                                    <span className="text-blue-500 ml-1">
+                                                        {t('authTest.eventLog.you')}
+                                                    </span>
+                                                )}
                                             </span>
                                         )}
                                     </div>

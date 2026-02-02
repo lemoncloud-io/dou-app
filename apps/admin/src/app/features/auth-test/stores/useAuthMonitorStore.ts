@@ -16,6 +16,8 @@ interface AuthMonitorStoreState {
     ownAuthState: AuthState;
     /** Own auth ID */
     ownAuthId: string | null;
+    /** Dry run mode (skip token validation) */
+    dryRun: boolean;
 }
 
 /**
@@ -38,6 +40,8 @@ interface AuthMonitorStoreActions {
     setOwnAuthState: (state: AuthState) => void;
     /** Set own auth ID */
     setOwnAuthId: (authId: string | null) => void;
+    /** Set dry run mode */
+    setDryRun: (dryRun: boolean) => void;
     /** Update session from auth payload */
     updateSessionFromPayload: (payload: {
         deviceId?: string;
@@ -61,6 +65,7 @@ export const useAuthMonitorStore = create<AuthMonitorStoreState & AuthMonitorSto
     ownDeviceId: '',
     ownAuthState: '',
     ownAuthId: null,
+    dryRun: true,
 
     setSession: session =>
         set(state => {
@@ -97,6 +102,8 @@ export const useAuthMonitorStore = create<AuthMonitorStoreState & AuthMonitorSto
     setOwnAuthState: state => set({ ownAuthState: state }),
 
     setOwnAuthId: authId => set({ ownAuthId: authId }),
+
+    setDryRun: dryRun => set({ dryRun }),
 
     updateSessionFromPayload: payload => {
         const { deviceId, authId, state, stateAt, memberId, member$, error } = payload;

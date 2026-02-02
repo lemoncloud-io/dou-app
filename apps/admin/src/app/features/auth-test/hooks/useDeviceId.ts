@@ -1,33 +1,9 @@
-import { useEffect, useState } from 'react';
-
-import { v4 as uuidv4 } from 'uuid';
+import { useDeviceId as useDeviceIdBase } from '@chatic/shared';
 
 import { DEVICE_ID_STORAGE_KEY } from '../types';
 
 /**
- * Hook to manage device ID persistence for Admin
- * - Uses localStorage (persists across browser sessions)
- * - Generates new UUID if not exists
+ * Hook to manage device ID persistence for admin auth test
+ * - Wraps shared useDeviceId with admin-specific storage key
  */
-export const useDeviceId = () => {
-    const [deviceId, setDeviceId] = useState<string>(() => {
-        const stored = localStorage.getItem(DEVICE_ID_STORAGE_KEY);
-        if (stored) return stored;
-
-        const newId = uuidv4();
-        localStorage.setItem(DEVICE_ID_STORAGE_KEY, newId);
-        return newId;
-    });
-
-    useEffect(() => {
-        localStorage.setItem(DEVICE_ID_STORAGE_KEY, deviceId);
-    }, [deviceId]);
-
-    const regenerateDeviceId = () => {
-        const newId = uuidv4();
-        setDeviceId(newId);
-        return newId;
-    };
-
-    return { deviceId, setDeviceId, regenerateDeviceId };
-};
+export const useDeviceId = () => useDeviceIdBase(DEVICE_ID_STORAGE_KEY);

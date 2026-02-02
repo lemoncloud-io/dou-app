@@ -5,3 +5,4 @@ export * from './useBlocker';
 export * from './useLocalStorage';
 export * from './usePagination';
 export * from './useVersionCheck';
+export * from './useDeviceId';

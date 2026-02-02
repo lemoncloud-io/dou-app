@@ -134,16 +134,22 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
         [logPrefix]
     );
 
+    // Store stable refs for cleanup
+    const connectRef = useRef(connect);
+    const disconnectRef = useRef(disconnect);
+    connectRef.current = connect;
+    disconnectRef.current = disconnect;
+
     useEffect(() => {
         if (!enabled) {
-            disconnect();
+            disconnectRef.current();
             return;
         }
 
-        void connect();
+        void connectRef.current();
 
         return () => {
-            disconnect();
+            disconnectRef.current();
             if (workerRef.current) {
                 workerRef.current.terminate();
                 workerRef.current = null;

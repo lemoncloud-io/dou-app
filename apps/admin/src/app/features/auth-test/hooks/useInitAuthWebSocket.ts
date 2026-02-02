@@ -4,26 +4,12 @@ import { useWebSocketStore, useWebSocketWorker } from '@chatic/socket';
 import { webCore } from '@chatic/web-core';
 
 import { useAuthMonitorStore } from '../stores';
+import { parseAuthWebSocketMessage } from '../types';
 
 import type { AuthEnvelope, AuthPayload } from '../types';
 import type { BaseWebSocketMessage } from '@chatic/socket';
 
 const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT || '';
-
-/**
- * Parse auth WebSocket message
- */
-const parseAuthWebSocketMessage = (data: unknown): BaseWebSocketMessage | null => {
-    if (!data || typeof data !== 'object') return null;
-
-    const message = data as Record<string, unknown>;
-
-    return {
-        id: message.mid as string | undefined,
-        action: message.action as string | undefined,
-        data: message,
-    };
-};
 
 export interface UseInitAuthWebSocketReturn {
     connectionId: string | null;
