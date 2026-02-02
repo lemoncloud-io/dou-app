@@ -23,7 +23,8 @@
         "react-native-webview": "*",
         "zustand": "*",
         "react-native-uuid": "*",
-        "@react-native-async-storage/async-storage": "*"
+        "@react-native-async-storage/async-storage": "*",
+        "@lemoncloud/chatic-sockets-api": "*"
     },
     "devDependencies": {}
 }
