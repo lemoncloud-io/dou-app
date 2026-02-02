@@ -35,5 +35,26 @@
             "viewAnalytics": "View Analytics",
             "settings": "Settings"
         }
+    },
+    "authTest": {
+        "title": "Admin Controls",
+        "deviceId": "Admin Device ID",
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "dryRunMode": "Dry Run",
+        "dryRunDesc": "Skip validation",
+        "customToken": "Custom Token",
+        "connect": "Connect",
+        "disconnect": "Disconnect",
+        "authenticate": "Authenticate",
+        "sendInvalidToken": "Send Invalid Token",
+        "eventLog": {
+            "title": "Event Log",
+            "clear": "Clear",
+            "noEvents": "No events yet",
+            "sent": "SENT",
+            "received": "RECV",
+            "you": "(you)"
+        }
     }
 }

@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 
 import { useWebSocketStore } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { webCore } from '@chatic/web-core';
 
 import { useAuthMonitorStore } from '../stores';
 
@@ -25,28 +24,18 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
 
     const ownAuthState = useAuthMonitorStore(state => state.ownAuthState);
     const [dryRun, setDryRun] = useState(true);
-    const [isLoadingToken, setIsLoadingToken] = useState(false);
+    const [customToken, setCustomToken] = useState<string>('test');
 
     const handleConnect = useCallback(async () => {
         await connect();
     }, [connect]);
 
-    const handleAuthenticate = useCallback(async () => {
-        setIsLoadingToken(true);
-        try {
-            const tokenData = await webCore.getTokenSignature();
-            const token = tokenData?.originToken?.identityToken || '';
-
-            sendAuthUpdate({
-                token,
-                dryRun,
-            });
-        } catch (error) {
-            console.error('Failed to get token:', error);
-        } finally {
-            setIsLoadingToken(false);
-        }
-    }, [dryRun, sendAuthUpdate]);
+    const handleAuthenticate = useCallback(() => {
+        sendAuthUpdate({
+            token: customToken,
+            dryRun,
+        });
+    }, [customToken, dryRun, sendAuthUpdate]);
 
     return (
         <div className="rounded-lg border bg-card p-4 space-y-4">
@@ -92,6 +81,18 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
                 </button>
             </div>
 
+            {/* Custom Token Input */}
+            <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Custom Token</label>
+                <input
+                    type="text"
+                    value={customToken}
+                    onChange={e => setCustomToken(e.target.value)}
+                    placeholder="test"
+                    className="w-full px-2 py-1.5 text-xs rounded border bg-background"
+                />
+            </div>
+
             {/* Control Buttons */}
             <div className="space-y-2">
                 <div className="flex gap-2">
@@ -119,10 +120,20 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
                     size="sm"
                     className="w-full h-8 text-xs"
                     onClick={handleAuthenticate}
-                    disabled={!isConnected || ownAuthState === 'authenticated' || isLoadingToken}
+                    disabled={!isConnected || ownAuthState === 'authenticated'}
                     variant="secondary"
                 >
-                    {isLoadingToken ? 'Loading...' : 'Authenticate (Admin)'}
+                    Authenticate
+                </Button>
+
+                <Button
+                    size="sm"
+                    className="w-full h-8 text-xs"
+                    onClick={() => sendAuthUpdate({ token: 'invalid-token', dryRun })}
+                    disabled={!isConnected}
+                    variant="destructive"
+                >
+                    Send Invalid Token
                 </Button>
             </div>
         </div>

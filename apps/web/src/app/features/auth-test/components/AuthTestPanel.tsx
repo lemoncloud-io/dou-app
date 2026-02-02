@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 
 import { useWebSocketStore } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { webCore } from '@chatic/web-core';
 
 import { useAuthStore } from '../stores';
 
@@ -30,8 +29,7 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
     const authState = useAuthStore(state => state.authState);
     const reset = useAuthStore(state => state.reset);
 
-    const [customToken, setCustomToken] = useState<string>('');
-    const [isLoadingToken, setIsLoadingToken] = useState(false);
+    const [customToken, setCustomToken] = useState<string>('test');
 
     /**
      * Scenario 1: Connect and authenticate
@@ -44,26 +42,11 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
     /**
      * Send auth update with token
      */
-    const handleAuthenticate = useCallback(async () => {
-        setIsLoadingToken(true);
-        try {
-            let token = customToken;
-
-            // If no custom token, get from webCore
-            if (!token) {
-                const tokenData = await webCore.getTokenSignature();
-                token = tokenData?.originToken?.identityToken || '';
-            }
-
-            sendAuthUpdate({
-                token,
-                dryRun,
-            });
-        } catch (error) {
-            console.error('Failed to get token:', error);
-        } finally {
-            setIsLoadingToken(false);
-        }
+    const handleAuthenticate = useCallback(() => {
+        sendAuthUpdate({
+            token: customToken,
+            dryRun,
+        });
     }, [customToken, dryRun, sendAuthUpdate]);
 
     /**
@@ -163,10 +146,10 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
                         size="sm"
                         className="flex-1 h-8 text-xs"
                         onClick={handleAuthenticate}
-                        disabled={!isConnected || authState === 'authenticated' || isLoadingToken}
+                        disabled={!isConnected || authState === 'authenticated'}
                         variant="default"
                     >
-                        {isLoadingToken ? '로딩중...' : '2. 인증'}
+                        2. 인증
                     </Button>
                 </div>
 

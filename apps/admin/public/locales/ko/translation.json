@@ -35,5 +35,26 @@
             "viewAnalytics": "분석 보기",
             "settings": "설정"
         }
+    },
+    "authTest": {
+        "title": "Admin Controls",
+        "deviceId": "Admin 디바이스 ID",
+        "connected": "연결됨",
+        "disconnected": "연결 해제됨",
+        "dryRunMode": "Dry Run",
+        "dryRunDesc": "검증 생략",
+        "customToken": "커스텀 토큰",
+        "connect": "연결",
+        "disconnect": "연결 해제",
+        "authenticate": "인증",
+        "sendInvalidToken": "잘못된 토큰 전송",
+        "eventLog": {
+            "title": "이벤트 로그",
+            "clear": "초기화",
+            "noEvents": "이벤트가 없습니다",
+            "sent": "송신",
+            "received": "수신",
+            "you": "(나)"
+        }
     }
 }

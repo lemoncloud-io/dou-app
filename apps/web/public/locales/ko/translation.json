@@ -74,5 +74,33 @@
             "nickTooLong": "닉네임은 50자 미만이어야 합니다",
             "genderRequired": "성별을 선택해주세요"
         }
+    },
+    "authTest": {
+        "title": "테스트 패널",
+        "deviceId": "디바이스 ID",
+        "dryRunMode": "Dry Run 모드",
+        "dryRunDesc": "토큰 검증 생략 (테스트용)",
+        "customToken": "커스텀 토큰 (선택)",
+        "customTokenPlaceholder": "비워두면 webCore 토큰 사용",
+        "scenarios": "시나리오",
+        "connect": "연결",
+        "authenticate": "인증",
+        "sendInvalidToken": "잘못된 토큰 전송 (실패 테스트)",
+        "disconnect": "연결 해제",
+        "reconnect": "재연결",
+        "newDevice": "새 디바이스 (ID 재생성)",
+        "help": {
+            "scenario1": "연결 → state가 'pending'으로 변경",
+            "scenario2": "인증 → dryRun 시 'authenticated', 아니면 'validating' → 'authenticated/failed'",
+            "scenario3": "멀티 디바이스 테스트 - 여러 탭 열기",
+            "scenario4": "연결 해제/재연결 - 동일한 deviceId 유지"
+        },
+        "eventLog": {
+            "title": "이벤트 로그",
+            "clear": "초기화",
+            "noEvents": "이벤트가 없습니다",
+            "sent": "송신",
+            "received": "수신"
+        }
     }
 }

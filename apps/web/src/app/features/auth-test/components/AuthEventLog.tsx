@@ -57,7 +57,7 @@ export const AuthEventLog = (): JSX.Element => {
 
                                 {/* Payload */}
                                 <div className="pl-4">
-                                    <pre className="text-[10px] font-mono text-muted-foreground overflow-x-auto">
+                                    <pre className="text-[10px] font-mono text-muted-foreground whitespace-pre-wrap break-all">
                                         {JSON.stringify(entry.payload, null, 2)}
                                     </pre>
                                 </div>
