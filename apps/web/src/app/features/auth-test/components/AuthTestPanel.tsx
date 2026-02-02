@@ -71,10 +71,10 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
      */
     const handleSendInvalidToken = useCallback(() => {
         sendAuthUpdate({
-            token: 'invalid-token-for-testing',
-            dryRun: false, // Must be false to trigger actual validation
+            token: 'invalid-token',
+            dryRun,
         });
-    }, [sendAuthUpdate]);
+    }, [sendAuthUpdate, dryRun]);
 
     /**
      * Scenario 4: Disconnect and reconnect
@@ -84,8 +84,9 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
     }, [disconnect]);
 
     const handleReconnect = useCallback(async () => {
+        reset(); // Reset auth state on reconnect
         await connect();
-    }, [connect]);
+    }, [connect, reset]);
 
     /**
      * Scenario 3: New device (regenerate deviceId)
