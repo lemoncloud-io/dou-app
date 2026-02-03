@@ -76,7 +76,7 @@ export const useFcmHandler = ({ bridge, sendAppLog, sendAppError }: FcmHandlerPr
         messaging.getInitialNotification().then(remoteMessage => {
             if (remoteMessage) {
                 /**
-                 * TODO: Do action when receive web initialized
+                 * TODO: Handle initial notification when webview is ready
                  * @author raine@lemoncloud.io
                  */
                 setTimeout(() => {
