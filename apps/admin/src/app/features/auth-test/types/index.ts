@@ -15,27 +15,7 @@ export type {
     MemberHead,
 } from '@chatic/socket';
 
-/**
- * Auth session info for monitoring (admin-specific)
- */
-export interface AuthSession {
-    /** Device ID */
-    deviceId: string;
-    /** Auth ID */
-    authId: string;
-    /** Auth state */
-    state: AuthState;
-    /** State timestamp */
-    stateAt: number;
-    /** Member ID */
-    memberId: string | null;
-    /** Member info */
-    member: MemberHead | null;
-    /** Error message */
-    error: string | null;
-    /** Last updated timestamp */
-    updatedAt: number;
-}
+// Note: AuthSession is defined in stores/useAuthMonitorStore.ts with extended history tracking
 
 /**
  * Device ID storage key (admin-specific)

@@ -1,6 +1,46 @@
 import { create } from 'zustand';
 
-import type { AuthEventLogEntry, AuthSession, AuthState, MemberHead } from '../types';
+import type { AuthEventLogEntry, AuthState, MemberHead } from '../types';
+
+/**
+ * State transition history entry
+ */
+interface StateTransition {
+    from: AuthState;
+    to: AuthState;
+    timestamp: number;
+}
+
+/**
+ * Extended Auth Session with history
+ */
+export interface AuthSession {
+    /** Device ID */
+    deviceId: string;
+    /** Auth ID */
+    authId: string;
+    /** Auth state */
+    state: AuthState;
+    /** State timestamp */
+    stateAt: number;
+    /** Member ID */
+    memberId: string | null;
+    /** Member info */
+    member: MemberHead | null;
+    /** Error message */
+    error: string | null;
+    /** Last updated timestamp */
+    updatedAt: number;
+    /** State transition history */
+    stateHistory: StateTransition[];
+    /** First seen timestamp */
+    createdAt: number;
+}
+
+/**
+ * Session filter type
+ */
+export type SessionFilter = 'all' | AuthState;
 
 /**
  * Auth Monitor Store State
@@ -18,6 +58,8 @@ interface AuthMonitorStoreState {
     ownAuthId: string | null;
     /** Dry run mode (skip token validation) */
     dryRun: boolean;
+    /** Current filter */
+    sessionFilter: SessionFilter;
 }
 
 /**
@@ -42,6 +84,10 @@ interface AuthMonitorStoreActions {
     setOwnAuthId: (authId: string | null) => void;
     /** Set dry run mode */
     setDryRun: (dryRun: boolean) => void;
+    /** Set session filter */
+    setSessionFilter: (filter: SessionFilter) => void;
+    /** Get session statistics */
+    getSessionStats: () => Record<AuthState | 'total', number>;
     /** Update session from auth payload */
     updateSessionFromPayload: (payload: {
         deviceId?: string;
@@ -66,6 +112,7 @@ export const useAuthMonitorStore = create<AuthMonitorStoreState & AuthMonitorSto
     ownAuthState: '',
     ownAuthId: null,
     dryRun: true,
+    sessionFilter: 'all',
 
     setSession: session =>
         set(state => {
@@ -105,6 +152,29 @@ export const useAuthMonitorStore = create<AuthMonitorStoreState & AuthMonitorSto
 
     setDryRun: dryRun => set({ dryRun }),
 
+    setSessionFilter: filter => set({ sessionFilter: filter }),
+
+    getSessionStats: () => {
+        const sessions = get().sessions;
+        const stats: Record<AuthState | 'total', number> = {
+            '': 0,
+            pending: 0,
+            validating: 0,
+            authenticated: 0,
+            failed: 0,
+            disconnected: 0,
+            total: sessions.size,
+        };
+
+        sessions.forEach(session => {
+            if (session.state in stats) {
+                stats[session.state]++;
+            }
+        });
+
+        return stats;
+    },
+
     updateSessionFromPayload: payload => {
         const { deviceId, authId, state, stateAt, memberId, member$, error } = payload;
 
@@ -112,16 +182,32 @@ export const useAuthMonitorStore = create<AuthMonitorStoreState & AuthMonitorSto
 
         const currentSessions = get().sessions;
         const existingSession = currentSessions.get(deviceId);
+        const now = Date.now();
+
+        // Track state transition history
+        const stateHistory = existingSession?.stateHistory || [];
+        const previousState = existingSession?.state || '';
+        const newState = state || previousState || 'pending';
+
+        if (state && previousState !== state) {
+            stateHistory.push({
+                from: previousState,
+                to: state,
+                timestamp: now,
+            });
+        }
 
         const updatedSession: AuthSession = {
             deviceId,
             authId: authId || existingSession?.authId || '',
-            state: state || existingSession?.state || 'pending',
-            stateAt: stateAt || existingSession?.stateAt || Date.now(),
+            state: newState,
+            stateAt: stateAt || existingSession?.stateAt || now,
             memberId: memberId ?? existingSession?.memberId ?? null,
             member: member$ ?? existingSession?.member ?? null,
             error: error ?? existingSession?.error ?? null,
-            updatedAt: Date.now(),
+            updatedAt: now,
+            stateHistory: stateHistory.slice(-10), // Keep last 10 transitions
+            createdAt: existingSession?.createdAt || now,
         };
 
         set(storeState => {

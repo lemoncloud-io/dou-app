@@ -55,6 +55,40 @@
             "sent": "송신",
             "received": "수신",
             "you": "(나)"
+        },
+        "sessions": {
+            "title": "인증 세션",
+            "subtitle": "실시간 인증 세션 모니터링",
+            "clearAll": "전체 삭제",
+            "stats": "통계",
+            "noSessions": "감지된 인증 세션이 없습니다",
+            "connectClients": "클라이언트를 연결하여 인증 상태를 확인하세요",
+            "noMatchingFilter": "필터와 일치하는 세션이 없습니다",
+            "legend": "범례",
+            "ownSession": "내 세션",
+            "recentUpdate": "최근 업데이트",
+            "staleSession": "비활성 (>30초)",
+            "filters": {
+                "all": "전체",
+                "pending": "Pending",
+                "validating": "Validating",
+                "authenticated": "Authenticated",
+                "failed": "Failed",
+                "disconnected": "Disconnected"
+            },
+            "card": {
+                "authId": "인증 ID",
+                "member": "멤버",
+                "updated": "업데이트",
+                "history": "히스토리"
+            },
+            "time": {
+                "justNow": "방금",
+                "secondsAgo": "{{count}}초 전",
+                "minutesAgo": "{{count}}분 전",
+                "hoursAgo": "{{count}}시간 전",
+                "daysAgo": "{{count}}일 전"
+            }
         }
     }
 }

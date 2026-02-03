@@ -55,6 +55,40 @@
             "sent": "SENT",
             "received": "RECV",
             "you": "(you)"
+        },
+        "sessions": {
+            "title": "Auth Sessions",
+            "subtitle": "Real-time auth session monitoring",
+            "clearAll": "Clear All",
+            "stats": "Statistics",
+            "noSessions": "No auth sessions detected",
+            "connectClients": "Connect clients to see their auth states",
+            "noMatchingFilter": "No sessions match the current filter",
+            "legend": "Legend",
+            "ownSession": "Your session",
+            "recentUpdate": "Recently updated",
+            "staleSession": "Stale (>30s)",
+            "filters": {
+                "all": "All",
+                "pending": "Pending",
+                "validating": "Validating",
+                "authenticated": "Authenticated",
+                "failed": "Failed",
+                "disconnected": "Disconnected"
+            },
+            "card": {
+                "authId": "Auth ID",
+                "member": "Member",
+                "updated": "Updated",
+                "history": "History"
+            },
+            "time": {
+                "justNow": "just now",
+                "secondsAgo": "{{count}}s ago",
+                "minutesAgo": "{{count}}m ago",
+                "hoursAgo": "{{count}}h ago",
+                "daysAgo": "{{count}}d ago"
+            }
         }
     }
 }
