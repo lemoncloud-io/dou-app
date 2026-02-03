@@ -1,3 +1,3 @@
 export * from './core';
-export * from './hooks';
+export * from './hooks/useBridge';
 export * from './AppWebView';
