@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Check, Copy, Dices, Key, Loader2 } from 'lucide-react';
 
+import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
     Dialog,
@@ -107,13 +108,6 @@ export const TokenGeneratorModal = ({ isOpen, onClose, onTokenGenerated }: Token
         }
     }, [generatedToken]);
 
-    const handleUseToken = useCallback(() => {
-        if (generatedToken) {
-            onTokenGenerated?.(generatedToken);
-            handleClose();
-        }
-    }, [generatedToken, onTokenGenerated]);
-
     const handleClose = useCallback(() => {
         setFormData(initialFormState);
         setErrors({});
@@ -122,6 +116,13 @@ export const TokenGeneratorModal = ({ isOpen, onClose, onTokenGenerated }: Token
         setCopied(false);
         onClose();
     }, [onClose]);
+
+    const handleUseToken = useCallback(() => {
+        if (generatedToken) {
+            onTokenGenerated?.(generatedToken);
+            handleClose();
+        }
+    }, [generatedToken, onTokenGenerated, handleClose]);
 
     const handleGenerateUuid = useCallback(
         (field: keyof TokenGeneratorFormState) => {
@@ -147,7 +148,7 @@ export const TokenGeneratorModal = ({ isOpen, onClose, onTokenGenerated }: Token
                 value={formData[field]}
                 onChange={e => handleInputChange(field, e.target.value)}
                 placeholder={t(placeholderKey)}
-                className={`h-8 text-xs ${errors[field] ? 'border-destructive' : ''}`}
+                className={cn('h-8 text-xs', errors[field] && 'border-destructive')}
                 disabled={isLoading || !!generatedToken}
             />
             {errors[field] && <p className="text-[10px] text-destructive">{errors[field]}</p>}
@@ -220,7 +221,7 @@ export const TokenGeneratorModal = ({ isOpen, onClose, onTokenGenerated }: Token
                                         value={formData.aid}
                                         onChange={e => handleInputChange('aid', e.target.value)}
                                         placeholder={t('authTest.generateToken.fields.aidPlaceholder')}
-                                        className={`h-8 text-xs flex-1 ${errors.aid ? 'border-destructive' : ''}`}
+                                        className={cn('h-8 text-xs flex-1', errors.aid && 'border-destructive')}
                                         disabled={isLoading || !!generatedToken}
                                     />
                                     <Button
