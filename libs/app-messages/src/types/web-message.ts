@@ -11,7 +11,7 @@ const WEB_MESSAGE_TYPE = {
     OnScroll: 'OnScroll',
     GetDeviceInfo: 'GetDeviceInfo',
     GetFcmToken: 'GetFcmToken',
-    GetSafeArea: 'GetSafeArea'
+    GetSafeArea: 'GetSafeArea',
 } as const;
 export type WebMessageType = (typeof WEB_MESSAGE_TYPE)[keyof typeof WEB_MESSAGE_TYPE];
 

@@ -63,7 +63,7 @@ export interface AppErrorInfo {
     message: string;
     details?: {
         originalError?: string; // error.toString()
-        stack?: string;         // error.stack
+        stack?: string; // error.stack
         [key: string]: any;
     };
 }

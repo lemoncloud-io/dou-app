@@ -9,7 +9,7 @@ import type {
     FcmTokenInfo,
     NotificationInfo,
     SafeAreaInfo,
-    VersionInfo
+    VersionInfo,
 } from './common';
 
 export const AppMessageTypes = {
