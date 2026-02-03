@@ -4108,7 +4108,7 @@
   dependencies:
     firebase "12.8.0"
 
-"@react-native-firebase/messaging@^23.8.5":
+"@react-native-firebase/messaging@*", "@react-native-firebase/messaging@^23.8.5":
   version "23.8.5"
   resolved "https://registry.yarnpkg.com/@react-native-firebase/messaging/-/messaging-23.8.5.tgz#96739344bd0d3ff4ed904b29b04929fd8103f6de"
   integrity sha512-NJx1LvxMYli2xnmEH1wY7FYp4nWsq3i3n74fsvS1qFfDvmzFkcDzHVZaET3MLdD5JspDgKM3FlNKw7FNsatbjA==
