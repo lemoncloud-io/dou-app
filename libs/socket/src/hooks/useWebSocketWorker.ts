@@ -11,6 +11,8 @@ export interface UseWebSocketWorkerConfig<TMessage extends BaseWebSocketMessage>
     logPrefix?: string;
     sessionId?: string;
     channels?: string;
+    /** Enable auth mode - adds auth=true to connection URL */
+    auth?: boolean;
 }
 
 export interface UseWebSocketWorkerReturn<TMessage extends BaseWebSocketMessage> {
@@ -36,6 +38,7 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
         logPrefix = '[WebSocketWorker]',
         sessionId,
         channels,
+        auth,
     } = config;
 
     const workerRef = useRef<Worker | null>(null);
@@ -104,12 +107,13 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
                     authQueryParam,
                     sessionId,
                     channels,
+                    auth,
                 },
             });
         } catch (error) {
             console.error(`${logPrefix} Failed to connect:`, error);
         }
-    }, [endpoint, tokenProvider, messageParser, authQueryParam, logPrefix, sessionId, channels]);
+    }, [endpoint, tokenProvider, messageParser, authQueryParam, logPrefix, sessionId, channels, auth]);
 
     const disconnect = useCallback((): void => {
         if (workerRef.current) {
@@ -130,16 +134,22 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
         [logPrefix]
     );
 
+    // Store stable refs for cleanup
+    const connectRef = useRef(connect);
+    const disconnectRef = useRef(disconnect);
+    connectRef.current = connect;
+    disconnectRef.current = disconnect;
+
     useEffect(() => {
         if (!enabled) {
-            disconnect();
+            disconnectRef.current();
             return;
         }
 
-        void connect();
+        void connectRef.current();
 
         return () => {
-            disconnect();
+            disconnectRef.current();
             if (workerRef.current) {
                 workerRef.current.terminate();
                 workerRef.current = null;
