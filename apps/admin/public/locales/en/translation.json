@@ -35,5 +35,94 @@
             "viewAnalytics": "View Analytics",
             "settings": "Settings"
         }
+    },
+    "authTest": {
+        "title": "Admin Controls",
+        "deviceId": "Admin Device ID",
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "dryRunMode": "Dry Run",
+        "dryRunDesc": "Skip validation",
+        "customToken": "Custom Token",
+        "connect": "Connect",
+        "disconnect": "Disconnect",
+        "reconnect": "Reconnect",
+        "authenticate": "Authenticate",
+        "sendInvalidToken": "Send Invalid Token",
+        "newDevice": "New Device",
+        "scenarios": "Scenarios",
+        "generateToken": {
+            "title": "Generate Token",
+            "description": "Generate a test JWT token",
+            "button": "Generate",
+            "fields": {
+                "cid": "Cloud ID",
+                "cidPlaceholder": "AWS Account No",
+                "sid": "Site ID",
+                "sidPlaceholder": "Place ID (default: 0000)",
+                "aid": "Auth ID",
+                "aidPlaceholder": "Auth UUID",
+                "uid": "User ID",
+                "uidPlaceholder": "User info",
+                "mid": "Member ID (optional)",
+                "midPlaceholder": "Member info",
+                "gid": "Group ID (optional)",
+                "gidPlaceholder": "Group info"
+            },
+            "generate": "Generate",
+            "cancel": "Cancel",
+            "generating": "Generating...",
+            "success": "Token generated successfully",
+            "copy": "Copy",
+            "copied": "Copied!",
+            "useToken": "Use Token",
+            "generateUuid": "Generate UUID",
+            "error": {
+                "required": "Required",
+                "failed": "Failed to generate token"
+            }
+        },
+        "eventLog": {
+            "title": "Event Log",
+            "clear": "Clear",
+            "noEvents": "No events yet",
+            "sent": "SENT",
+            "received": "RECV",
+            "you": "(you)"
+        },
+        "sessions": {
+            "title": "Auth Sessions",
+            "subtitle": "Real-time auth session monitoring",
+            "clearAll": "Clear All",
+            "stats": "Statistics",
+            "noSessions": "No auth sessions detected",
+            "connectClients": "Connect clients to see their auth states",
+            "noMatchingFilter": "No sessions match the current filter",
+            "legend": "Legend",
+            "ownSession": "Your session",
+            "recentUpdate": "Recently updated",
+            "staleSession": "Stale (>30s)",
+            "filters": {
+                "all": "All",
+                "pending": "Pending",
+                "validating": "Validating",
+                "authenticated": "Authenticated",
+                "failed": "Failed",
+                "disconnected": "Disconnected"
+            },
+            "card": {
+                "authId": "Auth ID",
+                "member": "Member",
+                "updated": "Updated",
+                "history": "History"
+            },
+            "time": {
+                "justNow": "just now",
+                "secondsAgo": "{{count}}s ago",
+                "minutesAgo": "{{count}}m ago",
+                "hoursAgo": "{{count}}h ago",
+                "daysAgo": "{{count}}d ago"
+            }
+        }
     }
 }

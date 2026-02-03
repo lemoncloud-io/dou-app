@@ -3,6 +3,9 @@
  * @packageDocumentation
  */
 
+// Auth types
+export * from './auth';
+
 /**
  * WebSocket connection status
  */
