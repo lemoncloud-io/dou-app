@@ -1,22 +1,21 @@
 import { type JSX, type MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 
-import { Globe, LogOut, Moon, Settings, Sun } from 'lucide-react';
-import { toast } from 'sonner';
+import {
+    BarChart3,
+    CircleDot,
+    FileText,
+    FlaskConical,
+    Home,
+    Monitor,
+    MousePointer,
+    Radio,
+    Smartphone,
+} from 'lucide-react';
 
 import { useInitWebSocket, useWebSocketStore } from '@chatic/socket';
-import { useTheme } from '@chatic/theme';
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
-import { useLogout, useWebCoreStore } from '@chatic/web-core';
+import { useWebCoreStore } from '@chatic/web-core';
 
 import { useSessionId } from '../hooks';
 
@@ -25,9 +24,7 @@ const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 500;
 
 export const HomePage = (): JSX.Element => {
-    const navigate = useNavigate();
-    const { t, i18n } = useTranslation();
-    const { theme, setTheme } = useTheme();
+    const { t } = useTranslation();
     const userName = useWebCoreStore(state => state.userName);
     const sessionId = useSessionId();
     const { isConnected, connectionStatus } = useWebSocketStore();
@@ -185,30 +182,6 @@ export const HomePage = (): JSX.Element => {
         void connect();
     }, [connect]);
 
-    const { mutate: logout, isPending: isLoggingOut } = useLogout(
-        () => {
-            toast.success(t('home.logoutSuccess', 'Logged out successfully'));
-            navigate('/auth/login', { replace: true });
-        },
-        error => {
-            console.error('Logout failed:', error);
-            toast.error(t('home.logoutFailed', 'Logout failed'));
-        }
-    );
-
-    const handleThemeToggle = () => {
-        setTheme(theme === 'light' ? 'dark' : 'light');
-    };
-
-    const handleLanguageToggle = () => {
-        const newLang = i18n.language === 'en' ? 'ko' : 'en';
-        i18n.changeLanguage(newLang);
-    };
-
-    const handleLogout = () => {
-        logout();
-    };
-
     // Pointer sync handler
     const handlePointerMove = useCallback(
         (e: MouseEvent<HTMLDivElement>) => {
@@ -305,18 +278,24 @@ export const HomePage = (): JSX.Element => {
     }, [isConnected, handleStatusChange]);
 
     return (
-        <div className="min-h-screen bg-background p-6">
-            <div className="max-w-4xl mx-auto">
-                <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold">
-                            {t('home.welcome', 'Welcome')}, {userName || 'User'}
-                        </h1>
-                        <p className="text-muted-foreground mt-1">두유 채널용(웹)</p>
-                        <div className="flex items-center gap-3 mt-2">
-                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50">
+        <div className="h-full overflow-auto">
+            <div className="max-w-5xl mx-auto p-6">
+                {/* Page Header */}
+                <div className="mb-6">
+                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                        <Home className="h-6 w-6" />
+                        {t('home.welcome', 'Welcome')}, {userName || 'User'}
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-1">{t('home.subtitle')}</p>
+                </div>
+
+                {/* Connection Status Card */}
+                <div className="mb-6 p-4 rounded-lg border bg-card">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
                                 <div
-                                    className={`h-2 w-2 rounded-full ${
+                                    className={`h-3 w-3 rounded-full ${
                                         isConnected
                                             ? 'bg-green-500 animate-pulse'
                                             : connectionStatus === 'connecting'
@@ -324,7 +303,7 @@ export const HomePage = (): JSX.Element => {
                                               : 'bg-red-500'
                                     }`}
                                 />
-                                <span className="text-xs font-medium">
+                                <span className="text-sm font-medium">
                                     {connectionStatus === 'connected'
                                         ? 'Connected'
                                         : connectionStatus === 'connecting'
@@ -334,73 +313,29 @@ export const HomePage = (): JSX.Element => {
                                             : 'Disconnected'}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50">
-                                <span className="text-xs text-muted-foreground">ID:</span>
-                                <span className="text-xs font-mono">{sessionId?.slice(0, 8)}...</span>
+                            <div className="text-xs text-muted-foreground">
+                                Session: <span className="font-mono">{sessionId?.slice(0, 8)}...</span>
                             </div>
-                            {connectionStatus === 'connected' ? (
-                                <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    className="h-7 px-3 text-xs"
-                                    onClick={disconnect}
-                                >
-                                    연결 끊기
-                                </Button>
-                            ) : connectionStatus === 'disconnected' || connectionStatus === 'error' ? (
-                                <Button
-                                    size="sm"
-                                    variant="default"
-                                    className="h-7 px-3 text-xs"
-                                    onClick={() => void connect()}
-                                >
-                                    재연결
-                                </Button>
-                            ) : null}
                         </div>
-                    </div>
-
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="icon">
-                                <Settings className="h-5 w-5" />
+                        {connectionStatus === 'connected' ? (
+                            <Button size="sm" variant="outline" onClick={disconnect}>
+                                Disconnect
                             </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuLabel>{t('home.settings', 'Settings')}</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-
-                            <DropdownMenuItem onSelect={e => e.preventDefault()} onClick={handleThemeToggle}>
-                                {theme === 'light' ? (
-                                    <Sun className="mr-2 h-4 w-4" />
-                                ) : (
-                                    <Moon className="mr-2 h-4 w-4" />
-                                )}
-                                <span>{theme === 'light' ? 'Light Mode' : 'Dark Mode'}</span>
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem onSelect={e => e.preventDefault()} onClick={handleLanguageToggle}>
-                                <Globe className="mr-2 h-4 w-4" />
-                                <span>{i18n.language === 'en' ? 'English' : '한국어'}</span>
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator />
-
-                            <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
-                                <LogOut className="mr-2 h-4 w-4" />
-                                <span>
-                                    {isLoggingOut ? t('home.loggingOut', 'Logging out...') : t('home.logout', 'Logout')}
-                                </span>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                        ) : connectionStatus === 'disconnected' || connectionStatus === 'error' ? (
+                            <Button size="sm" variant="default" onClick={() => void connect()}>
+                                Connect
+                            </Button>
+                        ) : null}
+                    </div>
                 </div>
 
                 {/* Presence Status Panel */}
                 {presenceData && (
-                    <div className="mt-4 p-4 rounded-lg border bg-card">
-                        <h2 className="text-sm font-medium text-muted-foreground mb-3">Presence Status</h2>
-                        <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="mb-6 p-4 rounded-lg border bg-card">
+                        <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <Radio className="h-4 w-4" /> Presence Status
+                        </h2>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
                             <div>
                                 <span className="text-muted-foreground">Status:</span>
                                 <div className="flex items-center gap-2 mt-1">
@@ -447,12 +382,16 @@ export const HomePage = (): JSX.Element => {
                 )}
 
                 {/* Test Panel */}
-                <div className="mt-4 p-4 rounded-lg border bg-card">
-                    <h2 className="text-sm font-medium text-muted-foreground mb-4">WebSocket Test</h2>
+                <div className="p-4 rounded-lg border bg-card">
+                    <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                        <FlaskConical className="h-4 w-4" /> WebSocket Test
+                    </h2>
                     <div className="space-y-4 divide-y">
                         {/* Custom Message */}
                         <div>
-                            <p className="text-sm font-semibold text-foreground mb-2">📝 Custom Message</p>
+                            <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+                                <FileText className="h-4 w-4" /> Custom Message
+                            </p>
                             <div className="space-y-2">
                                 {messageFields.map((field, idx) => (
                                     <div key={idx} className="flex gap-2">
@@ -520,7 +459,7 @@ export const HomePage = (): JSX.Element => {
                                         }}
                                         disabled={!isConnected}
                                     >
-                                        📤 Send Message
+                                        Send Message
                                     </Button>
                                 </div>
                             </div>
@@ -528,7 +467,9 @@ export const HomePage = (): JSX.Element => {
 
                         {/* Presence Status */}
                         <div className="pt-4">
-                            <p className="text-sm font-semibold text-foreground mb-2">🎯 Presence Status Test</p>
+                            <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+                                <CircleDot className="h-4 w-4" /> Presence Status Test
+                            </p>
                             <div className="mb-3 p-3 rounded-md bg-muted/30">
                                 <div className="flex items-center gap-3">
                                     <span className="text-xs text-muted-foreground">Current Status:</span>
@@ -560,7 +501,7 @@ export const HomePage = (): JSX.Element => {
                                     onClick={() => handleStatusChange('green')}
                                     disabled={!isConnected}
                                 >
-                                    🟢 GREEN
+                                    GREEN
                                 </Button>
                                 <Button
                                     size="sm"
@@ -573,7 +514,7 @@ export const HomePage = (): JSX.Element => {
                                     onClick={() => handleStatusChange('yellow')}
                                     disabled={!isConnected}
                                 >
-                                    🟡 YELLOW
+                                    YELLOW
                                 </Button>
                                 <Button
                                     size="sm"
@@ -586,26 +527,28 @@ export const HomePage = (): JSX.Element => {
                                     onClick={() => handleStatusChange('red')}
                                     disabled={!isConnected}
                                 >
-                                    🔴 RED
+                                    RED
                                 </Button>
                             </div>
                         </div>
 
                         {/* Pointer Sync */}
                         <div className="pt-4">
-                            <p className="text-sm font-semibold text-foreground mb-3">👆 Pointer Sync Test</p>
+                            <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                                <MousePointer className="h-4 w-4" /> Pointer Sync Test
+                            </p>
 
                             {/* Server vs Client Comparison */}
                             <div className="mb-4 p-3 rounded-lg bg-muted/30 border">
-                                <p className="text-xs font-semibold text-muted-foreground mb-3">
-                                    📊 Server vs Client Comparison
+                                <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1">
+                                    <BarChart3 className="h-3 w-3" /> Server vs Client Comparison
                                 </p>
                                 <div className="grid grid-cols-2 gap-3">
                                     {/* Server Data */}
                                     <div className="p-2.5 rounded-md bg-blue-500/10 border border-blue-500/20">
                                         <div className="flex items-center justify-between mb-2">
-                                            <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">
-                                                🖥️ SERVER
+                                            <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                                                <Monitor className="h-3 w-3" /> SERVER
                                             </span>
                                             <span className="text-[10px] text-muted-foreground">
                                                 {serverData?.ts
@@ -643,8 +586,8 @@ export const HomePage = (): JSX.Element => {
                                     {/* Client Data */}
                                     <div className="p-2.5 rounded-md bg-green-500/10 border border-green-500/20">
                                         <div className="flex items-center justify-between mb-2">
-                                            <span className="text-[10px] font-semibold text-green-600 dark:text-green-400">
-                                                💻 CLIENT
+                                            <span className="text-[10px] font-semibold text-green-600 dark:text-green-400 flex items-center gap-1">
+                                                <Smartphone className="h-3 w-3" /> CLIENT
                                             </span>
                                             <span className="text-[10px] text-muted-foreground font-mono">
                                                 {sessionId?.slice(0, 8)}...
