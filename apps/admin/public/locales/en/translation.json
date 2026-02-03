@@ -46,8 +46,11 @@
         "customToken": "Custom Token",
         "connect": "Connect",
         "disconnect": "Disconnect",
+        "reconnect": "Reconnect",
         "authenticate": "Authenticate",
         "sendInvalidToken": "Send Invalid Token",
+        "newDevice": "New Device",
+        "scenarios": "Scenarios",
         "eventLog": {
             "title": "Event Log",
             "clear": "Clear",

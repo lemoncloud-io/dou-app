@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { FlaskConical } from 'lucide-react';
+
 import { useWebSocketStore } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
@@ -85,7 +87,7 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
     return (
         <div className="rounded-lg border bg-card p-4 space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2">
-                <span>🧪</span> {t('authTest.title')}
+                <FlaskConical className="h-4 w-4" /> {t('authTest.title')}
             </h3>
 
             {/* Device ID Display */}

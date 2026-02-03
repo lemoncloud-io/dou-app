@@ -3,6 +3,15 @@ import { create } from 'zustand';
 import type { AuthEventLogEntry, AuthState, MemberHead } from '../types';
 
 /**
+ * State transition history entry
+ */
+interface StateTransition {
+    from: AuthState;
+    to: AuthState;
+    timestamp: number;
+}
+
+/**
  * Auth Store State
  */
 interface AuthStoreState {
@@ -24,13 +33,15 @@ interface AuthStoreState {
     eventLog: AuthEventLogEntry[];
     /** dryRun mode enabled */
     dryRun: boolean;
+    /** State transition history */
+    stateHistory: StateTransition[];
 }
 
 /**
  * Auth Store Actions
  */
 interface AuthStoreActions {
-    /** Set auth state */
+    /** Set auth state with history tracking */
     setAuthState: (state: AuthState) => void;
     /** Set state timestamp */
     setStateAt: (timestamp: number) => void;
@@ -52,6 +63,8 @@ interface AuthStoreActions {
     setDryRun: (enabled: boolean) => void;
     /** Reset all state */
     reset: () => void;
+    /** Clear state history */
+    clearStateHistory: () => void;
 }
 
 const initialState: AuthStoreState = {
@@ -64,6 +77,7 @@ const initialState: AuthStoreState = {
     error: null,
     eventLog: [],
     dryRun: true,
+    stateHistory: [],
 };
 
 /**
@@ -74,7 +88,25 @@ const initialState: AuthStoreState = {
 export const useAuthStore = create<AuthStoreState & AuthStoreActions>(set => ({
     ...initialState,
 
-    setAuthState: state => set({ authState: state }),
+    setAuthState: newState =>
+        set(current => {
+            const previousState = current.authState;
+            const stateHistory = [...current.stateHistory];
+
+            // Track state transition if state changed
+            if (previousState && previousState !== newState) {
+                stateHistory.push({
+                    from: previousState,
+                    to: newState,
+                    timestamp: Date.now(),
+                });
+            }
+
+            return {
+                authState: newState,
+                stateHistory: stateHistory.slice(-10), // Keep last 10 transitions
+            };
+        }),
     setStateAt: timestamp => set({ stateAt: timestamp }),
     setDeviceId: deviceId => set({ deviceId }),
     setAuthId: authId => set({ authId }),
@@ -99,4 +131,6 @@ export const useAuthStore = create<AuthStoreState & AuthStoreActions>(set => ({
     setDryRun: enabled => set({ dryRun: enabled }),
 
     reset: () => set(initialState),
+
+    clearStateHistory: () => set({ stateHistory: [] }),
 }));

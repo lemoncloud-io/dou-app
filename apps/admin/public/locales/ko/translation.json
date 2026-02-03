@@ -46,8 +46,11 @@
         "customToken": "커스텀 토큰",
         "connect": "연결",
         "disconnect": "연결 해제",
+        "reconnect": "재연결",
         "authenticate": "인증",
         "sendInvalidToken": "잘못된 토큰 전송",
+        "newDevice": "새 디바이스",
+        "scenarios": "시나리오",
         "eventLog": {
             "title": "이벤트 로그",
             "clear": "초기화",

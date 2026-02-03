@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Settings } from 'lucide-react';
+
 import { useWebSocketStore } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
@@ -12,14 +14,16 @@ import type { JSX } from 'react';
 interface AdminAuthTestPanelProps {
     deviceId: string;
     ws: UseInitAuthWebSocketReturn;
+    onRegenerateDeviceId?: () => string;
 }
 
 /**
  * Admin Auth Test Panel Component
  * - Connect/disconnect controls
  * - Own auth testing
+ * - Scenario test buttons (similar to web)
  */
-export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): JSX.Element => {
+export const AdminAuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AdminAuthTestPanelProps): JSX.Element => {
     const { t } = useTranslation();
     const { isConnected } = useWebSocketStore();
     const { connect, disconnect, sendAuthUpdate } = ws;
@@ -27,6 +31,8 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
     const ownAuthState = useAuthMonitorStore(state => state.ownAuthState);
     const dryRun = useAuthMonitorStore(state => state.dryRun);
     const setDryRun = useAuthMonitorStore(state => state.setDryRun);
+    const clearSessions = useAuthMonitorStore(state => state.clearSessions);
+    const clearEventLog = useAuthMonitorStore(state => state.clearEventLog);
     const [customToken, setCustomToken] = useState<string>('test');
 
     const handleConnect = useCallback(async () => {
@@ -40,10 +46,24 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
         });
     }, [customToken, dryRun, sendAuthUpdate]);
 
+    const handleReconnect = useCallback(async () => {
+        disconnect();
+        clearSessions();
+        clearEventLog();
+        await connect();
+    }, [connect, disconnect, clearSessions, clearEventLog]);
+
+    const handleNewDevice = useCallback(() => {
+        disconnect();
+        clearSessions();
+        clearEventLog();
+        onRegenerateDeviceId?.();
+    }, [disconnect, clearSessions, clearEventLog, onRegenerateDeviceId]);
+
     return (
         <div className="rounded-lg border bg-card p-4 space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2">
-                <span>🔧</span> {t('authTest.title')}
+                <Settings className="h-4 w-4" /> {t('authTest.title')}
             </h3>
 
             {/* Device ID */}
@@ -96,8 +116,11 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
                 />
             </div>
 
-            {/* Control Buttons */}
+            {/* Scenario Buttons */}
             <div className="space-y-2">
+                <div className="text-xs text-muted-foreground font-medium">{t('authTest.scenarios')}</div>
+
+                {/* Connect/Disconnect */}
                 <div className="flex gap-2">
                     <Button
                         size="sm"
@@ -106,29 +129,20 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
                         disabled={isConnected}
                         variant={isConnected ? 'outline' : 'default'}
                     >
-                        {t('authTest.connect')}
+                        1. {t('authTest.connect')}
                     </Button>
                     <Button
                         size="sm"
                         className="flex-1 h-8 text-xs"
-                        onClick={disconnect}
-                        disabled={!isConnected}
-                        variant="destructive"
+                        onClick={handleAuthenticate}
+                        disabled={!isConnected || ownAuthState === 'authenticated'}
+                        variant="default"
                     >
-                        {t('authTest.disconnect')}
+                        2. {t('authTest.authenticate')}
                     </Button>
                 </div>
 
-                <Button
-                    size="sm"
-                    className="w-full h-8 text-xs"
-                    onClick={handleAuthenticate}
-                    disabled={!isConnected || ownAuthState === 'authenticated'}
-                    variant="secondary"
-                >
-                    {t('authTest.authenticate')}
-                </Button>
-
+                {/* Invalid Token */}
                 <Button
                     size="sm"
                     className="w-full h-8 text-xs"
@@ -136,8 +150,37 @@ export const AdminAuthTestPanel = ({ deviceId, ws }: AdminAuthTestPanelProps): J
                     disabled={!isConnected}
                     variant="destructive"
                 >
-                    {t('authTest.sendInvalidToken')}
+                    3. {t('authTest.sendInvalidToken')}
                 </Button>
+
+                {/* Disconnect/Reconnect */}
+                <div className="flex gap-2">
+                    <Button
+                        size="sm"
+                        className="flex-1 h-8 text-xs"
+                        onClick={disconnect}
+                        disabled={!isConnected}
+                        variant="outline"
+                    >
+                        4a. {t('authTest.disconnect')}
+                    </Button>
+                    <Button
+                        size="sm"
+                        className="flex-1 h-8 text-xs"
+                        onClick={handleReconnect}
+                        disabled={isConnected}
+                        variant="outline"
+                    >
+                        4b. {t('authTest.reconnect')}
+                    </Button>
+                </div>
+
+                {/* New Device */}
+                {onRegenerateDeviceId && (
+                    <Button size="sm" className="w-full h-8 text-xs" onClick={handleNewDevice} variant="secondary">
+                        5. {t('authTest.newDevice')}
+                    </Button>
+                )}
             </div>
         </div>
     );

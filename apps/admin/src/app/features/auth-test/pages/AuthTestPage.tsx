@@ -15,7 +15,7 @@ import type { JSX } from 'react';
  * - Monitors all connected auth sessions
  */
 export const AuthTestPage = (): JSX.Element => {
-    const { deviceId } = useDeviceId();
+    const { deviceId, regenerateDeviceId } = useDeviceId();
     const ws = useInitAuthWebSocket(deviceId);
 
     // Auto-connect on mount
@@ -51,7 +51,7 @@ export const AuthTestPage = (): JSX.Element => {
 
                 {/* Sidebar - Controls */}
                 <aside className="w-80 border-l bg-muted/10 p-4 space-y-4 overflow-y-auto max-h-[calc(100vh-57px)]">
-                    <AdminAuthTestPanel deviceId={deviceId} ws={ws} />
+                    <AdminAuthTestPanel deviceId={deviceId} ws={ws} onRegenerateDeviceId={regenerateDeviceId} />
 
                     {/* Info */}
                     <div className="rounded-lg border bg-muted/20 p-3">

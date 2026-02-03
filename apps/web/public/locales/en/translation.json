@@ -5,6 +5,11 @@
         "save": "Save Changes",
         "saving": "Saving..."
     },
+    "nav": {
+        "home": "Home",
+        "authTest": "Auth Test",
+        "pointerTest": "Pointer Test"
+    },
     "version": {
         "updateAvailable": "A new version is available",
         "newVersionReleased": "Version {{latestVersion}} has been released. Current version: {{currentVersion}}",
@@ -89,6 +94,9 @@
         "disconnect": "Disconnect",
         "reconnect": "Reconnect",
         "newDevice": "New Device (regenerate ID)",
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "connecting": "Connecting...",
         "help": {
             "scenario1": "Connect → state changes to 'pending'",
             "scenario2": "Authenticate → 'authenticated' with dryRun, otherwise 'validating' → 'authenticated/failed'",
@@ -101,6 +109,27 @@
             "noEvents": "No events yet",
             "sent": "SENT",
             "received": "RECV"
+        },
+        "status": {
+            "title": "Auth Status",
+            "websocket": "WebSocket",
+            "authState": "Auth State",
+            "stateTime": "State Changed",
+            "authId": "Auth ID",
+            "memberId": "Member ID",
+            "memberName": "Member Name",
+            "error": "Error",
+            "stateFlow": "State Flow",
+            "or": "or",
+            "history": "State History",
+            "clearHistory": "Clear"
+        },
+        "time": {
+            "justNow": "just now",
+            "secondsAgo": "{{count}}s ago",
+            "minutesAgo": "{{count}}m ago",
+            "hoursAgo": "{{count}}h ago",
+            "daysAgo": "{{count}}d ago"
         }
     }
 }

@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { KeyRound } from 'lucide-react';
+
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { useAuthMonitorStore } from '../stores';
@@ -51,7 +53,7 @@ export const AuthSessionList = (): JSX.Element => {
             <div className="flex items-center justify-between border-b px-6 py-4">
                 <div>
                     <h2 className="text-lg font-semibold flex items-center gap-2">
-                        <span className="text-2xl">🔐</span> {t('authTest.sessions.title', 'Auth Sessions')}
+                        <KeyRound className="h-5 w-5" /> {t('authTest.sessions.title', 'Auth Sessions')}
                     </h2>
                     <p className="text-sm text-muted-foreground mt-0.5">
                         {t('authTest.sessions.subtitle', 'Real-time auth session monitoring')}

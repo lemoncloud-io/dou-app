@@ -1,12 +1,17 @@
 import { Outlet } from 'react-router-dom';
 
+import { Sidebar } from '../components';
+
 /**
  * Private layout component for authenticated pages
- * Provides main content area with optional sidebar/topbar
+ * Provides sidebar navigation and main content area
  */
 export const PrivateLayout = (): JSX.Element => {
     return (
         <div className="flex h-screen overflow-hidden bg-background">
+            {/* Sidebar Navigation */}
+            <Sidebar />
+
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 <main

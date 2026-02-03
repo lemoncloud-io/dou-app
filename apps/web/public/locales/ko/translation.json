@@ -5,6 +5,11 @@
         "save": "변경사항 저장",
         "saving": "저장 중..."
     },
+    "nav": {
+        "home": "홈",
+        "authTest": "인증 테스트",
+        "pointerTest": "포인터 테스트"
+    },
     "version": {
         "updateAvailable": "새 버전이 있습니다",
         "newVersionReleased": "새 버전({{latestVersion}})이 출시되었습니다. 현재 버전: {{currentVersion}}",
@@ -89,6 +94,9 @@
         "disconnect": "연결 해제",
         "reconnect": "재연결",
         "newDevice": "새 디바이스 (ID 재생성)",
+        "connected": "연결됨",
+        "disconnected": "연결 안됨",
+        "connecting": "연결중...",
         "help": {
             "scenario1": "연결 → state가 'pending'으로 변경",
             "scenario2": "인증 → dryRun 시 'authenticated', 아니면 'validating' → 'authenticated/failed'",
@@ -101,6 +109,27 @@
             "noEvents": "이벤트가 없습니다",
             "sent": "송신",
             "received": "수신"
+        },
+        "status": {
+            "title": "인증 상태",
+            "websocket": "웹소켓",
+            "authState": "인증 상태",
+            "stateTime": "상태 변경 시간",
+            "authId": "인증 ID",
+            "memberId": "멤버 ID",
+            "memberName": "멤버 이름",
+            "error": "오류",
+            "stateFlow": "상태 흐름",
+            "or": "또는",
+            "history": "상태 기록",
+            "clearHistory": "초기화"
+        },
+        "time": {
+            "justNow": "방금",
+            "secondsAgo": "{{count}}초 전",
+            "minutesAgo": "{{count}}분 전",
+            "hoursAgo": "{{count}}시간 전",
+            "daysAgo": "{{count}}일 전"
         }
     }
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
-import { ArrowLeft } from 'lucide-react';
+import { ClipboardList, Crosshair, MousePointer } from 'lucide-react';
 
 import { useWebSocketStore } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -20,6 +20,7 @@ const CANVAS_HEIGHT = 400;
  * Admin can view this position in real-time
  */
 export const PointerTestPage = (): JSX.Element => {
+    const { t } = useTranslation();
     const sessionId = useSessionId();
     const { isConnected, connectionStatus } = useWebSocketStore();
     const { connect, disconnect, send } = useInitPointerWebSocket(sessionId);
@@ -38,26 +39,21 @@ export const PointerTestPage = (): JSX.Element => {
     }, [connect]);
 
     return (
-        <div className="min-h-screen bg-background p-6">
-            <div className="max-w-4xl mx-auto">
-                {/* Header */}
-                <div className="flex items-center gap-4 mb-6">
-                    <Link to="/">
-                        <Button variant="ghost" size="icon">
-                            <ArrowLeft className="h-5 w-5" />
-                        </Button>
-                    </Link>
-                    <div>
-                        <h1 className="text-2xl font-bold">Pointer Sync Test</h1>
-                        <p className="text-sm text-muted-foreground">
-                            Move your mouse in the canvas area to sync position with Admin
-                        </p>
-                    </div>
+        <div className="h-full overflow-auto">
+            <div className="max-w-4xl mx-auto p-6">
+                {/* Page Header */}
+                <div className="mb-6">
+                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                        <MousePointer className="h-6 w-6" /> {t('nav.pointerTest')}
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        Move your mouse in the canvas area to sync position with Admin
+                    </p>
                 </div>
 
                 {/* Connection Status */}
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-muted/50">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border">
                         <div
                             className={`h-2.5 w-2.5 rounded-full ${
                                 isConnected
@@ -91,11 +87,13 @@ export const PointerTestPage = (): JSX.Element => {
 
                 {/* Canvas Area */}
                 <div className="p-6 rounded-lg border bg-card">
-                    <h2 className="text-sm font-medium text-muted-foreground mb-4">📍 Pointer Tracking Area</h2>
+                    <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                        <Crosshair className="h-4 w-4" /> Pointer Tracking Area
+                    </h2>
 
                     <PointerCanvas onPointerMove={handlePointerMove} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
 
-                    <div className="mt-4 text-xs text-muted-foreground">
+                    <div className="mt-4 text-xs text-muted-foreground space-y-1">
                         <p>• Move your mouse inside the canvas area</p>
                         <p>• Position is sent to server at 20fps (throttled)</p>
                         <p>• Admin dashboard will display your cursor position in real-time</p>
@@ -103,18 +101,29 @@ export const PointerTestPage = (): JSX.Element => {
                 </div>
 
                 {/* Info */}
-                <div className="mt-6 p-4 rounded-lg border bg-muted/20">
-                    <h3 className="text-sm font-medium mb-2">How it works</h3>
-                    <div className="text-xs text-muted-foreground space-y-1">
-                        <p>
-                            1. Mouse position is captured on canvas ({CANVAS_WIDTH}×{CANVAS_HEIGHT} pixels)
-                        </p>
-                        <p>2. Position is throttled to 50ms intervals (20fps)</p>
-                        <p>
-                            3. WebSocket sends:{' '}
-                            {'{ type: "sync", action: "update", payload: { posX, posY, ts, tick, status } }'}
-                        </p>
-                        <p>4. Server broadcasts to Admin channel</p>
+                <div className="mt-6 p-4 rounded-lg border bg-card">
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                        <ClipboardList className="h-4 w-4" /> How it works
+                    </h3>
+                    <div className="text-xs text-muted-foreground space-y-1.5">
+                        <div className="flex gap-2">
+                            <span className="font-semibold text-foreground">1.</span>
+                            <span>
+                                Mouse position is captured on canvas ({CANVAS_WIDTH}×{CANVAS_HEIGHT} pixels)
+                            </span>
+                        </div>
+                        <div className="flex gap-2">
+                            <span className="font-semibold text-foreground">2.</span>
+                            <span>Position is throttled to 50ms intervals (20fps)</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <span className="font-semibold text-foreground">3.</span>
+                            <span>WebSocket sends: {'{ type: "sync", action: "update", payload: { ... } }'}</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <span className="font-semibold text-foreground">4.</span>
+                            <span>Server broadcasts to Admin channel</span>
+                        </div>
                     </div>
                 </div>
             </div>

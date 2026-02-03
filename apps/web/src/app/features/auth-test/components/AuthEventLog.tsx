@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
+import { ClipboardList } from 'lucide-react';
+
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { useAuthStore } from '../stores';
@@ -21,7 +23,7 @@ export const AuthEventLog = (): JSX.Element => {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b">
                 <h3 className="text-sm font-semibold flex items-center gap-2">
-                    <span>📋</span> {t('authTest.eventLog.title')}
+                    <ClipboardList className="h-4 w-4" /> {t('authTest.eventLog.title')}
                     <span className="text-xs text-muted-foreground font-normal">({eventLog.length})</span>
                 </h3>
                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={clearEventLog}>
