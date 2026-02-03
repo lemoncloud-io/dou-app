@@ -17,11 +17,12 @@ import type { JSX } from 'react';
 export const AuthTestPage = (): JSX.Element => {
     const { deviceId, regenerateDeviceId } = useDeviceId();
     const ws = useInitAuthWebSocket(deviceId);
+    const { connect } = ws;
 
     // Auto-connect on mount
     useEffect(() => {
-        void ws.connect();
-    }, [ws.connect]);
+        void connect();
+    }, [connect]);
 
     return (
         <div className="min-h-screen bg-background">

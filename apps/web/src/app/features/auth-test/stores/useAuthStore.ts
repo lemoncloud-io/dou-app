@@ -2,6 +2,11 @@ import { create } from 'zustand';
 
 import type { AuthEventLogEntry, AuthState, MemberHead } from '../types';
 
+/** Maximum number of state transitions to keep in history */
+const MAX_STATE_HISTORY = 10;
+/** Maximum number of event log entries to keep */
+const MAX_EVENT_LOG_ENTRIES = 100;
+
 /**
  * State transition history entry
  */
@@ -104,7 +109,7 @@ export const useAuthStore = create<AuthStoreState & AuthStoreActions>(set => ({
 
             return {
                 authState: newState,
-                stateHistory: stateHistory.slice(-10), // Keep last 10 transitions
+                stateHistory: stateHistory.slice(-MAX_STATE_HISTORY),
             };
         }),
     setStateAt: timestamp => set({ stateAt: timestamp }),
@@ -123,7 +128,7 @@ export const useAuthStore = create<AuthStoreState & AuthStoreActions>(set => ({
                     timestamp: Date.now(),
                 },
                 ...state.eventLog,
-            ].slice(0, 100), // Keep last 100 entries
+            ].slice(0, MAX_EVENT_LOG_ENTRIES),
         })),
 
     clearEventLog: () => set({ eventLog: [] }),

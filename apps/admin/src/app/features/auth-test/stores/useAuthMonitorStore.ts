@@ -2,6 +2,11 @@ import { create } from 'zustand';
 
 import type { AuthEventLogEntry, AuthState, MemberHead } from '../types';
 
+/** Maximum number of state transitions to keep per session */
+const MAX_STATE_HISTORY = 10;
+/** Maximum number of event log entries (higher for admin monitoring) */
+const MAX_EVENT_LOG_ENTRIES = 200;
+
 /**
  * State transition history entry
  */
@@ -139,7 +144,7 @@ export const useAuthMonitorStore = create<AuthMonitorStoreState & AuthMonitorSto
                     timestamp: Date.now(),
                 },
                 ...state.eventLog,
-            ].slice(0, 200), // Keep last 200 entries for admin
+            ].slice(0, MAX_EVENT_LOG_ENTRIES),
         })),
 
     clearEventLog: () => set({ eventLog: [] }),
@@ -206,7 +211,7 @@ export const useAuthMonitorStore = create<AuthMonitorStoreState & AuthMonitorSto
             member: member$ ?? existingSession?.member ?? null,
             error: error ?? existingSession?.error ?? null,
             updatedAt: now,
-            stateHistory: stateHistory.slice(-10), // Keep last 10 transitions
+            stateHistory: stateHistory.slice(-MAX_STATE_HISTORY),
             createdAt: existingSession?.createdAt || now,
         };
 

@@ -1,11 +1,17 @@
-import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { useTick } from '@chatic/shared';
 
 import { AUTH_STATE_COLORS, AUTH_STATE_LABELS } from '../types';
 
 import type { AuthSession } from '../stores/useAuthMonitorStore';
 import type { TFunction } from 'i18next';
 import type { JSX } from 'react';
+
+/** Session is considered stale after 30 seconds without update */
+const STALE_THRESHOLD_MS = 30_000;
+/** Session is considered recently updated within 3 seconds */
+const RECENT_THRESHOLD_MS = 3_000;
 
 interface AuthSessionCardProps {
     session: AuthSession;
@@ -37,15 +43,11 @@ export const AuthSessionCard = ({ session, isOwnSession }: AuthSessionCardProps)
     const stateLabel = AUTH_STATE_LABELS[session.state] || 'Unknown';
 
     // Force re-render every second for relative time
-    const [, setTick] = useState(0);
-    useEffect(() => {
-        const interval = setInterval(() => setTick(t => t + 1), 1000);
-        return () => clearInterval(interval);
-    }, []);
+    useTick(1000);
 
     const timeSinceUpdate = Date.now() - session.updatedAt;
-    const isStale = timeSinceUpdate > 30000; // 30 seconds
-    const isRecent = timeSinceUpdate < 3000; // 3 seconds - just updated
+    const isStale = timeSinceUpdate > STALE_THRESHOLD_MS;
+    const isRecent = timeSinceUpdate < RECENT_THRESHOLD_MS;
 
     return (
         <div
