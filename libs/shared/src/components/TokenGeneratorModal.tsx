@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Check, Copy, Key, Loader2 } from 'lucide-react';
+import { Check, Copy, Dices, Key, Loader2 } from 'lucide-react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
@@ -123,6 +123,14 @@ export const TokenGeneratorModal = ({ isOpen, onClose, onTokenGenerated }: Token
         onClose();
     }, [onClose]);
 
+    const handleGenerateUuid = useCallback(
+        (field: keyof TokenGeneratorFormState) => {
+            const uuid = crypto.randomUUID();
+            handleInputChange(field, uuid);
+        },
+        [handleInputChange]
+    );
+
     const renderFormField = (
         field: keyof TokenGeneratorFormState,
         labelKey: string,
@@ -201,11 +209,34 @@ export const TokenGeneratorModal = ({ isOpen, onClose, onTokenGenerated }: Token
                                     'authTest.generateToken.fields.sidPlaceholder'
                                 )}
                             </div>
-                            {renderFormField(
-                                'aid',
-                                'authTest.generateToken.fields.aid',
-                                'authTest.generateToken.fields.aidPlaceholder'
-                            )}
+                            <div className="space-y-1.5">
+                                <Label htmlFor="aid" className="text-xs">
+                                    {t('authTest.generateToken.fields.aid')}
+                                    <span className="text-destructive ml-0.5">*</span>
+                                </Label>
+                                <div className="flex gap-1.5">
+                                    <Input
+                                        id="aid"
+                                        value={formData.aid}
+                                        onChange={e => handleInputChange('aid', e.target.value)}
+                                        placeholder={t('authTest.generateToken.fields.aidPlaceholder')}
+                                        className={`h-8 text-xs flex-1 ${errors.aid ? 'border-destructive' : ''}`}
+                                        disabled={isLoading || !!generatedToken}
+                                    />
+                                    <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="outline"
+                                        className="h-8 w-8 shrink-0"
+                                        onClick={() => handleGenerateUuid('aid')}
+                                        disabled={isLoading || !!generatedToken}
+                                        title={t('authTest.generateToken.generateUuid')}
+                                    >
+                                        <Dices className="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
+                                {errors.aid && <p className="text-[10px] text-destructive">{errors.aid}</p>}
+                            </div>
                             {renderFormField(
                                 'uid',
                                 'authTest.generateToken.fields.uid',

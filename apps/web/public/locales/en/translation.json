@@ -122,6 +122,7 @@
             "copy": "Copy",
             "copied": "Copied!",
             "useToken": "Use Token",
+            "generateUuid": "Generate UUID",
             "error": {
                 "required": "Required",
                 "failed": "Failed to generate token"

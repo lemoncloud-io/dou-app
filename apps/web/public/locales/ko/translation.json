@@ -122,6 +122,7 @@
             "copy": "복사",
             "copied": "복사됨!",
             "useToken": "토큰 사용",
+            "generateUuid": "UUID 생성",
             "error": {
                 "required": "필수 항목입니다",
                 "failed": "토큰 생성에 실패했습니다"
