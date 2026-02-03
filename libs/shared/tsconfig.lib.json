@@ -11,6 +11,9 @@
     "references": [
         {
             "path": "../ui-kit/tsconfig.lib.json"
+        },
+        {
+            "path": "../web-core/tsconfig.lib.json"
         }
     ]
 }

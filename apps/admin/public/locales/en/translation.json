@@ -51,6 +51,36 @@
         "sendInvalidToken": "Send Invalid Token",
         "newDevice": "New Device",
         "scenarios": "Scenarios",
+        "generateToken": {
+            "title": "Generate Token",
+            "description": "Generate a test JWT token",
+            "button": "Generate",
+            "fields": {
+                "cid": "Cloud ID",
+                "cidPlaceholder": "AWS Account No",
+                "sid": "Site ID",
+                "sidPlaceholder": "Place ID (default: 0000)",
+                "aid": "Auth ID",
+                "aidPlaceholder": "Auth UUID",
+                "uid": "User ID",
+                "uidPlaceholder": "User info",
+                "mid": "Member ID (optional)",
+                "midPlaceholder": "Member info",
+                "gid": "Group ID (optional)",
+                "gidPlaceholder": "Group info"
+            },
+            "generate": "Generate",
+            "cancel": "Cancel",
+            "generating": "Generating...",
+            "success": "Token generated successfully",
+            "copy": "Copy",
+            "copied": "Copied!",
+            "useToken": "Use Token",
+            "error": {
+                "required": "Required",
+                "failed": "Failed to generate token"
+            }
+        },
         "eventLog": {
             "title": "Event Log",
             "clear": "Clear",

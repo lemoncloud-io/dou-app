@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { FlaskConical } from 'lucide-react';
+import { FlaskConical, Key } from 'lucide-react';
 
+import { TokenGeneratorModal } from '@chatic/shared';
 import { useWebSocketStore } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
@@ -34,6 +35,11 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
     const reset = useAuthStore(state => state.reset);
 
     const [customToken, setCustomToken] = useState<string>('test');
+    const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
+
+    const handleTokenGenerated = useCallback((token: string) => {
+        setCustomToken(token);
+    }, []);
 
     /**
      * Scenario 1: Connect and authenticate
@@ -121,7 +127,18 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
 
             {/* Custom Token Input */}
             <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">{t('authTest.customToken')}</label>
+                <div className="flex items-center justify-between">
+                    <label className="text-xs text-muted-foreground">{t('authTest.customToken')}</label>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-[10px]"
+                        onClick={() => setIsTokenModalOpen(true)}
+                    >
+                        <Key className="h-3 w-3 mr-1" />
+                        {t('authTest.generateToken.button')}
+                    </Button>
+                </div>
                 <input
                     type="text"
                     value={customToken}
@@ -130,6 +147,13 @@ export const AuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: AuthTestPa
                     className="w-full px-2 py-1.5 text-xs rounded border bg-background"
                 />
             </div>
+
+            {/* Token Generator Modal */}
+            <TokenGeneratorModal
+                isOpen={isTokenModalOpen}
+                onClose={() => setIsTokenModalOpen(false)}
+                onTokenGenerated={handleTokenGenerated}
+            />
 
             {/* Scenario Buttons */}
             <div className="space-y-2">

@@ -51,6 +51,36 @@
         "sendInvalidToken": "잘못된 토큰 전송",
         "newDevice": "새 디바이스",
         "scenarios": "시나리오",
+        "generateToken": {
+            "title": "토큰 생성",
+            "description": "테스트용 JWT 토큰을 생성합니다",
+            "button": "생성",
+            "fields": {
+                "cid": "Cloud ID",
+                "cidPlaceholder": "AWS Account No",
+                "sid": "Site ID",
+                "sidPlaceholder": "플레이스 ID (기본: 0000)",
+                "aid": "Auth ID",
+                "aidPlaceholder": "인증 UUID",
+                "uid": "User ID",
+                "uidPlaceholder": "유저 정보",
+                "mid": "Member ID (선택)",
+                "midPlaceholder": "멤버 정보",
+                "gid": "Group ID (선택)",
+                "gidPlaceholder": "그룹 정보"
+            },
+            "generate": "생성",
+            "cancel": "취소",
+            "generating": "생성 중...",
+            "success": "토큰이 생성되었습니다",
+            "copy": "복사",
+            "copied": "복사됨!",
+            "useToken": "토큰 사용",
+            "error": {
+                "required": "필수 항목입니다",
+                "failed": "토큰 생성에 실패했습니다"
+            }
+        },
         "eventLog": {
             "title": "이벤트 로그",
             "clear": "초기화",

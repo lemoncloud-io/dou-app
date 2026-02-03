@@ -15,6 +15,9 @@ export type {
     MemberHead,
 } from '@chatic/socket';
 
+// Re-export token generation types from shared
+export type { TokenGenerateRequest, TokenGenerateResponse, TokenGeneratorFormState } from '@chatic/shared';
+
 // Note: AuthSession is defined in stores/useAuthMonitorStore.ts with extended history tracking
 
 /**
