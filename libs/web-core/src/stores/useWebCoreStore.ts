@@ -76,7 +76,7 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
 
             // Add handler for mobile app token sync response
             const appMessageStore = useAppMessageStore.getState();
-            appMessageStore.addHandler('SuccessSyncCredential', message => {
+            appMessageStore.addHandler('SyncCredential', message => {
                 console.log('📱 Mobile token sync successful:', message);
                 // TODO: Process token data from mobile app
             });

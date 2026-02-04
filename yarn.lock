@@ -2421,7 +2421,7 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
-"@lemoncloud/chatic-sockets-api@^0.26.118":
+"@lemoncloud/chatic-sockets-api@*", "@lemoncloud/chatic-sockets-api@^0.26.118":
   version "0.26.118"
   resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.118.tgz#247953228c6347e6172d1d38f9e05873132a19fa"
   integrity sha512-NcQN2XPg8G3MNqbL6A0tA9WezhpaRv71A9/2thfjfW4EwyR9cgh3ep1/8xIeVzmoFZSxFkGicAC42v/HuWesBw==
