@@ -1,4 +1,4 @@
-package com.chatic
+package io.chatic.dou
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

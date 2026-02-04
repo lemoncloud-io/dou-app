@@ -2,12 +2,25 @@
  * App Message:
  * message from App to Web
  */
-import type { DeviceInfo, VersionInfo } from './common';
+import type {
+    AppErrorInfo,
+    AppLogInfo,
+    DeviceInfo,
+    FcmTokenInfo,
+    NotificationInfo,
+    SafeAreaInfo,
+    VersionInfo,
+} from './common';
 
 export const AppMessageTypes = {
-    SuccessSetDeviceInfo: 'SuccessSetDeviceInfo',
-    SuccessSyncCredential: 'SuccessSyncCredential',
+    SyncCredential: 'SyncCredential',
+    SetDeviceInfo: 'SetDeviceInfo',
     SetSafeArea: 'SetSafeArea',
+    SetFcmToken: 'SetFcmToken',
+    AppLog: 'AppLog',
+    AppError: 'AppError',
+    NotificationReceived: 'NotificationReceived',
+    NotificationOpened: 'NotificationOpened',
 } as const;
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
 
@@ -15,23 +28,43 @@ interface DefaultMessage<T extends AppMessageType> {
     type: T;
 }
 
-// prettier-ignore
-export interface SuccessSetDeviceInfoData<T extends 'SuccessSetDeviceInfo'> extends DefaultMessage<T> {
+export interface SetDeviceInfo extends DefaultMessage<'SetDeviceInfo'> {
     data: DeviceInfo & VersionInfo;
 }
 
-export interface SetSafeArea<T extends 'SetSafeArea'> extends DefaultMessage<T> {
-    data: {
-        top: number;
-        bottom: number;
-        left: number;
-        right: number;
-    };
+export interface SetSafeArea extends DefaultMessage<'SetSafeArea'> {
+    data: SafeAreaInfo;
+}
+
+export interface SetFcmToken extends DefaultMessage<'SetFcmToken'> {
+    data: FcmTokenInfo;
+}
+
+export interface AppLog extends DefaultMessage<'AppLog'> {
+    data: AppLogInfo;
+}
+
+export interface AppError extends DefaultMessage<'AppError'> {
+    data: AppErrorInfo;
+}
+
+export interface NotificationReceived extends DefaultMessage<'NotificationReceived'> {
+    data: NotificationInfo;
+}
+
+export interface NotificationOpened extends DefaultMessage<'NotificationOpened'> {
+    data: NotificationInfo;
 }
 
 // prettier-ignore
 export type AppMessageData<T extends AppMessageType>
-    = T extends 'SuccessSetDeviceInfo' ? SuccessSetDeviceInfoData<T>
-    : T extends 'SetSafeArea' ? SetSafeArea<T> : DefaultMessage<T>
+    = T extends 'SetDeviceInfo' ? SetDeviceInfo
+    : T extends 'SetSafeArea' ? SetSafeArea
+    : T extends 'SetFcmToken' ? SetFcmToken
+    : T extends 'AppLog' ? AppLog
+    : T extends 'AppError' ? AppError
+    : T extends 'NotificationReceived' ? NotificationReceived
+    : T extends 'NotificationOpened' ? NotificationOpened
+    : DefaultMessage<T>
 
 export type AppMessage = AppMessageData<AppMessageType>;

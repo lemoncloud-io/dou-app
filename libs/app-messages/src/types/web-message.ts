@@ -6,10 +6,12 @@ const WEB_MESSAGE_TYPE = {
     SetCanGoBack: 'SetCanGoBack',
     ShowLoader: 'ShowLoader',
     HideLoader: 'HideLoader',
-    SyncDeviceInfo: 'SyncDeviceInfo',
     SyncCredential: 'SyncCredential',
     PopWebView: 'PopWebView',
     OnScroll: 'OnScroll',
+    GetDeviceInfo: 'GetDeviceInfo',
+    GetFcmToken: 'GetFcmToken',
+    GetSafeArea: 'GetSafeArea',
 } as const;
 export type WebMessageType = (typeof WEB_MESSAGE_TYPE)[keyof typeof WEB_MESSAGE_TYPE];
 
