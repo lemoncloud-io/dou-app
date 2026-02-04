@@ -1,1 +1,3 @@
-export * from './stroage';
+export * from './fcm';
+export * from './log';
+export * from './storage';
