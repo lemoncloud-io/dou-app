@@ -7,6 +7,8 @@
         "@react-native/new-app-screen": "*",
         "@react-navigation/native": "*",
         "@react-navigation/native-stack": "*",
+        "@react-native-firebase/app": "*",
+        "@react-native-firebase/messaging": "*",
         "react": "*",
         "react-native": "*",
         "react-native-screens": "*",

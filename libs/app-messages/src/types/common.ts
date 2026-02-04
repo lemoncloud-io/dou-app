@@ -4,6 +4,8 @@ export type Env = 'local' | 'stage' | 'prod';
 
 export type Platform = 'ios' | 'aos' | 'windows' | 'macos' | 'web';
 
+export type LogLevel = 'info' | 'warn' | 'error';
+
 export interface VersionInfo {
     currentVersion: string;
     latestVersion: string;
@@ -17,4 +19,51 @@ export interface DeviceInfo {
     deviceToken?: string;
     deviceId?: string | null;
     lang?: PageLanguage;
+}
+
+export interface SafeAreaInfo {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+}
+
+export interface FcmTokenInfo {
+    token: string;
+}
+
+/**
+ * TODO: notification 스펙에 맞게 확장 필요
+ * @author dev@example.com
+ */
+export interface NotificationInfo {
+    title?: string;
+    body?: string;
+    data?: Record<string, any>;
+}
+
+/**
+ * TODO: 로그 메시지 구조 디자인 필요
+ * @author dev@example.com
+ */
+export interface AppLogInfo {
+    tag: string;
+    message?: string;
+    data?: Record<string, any>;
+    timestamp?: number;
+    level?: LogLevel;
+}
+
+/**
+ * TODO: Error 구조 디자인 필요
+ * @author dev@example.com
+ */
+export interface AppErrorInfo {
+    tag: string;
+    message: string;
+    details?: {
+        originalError?: string; // error.toString()
+        stack?: string; // error.stack
+        [key: string]: any;
+    };
 }

@@ -1,49 +1,26 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useMemo, useRef, useState } from 'react';
 
-import { AppWebView, useWebViewBridge } from '../../../common/webview';
+import { AppWebView } from '../../../common';
+import { useAndroidBack } from '../../../common/webview/hooks';
+import { useAppBridge } from '../../../common/webview/hooks';
+import { useFcmHandler } from '../../../common/webview/hooks';
+import { useSafeAreaHandler } from '../../../common/webview/hooks';
 
-import type { AppMessageData, WebMessageData, WebMessageType } from '@chatic/app-messages';
+import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { WebView, WebViewMessageEvent } from 'react-native-webview';
 import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
 
-const webviewUrl: string = process.env.VITE_WEBVIEW_BASE_URL;
+const webviewUrl = process.env.VITE_WEBVIEW_BASE_URL;
 
 export const MainScreen = () => {
     const webViewRef = useRef<WebView>(null);
-    const insets = useSafeAreaInsets();
-    const bridge = useWebViewBridge(webViewRef);
     const [canGoBack, setCanGoBack] = useState(false);
 
-    // Control Android HardwareBackPress
-    useEffect(() => {
-        if (Platform.OS !== 'android') return;
-        const onBackPress = () => {
-            if (canGoBack && webViewRef.current) {
-                webViewRef.current.goBack();
-                return true;
-            }
-            return false;
-        };
+    const { bridge, sendAppLog, sendAppError } = useAppBridge(webViewRef);
+    const { setSafeAreaInfo } = useSafeAreaHandler(bridge);
+    const { setFcmToken } = useFcmHandler({ bridge, sendAppLog, sendAppError });
 
-        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-        return () => subscription.remove();
-    }, [canGoBack]);
-
-    // Send SafeArea Info
-    const sendSafeAreaInfo = () => {
-        const safeAreaMessage: AppMessageData<'SetSafeArea'> = {
-            type: 'SetSafeArea',
-            data: {
-                top: insets.top,
-                bottom: insets.bottom,
-                left: insets.left,
-                right: insets.right,
-            },
-        };
-        bridge.post(safeAreaMessage);
-    };
+    useAndroidBack(webViewRef, canGoBack);
 
     /**
      * //TODO: Not Implement
@@ -53,35 +30,28 @@ export const MainScreen = () => {
         return bridge.receive(
             (message: WebMessageData<WebMessageType>) => {
                 switch (message.type) {
-                    case 'SetCanGoBack':
+                    case 'GetFcmToken': {
+                        void setFcmToken();
                         break;
-                    case 'ShowLoader':
+                    }
+                    case 'GetSafeArea': {
+                        setSafeAreaInfo();
                         break;
-                    case 'HideLoader':
-                        break;
-                    case 'SyncDeviceInfo':
-                        break;
-                    case 'SyncCredential':
-                        break;
-                    case 'PopWebView':
-                        break;
-                    case 'OnScroll':
-                        break;
+                    }
                     default:
-                        console.log('Received message', message);
+                        sendAppLog({ tag: 'BRIDGE', message: `처리되지 않은 메시지 수신: ${message.type}` });
                 }
             },
             (error: any, nativeEvent: WebViewMessage) => {
-                console.error('[App] Failed to receive message:', error, nativeEvent.data);
+                sendAppError({ tag: 'BRIDGE', message: '메시지 파싱 실패: ' + nativeEvent.data, details: error });
             }
         );
-    }, [bridge]);
+    }, [bridge, setFcmToken, setSafeAreaInfo, sendAppLog, sendAppError]);
 
     return (
         <AppWebView
             ref={webViewRef}
             source={{ uri: webviewUrl }}
-            onLoadEnd={sendSafeAreaInfo}
             onMessage={handleMessage}
             onNavigationStateChange={navState => {
                 setCanGoBack(navState.canGoBack);
