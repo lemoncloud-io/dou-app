@@ -1,50 +1,43 @@
-import { useCallback } from 'react';
+import { useEffect } from 'react';
 
+import { Logger } from '../../services';
 import { useWebViewBridge } from '../index';
 
-import type { AppErrorInfo, AppLogInfo, AppMessageData } from '@chatic/app-messages';
+import type { AppLogInfo, AppMessageData } from '@chatic/app-messages';
 import type { WebView } from 'react-native-webview';
 
 export const useAppBridge = (webViewRef: React.RefObject<WebView | null>) => {
     const bridge = useWebViewBridge(webViewRef);
 
-    const sendAppLog = useCallback(
-        (log: AppLogInfo) => {
-            const appLogMessage: AppMessageData<'AppLog'> = {
-                type: 'AppLog',
-                data: {
-                    level: log.level ?? 'info',
-                    tag: log.tag,
-                    message: log.message,
-                    data: log.data,
-                    timestamp: log.timestamp ?? Date.now(),
-                },
-            };
-            bridge.post(appLogMessage);
-        },
-        [bridge]
-    );
+    useEffect(() => {
+        const unsubscribe = Logger.subscribe((level, tag, message, data, error) => {
+            try {
+                const logPayload: AppLogInfo = {
+                    level: level,
+                    tag: tag,
+                    message: message,
+                    timestamp: Date.now(),
+                    data: data,
+                    error: error,
+                };
 
-    const sendAppError = useCallback(
-        (error: AppErrorInfo) => {
-            const appErrorMessage: AppMessageData<'AppError'> = {
-                type: 'AppError',
-                data: {
-                    tag: error.tag,
-                    message: error.message,
-                    details: error
-                        ? {
-                              originalError: error instanceof Error ? error.message : String(error),
-                              stack: error instanceof Error ? error.stack : undefined,
-                              raw: JSON.stringify(error, Object.getOwnPropertyNames(error)),
-                          }
-                        : undefined,
-                },
-            };
-            bridge.post(appErrorMessage);
-        },
-        [bridge]
-    );
+                const logMessage: AppMessageData<'AppLog'> = {
+                    type: 'AppLog',
+                    data: logPayload,
+                };
+                bridge.post(logMessage);
+            } catch (e) {
+                if (__DEV__) {
+                    const time = new Date().toLocaleTimeString();
+                    console.error(`[${time}] [Bridge] Failed to post AppLog`, e);
+                }
+            }
+        });
 
-    return { bridge, sendAppLog, sendAppError };
+        return () => {
+            unsubscribe();
+        };
+    }, [bridge]);
+
+    return { bridge };
 };

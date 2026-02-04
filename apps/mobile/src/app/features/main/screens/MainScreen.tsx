@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 
-import { AppWebView } from '../../../common';
+import { AppWebView, Logger } from '../../../common';
 import { useAndroidBack } from '../../../common/webview/hooks';
 import { useAppBridge } from '../../../common/webview/hooks';
 import { useFcmHandler } from '../../../common/webview/hooks';
@@ -16,9 +16,9 @@ export const MainScreen = () => {
     const webViewRef = useRef<WebView>(null);
     const [canGoBack, setCanGoBack] = useState(false);
 
-    const { bridge, sendAppLog, sendAppError } = useAppBridge(webViewRef);
+    const { bridge } = useAppBridge(webViewRef);
     const { setSafeAreaInfo } = useSafeAreaHandler(bridge);
-    const { setFcmToken } = useFcmHandler({ bridge, sendAppLog, sendAppError });
+    const { setFcmToken } = useFcmHandler(bridge);
 
     useAndroidBack(webViewRef, canGoBack);
 
@@ -39,14 +39,14 @@ export const MainScreen = () => {
                         break;
                     }
                     default:
-                        sendAppLog({ tag: 'BRIDGE', message: `처리되지 않은 메시지 수신: ${message.type}` });
+                        Logger.error('BRIDGE', `Failed received error. : ${message.type}`);
                 }
             },
             (error: any, nativeEvent: WebViewMessage) => {
-                sendAppError({ tag: 'BRIDGE', message: '메시지 파싱 실패: ' + nativeEvent.data, details: error });
+                Logger.error('BRIDGE', `Failed parse message error. : ${nativeEvent.data}`, error);
             }
         );
-    }, [bridge, setFcmToken, setSafeAreaInfo, sendAppLog, sendAppError]);
+    }, [bridge, setFcmToken, setSafeAreaInfo]);
 
     return (
         <AppWebView

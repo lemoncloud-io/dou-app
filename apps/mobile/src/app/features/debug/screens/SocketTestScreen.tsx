@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useDeviceId, useWebSocket } from '../../../common';
+import { useDeviceId } from '../../../common';
+import { useWebSocket } from '../hooks';
 
 import type { ClientStatusType, ClientSyncPayload, WSSConnectParam, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 

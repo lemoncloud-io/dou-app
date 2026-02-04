@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { getDeviceId } from '../device';
+import { getDeviceId } from '../utils';
 
 export const useDeviceId = () => {
     const [deviceId, setDeviceId] = useState<string | null>(null);

@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
-import type { RootStackParamList } from '../../../navigation';
+import type { RootStackParamList } from '../../navigation';
 
 interface FloatingMenuProps {
     onNavigate: (screenName: keyof RootStackParamList) => void;

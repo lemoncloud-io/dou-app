@@ -1,6 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import { HomeScreen } from '../screens';
+import { DebugHomeScreen } from '../screens';
 import { SocketTestScreen } from '../screens';
 
 import type { DebugStackParamList } from '../../../navigation';
@@ -24,7 +24,7 @@ export const DebugNavigator = () => {
         >
             <Stack.Screen
                 name="Home"
-                component={HomeScreen}
+                component={DebugHomeScreen}
                 options={{
                     title: '디버그 메뉴',
                 }}
@@ -34,7 +34,7 @@ export const DebugNavigator = () => {
                 name="SocketTest"
                 component={SocketTestScreen}
                 options={{
-                    title: '소켓 테스트',
+                    title: '웹소켓 테스트',
                     headerBackButtonDisplayMode: 'minimal',
                 }}
             />
