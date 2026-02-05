@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
-import { useQueryString } from '../utils';
+import { useQueryString } from '../../../common';
 
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { AppStateStatus } from 'react-native';

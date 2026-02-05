@@ -4,7 +4,7 @@ export type Env = 'local' | 'stage' | 'prod';
 
 export type Platform = 'ios' | 'aos' | 'windows' | 'macos' | 'web';
 
-export type LogLevel = 'info' | 'warn' | 'error';
+export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export interface VersionInfo {
     currentVersion: string;
@@ -49,21 +49,8 @@ export interface NotificationInfo {
 export interface AppLogInfo {
     tag: string;
     message?: string;
-    data?: Record<string, any>;
+    data?: any;
     timestamp?: number;
-    level?: LogLevel;
-}
-
-/**
- * TODO: Error 구조 디자인 필요
- * @author raine@lemoncloud.io
- */
-export interface AppErrorInfo {
-    tag: string;
-    message: string;
-    details?: {
-        originalError?: string; // error.toString()
-        stack?: string; // error.stack
-        [key: string]: any;
-    };
+    level?: AppLogLevel;
+    error?: any;
 }

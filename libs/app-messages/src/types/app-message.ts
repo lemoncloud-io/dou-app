@@ -2,15 +2,7 @@
  * App Message:
  * message from App to Web
  */
-import type {
-    AppErrorInfo,
-    AppLogInfo,
-    DeviceInfo,
-    FcmTokenInfo,
-    NotificationInfo,
-    SafeAreaInfo,
-    VersionInfo,
-} from './common';
+import type { AppLogInfo, DeviceInfo, FcmTokenInfo, NotificationInfo, SafeAreaInfo, VersionInfo } from './common';
 
 export const AppMessageTypes = {
     SyncCredential: 'SyncCredential',
@@ -18,7 +10,6 @@ export const AppMessageTypes = {
     SetSafeArea: 'SetSafeArea',
     SetFcmToken: 'SetFcmToken',
     AppLog: 'AppLog',
-    AppError: 'AppError',
     NotificationReceived: 'NotificationReceived',
     NotificationOpened: 'NotificationOpened',
 } as const;
@@ -44,10 +35,6 @@ export interface AppLog extends DefaultMessage<'AppLog'> {
     data: AppLogInfo;
 }
 
-export interface AppError extends DefaultMessage<'AppError'> {
-    data: AppErrorInfo;
-}
-
 export interface NotificationReceived extends DefaultMessage<'NotificationReceived'> {
     data: NotificationInfo;
 }
@@ -62,7 +49,6 @@ export type AppMessageData<T extends AppMessageType>
     : T extends 'SetSafeArea' ? SetSafeArea
     : T extends 'SetFcmToken' ? SetFcmToken
     : T extends 'AppLog' ? AppLog
-    : T extends 'AppError' ? AppError
     : T extends 'NotificationReceived' ? NotificationReceived
     : T extends 'NotificationOpened' ? NotificationOpened
     : DefaultMessage<T>
