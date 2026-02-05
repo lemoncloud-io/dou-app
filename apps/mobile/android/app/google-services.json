@@ -23,6 +23,25 @@
                     "other_platform_oauth_client": []
                 }
             }
+        },
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:429595905351:android:47907a6bcf6f64adabd062",
+                "android_client_info": {
+                    "package_name": "io.chatic.dou.dev"
+                }
+            },
+            "oauth_client": [],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyDlGgmZlzIVbq7zRYcTdxkyZnAsTmNNuOY"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": []
+                }
+            }
         }
     ],
     "configuration_version": "1"
