@@ -1,16 +1,14 @@
 import React, { useMemo, useRef, useState } from 'react';
+import Config from 'react-native-config';
 
 import { AppWebView, Logger } from '../../../common';
-import { useAndroidBack } from '../../../common/webview/hooks';
-import { useAppBridge } from '../../../common/webview/hooks';
-import { useFcmHandler } from '../../../common/webview/hooks';
-import { useSafeAreaHandler } from '../../../common/webview/hooks';
+import { useAndroidBack, useAppBridge, useFcmHandler, useSafeAreaHandler } from '../../../common/webview/hooks';
 
 import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { WebView, WebViewMessageEvent } from 'react-native-webview';
 import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
 
-const webviewUrl = process.env.VITE_WEBVIEW_BASE_URL;
+const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? '';
 
 export const MainScreen = () => {
     const webViewRef = useRef<WebView>(null);
