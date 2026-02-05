@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Chatic DoU
+# Chatic DoU 앱 설치 스크립트
 # 설치 및 테스트 스크립트
 
 set -e
@@ -38,7 +38,7 @@ elif [ -f "$BUILD_OUTPUT_DIR/apk/prod/release/app-prod-release.apk" ]; then
     APK_FILE="$BUILD_OUTPUT_DIR/apk/prod/release/app-prod-release.apk"
 else
     echo -e "${RED}❌ APK 파일을 찾을 수 없습니다${NC}"
-    echo -e "${YELLOW}💡 먼저 ./scripts/build_slp_office.sh를 실행하세요${NC}"
+    echo -e "${YELLOW}💡 먼저 ./scripts/build-android.sh를 실행하세요${NC}"
     exit 1
 fi
 

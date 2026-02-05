@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# SLP Office 앱 빌드 스크립트
-# Android 15 (API 35) 타겟팅
+# Chatic DoU 앱 빌드 스크립트
 # Signed APK 및 AAB 생성
 
 set -e  # 에러 발생 시 스크립트 중단
