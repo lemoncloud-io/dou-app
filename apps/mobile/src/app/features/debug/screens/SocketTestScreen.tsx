@@ -11,9 +11,11 @@ import {
     UIManager,
     View,
 } from 'react-native';
+import Config from 'react-native-config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useDeviceId, useWebSocket } from '../../../common';
+import { useDeviceId } from '../../../common';
+import { useWebSocket } from '../hooks';
 
 import type { ClientStatusType, ClientSyncPayload, WSSConnectParam, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
@@ -30,7 +32,7 @@ interface LogItem {
     timestamp: string;
 }
 
-const socketUrl: string = process.env.VITE_WS_ENDPOINT || '';
+const socketUrl: string = Config.VITE_WS_ENDPOINT ?? '';
 
 export const SocketTestScreen = () => {
     const STATUS_ICONS: Record<ClientStatusType, string> = {

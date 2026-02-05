@@ -1,6 +1,6 @@
 import uuid from 'react-native-uuid';
 
-import { STORAGE_KEYS, storage } from '../services';
+import { STORAGE_KEYS, StorageService } from '../services';
 
 /**
  * Retrieves the unique device ID for the user.
@@ -11,12 +11,12 @@ import { STORAGE_KEYS, storage } from '../services';
  */
 export const getDeviceId = async (): Promise<string | null> => {
     try {
-        const storedId = await storage.get<string>(STORAGE_KEYS.USER.DEVICE_ID);
+        const storedId = await StorageService.get<string>(STORAGE_KEYS.USER.DEVICE_ID);
 
         if (storedId) return storedId;
 
         const newId = uuid.v4().toString();
-        await storage.set(STORAGE_KEYS.USER.DEVICE_ID, newId);
+        await StorageService.set(STORAGE_KEYS.USER.DEVICE_ID, newId);
 
         return newId;
     } catch {

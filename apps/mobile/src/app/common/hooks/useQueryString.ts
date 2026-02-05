@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { buildQueryString } from '../url';
+import { buildQueryString } from '../utils';
 
 export const useQueryString = (params: Record<string, any> = {}) => {
     return useMemo(() => {

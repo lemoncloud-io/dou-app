@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { HomeScreenProps } from '../navigation';
 
-export const HomeScreen = ({ navigation }: HomeScreenProps) => {
+export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
     const renderMenuItem = (title: string, onPress: () => void) => (
         <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
             <Text style={styles.menuText}>{title}</Text>
