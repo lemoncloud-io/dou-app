@@ -34,6 +34,8 @@
         "mobile:android:install:dev": "adb install -r apps/mobile/android/app/build/outputs/apk/dev/release/app-dev-release.apk",
         "mobile:android:install:prod": "adb install -r apps/mobile/android/app/build/outputs/apk/prod/release/app-prod-release.apk",
         "mobile:android:build:aab:prod": "cd apps/mobile/android && ./gradlew bundleProdRelease && open app/build/outputs/bundle/prodRelease",
+        "mobile:android:release:build": "./scripts/build-android.sh",
+        "mobile:android:release:install": "./scripts/install-android.sh",
         "!web": "------------- Web scripts -------------",
         "web:start": "npx nx serve web --port 5003",
         "web:build:dev": "yarn clean:cache && npx nx build --configuration=dev web",
