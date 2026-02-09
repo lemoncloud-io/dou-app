@@ -38,6 +38,12 @@
         },
         {
             "path": "./libs/socket"
+        },
+        {
+            "path": "./libs/users"
+        },
+        {
+            "path": "./libs/auth"
         }
     ]
 }

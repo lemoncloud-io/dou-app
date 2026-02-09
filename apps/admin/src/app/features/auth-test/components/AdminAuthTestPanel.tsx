@@ -7,6 +7,7 @@ import { TokenGeneratorModal } from '@chatic/shared';
 import { useWebSocketStore } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
+import { UserSelectDialog } from '../../../shared/components/UserSelectDialog';
 import { useAuthMonitorStore } from '../stores';
 
 import type { UseInitAuthWebSocketReturn } from '../hooks/useInitAuthWebSocket';
@@ -138,6 +139,7 @@ export const AdminAuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: Admin
                 isOpen={isTokenModalOpen}
                 onClose={() => setIsTokenModalOpen(false)}
                 onTokenGenerated={handleTokenGenerated}
+                UserSelectDialog={UserSelectDialog}
             />
 
             {/* Scenario Buttons */}
