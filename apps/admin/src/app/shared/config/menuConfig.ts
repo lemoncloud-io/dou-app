@@ -1,4 +1,4 @@
-import { KeyRound, MousePointer2, Wifi } from 'lucide-react';
+import { KeyRound, MousePointer2, Users, Wifi } from 'lucide-react';
 
 import type { LucideIcon } from 'lucide-react';
 
@@ -23,5 +23,10 @@ export const adminMenuItems: MenuItem[] = [
         label: 'Pointer Test',
         icon: MousePointer2,
         path: '/pointer-test',
+    },
+    {
+        label: 'Users',
+        icon: Users,
+        path: '/users',
     },
 ];

@@ -25,6 +25,11 @@ interface TokenGeneratorModalProps {
     isOpen: boolean;
     onClose: () => void;
     onTokenGenerated?: (token: string) => void;
+    UserSelectDialog?: React.ComponentType<{
+        isOpen: boolean;
+        onClose: () => void;
+        onSelect: (userId: string) => void;
+    }>;
 }
 
 const initialFormState: TokenGeneratorFormState = {
@@ -36,12 +41,53 @@ const initialFormState: TokenGeneratorFormState = {
     gid: '',
 };
 
-/**
- * Token Generator Modal Component
- * - Generates test JWT tokens with custom claims
- * - Allows copying generated token to clipboard
- */
-export const TokenGeneratorModal = ({ isOpen, onClose, onTokenGenerated }: TokenGeneratorModalProps): JSX.Element => {
+interface UidFieldProps {
+    value: string;
+    error?: string;
+    disabled: boolean;
+    onChange: (value: string) => void;
+    onOpenUserSelect: () => void;
+    t: (key: string) => string;
+}
+
+const UidField = ({ value, error, disabled, onChange, onOpenUserSelect, t }: UidFieldProps): JSX.Element => {
+    return (
+        <div className="space-y-1.5">
+            <Label htmlFor="uid" className="text-xs">
+                {t('authTest.generateToken.fields.uid')}
+                <span className="text-destructive ml-0.5">*</span>
+            </Label>
+            <div className="flex gap-1.5">
+                <Input
+                    id="uid"
+                    value={value}
+                    onChange={e => onChange(e.target.value)}
+                    placeholder={t('authTest.generateToken.fields.uidPlaceholder')}
+                    className={cn('h-8 text-xs flex-1', error && 'border-destructive')}
+                    disabled={disabled}
+                />
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-2 text-xs"
+                    onClick={onOpenUserSelect}
+                    disabled={disabled}
+                >
+                    Select
+                </Button>
+            </div>
+            {error && <p className="text-[10px] text-destructive">{error}</p>}
+        </div>
+    );
+};
+
+export const TokenGeneratorModal = ({
+    isOpen,
+    onClose,
+    onTokenGenerated,
+    UserSelectDialog,
+}: TokenGeneratorModalProps): JSX.Element => {
     const { t } = useTranslation();
     const [formData, setFormData] = useState<TokenGeneratorFormState>(initialFormState);
     const [errors, setErrors] = useState<Partial<Record<keyof TokenGeneratorFormState, string>>>({});
@@ -49,6 +95,7 @@ export const TokenGeneratorModal = ({ isOpen, onClose, onTokenGenerated }: Token
     const [generatedToken, setGeneratedToken] = useState<string | null>(null);
     const [apiError, setApiError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [userSelectOpen, setUserSelectOpen] = useState(false);
 
     const handleInputChange = useCallback((field: keyof TokenGeneratorFormState, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -238,11 +285,14 @@ export const TokenGeneratorModal = ({ isOpen, onClose, onTokenGenerated }: Token
                                 </div>
                                 {errors.aid && <p className="text-[10px] text-destructive">{errors.aid}</p>}
                             </div>
-                            {renderFormField(
-                                'uid',
-                                'authTest.generateToken.fields.uid',
-                                'authTest.generateToken.fields.uidPlaceholder'
-                            )}
+                            <UidField
+                                value={formData.uid}
+                                error={errors.uid}
+                                disabled={isLoading || !!generatedToken}
+                                onChange={value => handleInputChange('uid', value)}
+                                onOpenUserSelect={() => setUserSelectOpen(true)}
+                                t={t}
+                            />
                             <div className="grid grid-cols-2 gap-3">
                                 {renderFormField(
                                     'mid',
@@ -284,6 +334,14 @@ export const TokenGeneratorModal = ({ isOpen, onClose, onTokenGenerated }: Token
                     </>
                 )}
             </DialogContent>
+
+            {UserSelectDialog && (
+                <UserSelectDialog
+                    isOpen={userSelectOpen}
+                    onClose={() => setUserSelectOpen(false)}
+                    onSelect={userId => handleInputChange('uid', userId)}
+                />
+            )}
         </Dialog>
     );
 };
