@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { AuthTestRoutes } from '../../features/auth-test';
 import { PointerTestRoutes } from '../../features/pointer-test';
 import { SocketTestRoutes } from '../../features/socket-test';
+import { UsersRoutes } from '../../features/users';
 import { PrivateLayout } from '../../shared/layouts';
 
 const defaultRoutes = [
@@ -10,6 +11,7 @@ const defaultRoutes = [
     { path: '/socket-test/*', element: <SocketTestRoutes /> },
     { path: '/auth-test/*', element: <AuthTestRoutes /> },
     { path: '/pointer-test/*', element: <PointerTestRoutes /> },
+    { path: '/users/*', element: <UsersRoutes /> },
 ];
 
 export const usePrivateRoutes = () => {
