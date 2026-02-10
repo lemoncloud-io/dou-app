@@ -30,7 +30,20 @@
         "language": "Language"
     },
     "login": {
-        "title": "Chatic",
+        "title": "Account Login",
+        "emailPrompt": "Please enter your email address",
+        "emailLabel": "Email",
+        "emailDescription": "Please enter in email format",
+        "passwordLabel": "Password",
+        "passwordDescription": "Please enter at least 6 characters",
+        "next": "Next",
+        "loggingIn": "Logging in...",
+        "error": "Login Failed",
+        "errorDescription": "Please check your email or password",
+        "tokenPrompt": "Please enter your token",
+        "tokenLabel": "Token",
+        "tokenDescription": "Please enter JWT token",
+        "tokenError": "Invalid token",
         "subtitle": "Sign in to your account",
         "google": "Sign in with Google",
         "kakao": "Sign in with Kakao"

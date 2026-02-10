@@ -5,10 +5,11 @@ import { I18nextProvider } from 'react-i18next';
 
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { Toaster } from 'sonner';
+import { Toaster as SonnerToaster } from 'sonner';
 
 import { ErrorFallback, GlobalLoader, LoadingFallback, VersionUpdateBanner, useVersionCheck } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
+import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
 
 import { Router } from './routes';
@@ -67,6 +68,7 @@ export function App() {
                             <ThemeProvider>
                                 <Router />
                                 <GlobalLoader />
+                                <SonnerToaster />
                                 <Toaster />
                             </ThemeProvider>
                             {process.env.NODE_ENV !== 'prod' && <ReactQueryDevtools />}

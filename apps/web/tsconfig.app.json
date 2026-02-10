@@ -23,13 +23,16 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
+            "path": "../../libs/auth/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/socket/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/ui-kit/tsconfig.lib.json"
+            "path": "../../libs/web-core/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/web-core/tsconfig.lib.json"
+            "path": "../../libs/ui-kit/tsconfig.lib.json"
         },
         {
             "path": "../../libs/theme/tsconfig.lib.json"

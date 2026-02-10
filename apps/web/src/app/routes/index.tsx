@@ -1,10 +1,12 @@
 import { useCallback, useMemo } from 'react';
-import { RouterProvider, createBrowserRouter } from 'react-router-dom';
+import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom';
 
 import { RouterErrorFallback } from '@chatic/shared';
 import { reportError, useWebCoreStore } from '@chatic/web-core';
 
-import { CommonRoutes } from './common/CommonRoutes';
+import { commonRoutes } from './common/CommonRoutes';
+import { privateRoutes } from './private/PrivateRoutes';
+import { publicRoutes } from './public/PublicRoutes';
 
 export const Router = () => {
     const { isAuthenticated, profile } = useWebCoreStore();
@@ -17,15 +19,18 @@ export const Router = () => {
         [profile?.uid]
     );
 
-    const routes = CommonRoutes;
-
     const router = useMemo(() => {
-        const routesWithErrorElement = routes.map(route => ({
+        const baseRoutes = isAuthenticated
+            ? [...privateRoutes, ...commonRoutes, { path: '*', element: <Navigate to="/" replace /> }]
+            : [...publicRoutes, ...commonRoutes, { path: '*', element: <Navigate to="/auth/login" replace /> }];
+
+        const routesWithErrorElement = baseRoutes.map(route => ({
             ...route,
             errorElement: <RouterErrorFallback onError={handleRouterError} />,
         }));
+
         return createBrowserRouter(routesWithErrorElement);
-    }, [routes, handleRouterError]);
+    }, [isAuthenticated, handleRouterError]);
 
     return <RouterProvider router={router} />;
 };
