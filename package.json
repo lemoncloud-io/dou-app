@@ -33,6 +33,7 @@
         "mobile:android:build:apk:prod": "cd apps/mobile/android && ./gradlew assembleProdRelease",
         "mobile:android:install:dev": "adb install -r apps/mobile/android/app/build/outputs/apk/dev/release/app-dev-release.apk",
         "mobile:android:install:prod": "adb install -r apps/mobile/android/app/build/outputs/apk/prod/release/app-prod-release.apk",
+        "mobile:android:build:aab:dev": "cd apps/mobile/android && ./gradlew bundleDevRelease && open app/build/outputs/bundle/devRelease",
         "mobile:android:build:aab:prod": "cd apps/mobile/android && ./gradlew bundleProdRelease && open app/build/outputs/bundle/prodRelease",
         "mobile:android:release:build": "./scripts/build-android.sh",
         "mobile:android:release:install": "./scripts/install-android.sh",
