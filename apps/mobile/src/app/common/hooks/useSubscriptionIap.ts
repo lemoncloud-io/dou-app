@@ -150,7 +150,6 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError, onPurch
     /**
      * - 앱에서 결제는 완료하였지만, 서버 검증에 실패한 상품들 탐색 후 재시도 처리
      * - 서버 검증 성공 시, 최종 구매 완료 트랜잭션 처리
-     * - 지속적 서버 검증 실패하여도 약 3일 뒤 자동 환불 처리됨
      */
     const checkUnfinishedPurchases: () => Promise<void> = useCallback(async () => {
         try {
