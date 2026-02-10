@@ -8,4 +8,5 @@ export type RootStackParamList = {
 export type DebugStackParamList = {
     Home: undefined;
     SocketTest: undefined;
+    InAppPurchaseTest: undefined;
 };
