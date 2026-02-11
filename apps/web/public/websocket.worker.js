@@ -61,7 +61,7 @@ const attemptReconnect = () => {
 };
 
 const connectWebSocket = config => {
-    const { endpoint, token, authQueryParam, sessionId, channels, auth } = config;
+    const { endpoint, token, authQueryParam, deviceId, channels, auth } = config;
 
     if (ws?.readyState === 1 || ws?.readyState === 0) {
         self.postMessage({ type: 'log', message: 'Already connected or connecting' });
@@ -73,21 +73,25 @@ const connectWebSocket = config => {
         ws = null;
     }
 
-    // channels가 지정되면 default 파라미터를 제외 (default가 있으면 기본 채널 0000으로 연결됨)
-    let wsUrl = endpoint + '?' + authQueryParam + '=' + token;
-    if (!channels) {
-        wsUrl += '&default=';
+    const params = [];
+    if (token && authQueryParam) {
+        params.push(authQueryParam + '=' + token);
     }
-    wsUrl += '&info=';
-    if (sessionId) {
-        wsUrl += '&deviceId=' + sessionId;
+    if (!channels) {
+        params.push('default=');
+    }
+    params.push('info=');
+    if (deviceId) {
+        params.push('deviceId=' + deviceId);
     }
     if (channels) {
-        wsUrl += '&channels=' + channels;
+        params.push('channels=' + channels);
     }
     if (auth) {
-        wsUrl += '&auth=true';
+        params.push('auth=true');
     }
+
+    const wsUrl = endpoint + '?' + params.join('&');
 
     self.postMessage({ type: 'status', status: 'connecting' });
     self.postMessage({ type: 'log', message: 'Connecting to: ' + wsUrl });
@@ -98,12 +102,6 @@ const connectWebSocket = config => {
         reconnectAttempts = 0;
         self.postMessage({ type: 'status', status: 'connected' });
         self.postMessage({ type: 'log', message: 'Connected' });
-
-        setTimeout(() => {
-            if (ws?.readyState === 1) {
-                ws.send(JSON.stringify({ type: 'system', action: 'info', data: {} }));
-            }
-        }, 100);
 
         startSyncInfoHeartbeat();
     };

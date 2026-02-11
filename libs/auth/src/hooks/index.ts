@@ -1,5 +1,5 @@
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useSimpleWebCore } from '@chatic/web-core';
 
 import { login, registerUser, registerUserV2 } from '../apis';
 
@@ -28,11 +28,11 @@ export const useRegisterUserV2 = () =>
     });
 
 export const useLogin = () => {
-    const { setIsAuthenticated } = useWebCoreStore();
+    const { login: setLogin } = useSimpleWebCore();
 
     return useCustomMutation<UserTokenView, string, LoginUserBody>(login, {
-        onSuccess: () => {
-            setIsAuthenticated(true);
+        onSuccess: data => {
+            setLogin(data.User);
             console.log('Login successful');
         },
     });

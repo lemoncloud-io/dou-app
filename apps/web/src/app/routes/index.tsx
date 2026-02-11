@@ -1,23 +1,26 @@
-import { useCallback, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom';
 
-import { RouterErrorFallback } from '@chatic/shared';
-import { reportError, useWebCoreStore } from '@chatic/web-core';
+import { useSimpleWebCore } from '@chatic/web-core';
 
 import { commonRoutes } from './common/CommonRoutes';
 import { privateRoutes } from './private/PrivateRoutes';
 import { publicRoutes } from './public/PublicRoutes';
 
 export const Router = () => {
-    const { isAuthenticated, profile } = useWebCoreStore();
+    const { isAuthenticated, isInitialized, initialize } = useSimpleWebCore();
 
-    const handleRouterError = useCallback(
-        (error: Error, info: { componentStack?: string }): void => {
-            console.error('Router Error:', error, info);
-            reportError(error, info, 'web', profile?.uid);
-        },
-        [profile?.uid]
-    );
+    useEffect(() => {
+        initialize();
+    }, [initialize]);
+
+    // const handleRouterError = useCallback(
+    //     (error: Error, info: { componentStack?: string }): void => {
+    //         console.error('Router Error:', error, info);
+    //         reportError(error, info, 'web', profile?.uid);
+    //     },
+    //     [profile?.uid]
+    // );
 
     const router = useMemo(() => {
         const baseRoutes = isAuthenticated
@@ -26,11 +29,18 @@ export const Router = () => {
 
         const routesWithErrorElement = baseRoutes.map(route => ({
             ...route,
-            errorElement: <RouterErrorFallback onError={handleRouterError} />,
+            // errorElement: <RouterErrorFallback onError={handleRouterError} />,
         }));
 
         return createBrowserRouter(routesWithErrorElement);
-    }, [isAuthenticated, handleRouterError]);
+    }, [
+        isAuthenticated,
+        //  handleRouterError
+    ]);
+
+    if (!isInitialized) {
+        return null;
+    }
 
     return <RouterProvider router={router} />;
 };
