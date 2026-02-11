@@ -2408,10 +2408,10 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
-"@lemoncloud/chatic-backend-api@^0.26.121":
-  version "0.26.121"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-backend-api/-/chatic-backend-api-0.26.121.tgz#85766f415c97dc6b9401997cc1b33ad201815b17"
-  integrity sha512-yD3UdsWWF9Nllhyjywqc7kd0Kv6AbvKcOILB0+cYvaCd8R15l50HZNeVrrOx/UC9Fxke6NT1zXuZSdVENZK/6w==
+"@lemoncloud/chatic-backend-api@^0.26.122":
+  version "0.26.122"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-backend-api/-/chatic-backend-api-0.26.122.tgz#dbc3a19dc3d3bf346eca9e1bf965243eeae588ec"
+  integrity sha512-IQhIZ7pPDu576xken6qFBLqJSxXZmTbt3gCruepTeaiUUgBQgMcKalpA71MB6pA/GQ3Bu+VEhuBOFfo2nbecQQ==
   dependencies:
     lemon-model "^1.1.1"
 

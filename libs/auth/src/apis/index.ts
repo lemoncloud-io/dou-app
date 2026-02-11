@@ -1,6 +1,12 @@
 import { webCore } from '@chatic/web-core';
 
-import type { LoginUserBody, UserBody, UserTokenView, UserView } from '@lemoncloud/chatic-backend-api';
+import type {
+    LoginUserBody,
+    RegisterUserV2Body,
+    UserBody,
+    UserTokenView,
+    UserView,
+} from '@lemoncloud/chatic-backend-api';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
 
 const DOU_ENDPOINT = import.meta.env.VITE_DOU_ENDPOINT;
@@ -10,6 +16,18 @@ export const registerUser = async (body: UserBody): Promise<UserView> => {
         .buildSignedRequest({
             method: 'POST',
             baseURL: `${DOU_ENDPOINT}/oauth/register-user`,
+        })
+        .setBody(body)
+        .execute<UserView>();
+
+    return data;
+};
+
+export const registerUserV2 = async (body: RegisterUserV2Body): Promise<UserView> => {
+    const { data } = await webCore
+        .buildSignedRequest({
+            method: 'POST',
+            baseURL: `${DOU_ENDPOINT}/oauth/register-user-v2`,
         })
         .setBody(body)
         .execute<UserView>();
