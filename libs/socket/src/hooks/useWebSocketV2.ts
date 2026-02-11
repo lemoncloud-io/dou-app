@@ -11,11 +11,23 @@ export interface UseWebSocketV2Config {
     logPrefix?: string;
 }
 
-export const useWebSocketV2 = (config: UseWebSocketV2Config) => {
-    const { endpoint, connectParams, enabled = true, logPrefix = '[WebSocketV2]' } = config;
+// Global worker reference for singleton pattern
+let globalWorkerRef: Worker | null = null;
+let globalSendFn: ((data: unknown) => void) | null = null;
 
+export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
     const store = useWebSocketV2Store();
     const workerRef = useRef<Worker | null>(null);
+
+    // If no config provided, return current state and send function
+    if (!config) {
+        return {
+            ...store,
+            send: globalSendFn || (() => console.warn('[WebSocketV2] Not initialized')),
+        };
+    }
+
+    const { endpoint, connectParams, enabled = true, logPrefix = '[WebSocketV2]' } = config;
 
     const connect = useCallback(async (): Promise<void> => {
         if (!endpoint) {
@@ -24,23 +36,28 @@ export const useWebSocketV2 = (config: UseWebSocketV2Config) => {
         }
 
         try {
-            if (!workerRef.current) {
-                workerRef.current = new Worker('/websocket.worker.js');
+            if (!workerRef.current && !globalWorkerRef) {
+                const worker = new Worker('/websocket.worker.js');
+                workerRef.current = worker;
+                globalWorkerRef = worker;
 
-                workerRef.current.onmessage = (e: MessageEvent<WSSEnvelope>) => {
+                worker.onmessage = (e: MessageEvent<WSSEnvelope>) => {
                     const envelope = e.data;
                     console.log(`${logPrefix} Message:`, envelope);
                     store.setLastMessage(envelope);
                 };
             }
 
-            workerRef.current.postMessage({
-                type: 'connect',
-                config: {
-                    endpoint,
-                    deviceId: connectParams?.deviceId,
-                },
-            });
+            const worker = workerRef.current || globalWorkerRef;
+            if (worker) {
+                worker.postMessage({
+                    type: 'connect',
+                    config: {
+                        endpoint,
+                        deviceId: connectParams?.deviceId,
+                    },
+                });
+            }
 
             store.setConnectionStatus('connecting');
             store.setIsConnected(true);
@@ -54,8 +71,9 @@ export const useWebSocketV2 = (config: UseWebSocketV2Config) => {
     }, [endpoint, logPrefix, connectParams, store]);
 
     const disconnect = useCallback((): void => {
-        if (workerRef.current) {
-            workerRef.current.postMessage({ type: 'disconnect' });
+        const worker = workerRef.current || globalWorkerRef;
+        if (worker) {
+            worker.postMessage({ type: 'disconnect' });
         }
         store.setConnectionStatus('disconnected');
         store.setIsConnected(false);
@@ -63,14 +81,18 @@ export const useWebSocketV2 = (config: UseWebSocketV2Config) => {
 
     const send = useCallback(
         (data: unknown): void => {
-            if (workerRef.current) {
-                workerRef.current.postMessage({ type: 'send', data });
+            const worker = workerRef.current || globalWorkerRef;
+            if (worker) {
+                worker.postMessage({ type: 'send', data });
             } else {
                 console.warn(`${logPrefix} Cannot send - worker not initialized`);
             }
         },
         [logPrefix]
     );
+
+    // Store send function globally
+    globalSendFn = send;
 
     const connectRef = useRef(connect);
     const disconnectRef = useRef(disconnect);
@@ -90,6 +112,11 @@ export const useWebSocketV2 = (config: UseWebSocketV2Config) => {
             if (workerRef.current) {
                 workerRef.current.terminate();
                 workerRef.current = null;
+            }
+            if (globalWorkerRef) {
+                globalWorkerRef.terminate();
+                globalWorkerRef = null;
+                globalSendFn = null;
             }
         };
     }, [enabled]);

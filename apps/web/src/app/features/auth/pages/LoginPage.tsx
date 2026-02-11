@@ -2,11 +2,12 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 
 import { useLogin } from '@chatic/auth';
+import { useWebSocketV2 } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useSimpleWebCore } from '@chatic/web-core';
+import { simpleWebCore } from '@chatic/web-core';
 
 import type { JSX } from 'react';
 
@@ -19,7 +20,7 @@ export const LoginPage = (): JSX.Element => {
     const navigate = useNavigate();
     const { toast } = useToast();
     const { mutateAsync: login, isPending } = useLogin();
-    const { setProfile } = useSimpleWebCore();
+    const { send } = useWebSocketV2();
     const {
         register,
         handleSubmit,
@@ -33,8 +34,21 @@ export const LoginPage = (): JSX.Element => {
 
     const onSubmit = async (data: LoginFormData) => {
         try {
-            const user = await login(data);
-            setProfile(user);
+            await login(data);
+
+            // Send auth event via WebSocket
+            const token = simpleWebCore.getToken();
+            if (token?.identityToken) {
+                send({
+                    type: 'auth',
+                    action: 'update',
+                    payload: {
+                        token: token.identityToken,
+                        dryRun: false,
+                    },
+                });
+            }
+
             navigate('/');
         } catch (error) {
             toast({

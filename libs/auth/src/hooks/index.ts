@@ -28,11 +28,12 @@ export const useRegisterUserV2 = () =>
     });
 
 export const useLogin = () => {
-    const { login: setLogin } = useSimpleWebCore();
+    const { setProfile, setIsAuthenticated } = useSimpleWebCore();
 
     return useCustomMutation<UserTokenView, string, LoginUserBody>(login, {
         onSuccess: data => {
-            setLogin(data.User);
+            setProfile(data);
+            setIsAuthenticated(true);
             console.log('Login successful');
         },
     });

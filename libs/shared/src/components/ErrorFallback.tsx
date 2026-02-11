@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { AlertTriangle, Home, RefreshCw, ServerCrash, ShieldOff, WifiOff } from 'lucide-react';
 
@@ -58,7 +57,6 @@ const inferErrorType = (error: Error): ErrorType => {
 export const ErrorFallback: ComponentType<ErrorFallbackProps> = ({ error, resetErrorBoundary, errorType }) => {
     const errorContainerRef = useRef<HTMLDivElement>(null);
     const [isRetrying, setIsRetrying] = useState(false);
-    const navigate = useNavigate();
 
     const resolvedErrorType = errorType ?? inferErrorType(error);
     const messages = ERROR_MESSAGES[resolvedErrorType];
@@ -76,18 +74,18 @@ export const ErrorFallback: ComponentType<ErrorFallbackProps> = ({ error, resetE
     }, [resetErrorBoundary]);
 
     const handleGoHome = useCallback((): void => {
-        navigate('/');
-    }, [navigate]);
+        window.location.href = '/';
+    }, []);
 
     const handleSecondaryAction = useCallback((): void => {
         if (resolvedErrorType === 'auth') {
-            navigate('/auth/login');
+            window.location.href = '/auth/login';
         } else if (resolvedErrorType === 'network') {
             window.location.reload();
         } else {
-            navigate('/');
+            window.location.href = '/';
         }
-    }, [navigate, resolvedErrorType]);
+    }, [resolvedErrorType]);
 
     return (
         <div
