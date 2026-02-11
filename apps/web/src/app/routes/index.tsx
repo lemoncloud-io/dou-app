@@ -3,6 +3,7 @@ import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 
 import { useSimpleWebCore } from '@chatic/web-core';
 
+import { TokenEditor } from '../components/TokenEditor';
 import { commonRoutes } from './common/CommonRoutes';
 import { privateRoutes } from './private/PrivateRoutes';
 import { publicRoutes } from './public/PublicRoutes';
@@ -42,5 +43,10 @@ export const Router = () => {
         return null;
     }
 
-    return <RouterProvider router={router} />;
+    return (
+        <>
+            <RouterProvider router={router} />
+            {isAuthenticated && <TokenEditor />}
+        </>
+    );
 };

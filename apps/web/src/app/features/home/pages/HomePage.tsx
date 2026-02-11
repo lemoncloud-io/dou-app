@@ -1,6 +1,6 @@
-import { ChevronDown, LogOut } from 'lucide-react';
+import { ChevronDown, CirclePlus, LogOut } from 'lucide-react';
+import { useState } from 'react';
 
-import { useChannels } from '@chatic/channels';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -9,16 +9,25 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useSimpleWebCore } from '@chatic/web-core';
 
+import { ChannelList } from '../components/ChannelList';
+import { CreateChannelDialog } from '../components/CreateChannelDialog';
+import { useQueryClient } from '@tanstack/react-query';
+import { publicChannelsKeys } from '@chatic/channels';
+
 export const HomePage = () => {
     const { profile, logout } = useSimpleWebCore();
-    const { data: channels } = useChannels({});
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const handleLogout = () => {
         logout();
         window.location.href = '/auth/login';
     };
 
-    // console.log('channels:', channels);
+    const queryClient = useQueryClient();
+
+    const handleComplete = () => {
+        queryClient.invalidateQueries({ queryKey: publicChannelsKeys.list({ limit: -1 }) });
+    };
 
     return (
         <div className="flex h-screen flex-col bg-white">
@@ -74,40 +83,19 @@ export const HomePage = () => {
                         <h2 className="text-[18px] font-semibold leading-[1.33] tracking-[-0.023em] text-black">
                             Chat
                         </h2>
-                        <div className="h-6 w-6">💬</div>
+                        <button onClick={() => setIsDialogOpen(true)} className="h-6 w-6">
+                            <CirclePlus className="h-6 w-6" />
+                        </button>
                     </div>
 
                     {/* Chat List */}
                     <div className="flex flex-col gap-[15px] px-5 py-3">
-                        {/* Self Chat Item */}
-                        <div className="flex items-center gap-2.5">
-                            <div className="flex h-[39px] w-[39px] items-center justify-center rounded-full bg-[#F4F5F5]">
-                                <div className="h-4 w-4 text-[#CFD0D3]">👤</div>
-                            </div>
-                            <div className="flex flex-1 items-center">
-                                <div className="flex flex-1 flex-col">
-                                    <div className="flex items-center gap-1">
-                                        <div className="rounded-[3px] bg-[#102346] px-1.5 py-0.5">
-                                            <span className="text-[10px] font-normal leading-[1.5] text-white">MY</span>
-                                        </div>
-                                        <span className="text-[14px] font-semibold leading-[1.57] tracking-[0.005em] text-[#171725]">
-                                            self chat
-                                        </span>
-                                    </div>
-                                    <span className="text-[12px] font-normal leading-[1.67] tracking-[0.005em] text-[#9FA2A7]">
-                                        나와의 채팅을 시작해 보세요
-                                    </span>
-                                </div>
-                                <div className="flex h-[45px] flex-col items-end gap-1">
-                                    <span className="w-[67px] text-right text-[10px] font-normal leading-[2] tracking-[0.005em] text-[#9CA4AB]">
-                                        오전 11:30
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+                        <ChannelList />
                     </div>
                 </div>
             </div>
+
+            <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
         </div>
     );
 };
