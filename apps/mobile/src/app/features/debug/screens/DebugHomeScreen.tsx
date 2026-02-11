@@ -21,6 +21,9 @@ export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
                 {renderMenuItem('소켓 테스트', () => {
                     navigation.navigate('SocketTest');
                 })}
+                {renderMenuItem('인앱결제 테스트', () => {
+                    navigation.navigate('InAppPurchaseTest');
+                })}
             </ScrollView>
         </SafeAreaView>
     );
