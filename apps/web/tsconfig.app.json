@@ -26,6 +26,9 @@
             "path": "../../libs/auth/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/channels/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/socket/tsconfig.lib.json"
         },
         {

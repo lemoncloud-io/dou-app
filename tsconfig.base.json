@@ -27,6 +27,7 @@
             "@chatic/app-messages": ["libs/app-messages/src/index.ts"],
             "@chatic/assets": ["assets/src/index.ts"],
             "@chatic/auth": ["libs/auth/src/index.ts"],
+            "@chatic/channels": ["libs/channels/src/index.ts"],
             "@chatic/device-utils": ["libs/device-utils/src/index.ts"],
             "@chatic/lib/utils": ["libs/ui-kit/src/utils/index.ts"],
             "@chatic/pouches": ["libs/pouches/src/index.ts"],

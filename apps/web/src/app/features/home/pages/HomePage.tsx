@@ -1,5 +1,6 @@
 import { ChevronDown, LogOut } from 'lucide-react';
 
+import { useChannels } from '@chatic/channels';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -10,11 +11,14 @@ import { useSimpleWebCore } from '@chatic/web-core';
 
 export const HomePage = () => {
     const { profile, logout } = useSimpleWebCore();
+    const { data: channels } = useChannels({});
 
     const handleLogout = () => {
         logout();
         window.location.href = '/auth/login';
     };
+
+    // console.log('channels:', channels);
 
     return (
         <div className="flex h-screen flex-col bg-white">

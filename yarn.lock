@@ -2415,6 +2415,13 @@
   dependencies:
     lemon-model "^1.1.1"
 
+"@lemoncloud/chatic-socials-api@^0.26.125":
+  version "0.26.125"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-socials-api/-/chatic-socials-api-0.26.125.tgz#3f4b6a041dcab752b6476fe467b3118103a26f4e"
+  integrity sha512-I7lQ9xE+631j0rCyYt2+rDYJzyJ8a2koIpaCK+bLK88KCKG5LAnhmRiBCf5O4gUgGUOQPTDwEjaGccqtpcKx1Q==
+  dependencies:
+    lemon-model "^1.1.1"
+
 "@lemoncloud/chatic-sockets-api@*", "@lemoncloud/chatic-sockets-api@^0.26.118":
   version "0.26.118"
   resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.118.tgz#247953228c6347e6172d1d38f9e05873132a19fa"
