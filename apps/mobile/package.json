@@ -13,6 +13,8 @@
         "react-native": "*",
         "react-native-config": "*",
         "react-native-screens": "*",
+        "react-native-iap": "*",
+        "react-native-nitro-modules": "*",
         "react-native-svg": "*",
         "metro-config": "*",
         "@nx/eslint-plugin": "*",

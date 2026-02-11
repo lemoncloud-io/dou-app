@@ -1,13 +1,14 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import { DebugHomeScreen } from '../screens';
-import { SocketTestScreen } from '../screens';
+import { DebugHomeScreen, SocketTestScreen } from '../screens';
+import InAppPurchaseTestScreen from '../screens/InAppPurchaseTestScreen';
 
 import type { DebugStackParamList } from '../../../navigation';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 export type HomeScreenProps = NativeStackScreenProps<DebugStackParamList, 'Home'>;
 export type SocketTestScreenProps = NativeStackScreenProps<DebugStackParamList, 'SocketTest'>;
+export type InAppPurchaseTestScreenProps = NativeStackScreenProps<DebugStackParamList, 'InAppPurchaseTest'>;
 
 const Stack = createNativeStackNavigator<DebugStackParamList>();
 
@@ -35,6 +36,14 @@ export const DebugNavigator = () => {
                 component={SocketTestScreen}
                 options={{
                     title: '웹소켓 테스트',
+                    headerBackButtonDisplayMode: 'minimal',
+                }}
+            />
+            <Stack.Screen
+                name="InAppPurchaseTest"
+                component={InAppPurchaseTestScreen}
+                options={{
+                    title: '인앱결제 테스트',
                     headerBackButtonDisplayMode: 'minimal',
                 }}
             />
