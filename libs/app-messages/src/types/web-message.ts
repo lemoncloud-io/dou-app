@@ -2,7 +2,7 @@
  * Web Message:
  * message from Web to App
  */
-const WEB_MESSAGE_TYPE = {
+export const WebMessageTypes = {
     SetCanGoBack: 'SetCanGoBack',
     ShowLoader: 'ShowLoader',
     HideLoader: 'HideLoader',
@@ -12,28 +12,65 @@ const WEB_MESSAGE_TYPE = {
     GetDeviceInfo: 'GetDeviceInfo',
     GetFcmToken: 'GetFcmToken',
     GetSafeArea: 'GetSafeArea',
+    PurchaseSubscription: 'PurchaseSubscription',
+    CheckUnfinishedPurchases: 'CheckUnfinishedPurchases',
+    GetProducts: 'GetProducts',
+    GetCurrentPurchases: 'GetCurrentPurchases',
 } as const;
-export type WebMessageType = (typeof WEB_MESSAGE_TYPE)[keyof typeof WEB_MESSAGE_TYPE];
+export type WebMessageType = (typeof WebMessageTypes)[keyof typeof WebMessageTypes];
 
 interface DefaultMessage<T extends WebMessageType> {
     type: T;
 }
 
-export interface SetCanGoBackData<T extends 'SetCanGoBack'> extends DefaultMessage<T> {
+export interface SetCanGoBackData extends DefaultMessage<'SetCanGoBack'> {
     data: { canGoBack: boolean };
 }
 
-export interface OnScrollData<T extends 'OnScroll'> extends DefaultMessage<T> {
+export interface OnScrollData extends DefaultMessage<'OnScroll'> {
     data: {
         url: string;
         scrollPercentage: number;
     };
 }
 
-// prettier-ignore
-export type WebMessageData<T extends WebMessageType>
-    = T extends 'SetCanGoBack' ? SetCanGoBackData<T>
-    : T extends 'OnScroll' ? OnScrollData<T>
-    : DefaultMessage<T>;
+export interface PurchaseSubscription extends DefaultMessage<'PurchaseSubscription'> {
+    data: {
+        sku: string;
+    };
+}
 
+interface WebMessageMap {
+    /**
+     * TODO: Not Implement
+     * @author dev@example.com
+     */
+    SetCanGoBack: SetCanGoBackData;
+    ShowLoader: DefaultMessage<'ShowLoader'>;
+    HideLoader: DefaultMessage<'HideLoader'>;
+    SyncCredential: DefaultMessage<'SyncCredential'>;
+    PopWebView: DefaultMessage<'PopWebView'>;
+    OnScroll: OnScrollData;
+    GetDeviceInfo: DefaultMessage<'GetDeviceInfo'>;
+
+    /**
+     * Device Info Event
+     */
+    GetSafeArea: DefaultMessage<'GetSafeArea'>;
+
+    /**
+     * FCM Event
+     */
+    GetFcmToken: DefaultMessage<'GetFcmToken'>;
+
+    /**
+     * IAP Event
+     */
+    PurchaseSubscription: PurchaseSubscription;
+    CheckUnfinishedPurchases: DefaultMessage<'CheckUnfinishedPurchases'>;
+    GetProducts: DefaultMessage<'GetProducts'>;
+    GetCurrentPurchases: DefaultMessage<'GetCurrentPurchases'>;
+}
+
+export type WebMessageData<T extends WebMessageType> = WebMessageMap[T];
 export type WebMessage = WebMessageData<WebMessageType>;

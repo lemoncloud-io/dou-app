@@ -3,7 +3,8 @@ declare module 'react-native-config' {
         VITE_ENV: string;
         VITE_WEBVIEW_BASE_URL: string;
         VITE_WS_ENDPOINT: string;
-        VITE_SUBSCRIPTION_IAP_SKUS: string;
+        VITE_SUBSCRIPTION_IAP_SKUS_IOS: string;
+        VITE_SUBSCRIPTION_IAP_SKUS_ANDROID: string;
     }
 
     export const Config: NativeConfig;

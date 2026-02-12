@@ -2,16 +2,29 @@
  * App Message:
  * message from App to Web
  */
-import type { AppLogInfo, DeviceInfo, FcmTokenInfo, NotificationInfo, SafeAreaInfo, VersionInfo } from './common';
+import type {
+    AppLogInfo,
+    DeviceInfo,
+    FcmTokenInfo,
+    NotificationInfo,
+    ProductSubscriptionInfo,
+    PurchaseInfo,
+    SafeAreaInfo,
+    VersionInfo,
+} from './common';
 
 export const AppMessageTypes = {
-    SyncCredential: 'SyncCredential',
-    SetDeviceInfo: 'SetDeviceInfo',
-    SetSafeArea: 'SetSafeArea',
-    SetFcmToken: 'SetFcmToken',
-    AppLog: 'AppLog',
-    NotificationReceived: 'NotificationReceived',
-    NotificationOpened: 'NotificationOpened',
+    OnSuccessSyncCredential: 'OnSuccessSyncCredential',
+    OnUpdateDeviceInfo: 'OnUpdateDeviceInfo',
+    OnUpdateSafeArea: 'OnUpdateSafeArea',
+    OnUpdateFcmToken: 'OnUpdateFcmToken',
+    OnAppLog: 'OnAppLog',
+    OnReceiveNotification: 'OnReceiveNotification',
+    OnOpenNotification: 'OnOpenNotification',
+
+    OnSuccessPurchase: 'OnSuccessPurchase',
+    OnUpdateProductSubscriptions: 'OnUpdateProductSubscriptions',
+    OnUpdatePurchases: 'OnUpdatePurchases',
 } as const;
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
 
@@ -19,38 +32,70 @@ interface DefaultMessage<T extends AppMessageType> {
     type: T;
 }
 
-export interface SetDeviceInfo extends DefaultMessage<'SetDeviceInfo'> {
+export interface OnUpdateDeviceInfo extends DefaultMessage<'OnUpdateDeviceInfo'> {
     data: DeviceInfo & VersionInfo;
 }
 
-export interface SetSafeArea extends DefaultMessage<'SetSafeArea'> {
+export interface OnUpdateSafeArea extends DefaultMessage<'OnUpdateSafeArea'> {
     data: SafeAreaInfo;
 }
 
-export interface SetFcmToken extends DefaultMessage<'SetFcmToken'> {
+export interface OnUpdateFcmToken extends DefaultMessage<'OnUpdateFcmToken'> {
     data: FcmTokenInfo;
 }
 
-export interface AppLog extends DefaultMessage<'AppLog'> {
+export interface OnAppLog extends DefaultMessage<'OnAppLog'> {
     data: AppLogInfo;
 }
 
-export interface NotificationReceived extends DefaultMessage<'NotificationReceived'> {
+export interface OnReceiveNotification extends DefaultMessage<'OnReceiveNotification'> {
     data: NotificationInfo;
 }
 
-export interface NotificationOpened extends DefaultMessage<'NotificationOpened'> {
+export interface OnOpenNotification extends DefaultMessage<'OnOpenNotification'> {
     data: NotificationInfo;
 }
 
-// prettier-ignore
-export type AppMessageData<T extends AppMessageType>
-    = T extends 'SetDeviceInfo' ? SetDeviceInfo
-    : T extends 'SetSafeArea' ? SetSafeArea
-    : T extends 'SetFcmToken' ? SetFcmToken
-    : T extends 'AppLog' ? AppLog
-    : T extends 'NotificationReceived' ? NotificationReceived
-    : T extends 'NotificationOpened' ? NotificationOpened
-    : DefaultMessage<T>
+export interface OnUpdateProductSubscriptions extends DefaultMessage<'OnUpdateProductSubscriptions'> {
+    data: ProductSubscriptionInfo;
+}
 
+export interface OnUpdatePurchases extends DefaultMessage<'OnUpdatePurchases'> {
+    data: PurchaseInfo;
+}
+
+export interface AppMessageMap {
+    /**
+     * TODO: Not Implement
+     * @author dev@example.com
+     */
+    OnSuccessSyncCredential: DefaultMessage<'OnSuccessSyncCredential'>;
+    OnUpdateDeviceInfo: OnUpdateDeviceInfo;
+
+    /**
+     * Device Info Event
+     */
+    OnUpdateSafeArea: OnUpdateSafeArea;
+
+    /**
+     * Notification Event
+     */
+    OnUpdateFcmToken: OnUpdateFcmToken;
+    OnReceiveNotification: OnReceiveNotification;
+    OnOpenNotification: OnOpenNotification;
+
+    /**
+     * Common Event
+     */
+    OnAppLog: OnAppLog;
+
+    /**
+     * IAP Event
+     */
+    OnUpdateProductSubscriptions: OnUpdateProductSubscriptions;
+    OnUpdatePurchases: OnUpdatePurchases;
+    OnSuccessPurchase: DefaultMessage<'OnSuccessPurchase'>;
+}
+
+export type AppMessageData<T extends AppMessageType> = AppMessageMap[T];
 export type AppMessage = AppMessageData<AppMessageType>;
