@@ -2,22 +2,13 @@ import React, { useCallback } from 'react';
 import { ActivityIndicator, Alert, FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { type ProductSubscription } from 'react-native-iap';
 
-import { Logger, useSubscriptionIap } from '../../../common';
+import { useSubscriptionIap } from '../../../common';
 
-import type { Purchase } from 'react-native-iap';
-
-const ShopScreen = () => {
+export const IapTestScreen = () => {
     const { products, currentPurchases, loading, handlePurchase, checkUnfinishedPurchases } = useSubscriptionIap({
-        onPurchaseSuccess: async (purchase: Purchase) => {
-            Logger.info('IAP', '영수증 검증 시도:', purchase);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            Logger.info('IAP', '영수증 검증 성공:', purchase);
-        },
-
-        onPurchaseFinish: () => {
+        onPurchaseSuccess: () => {
             Alert.alert('구독 완료', '구독 처리 완료!');
         },
-
         onPurchaseError: error => {
             Alert.alert('구매 실패', error.message);
         },
@@ -219,5 +210,3 @@ const styles = StyleSheet.create({
     },
     loadingText: { color: 'white', marginTop: 10, fontWeight: '600' },
 });
-
-export default ShopScreen;
