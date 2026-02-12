@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyAl_gmSOiwY9cFAyIKbhJYGKq4Cf5nHBU8</string>
+	<string>AIzaSyA0wb6QRQ4xNBCxQ1snTSgAhrw2O5oYFzs</string>
 	<key>GCM_SENDER_ID</key>
-	<string>429595905351</string>
+	<string>884488290426</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>io.chatic.dou</string>
 	<key>PROJECT_ID</key>
-	<string>lemondu-ecb38</string>
+	<string>chaticdou</string>
 	<key>STORAGE_BUCKET</key>
-	<string>lemondu-ecb38.firebasestorage.app</string>
+	<string>chaticdou.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:429595905351:ios:455319ea32ab90f9abd062</string>
+	<string>1:884488290426:ios:c576817222111c0685bbc3</string>
 </dict>
 </plist>
