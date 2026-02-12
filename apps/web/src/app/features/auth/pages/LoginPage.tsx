@@ -14,6 +14,7 @@ import type { JSX } from 'react';
 type LoginFormData = {
     uid: string;
     pwd: string;
+    token: string;
 };
 
 export const LoginPage = (): JSX.Element => {
@@ -29,21 +30,24 @@ export const LoginPage = (): JSX.Element => {
         defaultValues: {
             uid: '',
             pwd: '',
+            token: '',
         },
     });
 
     const onSubmit = async (data: LoginFormData) => {
         try {
-            await login(data);
+            await login({ uid: data.uid, pwd: data.pwd });
 
-            // Send auth event via WebSocket
             const token = simpleWebCore.getToken();
-            if (token?.identityToken) {
+            if (token && data.token.trim()) {
+                const newToken = { ...token, identityToken: data.token.trim() };
+                simpleWebCore.saveToken(newToken);
+
                 send({
                     type: 'auth',
                     action: 'update',
                     payload: {
-                        token: token.identityToken,
+                        token: data.token.trim(),
                         dryRun: false,
                     },
                 });
@@ -104,6 +108,24 @@ export const LoginPage = (): JSX.Element => {
                             className="h-11 px-3 text-base border-[#EAEAEC] rounded-[10px] bg-[#FEFEFE]"
                         />
                         {errors.pwd && <p className="text-xs text-destructive px-0.5">{errors.pwd.message}</p>}
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <Label
+                            htmlFor="token"
+                            className="text-xs font-medium text-[#9FA2A7] leading-[1.5em] tracking-[0.005em]"
+                        >
+                            Identity Token
+                        </Label>
+                        <Input
+                            id="token"
+                            type="text"
+                            {...register('token', { required: '토큰을 입력해 주세요' })}
+                            disabled={isPending}
+                            placeholder="토큰 입력"
+                            className="h-11 px-3 text-base border-[#EAEAEC] rounded-[10px] bg-[#FEFEFE] leading-[1.45em] tracking-[-0.015em]"
+                        />
+                        {errors.token && <p className="text-xs text-destructive px-0.5">{errors.token.message}</p>}
                     </div>
                 </form>
             </div>

@@ -29,6 +29,9 @@
             "path": "../../libs/channels/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/chats/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/socket/tsconfig.lib.json"
         },
         {

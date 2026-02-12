@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { usePublicChannels } from '@chatic/channels';
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 
@@ -12,6 +13,7 @@ const ChannelSkeleton = () => (
 );
 
 export const ChannelList = () => {
+    const navigate = useNavigate();
     const { data: channels, isPending, error } = usePublicChannels({ limit: -1 });
 
     if (isPending) {
@@ -35,7 +37,11 @@ export const ChannelList = () => {
     return (
         <div className="flex flex-col gap-[15px]">
             {channels.list.map(channel => (
-                <div key={channel.id} className="flex items-center gap-2.5">
+                <button
+                    key={channel.id}
+                    onClick={() => navigate(`/chats/${channel.id}/room`)}
+                    className="flex items-center gap-2.5 w-full text-left"
+                >
                     <div className="flex h-[39px] w-[39px] items-center justify-center rounded-full bg-[#F4F5F5]">
                         <div className="h-4 w-4 text-[#CFD0D3]">💬</div>
                     </div>
@@ -61,7 +67,7 @@ export const ChannelList = () => {
                             </span>
                         </div>
                     </div>
-                </div>
+                </button>
             ))}
         </div>
     );

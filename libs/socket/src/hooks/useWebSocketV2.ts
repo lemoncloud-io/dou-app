@@ -44,6 +44,12 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                 worker.onmessage = (e: MessageEvent<WSSEnvelope>) => {
                     const envelope = e.data;
                     console.log(`${logPrefix} Message:`, envelope);
+
+                    // Update connection status based on message type
+                    if (envelope.type === 'connected') {
+                        store.setConnectionStatus('connected');
+                    }
+
                     store.setLastMessage(envelope);
                 };
             }
@@ -60,7 +66,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
             }
 
             store.setConnectionStatus('connecting');
-            store.setIsConnected(true);
+            store.setIsConnected(false);
             if (connectParams?.deviceId) {
                 store.setDeviceId(connectParams.deviceId);
             }

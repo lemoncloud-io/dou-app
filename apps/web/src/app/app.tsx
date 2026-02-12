@@ -12,7 +12,7 @@ import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
 
-import { WebSocketV2Connection, WebSocketV2Status } from './components';
+import { WebSocketV2Connection } from './components';
 import { Router } from './routes';
 import i18n from '../i18n';
 
@@ -72,7 +72,6 @@ export function App() {
                                 <GlobalLoader />
                                 <SonnerToaster />
                                 <Toaster />
-                                <WebSocketV2Status />
                             </ThemeProvider>
                             {process.env.NODE_ENV !== 'prod' && <ReactQueryDevtools />}
                         </QueryClientProvider>
