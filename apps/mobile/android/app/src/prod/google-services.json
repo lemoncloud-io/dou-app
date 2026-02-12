@@ -1,0 +1,29 @@
+{
+    "project_info": {
+        "project_number": "884488290426",
+        "project_id": "chaticdou",
+        "storage_bucket": "chaticdou.firebasestorage.app"
+    },
+    "client": [
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:884488290426:android:bada1aabecfa8fd685bbc3",
+                "android_client_info": {
+                    "package_name": "io.chatic.dou"
+                }
+            },
+            "oauth_client": [],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyC-06p4Nfg_41Os9I8K_YiobRfoDrp2teU"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": []
+                }
+            }
+        }
+    ],
+    "configuration_version": "1"
+}
