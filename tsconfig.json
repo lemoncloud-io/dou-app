@@ -44,6 +44,12 @@
         },
         {
             "path": "./libs/auth"
+        },
+        {
+            "path": "./libs/channels"
+        },
+        {
+            "path": "./libs/chats"
         }
     ]
 }

@@ -1,0 +1,7 @@
+{
+    "name": "chats",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/chats/src",
+    "projectType": "library",
+    "tags": []
+}

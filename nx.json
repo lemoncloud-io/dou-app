@@ -29,7 +29,7 @@
                     "watchDepsName": "watch-deps"
                 }
             },
-            "exclude": ["libs/socket/*"]
+            "exclude": ["libs/socket/*", "libs/chats/*"]
         },
         {
             "plugin": "@nx/react-native/plugin",
@@ -73,7 +73,7 @@
         },
         {
             "plugin": "@nx/js/typescript",
-            "include": ["libs/socket/*"],
+            "include": ["libs/socket/*", "libs/chats/*"],
             "options": {
                 "typecheck": {
                     "targetName": "typecheck"

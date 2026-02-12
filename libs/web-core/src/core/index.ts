@@ -1,5 +1,7 @@
 import { WebCoreFactory } from '@lemoncloud/lemon-web-core';
 
+export * from './simpleWebCore';
+
 declare global {
     interface Window {
         ENV?: string;

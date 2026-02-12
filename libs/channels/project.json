@@ -1,0 +1,7 @@
+{
+    "name": "channels",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/channels/src",
+    "projectType": "library",
+    "tags": []
+}

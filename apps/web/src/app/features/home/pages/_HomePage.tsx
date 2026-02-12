@@ -1,0 +1,727 @@
+import { type JSX, type MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import {
+    BarChart3,
+    CircleDot,
+    FileText,
+    FlaskConical,
+    Home,
+    Monitor,
+    MousePointer,
+    Radio,
+    Smartphone,
+} from 'lucide-react';
+
+import { useInitWebSocket, useWebSocketStore } from '@chatic/socket';
+import { Button } from '@chatic/ui-kit/components/ui/button';
+import { useWebCoreStore } from '@chatic/web-core';
+
+import { useSessionId } from '../hooks';
+
+/** Canvas dimensions - must match Admin's Remote Canvas for accurate position mapping */
+const CANVAS_WIDTH = 800;
+const CANVAS_HEIGHT = 500;
+
+export const HomePage = (): JSX.Element => {
+    const { t } = useTranslation();
+    const userName = useWebCoreStore(state => state.userName);
+    const sessionId = useSessionId();
+    const { isConnected, connectionStatus } = useWebSocketStore();
+    const [presenceData, setPresenceData] = useState<Record<string, unknown> | null>(null);
+    const [localStatus, setLocalStatus] = useState<'green' | 'yellow' | 'red'>('green');
+
+    // channels 미지정 → default 파라미터 사용 → 기본 채널(0000)로 연결하여 Admin과 통신
+    const { connect, disconnect, send: originalSend } = useInitWebSocket(sessionId);
+    const unsubscribeRef = useRef<(() => void) | null>(null);
+    const [messageFields, setMessageFields] = useState<Array<{ key: string; value: string }>>([
+        { key: 'type', value: 'test' },
+    ]);
+
+    const [localPointerPosition, setLocalPointerPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const [serverData, setServerData] = useState<{
+        tick: number;
+        status: 'green' | 'yellow' | 'red';
+        posX: number;
+        posY: number;
+        ts: number;
+    } | null>(null);
+    const [displayTick, setDisplayTick] = useState<number>(0);
+    const lastSentPointerRef = useRef<number>(0);
+    const pointerCanvasRef = useRef<HTMLDivElement>(null);
+    const retryCountRef = useRef<number>(0);
+    const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const previousStatusRef = useRef<'green' | 'yellow' | 'red'>('green');
+
+    // Tick management
+    const getTickKey = () => `presence_tick_${sessionId}`;
+    const getTick = (): number => {
+        const stored = sessionStorage.getItem(getTickKey());
+        return stored ? parseInt(stored, 10) : 0;
+    };
+
+    const setTick = (tick: number): void => {
+        sessionStorage.setItem(getTickKey(), tick.toString());
+    };
+
+    const send = originalSend;
+
+    // Update displayTick periodically
+    useEffect(() => {
+        setDisplayTick(getTick());
+        const interval = setInterval(() => setDisplayTick(getTick()), 500);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Send presence info when connected (only once)
+    const hasRequestedInfoRef = useRef(false);
+    useEffect(() => {
+        if (isConnected && !hasRequestedInfoRef.current) {
+            send({ type: 'presence', action: 'info' });
+            hasRequestedInfoRef.current = true;
+        }
+
+        if (!isConnected) {
+            hasRequestedInfoRef.current = false;
+        }
+    }, [isConnected, send]);
+
+    // Subscribe to WebSocket messages
+    useEffect(() => {
+        if (!isConnected) return;
+
+        unsubscribeRef.current = useWebSocketStore.getState().subscribe(message => {
+            if (message.data && typeof message.data === 'object') {
+                const data = message.data as Record<string, unknown>;
+
+                if (data.type === 'presence' && data.payload) {
+                    setPresenceData(data.payload as Record<string, unknown>);
+                }
+
+                if (data.type === 'sync' && data.payload) {
+                    const payload = data.payload as Record<string, unknown>;
+                    const messageId = payload.id as string | undefined;
+
+                    // Only process own messages (for tick sync)
+                    // Ignore other devices' messages
+                    if (messageId !== sessionId) {
+                        return;
+                    }
+
+                    const incomingTick = (payload.tick as number) ?? 0;
+                    const currentServerTick = serverData?.tick ?? 0;
+
+                    // 새로 들어온 tick이 현재 저장된 serverTick보다 작으면 무시
+                    if (incomingTick < currentServerTick) {
+                        return;
+                    }
+
+                    const myTick = getTick();
+
+                    // Update server data for comparison UI
+                    setServerData({
+                        tick: incomingTick,
+                        status: (payload.status as 'green' | 'yellow' | 'red') ?? 'green',
+                        posX: (payload.posX as number) ?? 0,
+                        posY: (payload.posY as number) ?? 0,
+                        ts: (payload.ts as number) ?? Date.now(),
+                    });
+
+                    if (incomingTick > myTick) {
+                        // 서버 tick이 크면 서버 상태 적용
+                        retryCountRef.current = 0; // 성공하면 리셋
+                        if (retryTimeoutRef.current) {
+                            clearTimeout(retryTimeoutRef.current);
+                            retryTimeoutRef.current = null;
+                        }
+                        setTick(incomingTick);
+                        if (payload.status) {
+                            setLocalStatus(payload.status as 'green' | 'yellow' | 'red');
+                        }
+                        if (payload.posX !== undefined && payload.posY !== undefined) {
+                            setLocalPointerPosition({
+                                x: payload.posX as number,
+                                y: payload.posY as number,
+                            });
+                        }
+                    } else if (incomingTick < myTick) {
+                        // 서버 tick이 작을 때만 지수 백오프로 재전송
+
+                        if (retryTimeoutRef.current) return; // 이미 대기 중이면 스킵
+
+                        const delay = Math.min(1000 * Math.pow(2, retryCountRef.current), 30000); // max 30s
+                        retryCountRef.current += 1;
+
+                        retryTimeoutRef.current = setTimeout(() => {
+                            retryTimeoutRef.current = null;
+                            send({
+                                type: 'sync',
+                                action: 'update',
+                                payload: {
+                                    id: sessionId,
+                                    status: localStatus,
+                                    posX: Math.round(localPointerPosition.x),
+                                    posY: Math.round(localPointerPosition.y),
+                                    ts: Date.now(),
+                                    tick: myTick,
+                                },
+                            });
+                        }, delay);
+                    }
+                }
+            }
+        });
+
+        return () => {
+            unsubscribeRef.current?.();
+        };
+    }, [isConnected, send, sessionId, localStatus, localPointerPosition]);
+
+    // Initial connection
+    useEffect(() => {
+        void connect();
+    }, [connect]);
+
+    // Pointer sync handler
+    const handlePointerMove = useCallback(
+        (e: MouseEvent<HTMLDivElement>) => {
+            if (!pointerCanvasRef.current || !isConnected) return;
+
+            const rect = pointerCanvasRef.current.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            setLocalPointerPosition({ x, y });
+
+            // Throttle to 62.5ms (16fps)
+            const now = Date.now();
+            if (now - lastSentPointerRef.current < 62.5) return;
+            lastSentPointerRef.current = now;
+
+            const currentTick = getTick();
+            send({
+                type: 'sync',
+                action: 'update',
+                payload: {
+                    id: sessionId,
+                    status: localStatus,
+                    posX: Math.round(x),
+                    posY: Math.round(y),
+                    ts: now,
+                    tick: currentTick,
+                },
+            });
+        },
+        [isConnected, send, localStatus, sessionId]
+    );
+
+    const handlePointerLeave = useCallback(() => {
+        setLocalPointerPosition({ x: 0, y: 0 });
+
+        if (!isConnected) return;
+
+        const currentTick = getTick();
+        send({
+            type: 'sync',
+            action: 'update',
+            payload: {
+                id: sessionId,
+                status: localStatus,
+                posX: 0,
+                posY: 0,
+                ts: Date.now(),
+                tick: currentTick,
+            },
+        });
+    }, [isConnected, send, localStatus, sessionId]);
+
+    // Status change handler
+    const handleStatusChange = useCallback(
+        (status: 'green' | 'yellow' | 'red') => {
+            if (previousStatusRef.current === status) return; // 상태가 같으면 전송 안 함
+
+            previousStatusRef.current = status;
+            setLocalStatus(status);
+            const nowTick = getTick();
+            setTick(nowTick);
+
+            send({
+                type: 'sync',
+                action: 'update',
+                payload: {
+                    id: sessionId,
+                    status,
+                    posX: Math.round(localPointerPosition.x),
+                    posY: Math.round(localPointerPosition.y),
+                    ts: Date.now(),
+                    tick: nowTick,
+                },
+            });
+        },
+        [send, localPointerPosition, sessionId]
+    );
+
+    // App visibility change handler
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!isConnected) return;
+
+            const newStatus = document.hidden ? 'yellow' : 'green';
+            handleStatusChange(newStatus);
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [isConnected, handleStatusChange]);
+
+    return (
+        <div className="h-full overflow-auto">
+            <div className="max-w-5xl mx-auto p-6">
+                {/* Page Header */}
+                <div className="mb-6">
+                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                        <Home className="h-6 w-6" />
+                        {t('home.welcome', 'Welcome')}, {userName || 'User'}
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-1">{t('home.subtitle')}</p>
+                </div>
+
+                {/* Connection Status Card */}
+                <div className="mb-6 p-4 rounded-lg border bg-card">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <div
+                                    className={`h-3 w-3 rounded-full ${
+                                        isConnected
+                                            ? 'bg-green-500 animate-pulse'
+                                            : connectionStatus === 'connecting'
+                                              ? 'bg-yellow-500 animate-pulse'
+                                              : 'bg-red-500'
+                                    }`}
+                                />
+                                <span className="text-sm font-medium">
+                                    {connectionStatus === 'connected'
+                                        ? 'Connected'
+                                        : connectionStatus === 'connecting'
+                                          ? 'Connecting...'
+                                          : connectionStatus === 'error'
+                                            ? 'Error'
+                                            : 'Disconnected'}
+                                </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                                Session: <span className="font-mono">{sessionId?.slice(0, 8)}...</span>
+                            </div>
+                        </div>
+                        {connectionStatus === 'connected' ? (
+                            <Button size="sm" variant="outline" onClick={disconnect}>
+                                Disconnect
+                            </Button>
+                        ) : connectionStatus === 'disconnected' || connectionStatus === 'error' ? (
+                            <Button size="sm" variant="default" onClick={() => void connect()}>
+                                Connect
+                            </Button>
+                        ) : null}
+                    </div>
+                </div>
+
+                {/* Presence Status Panel */}
+                {presenceData && (
+                    <div className="mb-6 p-4 rounded-lg border bg-card">
+                        <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <Radio className="h-4 w-4" /> Presence Status
+                        </h2>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                            <div>
+                                <span className="text-muted-foreground">Status:</span>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <div
+                                        className={`h-3 w-3 rounded-full ${
+                                            presenceData.status === 'green'
+                                                ? 'bg-green-500'
+                                                : presenceData.status === 'yellow'
+                                                  ? 'bg-yellow-500'
+                                                  : 'bg-red-500'
+                                        }`}
+                                    />
+                                    <span className="font-mono">{presenceData.status as string}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">Platform:</span>
+                                <p className="font-mono mt-1">{presenceData.platform as string}</p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">Tick:</span>
+                                <p className="font-mono mt-1">{presenceData.tick as number}</p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">Connected At:</span>
+                                <p className="font-mono mt-1">
+                                    {new Date(presenceData.connectedAt as number).toLocaleTimeString('ko-KR')}
+                                </p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">Connection ID:</span>
+                                <p className="font-mono mt-1">{presenceData.connId as string}</p>
+                            </div>
+                            {presenceData.disconnectedAt !== 0 && (
+                                <div>
+                                    <span className="text-muted-foreground">Disconnected At:</span>
+                                    <p className="font-mono mt-1">
+                                        {new Date(presenceData.disconnectedAt as number).toLocaleTimeString('ko-KR')}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Test Panel */}
+                <div className="p-4 rounded-lg border bg-card">
+                    <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                        <FlaskConical className="h-4 w-4" /> WebSocket Test
+                    </h2>
+                    <div className="space-y-4 divide-y">
+                        {/* Custom Message */}
+                        <div>
+                            <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+                                <FileText className="h-4 w-4" /> Custom Message
+                            </p>
+                            <div className="space-y-2">
+                                {messageFields.map((field, idx) => (
+                                    <div key={idx} className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            className="flex-1 h-8 px-2 text-xs rounded-md border bg-background"
+                                            placeholder="Key"
+                                            value={field.key}
+                                            onChange={e => {
+                                                const newFields = [...messageFields];
+                                                newFields[idx].key = e.target.value;
+                                                setMessageFields(newFields);
+                                            }}
+                                            disabled={!isConnected}
+                                        />
+                                        <input
+                                            type="text"
+                                            className="flex-1 h-8 px-2 text-xs rounded-md border bg-background"
+                                            placeholder="Value"
+                                            value={field.value}
+                                            onChange={e => {
+                                                const newFields = [...messageFields];
+                                                newFields[idx].value = e.target.value;
+                                                setMessageFields(newFields);
+                                            }}
+                                            disabled={!isConnected}
+                                        />
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-8 px-2 text-xs"
+                                            onClick={() => setMessageFields(messageFields.filter((_, i) => i !== idx))}
+                                            disabled={!isConnected || messageFields.length === 1}
+                                        >
+                                            ✖
+                                        </Button>
+                                    </div>
+                                ))}
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 px-3 text-xs"
+                                        onClick={() => setMessageFields([...messageFields, { key: '', value: '' }])}
+                                        disabled={!isConnected}
+                                    >
+                                        + Add Field
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="default"
+                                        className="h-9 px-4 text-xs font-medium"
+                                        onClick={() => {
+                                            const message = messageFields.reduce(
+                                                (acc, field) => {
+                                                    if (field.key) {
+                                                        acc[field.key] = field.value;
+                                                    }
+                                                    return acc;
+                                                },
+                                                {} as Record<string, string>
+                                            );
+                                            send(message);
+                                            toast.success('Message sent');
+                                        }}
+                                        disabled={!isConnected}
+                                    >
+                                        Send Message
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Presence Status */}
+                        <div className="pt-4">
+                            <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+                                <CircleDot className="h-4 w-4" /> Presence Status Test
+                            </p>
+                            <div className="mb-3 p-3 rounded-md bg-muted/30">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xs text-muted-foreground">Current Status:</span>
+                                    <div className="flex items-center gap-2">
+                                        <div
+                                            className={`h-4 w-4 rounded-full ${
+                                                localStatus === 'green'
+                                                    ? 'bg-green-500'
+                                                    : localStatus === 'yellow'
+                                                      ? 'bg-yellow-500'
+                                                      : 'bg-red-500'
+                                            }`}
+                                        />
+                                        <span className="text-sm font-bold font-mono uppercase">{localStatus}</span>
+                                    </div>
+                                    <span className="text-xs text-muted-foreground ml-4">Tick:</span>
+                                    <span className="text-sm font-bold font-mono">{getTick()}</span>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    size="sm"
+                                    variant={localStatus === 'green' ? 'default' : 'outline'}
+                                    className={`h-9 px-4 text-xs font-medium ${
+                                        localStatus === 'green'
+                                            ? 'bg-green-600 hover:bg-green-700 text-white'
+                                            : 'border-green-500/50 hover:bg-green-500/10'
+                                    }`}
+                                    onClick={() => handleStatusChange('green')}
+                                    disabled={!isConnected}
+                                >
+                                    GREEN
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={localStatus === 'yellow' ? 'default' : 'outline'}
+                                    className={`h-9 px-4 text-xs font-medium ${
+                                        localStatus === 'yellow'
+                                            ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                                            : 'border-yellow-500/50 hover:bg-yellow-500/10'
+                                    }`}
+                                    onClick={() => handleStatusChange('yellow')}
+                                    disabled={!isConnected}
+                                >
+                                    YELLOW
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={localStatus === 'red' ? 'default' : 'outline'}
+                                    className={`h-9 px-4 text-xs font-medium ${
+                                        localStatus === 'red'
+                                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                                            : 'border-red-500/50 hover:bg-red-500/10'
+                                    }`}
+                                    onClick={() => handleStatusChange('red')}
+                                    disabled={!isConnected}
+                                >
+                                    RED
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Pointer Sync */}
+                        <div className="pt-4">
+                            <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                                <MousePointer className="h-4 w-4" /> Pointer Sync Test
+                            </p>
+
+                            {/* Server vs Client Comparison */}
+                            <div className="mb-4 p-3 rounded-lg bg-muted/30 border">
+                                <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1">
+                                    <BarChart3 className="h-3 w-3" /> Server vs Client Comparison
+                                </p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {/* Server Data */}
+                                    <div className="p-2.5 rounded-md bg-blue-500/10 border border-blue-500/20">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                                                <Monitor className="h-3 w-3" /> SERVER
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground">
+                                                {serverData?.ts
+                                                    ? new Date(serverData.ts).toLocaleTimeString('ko-KR')
+                                                    : '-'}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xl font-bold font-mono">
+                                                    {serverData?.tick ?? '-'}
+                                                </span>
+                                                <span className="text-[10px] text-muted-foreground">tick</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <div
+                                                    className={`h-2.5 w-2.5 rounded-full ${
+                                                        serverData?.status === 'green'
+                                                            ? 'bg-green-500'
+                                                            : serverData?.status === 'yellow'
+                                                              ? 'bg-yellow-500'
+                                                              : serverData?.status === 'red'
+                                                                ? 'bg-red-500'
+                                                                : 'bg-gray-400'
+                                                    }`}
+                                                />
+                                                <span className="text-xs font-mono">{serverData?.status || '-'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="mt-1.5 text-[10px] text-muted-foreground font-mono">
+                                            pos: ({serverData?.posX ?? '-'}, {serverData?.posY ?? '-'})
+                                        </div>
+                                    </div>
+
+                                    {/* Client Data */}
+                                    <div className="p-2.5 rounded-md bg-green-500/10 border border-green-500/20">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-[10px] font-semibold text-green-600 dark:text-green-400 flex items-center gap-1">
+                                                <Smartphone className="h-3 w-3" /> CLIENT
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground font-mono">
+                                                {sessionId?.slice(0, 8)}...
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xl font-bold font-mono">{displayTick}</span>
+                                                <span className="text-[10px] text-muted-foreground">tick</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <div
+                                                    className={`h-2.5 w-2.5 rounded-full ${
+                                                        localStatus === 'green'
+                                                            ? 'bg-green-500'
+                                                            : localStatus === 'yellow'
+                                                              ? 'bg-yellow-500'
+                                                              : 'bg-red-500'
+                                                    }`}
+                                                />
+                                                <span className="text-xs font-mono">{localStatus}</span>
+                                            </div>
+                                        </div>
+                                        <div className="mt-1.5 text-[10px] text-muted-foreground font-mono">
+                                            pos: ({Math.round(localPointerPosition.x)},{' '}
+                                            {Math.round(localPointerPosition.y)})
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Tick Diff */}
+                                {serverData && (
+                                    <div className="mt-2 p-1.5 rounded bg-muted/50 text-center">
+                                        <span className="text-[10px] text-muted-foreground">Tick Diff: </span>
+                                        <span
+                                            className={`font-mono font-bold ${
+                                                displayTick > serverData.tick
+                                                    ? 'text-green-600'
+                                                    : displayTick < serverData.tick
+                                                      ? 'text-red-600'
+                                                      : 'text-yellow-600'
+                                            }`}
+                                        >
+                                            {displayTick - serverData.tick > 0 ? '+' : ''}
+                                            {displayTick - serverData.tick}
+                                        </span>
+                                        <span className="text-[10px] text-muted-foreground ml-2">
+                                            (
+                                            {displayTick > serverData.tick
+                                                ? 'Client ahead'
+                                                : displayTick < serverData.tick
+                                                  ? 'Server ahead'
+                                                  : 'In sync'}
+                                            )
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Pointer Canvas - same size as Admin Remote Canvas */}
+                            <div
+                                ref={pointerCanvasRef}
+                                className="relative border-2 border-dashed border-border rounded-lg bg-muted/20 cursor-crosshair overflow-hidden"
+                                style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
+                                onMouseMove={handlePointerMove}
+                                onMouseLeave={handlePointerLeave}
+                            >
+                                {/* Grid pattern */}
+                                <div
+                                    className="absolute inset-0 opacity-10"
+                                    style={{
+                                        backgroundImage: `
+                                            linear-gradient(to right, currentColor 1px, transparent 1px),
+                                            linear-gradient(to bottom, currentColor 1px, transparent 1px)
+                                        `,
+                                        backgroundSize: '50px 50px',
+                                    }}
+                                />
+
+                                {/* Center crosshair */}
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <div className="w-px h-full bg-border/30" />
+                                </div>
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <div className="w-full h-px bg-border/30" />
+                                </div>
+
+                                {/* Local cursor indicator */}
+                                {localPointerPosition.x > 0 && localPointerPosition.y > 0 && (
+                                    <div
+                                        className="absolute pointer-events-none"
+                                        style={{
+                                            left: localPointerPosition.x,
+                                            top: localPointerPosition.y,
+                                            transform: 'translate(-50%, -50%)',
+                                        }}
+                                    >
+                                        <div className="w-4 h-4 rounded-full bg-green-500/50 border-2 border-green-500 animate-pulse" />
+                                    </div>
+                                )}
+
+                                {/* Server cursor indicator */}
+                                {serverData && serverData.posX > 0 && serverData.posY > 0 && (
+                                    <div
+                                        className="absolute pointer-events-none"
+                                        style={{
+                                            left: serverData.posX,
+                                            top: serverData.posY,
+                                            transform: 'translate(-50%, -50%)',
+                                        }}
+                                    >
+                                        <div className="w-4 h-4 rounded-full bg-blue-500/50 border-2 border-blue-500" />
+                                    </div>
+                                )}
+
+                                {/* Canvas label */}
+                                <div className="absolute top-2 left-2 px-2 py-1 rounded bg-background/80 text-xs font-medium">
+                                    Web Pointer Area ({CANVAS_WIDTH} × {CANVAS_HEIGHT})
+                                </div>
+
+                                {/* Coordinate display */}
+                                {localPointerPosition.x > 0 && localPointerPosition.y > 0 && (
+                                    <div className="absolute bottom-2 right-2 px-2 py-1 rounded bg-background/80 text-xs font-mono">
+                                        X: {Math.round(localPointerPosition.x)} Y: {Math.round(localPointerPosition.y)}
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                                Move mouse to broadcast position to Admin (throttled to 20fps)
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
