@@ -1,3 +1,5 @@
+import type { ProductSubscription, Purchase } from 'react-native-iap';
+
 export type PageLanguage = 'ko' | 'en' | 'cn' | 'jp' | 'vn' | 'id' | 'th';
 
 export type Env = 'local' | 'stage' | 'prod';
@@ -53,4 +55,12 @@ export interface AppLogInfo {
     timestamp?: number;
     level?: AppLogLevel;
     error?: any;
+}
+
+export interface ProductSubscriptionInfo {
+    products: ProductSubscription[];
+}
+
+export interface PurchaseInfo {
+    purchases: Purchase[];
 }

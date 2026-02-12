@@ -7,9 +7,9 @@ import type { AppMessageData } from '@chatic/app-messages';
 export const useSafeAreaHandler = (bridge: WebViewBridge) => {
     const insets = useSafeAreaInsets();
 
-    const setSafeAreaInfo = useCallback(() => {
-        const safeAreaMessage: AppMessageData<'SetSafeArea'> = {
-            type: 'SetSafeArea',
+    const getSafeAreaInfo = useCallback(() => {
+        const safeAreaMessage: AppMessageData<'OnUpdateSafeArea'> = {
+            type: 'OnUpdateSafeArea',
             data: {
                 top: insets.top,
                 bottom: insets.bottom,
@@ -20,5 +20,5 @@ export const useSafeAreaHandler = (bridge: WebViewBridge) => {
         bridge.post(safeAreaMessage);
     }, [bridge, insets]);
 
-    return { setSafeAreaInfo };
+    return { getSafeAreaInfo };
 };
