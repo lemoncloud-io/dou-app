@@ -6,5 +6,6 @@ export * from './useLocalStorage';
 export * from './usePagination';
 export * from './useVersionCheck';
 export * from './useDeviceId';
+export * from './useSessionDeviceId';
 export * from './useInterval';
 export * from './useTick';

@@ -1,6 +1,8 @@
 import { useForm } from 'react-hook-form';
 
-import { useRegisterUser } from '@chatic/auth';
+import { Dices } from 'lucide-react';
+
+import { useRegisterUserV2 } from '@chatic/auth';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
     Dialog,
@@ -13,7 +15,7 @@ import {
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 
-import type { UserBody } from '@lemoncloud/chatic-backend-api';
+import type { RegisterUserV2Body } from '@lemoncloud/chatic-backend-api';
 import type { JSX } from 'react';
 
 type UserFormData = {
@@ -21,6 +23,9 @@ type UserFormData = {
     loginId: string;
     loginPw: string;
     email: string;
+    siteId: string;
+    siteNm: string;
+    cloudId: string;
 };
 
 interface RegisterUserDialogProps {
@@ -31,12 +36,13 @@ interface RegisterUserDialogProps {
 }
 
 export const RegisterUserDialog = ({ open, onOpenChange, onSuccess, onFail }: RegisterUserDialogProps): JSX.Element => {
-    const { mutateAsync: registerUser, isPending } = useRegisterUser();
+    const { mutateAsync: registerUser, isPending } = useRegisterUserV2();
 
     const {
         register,
         handleSubmit,
         reset,
+        setValue,
         formState: { errors },
     } = useForm<UserFormData>({
         defaultValues: {
@@ -44,12 +50,20 @@ export const RegisterUserDialog = ({ open, onOpenChange, onSuccess, onFail }: Re
             loginId: '',
             loginPw: '',
             email: '',
+            siteId: '',
+            siteNm: '',
+            cloudId: '',
         },
     });
 
+    const generateRandomId = () => {
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+        return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    };
+
     const onSubmit = async (data: UserFormData) => {
         try {
-            const body: UserBody = {
+            const body: RegisterUserV2Body = {
                 stereo: 'user',
                 ...data,
             };
@@ -71,6 +85,41 @@ export const RegisterUserDialog = ({ open, onOpenChange, onSuccess, onFail }: Re
                 </DialogHeader>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="cloudId">Cloud ID</Label>
+                            <div className="flex gap-2">
+                                <Input id="cloudId" {...register('cloudId', { required: 'Cloud ID is required' })} />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setValue('cloudId', generateRandomId())}
+                                >
+                                    <Dices className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            {errors.cloudId && <p className="text-sm text-destructive">{errors.cloudId.message}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="siteId">Site ID</Label>
+                            <div className="flex gap-2">
+                                <Input id="siteId" {...register('siteId', { required: 'Site ID is required' })} />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setValue('siteId', generateRandomId())}
+                                >
+                                    <Dices className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            {errors.siteId && <p className="text-sm text-destructive">{errors.siteId.message}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="siteNm">Site Name</Label>
+                            <Input id="siteNm" {...register('siteNm', { required: 'Site Name is required' })} />
+                            {errors.siteNm && <p className="text-sm text-destructive">{errors.siteNm.message}</p>}
+                        </div>
                         <div className="space-y-2">
                             <Label htmlFor="name">Name</Label>
                             <Input id="name" {...register('name', { required: 'Name is required' })} />

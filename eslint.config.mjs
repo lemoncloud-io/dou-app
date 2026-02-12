@@ -45,45 +45,6 @@ export default [
             curly: ['error', 'multi-line'],
             '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
             '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-            'import/order': [
-                'error',
-                {
-                    groups: ['builtin', 'external', 'internal', ['parent', 'sibling', 'index'], 'type', 'unknown'],
-                    pathGroups: [
-                        {
-                            pattern: 'react**',
-                            group: 'external',
-                            position: 'before',
-                        },
-                        {
-                            pattern: '@yoopta/**',
-                            group: 'external',
-                            position: 'after',
-                        },
-                        {
-                            pattern: '@chatic/**',
-                            group: 'internal',
-                            position: 'before',
-                        },
-                    ],
-                    pathGroupsExcludedImportTypes: ['@tanstack*', 'type'],
-                    alphabetize: {
-                        order: 'asc',
-                        caseInsensitive: true,
-                    },
-                    'newlines-between': 'always',
-                },
-            ],
-            'sort-imports': [
-                'error',
-                {
-                    ignoreCase: false,
-                    ignoreDeclarationSort: true,
-                    ignoreMemberSort: false,
-                    memberSyntaxSortOrder: ['none', 'all', 'multiple', 'single'],
-                    allowSeparatedGroups: true,
-                },
-            ],
             'unused-imports/no-unused-imports': 'error',
             'unused-imports/no-unused-vars': [
                 'warn',
