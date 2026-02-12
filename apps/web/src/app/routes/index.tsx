@@ -3,7 +3,6 @@ import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 
 import { useSimpleWebCore } from '@chatic/web-core';
 
-import { SettingsDialog } from '../components/SettingsDialog';
 import { commonRoutes } from './common/CommonRoutes';
 import { privateRoutes } from './private/PrivateRoutes';
 import { publicRoutes } from './public/PublicRoutes';
@@ -43,10 +42,5 @@ export const Router = () => {
         return null;
     }
 
-    return (
-        <>
-            <RouterProvider router={router} />
-            {isAuthenticated && <SettingsDialog />}
-        </>
-    );
+    return <RouterProvider router={router} />;
 };

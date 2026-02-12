@@ -41,16 +41,24 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                 workerRef.current = worker;
                 globalWorkerRef = worker;
 
-                worker.onmessage = (e: MessageEvent<WSSEnvelope>) => {
-                    const envelope = e.data;
-                    console.log(`${logPrefix} Message:`, envelope);
+                worker.onmessage = (e: MessageEvent) => {
+                    const message = e.data;
 
-                    // Update connection status based on message type
-                    if (envelope.type === 'connected') {
-                        store.setConnectionStatus('connected');
+                    if (message.type === 'status') {
+                        store.setConnectionStatus(message.status);
                     }
 
-                    store.setLastMessage(envelope);
+                    if (message.type === 'message') {
+                        const envelope = message.data as WSSEnvelope;
+                        console.log(`${logPrefix} Message:`, envelope);
+                        store.setLastMessage(envelope);
+                    }
+
+                    if (message.type === 'connectionId') {
+                        store.setId(message.id);
+                        store.setConnectionId(message.connectionId);
+                        store.setIsConnected(true);
+                    }
                 };
             }
 

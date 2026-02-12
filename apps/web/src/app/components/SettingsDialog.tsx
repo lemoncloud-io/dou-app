@@ -1,4 +1,3 @@
-import { Settings } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -7,10 +6,14 @@ import { Input } from '@chatic/ui-kit/components/ui/input';
 import { simpleWebCore } from '@chatic/web-core';
 import { useWebSocketV2 } from '@chatic/socket';
 
-export const SettingsDialog = () => {
-    const [isOpen, setIsOpen] = useState(false);
+interface SettingsDialogProps {
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+}
+
+export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
     const [tokenInput, setTokenInput] = useState('');
-    const { connectionStatus, send } = useWebSocketV2();
+    const { connectionStatus, send, lastMessage } = useWebSocketV2();
 
     const currentToken = simpleWebCore.getToken()?.identityToken || '';
 
@@ -31,7 +34,6 @@ export const SettingsDialog = () => {
             });
 
             setTokenInput('');
-            // window.location.reload();
         }
     };
 
@@ -49,52 +51,64 @@ export const SettingsDialog = () => {
     };
 
     return (
-        <>
-            <button
-                onClick={() => setIsOpen(true)}
-                className="fixed top-4 right-4 z-50 flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-lg hover:bg-gray-50 border"
-            >
-                <Settings className="w-5 h-5 text-gray-700" />
-            </button>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="h-screen max-w-full w-full m-0 p-0 rounded-none">
+                <div className="flex flex-col h-full">
+                    {/* Header */}
+                    <div className="px-6 py-4 border-b">
+                        <h2 className="text-xl font-semibold">설정</h2>
+                    </div>
 
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="max-w-md">
-                    <div className="flex flex-col gap-6 p-4">
-                        <h2 className="text-lg font-semibold">설정</h2>
-
+                    {/* Content */}
+                    <div className="flex-1 overflow-auto px-6 py-6 space-y-6">
                         {/* WebSocket Status */}
-                        <div className="flex flex-col gap-2">
-                            <h3 className="text-sm font-semibold text-gray-700">WebSocket 상태</h3>
-                            <div className="flex items-center gap-2">
-                                <div className={`w-3 h-3 rounded-full ${getStatusColor()}`} />
-                                <span className="text-sm text-gray-600">{connectionStatus}</span>
+                        <div className="flex flex-col gap-3">
+                            <h3 className="text-base font-semibold text-gray-900">WebSocket 상태</h3>
+                            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                                <div className={`w-4 h-4 rounded-full ${getStatusColor()}`} />
+                                <span className="text-sm font-medium text-gray-700">{connectionStatus}</span>
                             </div>
+                            {lastMessage && (
+                                <details className="group">
+                                    <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-900">
+                                        마지막 메시지 보기
+                                    </summary>
+                                    <div className="mt-2 text-xs text-gray-500 break-all max-h-60 overflow-auto p-3 bg-gray-50 rounded border">
+                                        <pre className="whitespace-pre-wrap">
+                                            {JSON.stringify(lastMessage, null, 2)}
+                                        </pre>
+                                    </div>
+                                </details>
+                            )}
                         </div>
 
                         {/* Token Editor */}
-                        <div className="flex flex-col gap-2">
-                            <h3 className="text-sm font-semibold text-gray-700">Identity Token</h3>
-                            <div className="text-xs text-gray-500 break-all max-h-20 overflow-auto p-2 bg-gray-50 rounded">
-                                {currentToken || '토큰 없음'}
+                        <div className="flex flex-col gap-3">
+                            <h3 className="text-base font-semibold text-gray-900">Identity Token</h3>
+                            <div className="p-3 bg-gray-50 rounded-lg border">
+                                <p className="text-xs text-gray-500 break-all font-mono">
+                                    {currentToken || '토큰 없음'}
+                                </p>
                             </div>
                             <div className="flex gap-2">
                                 <Input
                                     value={tokenInput}
                                     onChange={e => setTokenInput(e.target.value)}
                                     placeholder="새 토큰 입력"
-                                    className="flex-1"
+                                    className="flex-1 h-11"
                                 />
                                 <Button
                                     onClick={handleUpdateToken}
-                                    className="bg-[#B0EA10] hover:bg-[#9DD00E] text-[#222325]"
+                                    disabled={!tokenInput.trim()}
+                                    className="bg-[#B0EA10] hover:bg-[#9DD00E] text-[#222325] h-11 px-6 disabled:opacity-50"
                                 >
                                     변경
                                 </Button>
                             </div>
                         </div>
                     </div>
-                </DialogContent>
-            </Dialog>
-        </>
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 };

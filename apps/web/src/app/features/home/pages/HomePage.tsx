@@ -1,4 +1,4 @@
-import { ChevronDown, CirclePlus, LogOut } from 'lucide-react';
+import { ChevronDown, CirclePlus, LogOut, Settings } from 'lucide-react';
 import { useState } from 'react';
 
 import {
@@ -13,10 +13,12 @@ import { ChannelList } from '../components/ChannelList';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
 import { useQueryClient } from '@tanstack/react-query';
 import { publicChannelsKeys } from '@chatic/channels';
+import { SettingsDialog } from '../../../components/SettingsDialog';
 
 export const HomePage = () => {
     const { profile, logout } = useSimpleWebCore();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     const handleLogout = () => {
         logout();
@@ -49,6 +51,10 @@ export const HomePage = () => {
                                 </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="center" className="w-48">
+                                <DropdownMenuItem onClick={() => setIsSettingsOpen(true)} className="cursor-pointer">
+                                    <Settings className="mr-2 h-4 w-4" />
+                                    <span>설정</span>
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                                     <LogOut className="mr-2 h-4 w-4" />
                                     <span>로그아웃</span>
@@ -96,6 +102,7 @@ export const HomePage = () => {
             </div>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
+            <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
         </div>
     );
 };
