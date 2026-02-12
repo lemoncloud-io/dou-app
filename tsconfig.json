@@ -50,9 +50,6 @@
         },
         {
             "path": "./libs/chats"
-        },
-        {
-            "path": "./libs/places"
         }
     ]
 }
