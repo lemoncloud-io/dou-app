@@ -5,8 +5,12 @@ import { FcmService, Logger } from '../../services';
 import type { WebViewBridge } from './useBaseBridge';
 import type { AppMessageData } from '@chatic/app-messages';
 
+/**
+ * 웹뷰에서 FCM 기능을 사용하기 위한 핸들러 훅
+ * @param bridge
+ */
 export const useFcmHandler = (bridge: WebViewBridge) => {
-    const setFcmToken = useCallback(async () => {
+    const getFcmToken = useCallback(async () => {
         try {
             const hasPermission = await FcmService.requestPermission();
 
@@ -14,8 +18,8 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
                 const token = await FcmService.getToken();
 
                 if (token) {
-                    const message: AppMessageData<'SetFcmToken'> = {
-                        type: 'SetFcmToken',
+                    const message: AppMessageData<'OnUpdateFcmToken'> = {
+                        type: 'OnUpdateFcmToken',
                         data: { token },
                     };
                     bridge.post(message);
@@ -32,8 +36,8 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
     useEffect(() => {
         // 포그라운드 알림 수신
         const unsubscribeOnMessage = FcmService.onMessage(async remoteMessage => {
-            const message: AppMessageData<'NotificationReceived'> = {
-                type: 'NotificationReceived',
+            const message: AppMessageData<'OnReceiveNotification'> = {
+                type: 'OnReceiveNotification',
                 data: {
                     title: remoteMessage.notification?.title,
                     body: remoteMessage.notification?.body,
@@ -45,8 +49,8 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
 
         // 앱 백그라운드 상태에서 알림 클릭
         const unsubscribeOnOpened = FcmService.onNotificationOpenedApp(remoteMessage => {
-            const message: AppMessageData<'NotificationOpened'> = {
-                type: 'NotificationOpened',
+            const message: AppMessageData<'OnOpenNotification'> = {
+                type: 'OnOpenNotification',
                 data: remoteMessage.data || {},
             };
             bridge.post(message);
@@ -60,8 +64,8 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
                  * @author raine@lemoncloud.io
                  */
                 setTimeout(() => {
-                    const message: AppMessageData<'NotificationOpened'> = {
-                        type: 'NotificationOpened',
+                    const message: AppMessageData<'OnOpenNotification'> = {
+                        type: 'OnOpenNotification',
                         data: remoteMessage.data || {},
                     };
                     bridge.post(message);
@@ -75,5 +79,5 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
         };
     }, [bridge]);
 
-    return { setFcmToken };
+    return { getFcmToken };
 };

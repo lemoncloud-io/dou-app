@@ -21,8 +21,8 @@ export const useAppBridge = (webViewRef: React.RefObject<WebView | null>) => {
                     error: error,
                 };
 
-                const logMessage: AppMessageData<'AppLog'> = {
-                    type: 'AppLog',
+                const logMessage: AppMessageData<'OnAppLog'> = {
+                    type: 'OnAppLog',
                     data: logPayload,
                 };
                 bridge.post(logMessage);
