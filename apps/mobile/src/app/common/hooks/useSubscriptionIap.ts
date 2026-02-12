@@ -1,148 +1,130 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
 import {
     type ProductSubscription,
     type Purchase,
-    type PurchaseAndroid,
     type PurchaseError,
     purchaseErrorListener,
     purchaseUpdatedListener,
 } from 'react-native-iap';
 
-import { Logger } from '../services';
+import { Logger } from '../index';
 import { SubscriptionIapService } from '../services/subscriptionIap';
 
 /**
- * @property onPurchaseSuccess: 구매 성공 이후의 동작 리스너 (ex 서버 검증 로직)
+ * @property onPurchaseSuccess: 모든 구매 프로세스가 성공적으로 마무리 되었을때에 대한 리스너
  * @property onPurchaseError: 구매 절차 중 에러가 발생하였을 때에 대한 리스너
- * @property onPurchaseFinish: 모든 구매 프로세스가 성공적으로 마무리 되었을때에 대한 리스너
  */
 interface UseIapOptions {
-    onPurchaseSuccess?: (purchase: Purchase) => Promise<void>;
+    onPurchaseSuccess?: () => void;
     onPurchaseError?: (error: PurchaseError) => void;
-    onPurchaseFinish?: () => void;
 }
 
 /**
  * 인앱 결제 훅
  */
-export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError, onPurchaseFinish }: UseIapOptions = {}) => {
+export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIapOptions = {}) => {
     const [products, setProducts] = useState<ProductSubscription[]>([]);
     const [currentPurchases, setCurrentPurchases] = useState<Purchase[]>([]);
     const [loading, setLoading] = useState(false);
-
-    const successCallbackRef = useRef(onPurchaseSuccess);
-    const errorCallbackRef = useRef(onPurchaseError);
-    const finishCallbackRef = useRef(onPurchaseFinish);
+    const callbacks = useRef({ onPurchaseSuccess, onPurchaseError });
 
     useEffect(() => {
-        successCallbackRef.current = onPurchaseSuccess;
-        errorCallbackRef.current = onPurchaseError;
-        finishCallbackRef.current = onPurchaseFinish;
-    }, [onPurchaseSuccess, onPurchaseError, onPurchaseFinish]);
+        callbacks.current = { onPurchaseSuccess, onPurchaseError };
+    }, [onPurchaseSuccess, onPurchaseError]);
 
     /**
-     * - 리스너 초기화
+     * 구매내역 최신화
+     */
+    const refreshPurchases = useCallback(async () => {
+        const purchases = await SubscriptionIapService.getAvailablePurchases();
+        setCurrentPurchases(purchases);
+    }, []);
+
+    /**
+     * 트랜잭션 처리 프로세스
+     * - 구매 성공 이후 서버 검증 수행
+     * - 검증 및 트랜잭션 처리 완료 이후 onPurchaseSuccess 콜백 수행
+     */
+    const handleCompleteTransaction = useCallback(
+        async (purchase: Purchase) => {
+            try {
+                await SubscriptionIapService.verifyPurchase(purchase);
+                await SubscriptionIapService.finish(purchase);
+
+                await refreshPurchases();
+
+                if (callbacks.current.onPurchaseSuccess) {
+                    await callbacks.current.onPurchaseSuccess();
+                }
+            } catch (e) {
+                Logger.error('IAP', 'Failed to process transaction.', e);
+            } finally {
+                setLoading(false);
+            }
+        },
+        [refreshPurchases]
+    );
+
+    /**
+     * - 초기화 로직
+     * - 구매 프로세스 성공/실패 리스너 등록
+     * - 구독 목록 및 사용자의 결제내역 조회
      */
     useEffect(() => {
         const init = async () => {
             try {
                 await SubscriptionIapService.init();
-                const subscriptions = await SubscriptionIapService.getSubscriptions();
-                await getSubscriptionStatus();
+                const [subscriptions, availablePurchase] = await Promise.all([
+                    SubscriptionIapService.getSubscriptions(),
+                    SubscriptionIapService.getAvailablePurchases(),
+                ]);
                 setProducts(subscriptions);
+                setCurrentPurchases(availablePurchase);
             } catch (e) {
-                Logger.error('IAP', 'Load products error.', e);
+                Logger.error('IAP', 'Init error.', e);
             }
         };
 
-        const purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase: Purchase) => {
-            const receipt = purchase.purchaseToken;
-
-            if (receipt) {
-                try {
-                    if (successCallbackRef.current) {
-                        Logger.info('IAP', 'Start successCallback process.', purchase);
-                        await successCallbackRef.current(purchase);
-                    }
-
-                    await SubscriptionIapService.finish(purchase);
-                    Logger.info('IAP', 'Approve payment', purchase);
-
-                    if (finishCallbackRef.current) {
-                        finishCallbackRef.current();
-                    }
-                } catch (e) {
-                    // 결제는 되었지만, 서버에서 검증을 실패한 케이스
-                    Logger.error('IAP', 'Failed to process after payment.', e);
-                } finally {
-                    setLoading(false);
-                }
+        const updateSubscription = purchaseUpdatedListener(async purchase => {
+            if (purchase.purchaseToken) {
+                await handleCompleteTransaction(purchase);
+            } else {
+                Logger.warn('IAP', 'Purchase updated but purchaseToken is missing.', purchase);
+                setLoading(false);
             }
         });
 
-        const purchaseErrorSubscription = purchaseErrorListener((error: PurchaseError) => {
-            if (errorCallbackRef.current) {
-                errorCallbackRef.current(error);
-            }
-
-            if (error.code === 'user-cancelled') {
-                Logger.info('IAP', 'User cancelled.', error);
-            } else {
-                Logger.error('IAP', 'Failed to purchase.', error);
-            }
+        const errorSubscription = purchaseErrorListener(error => {
+            callbacks.current.onPurchaseError?.(error);
             setLoading(false);
         });
 
         void init();
-
         return () => {
-            if (purchaseUpdateSubscription) purchaseUpdateSubscription.remove();
-            if (purchaseErrorSubscription) purchaseErrorSubscription.remove();
+            updateSubscription.remove();
+            errorSubscription.remove();
         };
-    });
-
-    const getSubscriptionStatus = useCallback(async () => {
-        try {
-            const purchases = await SubscriptionIapService.getAvailablePurchases();
-            setCurrentPurchases(purchases);
-        } catch (e) {
-            Logger.error('IAP', 'Failed to get subscription status', e);
-        }
-    }, []);
+    }, [handleCompleteTransaction]);
 
     /**
      * 구매 처리
      * @param sku 상품 코드 (`Stock Keeping Unit`)
      */
-    const handlePurchase: (sku: string) => Promise<void> = async (sku: string) => {
+    const handlePurchase = async (sku: string) => {
         if (loading) return;
         setLoading(true);
 
         try {
-            const existingPurchases = await SubscriptionIapService.getAvailablePurchases();
-            const hasPendingPurchase = existingPurchases.find(p => p.id === sku);
-
-            if (hasPendingPurchase) {
-                Logger.info('IAP', 'Product already purchased. Proceeding with verification only.', sku);
-                await checkUnfinishedPurchases();
-                setLoading(false);
-                return;
-            }
-
-            const targetProduct = products.find(p => p.id === sku) as ProductSubscription;
-            const offer = targetProduct.subscriptionOffers?.[0];
-            const offerToken = offer?.offerTokenAndroid ?? undefined;
-
-            await SubscriptionIapService.requestSubscription(sku, offerToken);
+            await SubscriptionIapService.purchase(sku, products);
         } catch (e: any) {
-            Logger.error('IAP', 'Request Subscription Failed:', e);
+            Logger.error('IAP', 'Purchase Request Failed', e);
 
+            /*
+             *  이미 보유 중인 경우 복구(검증) 로직 실행
+             */
             if (e.code === 'E_ALREADY_OWNED') {
-                Logger.info('IAP', 'Product already owned. Attempting recovery.');
                 await checkUnfinishedPurchases();
             }
-
             setLoading(false);
         }
     };
@@ -151,39 +133,10 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError, onPurch
      * - 앱에서 결제는 완료하였지만, 서버 검증에 실패한 상품들 탐색 후 재시도 처리
      * - 서버 검증 성공 시, 최종 구매 완료 트랜잭션 처리
      */
-    const checkUnfinishedPurchases: () => Promise<void> = useCallback(async () => {
-        try {
-            const purchases: Purchase[] = await SubscriptionIapService.getAvailablePurchases();
-
-            for (const purchase of purchases) {
-                if (Platform.OS === 'android') {
-                    const androidPurchase = purchase as PurchaseAndroid;
-                    if (androidPurchase.isAcknowledgedAndroid) {
-                        continue;
-                    } else {
-                        Logger.info('IAP', 'Found unfinished transaction. Retrying verification:', purchase.productId);
-                    }
-                }
-
-                try {
-                    if (successCallbackRef.current) {
-                        await successCallbackRef.current(purchase);
-                    }
-
-                    await SubscriptionIapService.finish(purchase);
-                    Logger.info('IAP', 'Successfully recovered unfinished transaction:', purchase.transactionId);
-
-                    if (finishCallbackRef.current) {
-                        finishCallbackRef.current();
-                    }
-                } catch (retryError) {
-                    Logger.error('IAP', 'Verification retry failed (Server/Validation issue persists):', retryError);
-                }
-            }
-        } catch (e) {
-            Logger.error('IAP', 'Check unfinished purchases failed.', e);
-        }
-    }, []);
+    const checkUnfinishedPurchases = useCallback(async () => {
+        await SubscriptionIapService.processUnfinishedPurchases(callbacks.current.onPurchaseSuccess);
+        await refreshPurchases();
+    }, [refreshPurchases]);
 
     return { products, currentPurchases, loading, handlePurchase, checkUnfinishedPurchases };
 };
