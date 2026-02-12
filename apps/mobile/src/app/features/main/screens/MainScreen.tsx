@@ -2,7 +2,14 @@ import React, { useMemo, useRef, useState } from 'react';
 import Config from 'react-native-config';
 
 import { AppWebView, Logger } from '../../../common';
-import { useAndroidBack, useAppBridge, useFcmHandler, useSafeAreaHandler } from '../../../common/webview/hooks';
+import { FullScreenLoader } from '../../../common';
+import {
+    useAndroidBack,
+    useAppBridge,
+    useFcmHandler,
+    useSafeAreaHandler,
+    useSubscriptionIapHandler,
+} from '../../../common/webview/hooks';
 
 import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -15,8 +22,10 @@ export const MainScreen = () => {
     const [canGoBack, setCanGoBack] = useState(false);
 
     const { bridge } = useAppBridge(webViewRef);
-    const { setSafeAreaInfo } = useSafeAreaHandler(bridge);
-    const { setFcmToken } = useFcmHandler(bridge);
+    const { getSafeAreaInfo } = useSafeAreaHandler(bridge);
+    const { getFcmToken } = useFcmHandler(bridge);
+    const { getProducts, getCurrentPurchases, checkPurchases, purchaseSubscription, isIapLoading } =
+        useSubscriptionIapHandler(bridge);
 
     useAndroidBack(webViewRef, canGoBack);
 
@@ -29,13 +38,33 @@ export const MainScreen = () => {
             (message: WebMessageData<WebMessageType>) => {
                 switch (message.type) {
                     case 'GetFcmToken': {
-                        void setFcmToken();
+                        void getFcmToken();
                         break;
                     }
                     case 'GetSafeArea': {
-                        setSafeAreaInfo();
+                        getSafeAreaInfo();
                         break;
                     }
+                    case 'CheckUnfinishedPurchases': {
+                        void checkPurchases();
+                        break;
+                    }
+
+                    case 'GetProducts': {
+                        void getProducts();
+                        break;
+                    }
+
+                    case 'GetCurrentPurchases': {
+                        void getCurrentPurchases();
+                        break;
+                    }
+
+                    case 'PurchaseSubscription': {
+                        void purchaseSubscription(message.data.sku);
+                        break;
+                    }
+
                     default:
                         Logger.error('BRIDGE', `Failed received error. : ${message.type}`);
                 }
@@ -44,16 +73,19 @@ export const MainScreen = () => {
                 Logger.error('BRIDGE', `Failed parse message error. : ${nativeEvent.data}`, error);
             }
         );
-    }, [bridge, setFcmToken, setSafeAreaInfo]);
+    }, [bridge, checkPurchases, getCurrentPurchases, getFcmToken, getProducts, getSafeAreaInfo, purchaseSubscription]);
 
     return (
-        <AppWebView
-            ref={webViewRef}
-            source={{ uri: webviewUrl }}
-            onMessage={handleMessage}
-            onNavigationStateChange={navState => {
-                setCanGoBack(navState.canGoBack);
-            }}
-        />
+        <>
+            <AppWebView
+                ref={webViewRef}
+                source={{ uri: webviewUrl }}
+                onMessage={handleMessage}
+                onNavigationStateChange={navState => {
+                    setCanGoBack(navState.canGoBack);
+                }}
+            />
+            <FullScreenLoader visible={isIapLoading} message="결제 처리 중..." />
+        </>
     );
 };
