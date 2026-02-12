@@ -22,6 +22,7 @@
         "mobile:ios:dev:device": "npx nx run-ios mobile --scheme \"Chatic Dev\" --mode \"Debug Dev\" --device",
         "mobile:ios:prod:device": "npx nx run-ios mobile --scheme \"Chatic\" --mode \"Debug\" --device",
         "mobile:ios:dev:release": "npx nx run-ios mobile --scheme \"Chatic Dev\" --mode \"Release Dev\" --simulator=\"iPhone 16 Pro\"",
+        "mobile:ios:dev:release:device": "npx nx run-ios mobile --scheme \"Chatic Dev\" --mode \"Release Dev\" --device",
         "mobile:ios:prod:release": "npx nx run-ios mobile --scheme \"Chatic\" --mode \"Release\" --simulator=\"iPhone 16 Pro\"",
         "mobile:ios:prod:release:device": "npx nx run-ios mobile --scheme \"Chatic\" --mode \"Release\" --device",
         "mobile:ios:clean": "cd apps/mobile/ios && rm -rf build && xcodebuild -alltargets clean && cd ../../..",
