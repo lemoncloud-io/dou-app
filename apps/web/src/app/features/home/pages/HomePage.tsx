@@ -1,6 +1,8 @@
-import { ChevronDown, CirclePlus } from 'lucide-react';
+import { ChevronDown, CirclePlus, Plus, Search, User } from 'lucide-react';
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
+import { publicChannelsKeys } from '@chatic/channels';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -9,16 +11,16 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useSimpleWebCore } from '@chatic/web-core';
 
+import { SettingsDialog } from '../../../components/SettingsDialog';
 import { ChannelList } from '../components/ChannelList';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
-import { useQueryClient } from '@tanstack/react-query';
-import { publicChannelsKeys } from '@chatic/channels';
-import { SettingsDialog } from '../../../components/SettingsDialog';
+import { CreatePlaceDialog } from '../components/CreatePlaceDialog';
 
 export const HomePage = () => {
     const { profile, logout } = useSimpleWebCore();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
 
     const handleLogout = () => {
         logout();
@@ -36,21 +38,28 @@ export const HomePage = () => {
             {/* Main Content */}
             <div className="flex-1 overflow-auto">
                 {/* Profile Section */}
-                <div className="flex flex-col items-center gap-0.5 px-[18px] py-4">
-                    <div className="flex items-center gap-0.5">
+                <div className="flex gap-0.5 pt-6 pb-8 px-4">
+                    <div className="flex flex-1 items-center gap-0.5 ">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <button className="flex items-center gap-1.5 rounded-[27px] border border-[#B0EA10] bg-white px-2 py-1.5">
-                                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#F4F5F5]">
-                                        <div className="h-4 w-4 text-[#CFD0D3]">👤</div>
+                                <button className="flex items-center gap-2">
+                                    <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-[rgba(0,43,126,0.04)] border border-[#F4F5F5]">
+                                        <User className="h-4 w-4 text-[rgba(0,15,44,0.49)]" />
                                     </div>
-                                    <span className="text-[15px] font-medium text-[#3A3C40]">
-                                        {profile?.name || '사용자'}
-                                    </span>
-                                    <ChevronDown className="h-5.5 w-5.5 text-black" />
+                                    <div className="flex flex-col justify-center">
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-[#3A3C40]">
+                                                {profile?.name || '써니 써니'}
+                                            </span>
+                                            <ChevronDown className="h-[18px] w-[18px] text-black" />
+                                        </div>
+                                        <span className="text-[13px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
+                                            {profile?.email || 'user@example.com'}
+                                        </span>
+                                    </div>
                                 </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="center" className="w-48">
+                            <DropdownMenuContent align="start" className="w-48">
                                 <DropdownMenuItem onClick={() => setIsSettingsOpen(true)} className="cursor-pointer">
                                     <span>설정</span>
                                 </DropdownMenuItem>
@@ -60,7 +69,9 @@ export const HomePage = () => {
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
-                    <span className="text-[13px] font-medium text-[#9FA2A7]">{profile?.email || ''}</span>
+                    <button>
+                        <Search />
+                    </button>
                 </div>
 
                 {/* Place Section */}
@@ -68,11 +79,52 @@ export const HomePage = () => {
                     <h2 className="text-[16px] font-semibold leading-[1.33] tracking-[-0.023em] text-black">
                         내 플레이스
                     </h2>
-                    <div className="px-4">
-                        <button className="flex flex-col items-center justify-center gap-1 rounded-[14px] bg-[#F4F5F5] p-4">
-                            <div className="h-[52px] w-[52px] rounded-full bg-[#EAEAEC]" />
-                            <span className="text-[11px] font-medium leading-[1.4] text-[#53555B]">플레이스 추가</span>
+                    <div className="flex gap-5 overflow-x-auto py-2">
+                        {/* Place Add Button */}
+                        <button
+                            onClick={() => setIsPlaceDialogOpen(true)}
+                            className="flex flex-col items-center justify-center gap-[5px] rounded-[14px]  flex-shrink-0"
+                        >
+                            <div className="h-14 w-14 rounded-full border border-[#EAEAEC] flex items-center justify-center">
+                                <Plus className="h-6 w-6 text-[#84888F]" />
+                            </div>
+                            <span className="text-[14px] font-normal leading-[1.19] tracking-[-0.018em] text-[#9FA2A7]">
+                                플레이스 추가
+                            </span>
                         </button>
+
+                        {/* Place Items */}
+                        {[
+                            { id: 1, name: 'Place Name', selected: true, hasNotification: true },
+                            { id: 2, name: 'Place Name', selected: false, hasNotification: true },
+                            { id: 3, name: 'Place Name', selected: false, hasNotification: false },
+                        ].map(place => (
+                            <button
+                                key={place.id}
+                                className="flex flex-col items-center justify-center gap-[5px] rounded-[14px]  flex-shrink-0 relative"
+                            >
+                                <div className="relative">
+                                    <div className="h-14 w-14 rounded-full bg-[#102346] flex items-center justify-center">
+                                        <div className="text-white text-2xl">🏠</div>
+                                    </div>
+                                    {place.selected && (
+                                        <div className="absolute bottom-0 right-0 w-[14px] h-[14px] bg-white rounded-full flex items-center justify-center">
+                                            <div className="w-2 h-2 bg-[#C139E3] rounded-full" />
+                                        </div>
+                                    )}
+                                    {place.hasNotification && (
+                                        <div className="absolute top-0 right-0 w-[7px] h-[7px] bg-[#FF4C35] rounded-full border-[1.5px] border-white" />
+                                    )}
+                                </div>
+                                <span
+                                    className={`text-[14px] font-normal leading-[1.19] tracking-[-0.018em] ${
+                                        place.selected ? 'text-black' : 'text-[#9FA2A7]'
+                                    }`}
+                                >
+                                    {place.name}
+                                </span>
+                            </button>
+                        ))}
                     </div>
                 </div>
 
@@ -100,6 +152,7 @@ export const HomePage = () => {
             </div>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
+            <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
             <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
         </div>
     );
