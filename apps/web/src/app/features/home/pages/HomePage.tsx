@@ -1,4 +1,4 @@
-import { ChevronDown, CirclePlus, LogOut, Settings } from 'lucide-react';
+import { ChevronDown, CirclePlus } from 'lucide-react';
 import { useState } from 'react';
 
 import {
@@ -52,11 +52,9 @@ export const HomePage = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="center" className="w-48">
                                 <DropdownMenuItem onClick={() => setIsSettingsOpen(true)} className="cursor-pointer">
-                                    <Settings className="mr-2 h-4 w-4" />
                                     <span>설정</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                                    <LogOut className="mr-2 h-4 w-4" />
                                     <span>로그아웃</span>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>

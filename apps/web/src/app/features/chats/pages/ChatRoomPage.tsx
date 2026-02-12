@@ -1,8 +1,14 @@
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Ellipsis } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useSendPublicMessage } from '@chatic/chats';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@chatic/ui-kit/components/ui/dropdown-menu';
 
 export const ChatRoomPage = () => {
     const navigate = useNavigate();
@@ -41,7 +47,21 @@ export const ChatRoomPage = () => {
                     <ChevronLeft className="w-6 h-6 text-[#3A3C40]" />
                 </button>
                 <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#171725]">채팅방</h1>
-                <button className="w-11 h-11" />
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className="w-11 h-11 flex items-center justify-center">
+                            <Ellipsis className="w-6 h-6 text-[#3A3C40]" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem
+                            onClick={() => navigate(`/chats/${channelId}/settings`)}
+                            className="cursor-pointer"
+                        >
+                            <span>설정</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
 
             {/* Participants */}
