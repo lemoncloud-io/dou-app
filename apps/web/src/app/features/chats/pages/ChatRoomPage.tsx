@@ -1,5 +1,5 @@
 import { ChevronLeft, Ellipsis } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useSendPublicMessage } from '@chatic/chats';
@@ -10,33 +10,69 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
+interface Message {
+    id: string;
+    content: string;
+    timestamp: Date;
+    isMine: boolean;
+}
+
 export const ChatRoomPage = () => {
     const navigate = useNavigate();
     const { channelId } = useParams<{ channelId: string }>();
     const [content, setContent] = useState('');
     const [isComposing, setIsComposing] = useState(false);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
     const { mutateAsync: sendMessage, isPending } = useSendPublicMessage();
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
 
     const handleSend = async () => {
         if (!content.trim() || !channelId || isPending) return;
 
+        const newMessage: Message = {
+            id: Date.now().toString(),
+            content: content.trim(),
+            timestamp: new Date(),
+            isMine: true,
+        };
+
+        setMessages(prev => [...prev, newMessage]);
+        setContent('');
+
         try {
             await sendMessage({
                 channelId,
-                content: content.trim(),
+                content: newMessage.content,
             });
-            setContent('');
         } catch (error) {
             console.error('Failed to send message:', error);
         }
+
+        setTimeout(() => inputRef.current?.focus(), 0);
     };
 
     const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
             e.preventDefault();
-            console.log('simmy twice');
             handleSend();
         }
+    };
+
+    const formatTime = (date: Date) => {
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        const period = hours < 12 ? '오전' : '오후';
+        const displayHours = hours % 12 || 12;
+        return `${period} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
     };
 
     return (
@@ -67,7 +103,7 @@ export const ChatRoomPage = () => {
             {/* Participants */}
             <div className="flex items-center gap-1 px-[18px] py-3">
                 <div className="flex items-center gap-[-6px]">{/* Placeholder for participant avatars */}</div>
-                <span className="text-[14px] font-medium leading-[1.857] tracking-[0.005em] text-[#84888F]">+22</span>
+                {/* <span className="text-[14px] font-medium leading-[1.857] tracking-[0.005em] text-[#84888F]">+22</span> */}
             </div>
 
             {/* Date Separator */}
@@ -79,46 +115,46 @@ export const ChatRoomPage = () => {
 
             {/* Messages */}
             <div className="flex-1 overflow-auto px-[18px] py-3 flex flex-col gap-3.5">
-                {/* My Message */}
-                <div className="flex flex-col items-end gap-1.25">
-                    <div className="flex items-end gap-1.25">
-                        <div className="flex flex-col items-end gap-1">
-                            <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
-                                오전 11:30
-                            </span>
+                {messages.map(message =>
+                    message.isMine ? (
+                        <div key={message.id} className="flex flex-col items-end gap-1">
+                            <div className="flex items-end gap-2">
+                                <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
+                                    {formatTime(message.timestamp)}
+                                </span>
+                                <div className="flex items-center gap-2 px-3 py-3 bg-[#102346] rounded-[14px_14px_0px_14px] max-w-[269px]">
+                                    <span className="text-[14px] font-normal leading-[1.3] text-white">
+                                        {message.content}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2 px-3 py-3 bg-[#102346] rounded-[14px_14px_0px_14px] max-w-[269px]">
-                            <span className="text-[14px] font-normal leading-[1.3] text-white">
-                                Lorem ipsum dolor sit amet consectetur. Nulla orci imperdiet.
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Other's Message */}
-                <div className="flex flex-col gap-2 px-[18px]">
-                    <div className="flex flex-col gap-1.25">
-                        <div className="flex gap-1.25">
-                            <div className="flex h-[39px] w-[39px] items-center justify-center rounded-full bg-[#F4F5F5]" />
-                            <div className="flex items-center gap-2 px-6 py-3 bg-[#F6F6F6] rounded-[0px_14px_14px_14px]">
-                                <span className="text-[14px] font-normal leading-[1.3] text-[#171725]">
-                                    Lorem ipsum dolor sit amet
+                    ) : (
+                        <div key={message.id} className="flex flex-col gap-1">
+                            <div className="flex gap-2">
+                                <div className="flex h-[39px] w-[39px] items-center justify-center rounded-full bg-[#F4F5F5]" />
+                                <div className="flex items-center gap-2 px-6 py-3 bg-[#F6F6F6] rounded-[0px_14px_14px_14px]">
+                                    <span className="text-[14px] font-normal leading-[1.3] text-[#171725]">
+                                        {message.content}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 pl-[47px]">
+                                <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
+                                    {formatTime(message.timestamp)}
                                 </span>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
-                                오전 11:52
-                            </span>
-                        </div>
-                    </div>
-                </div>
+                    )
+                )}
+                <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
             <div className="flex flex-col gap-2.5 px-4 py-3">
                 <div className="flex items-center gap-1.5 px-1.5 py-1.5 bg-[#F4F5F5] rounded-2xl">
                     <button
+                        onMouseDown={e => e.preventDefault()}
                         onClick={handleSend}
                         disabled={isPending || !content.trim()}
                         className="flex items-center justify-center gap-2.5 w-10 h-10 bg-[#CFD0D3] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
@@ -139,6 +175,7 @@ export const ChatRoomPage = () => {
                     </button>
                     <div className="flex-1 flex items-center gap-1.5 px-1.5">
                         <input
+                            ref={inputRef}
                             type="text"
                             value={content}
                             onChange={e => setContent(e.target.value)}
