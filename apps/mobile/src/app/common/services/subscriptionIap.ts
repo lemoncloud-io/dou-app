@@ -10,15 +10,20 @@ import {
     requestPurchase,
 } from 'react-native-iap';
 
-const SKU_LIST: string[] = (Config.VITE_SUBSCRIPTION_IAP_SKUS ?? '')
+export const IOS_SKU_LIST: string[] = (Config.VITE_SUBSCRIPTION_IAP_SKUS_IOS ?? '')
     .split(',')
     .map(sku => sku.trim())
     .filter(sku => sku.length > 0);
 
-const itemSkus: string[] =
+export const ANDROID_SKU_LIST: string[] = (Config.VITE_SUBSCRIPTION_IAP_SKUS_ANDROID ?? '')
+    .split(',')
+    .map(sku => sku.trim())
+    .filter(sku => sku.length > 0);
+
+export const itemSkus: string[] =
     Platform.select({
-        ios: SKU_LIST,
-        android: SKU_LIST,
+        ios: IOS_SKU_LIST,
+        android: ANDROID_SKU_LIST,
     }) ?? [];
 
 /**
