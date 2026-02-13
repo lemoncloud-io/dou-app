@@ -87,12 +87,11 @@ export const ModalScreen = () => {
                           },
                 ]}
             >
-                {isSheet && (
-                        <View style={styles.handleContainer} {...panResponder.panHandlers}>
-                            <View style={styles.handle} />
-                        </View>
-                    ) &&
-                    dragHandle}
+                {isSheet && dragHandle && (
+                    <View style={styles.handleContainer} {...panResponder.panHandlers}>
+                        <View style={styles.handle} />
+                    </View>
+                )}
 
                 <View style={styles.webviewContainer}>
                     <AppWebView source={{ uri: url }} />
