@@ -17,14 +17,16 @@ This library was generated with [Nx](https://nx.dev).
 
 웹에서 네이티브 기능을 실행하기 위해 보내는 메시지입니다.
 
-| Message Type               | Payload (Data)    | Description                                              | Expected Response                                            |
-| :------------------------- | :---------------- | :------------------------------------------------------- | :----------------------------------------------------------- |
-| `GetFcmToken`              | -                 | FCM 푸시 토큰을 요청합니다.                              | `OnUpdateFcmToken`                                           |
-| `GetSafeArea`              | -                 | 기기의 Safe Area(Notch 등) 정보를 요청합니다.            | `OnUpdateSafeArea`                                           |
-| `GetProducts`              | -                 | 스토어에 등록된 구독 상품 목록을 요청합니다.             | `OnUpdateProductSubscriptions`                               |
-| `GetCurrentPurchases`      | -                 | 현재 사용자가 보유 중인 구독 내역을 요청합니다.          | `OnUpdatePurchases`                                          |
-| `CheckUnfinishedPurchases` | -                 | 미완료된 결제 건을 복구하거나, 구매 내역을 최신화합니다. | `OnSuccessPurchase`                                          |
-| `PurchaseSubscription`     | `{ sku: string }` | 특정 상품(`sku`)의 구독 결제 프로세스를 시작합니다.      | 성공 시: `OnSuccessPurchase`<br/>실패 시: `OnAppLog` (Error) |
+| Message Type               | Payload (Data)                                                                        | Description                                              | Expected Response                                            |
+| :------------------------- | :------------------------------------------------------------------------------------ | :------------------------------------------------------- | :----------------------------------------------------------- | --- |
+| `CloseModal`               | -                                                                                     | 모달 닫기                                                | -                                                            |
+| `OpenModal`                | `{ url: string; type?: 'full';'sheet'; heightRatio?: number; dragHandle?: boolean; }` | 모달 열기                                                | -                                                            |
+| `GetFcmToken`              | -                                                                                     | FCM 푸시 토큰을 요청합니다.                              | `OnUpdateFcmToken`                                           |     |
+| `GetSafeArea`              | -                                                                                     | 기기의 Safe Area(Notch 등) 정보를 요청합니다.            | `OnUpdateSafeArea`                                           |
+| `GetProducts`              | -                                                                                     | 스토어에 등록된 구독 상품 목록을 요청합니다.             | `OnUpdateProductSubscriptions`                               |
+| `GetCurrentPurchases`      | -                                                                                     | 현재 사용자가 보유 중인 구독 내역을 요청합니다.          | `OnUpdatePurchases`                                          |
+| `CheckUnfinishedPurchases` | -                                                                                     | 미완료된 결제 건을 복구하거나, 구매 내역을 최신화합니다. | `OnSuccessPurchase`                                          |
+| `PurchaseSubscription`     | `{ sku: string }`                                                                     | 특정 상품(`sku`)의 구독 결제 프로세스를 시작합니다.      | 성공 시: `OnSuccessPurchase`<br/>실패 시: `OnAppLog` (Error) |
 
 ---
 
@@ -32,6 +34,12 @@ This library was generated with [Nx](https://nx.dev).
 
 앱에서 요청에 대한 결과 또는 상태 변화에 따른 동기화 정보를 보내는 메시지입니다.
 앱 상태변화에 따른 데이터를 웹으로 푸시하거나 웹에서 요청한 데이터를 전달합니다.
+
+### Control
+
+| Message Type   | Description             | Data Structure (Example) |
+| :------------- | :---------------------- | :----------------------- |
+| `OnCloseModal` | 모달이 닫혔음을 떄 전달 | -                        |
 
 ### System
 
@@ -54,4 +62,4 @@ This library was generated with [Nx](https://nx.dev).
 | :----------------------------- | :-------------------------------------------------------- | :------------------------------------------------------------ |
 | `OnUpdateProductSubscriptions` | 스토어의 구독 상품 목록 정보 전달                         | `{ products: [{ productId: "pro_monthly", price: "..." }] }`  |
 | `OnUpdatePurchases`            | 사용자의 현재 구독(구매) 보유 현황 전달                   | `{ purchases: [{ productId: "...", transactionDate: ... }] }` |
-| `OnSuccessPurchase`            | 결제 프로세스(서버 검증 포함)가 **최종 성공**했을 때 발생 | `void`                                                        |
+| `OnSuccessPurchase`            | 결제 프로세스(서버 검증 포함)가 **최종 성공**했을 때 발생 | -                                                             |

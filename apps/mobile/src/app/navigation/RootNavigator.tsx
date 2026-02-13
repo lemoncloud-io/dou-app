@@ -1,7 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { DebugNavigator } from '../features/debug';
-import { MainScreen } from '../features/main';
+import { MainNavigator } from '../features/main';
 
 import type { RootStackParamList } from './type';
 
@@ -11,7 +11,7 @@ export const RootNavigator = () => {
     return (
         <RootStack.Navigator initialRouteName="Main" screenOptions={{ headerShown: false }}>
             <RootStack.Screen name="Debug" component={DebugNavigator} />
-            <RootStack.Screen name="Main" component={MainScreen} />
+            <RootStack.Screen name="Main" component={MainNavigator} />
         </RootStack.Navigator>
     );
 };

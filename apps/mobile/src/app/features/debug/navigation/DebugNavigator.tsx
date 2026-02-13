@@ -6,14 +6,12 @@ import type { DebugStackParamList } from '../../../navigation';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 export type HomeScreenProps = NativeStackScreenProps<DebugStackParamList, 'Home'>;
-export type SocketTestScreenProps = NativeStackScreenProps<DebugStackParamList, 'SocketTest'>;
-export type IapTestScreenProps = NativeStackScreenProps<DebugStackParamList, 'InAppPurchaseTest'>;
 
-const Stack = createNativeStackNavigator<DebugStackParamList>();
+const DebugStack = createNativeStackNavigator<DebugStackParamList>();
 
 export const DebugNavigator = () => {
     return (
-        <Stack.Navigator
+        <DebugStack.Navigator
             initialRouteName="Home"
             screenOptions={{
                 headerStyle: { backgroundColor: '#121212' },
@@ -22,7 +20,7 @@ export const DebugNavigator = () => {
                 headerShadowVisible: false,
             }}
         >
-            <Stack.Screen
+            <DebugStack.Screen
                 name="Home"
                 component={DebugHomeScreen}
                 options={{
@@ -30,7 +28,7 @@ export const DebugNavigator = () => {
                 }}
             />
 
-            <Stack.Screen
+            <DebugStack.Screen
                 name="SocketTest"
                 component={SocketTestScreen}
                 options={{
@@ -38,7 +36,7 @@ export const DebugNavigator = () => {
                     headerBackButtonDisplayMode: 'minimal',
                 }}
             />
-            <Stack.Screen
+            <DebugStack.Screen
                 name="InAppPurchaseTest"
                 component={IapTestScreen}
                 options={{
@@ -46,6 +44,6 @@ export const DebugNavigator = () => {
                     headerBackButtonDisplayMode: 'minimal',
                 }}
             />
-        </Stack.Navigator>
+        </DebugStack.Navigator>
     );
 };
