@@ -25,6 +25,7 @@
         "@nx/vite": "*",
         "esbuild": "*",
         "react-native-safe-area-context": "*",
+        "react-native-device-info": "*",
         "react-native-webview": "*",
         "zustand": "*",
         "react-native-uuid": "*",
