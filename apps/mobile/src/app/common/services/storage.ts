@@ -3,9 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Logger } from './log';
 
 export const STORAGE_KEYS = {
-    USER: {
-        DEVICE_ID: '@chatic/user/deviceId',
-    },
+    USER: {},
 } as const;
 
 type StorageKey = (typeof STORAGE_KEYS.USER)[keyof typeof STORAGE_KEYS.USER];

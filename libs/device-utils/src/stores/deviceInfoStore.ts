@@ -9,6 +9,7 @@ declare global {
         CHATIC_APP_STAGE?: string;
         CHATIC_APP_DEVICE_TOKEN?: string;
         CHATIC_APP_DEVICE_ID?: string;
+        CHATIC_APP_DEVICE_MODEL?: string;
         CHATIC_APP_CURRENT_VERSION?: string;
         CHATIC_APP_LATEST_VERSION?: string;
         CHATIC_APP_SHOULD_UPDATE?: string;
@@ -31,6 +32,7 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
         const stage = (window.CHATIC_APP_STAGE as Env) || 'local';
         const deviceToken = window.CHATIC_APP_DEVICE_TOKEN;
         const deviceId = window.CHATIC_APP_DEVICE_ID;
+        const deviceModel = window.CHATIC_APP_DEVICE_MODEL;
         const currentVersion = window.CHATIC_APP_CURRENT_VERSION || '';
         const latestVersion = window.CHATIC_APP_LATEST_VERSION || '';
         const shouldUpdate = window.CHATIC_APP_SHOULD_UPDATE === 'true';
@@ -40,6 +42,7 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
             stage,
             application,
             deviceId,
+            deviceModel,
             deviceToken,
             platform,
             lang: appLang,
