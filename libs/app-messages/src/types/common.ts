@@ -20,6 +20,7 @@ export interface DeviceInfo {
     application: string;
     deviceToken?: string;
     deviceId?: string | null;
+    deviceModel?: string | null;
     lang?: PageLanguage;
 }
 

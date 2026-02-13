@@ -5,6 +5,7 @@ declare module 'react-native-config' {
         VITE_WS_ENDPOINT: string;
         VITE_SUBSCRIPTION_IAP_SKUS_IOS: string;
         VITE_SUBSCRIPTION_IAP_SKUS_ANDROID: string;
+        VIEW_APP_NAME: string;
     }
 
     export const Config: NativeConfig;
