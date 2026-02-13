@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useSendPublicMessage } from '@chatic/chats';
+import { useWebSocketV2 } from '@chatic/socket';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -23,9 +24,31 @@ export const ChatRoomPage = () => {
     const [content, setContent] = useState('');
     const [isComposing, setIsComposing] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
+    const [isReady, setIsReady] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const subscribedRef = useRef(false);
     const { mutateAsync: sendMessage, isPending } = useSendPublicMessage();
+    const { send, lastMessage } = useWebSocketV2();
+
+    useEffect(() => {
+        if (channelId && !subscribedRef.current) {
+            subscribedRef.current = true;
+            send({
+                type: 'channel',
+                action: 'subscribe',
+                payload: {
+                    channels: [channelId],
+                },
+            });
+        }
+    }, [channelId, send]);
+
+    useEffect(() => {
+        if (lastMessage?.type === 'channel' && lastMessage?.action === 'subscribe') {
+            setIsReady(true);
+        }
+    }, [lastMessage]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -36,7 +59,7 @@ export const ChatRoomPage = () => {
     }, [messages]);
 
     const handleSend = async () => {
-        if (!content.trim() || !channelId || isPending) return;
+        if (!content.trim() || !channelId || isPending || !isReady) return;
 
         const newMessage: Message = {
             id: Date.now().toString(),
@@ -74,6 +97,14 @@ export const ChatRoomPage = () => {
         const displayHours = hours % 12 || 12;
         return `${period} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
     };
+
+    if (!isReady) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-white">
+                <div className="w-8 h-8 border-4 border-[#B0EA10] border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen flex-col bg-white">
