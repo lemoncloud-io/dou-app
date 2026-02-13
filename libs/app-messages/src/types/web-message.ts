@@ -52,7 +52,7 @@ export interface OpenModal extends DefaultMessage<'OpenModal'> {
          * - 시트 유형
          * - full: 화면 전체를 차지하는 시트
          * - sheet: 화면의 일부를 차지하는 시트
-         * - 주의: `safeArea` 제어하여 여백 개선필요
+         * - 주의: `safeArea` 바탕으로 여백 조절필요
          */
         type?: 'full' | 'sheet';
         /**
