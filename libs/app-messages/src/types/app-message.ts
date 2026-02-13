@@ -16,12 +16,12 @@ import type {
 export const AppMessageTypes = {
     OnSuccessSyncCredential: 'OnSuccessSyncCredential',
     OnUpdateDeviceInfo: 'OnUpdateDeviceInfo',
+    OnCloseModal: 'OnCloseModal',
     OnUpdateSafeArea: 'OnUpdateSafeArea',
     OnUpdateFcmToken: 'OnUpdateFcmToken',
     OnAppLog: 'OnAppLog',
     OnReceiveNotification: 'OnReceiveNotification',
     OnOpenNotification: 'OnOpenNotification',
-
     OnSuccessPurchase: 'OnSuccessPurchase',
     OnUpdateProductSubscriptions: 'OnUpdateProductSubscriptions',
     OnUpdatePurchases: 'OnUpdatePurchases',
@@ -71,6 +71,11 @@ export interface AppMessageMap {
      */
     OnSuccessSyncCredential: DefaultMessage<'OnSuccessSyncCredential'>;
     OnUpdateDeviceInfo: OnUpdateDeviceInfo;
+
+    /**
+     * Control Device Event
+     */
+    OnCloseModal: DefaultMessage<'OnCloseModal'>;
 
     /**
      * Device Info Event
