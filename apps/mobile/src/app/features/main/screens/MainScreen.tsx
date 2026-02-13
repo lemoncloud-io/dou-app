@@ -1,8 +1,7 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Config from 'react-native-config';
 
-import { AppWebView, Logger } from '../../../common';
-import { FullScreenLoader } from '../../../common';
+import { AppWebView, FullScreenLoader, Logger } from '../../../common';
 import {
     useAndroidBack,
     useAppBridge,
@@ -11,14 +10,18 @@ import {
     useSubscriptionIapHandler,
 } from '../../../common/webview/hooks';
 
-import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
+import type { AppMessageData, WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { WebView, WebViewMessageEvent } from 'react-native-webview';
 import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
+import type { MainScreenProps } from '../navigation';
+import { useIsFocused } from '@react-navigation/native';
 
 const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? '';
 
-export const MainScreen = () => {
+export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
+    const isFocused = useIsFocused();
+    const isModalOpened = useRef(false);
     const [canGoBack, setCanGoBack] = useState(false);
 
     const { bridge } = useAppBridge(webViewRef);
@@ -28,6 +31,14 @@ export const MainScreen = () => {
         useSubscriptionIapHandler(bridge);
 
     useAndroidBack(webViewRef, canGoBack);
+
+    useEffect(() => {
+        if (isFocused && isModalOpened.current) {
+            const message: AppMessageData<'OnCloseModal'> = { type: 'OnCloseModal' };
+            bridge.post(message);
+            isModalOpened.current = false;
+        }
+    }, [isFocused, bridge]);
 
     /**
      * //TODO: Not Implement
@@ -65,6 +76,23 @@ export const MainScreen = () => {
                         break;
                     }
 
+                    case 'OpenModal': {
+                        isModalOpened.current = true;
+                        const { url, type = 'sheet', heightRatio, dragHandle } = message.data;
+                        if (type === 'full') {
+                            navigation.navigate('Modal', { url, type: 'full', heightRatio, dragHandle });
+                        } else {
+                            navigation.navigate('Modal', { url, type: 'sheet', heightRatio, dragHandle });
+                        }
+                        break;
+                    }
+                    case 'CloseModal': {
+                        if (navigation.canGoBack()) {
+                            navigation.goBack();
+                        }
+                        break;
+                    }
+
                     default:
                         Logger.error('BRIDGE', `Failed received error. : ${message.type}`);
                 }
@@ -73,7 +101,16 @@ export const MainScreen = () => {
                 Logger.error('BRIDGE', `Failed parse message error. : ${nativeEvent.data}`, error);
             }
         );
-    }, [bridge, checkPurchases, getCurrentPurchases, getFcmToken, getProducts, getSafeAreaInfo, purchaseSubscription]);
+    }, [
+        bridge,
+        checkPurchases,
+        getCurrentPurchases,
+        getFcmToken,
+        getProducts,
+        getSafeAreaInfo,
+        navigation,
+        purchaseSubscription,
+    ]);
 
     return (
         <>
