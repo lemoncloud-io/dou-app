@@ -20,6 +20,7 @@ interface Message {
     content: string;
     timestamp: Date;
     isMine: boolean;
+    ownerName?: string;
 }
 
 export const ChatRoomPage = () => {
@@ -77,6 +78,7 @@ export const ChatRoomPage = () => {
             const content = chatMessage.payload?.content || 'unknown';
             const timestamp = chatMessage.payload?.createdAt ? new Date(chatMessage.payload?.createdAt) : new Date();
             const isMine = profile?.id === chatMessage.payload?.ownerId;
+            const ownerName = chatMessage.payload?.owner$?.name || '알 수 없음';
 
             setMessages(prev => [
                 ...prev,
@@ -85,6 +87,7 @@ export const ChatRoomPage = () => {
                     content,
                     timestamp,
                     isMine,
+                    ownerName,
                 },
             ]);
         }
@@ -199,10 +202,13 @@ export const ChatRoomPage = () => {
                         <div key={message.id} className="flex flex-col gap-1">
                             <div className="flex gap-2">
                                 <div className="flex h-[39px] w-[39px] items-center justify-center rounded-full bg-[#F4F5F5]" />
-                                <div className="flex items-center gap-2 px-6 py-3 bg-[#F6F6F6] rounded-[0px_14px_14px_14px]">
-                                    <span className="text-[14px] font-normal leading-[1.3] text-[#171725]">
-                                        {message.content}
-                                    </span>
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[12px] font-medium text-[#84888F]">{message.ownerName}</span>
+                                    <div className="flex items-center gap-2 px-6 py-3 bg-[#F6F6F6] rounded-[0px_14px_14px_14px]">
+                                        <span className="text-[14px] font-normal leading-[1.3] text-[#171725]">
+                                            {message.content}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 pl-[47px]">
