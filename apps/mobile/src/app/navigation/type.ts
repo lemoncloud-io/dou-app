@@ -1,7 +1,7 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
 export type RootStackParamList = {
-    Main: undefined;
+    Main: NavigatorScreenParams<MainStackParamList>;
     Debug: NavigatorScreenParams<DebugStackParamList>;
 };
 
@@ -9,4 +9,16 @@ export type DebugStackParamList = {
     Home: undefined;
     SocketTest: undefined;
     InAppPurchaseTest: undefined;
+};
+
+export type MainStackParamList = {
+    Main: undefined;
+    Modal: ModalScreenParams;
+};
+
+export type ModalScreenParams = {
+    url: string;
+    type: 'full' | 'sheet';
+    heightRatio?: number;
+    dragHandle?: boolean;
 };
