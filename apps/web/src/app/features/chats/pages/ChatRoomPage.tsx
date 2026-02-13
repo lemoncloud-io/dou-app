@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useSendPublicMessage } from '@chatic/chats';
+import { useLeavePublicChannel } from '@chatic/channels';
 import { useWebSocketV2 } from '@chatic/socket';
 import {
     DropdownMenu,
@@ -10,6 +11,9 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
+import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
+import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chats/model';
+import { useSimpleWebCore } from '@chatic/web-core';
 
 interface Message {
     id: string;
@@ -29,7 +33,20 @@ export const ChatRoomPage = () => {
     const inputRef = useRef<HTMLInputElement>(null);
     const subscribedRef = useRef(false);
     const { mutateAsync: sendMessage, isPending } = useSendPublicMessage();
+    const { mutateAsync: leaveChannel } = useLeavePublicChannel();
     const { send, lastMessage } = useWebSocketV2();
+    const { profile } = useSimpleWebCore();
+
+    const handleLeaveRoom = async () => {
+        if (!channelId) return;
+
+        try {
+            await leaveChannel({ id: channelId, body: {} });
+            navigate(-1);
+        } catch (error) {
+            console.error('Failed to leave room:', error);
+        }
+    };
 
     useEffect(() => {
         if (channelId && !subscribedRef.current) {
@@ -47,6 +64,29 @@ export const ChatRoomPage = () => {
     useEffect(() => {
         if (lastMessage?.type === 'channel' && lastMessage?.action === 'subscribe') {
             setIsReady(true);
+            return;
+        }
+
+        const chatMessage = lastMessage as WSSEnvelope<ChatModel>;
+        if (
+            chatMessage?.type === 'model' &&
+            chatMessage.action === 'create' &&
+            chatMessage.payload?.channelId === channelId
+        ) {
+            const id = chatMessage.payload?.id || '0';
+            const content = chatMessage.payload?.content || 'unknown';
+            const timestamp = chatMessage.payload?.createdAt ? new Date(chatMessage.payload?.createdAt) : new Date();
+            const isMine = profile?.id === chatMessage.payload?.ownerId;
+
+            setMessages(prev => [
+                ...prev,
+                {
+                    id,
+                    content,
+                    timestamp,
+                    isMine,
+                },
+            ]);
         }
     }, [lastMessage]);
 
@@ -61,20 +101,12 @@ export const ChatRoomPage = () => {
     const handleSend = async () => {
         if (!content.trim() || !channelId || isPending || !isReady) return;
 
-        const newMessage: Message = {
-            id: Date.now().toString(),
-            content: content.trim(),
-            timestamp: new Date(),
-            isMine: true,
-        };
-
-        setMessages(prev => [...prev, newMessage]);
         setContent('');
 
         try {
             await sendMessage({
                 channelId,
-                content: newMessage.content,
+                content: content.trim(),
             });
         } catch (error) {
             console.error('Failed to send message:', error);
@@ -126,6 +158,9 @@ export const ChatRoomPage = () => {
                             className="cursor-pointer"
                         >
                             <span>설정</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleLeaveRoom} className="cursor-pointer text-destructive">
+                            <span>방 나가기</span>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
