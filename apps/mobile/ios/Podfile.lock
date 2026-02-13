@@ -2805,6 +2805,34 @@ PODS:
     - RNFBApp
     - SocketRocket
     - Yoga
+  - RNLocalize (3.6.1):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - RNScreens (4.19.0):
     - boost
     - DoubleConversion
@@ -3011,6 +3039,7 @@ DEPENDENCIES:
   - RNDeviceInfo (from `../../../node_modules/react-native-device-info`)
   - "RNFBApp (from `../../../node_modules/@react-native-firebase/app`)"
   - "RNFBMessaging (from `../../../node_modules/@react-native-firebase/messaging`)"
+  - RNLocalize (from `../../../node_modules/react-native-localize`)
   - RNScreens (from `../../../node_modules/react-native-screens`)
   - RNSVG (from `../../../node_modules/react-native-svg`)
   - SocketRocket (~> 0.7.1)
@@ -3203,6 +3232,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/@react-native-firebase/app"
   RNFBMessaging:
     :path: "../../../node_modules/@react-native-firebase/messaging"
+  RNLocalize:
+    :path: "../../../node_modules/react-native-localize"
   RNScreens:
     :path: "../../../node_modules/react-native-screens"
   RNSVG:
@@ -3307,6 +3338,7 @@ SPEC CHECKSUMS:
   RNDeviceInfo: 36d7f232bfe7c9b5c494cb7793230424ed32c388
   RNFBApp: ecfd6567af4c73409c36103f7968e27696a92901
   RNFBMessaging: 8bee64a40bb3e1463bea7abffc43548d072f8ffc
+  RNLocalize: 9988fa71fb84c415902898b35cc6aa5af052731e
   RNScreens: d6413aeb1878cdafd3c721e2c5218faf5d5d3b13
   RNSVG: b5da7cb4bb60503fd841bf6eddae1d171e515d79
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748

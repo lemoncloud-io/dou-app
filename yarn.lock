@@ -13522,7 +13522,7 @@ react-native-config@*, react-native-config@^1.6.1:
   resolved "https://registry.yarnpkg.com/react-native-config/-/react-native-config-1.6.1.tgz#f8428829fda74384484d773fe36820159c559159"
   integrity sha512-HvKtxr6/Tq3iMdFx5REYZsjCtPi0RxQOMCs15+DqrUPTNFtWHuEuh+zw7fJp+dmuO79YMfdtlsPWIGTHtaXwjg==
 
-react-native-device-info@^15.0.1:
+react-native-device-info@*, react-native-device-info@^15.0.1:
   version "15.0.1"
   resolved "https://registry.yarnpkg.com/react-native-device-info/-/react-native-device-info-15.0.1.tgz#8a2716861bb8e491e0627f326bcc007c77d2e8f6"
   integrity sha512-U5waZRXtT3l1SgZpZMlIvMKPTkFZPH8W7Ks6GrJhdH723aUIPxjVer7cRSij1mvQdOAAYFJV/9BDzlC8apG89A==
@@ -13531,6 +13531,11 @@ react-native-iap@*, react-native-iap@^14.7.7:
   version "14.7.8"
   resolved "https://registry.yarnpkg.com/react-native-iap/-/react-native-iap-14.7.8.tgz#9ddc77b22603a72f20ac7bfa036c9fa0cb453941"
   integrity sha512-acp0bGzQ7CFTlzCx7/RPKEzzvq4xLiU+ettVBVfT2wlLX6z2xCDpEMzDevXIuLQY6ae2rm+2+imrDX5mFGHAYw==
+
+react-native-localize@*, react-native-localize@^3.6.1:
+  version "3.6.1"
+  resolved "https://registry.yarnpkg.com/react-native-localize/-/react-native-localize-3.6.1.tgz#35e42681119c2594e3b358f53399cc666a9d49f6"
+  integrity sha512-0kVFUh8TWeh+8p13yVIDjbcdxR2ZOfPBFNcY/VBh/3/g8KfvXywY/XJkCuCVrX5dCLumMi3aXmy+MmJNy4IaYQ==
 
 react-native-nitro-modules@*, react-native-nitro-modules@^0.33.7:
   version "0.33.7"

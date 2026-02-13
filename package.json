@@ -111,6 +111,7 @@
         "react-native-config": "^1.6.1",
         "react-native-device-info": "^15.0.1",
         "react-native-iap": "^14.7.7",
+        "react-native-localize": "^3.6.1",
         "react-native-nitro-modules": "^0.33.7",
         "react-native-screens": "^4.19.0",
         "react-native-uuid": "^2.0.3",
