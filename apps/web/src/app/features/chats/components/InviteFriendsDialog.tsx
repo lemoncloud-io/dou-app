@@ -1,13 +1,64 @@
-import { X, Search } from 'lucide-react';
+import { X } from 'lucide-react';
+import { useState } from 'react';
 
+import { useInvitePublicChannel } from '@chatic/channels';
+import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
+import { Input } from '@chatic/ui-kit/components/ui/input';
+import { Label } from '@chatic/ui-kit/components/ui/label';
+
+const decodeJWT = (token: string) => {
+    try {
+        if (!token || token.split('.').length !== 3) {
+            return null;
+        }
+        const base64Url = token.split('.')[1];
+        if (!base64Url) {
+            return null;
+        }
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+        );
+        return JSON.parse(jsonPayload);
+    } catch (error) {
+        return null;
+    }
+};
 
 interface InviteFriendsDialogProps {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    channelId?: string;
 }
 
-export const InviteFriendsDialog = ({ open, onOpenChange }: InviteFriendsDialogProps) => {
+export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFriendsDialogProps) => {
+    const [token, setToken] = useState('');
+    const { mutateAsync: inviteChannel, isPending } = useInvitePublicChannel();
+
+    const decodedToken = token ? decodeJWT(token) : null;
+    const isValidToken = token && decodedToken !== null;
+    const showInvalidMessage = token && !isValidToken;
+
+    const handleInvite = async () => {
+        if (!channelId || !isValidToken || !decodedToken?.uid) return;
+
+        try {
+            await inviteChannel({
+                id: channelId,
+                body: {
+                    userIds: [decodedToken.uid],
+                },
+            });
+            setToken('');
+            onOpenChange?.(false);
+        } catch (error) {
+            console.error('Failed to invite:', error);
+        }
+    };
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="h-screen max-w-full w-full m-0 p-0 rounded-none" hideClose>
@@ -27,35 +78,45 @@ export const InviteFriendsDialog = ({ open, onOpenChange }: InviteFriendsDialogP
                     </div>
 
                     {/* Content */}
-                    <div className="flex flex-col gap-3 pt-3">
-                        {/* Search */}
-                        <div className="px-4">
-                            <div className="flex items-center gap-2 px-4 py-3 bg-white border border-[#EAEAEC] rounded-[30px]">
-                                <input
-                                    type="text"
-                                    placeholder="친구 검색"
-                                    className="flex-1 bg-transparent border-0 outline-none text-[15px] font-normal leading-[1.193] tracking-[-0.015em] text-[#9FA2A7] placeholder:text-[#9FA2A7]"
-                                />
-                                <Search className="w-5 h-5 text-[#3A3C40]" />
-                            </div>
+                    <div className="flex-1 flex flex-col gap-6 px-7 pt-6">
+                        <div className="flex flex-col gap-1.5">
+                            <Label htmlFor="token" className="text-xs font-medium text-[#9FA2A7]">
+                                Identity Token
+                            </Label>
+                            <Input
+                                id="token"
+                                type="text"
+                                value={token}
+                                onChange={e => setToken(e.target.value)}
+                                placeholder="토큰 입력"
+                                className="h-11 px-3 text-base border-[#EAEAEC] rounded-[10px]"
+                            />
+                            {showInvalidMessage && (
+                                <p className="text-xs text-destructive px-0.5">올바른 형식의 토큰이 아닙니다</p>
+                            )}
                         </div>
 
-                        {/* Friends List */}
-                        <div className="flex flex-col gap-3 px-4">
-                            {[1, 2, 3, 4].map(i => (
-                                <div key={i} className="flex items-center gap-2">
-                                    <div className="w-10 h-10 rounded-full bg-[#F4F5F5] border border-[#F4F5F5]" />
-                                    <div className="flex-1 flex items-center justify-between">
-                                        <span className="text-[16px] font-medium leading-[1.375] tracking-[0.005em] text-[#222325]">
-                                            김두유
-                                        </span>
-                                        <button className="text-[14px] font-semibold leading-[1.571] tracking-[0.005em] text-[#102346]">
-                                            초대하기
-                                        </button>
-                                    </div>
+                        {decodedToken && (
+                            <div className="flex flex-col gap-2 p-3 bg-[#F4F5F5] rounded-lg">
+                                <p className="text-xs font-medium text-[#9FA2A7]">디코딩된 정보</p>
+                                <div className="flex flex-col gap-1 text-xs text-[#53555B]">
+                                    {decodedToken.User?.name && <p>이름: {decodedToken.User.name}</p>}
+                                    {decodedToken.User?.nick && <p>닉네임: {decodedToken.User.nick}</p>}
+                                    {decodedToken.uid && <p>UID: {decodedToken.uid}</p>}
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Bottom Button */}
+                    <div className="flex flex-col px-4 pb-4">
+                        <Button
+                            onClick={handleInvite}
+                            disabled={!isValidToken || isPending}
+                            className="w-full h-[50px] bg-[#B0EA10] hover:bg-[#9DD00E] text-[#222325] font-semibold text-base rounded-full disabled:opacity-50"
+                        >
+                            {isPending ? '초대 중...' : '초대하기'}
+                        </Button>
                     </div>
                 </div>
             </DialogContent>

@@ -23,9 +23,6 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../../libs/auth/tsconfig.lib.json"
-        },
-        {
             "path": "../../libs/channels/tsconfig.lib.json"
         },
         {

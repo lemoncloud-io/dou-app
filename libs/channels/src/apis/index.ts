@@ -1,7 +1,13 @@
 import { simpleWebCore } from '@chatic/web-core';
 
 import type { ListResult } from '@chatic/shared';
-import type { ChannelView, ChatStartBody } from '@lemoncloud/chatic-socials-api';
+import type {
+    ChannelView,
+    ChatStartBody,
+    ChannelLeaveBody,
+    JoinView,
+    ChannelInviteBody,
+} from '@lemoncloud/chatic-socials-api';
 import type { Params } from '@lemoncloud/lemon-web-core';
 
 const VITE_SOC_ENDPOINT = import.meta.env.VITE_SOC_ENDPOINT || '';
@@ -38,5 +44,31 @@ export const createPublicChannel = async (body: ChatStartBody): Promise<ChannelV
         })
         .setBody(body)
         .execute<ChannelView>();
+    return data;
+};
+
+export const leavePublicChannel = async (id: string, body: ChannelLeaveBody): Promise<JoinView> => {
+    const { data } = await simpleWebCore
+        .buildRequest({
+            method: 'POST',
+            baseURL: `${VITE_SOC_ENDPOINT}/hello/chat-leave`,
+        })
+        .setParams({ id })
+        .setBody(body)
+        .execute<JoinView>();
+
+    return data;
+};
+
+export const invitePublicChannel = async (id: string, body: ChannelInviteBody): Promise<ChannelView> => {
+    const { data } = await simpleWebCore
+        .buildRequest({
+            method: 'POST',
+            baseURL: `${VITE_SOC_ENDPOINT}/hello/chat-invite`,
+        })
+        .setParams({ id })
+        .setBody(body)
+        .execute<ChannelView>();
+
     return data;
 };

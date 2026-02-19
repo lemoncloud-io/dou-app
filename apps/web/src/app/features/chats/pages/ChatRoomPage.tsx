@@ -3,18 +3,27 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useSendPublicMessage } from '@chatic/chats';
+import { publicChannelsKeys, useLeavePublicChannel } from '@chatic/channels';
+import { useWebSocketV2 } from '@chatic/socket';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
+import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
+import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chats/model';
+import { useSimpleWebCore } from '@chatic/web-core';
+import { useQueryClient } from '@tanstack/react-query';
+import type { ListResult } from '@chatic/shared';
+import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 
 interface Message {
     id: string;
     content: string;
     timestamp: Date;
     isMine: boolean;
+    ownerName?: string;
 }
 
 export const ChatRoomPage = () => {
@@ -23,9 +32,87 @@ export const ChatRoomPage = () => {
     const [content, setContent] = useState('');
     const [isComposing, setIsComposing] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
+    const [isReady, setIsReady] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const subscribedRef = useRef(false);
     const { mutateAsync: sendMessage, isPending } = useSendPublicMessage();
+    const { mutateAsync: leaveChannel } = useLeavePublicChannel();
+    const { send, lastMessage } = useWebSocketV2();
+    const { profile } = useSimpleWebCore();
+
+    const queryClient = useQueryClient();
+
+    const handleLeaveRoom = async () => {
+        if (!channelId) return;
+
+        try {
+            await leaveChannel({ id: channelId, body: {} });
+            queryClient.setQueryData<ListResult<ChannelView>>(publicChannelsKeys.list({ limit: -1 }), old => {
+                if (!old) {
+                    return {
+                        list: [],
+                        total: 1,
+                        page: 0,
+                        limit: -1,
+                    };
+                }
+                return {
+                    ...old,
+                    list: old.list.filter(item => item.id !== channelId),
+                    total: (old.total || 1) - 1,
+                };
+            });
+
+            navigate(-1);
+        } catch (error) {
+            console.error('Failed to leave room:', error);
+        }
+    };
+
+    useEffect(() => {
+        if (channelId && !subscribedRef.current) {
+            subscribedRef.current = true;
+            send({
+                type: 'channel',
+                action: 'subscribe',
+                payload: {
+                    channels: [channelId],
+                },
+            });
+        }
+    }, [channelId, send]);
+
+    useEffect(() => {
+        if (lastMessage?.type === 'channel' && lastMessage?.action === 'subscribe') {
+            setIsReady(true);
+            return;
+        }
+
+        const chatMessage = lastMessage as WSSEnvelope<ChatModel>;
+        if (
+            chatMessage?.type === 'model' &&
+            chatMessage.action === 'create' &&
+            chatMessage.payload?.channelId === channelId
+        ) {
+            const id = chatMessage.payload?.id || '0';
+            const content = chatMessage.payload?.content || 'unknown';
+            const timestamp = chatMessage.payload?.createdAt ? new Date(chatMessage.payload?.createdAt) : new Date();
+            const isMine = profile?.id === chatMessage.payload?.ownerId;
+            const ownerName = chatMessage.payload?.owner$?.name || '알 수 없음';
+
+            setMessages(prev => [
+                ...prev,
+                {
+                    id,
+                    content,
+                    timestamp,
+                    isMine,
+                    ownerName,
+                },
+            ]);
+        }
+    }, [lastMessage]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -36,22 +123,14 @@ export const ChatRoomPage = () => {
     }, [messages]);
 
     const handleSend = async () => {
-        if (!content.trim() || !channelId || isPending) return;
+        if (!content.trim() || !channelId || isPending || !isReady) return;
 
-        const newMessage: Message = {
-            id: Date.now().toString(),
-            content: content.trim(),
-            timestamp: new Date(),
-            isMine: true,
-        };
-
-        setMessages(prev => [...prev, newMessage]);
         setContent('');
 
         try {
             await sendMessage({
                 channelId,
-                content: newMessage.content,
+                content: content.trim(),
             });
         } catch (error) {
             console.error('Failed to send message:', error);
@@ -75,6 +154,14 @@ export const ChatRoomPage = () => {
         return `${period} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
     };
 
+    if (!isReady) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-white">
+                <div className="w-8 h-8 border-4 border-[#B0EA10] border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
+
     return (
         <div className="flex h-screen flex-col bg-white">
             {/* Top Bar */}
@@ -95,6 +182,9 @@ export const ChatRoomPage = () => {
                             className="cursor-pointer"
                         >
                             <span>설정</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleLeaveRoom} className="cursor-pointer text-destructive">
+                            <span>방 나가기</span>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -133,10 +223,13 @@ export const ChatRoomPage = () => {
                         <div key={message.id} className="flex flex-col gap-1">
                             <div className="flex gap-2">
                                 <div className="flex h-[39px] w-[39px] items-center justify-center rounded-full bg-[#F4F5F5]" />
-                                <div className="flex items-center gap-2 px-6 py-3 bg-[#F6F6F6] rounded-[0px_14px_14px_14px]">
-                                    <span className="text-[14px] font-normal leading-[1.3] text-[#171725]">
-                                        {message.content}
-                                    </span>
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[12px] font-medium text-[#84888F]">{message.ownerName}</span>
+                                    <div className="flex items-center gap-2 px-6 py-3 bg-[#F6F6F6] rounded-[0px_14px_14px_14px]">
+                                        <span className="text-[14px] font-normal leading-[1.3] text-[#171725]">
+                                            {message.content}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 pl-[47px]">

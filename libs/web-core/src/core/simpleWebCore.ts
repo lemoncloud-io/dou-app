@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
 import type { AxiosRequestConfig, AxiosResponse } from 'axios';
 
 const TOKEN_KEY = 'chatic-token';
@@ -12,20 +11,19 @@ interface RequestBuilder {
 }
 
 interface SimpleWebCore {
-    saveToken: (token: LemonOAuthToken) => void;
-    getToken: () => LemonOAuthToken | null;
+    saveToken: (token: string) => void;
+    getToken: () => string | null;
     clearToken: () => void;
     buildRequest: (config: AxiosRequestConfig) => RequestBuilder;
 }
 
 export const simpleWebCore: SimpleWebCore = {
-    saveToken: (token: LemonOAuthToken): void => {
-        sessionStorage.setItem(TOKEN_KEY, JSON.stringify(token));
+    saveToken: (token: string): void => {
+        sessionStorage.setItem(TOKEN_KEY, token);
     },
 
-    getToken: (): LemonOAuthToken | null => {
-        const stored = sessionStorage.getItem(TOKEN_KEY);
-        return stored ? JSON.parse(stored) : null;
+    getToken: (): string | null => {
+        return sessionStorage.getItem(TOKEN_KEY);
     },
 
     clearToken: (): void => {
@@ -47,10 +45,10 @@ export const simpleWebCore: SimpleWebCore = {
             },
 
             execute: async <T>(): Promise<AxiosResponse<T>> => {
-                if (token?.identityToken) {
+                if (token) {
                     config.headers = {
                         ...config.headers,
-                        'x-lemon-identity': token?.identityToken,
+                        'x-lemon-identity': token,
                     };
                 }
 

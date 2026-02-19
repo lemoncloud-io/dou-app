@@ -77,10 +77,6 @@ const connectWebSocket = config => {
     if (token && authQueryParam) {
         params.push(authQueryParam + '=' + token);
     }
-    if (!channels) {
-        params.push('default=');
-    }
-    params.push('info=');
     if (deviceId) {
         params.push('deviceId=' + deviceId);
     }
@@ -91,7 +87,7 @@ const connectWebSocket = config => {
         params.push('auth=true');
     }
 
-    const wsUrl = endpoint + '?' + params.join('&');
+    const wsUrl = endpoint + (params.length > 0 ? '?' + params.join('&') : '');
 
     self.postMessage({ type: 'status', status: 'connecting' });
     self.postMessage({ type: 'log', message: 'Connecting to: ' + wsUrl });
