@@ -123,7 +123,7 @@ android {
             manifestPlaceholders = [usesCleartextTraffic: "true"]
         }
         release {
-            manifestPlaceholders = [usesCleartextTraffic: "true"]
+            manifestPlaceholders = [usesCleartextTraffic: "false"]
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.release
