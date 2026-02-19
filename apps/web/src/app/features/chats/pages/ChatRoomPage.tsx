@@ -83,6 +83,23 @@ export const ChatRoomPage = () => {
         }
     }, [channelId, send]);
 
+    // 1초 후에도 ready가 안되면 다시 send
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (!isReady && channelId) {
+                send({
+                    type: 'channel',
+                    action: 'subscribe',
+                    payload: {
+                        channels: [channelId],
+                    },
+                });
+            }
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [channelId, send, isReady]);
+
     useEffect(() => {
         if (lastMessage?.type === 'channel' && lastMessage?.action === 'subscribe') {
             setIsReady(true);
