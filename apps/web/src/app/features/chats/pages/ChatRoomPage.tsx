@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useSendPublicMessage } from '@chatic/chats';
-import { useLeavePublicChannel } from '@chatic/channels';
+import { publicChannelsKeys, useLeavePublicChannel } from '@chatic/channels';
 import { useWebSocketV2 } from '@chatic/socket';
 import {
     DropdownMenu,
@@ -14,6 +14,9 @@ import {
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chats/model';
 import { useSimpleWebCore } from '@chatic/web-core';
+import { useQueryClient } from '@tanstack/react-query';
+import type { ListResult } from '@chatic/shared';
+import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 
 interface Message {
     id: string;
@@ -38,11 +41,29 @@ export const ChatRoomPage = () => {
     const { send, lastMessage } = useWebSocketV2();
     const { profile } = useSimpleWebCore();
 
+    const queryClient = useQueryClient();
+
     const handleLeaveRoom = async () => {
         if (!channelId) return;
 
         try {
             await leaveChannel({ id: channelId, body: {} });
+            queryClient.setQueryData<ListResult<ChannelView>>(publicChannelsKeys.list({ limit: -1 }), old => {
+                if (!old) {
+                    return {
+                        list: [],
+                        total: 1,
+                        page: 0,
+                        limit: -1,
+                    };
+                }
+                return {
+                    ...old,
+                    list: old.list.filter(item => item.id !== channelId),
+                    total: (old.total || 1) - 1,
+                };
+            });
+
             navigate(-1);
         } catch (error) {
             console.error('Failed to leave room:', error);
