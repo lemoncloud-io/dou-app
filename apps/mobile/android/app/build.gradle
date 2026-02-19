@@ -98,7 +98,7 @@ android {
         dev {
             dimension "default"
             applicationIdSuffix ".dev"
-            resValue "string", "app_name", "DoU (개발)"
+            resValue "string", "app_name", "DoU_Dev"
             resValue "string", "build_config_package", "io.chatic.dou"
         }
     }
