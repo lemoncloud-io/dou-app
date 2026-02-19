@@ -15,6 +15,7 @@ import type { WebView, WebViewMessageEvent } from 'react-native-webview';
 import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
 import type { MainScreenProps } from '../navigation';
 import { useIsFocused } from '@react-navigation/native';
+import { KeyboardAvoidingView, Platform } from 'react-native';
 
 const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? '';
 
@@ -114,14 +115,16 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
 
     return (
         <>
-            <AppWebView
-                ref={webViewRef}
-                source={{ uri: webviewUrl }}
-                onMessage={handleMessage}
-                onNavigationStateChange={navState => {
-                    setCanGoBack(navState.canGoBack);
-                }}
-            />
+            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <AppWebView
+                    ref={webViewRef}
+                    source={{ uri: webviewUrl }}
+                    onMessage={handleMessage}
+                    onNavigationStateChange={navState => {
+                        setCanGoBack(navState.canGoBack);
+                    }}
+                />
+            </KeyboardAvoidingView>
             <FullScreenLoader visible={isIapLoading} message="결제 처리 중..." />
         </>
     );
