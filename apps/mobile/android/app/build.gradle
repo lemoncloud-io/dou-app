@@ -82,8 +82,8 @@ android {
         applicationId "io.chatic.dou"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "0.2.2"
+        versionCode 5
+        versionName "0.3.0"
         resValue "string", "build_config_package", "io.chatic.dou"
     }
 
@@ -98,7 +98,7 @@ android {
         dev {
             dimension "default"
             applicationIdSuffix ".dev"
-            resValue "string", "app_name", "DoU (개발)"
+            resValue "string", "app_name", "DoU_Dev"
             resValue "string", "build_config_package", "io.chatic.dou"
         }
     }
@@ -123,7 +123,7 @@ android {
             manifestPlaceholders = [usesCleartextTraffic: "true"]
         }
         release {
-            manifestPlaceholders = [usesCleartextTraffic: "true"]
+            manifestPlaceholders = [usesCleartextTraffic: "false"]
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.release

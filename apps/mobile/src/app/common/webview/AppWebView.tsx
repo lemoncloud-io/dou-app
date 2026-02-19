@@ -5,11 +5,13 @@ import DeviceInfo from 'react-native-device-info';
 import Config from 'react-native-config';
 
 import { getAppLanguage, getUserAgent } from '../utils';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface AppWebViewProps extends WebViewProps {}
 
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const [initData, setInitData] = useState<{ userAgent: string; script: string } | null>(null);
+    const insets = useSafeAreaInsets();
 
     useEffect(() => {
         /**
@@ -26,26 +28,40 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             const platform = Platform.OS === 'ios' ? 'iOS' : 'Android';
             const stage = Config.VITE_ENV || 'PROD';
 
+            const safeAreaScript = `
+                const root = document.documentElement;
+                root.style.setProperty('--safe-top', '${insets.top}px');
+                root.style.setProperty('--safe-bottom', '${insets.bottom}px');
+                root.style.setProperty('--safe-left', '${insets.left}px');
+                root.style.setProperty('--safe-right', '${insets.right}px');
+            `;
+
+            const deviceInfoScript = `
+                window.CHATIC_APP_PLATFORM = '${platform}';
+                window.CHATIC_APP_APPLICATION = '${applicationName}';
+                window.CHATIC_APP_STAGE = '${stage}';
+                window.CHATIC_APP_DEVICE_ID = '${uniqueId || ''}';
+                window.CHATIC_APP_DEVICE_MODEL = '${deviceModel || ''}';
+                window.CHATIC_APP_CURRENT_VERSION = '${appVersion}';
+                window.CHATIC_APP_BUILD_NUMBER = '${buildNumber}';
+                window.CHATIC_APP_CURRENT_LANGUAGE = '${appLanguage}';
+            `;
+
             const injectionScript = `
                 (function() {
-                    window.CHATIC_APP_PLATFORM = '${platform}';
-                    window.CHATIC_APP_APPLICATION = '${applicationName}';
-                    window.CHATIC_APP_STAGE = '${stage}';
-                    window.CHATIC_APP_DEVICE_ID = '${uniqueId || ''}';
-                    window.CHATIC_APP_DEVICE_MODEL = '${deviceModel || ''}';
-                    window.CHATIC_APP_CURRENT_VERSION = '${appVersion}';
-                    window.CHATIC_APP_BUILD_NUMBER = '${buildNumber}';
-                    window.CHATIC_APP_CURRENT_LANGUAGE = '${appLanguage}';
+                    ${safeAreaScript}
+                    ${deviceInfoScript}
                 })();
                 true;
             `;
+
             setInitData({
                 userAgent: userAgent,
                 script: injectionScript,
             });
         };
         void prepareWebView();
-    }, []);
+    }, [insets]);
 
     if (!initData) {
         return (
