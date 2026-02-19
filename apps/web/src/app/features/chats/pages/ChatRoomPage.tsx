@@ -17,21 +17,13 @@ import { useSimpleWebCore } from '@chatic/web-core';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ListResult } from '@chatic/shared';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
-
-interface Message {
-    id: string;
-    content: string;
-    timestamp: Date;
-    isMine: boolean;
-    ownerName?: string;
-}
+import { useChatMessages } from '../hooks/useChatMessages';
 
 export const ChatRoomPage = () => {
     const navigate = useNavigate();
     const { channelId } = useParams<{ channelId: string }>();
     const [content, setContent] = useState('');
     const [isComposing, setIsComposing] = useState(false);
-    const [messages, setMessages] = useState<Message[]>([]);
     const [isReady, setIsReady] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -40,6 +32,11 @@ export const ChatRoomPage = () => {
     const { mutateAsync: leaveChannel } = useLeavePublicChannel();
     const { send, lastMessage } = useWebSocketV2();
     const { profile } = useSimpleWebCore();
+    const {
+        messages,
+        addMessage,
+        clearMessages: clearChatMessages,
+    } = useChatMessages(profile?.id ?? null, channelId ?? null);
 
     const queryClient = useQueryClient();
 
@@ -48,6 +45,7 @@ export const ChatRoomPage = () => {
 
         try {
             await leaveChannel({ id: channelId, body: {} });
+            await clearChatMessages();
             queryClient.setQueryData<ListResult<ChannelView>>(publicChannelsKeys.list({ limit: -1 }), old => {
                 if (!old) {
                     return {
@@ -115,19 +113,16 @@ export const ChatRoomPage = () => {
             const id = chatMessage.payload?.id || '0';
             const content = chatMessage.payload?.content || 'unknown';
             const timestamp = chatMessage.payload?.createdAt ? new Date(chatMessage.payload?.createdAt) : new Date();
-            const isMine = profile?.id === chatMessage.payload?.ownerId;
+            const ownerId = chatMessage.payload?.ownerId || '';
             const ownerName = chatMessage.payload?.owner$?.name || '알 수 없음';
 
-            setMessages(prev => [
-                ...prev,
-                {
-                    id,
-                    content,
-                    timestamp,
-                    isMine,
-                    ownerName,
-                },
-            ]);
+            addMessage({
+                id,
+                content,
+                timestamp,
+                ownerId,
+                ownerName,
+            });
         }
     }, [lastMessage]);
 
@@ -222,8 +217,9 @@ export const ChatRoomPage = () => {
 
             {/* Messages */}
             <div className="flex-1 overflow-auto px-[18px] py-3 flex flex-col gap-3.5">
-                {messages.map(message =>
-                    message.isMine ? (
+                {messages.map(message => {
+                    const isMine = message.ownerId === profile?.id;
+                    return isMine ? (
                         <div key={message.id} className="flex flex-col items-end gap-1">
                             <div className="flex items-end gap-2">
                                 <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
@@ -255,8 +251,8 @@ export const ChatRoomPage = () => {
                                 </span>
                             </div>
                         </div>
-                    )
-                )}
+                    );
+                })}
                 <div ref={messagesEndRef} />
             </div>
 
