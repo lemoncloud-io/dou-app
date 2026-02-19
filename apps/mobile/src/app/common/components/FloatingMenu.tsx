@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 import type { RootStackParamList } from '../../navigation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface FloatingMenuProps {
     onNavigate: (screenName: keyof RootStackParamList) => void;
@@ -9,6 +10,11 @@ interface FloatingMenuProps {
 
 export const FloatingMenu = ({ onNavigate }: FloatingMenuProps) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const insets = useSafeAreaInsets();
+
+    const FAB_BOTTOM_MARGIN = 20;
+    const fabBottomPosition = insets.bottom + FAB_BOTTOM_MARGIN;
+    const menuBottomPosition = fabBottomPosition + 70;
 
     const animation = useRef(new Animated.Value(0)).current;
 
@@ -57,7 +63,14 @@ export const FloatingMenu = ({ onNavigate }: FloatingMenuProps) => {
         <>
             {isExpanded && <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={toggleMenu} />}
 
-            <Animated.View style={[styles.menuItemsContainer, menuStyle, !isExpanded && { pointerEvents: 'none' }]}>
+            <Animated.View
+                style={[
+                    styles.menuItemsContainer,
+                    menuStyle,
+                    { bottom: menuBottomPosition },
+                    !isExpanded && { pointerEvents: 'none' },
+                ]}
+            >
                 {menuItems.map(item => (
                     <TouchableOpacity key={item.id} style={styles.menuItemFab} onPress={() => handlePress(item.target)}>
                         <Text style={styles.menuText}>{item.label}</Text>
@@ -66,7 +79,7 @@ export const FloatingMenu = ({ onNavigate }: FloatingMenuProps) => {
             </Animated.View>
 
             <TouchableOpacity
-                style={[styles.fab, isExpanded && styles.fabClose]}
+                style={[styles.fab, isExpanded && styles.fabClose, { bottom: fabBottomPosition }]}
                 onPress={toggleMenu}
                 activeOpacity={0.9}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -88,7 +101,6 @@ const styles = StyleSheet.create({
     fab: {
         position: 'absolute',
         left: 20,
-        bottom: 40,
         width: 56,
         height: 56,
         borderRadius: 16,
