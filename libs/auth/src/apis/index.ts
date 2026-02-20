@@ -1,4 +1,3 @@
-
 import { simpleWebCore } from '@chatic/web-core';
 
 import type {
@@ -8,7 +7,6 @@ import type {
     UserTokenView,
     UserView,
 } from '@lemoncloud/chatic-backend-api';
-import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
 
 const DOU_ENDPOINT = import.meta.env.VITE_DOU_ENDPOINT;
 
@@ -45,10 +43,6 @@ export const login = async (body: LoginUserBody): Promise<UserTokenView> => {
         .setParams({ token: 1 })
         .setBody(body)
         .execute<UserTokenView>();
-
-    if (data.Token) {
-        simpleWebCore.saveToken(data.Token as LemonOAuthToken);
-    }
 
     return data;
 };

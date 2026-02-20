@@ -17,21 +17,13 @@ import { useSimpleWebCore } from '@chatic/web-core';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ListResult } from '@chatic/shared';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
-
-interface Message {
-    id: string;
-    content: string;
-    timestamp: Date;
-    isMine: boolean;
-    ownerName?: string;
-}
+import { useChatMessages } from '../hooks/useChatMessages';
 
 export const ChatRoomPage = () => {
     const navigate = useNavigate();
     const { channelId } = useParams<{ channelId: string }>();
     const [content, setContent] = useState('');
     const [isComposing, setIsComposing] = useState(false);
-    const [messages, setMessages] = useState<Message[]>([]);
     const [isReady, setIsReady] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -40,6 +32,11 @@ export const ChatRoomPage = () => {
     const { mutateAsync: leaveChannel } = useLeavePublicChannel();
     const { send, lastMessage } = useWebSocketV2();
     const { profile } = useSimpleWebCore();
+    const {
+        messages,
+        addMessage,
+        clearMessages: clearChatMessages,
+    } = useChatMessages(profile?.id ?? null, channelId ?? null);
 
     const queryClient = useQueryClient();
 
@@ -48,6 +45,7 @@ export const ChatRoomPage = () => {
 
         try {
             await leaveChannel({ id: channelId, body: {} });
+            await clearChatMessages();
             queryClient.setQueryData<ListResult<ChannelView>>(publicChannelsKeys.list({ limit: -1 }), old => {
                 if (!old) {
                     return {
@@ -83,6 +81,23 @@ export const ChatRoomPage = () => {
         }
     }, [channelId, send]);
 
+    // 1초 후에도 ready가 안되면 다시 send
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (!isReady && channelId) {
+                send({
+                    type: 'channel',
+                    action: 'subscribe',
+                    payload: {
+                        channels: [channelId],
+                    },
+                });
+            }
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [channelId, send, isReady]);
+
     useEffect(() => {
         if (lastMessage?.type === 'channel' && lastMessage?.action === 'subscribe') {
             setIsReady(true);
@@ -98,19 +113,16 @@ export const ChatRoomPage = () => {
             const id = chatMessage.payload?.id || '0';
             const content = chatMessage.payload?.content || 'unknown';
             const timestamp = chatMessage.payload?.createdAt ? new Date(chatMessage.payload?.createdAt) : new Date();
-            const isMine = profile?.id === chatMessage.payload?.ownerId;
+            const ownerId = chatMessage.payload?.ownerId || '';
             const ownerName = chatMessage.payload?.owner$?.name || '알 수 없음';
 
-            setMessages(prev => [
-                ...prev,
-                {
-                    id,
-                    content,
-                    timestamp,
-                    isMine,
-                    ownerName,
-                },
-            ]);
+            addMessage({
+                id,
+                content,
+                timestamp,
+                ownerId,
+                ownerName,
+            });
         }
     }, [lastMessage]);
 
@@ -154,6 +166,31 @@ export const ChatRoomPage = () => {
         return `${period} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
     };
 
+    const formatDateSeparator = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const weekdays = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+        const weekday = weekdays[date.getDay()];
+        return `${year}년 ${month}월 ${day}일 ${weekday}`;
+    };
+
+    const getDateKey = (date: Date) => {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+
+    const groupedMessages = messages.reduce(
+        (groups, message) => {
+            const dateKey = getDateKey(message.timestamp);
+            if (!groups[dateKey]) {
+                groups[dateKey] = [];
+            }
+            groups[dateKey].push(message);
+            return groups;
+        },
+        {} as Record<string, typeof messages>
+    );
+
     if (!isReady) {
         return (
             <div className="flex h-screen items-center justify-center bg-white">
@@ -196,50 +233,60 @@ export const ChatRoomPage = () => {
                 {/* <span className="text-[14px] font-medium leading-[1.857] tracking-[0.005em] text-[#84888F]">+22</span> */}
             </div>
 
-            {/* Date Separator */}
-            <div className="flex items-center justify-center gap-2.5 px-4 py-2">
-                <div className="flex items-center justify-center gap-2.5 px-2 py-1 bg-[#F4F5F5] rounded-[7px]">
-                    <span className="text-[11px] font-medium text-[#84888F]">2025년 00월 00일 월요일</span>
-                </div>
-            </div>
-
             {/* Messages */}
             <div className="flex-1 overflow-auto px-[18px] py-3 flex flex-col gap-3.5">
-                {messages.map(message =>
-                    message.isMine ? (
-                        <div key={message.id} className="flex flex-col items-end gap-1">
-                            <div className="flex items-end gap-2">
-                                <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
-                                    {formatTime(message.timestamp)}
+                {Object.entries(groupedMessages).map(([dateKey, dateMessages]) => (
+                    <div key={dateKey} className="flex flex-col gap-3.5">
+                        {/* Date Separator */}
+                        <div className="flex items-center justify-center gap-2.5 px-4 py-2">
+                            <div className="flex items-center justify-center gap-2.5 px-2 py-1 bg-[#F4F5F5] rounded-[7px]">
+                                <span className="text-[11px] font-medium text-[#84888F]">
+                                    {formatDateSeparator(dateMessages[0].timestamp)}
                                 </span>
-                                <div className="flex items-center gap-2 px-3 py-3 bg-[#102346] rounded-[14px_14px_0px_14px] max-w-[269px]">
-                                    <span className="text-[14px] font-normal leading-[1.3] text-white">
-                                        {message.content}
-                                    </span>
-                                </div>
                             </div>
                         </div>
-                    ) : (
-                        <div key={message.id} className="flex flex-col gap-1">
-                            <div className="flex gap-2">
-                                <div className="flex h-[39px] w-[39px] items-center justify-center rounded-full bg-[#F4F5F5]" />
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[12px] font-medium text-[#84888F]">{message.ownerName}</span>
-                                    <div className="flex items-center gap-2 px-6 py-3 bg-[#F6F6F6] rounded-[0px_14px_14px_14px]">
-                                        <span className="text-[14px] font-normal leading-[1.3] text-[#171725]">
-                                            {message.content}
+
+                        {/* Messages for this date */}
+                        {dateMessages.map(message => {
+                            const isMine = message.ownerId === profile?.id;
+                            return isMine ? (
+                                <div key={message.id} className="flex flex-col items-end gap-1">
+                                    <div className="flex items-end gap-2">
+                                        <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
+                                            {formatTime(message.timestamp)}
+                                        </span>
+                                        <div className="flex items-center gap-2 px-3 py-3 bg-[#102346] rounded-[14px_14px_0px_14px] max-w-[269px]">
+                                            <span className="text-[14px] font-normal leading-[1.3] text-white">
+                                                {message.content}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div key={message.id} className="flex flex-col gap-1">
+                                    <div className="flex gap-2">
+                                        <div className="flex h-[39px] w-[39px] items-center justify-center rounded-full bg-[#F4F5F5]" />
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-[12px] font-medium text-[#84888F]">
+                                                {message.ownerName}
+                                            </span>
+                                            <div className="flex items-center gap-2 px-6 py-3 bg-[#F6F6F6] rounded-[0px_14px_14px_14px]">
+                                                <span className="text-[14px] font-normal leading-[1.3] text-[#171725]">
+                                                    {message.content}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 pl-[47px]">
+                                        <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
+                                            {formatTime(message.timestamp)}
                                         </span>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-2 pl-[47px]">
-                                <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
-                                    {formatTime(message.timestamp)}
-                                </span>
-                            </div>
-                        </div>
-                    )
-                )}
+                            );
+                        })}
+                    </div>
+                ))}
                 <div ref={messagesEndRef} />
             </div>
 

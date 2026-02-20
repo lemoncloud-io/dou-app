@@ -35,6 +35,11 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
             return;
         }
 
+        if (!connectParams?.deviceId) {
+            console.warn(`${logPrefix} DeviceId not provided, skipping connection`);
+            return;
+        }
+
         try {
             if (!workerRef.current && !globalWorkerRef) {
                 const worker = new Worker('/websocket.worker.js');
