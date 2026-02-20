@@ -9,7 +9,7 @@ export const WebSocketV2Connection = () => {
     useWebSocketV2({
         endpoint: WS_ENDPOINT,
         connectParams: { deviceId },
-        enabled: true,
+        enabled: !!deviceId,
     });
 
     return null;

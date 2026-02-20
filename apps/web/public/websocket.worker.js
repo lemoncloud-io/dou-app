@@ -63,6 +63,13 @@ const attemptReconnect = () => {
 const connectWebSocket = config => {
     const { endpoint, token, authQueryParam, deviceId, channels, auth } = config;
 
+    // Require deviceId for connection
+    if (!deviceId) {
+        self.postMessage({ type: 'log', message: 'DeviceId required for connection, skipping' });
+        self.postMessage({ type: 'status', status: 'error' });
+        return;
+    }
+
     if (ws?.readyState === 1 || ws?.readyState === 0) {
         self.postMessage({ type: 'log', message: 'Already connected or connecting' });
         return;
