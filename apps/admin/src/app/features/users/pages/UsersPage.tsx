@@ -19,15 +19,21 @@ import { RegisterUserDialog } from '../components';
 
 import type { JSX } from 'react';
 import { useIssueToken } from '@chatic/auth';
+import { useSearchParams } from 'react-router-dom';
 
 export const UsersPage = (): JSX.Element => {
-    const [page, setPage] = useState(0);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const page = parseInt(searchParams.get('page') || '0', 10);
     const [limit] = useState(10);
     const { data, isLoading, isFetching, isRefetching, error, refetch } = useUsers({ page, limit });
     const [open, setOpen] = useState(false);
     const [tokens, setTokens] = useState<Record<string, string>>({});
 
     const { mutateAsync: issueToken, issuingLoginId, isPending: isIssuing } = useIssueToken();
+
+    const setPage = (newPage: number) => {
+        setSearchParams({ page: newPage.toString() });
+    };
 
     const handleSuccess = () => {
         toast.success('User registered successfully');
