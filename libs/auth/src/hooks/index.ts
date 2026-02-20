@@ -38,3 +38,11 @@ export const useLogin = () => {
         },
     });
 };
+export const useIssueToken = () => {
+    const mutation = useCustomMutation<UserTokenView, string, LoginUserBody>(login);
+
+    return {
+        ...mutation,
+        issuingLoginId: mutation.isPending ? mutation.variables?.uid : null,
+    };
+};
