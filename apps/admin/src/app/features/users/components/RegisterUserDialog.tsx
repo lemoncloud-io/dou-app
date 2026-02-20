@@ -63,11 +63,13 @@ export const RegisterUserDialog = ({ open, onOpenChange, onSuccess, onFail }: Re
 
     const onSubmit = async (data: UserFormData) => {
         try {
+            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.loginId);
+
             const body: RegisterUserV2Body = {
                 stereo: 'user',
                 ...data,
             };
-            await registerUser(body);
+            await registerUser({ ...body, email: isEmail } as RegisterUserV2Body & { email: boolean });
             onOpenChange(false);
             reset();
             onSuccess?.();
