@@ -22,25 +22,26 @@ export const registerUser = async (body: UserBody): Promise<UserView> => {
     return data;
 };
 
-export const registerUserV2 = async (body: RegisterUserV2Body): Promise<UserView> => {
+export const registerUserV2 = async (body: RegisterUserV2Body, email?: boolean): Promise<UserView> => {
     const { data } = await simpleWebCore
         .buildRequest({
             method: 'POST',
             baseURL: `${DOU_ENDPOINT}/oauth/register-user-v2`,
         })
+        .setParams(email !== undefined ? { email: email ? 'true' : 'false' } : {})
         .setBody(body)
         .execute<UserView>();
 
     return data;
 };
 
-export const login = async (body: LoginUserBody): Promise<UserTokenView> => {
+export const login = async (body: LoginUserBody, email?: boolean): Promise<UserTokenView> => {
     const { data } = await simpleWebCore
         .buildRequest({
             method: 'POST',
             baseURL: `${DOU_ENDPOINT}/oauth/login-user`,
         })
-        .setParams({ token: 1 })
+        .setParams({ token: 1, ...(email !== undefined && { email: email ? 'true' : 'false' }) })
         .setBody(body)
         .execute<UserTokenView>();
 

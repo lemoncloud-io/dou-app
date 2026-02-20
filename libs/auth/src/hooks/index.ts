@@ -21,11 +21,14 @@ export const useRegisterUser = () =>
     });
 
 export const useRegisterUserV2 = () =>
-    useCustomMutation<UserView, string, RegisterUserV2Body>(registerUserV2, {
-        onSuccess: () => {
-            console.log('User registered successfully');
-        },
-    });
+    useCustomMutation<UserView, string, RegisterUserV2Body & { email?: boolean }>(
+        ({ email, ...body }) => registerUserV2(body, email),
+        {
+            onSuccess: () => {
+                console.log('User registered successfully');
+            },
+        }
+    );
 
 export const useLogin = () => {
     const { setProfile, setIsAuthenticated } = useSimpleWebCore();
@@ -39,7 +42,9 @@ export const useLogin = () => {
     });
 };
 export const useIssueToken = () => {
-    const mutation = useCustomMutation<UserTokenView, string, LoginUserBody>(login);
+    const mutation = useCustomMutation<UserTokenView, string, LoginUserBody & { email?: boolean }>(
+        ({ email, ...body }) => login(body, email)
+    );
 
     return {
         ...mutation,

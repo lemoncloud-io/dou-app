@@ -35,11 +35,14 @@ export const UsersPage = (): JSX.Element => {
 
     const handleGenerateToken = async (loginId: string) => {
         try {
+            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginId);
+
             const {
                 Token: { identityToken },
             } = await issueToken({
                 uid: loginId,
                 pwd: '30126b541b4f5e4704a2daf0fb00b9b6a8cc8999e4f7560591f48b67842975e4',
+                email: isEmail,
             });
 
             setTokens(prev => ({ ...prev, [loginId]: identityToken as string }));
@@ -218,7 +221,7 @@ export const UsersPage = (): JSX.Element => {
                 </Table>
             </div>
 
-            {data.total > limit && (
+            {data.total && data.total > limit && (
                 <div className="flex items-center justify-between mt-4">
                     <div className="text-sm text-muted-foreground">
                         Showing {page * limit + 1} to {Math.min((page + 1) * limit, data.total)} of {data.total} users
