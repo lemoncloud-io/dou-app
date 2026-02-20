@@ -54,6 +54,11 @@ export const useWebSocketWorker = <TMessage extends BaseWebSocketMessage = BaseW
             return;
         }
 
+        if (!sessionId) {
+            console.warn(`${logPrefix} SessionId (deviceId) not provided, skipping connection`);
+            return;
+        }
+
         try {
             const token = tokenProvider ? (await tokenProvider()) || '' : '';
 
