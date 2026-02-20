@@ -1,10 +1,16 @@
 import { useState } from 'react';
 
-import { Copy } from 'lucide-react';
+import { ChevronDown, Copy, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { formatDate } from '@chatic/shared';
 import { Button } from '@chatic/ui-kit/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@chatic/ui-kit/components/ui/table';
 import { useUsers } from '@chatic/users';
@@ -193,40 +199,50 @@ export const UsersPage = (): JSX.Element => {
                                     <TableCell>{formatDate(user.createdAt)}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => handleGenerateToken(user.loginId as string)}
-                                                disabled={
-                                                    !user.loginId || (isIssuing && issuingLoginId === user.loginId)
-                                                }
-                                            >
-                                                {isIssuing && issuingLoginId === user.loginId
-                                                    ? '발급 중...'
-                                                    : '토큰 발급'}
-                                            </Button>
-                                            {tokens[user.loginId as string] && (
-                                                <>
-                                                    <span className="font-mono text-xs text-muted-foreground truncate max-w-[200px]">
-                                                        {tokens[user.loginId as string]}
-                                                    </span>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() => handleCopyToken(tokens[user.loginId as string])}
-                                                    >
-                                                        <Copy className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() =>
-                                                            handleOpenTokenUrl(tokens[user.loginId as string])
-                                                        }
-                                                    >
-                                                        새 탭
-                                                    </Button>
-                                                </>
+                                            {!tokens[user.loginId as string] ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => handleGenerateToken(user.loginId as string)}
+                                                    disabled={
+                                                        !user.loginId || (isIssuing && issuingLoginId === user.loginId)
+                                                    }
+                                                >
+                                                    {isIssuing && issuingLoginId === user.loginId
+                                                        ? '발급 중...'
+                                                        : '토큰 발급'}
+                                                </Button>
+                                            ) : (
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button size="sm" variant="outline">
+                                                            토큰 발급됨 <ChevronDown className="ml-1 h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem
+                                                            onClick={() => handleGenerateToken(user.loginId as string)}
+                                                            disabled={isIssuing && issuingLoginId === user.loginId}
+                                                        >
+                                                            재발급
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                handleCopyToken(tokens[user.loginId as string])
+                                                            }
+                                                        >
+                                                            <Copy className="mr-2 h-4 w-4" />
+                                                            복사
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                handleOpenTokenUrl(tokens[user.loginId as string])
+                                                            }
+                                                        >
+                                                            <ExternalLink className="mr-2 h-4 w-4" />새 탭에서 열기
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             )}
                                         </div>
                                     </TableCell>
