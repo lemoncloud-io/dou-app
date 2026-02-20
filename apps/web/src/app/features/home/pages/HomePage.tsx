@@ -1,4 +1,4 @@
-import { ChevronDown, CirclePlus, Plus, Search, User } from 'lucide-react';
+import { ChevronDown, CirclePlus, User } from 'lucide-react';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -14,13 +14,11 @@ import { useSimpleWebCore } from '@chatic/web-core';
 import { SettingsDialog } from '../../../components/SettingsDialog';
 import { ChannelList } from '../components/ChannelList';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
-import { CreatePlaceDialog } from '../components/CreatePlaceDialog';
 
 export const HomePage = () => {
     const { profile, logout } = useSimpleWebCore();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
 
     const handleLogout = () => {
         logout();
@@ -49,12 +47,12 @@ export const HomePage = () => {
                                     <div className="flex flex-col justify-center">
                                         <div className="flex items-center gap-1">
                                             <span className="text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-[#3A3C40]">
-                                                {profile?.name || '써니 써니'}
+                                                {profile?.name || '-'}
                                             </span>
                                             <ChevronDown className="h-[18px] w-[18px] text-black" />
                                         </div>
                                         <span className="text-[13px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
-                                            {profile?.email || 'user@example.com'}
+                                            {profile?.email || '-'}
                                         </span>
                                     </div>
                                 </button>
@@ -69,18 +67,17 @@ export const HomePage = () => {
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
-                    <button>
+                    {/* <button>
                         <Search />
-                    </button>
+                    </button> */}
                 </div>
 
                 {/* Place Section */}
-                <div className="flex flex-col gap-4 px-[18px]">
+                {/* <div className="flex flex-col gap-4 px-[18px]">
                     <h2 className="text-[16px] font-semibold leading-[1.33] tracking-[-0.023em] text-black">
                         내 플레이스
                     </h2>
                     <div className="flex gap-5 overflow-x-auto py-2">
-                        {/* Place Add Button */}
                         <button
                             onClick={() => setIsPlaceDialogOpen(true)}
                             className="flex flex-col items-center justify-center gap-[5px] rounded-[14px]  flex-shrink-0"
@@ -93,7 +90,6 @@ export const HomePage = () => {
                             </span>
                         </button>
 
-                        {/* Place Items */}
                         {[
                             { id: 1, name: 'Place Name', selected: true, hasNotification: true },
                             { id: 2, name: 'Place Name', selected: false, hasNotification: true },
@@ -126,12 +122,12 @@ export const HomePage = () => {
                             </button>
                         ))}
                     </div>
-                </div>
+                </div> */}
 
                 {/* Divider */}
-                <div className="my-3 px-4">
+                {/* <div className="my-3 px-4">
                     <div className="h-[3px] w-full bg-[#F4F5F5]" />
-                </div>
+                </div> */}
 
                 {/* Chat Section */}
                 <div className="flex flex-col">
@@ -152,7 +148,6 @@ export const HomePage = () => {
             </div>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
-            <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
             <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
         </div>
     );

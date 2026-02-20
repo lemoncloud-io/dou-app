@@ -7,6 +7,7 @@ import type {
     ChannelLeaveBody,
     JoinView,
     ChannelInviteBody,
+    UserView,
 } from '@lemoncloud/chatic-socials-api';
 import type { Params } from '@lemoncloud/lemon-web-core';
 
@@ -69,6 +70,18 @@ export const invitePublicChannel = async (id: string, body: ChannelInviteBody): 
         .setParams({ id })
         .setBody(body)
         .execute<ChannelView>();
+
+    return data;
+};
+
+export const fetchUsersInChannel = async (id: string, params: Params): Promise<ListResult<UserView>> => {
+    const { data } = await simpleWebCore
+        .buildRequest({
+            method: 'GET',
+            baseURL: `${VITE_SOC_ENDPOINT}/channels/${id}/users`,
+        })
+        .setParams(params)
+        .execute<ListResult<UserView>>();
 
     return data;
 };

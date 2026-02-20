@@ -7,6 +7,7 @@ import {
     createPublicChannel,
     fetchChannels,
     fetchPublicChannels,
+    fetchUsersInChannel,
     invitePublicChannel,
     leavePublicChannel,
 } from '../apis';
@@ -18,11 +19,14 @@ import type {
     ChannelView,
     ChatStartBody,
     JoinView,
+    UserView,
 } from '@lemoncloud/chatic-socials-api';
 import type { Params } from '@lemoncloud/lemon-web-core';
 import type { AxiosError } from 'axios';
 
 export const channelsKeys = createQueryKeys('channels');
+export const channelUsersKeys = createQueryKeys('channelUsers');
+
 export const publicChannelsKeys = createQueryKeys('public-channels');
 
 export const useChannels = (params: Params = {}) =>
@@ -32,6 +36,12 @@ export const useChannels = (params: Params = {}) =>
         refetchOnWindowFocus: false,
     });
 
+export const useUsersInChannel = (id: string, params: Params) =>
+    useQuery<ListResult<UserView>>({
+        queryKey: channelUsersKeys.list(params),
+        queryFn: () => fetchUsersInChannel(id, params),
+        refetchOnWindowFocus: false,
+    });
 export const usePublicChannels = (params: Params = {}) =>
     useQuery<ListResult<ChannelView>>({
         queryKey: publicChannelsKeys.list(params),

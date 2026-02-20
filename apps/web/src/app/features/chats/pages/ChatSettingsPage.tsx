@@ -1,15 +1,18 @@
-import { ChevronLeft, UserPlus, Bell, Trash2, MessageCircle } from 'lucide-react';
+import { ChevronLeft, UserPlus, MessageCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
+// import { useUsersInChannel } from '@chatic/channels';
 
 export const ChatSettingsPage = () => {
     const navigate = useNavigate();
     const { channelId } = useParams<{ channelId: string }>();
     const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
     const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+
+    // const { data: users } = useUsersInChannel(channelId as string, { limit: -1 });
 
     return (
         <div className="flex h-screen flex-col bg-white">
@@ -54,7 +57,7 @@ export const ChatSettingsPage = () => {
                             </div>
                             <span className="text-[14px] font-medium text-[#84888F] mt-1">친구 초대</span>
                         </button>
-                        <div className="flex flex-col items-center">
+                        {/* <div className="flex flex-col items-center">
                             <div className="w-[46px] h-[46px] flex items-center justify-center">
                                 <Bell className="w-5 h-5 text-[#84888F]" />
                             </div>
@@ -65,7 +68,7 @@ export const ChatSettingsPage = () => {
                                 <Trash2 className="w-5 h-5 text-[#FF4C35]" />
                             </div>
                             <span className="text-[14px] font-medium text-[#84888F] mt-1">방 삭제</span>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
 
