@@ -62,6 +62,13 @@ export const UsersPage = (): JSX.Element => {
         }
     };
 
+    const frontEndpoint = import.meta.env.VITE_FRONT_ENDPOINT;
+
+    const handleOpenTokenUrl = (token: string) => {
+        const url = `${frontEndpoint}/auth/token/${token}`;
+        window.open(url, '_blank');
+    };
+
     if (error) {
         return (
             <div className="p-6">
@@ -209,6 +216,15 @@ export const UsersPage = (): JSX.Element => {
                                                         onClick={() => handleCopyToken(tokens[user.loginId as string])}
                                                     >
                                                         <Copy className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() =>
+                                                            handleOpenTokenUrl(tokens[user.loginId as string])
+                                                        }
+                                                    >
+                                                        새 탭
                                                     </Button>
                                                 </>
                                             )}

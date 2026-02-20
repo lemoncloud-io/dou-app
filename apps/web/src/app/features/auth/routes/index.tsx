@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
-import { LoginPage, LogoutPage, OAuthResponsePage } from '../pages';
+import { LoginPage, LogoutPage, OAuthResponsePage, TokenLoginPage } from '../pages';
 
 export const AuthRoutes = () => {
     return (
@@ -8,6 +8,7 @@ export const AuthRoutes = () => {
             <Route path="login" element={<LoginPage />} />
             <Route path="logout" element={<LogoutPage />} />
             <Route path="oauth-response" element={<OAuthResponsePage />} />
+            <Route path="token/:token" element={<TokenLoginPage />} />
             <Route path="*" element={<Navigate to="/auth/login"></Navigate>} />
         </Routes>
     );
