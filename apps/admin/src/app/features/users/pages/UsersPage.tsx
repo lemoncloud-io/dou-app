@@ -279,7 +279,7 @@ export const UsersPage = (): JSX.Element => {
                         <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setPage(p => Math.max(0, p - 1))}
+                            onClick={() => setPage(Math.max(0, page - 1))}
                             disabled={page === 0}
                         >
                             Previous
@@ -287,7 +287,7 @@ export const UsersPage = (): JSX.Element => {
                         <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setPage(p => p + 1)}
+                            onClick={() => setPage(page + 1)}
                             disabled={(page + 1) * limit >= data.total}
                         >
                             Next
