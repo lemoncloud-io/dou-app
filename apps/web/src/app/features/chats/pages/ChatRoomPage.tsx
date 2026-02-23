@@ -11,13 +11,13 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
-import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
-import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chats/model';
+
 import { useSimpleWebCore } from '@chatic/web-core';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ListResult } from '@chatic/shared';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import { useChatMessages } from '../hooks/useChatMessages';
+import { useReadMessage } from '../hooks/useReadMessage';
 
 export const ChatRoomPage = () => {
     const navigate = useNavigate();
@@ -32,13 +32,11 @@ export const ChatRoomPage = () => {
     const { mutateAsync: leaveChannel } = useLeavePublicChannel();
     const { send, lastMessage } = useWebSocketV2();
     const { profile } = useSimpleWebCore();
-    const {
-        messages,
-        addMessage,
-        clearMessages: clearChatMessages,
-    } = useChatMessages(profile?.id ?? null, channelId ?? null);
+    const { messages, clearMessages: clearChatMessages } = useChatMessages(profile?.id ?? null, channelId ?? null);
 
     const queryClient = useQueryClient();
+
+    useReadMessage(channelId);
 
     const handleLeaveRoom = async () => {
         if (!channelId) return;
@@ -102,27 +100,6 @@ export const ChatRoomPage = () => {
         if (lastMessage?.type === 'channel' && lastMessage?.action === 'subscribe') {
             setIsReady(true);
             return;
-        }
-
-        const chatMessage = lastMessage as WSSEnvelope<ChatModel>;
-        if (
-            chatMessage?.type === 'model' &&
-            chatMessage.action === 'create' &&
-            chatMessage.payload?.channelId === channelId
-        ) {
-            const id = chatMessage.payload?.id || '0';
-            const content = chatMessage.payload?.content || 'unknown';
-            const timestamp = chatMessage.payload?.createdAt ? new Date(chatMessage.payload?.createdAt) : new Date();
-            const ownerId = chatMessage.payload?.ownerId || '';
-            const ownerName = chatMessage.payload?.owner$?.name || '알 수 없음';
-
-            addMessage({
-                id,
-                content,
-                timestamp,
-                ownerId,
-                ownerName,
-            });
         }
     }, [lastMessage]);
 

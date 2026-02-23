@@ -6,6 +6,7 @@ interface Message {
     timestamp: Date;
     ownerId: string;
     ownerName?: string;
+    readCount?: number;
 }
 
 interface StoredMessage extends Omit<Message, 'timestamp'> {
@@ -17,6 +18,7 @@ interface StoredMessage extends Omit<Message, 'timestamp'> {
 const DB_NAME = 'ChatDB';
 const DB_VERSION = 2;
 const STORE_NAME = 'messages';
+const BROADCAST_CHANNEL_NAME = 'chat-messages-update';
 
 const openDB = (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
@@ -57,6 +59,11 @@ const saveMessage = async (userId: string, channelId: string, message: Message):
     };
 
     store.put(storedMessage);
+
+    // Broadcast update
+    const channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+    channel.postMessage({ type: 'message-added', userId, channelId, message });
+    channel.close();
 };
 
 const loadMessages = async (userId: string, channelId: string): Promise<Message[]> => {
@@ -105,14 +112,40 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
         loadMessages(userId, channelId).then(setMessages).catch(console.error);
     }, [userId, channelId]);
 
+    // BroadcastChannel 리스너
+    useEffect(() => {
+        if (!userId || !channelId) return;
+
+        const channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+
+        channel.onmessage = event => {
+            const { type, userId: msgUserId, channelId: msgChannelId, message } = event.data;
+
+            if (type === 'message-added' && msgUserId === userId && msgChannelId === channelId) {
+                setMessages(prev => {
+                    // 중복 방지
+                    if (prev.some(m => m.id === message.id)) return prev;
+                    return [...prev, message];
+                });
+            }
+        };
+
+        return () => channel.close();
+    }, [userId, channelId]);
+
     // 메시지 추가
     const addMessage = useCallback(
-        async (message: Message) => {
-            setMessages(prev => [...prev, message]);
+        async (message: Message, targetChannelId?: string) => {
+            const effectiveChannelId = targetChannelId || channelId;
+            if (!effectiveChannelId) return;
 
-            if (userId && channelId) {
+            if (effectiveChannelId === channelId) {
+                setMessages(prev => [...prev, message]);
+            }
+
+            if (userId && effectiveChannelId) {
                 try {
-                    await saveMessage(userId, channelId, message);
+                    await saveMessage(userId, effectiveChannelId, message);
                 } catch (error) {
                     console.error('Failed to save message:', error);
                 }
