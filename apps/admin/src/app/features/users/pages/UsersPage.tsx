@@ -184,7 +184,7 @@ export const UsersPage = (): JSX.Element => {
                         <TableRow>
                             <TableHead>ID</TableHead>
                             <TableHead>Name</TableHead>
-                            <TableHead>Email</TableHead>
+                            <TableHead>Login ID</TableHead>
                             <TableHead>Created At</TableHead>
                             <TableHead>Actions</TableHead>
                         </TableRow>
@@ -201,7 +201,7 @@ export const UsersPage = (): JSX.Element => {
                                 <TableRow key={user.id}>
                                     <TableCell className="font-mono text-sm">{user.id}</TableCell>
                                     <TableCell>{user.name}</TableCell>
-                                    <TableCell>{user.email}</TableCell>
+                                    <TableCell>{user.loginId}</TableCell>
                                     <TableCell>{formatDate(user.createdAt)}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
