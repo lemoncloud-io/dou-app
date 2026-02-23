@@ -1,7 +1,5 @@
 import { useForm } from 'react-hook-form';
 
-import { Dices } from 'lucide-react';
-
 import { useRegisterUserV2 } from '@chatic/auth';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
@@ -86,8 +84,8 @@ export const RegisterUserDialog = ({ open, onOpenChange, onSuccess, onFail }: Re
                     <DialogDescription>Create a new user account</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit(onSubmit)}>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
+                    <div className="space-y-4 py-4 ">
+                        {/* <div className="space-y-2">
                             <Label htmlFor="cloudId">Cloud ID</Label>
                             <div className="flex gap-2">
                                 <Input id="cloudId" {...register('cloudId', { required: 'Cloud ID is required' })} />
@@ -121,7 +119,7 @@ export const RegisterUserDialog = ({ open, onOpenChange, onSuccess, onFail }: Re
                             <Label htmlFor="siteNm">Site Name</Label>
                             <Input id="siteNm" {...register('siteNm', { required: 'Site Name is required' })} />
                             {errors.siteNm && <p className="text-sm text-destructive">{errors.siteNm.message}</p>}
-                        </div>
+                        </div> */}
                         <div className="space-y-2">
                             <Label htmlFor="name">Name</Label>
                             <Input id="name" {...register('name', { required: 'Name is required' })} />
@@ -140,21 +138,6 @@ export const RegisterUserDialog = ({ open, onOpenChange, onSuccess, onFail }: Re
                                 {...register('loginPw', { required: 'Password is required' })}
                             />
                             {errors.loginPw && <p className="text-sm text-destructive">{errors.loginPw.message}</p>}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                {...register('email', {
-                                    required: 'Email is required',
-                                    pattern: {
-                                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                                        message: 'Invalid email address',
-                                    },
-                                })}
-                            />
-                            {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
                         </div>
                     </div>
                     <DialogFooter>
