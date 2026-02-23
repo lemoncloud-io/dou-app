@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePublicChannels } from '@chatic/channels';
+import { useWebSocketV2 } from '@chatic/socket';
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 
 const ChannelSkeleton = () => (
@@ -15,6 +17,20 @@ const ChannelSkeleton = () => (
 export const ChannelList = () => {
     const navigate = useNavigate();
     const { data: channels, isPending, error } = usePublicChannels({ limit: -1 });
+    const { send } = useWebSocketV2();
+
+    useEffect(() => {
+        if (channels?.list?.length) {
+            const channelIds = channels.list.map(channel => channel.id);
+            send({
+                type: 'channel',
+                action: 'subscribe',
+                payload: {
+                    channels: channelIds,
+                },
+            });
+        }
+    }, [channels, send]);
 
     if (isPending) {
         return (
