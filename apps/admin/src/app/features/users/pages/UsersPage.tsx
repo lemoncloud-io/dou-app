@@ -67,7 +67,18 @@ export const UsersPage = (): JSX.Element => {
 
     const handleCopyToken = async (token: string) => {
         try {
-            await navigator.clipboard.writeText(token);
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(token);
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = token;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
             toast.success('토큰이 복사되었습니다');
         } catch (error) {
             toast.error('복사에 실패했습니다');
@@ -268,7 +279,7 @@ export const UsersPage = (): JSX.Element => {
                         <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setPage(p => Math.max(0, p - 1))}
+                            onClick={() => setPage(Math.max(0, page - 1))}
                             disabled={page === 0}
                         >
                             Previous
@@ -276,7 +287,7 @@ export const UsersPage = (): JSX.Element => {
                         <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setPage(p => p + 1)}
+                            onClick={() => setPage(page + 1)}
                             disabled={(page + 1) * limit >= data.total}
                         >
                             Next
