@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { ChevronDown, Copy, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+import copy from 'copy-to-clipboard';
 
 import { formatDate } from '@chatic/shared';
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -65,22 +66,11 @@ export const UsersPage = (): JSX.Element => {
         }
     };
 
-    const handleCopyToken = async (token: string) => {
-        try {
-            if (navigator.clipboard && window.isSecureContext) {
-                await navigator.clipboard.writeText(token);
-            } else {
-                const textarea = document.createElement('textarea');
-                textarea.value = token;
-                textarea.style.position = 'fixed';
-                textarea.style.opacity = '0';
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-            }
+    const handleCopyToken = (token: string) => {
+        const success = copy(token);
+        if (success) {
             toast.success('토큰이 복사되었습니다');
-        } catch (error) {
+        } else {
             toast.error('복사에 실패했습니다');
         }
     };
