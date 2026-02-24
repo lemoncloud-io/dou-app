@@ -124,8 +124,6 @@ export const ChatRoomPage = () => {
         } catch (error) {
             console.error('Failed to send message:', error);
         }
-
-        setTimeout(() => inputRef.current?.focus(), 0);
     };
 
     const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {

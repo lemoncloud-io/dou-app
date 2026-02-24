@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -15,20 +16,19 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
     const [tokenInput, setTokenInput] = useState('');
     const { connectionStatus, send, lastMessage } = useWebSocketV2();
 
-    const currentToken = simpleWebCore.getToken()?.identityToken || '';
+    const currentToken = simpleWebCore.getToken();
 
     const handleUpdateToken = () => {
         if (!tokenInput.trim()) return;
         const token = simpleWebCore.getToken();
         if (token) {
-            const newToken = { ...token, identityToken: tokenInput };
-            simpleWebCore.saveToken(newToken);
+            simpleWebCore.saveToken(token);
 
             send({
                 type: 'auth',
                 action: 'update',
                 payload: {
-                    token: newToken.identityToken,
+                    token,
                     dryRun: false,
                 },
             });
@@ -52,11 +52,17 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="h-screen max-w-full w-full m-0 p-0 rounded-none">
+            <DialogContent hideClose className="h-screen max-w-full w-full m-0 p-0 rounded-none bg-white">
                 <div className="flex flex-col h-full">
                     {/* Header */}
-                    <div className="px-6 py-4 border-b">
-                        <h2 className="text-xl font-semibold">설정</h2>
+                    <div className="px-6 py-4 border-b flex items-center justify-between">
+                        <h2 className="text-xl font-semibold text-black">설정</h2>
+                        <button
+                            onClick={() => onOpenChange?.(false)}
+                            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100"
+                        >
+                            <X className="w-5 h-5 text-[#3A3C40]" />
+                        </button>
                     </div>
 
                     {/* Content */}

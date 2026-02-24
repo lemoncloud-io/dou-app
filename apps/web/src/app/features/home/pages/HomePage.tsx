@@ -135,7 +135,7 @@ export const HomePage = () => {
                         <h2 className="text-[18px] font-semibold leading-[1.33] tracking-[-0.023em] text-black">
                             Chat
                         </h2>
-                        <button onClick={() => setIsDialogOpen(true)} className="h-6 w-6">
+                        <button onClick={() => setIsDialogOpen(true)} className="h-6 w-6 text-black">
                             <CirclePlus className="h-6 w-6" />
                         </button>
                     </div>

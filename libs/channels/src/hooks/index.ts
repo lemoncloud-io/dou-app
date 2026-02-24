@@ -53,9 +53,12 @@ export const useCreatePublicChannel = () => {
     const { toast } = useToast();
 
     return useCustomMutation<ChannelView, AxiosError<string>, ChatStartBody>(createPublicChannel, {
-        onSuccess: () => toast({ title: '채널이 생성되었습니다' }),
+        onSuccess: () => toast({ title: '채팅방이 생성되었습니다' }),
         onError: error =>
-            toast({ title: '채널 생성 실패', description: error.response?.data || '오류가 발생했습니다' }),
+            toast({
+                title: '채팅방 생성에 실패하였습니다',
+                description: error.response?.data || '오류가 발생했습니다',
+            }),
     });
 };
 
@@ -65,6 +68,8 @@ export const useLeavePublicChannel = () => {
     return useCustomMutation<JoinView, AxiosError<string>, { body: ChannelLeaveBody; id: string }>(
         ({ body, id }) => leavePublicChannel(id, body),
         {
+            onSuccess: () => toast({ title: '채팅방을 나갔습니다.' }),
+
             onError: error =>
                 toast({ title: '채널 나가기 실패', description: error.response?.data || '오류가 발생했습니다' }),
         }
