@@ -1,4 +1,4 @@
-import { ChevronLeft, UserPlus, MessageCircle } from 'lucide-react';
+import { ChevronLeft, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -30,7 +30,7 @@ export const ChatSettingsPage = () => {
                 {/* Room Info */}
                 <div className="flex flex-col items-center gap-[19px]">
                     {/* Profile */}
-                    <div className="flex flex-col items-center gap-2">
+                    {/* <div className="flex flex-col items-center gap-2">
                         <div className="w-14 h-14 rounded-full bg-[#F4F5F5] border border-[#F4F5F5] flex items-center justify-center">
                             <MessageCircle className="text-[#84888F]" />
                         </div>
@@ -47,7 +47,7 @@ export const ChatSettingsPage = () => {
                                 편집
                             </button>
                         </div>
-                    </div>
+                    </div> */}
 
                     {/* Menu */}
                     <div className="flex gap-6">
@@ -74,17 +74,17 @@ export const ChatSettingsPage = () => {
 
                 {/* Room Friends */}
                 <div className="flex flex-col gap-[18px]">
-                    <div className="flex items-center gap-1 px-[18px]">
+                    {/* <div className="flex items-center gap-1 px-[18px]">
                         <span className="text-[16px] font-semibold leading-[1.5] tracking-[-0.02em] text-[#3A3C40]">
                             방 친구
                         </span>
                         <span className="text-[16px] font-semibold leading-[1.5] text-[#84888F]">100</span>
-                    </div>
+                    </div> */}
 
                     {/* Friends List */}
                     <div className="flex flex-col gap-3 px-4">
                         {/* My Profile */}
-                        <div className="flex items-center gap-2">
+                        {/* <div className="flex items-center gap-2">
                             <div className="w-10 h-10 rounded-full bg-[#F4F5F5] border border-[#F4F5F5]" />
                             <div className="flex-1 flex flex-col justify-center gap-0.5">
                                 <div className="flex items-center gap-1">
@@ -96,10 +96,10 @@ export const ChatSettingsPage = () => {
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </div> */}
 
                         {/* Friend Items */}
-                        {[1, 2, 3, 4, 5, 6, 7].map(i => (
+                        {/* {[1, 2, 3, 4, 5, 6, 7].map(i => (
                             <div key={i} className="flex items-center gap-2">
                                 <div className="w-10 h-10 rounded-full bg-[#F4F5F5] border border-[#F4F5F5]" />
                                 <div className="flex-1 flex items-center justify-between">
@@ -108,7 +108,7 @@ export const ChatSettingsPage = () => {
                                     </span>
                                 </div>
                             </div>
-                        ))}
+                        ))} */}
                     </div>
                 </div>
             </div>

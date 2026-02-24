@@ -42,7 +42,7 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="m-0 h-screen max-w-full w-full p-0 rounded-none flex flex-col" hideClose>
+            <DialogContent className="m-0 h-screen max-w-full w-full p-0 rounded-none flex flex-col bg-white" hideClose>
                 {/* Top Bar */}
                 <div className="flex items-center justify-between px-1.5 py-3 bg-white">
                     <div className="w-11 h-11" />
@@ -111,7 +111,7 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                             </div>
 
                             {/* Room Image Section */}
-                            <div className="flex flex-col gap-1.5 px-[18px]">
+                            {/* <div className="flex flex-col gap-1.5 px-[18px]">
                                 <Label className="text-[14px] font-semibold leading-[1.571] tracking-[0.005em] text-[#9FA2A7]">
                                     방 이미지 [선택]
                                 </Label>
@@ -130,7 +130,7 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </div> */}
                         </div>
                     </div>
 
