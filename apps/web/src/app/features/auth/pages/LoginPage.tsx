@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,7 +9,6 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { simpleWebCore, useSimpleWebCore } from '@chatic/web-core';
 
 import type { JSX } from 'react';
-import type { AuthPayload, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
 type LoginFormData = {
     token: string;
@@ -59,32 +57,9 @@ export const LoginPage = (): JSX.Element => {
     const isValidToken = tokenValue && decodedToken !== null;
     const showInvalidMessage = tokenValue && !isValidToken;
 
-    useEffect(() => {
-        const message = lastMessage as WSSEnvelope<AuthPayload> | null;
-        console.log(message);
-
-        if (message?.type === 'auth' && message?.action === 'update') {
-            const state = message.payload?.state;
-            const member = message.payload?.member$;
-
-            if (state === 'authenticated' && member) {
-                setIsAuthenticated(true);
-                toast({ title: '로그인 성공' });
-                navigate('/');
-            } else {
-                toast({
-                    title: '로그인 실패',
-                    description: '토큰을 확인해 주세요',
-                    variant: 'destructive',
-                });
-            }
-        }
-    }, [lastMessage, setIsAuthenticated, navigate, toast]);
-
     const onSubmit = async (data: LoginFormData) => {
         if (data.token.trim()) {
             const decoded = decodeJWT(data.token.trim());
-            console.log('Decoded JWT:', decoded);
 
             if (decoded?.User) {
                 setProfile({
@@ -95,7 +70,8 @@ export const LoginPage = (): JSX.Element => {
             }
 
             simpleWebCore.saveToken(data.token.trim());
-
+            setIsAuthenticated(true);
+            toast({ title: '로그인 성공' });
             send({
                 type: 'auth',
                 action: 'update',
@@ -108,10 +84,12 @@ export const LoginPage = (): JSX.Element => {
     };
 
     return (
-        <div className="min-h-screen flex flex-col bg-white max-w-[375px] mx-auto">
+        <div className="min-h-screen flex flex-col bg-white  mx-auto">
             <div className="flex-1 flex flex-col px-7 pt-28">
                 <div className="flex flex-col items-center gap-2 mb-24">
-                    <h1 className="text-2xl font-bold text-center leading-[1.35] tracking-[0.005em]">토큰 로그인</h1>
+                    <h1 className="text-2xl font-bold text-center leading-[1.35] tracking-[0.005em] text-black">
+                        토큰 로그인
+                    </h1>
                     <p className="text-sm text-[#53555B] text-center leading-[1.45] tracking-[0.005em]">
                         Identity Token을 입력해 주세요
                     </p>
