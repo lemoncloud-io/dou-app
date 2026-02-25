@@ -17,7 +17,7 @@ import type { MainScreenProps } from '../navigation';
 import { useIsFocused } from '@react-navigation/native';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
-const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
+const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://chatic-front-web.s3-website.ap-northeast-2.amazonaws.com';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
