@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Config from 'react-native-config';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppWebView, FullScreenLoader, Logger } from '../../../common';
 import {
@@ -18,7 +17,7 @@ import type { MainScreenProps } from '../navigation';
 import { useIsFocused } from '@react-navigation/native';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
-const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://chatic-front-web.s3-website.ap-northeast-2.amazonaws.com';
+const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
@@ -117,16 +116,15 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     return (
         <>
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }} edges={['top', 'bottom']}>
-                    <AppWebView
-                        ref={webViewRef}
-                        source={{ uri: webviewUrl }}
-                        onMessage={handleMessage}
-                        onNavigationStateChange={navState => {
-                            setCanGoBack(navState.canGoBack);
-                        }}
-                    />
-                </SafeAreaView>
+                <AppWebView
+                    ref={webViewRef}
+                    source={{ uri: webviewUrl }}
+                    scrollEnabled={false}
+                    onMessage={handleMessage}
+                    onNavigationStateChange={navState => {
+                        setCanGoBack(navState.canGoBack);
+                    }}
+                />
             </KeyboardAvoidingView>
             <FullScreenLoader visible={isIapLoading} message="결제 처리 중..." />
         </>

@@ -191,14 +191,14 @@ export const ChatRoomPage = () => {
 
     if (!isReady) {
         return (
-            <div className="flex h-screen items-center justify-center bg-white">
+            <div className="flex h-full items-center justify-center bg-white">
                 <div className="w-8 h-8 border-4 border-[#B0EA10] border-t-transparent rounded-full animate-spin" />
             </div>
         );
     }
 
     return (
-        <div className="flex h-screen flex-col bg-white">
+        <div className="flex h-full flex-col bg-white">
             {/* Top Bar */}
             <div className="flex items-center justify-between px-1.5 py-3 bg-white">
                 <button onClick={() => navigate(-1)} className="w-11 h-11 flex items-center justify-center">
@@ -293,6 +293,20 @@ export const ChatRoomPage = () => {
             {/* Input Area */}
             <div className="flex flex-col gap-2.5 px-4 py-3">
                 <div className="flex items-center gap-1.5 px-1.5 py-1.5 bg-[#F4F5F5] rounded-2xl">
+                    <div className="flex-1 flex items-center gap-1.5 px-1.5">
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={content}
+                            onChange={e => setContent(e.target.value)}
+                            onKeyDown={handleKeyPress}
+                            onCompositionStart={() => setIsComposing(true)}
+                            onCompositionEnd={() => setIsComposing(false)}
+                            disabled={isPending}
+                            placeholder="메시지를 입력해 주세요"
+                            className="flex-1 bg-transparent border-0 outline-none text-[14px] font-normal leading-[1.45] tracking-[-0.02em] text-[#9CA4AB] placeholder:text-[#9CA4AB] disabled:opacity-50"
+                        />
+                    </div>
                     <button
                         onMouseDown={e => e.preventDefault()}
                         onClick={handleSend}
@@ -313,20 +327,6 @@ export const ChatRoomPage = () => {
                             </svg>
                         )}
                     </button>
-                    <div className="flex-1 flex items-center gap-1.5 px-1.5">
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={content}
-                            onChange={e => setContent(e.target.value)}
-                            onKeyDown={handleKeyPress}
-                            onCompositionStart={() => setIsComposing(true)}
-                            onCompositionEnd={() => setIsComposing(false)}
-                            disabled={isPending}
-                            placeholder="메시지를 입력해 주세요"
-                            className="flex-1 bg-transparent border-0 outline-none text-[14px] font-normal leading-[1.45] tracking-[-0.02em] text-[#9CA4AB] placeholder:text-[#9CA4AB] disabled:opacity-50"
-                        />
-                    </div>
                 </div>
             </div>
         </div>

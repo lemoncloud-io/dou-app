@@ -77,17 +77,15 @@ export const TokenLoginPage = () => {
 
     if (isInvalid) {
         return (
-            <div className="flex h-screen items-center justify-center">
-                <div className="text-center flex flex-col gap-4">
-                    <p className="text-[16px] text-[#FF4C35]">잘못된 접근입니다</p>
-                    <Button onClick={() => navigate('/auth/login')}>로그인하러 가기</Button>
-                </div>
+            <div className="flex h-full items-center justify-center">
+                <p className="text-[16px] text-[#FF4C35]">잘못된 접근입니다</p>
+                <Button onClick={() => navigate('/auth/login')}>로그인하러 가기</Button>
             </div>
         );
     }
 
     return (
-        <div className="flex h-screen items-center justify-center">
+        <div className="flex h-full items-center justify-center">
             <div className="text-center">
                 <p className="text-[16px] text-[#84888F]">로그인 중...</p>
             </div>

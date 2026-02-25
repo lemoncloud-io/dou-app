@@ -7,7 +7,7 @@ import { Outlet } from 'react-router-dom';
  */
 export const SafeAreaLayout = (): JSX.Element => {
     return (
-        <div className="fixed inset-0 top-safe-top bottom-safe-bottom left-safe-left right-safe-right overflow-hidden flex flex-col">
+        <div className="flex flex-col w-full h-dvh pt-safe-top pb-safe-bottom overflow-hidden">
             <Outlet />
         </div>
     );

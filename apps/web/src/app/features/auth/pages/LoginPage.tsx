@@ -84,7 +84,7 @@ export const LoginPage = (): JSX.Element => {
     };
 
     return (
-        <div className="min-h-screen flex flex-col bg-white  mx-auto">
+        <div className="h-full flex flex-col w-full mx-auto ">
             <div className="flex-1 flex flex-col px-7 pt-28">
                 <div className="flex flex-col items-center gap-2 mb-24">
                     <h1 className="text-2xl font-bold text-center leading-[1.35] tracking-[0.005em] text-black">

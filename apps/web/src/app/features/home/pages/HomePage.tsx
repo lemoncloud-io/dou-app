@@ -32,7 +32,7 @@ export const HomePage = () => {
     };
 
     return (
-        <div className="flex h-screen flex-col bg-white">
+        <div className="flex h-screen flex-col bg-white ">
             {/* Main Content */}
             <div className="flex-1 overflow-auto">
                 {/* Profile Section */}
@@ -133,7 +133,7 @@ export const HomePage = () => {
                 <div className="flex flex-col">
                     <div className="flex items-center justify-between px-[18px] py-3">
                         <h2 className="text-[18px] font-semibold leading-[1.33] tracking-[-0.023em] text-black">
-                            Chat
+                            Chat2
                         </h2>
                         <button onClick={() => setIsDialogOpen(true)} className="h-6 w-6 text-black">
                             <CirclePlus className="h-6 w-6" />
