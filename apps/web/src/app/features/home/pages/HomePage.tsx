@@ -32,7 +32,7 @@ export const HomePage = () => {
     };
 
     return (
-        <div className="flex h-screen flex-col bg-white">
+        <div className="flex h-screen flex-col bg-white ">
             {/* Main Content */}
             <div className="flex-1 overflow-auto">
                 {/* Profile Section */}

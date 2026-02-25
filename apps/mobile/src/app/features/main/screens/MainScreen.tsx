@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Config from 'react-native-config';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppWebView, FullScreenLoader, Logger } from '../../../common';
 import {
@@ -117,16 +116,15 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     return (
         <>
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-                    <AppWebView
-                        ref={webViewRef}
-                        source={{ uri: webviewUrl }}
-                        onMessage={handleMessage}
-                        onNavigationStateChange={navState => {
-                            setCanGoBack(navState.canGoBack);
-                        }}
-                    />
-                </SafeAreaView>
+                <AppWebView
+                    ref={webViewRef}
+                    source={{ uri: webviewUrl }}
+                    scrollEnabled={false}
+                    onMessage={handleMessage}
+                    onNavigationStateChange={navState => {
+                        setCanGoBack(navState.canGoBack);
+                    }}
+                />
             </KeyboardAvoidingView>
             <FullScreenLoader visible={isIapLoading} message="결제 처리 중..." />
         </>

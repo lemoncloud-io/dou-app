@@ -88,6 +88,18 @@ module.exports = {
                 'fade-in': 'fade-in 0.2s ease-out',
                 'fade-out': 'fade-out 0.2s ease-in',
             },
+            spacing: {
+                'safe-top': 'var(--safe-top, 0px)',
+                'safe-bottom': 'var(--safe-bottom, 0px)',
+                'safe-left': 'var(--safe-left, 0px)',
+                'safe-right': 'var(--safe-right, 0px)',
+            },
+            inset: {
+                'safe-top': 'var(--safe-top, 0px)',
+                'safe-bottom': 'var(--safe-bottom, 0px)',
+                'safe-left': 'var(--safe-left, 0px)',
+                'safe-right': 'var(--safe-right, 0px)',
+            },
         },
     },
     plugins: [],
