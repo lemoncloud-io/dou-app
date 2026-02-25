@@ -222,44 +222,46 @@ export const ChatRoomPage = () => {
                         </div>
 
                         {/* Messages for this date */}
-                        {dateMessages.map(message => {
-                            const isMine = message.ownerId === profile?.id;
-                            return isMine ? (
-                                <div key={message.id} className="flex flex-col items-end gap-1">
-                                    <div className="flex items-end gap-2">
-                                        <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
-                                            {formatTime(message.timestamp)}
-                                        </span>
-                                        <div className="flex items-center gap-2 px-3 py-3 bg-[#102346] rounded-[14px_14px_0px_14px] max-w-[269px]">
-                                            <span className="text-[14px] font-normal leading-[1.3] text-white">
-                                                {message.content}
+                        {dateMessages
+                            .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+                            .map(message => {
+                                const isMine = message.ownerId === profile?.id;
+                                return isMine ? (
+                                    <div key={message.id} className="flex flex-col items-end gap-1">
+                                        <div className="flex items-end gap-2">
+                                            <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
+                                                {formatTime(message.timestamp)}
                                             </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div key={message.id} className="flex flex-col gap-1">
-                                    <div className="flex gap-2">
-                                        <div className="flex h-[39px] w-[39px] items-center justify-center rounded-full bg-[#F4F5F5]" />
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-[12px] font-medium text-[#84888F]">
-                                                {message.ownerName}
-                                            </span>
-                                            <div className="flex items-center gap-2 px-6 py-3 bg-[#F6F6F6] rounded-[0px_14px_14px_14px]">
-                                                <span className="text-[14px] font-normal leading-[1.3] text-[#171725]">
+                                            <div className="flex items-center gap-2 px-3 py-3 bg-[#102346] rounded-[14px_14px_0px_14px] max-w-[269px]">
+                                                <span className="text-[14px] font-normal leading-[1.3] text-white">
                                                     {message.content}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 pl-[47px]">
-                                        <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
-                                            {formatTime(message.timestamp)}
-                                        </span>
+                                ) : (
+                                    <div key={message.id} className="flex flex-col gap-1">
+                                        <div className="flex gap-2">
+                                            <div className="flex h-[39px] w-[39px] items-center justify-center rounded-full bg-[#F4F5F5]" />
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-[12px] font-medium text-[#84888F]">
+                                                    {message.ownerName}
+                                                </span>
+                                                <div className="flex items-center gap-2 px-6 py-3 bg-[#F6F6F6] rounded-[0px_14px_14px_14px]">
+                                                    <span className="text-[14px] font-normal leading-[1.3] text-[#171725]">
+                                                        {message.content}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 pl-[47px]">
+                                            <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
+                                                {formatTime(message.timestamp)}
+                                            </span>
+                                        </div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
                     </div>
                 ))}
                 <div ref={messagesEndRef} />
