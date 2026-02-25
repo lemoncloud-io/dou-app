@@ -1,7 +1,8 @@
 import { Navigate, useLocation } from 'react-router-dom';
 
 import { AuthRoutes } from '../../features/auth';
-import { PublicLayout } from '../../shared/layouts';
+import { SafeAreaLayout } from '../../shared/layouts';
+import type { JSX } from 'react';
 
 const RedirectToLogin = (): JSX.Element => {
     const location = useLocation();
@@ -11,7 +12,7 @@ const RedirectToLogin = (): JSX.Element => {
 export const publicRoutes = [
     {
         path: '/',
-        element: <PublicLayout />,
+        element: <SafeAreaLayout />,
         children: [
             { index: true, element: <Navigate to="/auth/login" replace /> },
             {
