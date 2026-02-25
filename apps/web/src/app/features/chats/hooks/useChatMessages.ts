@@ -140,7 +140,10 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
             if (!effectiveChannelId) return;
 
             if (effectiveChannelId === channelId) {
-                setMessages(prev => [...prev, message]);
+                setMessages(prev => {
+                    if (prev.some(m => m.id === message.id)) return prev;
+                    return [...prev, message];
+                });
             }
 
             if (userId && effectiveChannelId) {

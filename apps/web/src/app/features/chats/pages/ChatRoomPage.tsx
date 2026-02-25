@@ -32,7 +32,11 @@ export const ChatRoomPage = () => {
     const { mutateAsync: leaveChannel } = useLeavePublicChannel();
     const { send, lastMessage } = useWebSocketV2();
     const { profile } = useSimpleWebCore();
-    const { messages, clearMessages: clearChatMessages } = useChatMessages(profile?.id ?? null, channelId ?? null);
+    const {
+        messages,
+        clearMessages: clearChatMessages,
+        addMessage,
+    } = useChatMessages(profile?.id ?? null, channelId ?? null);
 
     const queryClient = useQueryClient();
 
@@ -117,10 +121,29 @@ export const ChatRoomPage = () => {
         setContent('');
 
         try {
-            await sendMessage({
+            const newMessage = await sendMessage({
                 channelId,
                 content: content.trim(),
             });
+
+            const id = newMessage.id || '0';
+
+            const timestamp = newMessage?.createdAt ? new Date(newMessage.createdAt) : new Date();
+            const ownerId = newMessage.ownerId || '';
+            const ownerName = newMessage.owner$?.name || '알 수 없음';
+            const readCount = newMessage?.readCount ?? 0;
+
+            addMessage(
+                {
+                    id,
+                    content,
+                    timestamp,
+                    ownerId,
+                    ownerName,
+                    readCount,
+                },
+                channelId
+            );
         } catch (error) {
             console.error('Failed to send message:', error);
         }
