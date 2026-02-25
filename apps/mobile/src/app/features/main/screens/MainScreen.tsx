@@ -117,7 +117,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     return (
         <>
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+                <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }} edges={['top', 'bottom']}>
                     <AppWebView
                         ref={webViewRef}
                         source={{ uri: webviewUrl }}
