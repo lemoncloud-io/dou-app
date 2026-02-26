@@ -77,7 +77,6 @@ export const LoginPage = (): JSX.Element => {
                 action: 'update',
                 payload: {
                     token: data.token.trim(),
-                    dryRun: true,
                 },
             });
         }

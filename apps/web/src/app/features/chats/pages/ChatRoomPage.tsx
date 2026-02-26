@@ -3,8 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useSendPublicMessage } from '@chatic/chats';
-import { publicChannelsKeys, useLeavePublicChannel } from '@chatic/channels';
-import { useWebSocketV2 } from '@chatic/socket';
+import { publicChannelsKeys } from '@chatic/channels';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -24,13 +23,9 @@ export const ChatRoomPage = () => {
     const { channelId } = useParams<{ channelId: string }>();
     const [content, setContent] = useState('');
     const [isComposing, setIsComposing] = useState(false);
-    const [isReady, setIsReady] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const subscribedRef = useRef(false);
     const { mutateAsync: sendMessage, isPending } = useSendPublicMessage();
-    const { mutateAsync: leaveChannel } = useLeavePublicChannel();
-    const { send, lastMessage } = useWebSocketV2();
     const { profile } = useSimpleWebCore();
     const {
         messages,
@@ -70,43 +65,6 @@ export const ChatRoomPage = () => {
         }
     };
 
-    useEffect(() => {
-        if (channelId && !subscribedRef.current) {
-            subscribedRef.current = true;
-            send({
-                type: 'channel',
-                action: 'subscribe',
-                payload: {
-                    channels: [channelId],
-                },
-            });
-        }
-    }, [channelId, send]);
-
-    // 1초 후에도 ready가 안되면 다시 send
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (!isReady && channelId) {
-                send({
-                    type: 'channel',
-                    action: 'subscribe',
-                    payload: {
-                        channels: [channelId],
-                    },
-                });
-            }
-        }, 1000);
-
-        return () => clearTimeout(timer);
-    }, [channelId, send, isReady]);
-
-    useEffect(() => {
-        if (lastMessage?.type === 'channel' && lastMessage?.action === 'subscribe') {
-            setIsReady(true);
-            return;
-        }
-    }, [lastMessage]);
-
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
@@ -116,7 +74,7 @@ export const ChatRoomPage = () => {
     }, [messages]);
 
     const handleSend = async () => {
-        if (!content.trim() || !channelId || isPending || !isReady) return;
+        if (!content.trim() || !channelId || isPending) return;
 
         setContent('');
 
@@ -188,14 +146,6 @@ export const ChatRoomPage = () => {
         },
         {} as Record<string, typeof messages>
     );
-
-    if (!isReady) {
-        return (
-            <div className="flex h-full items-center justify-center bg-white">
-                <div className="w-8 h-8 border-4 border-[#B0EA10] border-t-transparent rounded-full animate-spin" />
-            </div>
-        );
-    }
 
     return (
         <div className="flex h-full flex-col bg-white">
