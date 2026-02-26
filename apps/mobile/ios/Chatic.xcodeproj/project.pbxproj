@@ -37,6 +37,10 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
 			path = Firebase;
 			sourceTree = "<group>";
 		};

@@ -1,0 +1,13 @@
+{
+    "indexes": [
+        {
+            "collectionGroup": "deferredDeepLinks",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "fingerprint", "order": "ASCENDING" },
+                { "fieldPath": "expiresAt", "order": "DESCENDING" }
+            ]
+        }
+    ],
+    "fieldOverrides": []
+}

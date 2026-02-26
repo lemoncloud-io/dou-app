@@ -78,6 +78,7 @@
         "@react-native-async-storage/async-storage": "^2.2.0",
         "@react-native-clipboard/clipboard": "^1.16.3",
         "@react-native-firebase/app": "^23.8.5",
+        "@react-native-firebase/firestore": "^23.8.6",
         "@react-native-firebase/messaging": "^23.8.5",
         "@react-native/new-app-screen": "~0.83.0",
         "@react-navigation/native": "^7.1.26",
@@ -115,6 +116,7 @@
         "react-native-iap": "^14.7.7",
         "react-native-localize": "^3.6.1",
         "react-native-nitro-modules": "^0.33.7",
+        "react-native-play-install-referrer": "^1.1.9",
         "react-native-screens": "^4.19.0",
         "react-native-uuid": "^2.0.3",
         "react-router-dom": "6.11.2",
@@ -207,7 +209,8 @@
         "apps/*",
         "libs/socket",
         "libs/chats",
-        "libs/places"
+        "libs/places",
+        "libs/deeplinks"
     ],
     "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
