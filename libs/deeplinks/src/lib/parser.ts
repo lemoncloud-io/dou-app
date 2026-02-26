@@ -4,8 +4,9 @@
  * Validates deep link URLs and extracts campaign parameters
  */
 
-const VALID_DOMAINS = ['app.chatic.io', 'dou.chatic.io', 'chatic.io'];
-const VALID_SCHEMES = ['chatic', 'https', 'http'];
+const VALID_DOMAINS = ['app.chatic.io', 'app-dev.chatic.io', 'dou.chatic.io', 'chatic.io'];
+const VALID_SCHEMES = ['chatic', 'chatic-dev', 'https', 'http'];
+const CUSTOM_SCHEMES = ['chatic', 'chatic-dev'];
 
 /**
  * Validates if a URL is a valid deep link
@@ -20,7 +21,7 @@ export const isValidDeepLink = (url: string): boolean => {
         }
 
         // Custom scheme is always valid
-        if (scheme === 'chatic') {
+        if (CUSTOM_SCHEMES.includes(scheme)) {
             return true;
         }
 

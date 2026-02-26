@@ -8,9 +8,9 @@
 
 import { isShortUrl } from './parser';
 
-const DEEP_LINK_DOMAIN = 'app.chatic.io';
+const DEEP_LINK_DOMAINS = ['app.chatic.io', 'app-dev.chatic.io'];
 const FRONTEND_DOMAIN = 'dou.chatic.io';
-const CUSTOM_SCHEME = 'chatic';
+const CUSTOM_SCHEMES = ['chatic', 'chatic-dev'];
 
 /**
  * Converts deep link URL to actual frontend URL
@@ -33,7 +33,7 @@ export const convertDeepLinkToFrontendUrl = (deepLinkUrl: string): string => {
         let path: string;
         let search: string;
 
-        if (scheme === CUSTOM_SCHEME) {
+        if (CUSTOM_SCHEMES.includes(scheme)) {
             // For custom scheme (chatic://), hostname is part of the path
             // e.g., chatic://chat/123 → hostname='chat', pathname='/123'
             // We need to combine them: /chat/123
@@ -79,9 +79,9 @@ export const convertShortUrlToFrontendUrl = async (url: string): Promise<string>
 
     try {
         const parsed = new URL(url);
-        // Convert app.chatic.io/s/xxx to dou.chatic.io/s/xxx
+        // Convert app.chatic.io/s/xxx or app-dev.chatic.io/s/xxx to dou.chatic.io/s/xxx
         // The frontend should handle the short URL redirect
-        if (parsed.hostname === DEEP_LINK_DOMAIN) {
+        if (DEEP_LINK_DOMAINS.includes(parsed.hostname)) {
             return `https://${FRONTEND_DOMAIN}${parsed.pathname}${parsed.search}`;
         }
         return url;
@@ -98,11 +98,11 @@ export const needsConversion = (url: string): boolean => {
         const parsed = new URL(url);
         const scheme = parsed.protocol.replace(':', '');
 
-        if (scheme === CUSTOM_SCHEME) {
+        if (CUSTOM_SCHEMES.includes(scheme)) {
             return true;
         }
 
-        if (parsed.hostname === DEEP_LINK_DOMAIN) {
+        if (DEEP_LINK_DOMAINS.includes(parsed.hostname)) {
             return true;
         }
 

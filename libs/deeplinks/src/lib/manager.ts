@@ -23,7 +23,7 @@ import type { DeepLinkConfig, DeepLinkSource, WebViewHandler } from './types';
 const DEFAULT_CONFIG: DeepLinkConfig = {
     deepLinkDomain: 'app.chatic.io',
     frontendDomain: 'dou.chatic.io',
-    customSchemes: ['chatic'],
+    customSchemes: ['chatic', 'chatic-dev'],
 };
 
 export class DeepLinkManager {
