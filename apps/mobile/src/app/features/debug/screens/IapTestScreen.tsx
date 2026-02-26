@@ -5,14 +5,15 @@ import { type ProductSubscription } from 'react-native-iap';
 import { useSubscriptionIap } from '../../../common';
 
 export const IapTestScreen = () => {
-    const { products, currentPurchases, loading, handlePurchase, checkUnfinishedPurchases } = useSubscriptionIap({
-        onPurchaseSuccess: () => {
-            Alert.alert('구독 완료', '구독 처리 완료!');
-        },
-        onPurchaseError: error => {
-            Alert.alert('구매 실패', error.message);
-        },
-    });
+    const { products, currentPurchases, loading, handlePurchase, restorePurchases, openSubscriptionManagement } =
+        useSubscriptionIap({
+            onPurchaseSuccess: () => {
+                Alert.alert('구독 완료', '구독 처리 완료!');
+            },
+            onPurchaseError: error => {
+                Alert.alert('구매 실패', error.message);
+            },
+        });
 
     const handleRestore = async () => {
         if (loading) return;
@@ -22,7 +23,7 @@ export const IapTestScreen = () => {
             {
                 text: '확인',
                 onPress: async () => {
-                    await checkUnfinishedPurchases();
+                    await restorePurchases();
                 },
             },
         ]);
@@ -50,15 +51,13 @@ export const IapTestScreen = () => {
             <View style={[styles.itemContainer, isPurchased && styles.purchasedItem]}>
                 <View style={styles.textContainer}>
                     <Text style={styles.title}>{item.title || item.displayName}</Text>
-                    <Text style={styles.desc} numberOfLines={2}>
-                        {item.description}
-                    </Text>
+                    <Text style={styles.desc}>{item.description}</Text>
                 </View>
 
                 {isPurchased ? (
-                    <View style={styles.purchasedBadge}>
-                        <Text style={styles.purchasedText}>이용 중</Text>
-                    </View>
+                    <TouchableOpacity style={[styles.buyButton]} onPress={openSubscriptionManagement}>
+                        <Text style={styles.purchasedText}>구독 관리</Text>
+                    </TouchableOpacity>
                 ) : (
                     <TouchableOpacity
                         style={[styles.buyButton, loading && styles.disabledButton]}

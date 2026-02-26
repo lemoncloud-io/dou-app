@@ -1,18 +1,17 @@
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import Config from 'react-native-config';
+import type { SubscriptionReplacementModeAndroid, SubscriptionProductReplacementParamsAndroid } from 'react-native-iap';
 import {
-    type ProductSubscription,
-    type Purchase,
     fetchProducts,
     finishTransaction,
     getAvailablePurchases,
     initConnection,
+    type ProductSubscription,
+    type Purchase,
     requestPurchase,
 } from 'react-native-iap';
 
 import { Logger } from './log';
-
-import type { PurchaseAndroid } from 'react-native-iap';
 
 export const IOS_SKU_LIST: string[] = (Config.VITE_SUBSCRIPTION_IAP_SKUS_IOS ?? '')
     .split(',')
@@ -31,9 +30,49 @@ export const itemSkus: string[] =
     }) ?? [];
 
 /**
+ * `.env` 파일에 기록된 배열 순서를 바탕으로 Android 상품의 등급(Tier)을 계산합니다.
+ *
+ *  `[CRITICAL WARNING]`
+ *
+ * 이 함수는 배열의 인덱스(Index)를 등급 점수로 사용합니다.
+ * 따라서 `.env` 파일의 `VITE_SUBSCRIPTION_IAP_SKUS_ANDROID` 값은
+ * 반드시 가장 낮은 등급의 요금제부터 높은 등급 순서(오름차순)로 기입되어야 합니다.
+ *
+ * 만약 순서를 오기입하거나 뒤섞어서 기입할 경우:
+ * 1. Android 업그레이드/다운그레이드 판별 로직이 완전히 반대로 동작합니다.
+ * 2. 업그레이드 시 잔여 금액이 환산되지 않거나, 다운그레이드 시 사용자의 혜택이 즉시 박탈되는 등 심각한 결제 클레임의 원인이 됩니다.
+ * @param sku - 등급을 조회할 안드로이드 상품 SKU 코드
+ * @returns 1부터 시작하는 등급 점수 (목록에 존재하지 않을 경우 0 반환)
+ */
+const getSkuRank = (sku: string): number => {
+    if (Platform.OS !== 'android') return 0;
+    const index = ANDROID_SKU_LIST.indexOf(sku);
+    return index !== -1 ? index + 1 : 0;
+};
+/**
+ * - 업그레이드 및 다운그레이드 처리 함수
+ * - 업그레이드: 즉시 변경하고 남은 시간만큼 돈으로 환산
+ * - 다운그레이드: 이번 결제 주기까지는 상위 혜택 유지, 다음 주기부터 변경
+ * @param oldSku 기존 상품
+ * @param newSku 새로운 상품
+ */
+const getReplacementMode = (oldSku: string, newSku: string): SubscriptionReplacementModeAndroid => {
+    const oldRank = getSkuRank(oldSku);
+    const newRank = getSkuRank(newSku);
+
+    if (newRank > oldRank) {
+        return 'with-time-proration';
+    } else if (newRank < oldRank) {
+        return 'deferred';
+    } else {
+        return 'with-time-proration';
+    }
+};
+
+/**
  * - 구독형 인앱결제 서비스
  * - 인앱결제 테스트를 위해서는 사전 iOS 및 Android 내 테스트 계정 등록 필요
- * - 인앱결제 테스트는 prod 환경 내에서만 동작
+ * - 인앱결제 테스트는 Release 환경 내에서만 동작
  */
 export const SubscriptionIapService = {
     init: async (): Promise<boolean> => {
@@ -63,13 +102,38 @@ export const SubscriptionIapService = {
     },
 
     /**
-     * 구독 요청
+     * 구매 신청
      * @param sku 상품 코드 (`Stock Keeping Unit`)
-     * @param offerToken Android 전용 토큰
+     * @param oldSku (Android Only) 업그레이드/다운그레이드 시 교체할 기존 상품 코드
+     * @returns void; 실제 구매 완료 데이터는 리스너를 통해 수신
      */
-    requestSubscription: async (sku: string, offerToken?: string): Promise<void> => {
+    purchase: async (sku: string, oldSku?: string): Promise<void> => {
+        const products = await SubscriptionIapService.getSubscriptions();
+        const targetProduct = products.find(p => p.id === sku);
+        if (!targetProduct) {
+            throw new Error('Product not found');
+        }
+
+        const offer = targetProduct.subscriptionOffers?.[0];
+        const offerToken = offer?.offerTokenAndroid ?? undefined;
+
         if (Platform.OS === 'android' && !offerToken) {
             throw new Error('Need offerToken in Android payment.');
+        }
+
+        let subscriptionProductReplacementParamsAndroid: SubscriptionProductReplacementParamsAndroid | undefined =
+            undefined;
+
+        if (Platform.OS === 'android' && oldSku) {
+            const availablePurchases = await getAvailablePurchases();
+            const oldPurchase = availablePurchases.find(p => p.productId === oldSku);
+
+            if (oldPurchase?.productId) {
+                subscriptionProductReplacementParamsAndroid = {
+                    oldProductId: oldPurchase.productId,
+                    replacementMode: getReplacementMode(oldSku, sku),
+                };
+            }
         }
 
         await requestPurchase({
@@ -87,58 +151,36 @@ export const SubscriptionIapService = {
                             sku: sku,
                         },
                     ],
+                    subscriptionProductReplacementParams: subscriptionProductReplacementParamsAndroid,
                 },
             },
         });
     },
 
     /**
-     * 구매 신청
-     * @param sku 상품 코드 (`Stock Keeping Unit`)
-     * @param products 상품 목록
+     * 구매 복원
+     * - 스토어(Apple/Google)의 유효한 구매 내역(영수증)을 조회
+     * - 조회된 내역을 백엔드 서버로 보내 유효성을 검증하고, 사용자 DB와 동기화
+     * - 동기화가 완료된 구매 내역 목록을 반환
+     * -
      */
-    purchase: async (sku: string, products: ProductSubscription[]): Promise<void> => {
-        const targetProduct = products.find(p => p.id === sku);
-        if (!targetProduct) {
-            throw new Error('Product not found');
-        }
-
-        const offer = targetProduct.subscriptionOffers?.[0];
-        const offerToken = offer?.offerTokenAndroid ?? undefined;
-
-        await SubscriptionIapService.requestSubscription(sku, offerToken);
-    },
-
-    /**
-     * - 앱에서 결제는 완료하였지만, 서버 검증에 실패한 상품들 탐색 후 순차적으로 재시도 처리
-     * - 서버 검증 성공 시, 최종 구매 완료 트랜잭션 처리
-     * @param onSuccess 최종적인 구매 트랜잭션이 완료되었을때에 대한 리스너
-     */
-    processUnfinishedPurchases: async (onSuccess?: () => void): Promise<void> => {
+    restorePurchases: async (): Promise<Purchase[]> => {
         const purchases = await getAvailablePurchases();
-        if (purchases.length === 0) return;
+        const restoredPurchases: Purchase[] = [];
 
         for (const purchase of purchases) {
             try {
-                if (Platform.OS === 'android') {
-                    const androidPurchase = purchase as PurchaseAndroid;
-                    if (androidPurchase.isAcknowledgedAndroid) {
-                        continue;
-                    } else {
-                        Logger.info('IAP', 'Found unfinished transaction. Retrying verification:', purchase.productId);
-                    }
-                }
+                Logger.info('IAP', 'Syncing transaction:', purchase.productId);
 
                 await SubscriptionIapService.verifyPurchase(purchase);
                 await SubscriptionIapService.finish(purchase);
 
-                if (onSuccess) {
-                    onSuccess();
-                }
+                restoredPurchases.push(purchase);
             } catch (e) {
-                Logger.error('IAP', `Failed to recover purchase: ${purchase.productId}`, e);
+                Logger.error('IAP', `Failed to restore purchase: ${purchase.productId}`, e);
             }
         }
+        return restoredPurchases;
     },
 
     /**
@@ -150,6 +192,8 @@ export const SubscriptionIapService = {
      */
     verifyPurchase: async (purchase: Purchase): Promise<void> => {
         try {
+            // TODO: [Server Integration]
+            // 백엔드 API를 호출하여 purchase.transactionReceipt(iOS) 또는 purchase.purchaseToken(Android)을 검증필요
             Logger.info('IAP', 'Server verification success', purchase);
         } catch (e) {
             Logger.error('IAP', 'Server verification failed', e);
@@ -163,5 +207,17 @@ export const SubscriptionIapService = {
      */
     finish: async (purchase: Purchase): Promise<void> => {
         await finishTransaction({ purchase, isConsumable: false });
+    },
+
+    /**
+     * - 구독 관리(취소) 페이지로 이동
+     * - 앱 내에서 직접 취소는 불가능하며, 스토어의 관리 페이지로 이동시켜야 함
+     */
+    linkToManageSubscriptions: async (): Promise<void> => {
+        if (Platform.OS === 'ios') {
+            await Linking.openURL('https://apps.apple.com/account/subscriptions');
+        } else {
+            await Linking.openURL('https://play.google.com/store/account/subscriptions');
+        }
     },
 };

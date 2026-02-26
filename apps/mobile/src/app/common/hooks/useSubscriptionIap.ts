@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import {
     type ProductSubscription,
     type Purchase,
@@ -86,11 +87,25 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
         };
 
         const updateSubscription = purchaseUpdatedListener(async purchase => {
-            if (purchase.purchaseToken) {
-                await handleCompleteTransaction(purchase);
+            if (purchase.purchaseState === 'pending') {
+                Logger.info('IAP', 'Transaction is pending. Waiting for approval.', purchase);
+                return;
+            }
+
+            if (Platform.OS === 'ios') {
+                if (purchase.transactionId) {
+                    await handleCompleteTransaction(purchase);
+                } else {
+                    Logger.warn('IAP', 'Purchase updated but transactionId is missing (iOS).', purchase);
+                    setLoading(false);
+                }
             } else {
-                Logger.warn('IAP', 'Purchase updated but purchaseToken is missing.', purchase);
-                setLoading(false);
+                if (purchase.purchaseToken) {
+                    await handleCompleteTransaction(purchase);
+                } else {
+                    Logger.warn('IAP', 'Purchase updated but purchaseToken is missing (Android).', purchase);
+                    setLoading(false);
+                }
             }
         });
 
@@ -109,13 +124,14 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     /**
      * 구매 처리
      * @param sku 상품 코드 (`Stock Keeping Unit`)
+     * @param oldSku (Optional) 업그레이드/다운그레이드 시 교체할 현재 구독중인 상품 코드
      */
-    const handlePurchase = async (sku: string) => {
+    const handlePurchase = async (sku: string, oldSku?: string) => {
         if (loading) return;
         setLoading(true);
 
         try {
-            await SubscriptionIapService.purchase(sku, products);
+            await SubscriptionIapService.purchase(sku, oldSku);
         } catch (e: any) {
             Logger.error('IAP', 'Purchase Request Failed', e);
 
@@ -123,7 +139,7 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
              *  이미 보유 중인 경우 복구(검증) 로직 실행
              */
             if (e.code === 'E_ALREADY_OWNED') {
-                await checkUnfinishedPurchases();
+                await restorePurchases();
             }
             setLoading(false);
         }
@@ -132,11 +148,23 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     /**
      * - 앱에서 결제는 완료하였지만, 서버 검증에 실패한 상품들 탐색 후 재시도 처리
      * - 서버 검증 성공 시, 최종 구매 완료 트랜잭션 처리
+     * - iOS의 경우 restorePurchases()를 호출하면 이전에 구매했던 모든 상품들이 purchaseUpdatedListener를 통해 다시 전달
      */
-    const checkUnfinishedPurchases = useCallback(async () => {
-        await SubscriptionIapService.processUnfinishedPurchases(callbacks.current.onPurchaseSuccess);
-        await refreshPurchases();
+    const restorePurchases = useCallback(async () => {
+        const restored = await SubscriptionIapService.restorePurchases();
+
+        if (restored.length > 0) {
+            callbacks.current.onPurchaseSuccess?.();
+            await refreshPurchases();
+        }
     }, [refreshPurchases]);
 
-    return { products, currentPurchases, loading, handlePurchase, checkUnfinishedPurchases };
+    /**
+     * 구독 관리 페이지 이동
+     */
+    const openSubscriptionManagement = useCallback(async () => {
+        await SubscriptionIapService.linkToManageSubscriptions();
+    }, []);
+
+    return { products, currentPurchases, loading, handlePurchase, restorePurchases, openSubscriptionManagement };
 };
