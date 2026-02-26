@@ -93,6 +93,7 @@ android {
         prod {
             dimension "default"
             resValue "string", "app_name", "Dou"
+            manifestPlaceholders = [appScheme: "chatic", appHost: "app.chatic.io"]
         }
 
         dev {
@@ -100,6 +101,7 @@ android {
             applicationIdSuffix ".dev"
             resValue "string", "app_name", "DoU_Dev"
             resValue "string", "build_config_package", "io.chatic.dou"
+            manifestPlaceholders = [appScheme: "chatic-dev", appHost: "app-dev.chatic.io"]
         }
     }
 

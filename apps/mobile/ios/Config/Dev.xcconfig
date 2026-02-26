@@ -1,0 +1,5 @@
+// Dev Build Configuration
+// Bundle ID suffix and URL scheme for development builds
+
+APP_URL_SCHEME = chatic-dev
+APP_DEEP_LINK_HOST = app-dev.chatic.io

@@ -1,0 +1,5 @@
+// Prod Build Configuration
+// Bundle ID suffix and URL scheme for production builds
+
+APP_URL_SCHEME = chatic
+APP_DEEP_LINK_HOST = app.chatic.io
