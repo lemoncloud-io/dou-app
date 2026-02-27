@@ -2,9 +2,8 @@ import { ChevronLeft, Ellipsis } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { useSendPublicMessage } from '@chatic/chats';
-import { publicChannelsKeys, useLeavePublicChannel } from '@chatic/channels';
-import { useWebSocketV2 } from '@chatic/socket';
+import { useLeaveRoom } from '../hooks/useLeaveRoom';
+import { useSendMessage } from '../hooks/useSendMessage';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -13,9 +12,8 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
 import { useSimpleWebCore } from '@chatic/web-core';
-import { useQueryClient } from '@tanstack/react-query';
-import type { ListResult } from '@chatic/shared';
-import type { ChannelView } from '@lemoncloud/chatic-socials-api';
+
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useChatMessages } from '../hooks/useChatMessages';
 import { useReadMessage } from '../hooks/useReadMessage';
 
@@ -24,13 +22,12 @@ export const ChatRoomPage = () => {
     const { channelId } = useParams<{ channelId: string }>();
     const [content, setContent] = useState('');
     const [isComposing, setIsComposing] = useState(false);
-    const [isReady, setIsReady] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const { sendMessage, isPending } = useSendMessage();
+    const { leaveRoom } = useLeaveRoom();
+    const { toast } = useToast();
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const subscribedRef = useRef(false);
-    const { mutateAsync: sendMessage, isPending } = useSendPublicMessage();
-    const { mutateAsync: leaveChannel } = useLeavePublicChannel();
-    const { send, lastMessage } = useWebSocketV2();
+
     const { profile } = useSimpleWebCore();
     const {
         messages,
@@ -38,74 +35,20 @@ export const ChatRoomPage = () => {
         addMessage,
     } = useChatMessages(profile?.id ?? null, channelId ?? null);
 
-    const queryClient = useQueryClient();
-
-    useReadMessage(channelId);
+    useReadMessage(channelId, messages);
 
     const handleLeaveRoom = async () => {
         if (!channelId) return;
 
         try {
-            await leaveChannel({ id: channelId, body: {} });
+            await leaveRoom(channelId, profile?.id);
             await clearChatMessages();
-            queryClient.setQueryData<ListResult<ChannelView>>(publicChannelsKeys.list({ limit: -1 }), old => {
-                if (!old) {
-                    return {
-                        list: [],
-                        total: 1,
-                        page: 0,
-                        limit: -1,
-                    };
-                }
-                return {
-                    ...old,
-                    list: old.list.filter(item => item.id !== channelId),
-                    total: (old.total || 1) - 1,
-                };
-            });
-
+            toast({ title: '채팅방을 나갔습니다' });
             navigate(-1);
         } catch (error) {
             console.error('Failed to leave room:', error);
         }
     };
-
-    useEffect(() => {
-        if (channelId && !subscribedRef.current) {
-            subscribedRef.current = true;
-            send({
-                type: 'channel',
-                action: 'subscribe',
-                payload: {
-                    channels: [channelId],
-                },
-            });
-        }
-    }, [channelId, send]);
-
-    // 1초 후에도 ready가 안되면 다시 send
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (!isReady && channelId) {
-                send({
-                    type: 'channel',
-                    action: 'subscribe',
-                    payload: {
-                        channels: [channelId],
-                    },
-                });
-            }
-        }, 1000);
-
-        return () => clearTimeout(timer);
-    }, [channelId, send, isReady]);
-
-    useEffect(() => {
-        if (lastMessage?.type === 'channel' && lastMessage?.action === 'subscribe') {
-            setIsReady(true);
-            return;
-        }
-    }, [lastMessage]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -125,7 +68,7 @@ export const ChatRoomPage = () => {
             e.stopPropagation();
         }
 
-        if (!content.trim() || !channelId || isPending || !isReady) return;
+        if (!content.trim() || !channelId || isPending) return;
 
         setContent('');
 
@@ -134,29 +77,16 @@ export const ChatRoomPage = () => {
         });
 
         try {
-            const newMessage = await sendMessage({
-                channelId,
-                content: content,
-            });
+            const newMessage = await sendMessage(channelId, content.trim());
 
             const id = newMessage.id || '0';
-
             const timestamp = newMessage?.createdAt ? new Date(newMessage.createdAt) : new Date();
             const ownerId = newMessage.ownerId || '';
             const ownerName = newMessage.owner$?.name || '알 수 없음';
             const readCount = newMessage?.readCount ?? 0;
+            const chatNo = newMessage?.chatNo;
 
-            await addMessage(
-                {
-                    id,
-                    content: content,
-                    timestamp,
-                    ownerId,
-                    ownerName,
-                    readCount,
-                },
-                channelId
-            );
+            addMessage({ id, content: content.trim(), timestamp, ownerId, ownerName, readCount, chatNo }, channelId);
         } catch (error) {
             console.error('Failed to send message:', error);
         }
@@ -211,14 +141,6 @@ export const ChatRoomPage = () => {
         },
         {} as Record<string, typeof messages>
     );
-
-    if (!isReady) {
-        return (
-            <div className="flex h-full items-center justify-center bg-white">
-                <div className="w-8 h-8 border-4 border-[#B0EA10] border-t-transparent rounded-full animate-spin" />
-            </div>
-        );
-    }
 
     return (
         <div className="flex h-full flex-col bg-white">

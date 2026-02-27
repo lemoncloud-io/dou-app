@@ -1,11 +1,12 @@
 import { X } from 'lucide-react';
 import { useState } from 'react';
 
-import { useInvitePublicChannel } from '@chatic/channels';
+import { useInviteChannel } from '../hooks/useInviteChannel';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 const decodeJWT = (token: string) => {
     try {
@@ -37,7 +38,8 @@ interface InviteFriendsDialogProps {
 
 export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFriendsDialogProps) => {
     const [token, setToken] = useState('');
-    const { mutateAsync: inviteChannel, isPending } = useInvitePublicChannel();
+    const { inviteChannel, isPending } = useInviteChannel();
+    const { toast } = useToast();
 
     const decodedToken = token ? decodeJWT(token) : null;
     const isValidToken = token && decodedToken !== null;
@@ -47,15 +49,12 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
         if (!channelId || !isValidToken || !decodedToken?.uid) return;
 
         try {
-            await inviteChannel({
-                id: channelId,
-                body: {
-                    userIds: [decodedToken.uid],
-                },
-            });
+            await inviteChannel(channelId, [decodedToken.uid]);
+            toast({ title: '초대되었습니다' });
             setToken('');
             onOpenChange?.(false);
         } catch (error) {
+            toast({ title: '초대에 실패했습니다', variant: 'destructive' });
             console.error('Failed to invite:', error);
         }
     };

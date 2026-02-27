@@ -1,6 +1,7 @@
 import { useSessionDeviceId } from '@chatic/shared';
 import { useWebSocketV2 } from '@chatic/socket';
 import { useListenMessage } from '../features/chats/hooks/useListenMessage';
+import { useSocketAuth } from '../shared/hooks/useSocketAuth';
 
 const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT;
 
@@ -14,6 +15,7 @@ export const WebSocketV2Connection = () => {
     });
 
     useListenMessage();
+    useSocketAuth();
 
     return null;
 };

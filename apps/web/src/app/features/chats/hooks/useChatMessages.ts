@@ -7,6 +7,7 @@ interface Message {
     ownerId: string;
     ownerName?: string;
     readCount?: number;
+    chatNo?: number;
 }
 
 interface StoredMessage extends Omit<Message, 'timestamp'> {
@@ -83,6 +84,7 @@ const loadMessages = async (userId: string, channelId: string): Promise<Message[
                 timestamp: new Date(stored.timestamp),
                 ownerId: stored.ownerId,
                 ownerName: stored.ownerName,
+                chatNo: stored.chatNo,
             }));
             resolve(messages);
         };

@@ -2,12 +2,11 @@ import { useForm } from 'react-hook-form';
 
 import { Loader2, X } from 'lucide-react';
 
-import { useCreatePublicChannel } from '@chatic/channels';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
-import type { ChatStartBody } from '@lemoncloud/chatic-socials-api';
+import { useCreateChannel } from '../hooks/useCreateChannel';
 
 interface CreateChannelDialogProps {
     open: boolean;
@@ -16,27 +15,22 @@ interface CreateChannelDialogProps {
 }
 
 export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateChannelDialogProps) => {
-    const { mutateAsync, isPending } = useCreatePublicChannel();
+    const { createChannel, isLoading } = useCreateChannel();
     const {
         register,
         handleSubmit,
         reset,
         formState: { errors },
-    } = useForm<ChatStartBody>();
+    } = useForm<{ name: string; desc?: string }>();
 
-    const onSubmit = async (data: ChatStartBody) => {
+    const onSubmit = async (data: { name: string; desc?: string }) => {
         try {
-            await mutateAsync({
-                name: data.name,
-                desc: data.desc,
-                // TODO: 추후 개선
-                stereo: 'public',
-            });
+            await createChannel({ stereo: 'public', name: data.name, desc: data.desc });
             reset();
             onOpenChange(false);
             onComplete?.();
-        } catch (error) {
-            // Error handled by useCustomMutation
+        } catch {
+            // isError handled by hook
         }
     };
 
@@ -143,10 +137,10 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                         <div className="flex flex-col gap-4 px-4 pt-5 pb-4">
                             <Button
                                 type="submit"
-                                disabled={isPending}
+                                disabled={isLoading}
                                 className="flex items-center justify-center gap-1.5 h-[50px] px-6 py-3 bg-[#B0EA10] rounded-full text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-[#EAEAEC] disabled:text-[#BABCC0]"
                             >
-                                {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : '완료'}
+                                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : '완료'}
                             </Button>
                         </div>
                     </div>
