@@ -7,10 +7,8 @@
 
 import firestore from '@react-native-firebase/firestore';
 
+import { DEFERRED_LINKS_COLLECTION, LINK_TTL_HOURS } from './constants';
 import { generateFingerprint } from './fingerprint';
-
-const COLLECTION_NAME = 'deferredDeepLinks';
-const LINK_TTL_HOURS = 1;
 
 /**
  * Deferred link document structure
@@ -37,7 +35,7 @@ export const retrieveDeferredLinkFromFirestore = async (): Promise<string | null
 
         // Query for matching fingerprint that hasn't expired
         const querySnapshot = await firestore()
-            .collection(COLLECTION_NAME)
+            .collection(DEFERRED_LINKS_COLLECTION)
             .where('fingerprint', '==', fingerprint)
             .where('expiresAt', '>', now)
             .orderBy('expiresAt', 'desc')
@@ -77,7 +75,7 @@ export const storeDeferredLinkToFirestore = async (deepLinkUrl: string): Promise
         const now = firestore.Timestamp.now();
         const expiresAt = firestore.Timestamp.fromDate(new Date(Date.now() + LINK_TTL_HOURS * 60 * 60 * 1000));
 
-        await firestore().collection(COLLECTION_NAME).add({
+        await firestore().collection(DEFERRED_LINKS_COLLECTION).add({
             fingerprint,
             deepLinkUrl,
             createdAt: now,
@@ -100,7 +98,7 @@ export const cleanupExpiredLinks = async (): Promise<number> => {
     try {
         const now = firestore.Timestamp.now();
 
-        const expiredDocs = await firestore().collection(COLLECTION_NAME).where('expiresAt', '<', now).get();
+        const expiredDocs = await firestore().collection(DEFERRED_LINKS_COLLECTION).where('expiresAt', '<', now).get();
 
         const batch = firestore().batch();
         expiredDocs.docs.forEach(doc => {

@@ -20,6 +20,11 @@ export interface FingerprintComponents {
     locale: string;
 }
 
+/** Response from ipify.org API */
+interface IpifyResponse {
+    ip: string;
+}
+
 /**
  * Get public IP address using external service
  */
@@ -29,7 +34,7 @@ const getPublicIP = async (): Promise<string> => {
             method: 'GET',
             headers: { Accept: 'application/json' },
         });
-        const data = await response.json();
+        const data: IpifyResponse = await response.json();
         return data.ip || 'unknown';
     } catch (error) {
         console.error('[Fingerprint] Failed to get IP:', error);

@@ -17,9 +17,11 @@ import { retrieveDeferredLinkFromFirestore } from './firestoreDeferred';
 
 import type { DeferredLinkData } from './types';
 
+import { ONE_HOUR_MS } from './constants';
+
 const DEFERRED_LINK_KEY = '@chatic:deferredLink';
 const DEFERRED_LINK_PROCESSED_KEY = '@chatic:deferredLinkProcessed';
-const MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
+const MAX_AGE_MS = ONE_HOUR_MS;
 
 /**
  * Store deferred deep link for later processing

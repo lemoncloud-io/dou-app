@@ -33,6 +33,16 @@ export {
     retrieveDeferredLinkFromFirestore,
     storeDeferredLinkToFirestore,
 } from './firestoreDeferred';
+export {
+    CUSTOM_SCHEMES,
+    DEEP_LINK_DOMAINS,
+    DEFERRED_LINKS_COLLECTION,
+    FRONTEND_DOMAIN,
+    LINK_TTL_HOURS,
+    ONE_HOUR_MS,
+    VALID_DOMAINS,
+    VALID_SCHEMES,
+} from './constants';
 export type { DeepLinkConfig, DeepLinkSource, DeferredLinkData, WebViewHandler } from './types';
 export type { FingerprintComponents } from './fingerprint';
 export type { DeferredLinkDocument } from './firestoreDeferred';

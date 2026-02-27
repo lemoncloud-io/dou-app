@@ -6,11 +6,8 @@
  * - chatic://path -> https://dou.chatic.io/path
  */
 
+import { CUSTOM_SCHEMES, DEEP_LINK_DOMAINS, FRONTEND_DOMAIN } from './constants';
 import { isShortUrl } from './parser';
-
-const DEEP_LINK_DOMAINS = ['app.chatic.io', 'app-dev.chatic.io'];
-const FRONTEND_DOMAIN = 'dou.chatic.io';
-const CUSTOM_SCHEMES = ['chatic', 'chatic-dev'];
 
 /**
  * Converts deep link URL to actual frontend URL
