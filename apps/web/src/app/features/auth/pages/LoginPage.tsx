@@ -1,7 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 
-import { useWebSocketV2 } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
@@ -38,7 +37,6 @@ const decodeJWT = (token: string) => {
 
 export const LoginPage = (): JSX.Element => {
     const navigate = useNavigate();
-    const { send, lastMessage } = useWebSocketV2();
     const { setIsAuthenticated, setProfile } = useSimpleWebCore();
     const { toast } = useToast();
     const {
@@ -72,14 +70,6 @@ export const LoginPage = (): JSX.Element => {
             simpleWebCore.saveToken(data.token.trim());
             setIsAuthenticated(true);
             toast({ title: '로그인 성공' });
-            send({
-                type: 'auth',
-                action: 'update',
-                payload: {
-                    token: data.token.trim(),
-                    dryRun: true,
-                },
-            });
         }
     };
 

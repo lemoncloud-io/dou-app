@@ -24,6 +24,7 @@ export const useListenMessage = () => {
             const ownerId = chatMessage.payload?.ownerId || '';
             const ownerName = chatMessage.payload?.owner$?.name || '알 수 없음';
             const readCount = chatMessage.payload?.readCount ?? 0;
+            const chatNo = chatMessage.payload?.chatNo;
 
             addMessage(
                 {
@@ -33,6 +34,7 @@ export const useListenMessage = () => {
                     ownerId,
                     ownerName,
                     readCount,
+                    chatNo,
                 },
                 channelId
             );
