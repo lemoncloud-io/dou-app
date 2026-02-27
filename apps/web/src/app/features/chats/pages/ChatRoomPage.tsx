@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useSendMessage } from '../hooks/useSendMessage';
-import { publicChannelsKeys } from '@chatic/channels';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -12,9 +11,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
 import { useSimpleWebCore } from '@chatic/web-core';
-import { useQueryClient } from '@tanstack/react-query';
-import type { ListResult } from '@chatic/shared';
-import type { ChannelView } from '@lemoncloud/chatic-socials-api';
+
 import { useChatMessages } from '../hooks/useChatMessages';
 import { useReadMessage } from '../hooks/useReadMessage';
 
@@ -33,30 +30,13 @@ export const ChatRoomPage = () => {
         addMessage,
     } = useChatMessages(profile?.id ?? null, channelId ?? null);
 
-    const queryClient = useQueryClient();
-
-    useReadMessage(channelId);
+    useReadMessage(channelId, messages);
 
     const handleLeaveRoom = async () => {
         if (!channelId) return;
 
         try {
             await clearChatMessages();
-            queryClient.setQueryData<ListResult<ChannelView>>(publicChannelsKeys.list({ limit: -1 }), old => {
-                if (!old) {
-                    return {
-                        list: [],
-                        total: 1,
-                        page: 0,
-                        limit: -1,
-                    };
-                }
-                return {
-                    ...old,
-                    list: old.list.filter(item => item.id !== channelId),
-                    total: (old.total || 1) - 1,
-                };
-            });
 
             navigate(-1);
         } catch (error) {
@@ -85,8 +65,9 @@ export const ChatRoomPage = () => {
             const ownerId = newMessage.ownerId || '';
             const ownerName = newMessage.owner$?.name || '알 수 없음';
             const readCount = newMessage?.readCount ?? 0;
+            const chatNo = newMessage?.chatNo;
 
-            addMessage({ id, content: content.trim(), timestamp, ownerId, ownerName, readCount }, channelId);
+            addMessage({ id, content: content.trim(), timestamp, ownerId, ownerName, readCount, chatNo }, channelId);
         } catch (error) {
             console.error('Failed to send message:', error);
         }
