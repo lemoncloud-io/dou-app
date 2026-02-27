@@ -17,12 +17,14 @@ let globalSendFn: ((data: unknown) => void) | null = null;
 
 export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
     const store = useWebSocketV2Store();
+    const isConnected = useWebSocketV2Store(s => s.isConnected);
     const workerRef = useRef<Worker | null>(null);
 
     // If no config provided, return current state and send function
     if (!config) {
         return {
             ...store,
+            isConnected,
             send: globalSendFn || (() => console.warn('[WebSocketV2] Not initialized')),
         };
     }
@@ -62,6 +64,10 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                     if (message.type === 'connectionId') {
                         store.setId(message.id);
                         store.setConnectionId(message.connectionId);
+                        store.setIsConnected(true);
+                    }
+
+                    if (message.type === 'status' && message.status === 'connected') {
                         store.setIsConnected(true);
                     }
                 };
