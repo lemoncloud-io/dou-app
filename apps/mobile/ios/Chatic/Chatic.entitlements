@@ -7,6 +7,7 @@
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:app.chatic.io</string>
+		<string>applinks:app-dev.chatic.io</string>
 	</array>
 </dict>
 </plist>
