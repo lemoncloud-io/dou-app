@@ -5,17 +5,17 @@ import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
 export const useMyChannels = () => {
-    const { send, isConnected, lastMessage } = useWebSocketV2();
+    const { emitAuthenticated, lastMessage } = useWebSocketV2();
     const hasSentRef = useRef(false);
     const [channels, setChannels] = useState<ChannelView[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isError, setIsError] = useState(false);
 
     useEffect(() => {
-        if (!isConnected || hasSentRef.current) return;
+        if (hasSentRef.current) return;
         hasSentRef.current = true;
-        send({ type: 'chat', action: 'mine', payload: { detail: true } });
-    }, [isConnected]);
+        emitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
+    }, []);
 
     useEffect(() => {
         const envelope = lastMessage as WSSEnvelope<{ list: ChannelView[] }> | null;

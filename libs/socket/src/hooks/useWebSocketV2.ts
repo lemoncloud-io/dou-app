@@ -14,6 +14,8 @@ export interface UseWebSocketV2Config {
 // Global worker reference for singleton pattern
 let globalWorkerRef: Worker | null = null;
 let globalSendFn: ((data: unknown) => void) | null = null;
+let globalEmitFn: ((data: unknown) => void) | null = null;
+let globalEmitAuthenticatedFn: ((data: unknown) => void) | null = null;
 
 export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
     const store = useWebSocketV2Store();
@@ -26,6 +28,8 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
             ...store,
             isConnected,
             send: globalSendFn || (() => console.warn('[WebSocketV2] Not initialized')),
+            emit: globalEmitFn || (() => console.warn('[WebSocketV2] Not initialized')),
+            emitAuthenticated: globalEmitAuthenticatedFn || (() => console.warn('[WebSocketV2] Not initialized')),
         };
     }
 
@@ -59,6 +63,15 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                         const envelope = message.data as WSSEnvelope;
                         console.log(`${logPrefix} Message:`, envelope);
                         store.setLastMessage(envelope);
+
+                        const payload = envelope.payload as { state?: string } | undefined;
+                        if (
+                            envelope.type === 'auth' &&
+                            envelope.action === 'update' &&
+                            payload?.state === 'authenticated'
+                        ) {
+                            store.setIsVerified(true);
+                        }
                     }
 
                     if (message.type === 'connectionId') {
@@ -116,8 +129,57 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
         [logPrefix]
     );
 
-    // Store send function globally
+    const emit = useCallback(
+        (data: unknown): void => {
+            const worker = workerRef.current || globalWorkerRef;
+            if (!worker) {
+                console.warn(`${logPrefix} Cannot emit - worker not initialized`);
+                return;
+            }
+            if (useWebSocketV2Store.getState().isConnected) {
+                worker.postMessage({ type: 'send', data });
+                return;
+            }
+            // wait for connection then send
+            const unsub = useWebSocketV2Store.subscribe(
+                s => s.isConnected,
+                connected => {
+                    if (!connected) return;
+                    unsub();
+                    (workerRef.current || globalWorkerRef)?.postMessage({ type: 'send', data });
+                }
+            );
+        },
+        [logPrefix]
+    );
+
+    const emitAuthenticated = useCallback(
+        (data: unknown): void => {
+            const worker = workerRef.current || globalWorkerRef;
+            if (!worker) {
+                console.warn(`${logPrefix} Cannot emitAuthenticated - worker not initialized`);
+                return;
+            }
+            if (useWebSocketV2Store.getState().isVerified) {
+                worker.postMessage({ type: 'send', data });
+                return;
+            }
+            const unsub = useWebSocketV2Store.subscribe(
+                s => s.isVerified,
+                verified => {
+                    if (!verified) return;
+                    unsub();
+                    (workerRef.current || globalWorkerRef)?.postMessage({ type: 'send', data });
+                }
+            );
+        },
+        [logPrefix]
+    );
+
+    // Store send functions globally
     globalSendFn = send;
+    globalEmitFn = emit;
+    globalEmitAuthenticatedFn = emitAuthenticated;
 
     const connectRef = useRef(connect);
     const disconnectRef = useRef(disconnect);
@@ -151,5 +213,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
         connect,
         disconnect,
         send,
+        emit,
+        emitAuthenticated,
     };
 };
