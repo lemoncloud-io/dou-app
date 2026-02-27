@@ -10,7 +10,7 @@ import firestore from '@react-native-firebase/firestore';
 import { generateFingerprint } from './fingerprint';
 
 const COLLECTION_NAME = 'deferredDeepLinks';
-const LINK_TTL_HOURS = 24;
+const LINK_TTL_HOURS = 1;
 
 /**
  * Deferred link document structure

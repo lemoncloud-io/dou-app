@@ -19,7 +19,7 @@ import type { DeferredLinkData } from './types';
 
 const DEFERRED_LINK_KEY = '@chatic:deferredLink';
 const DEFERRED_LINK_PROCESSED_KEY = '@chatic:deferredLinkProcessed';
-const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 
 /**
  * Store deferred deep link for later processing
@@ -183,10 +183,10 @@ export const getClipboardDeepLink = async (): Promise<string | null> => {
  * Main deferred deep link handler
  * Checks multiple sources for deferred deep links
  *
- * Priority:
- * 1. Local AsyncStorage (manually stored)
- * 2. Firestore (IP fingerprint matching) - works on both iOS & Android
- * 3. Play Install Referrer (Android only)
+ * Strategy:
+ * 1. Local AsyncStorage (manually stored) - checked first
+ * 2. Firestore + Install Referrer (Android) - checked in PARALLEL for better hit rate
+ *    - First successful result wins
  */
 export const handleDeferredDeepLink = async (): Promise<string | null> => {
     // Check if already processed
@@ -203,29 +203,36 @@ export const handleDeferredDeepLink = async (): Promise<string | null> => {
         return storedLink;
     }
 
-    // 2. Check Firestore (IP fingerprint matching) - works on both iOS & Android
-    try {
-        const firestoreLink = await retrieveDeferredLinkFromFirestore();
-        if (firestoreLink) {
-            console.log('[DeferredDeepLink] Found Firestore deferred link');
-            await markDeferredLinkProcessed();
-            return firestoreLink;
-        }
-    } catch (error) {
-        console.error('[DeferredDeepLink] Firestore lookup failed:', error);
+    // 2. Check Firestore and Install Referrer in PARALLEL (Android)
+    //    This increases hit rate as recommended by architecture
+    const promises: Promise<string | null>[] = [
+        // Firestore lookup (works on both iOS & Android)
+        retrieveDeferredLinkFromFirestore().catch(error => {
+            console.error('[DeferredDeepLink] Firestore lookup failed:', error);
+            return null;
+        }),
+    ];
+
+    // Add Install Referrer for Android (parallel)
+    if (Platform.OS === 'android') {
+        promises.push(
+            getInstallReferrer().catch(error => {
+                console.error('[DeferredDeepLink] Install Referrer failed:', error);
+                return null;
+            })
+        );
     }
 
-    // 3. Android: Check Play Install Referrer
-    if (Platform.OS === 'android') {
-        const referrerLink = await getInstallReferrer();
-        if (referrerLink) {
-            console.log('[DeferredDeepLink] Found Play Install Referrer link');
-            await markDeferredLinkProcessed();
-            return referrerLink;
-        }
+    // Race for first successful result, but wait for all to complete for cleanup
+    const results = await Promise.all(promises);
+    const link = results.find(result => result !== null) || null;
+
+    if (link) {
+        const source = results[0] === link ? 'Firestore' : 'Install Referrer';
+        console.log(`[DeferredDeepLink] Found link from ${source}:`, link);
     }
 
     // Mark as processed even if no link found
     await markDeferredLinkProcessed();
-    return null;
+    return link;
 };

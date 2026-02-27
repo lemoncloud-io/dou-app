@@ -21,7 +21,7 @@
 import { addDoc, collection, getFirestore, serverTimestamp, Timestamp } from 'firebase/firestore';
 
 const COLLECTION_NAME = 'deferredDeepLinks';
-const LINK_TTL_HOURS = 24;
+const LINK_TTL_HOURS = 1;
 
 /**
  * Generate fingerprint from browser/device characteristics
