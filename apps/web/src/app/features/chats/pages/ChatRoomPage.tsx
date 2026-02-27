@@ -2,7 +2,7 @@ import { ChevronLeft, Ellipsis } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { useSendPublicMessage } from '@chatic/chats';
+import { useSendMessage } from '../hooks/useSendMessage';
 import { publicChannelsKeys } from '@chatic/channels';
 import {
     DropdownMenu,
@@ -25,7 +25,7 @@ export const ChatRoomPage = () => {
     const [isComposing, setIsComposing] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const { mutateAsync: sendMessage, isPending } = useSendPublicMessage();
+    const { sendMessage, isPending } = useSendMessage();
     const { profile } = useSimpleWebCore();
     const {
         messages,
@@ -41,7 +41,6 @@ export const ChatRoomPage = () => {
         if (!channelId) return;
 
         try {
-            await leaveChannel({ id: channelId, body: {} });
             await clearChatMessages();
             queryClient.setQueryData<ListResult<ChannelView>>(publicChannelsKeys.list({ limit: -1 }), old => {
                 if (!old) {
@@ -79,29 +78,15 @@ export const ChatRoomPage = () => {
         setContent('');
 
         try {
-            const newMessage = await sendMessage({
-                channelId,
-                content: content.trim(),
-            });
+            const newMessage = await sendMessage(channelId, content.trim());
 
             const id = newMessage.id || '0';
-
             const timestamp = newMessage?.createdAt ? new Date(newMessage.createdAt) : new Date();
             const ownerId = newMessage.ownerId || '';
             const ownerName = newMessage.owner$?.name || '알 수 없음';
             const readCount = newMessage?.readCount ?? 0;
 
-            addMessage(
-                {
-                    id,
-                    content,
-                    timestamp,
-                    ownerId,
-                    ownerName,
-                    readCount,
-                },
-                channelId
-            );
+            addMessage({ id, content: content.trim(), timestamp, ownerId, ownerName, readCount }, channelId);
         } catch (error) {
             console.error('Failed to send message:', error);
         }
