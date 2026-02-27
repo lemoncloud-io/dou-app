@@ -74,6 +74,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     return (
         <WebView
             ref={ref}
+            style={{ backgroundColor: '#ffffff' }}
             startInLoadingState={true}
             showsVerticalScrollIndicator={false}
             javaScriptEnabled={true}
@@ -81,6 +82,8 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             allowsBackForwardNavigationGestures={true}
             userAgent={initData.userAgent}
             injectedJavaScriptBeforeContentLoaded={initData.script}
+            hideKeyboardAccessoryView={true}
+            forceDarkOn={false}
             {...props}
         />
     );
