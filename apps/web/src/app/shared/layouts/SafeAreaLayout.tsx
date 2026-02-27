@@ -7,7 +7,10 @@ import { Outlet } from 'react-router-dom';
  */
 export const SafeAreaLayout = (): JSX.Element => {
     return (
-        <div className="flex flex-col w-full h-dvh pt-safe-top pb-safe-bottom overflow-hidden">
+        <div
+            className="flex flex-col w-full h-dvh pt-safe-top pb-safe-bottom overflow-hidden bg-white"
+            style={{ colorScheme: 'light' }}
+        >
             <Outlet />
         </div>
     );

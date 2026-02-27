@@ -15,7 +15,7 @@ import type { WebView, WebViewMessageEvent } from 'react-native-webview';
 import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
 import type { MainScreenProps } from '../navigation';
 import { useIsFocused } from '@react-navigation/native';
-import { KeyboardAvoidingView, Platform } from 'react-native';
+import { KeyboardAvoidingView, Platform, View } from 'react-native';
 
 const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://chatic-front-web.s3-website.ap-northeast-2.amazonaws.com';
 
@@ -114,7 +114,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     ]);
 
     return (
-        <>
+        <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                 <AppWebView
                     ref={webViewRef}
@@ -127,6 +127,6 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                 />
             </KeyboardAvoidingView>
             <FullScreenLoader visible={isIapLoading} message="결제 처리 중..." />
-        </>
+        </View>
     );
 };

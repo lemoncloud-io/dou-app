@@ -13,11 +13,10 @@ import {
 } from 'react-native';
 import Config from 'react-native-config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { useDeviceId } from '../../../common';
 import { useWebSocket } from '../hooks';
 
 import type { ClientStatusType, ClientSyncPayload, WSSConnectParam, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
+import { getDeviceId } from 'react-native-device-info';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -43,7 +42,7 @@ export const SocketTestScreen = () => {
     };
 
     const insets = useSafeAreaInsets();
-    const deviceId = useDeviceId();
+    const deviceId = getDeviceId();
 
     const userAgent =
         typeof navigator !== 'undefined' && navigator.userAgent
