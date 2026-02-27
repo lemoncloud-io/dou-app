@@ -20,8 +20,7 @@
 
 import { addDoc, collection, getFirestore, serverTimestamp, Timestamp } from 'firebase/firestore';
 
-const COLLECTION_NAME = 'deferredDeepLinks';
-const LINK_TTL_HOURS = 1;
+import { DEFERRED_LINKS_COLLECTION, hashFingerprintComponents, LINK_TTL_HOURS } from '../lib/constants';
 
 /**
  * Generate fingerprint from browser/device characteristics
@@ -36,8 +35,8 @@ const generateFingerprint = async (): Promise<string> => {
         const response = await fetch('https://api.ipify.org?format=json');
         const data = await response.json();
         ip = data.ip || 'unknown';
-    } catch (e) {
-        console.error('Failed to get IP:', e);
+    } catch (error) {
+        console.error('Failed to get IP:', error);
     }
 
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -45,17 +44,10 @@ const generateFingerprint = async (): Promise<string> => {
     // Use language code only (e.g., "ko" not "ko-KR") to match native app
     const locale = (navigator.language || 'unknown').split('-')[0];
 
-    // Hash the components (SAME algorithm as mobile app)
+    // Hash the components using shared algorithm
     // Platform is intentionally NOT included to allow web-to-app matching
     const str = `${ip}|${timezone}|${locale}`;
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = (hash << 5) - hash + char;
-        hash = hash & hash;
-    }
-
-    return Math.abs(hash).toString(16).padStart(8, '0');
+    return hashFingerprintComponents(str);
 };
 
 /**
@@ -70,7 +62,7 @@ export const storeDeferredDeepLink = async (deepLinkUrl: string): Promise<void> 
         const fingerprint = await generateFingerprint();
         const expiresAt = Timestamp.fromDate(new Date(Date.now() + LINK_TTL_HOURS * 60 * 60 * 1000));
 
-        await addDoc(collection(db, COLLECTION_NAME), {
+        await addDoc(collection(db, DEFERRED_LINKS_COLLECTION), {
             fingerprint,
             deepLinkUrl,
             createdAt: serverTimestamp(),

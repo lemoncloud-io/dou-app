@@ -48,7 +48,14 @@ export const retrieveDeferredLinkFromFirestore = async (): Promise<string | null
         }
 
         const doc = querySnapshot.docs[0];
-        const data = doc.data() as DeferredLinkDocument;
+        const data = doc.data();
+
+        // Runtime validation of document structure
+        if (!data.fingerprint || !data.deepLinkUrl || !data.expiresAt) {
+            console.error('[DeferredFirestore] Invalid document structure:', doc.id);
+            await doc.ref.delete();
+            return null;
+        }
 
         console.log('[DeferredFirestore] Found deferred link:', data.deepLinkUrl);
 
@@ -90,27 +97,5 @@ export const storeDeferredLinkToFirestore = async (deepLinkUrl: string): Promise
     }
 };
 
-/**
- * Clean up expired deferred links (optional maintenance)
- * Can be called periodically or via Cloud Function
- */
-export const cleanupExpiredLinks = async (): Promise<number> => {
-    try {
-        const now = firestore.Timestamp.now();
-
-        const expiredDocs = await firestore().collection(DEFERRED_LINKS_COLLECTION).where('expiresAt', '<', now).get();
-
-        const batch = firestore().batch();
-        expiredDocs.docs.forEach(doc => {
-            batch.delete(doc.ref);
-        });
-
-        await batch.commit();
-
-        console.log('[DeferredFirestore] Cleaned up', expiredDocs.size, 'expired links');
-        return expiredDocs.size;
-    } catch (error) {
-        console.error('[DeferredFirestore] Error cleaning up expired links:', error);
-        return 0;
-    }
-};
+// NOTE: cleanupExpiredLinks has been moved to Cloud Functions
+// See: docs/deep-linking-assets/firebase-functions/index.ts

@@ -28,3 +28,39 @@ export const DEFERRED_LINKS_COLLECTION = 'deferredDeepLinks';
 
 /** TTL for deferred deep links in hours */
 export const LINK_TTL_HOURS = 1;
+
+/** Type guard for valid schemes */
+export const isValidScheme = (scheme: string): scheme is (typeof VALID_SCHEMES)[number] =>
+    (VALID_SCHEMES as readonly string[]).includes(scheme);
+
+/** Type guard for custom schemes */
+export const isCustomScheme = (scheme: string): scheme is (typeof CUSTOM_SCHEMES)[number] =>
+    (CUSTOM_SCHEMES as readonly string[]).includes(scheme);
+
+/** Type guard for valid domains */
+export const isValidDomain = (domain: string): domain is (typeof VALID_DOMAINS)[number] =>
+    (VALID_DOMAINS as readonly string[]).includes(domain);
+
+/** Type guard for deep link domains */
+export const isDeepLinkDomain = (domain: string): domain is (typeof DEEP_LINK_DOMAINS)[number] =>
+    (DEEP_LINK_DOMAINS as readonly string[]).includes(domain);
+
+/** Deep link URL pattern for clipboard matching */
+export const DEEP_LINK_URL_PATTERN = /^https:\/\/app\.chatic\.io\/.+/;
+
+/**
+ * Hash fingerprint components into 8-character hex string
+ * MUST be identical in both mobile app and web landing page
+ *
+ * @param components - Pipe-separated string (e.g., "ip|timezone|locale")
+ * @returns 8-character hex hash
+ */
+export const hashFingerprintComponents = (components: string): string => {
+    let hash = 0;
+    for (let i = 0; i < components.length; i++) {
+        const char = components.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash = hash & hash;
+    }
+    return Math.abs(hash).toString(16).padStart(8, '0');
+};

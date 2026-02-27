@@ -17,7 +17,7 @@ import { retrieveDeferredLinkFromFirestore } from './firestoreDeferred';
 
 import type { DeferredLinkData } from './types';
 
-import { ONE_HOUR_MS } from './constants';
+import { DEEP_LINK_URL_PATTERN, ONE_HOUR_MS } from './constants';
 
 const DEFERRED_LINK_KEY = '@chatic:deferredLink';
 const DEFERRED_LINK_PROCESSED_KEY = '@chatic:deferredLinkProcessed';
@@ -48,7 +48,16 @@ export const getDeferredLink = async (): Promise<string | null> => {
             return null;
         }
 
-        const data: DeferredLinkData = JSON.parse(dataStr);
+        const parsed: unknown = JSON.parse(dataStr);
+
+        // Runtime validation of parsed data
+        if (!parsed || typeof parsed !== 'object' || !('url' in parsed) || !('timestamp' in parsed)) {
+            console.error('[DeferredDeepLink] Invalid stored data format');
+            await clearDeferredLink();
+            return null;
+        }
+
+        const data = parsed as DeferredLinkData;
         const age = Date.now() - data.timestamp;
 
         // Check if expired
@@ -166,8 +175,7 @@ export const getClipboardDeepLink = async (): Promise<string | null> => {
         }
 
         // Check if clipboard contains a valid deep link URL
-        const deepLinkPattern = /^https:\/\/app\.chatic\.io\/.+/;
-        if (deepLinkPattern.test(clipboardContent)) {
+        if (DEEP_LINK_URL_PATTERN.test(clipboardContent)) {
             console.log('[DeferredDeepLink] Found deep link in clipboard');
             // Clear clipboard after reading (privacy)
             await Clipboard.setString('');

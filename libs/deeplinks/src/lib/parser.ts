@@ -4,7 +4,7 @@
  * Validates deep link URLs and extracts campaign parameters
  */
 
-import { CUSTOM_SCHEMES, VALID_DOMAINS, VALID_SCHEMES } from './constants';
+import { isCustomScheme, isValidDomain, isValidScheme } from './constants';
 
 /**
  * Validates if a URL is a valid deep link
@@ -14,17 +14,17 @@ export const isValidDeepLink = (url: string): boolean => {
         const parsed = new URL(url);
 
         const scheme = parsed.protocol.replace(':', '');
-        if (!VALID_SCHEMES.includes(scheme)) {
+        if (!isValidScheme(scheme)) {
             return false;
         }
 
         // Custom scheme is always valid
-        if (CUSTOM_SCHEMES.includes(scheme)) {
+        if (isCustomScheme(scheme)) {
             return true;
         }
 
         // For http/https, validate domain
-        if (!VALID_DOMAINS.includes(parsed.hostname)) {
+        if (!isValidDomain(parsed.hostname)) {
             console.warn(`[DeepLink] Invalid domain: ${parsed.hostname}`);
             return false;
         }

@@ -10,6 +10,8 @@
  * Accuracy: ~70-80% (same network, similar device settings)
  */
 
+import { hashFingerprintComponents } from './constants';
+
 /**
  * Fingerprint components used for matching
  * Note: platform is stored for debugging but NOT used in hash calculation
@@ -64,17 +66,7 @@ const getLocale = async (): Promise<string> => {
  */
 const hashComponents = (components: FingerprintComponents): string => {
     const str = `${components.ip}|${components.timezone}|${components.locale}`;
-
-    // Simple hash for React Native (no native crypto needed)
-    // This same algorithm must be used on the web landing page
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = (hash << 5) - hash + char;
-        hash = hash & hash;
-    }
-
-    return Math.abs(hash).toString(16).padStart(8, '0');
+    return hashFingerprintComponents(str);
 };
 
 /**

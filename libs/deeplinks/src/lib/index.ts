@@ -28,20 +28,19 @@ export {
 export { extractCampaignParams, extractShortCode, isShortUrl, isValidDeepLink } from './parser';
 export { convertDeepLinkToFrontendUrl, convertShortUrlToFrontendUrl, needsConversion } from './urlConverter';
 export { generateFingerprint, getFingerprintComponents } from './fingerprint';
-export {
-    cleanupExpiredLinks,
-    retrieveDeferredLinkFromFirestore,
-    storeDeferredLinkToFirestore,
-} from './firestoreDeferred';
+export { retrieveDeferredLinkFromFirestore, storeDeferredLinkToFirestore } from './firestoreDeferred';
+// Export only public constants and type guards
 export {
     CUSTOM_SCHEMES,
     DEEP_LINK_DOMAINS,
-    DEFERRED_LINKS_COLLECTION,
     FRONTEND_DOMAIN,
-    LINK_TTL_HOURS,
-    ONE_HOUR_MS,
     VALID_DOMAINS,
     VALID_SCHEMES,
+    hashFingerprintComponents,
+    isCustomScheme,
+    isDeepLinkDomain,
+    isValidDomain,
+    isValidScheme,
 } from './constants';
 export type { DeepLinkConfig, DeepLinkSource, DeferredLinkData, WebViewHandler } from './types';
 export type { FingerprintComponents } from './fingerprint';
