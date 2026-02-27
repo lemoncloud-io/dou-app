@@ -2,6 +2,7 @@ import { ChevronLeft, Ellipsis } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { useLeaveRoom } from '../hooks/useLeaveRoom';
 import { useSendMessage } from '../hooks/useSendMessage';
 import {
     DropdownMenu,
@@ -12,6 +13,7 @@ import {
 
 import { useSimpleWebCore } from '@chatic/web-core';
 
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useChatMessages } from '../hooks/useChatMessages';
 import { useReadMessage } from '../hooks/useReadMessage';
 
@@ -23,6 +25,8 @@ export const ChatRoomPage = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const { sendMessage, isPending } = useSendMessage();
+    const { leaveRoom } = useLeaveRoom();
+    const { toast } = useToast();
     const { profile } = useSimpleWebCore();
     const {
         messages,
@@ -36,8 +40,9 @@ export const ChatRoomPage = () => {
         if (!channelId) return;
 
         try {
+            await leaveRoom(channelId, profile?.id);
             await clearChatMessages();
-
+            toast({ title: '채팅방을 나갔습니다' });
             navigate(-1);
         } catch (error) {
             console.error('Failed to leave room:', error);
