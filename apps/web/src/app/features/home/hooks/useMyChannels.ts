@@ -11,12 +11,22 @@ export const useMyChannels = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isError, setIsError] = useState(false);
 
+    // 마운트 시 내 채널 목록 최초 요청 (인증 후 보장)
     useEffect(() => {
         if (hasSentRef.current) return;
         hasSentRef.current = true;
         emitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
     }, []);
 
+    // 채널 변경 이벤트(update/sourceType=channel) 수신 시 목록 재요청
+    useEffect(() => {
+        const envelope = lastMessage as WSSEnvelope<{ sourceType?: string }> | null;
+        if (envelope?.action === 'update' && envelope.payload?.sourceType === 'channel') {
+            emitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
+        }
+    }, [lastMessage]);
+
+    // chat/mine 응답 처리
     useEffect(() => {
         const envelope = lastMessage as WSSEnvelope<{ list: ChannelView[] }> | null;
         if (envelope?.type !== 'chat') return;
