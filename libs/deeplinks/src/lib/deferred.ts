@@ -17,7 +17,7 @@ import { retrieveDeferredLinkFromFirestore } from './firestoreDeferred';
 
 import type { DeferredLinkData } from './types';
 
-import { DEEP_LINK_URL_PATTERN, ONE_HOUR_MS } from './constants';
+import { ONE_HOUR_MS } from './constants';
 
 const DEFERRED_LINK_KEY = '@chatic:deferredLink';
 const DEFERRED_LINK_PROCESSED_KEY = '@chatic:deferredLinkProcessed';
@@ -146,45 +146,6 @@ export const getInstallReferrer = async (): Promise<string | null> => {
         return null;
     } catch (error) {
         console.error('[DeferredDeepLink] Error getting install referrer:', error);
-        return null;
-    }
-};
-
-/**
- * Get deferred deep link from clipboard (iOS)
- * Note: iOS 14+ shows a paste permission toast to the user
- */
-export const getClipboardDeepLink = async (): Promise<string | null> => {
-    if (Platform.OS !== 'ios') {
-        return null;
-    }
-
-    try {
-        // Dynamic import Clipboard
-        const Clipboard = await import('@react-native-clipboard/clipboard').then(m => m.default).catch(() => null);
-
-        if (!Clipboard) {
-            console.log('[DeferredDeepLink] Clipboard module not available');
-            return null;
-        }
-
-        const clipboardContent = await Clipboard.getString();
-
-        if (!clipboardContent) {
-            return null;
-        }
-
-        // Check if clipboard contains a valid deep link URL
-        if (DEEP_LINK_URL_PATTERN.test(clipboardContent)) {
-            console.log('[DeferredDeepLink] Found deep link in clipboard');
-            // Clear clipboard after reading (privacy)
-            await Clipboard.setString('');
-            return clipboardContent;
-        }
-
-        return null;
-    } catch (error) {
-        console.error('[DeferredDeepLink] Error reading clipboard:', error);
         return null;
     }
 };

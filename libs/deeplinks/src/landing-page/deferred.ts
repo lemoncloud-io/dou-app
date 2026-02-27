@@ -22,6 +22,12 @@ import { addDoc, collection, getFirestore, serverTimestamp, Timestamp } from 'fi
 
 import { DEFERRED_LINKS_COLLECTION, hashFingerprintComponents, LINK_TTL_HOURS } from '../lib/constants';
 
+/** Timeout before assuming app is not installed (ms) */
+const APP_LAUNCH_TIMEOUT_MS = 1500;
+
+/** Grace period to confirm app didn't open (ms) */
+const APP_LAUNCH_GRACE_PERIOD_MS = 2000;
+
 /**
  * Generate fingerprint from browser/device characteristics
  * MUST match the mobile app's fingerprint generation algorithm
@@ -132,15 +138,15 @@ export const handleDeepLinkClick = async (deepLinkUrl: string): Promise<void> =>
 
     // Wait to see if app opened
     setTimeout(async () => {
-        // If we're still here after 1.5 seconds, app probably isn't installed
-        if (Date.now() - startTime < 2000) {
+        // If we're still here after timeout, app probably isn't installed
+        if (Date.now() - startTime < APP_LAUNCH_GRACE_PERIOD_MS) {
             // Store deferred link
             await storeDeferredDeepLink(deepLinkUrl);
 
             // Redirect to store
             window.location.href = getStoreUrl();
         }
-    }, 1500);
+    }, APP_LAUNCH_TIMEOUT_MS);
 };
 
 // Example usage in landing page:

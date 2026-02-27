@@ -45,9 +45,6 @@ export const isValidDomain = (domain: string): domain is (typeof VALID_DOMAINS)[
 export const isDeepLinkDomain = (domain: string): domain is (typeof DEEP_LINK_DOMAINS)[number] =>
     (DEEP_LINK_DOMAINS as readonly string[]).includes(domain);
 
-/** Deep link URL pattern for clipboard matching */
-export const DEEP_LINK_URL_PATTERN = /^https:\/\/app\.chatic\.io\/.+/;
-
 /**
  * Hash fingerprint components into 8-character hex string
  * MUST be identical in both mobile app and web landing page
