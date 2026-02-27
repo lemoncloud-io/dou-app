@@ -8,9 +8,14 @@ service cloud.firestore {
     // Deferred Deep Links collection
     match /deferredDeepLinks/{linkId} {
       // Anyone can create (web landing page)
+      // Validation: fingerprint must be 8-char hex, deepLinkUrl must exist
       allow create: if request.resource.data.keys().hasAll(['fingerprint', 'deepLinkUrl', 'createdAt', 'expiresAt'])
                     && request.resource.data.fingerprint is string
-                    && request.resource.data.deepLinkUrl is string;
+                    && request.resource.data.fingerprint.size() == 8
+                    && request.resource.data.deepLinkUrl is string
+                    && request.resource.data.deepLinkUrl.size() > 0
+                    && request.resource.data.createdAt is timestamp
+                    && request.resource.data.expiresAt is timestamp;
 
       // Anyone can read and delete (mobile app retrieval)
       allow read, delete: if true;
