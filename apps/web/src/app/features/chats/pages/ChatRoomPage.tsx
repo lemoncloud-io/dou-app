@@ -23,10 +23,11 @@ export const ChatRoomPage = () => {
     const [content, setContent] = useState('');
     const [isComposing, setIsComposing] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
     const { sendMessage, isPending } = useSendMessage();
     const { leaveRoom } = useLeaveRoom();
     const { toast } = useToast();
+    const inputRef = useRef<HTMLTextAreaElement>(null);
+
     const { profile } = useSimpleWebCore();
     const {
         messages,
@@ -53,14 +54,27 @@ export const ChatRoomPage = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
+    // 입력창 크기 조절 훅
     useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+        if (inputRef.current) {
+            inputRef.current.style.height = 'auto';
+            inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
+        }
+    }, [content]);
 
-    const handleSend = async () => {
+    const handleSend = async (e?: React.MouseEvent | React.KeyboardEvent) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
         if (!content.trim() || !channelId || isPending) return;
 
         setContent('');
+
+        requestAnimationFrame(() => {
+            scrollToBottom();
+        });
 
         try {
             const newMessage = await sendMessage(channelId, content.trim());
@@ -78,10 +92,20 @@ export const ChatRoomPage = () => {
         }
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
+    const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (isComposing) return;
+
+        // `Enter`와 `Shift`를 동시에 누르지 않을때만 진행
+        if (e.key === 'Enter' && !e.shiftKey) {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+            if (isMobile) {
+                return;
+            }
+
+            // PC의 기본 동작인 줄바꿈이 실행되지 않고, 전송 수행
             e.preventDefault();
-            handleSend();
+            void handleSend(e);
         }
     };
 
@@ -213,23 +237,24 @@ export const ChatRoomPage = () => {
 
             {/* Input Area */}
             <div className="flex flex-col gap-2.5 px-4 py-3">
-                <div className="flex items-center gap-1.5 px-1.5 py-1.5 bg-[#F4F5F5] rounded-2xl">
-                    <div className="flex-1 flex items-center gap-1.5 px-1.5">
-                        <input
+                <div className="flex items-end gap-1.5 px-1.5 py-1.5 bg-[#F4F5F5] rounded-2xl">
+                    <div className="flex-1 flex items-center gap-1.5 px-1.5 min-h-[40px]">
+                        <textarea
                             ref={inputRef}
-                            type="text"
                             value={content}
                             onChange={e => setContent(e.target.value)}
                             onKeyDown={handleKeyPress}
                             onCompositionStart={() => setIsComposing(true)}
                             onCompositionEnd={() => setIsComposing(false)}
-                            disabled={isPending}
                             placeholder="메시지를 입력해 주세요"
-                            className="flex-1 bg-transparent border-0 outline-none text-[14px] font-normal leading-[1.45] tracking-[-0.02em] text-[#9CA4AB] placeholder:text-[#9CA4AB] disabled:opacity-50"
+                            rows={1}
+                            enterKeyHint="enter"
+                            className="flex-1 bg-transparent border-0 outline-none text-[14px] font-normal leading-[1.45] tracking-[-0.02em] text-[#9CA4AB] placeholder:text-[#9CA4AB] disabled:opacity-50 resize-none py-1 max-h-[120px] overflow-y-auto"
                         />
                     </div>
                     <button
                         onMouseDown={e => e.preventDefault()}
+                        onTouchStart={e => e.preventDefault()}
                         onClick={handleSend}
                         disabled={isPending || !content.trim()}
                         className="flex items-center justify-center gap-2.5 w-10 h-10 bg-[#CFD0D3] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
