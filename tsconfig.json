@@ -53,9 +53,6 @@
         },
         {
             "path": "./libs/deeplinks"
-        },
-        {
-            "path": "./libs/deeplinks"
         }
     ]
 }
