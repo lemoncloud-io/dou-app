@@ -49,8 +49,8 @@ export const CreateDeeplinkDialog = ({ open, onOpenChange, onSuccess }: CreateDe
     const { data: deeplinksData } = useDeeplinks({ limit: 1000 });
     const { mutateAsync: createDeeplink, isPending: isCreating } = useCreateDeeplink();
 
-    // Set of user IDs that already have deeplinks
-    const existingUserIds = new Set(deeplinksData?.list.map(d => d.user.id) ?? []);
+    // Set of user IDs that already have deeplinks (document ID = user ID)
+    const existingUserIds = new Set(deeplinksData?.list.map(d => d.id) ?? []);
 
     const handleSelectUser = async (user: UserView) => {
         setSelectedUser(user);

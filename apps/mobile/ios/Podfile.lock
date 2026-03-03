@@ -1198,6 +1198,9 @@ PODS:
   - DoubleConversion (1.1.6)
   - fast_float (8.0.0)
   - FBLazyVector (0.83.1)
+  - Firebase/Auth (12.8.0):
+    - Firebase/CoreOnly
+    - FirebaseAuth (~> 12.8.0)
   - Firebase/CoreOnly (12.8.0):
     - FirebaseCore (~> 12.8.0)
   - Firebase/Firestore (12.8.0):
@@ -1207,6 +1210,16 @@ PODS:
     - Firebase/CoreOnly
     - FirebaseMessaging (~> 12.8.0)
   - FirebaseAppCheckInterop (12.8.0)
+  - FirebaseAuth (12.8.0):
+    - FirebaseAppCheckInterop (~> 12.8.0)
+    - FirebaseAuthInterop (~> 12.8.0)
+    - FirebaseCore (~> 12.8.0)
+    - FirebaseCoreExtension (~> 12.8.0)
+    - GoogleUtilities/AppDelegateSwizzler (~> 8.1)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GTMSessionFetcher/Core (< 6.0, >= 3.4)
+    - RecaptchaInterop (~> 101.0)
+  - FirebaseAuthInterop (12.8.0)
   - FirebaseCore (12.8.0):
     - FirebaseCoreInternal (~> 12.8.0)
     - GoogleUtilities/Environment (~> 8.1)
@@ -1371,6 +1384,7 @@ PODS:
     - gRPC-Core/Privacy (= 1.69.0)
   - gRPC-Core/Interface (1.69.0)
   - gRPC-Core/Privacy (1.69.0)
+  - GTMSessionFetcher/Core (5.1.0)
   - hermes-engine (0.14.0):
     - hermes-engine/Pre-built (= 0.14.0)
   - hermes-engine/Pre-built (0.14.0)
@@ -4028,6 +4042,7 @@ PODS:
     - React-perflogger (= 0.83.1)
     - React-utils (= 0.83.1)
     - SocketRocket
+  - RecaptchaInterop (101.0.0)
   - RNCAsyncStorage (2.2.0):
     - boost
     - DoubleConversion
@@ -4113,6 +4128,36 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
+  - RNFBAuth (23.8.6):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - Firebase/Auth (= 12.8.0)
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - RNFBApp
     - SocketRocket
     - Yoga
   - RNFBFirestore (23.8.6):
@@ -4410,6 +4455,7 @@ DEPENDENCIES:
   - "RNCClipboard (from `../../../node_modules/@react-native-clipboard/clipboard`)"
   - RNDeviceInfo (from `../../../node_modules/react-native-device-info`)
   - "RNFBApp (from `../../../node_modules/@react-native-firebase/app`)"
+  - "RNFBAuth (from `../../../node_modules/@react-native-firebase/auth`)"
   - "RNFBFirestore (from `../../../node_modules/@react-native-firebase/firestore`)"
   - "RNFBMessaging (from `../../../node_modules/@react-native-firebase/messaging`)"
   - RNLocalize (from `../../../node_modules/react-native-localize`)
@@ -4424,6 +4470,8 @@ SPEC REPOS:
     - BoringSSL-GRPC
     - Firebase
     - FirebaseAppCheckInterop
+    - FirebaseAuth
+    - FirebaseAuthInterop
     - FirebaseCore
     - FirebaseCoreExtension
     - FirebaseCoreInternal
@@ -4436,10 +4484,12 @@ SPEC REPOS:
     - GoogleUtilities
     - "gRPC-C++"
     - gRPC-Core
+    - GTMSessionFetcher
     - leveldb-library
     - nanopb
     - openiap
     - PromisesObjC
+    - RecaptchaInterop
     - SocketRocket
 
 EXTERNAL SOURCES:
@@ -4614,6 +4664,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native-device-info"
   RNFBApp:
     :path: "../../../node_modules/@react-native-firebase/app"
+  RNFBAuth:
+    :path: "../../../node_modules/@react-native-firebase/auth"
   RNFBFirestore:
     :path: "../../../node_modules/@react-native-firebase/firestore"
   RNFBMessaging:
@@ -4636,6 +4688,8 @@ SPEC CHECKSUMS:
   FBLazyVector: 309703e71d3f2f1ed7dc7889d58309c9d77a95a4
   Firebase: 9a58fdbc9d8655ed7b79a19cf9690bb007d3d46d
   FirebaseAppCheckInterop: ba3dc604a89815379e61ec2365101608d365cf7d
+  FirebaseAuth: 4c289b1a43f5955283244a55cf6bd616de344be5
+  FirebaseAuthInterop: 95363fe96493cb4f106656666a0768b420cba090
   FirebaseCore: 0dbad74bda10b8fb9ca34ad8f375fb9dd3ebef7c
   FirebaseCoreExtension: 6605938d51f765d8b18bfcafd2085276a252bee2
   FirebaseCoreInternal: fe5fa466aeb314787093a7dce9f0beeaad5a2a21
@@ -4650,6 +4704,7 @@ SPEC CHECKSUMS:
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
   "gRPC-C++": cc207623316fb041a7a3e774c252cf68a058b9e8
   gRPC-Core: 860978b7db482de8b4f5e10677216309b5ff6330
+  GTMSessionFetcher: b8ab00db932816e14b0a0664a08cb73dda6d164b
   hermes-engine: f50cf9e4aa226e9e0bfe3f03c3c1c7d2f99ea4fd
   leveldb-library: cc8b8f8e013647a295ad3f8cd2ddf49a6f19be19
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
@@ -4729,10 +4784,12 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 0eb286cc274abb059ee601b862ebddac2e681d01
   ReactCodegen: 0a54319cc6fb7e0a795241bc88f41cdea3ddf436
   ReactCommon: 15e1e727fa34f760beb7dd52928687fda8edf8dc
+  RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   RNCAsyncStorage: fd44f4b03e007e642e98df6726737bc66e9ba609
   RNCClipboard: e560338bf6cc4656a09ff90610b62ddc0dbdad65
   RNDeviceInfo: 36d7f232bfe7c9b5c494cb7793230424ed32c388
   RNFBApp: ecfd6567af4c73409c36103f7968e27696a92901
+  RNFBAuth: 445570306659fca0d6953d193667ae158d470415
   RNFBFirestore: e06d6fa7a2fe6de350c67ce97a36b8040ab7a892
   RNFBMessaging: 8bee64a40bb3e1463bea7abffc43548d072f8ffc
   RNLocalize: 9988fa71fb84c415902898b35cc6aa5af052731e

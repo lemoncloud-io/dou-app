@@ -1,24 +1,53 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { createInviteLink, getInviteLink, checkInviteLinkExists, deleteInviteLink } from '@chatic/deeplinks';
+import auth from '@react-native-firebase/auth';
 
-const TEST_ID = '1000028';
+import { checkInviteLinkExists, createInviteLink, deleteInviteLink, getInviteLink } from '@chatic/deeplinks';
+
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
+
+const TEST_ID = '1000029';
 
 export const DeeplinkTestScreen = () => {
     const [result, setResult] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
+    const [authStatus, setAuthStatus] = useState<string>('Checking auth...');
+
+    // Anonymous auth on mount
+    useEffect(() => {
+        const signInAnonymously = async () => {
+            try {
+                const currentUser = auth().currentUser;
+                if (currentUser) {
+                    setAuthStatus(`Authenticated: ${currentUser.uid.slice(0, 8)}...`);
+                    return;
+                }
+
+                const userCredential = await auth().signInAnonymously();
+                setAuthStatus(`Signed in: ${userCredential.user.uid.slice(0, 8)}...`);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Auth failed';
+                setAuthStatus(`Auth error: ${message}`);
+            }
+        };
+
+        signInAnonymously();
+    }, []);
 
     const handleCreate = async () => {
         setIsLoading(true);
         setResult('Creating...');
 
         try {
-            const inviteData = {
+            const inviteData: MyInviteView = {
+                id: TEST_ID,
                 userId: TEST_ID,
-                name: 'Test User',
-                createdAt: new Date().toISOString(),
+                user$: {
+                    id: TEST_ID,
+                    name: 'Test User',
+                },
             };
 
             const link = await createInviteLink(TEST_ID, inviteData, 'mobile-test');
@@ -105,6 +134,7 @@ export const DeeplinkTestScreen = () => {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Test ID: {TEST_ID}</Text>
                     <Text style={styles.urlText}>URL: https://app.chatic.io/s/{TEST_ID}</Text>
+                    <Text style={styles.authStatus}>{authStatus}</Text>
                 </View>
 
                 <View style={styles.buttonContainer}>
@@ -146,6 +176,11 @@ const styles = StyleSheet.create({
         color: '#888',
         fontSize: 14,
         fontFamily: 'monospace',
+    },
+    authStatus: {
+        color: '#34C759',
+        fontSize: 12,
+        marginTop: 8,
     },
     buttonContainer: {
         gap: 12,

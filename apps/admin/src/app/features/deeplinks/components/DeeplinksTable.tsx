@@ -88,10 +88,8 @@ export const DeeplinksTable = ({ deeplinks, isLoading, onView, onDelete }: Deepl
                                 <TableRow key={deeplink.id}>
                                     <TableCell>
                                         <div className="flex flex-col">
-                                            <span className="font-medium">{deeplink.user.name}</span>
-                                            <span className="text-xs text-muted-foreground">
-                                                {deeplink.user.loginId || deeplink.user.id}
-                                            </span>
+                                            <span className="font-medium">{deeplink.displayName}</span>
+                                            <span className="text-xs text-muted-foreground">{deeplink.displayId}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>

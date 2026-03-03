@@ -22,30 +22,104 @@ import {
 import { firebaseService } from './firebase';
 
 import type { DocumentSnapshot, QueryDocumentSnapshot } from 'firebase/firestore';
-import type { UserView } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView, UserView } from '@lemoncloud/chatic-backend-api';
 import type { AdminDeeplink, AdminDeeplinkDocument } from '../types';
 
 /** Deep link URL base */
 const DEEPLINK_BASE = 'https://app.chatic.io/s';
 
 /**
+ * Derive display name from invite data
+ */
+const getDisplayName = (invite: MyInviteView, docId: string): string => {
+    // From user$ embedded data
+    if (invite.user$?.name) {
+        return invite.user$.name;
+    }
+    // Fallback: document ID
+    return docId;
+};
+
+/**
+ * Derive display ID from invite data
+ */
+const getDisplayId = (invite: MyInviteView, docId: string): string => {
+    // From userId field
+    if (invite.userId) {
+        return invite.userId;
+    }
+    // Fallback: document ID
+    return docId;
+};
+
+/**
+ * Legacy document structure (for backwards compatibility)
+ */
+interface LegacyDeeplinkDocument {
+    deepLinkUrl: string;
+    shortCode: string;
+    user?: UserView;
+    invite?: MyInviteView;
+    createdAt: { toMillis: () => number };
+    createdBy: string;
+}
+
+/**
+ * Convert legacy user field to invite format
+ */
+const legacyUserToInvite = (user: UserView): MyInviteView => ({
+    id: user.id,
+    userId: user.id,
+    user$: {
+        id: user.id,
+        name: user.name,
+    },
+});
+
+/**
  * Convert Firestore document to AdminDeeplink
+ * Handles both legacy (user field) and new (invite field) formats
  */
 const convertDoc = (doc: QueryDocumentSnapshot | DocumentSnapshot): AdminDeeplink | null => {
     if (!doc.exists()) {
         return null;
     }
 
-    const data = doc.data() as AdminDeeplinkDocument;
+    const data = doc.data() as LegacyDeeplinkDocument;
+
+    // Handle backwards compatibility: convert legacy user to invite
+    let invite: MyInviteView;
+    if (data.invite) {
+        invite = data.invite;
+    } else if (data.user) {
+        invite = legacyUserToInvite(data.user);
+    } else {
+        invite = { id: doc.id, userId: doc.id } as MyInviteView;
+    }
+
     return {
         id: doc.id,
         deepLinkUrl: data.deepLinkUrl,
         shortCode: data.shortCode,
-        user: data.user,
+        invite,
         createdAt: data.createdAt?.toMillis() ?? Date.now(),
         createdBy: data.createdBy,
+        displayName: getDisplayName(invite, doc.id),
+        displayId: getDisplayId(invite, doc.id),
     };
 };
+
+/**
+ * Convert UserView to MyInviteView for storage
+ */
+const userToInvite = (user: UserView): MyInviteView => ({
+    id: user.id,
+    userId: user.id,
+    user$: {
+        id: user.id,
+        name: user.name,
+    },
+});
 
 /**
  * Fetch all deeplinks with pagination
@@ -107,11 +181,12 @@ export const createDeeplink = async (user: UserView): Promise<AdminDeeplink> => 
 
     const deepLinkUrl = `${DEEPLINK_BASE}/${user.id}`;
     const now = Timestamp.now();
+    const invite = userToInvite(user);
 
     const data: AdminDeeplinkDocument = {
         deepLinkUrl,
         shortCode: user.id,
-        user,
+        invite,
         createdAt: now,
         createdBy: currentUser.email || currentUser.uid,
     };
@@ -122,9 +197,11 @@ export const createDeeplink = async (user: UserView): Promise<AdminDeeplink> => 
         id: docId,
         deepLinkUrl,
         shortCode: user.id,
-        user,
+        invite,
         createdAt: now.toMillis(),
         createdBy: data.createdBy,
+        displayName: user.name,
+        displayId: user.loginId || user.id,
     };
 };
 

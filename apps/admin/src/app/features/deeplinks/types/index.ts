@@ -3,22 +3,24 @@
  */
 
 import type { Timestamp } from 'firebase/firestore';
-import type { UserView } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 /**
- * Firestore document structure for admin-created deeplinks
+ * Firestore document structure for deeplinks
  * Collection: deferredDeepLinks
+ *
+ * Unified format for both Admin and Mobile
  */
 export interface AdminDeeplinkDocument {
-    /** Deep link URL (https://app.chatic.io/s/{userId}) */
+    /** Deep link URL (https://app.chatic.io/s/{id}) */
     deepLinkUrl: string;
-    /** Short code (userId) - also used as document ID */
+    /** Short code - also used as document ID */
     shortCode: string;
-    /** Full user information */
-    user: UserView;
+    /** Invite data from backend API */
+    invite: MyInviteView;
     /** When the deeplink was created */
     createdAt: Timestamp;
-    /** Admin who created the deeplink */
+    /** Who created the deeplink */
     createdBy: string;
 }
 
@@ -28,6 +30,10 @@ export interface AdminDeeplinkDocument {
 export interface AdminDeeplink extends Omit<AdminDeeplinkDocument, 'createdAt'> {
     id: string;
     createdAt: number; // Converted to timestamp for display
+    /** Display name - derived from invite.user$.name or id */
+    displayName: string;
+    /** Display ID - derived from invite.userId or id */
+    displayId: string;
 }
 
 /**

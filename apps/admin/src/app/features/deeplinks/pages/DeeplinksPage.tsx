@@ -137,8 +137,8 @@ export const DeeplinksPage = (): JSX.Element => {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete Deeplink</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to delete the deeplink for user "{deleteTarget?.user.name}"? This
-                            action cannot be undone.
+                            Are you sure you want to delete the deeplink for "{deleteTarget?.displayName}"? This action
+                            cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -155,7 +155,7 @@ export const DeeplinksPage = (): JSX.Element => {
             <DeeplinksTable
                 deeplinks={data?.list ?? []}
                 isLoading={isLoading}
-                onView={deeplink => setViewTargetUserId(deeplink.user.id)}
+                onView={deeplink => setViewTargetUserId(deeplink.id)}
                 onDelete={setDeleteTarget}
             />
 
