@@ -63,9 +63,9 @@
         "sonner": "*",
         "react-i18next": "*",
         "react-native-play-install-referrer": "*",
-        "@react-native-clipboard/clipboard": "*",
         "uuid": "*",
-        "@react-native-firebase/firestore": "*"
+        "@react-native-firebase/firestore": "*",
+        "firebase": "*"
     },
     "devDependencies": {}
 }

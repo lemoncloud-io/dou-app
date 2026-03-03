@@ -33,7 +33,11 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		F76029262F333E600009C3A7 /* Firebase */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Firebase; sourceTree = "<group>"; };
+		F76029262F333E600009C3A7 /* Firebase */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Firebase;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -320,7 +324,7 @@
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -354,7 +358,7 @@
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -653,7 +657,7 @@
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -771,7 +775,7 @@
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

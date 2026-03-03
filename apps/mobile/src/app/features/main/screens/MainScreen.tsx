@@ -1,8 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform } from 'react-native';
 import Config from 'react-native-config';
-
-import { useIsFocused } from '@react-navigation/native';
 
 import { AppWebView, FullScreenLoader, Logger, useDeepLinkStore } from '../../../common';
 import {
