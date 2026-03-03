@@ -8,16 +8,15 @@ import { FloatingMenu } from './common';
 import { RootNavigator } from './navigation';
 
 import type { RootStackParamList } from './navigation';
+import Config from 'react-native-config';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 function App() {
     const isDarkMode = false;
 
-    /**
-     *  Release 상태일때만, 디버그 메뉴가 보이지 않음
-     */
-    const showDebugMenu = __DEV__;
+    // Prod + Release 상태가 아닐때만 디버그 메뉴 노출
+    const showDebugMenu = __DEV__ || Config.VITE_ENV !== 'PROD';
     const handleNavigate = (screenName: keyof RootStackParamList) => {
         if (navigationRef.isReady()) {
             navigationRef.navigate(screenName as any);

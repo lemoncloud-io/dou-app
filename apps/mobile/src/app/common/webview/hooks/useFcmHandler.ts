@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react';
+import { Platform } from 'react-native';
 
 import { FcmService, Logger } from '../../services';
 
@@ -15,6 +16,11 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
             const hasPermission = await FcmService.requestPermission();
 
             if (hasPermission) {
+                // iOS의 경우 APNs 토큰 생성을 위해 명시적으로 기기 등록을 수행
+                if (Platform.OS === 'ios') {
+                    await FcmService.registerAPNs();
+                }
+
                 const token = await FcmService.getToken();
 
                 if (token) {

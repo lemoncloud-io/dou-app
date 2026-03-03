@@ -6,8 +6,8 @@ src
 │   ├── App.tsx                  # 앱 진입점
 │   ├── common                   # 전역 공통 모듈
 │   │   ├── components           # 공통 UI 컴포넌트
-│   │   ├── hooks                # 전역 범용 Hooks (useDeviceId, etc.)
-│   │   ├── services             # 서비스 집합 (Storage, FCM, Logger, ...)
+│   │   ├── hooks                # 전역 범용 Hooks (useQueryString, etc.)
+│   │   ├── services             # 서비스 집합 (Storage, FCM, Logger, IAP ...)
 │   │   ├── utils                # 유틸리티 함수
 │   │   └── webview              # WebView Core
 │   │       ├── AppWebView.tsx   # 웹뷰 메인 컴포넌트

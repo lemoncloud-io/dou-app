@@ -76,6 +76,7 @@
         "@radix-ui/react-toast": "^1.2.14",
         "@radix-ui/react-tooltip": "^1.1.6",
         "@react-native-async-storage/async-storage": "^2.2.0",
+        "@react-native-clipboard/clipboard": "^1.16.3",
         "@react-native-firebase/app": "^23.8.5",
         "@react-native-firebase/messaging": "^23.8.5",
         "@react-native/new-app-screen": "~0.83.0",

@@ -9,6 +9,7 @@ export type DebugStackParamList = {
     Home: undefined;
     SocketTest: undefined;
     InAppPurchaseTest: undefined;
+    FcmTest: undefined;
 };
 
 export type MainStackParamList = {
