@@ -18,10 +18,10 @@ This library was generated with [Nx](https://nx.dev).
 웹에서 네이티브 기능을 실행하기 위해 보내는 메시지입니다.
 
 | Message Type               | Payload (Data)                                                                        | Description                                              | Expected Response                                            |
-| :------------------------- | :------------------------------------------------------------------------------------ | :------------------------------------------------------- | :----------------------------------------------------------- | --- |
+| :------------------------- | :------------------------------------------------------------------------------------ | :------------------------------------------------------- | :----------------------------------------------------------- |
 | `CloseModal`               | -                                                                                     | 모달 닫기                                                | -                                                            |
 | `OpenModal`                | `{ url: string; type?: 'full';'sheet'; heightRatio?: number; dragHandle?: boolean; }` | 모달 열기                                                | -                                                            |
-| `GetFcmToken`              | -                                                                                     | FCM 푸시 토큰을 요청합니다.                              | `OnUpdateFcmToken`                                           |     |
+| `GetFcmToken`              | -                                                                                     | FCM 푸시 토큰을 요청합니다.                              | `OnUpdateFcmToken`                                           |
 | `GetSafeArea`              | -                                                                                     | 기기의 Safe Area(Notch 등) 정보를 요청합니다.            | `OnUpdateSafeArea`                                           |
 | `GetProducts`              | -                                                                                     | 스토어에 등록된 구독 상품 목록을 요청합니다.             | `OnUpdateProductSubscriptions`                               |
 | `GetCurrentPurchases`      | -                                                                                     | 현재 사용자가 보유 중인 구독 내역을 요청합니다.          | `OnUpdatePurchases`                                          |
