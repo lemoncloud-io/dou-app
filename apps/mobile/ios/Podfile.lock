@@ -2743,6 +2743,34 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - RNCClipboard (1.16.3):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - RNDeviceInfo (15.0.1):
     - React-Core
   - RNFBApp (23.8.5):
@@ -3036,6 +3064,7 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios/ReactCodegen`)
   - ReactCommon/turbomodule/core (from `../../../node_modules/react-native/ReactCommon`)
   - "RNCAsyncStorage (from `../../../node_modules/@react-native-async-storage/async-storage`)"
+  - "RNCClipboard (from `../../../node_modules/@react-native-clipboard/clipboard`)"
   - RNDeviceInfo (from `../../../node_modules/react-native-device-info`)
   - "RNFBApp (from `../../../node_modules/@react-native-firebase/app`)"
   - "RNFBMessaging (from `../../../node_modules/@react-native-firebase/messaging`)"
@@ -3226,6 +3255,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native/ReactCommon"
   RNCAsyncStorage:
     :path: "../../../node_modules/@react-native-async-storage/async-storage"
+  RNCClipboard:
+    :path: "../../../node_modules/@react-native-clipboard/clipboard"
   RNDeviceInfo:
     :path: "../../../node_modules/react-native-device-info"
   RNFBApp:
@@ -3335,6 +3366,7 @@ SPEC CHECKSUMS:
   ReactCodegen: 0a54319cc6fb7e0a795241bc88f41cdea3ddf436
   ReactCommon: 15e1e727fa34f760beb7dd52928687fda8edf8dc
   RNCAsyncStorage: fd44f4b03e007e642e98df6726737bc66e9ba609
+  RNCClipboard: e560338bf6cc4656a09ff90610b62ddc0dbdad65
   RNDeviceInfo: 36d7f232bfe7c9b5c494cb7793230424ed32c388
   RNFBApp: ecfd6567af4c73409c36103f7968e27696a92901
   RNFBMessaging: 8bee64a40bb3e1463bea7abffc43548d072f8ffc
