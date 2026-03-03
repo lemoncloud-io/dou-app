@@ -56,8 +56,7 @@ export const createInviteLink = async (id: string, invite: MyInviteView, created
 
     // Check if already exists
     const existing = await docRef.get();
-    console.log(existing);
-    if (existing._exists) {
+    if (existing.exists) {
         throw new Error('Invite link already exists for this ID');
     }
 

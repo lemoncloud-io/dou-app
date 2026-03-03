@@ -1,9 +1,2 @@
 export { useFirebaseAuth } from './useFirebaseAuth';
-export {
-    useDeeplinks,
-    useDeeplinkDetail,
-    useCreateDeeplink,
-    useDeleteDeeplink,
-    useCheckDeeplinkExists,
-    deeplinksKeys,
-} from './useDeeplinks';
+export { useDeeplinks, useDeeplinkDetail, useCreateDeeplink, useDeleteDeeplink, deeplinksKeys } from './useDeeplinks';

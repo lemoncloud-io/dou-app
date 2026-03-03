@@ -159,13 +159,3 @@ export const deleteDeeplink = async (id: string): Promise<void> => {
     const docRef = doc(col, id);
     await deleteDoc(docRef);
 };
-
-/**
- * Check if a deeplink exists for a user
- */
-export const checkDeeplinkExists = async (userId: string): Promise<boolean> => {
-    const col = firebaseService.getDeeplinksCollection();
-    const docRef = doc(col, userId);
-    const snapshot = await getDoc(docRef);
-    return snapshot.exists();
-};
