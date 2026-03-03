@@ -99,12 +99,14 @@ export const ChatSettingsPage = () => {
                                     {channel?.name || '방 이름'}
                                 </span>
                             </div>
-                            <button
-                                onClick={() => setIsUpdateDialogOpen(true)}
-                                className="text-[13px] font-medium text-[#2A7EF4]"
-                            >
-                                편집
-                            </button>
+                            {isOwner && (
+                                <button
+                                    onClick={() => setIsUpdateDialogOpen(true)}
+                                    className="text-[13px] font-medium text-[#2A7EF4]"
+                                >
+                                    편집
+                                </button>
+                            )}
                         </div>
                     </div>
 
