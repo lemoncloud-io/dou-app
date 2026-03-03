@@ -29,8 +29,7 @@ export const useUpdateChannel = () => {
                         reject(new Error('chat/update error'));
                         return;
                     }
-                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                    // @ts-ignore
+
                     if (envelope.action !== 'update-channel') return;
                     unsub();
                     setIsPending(false);

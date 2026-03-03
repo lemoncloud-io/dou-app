@@ -58,7 +58,7 @@
         "@hookform/resolvers": "^3.9.1",
         "@lemoncloud/chatic-backend-api": "^0.26.123",
         "@lemoncloud/chatic-socials-api": "^0.26.127",
-        "@lemoncloud/chatic-sockets-api": "^0.26.121",
+        "@lemoncloud/chatic-sockets-api": "^0.26.122",
         "@lemoncloud/lemon-web-core": "^1.5.0",
         "@radix-ui/react-accordion": "^1.2.1",
         "@radix-ui/react-alert-dialog": "^1.1.2",
