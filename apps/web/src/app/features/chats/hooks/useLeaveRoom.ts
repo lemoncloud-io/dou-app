@@ -3,11 +3,12 @@ import { useState } from 'react';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
+import { useMyChannels } from '../../home/hooks/useMyChannels';
 
 export const useLeaveRoom = () => {
     const { emitAuthenticated } = useWebSocketV2();
     const [isPending, setIsPending] = useState(false);
-
+    const { setChannels } = useMyChannels();
     const leaveRoom = (channelId: string, userId?: string, reason?: string): Promise<ChannelView> => {
         setIsPending(true);
 
@@ -25,7 +26,9 @@ export const useLeaveRoom = () => {
                     if (envelope.action !== 'leave') return;
                     unsub();
                     setIsPending(false);
-                    resolve(envelope.payload as ChannelView);
+                    const channel = envelope.payload as ChannelView;
+                    setChannels(prev => prev.filter(ch => ch.id !== channel.id));
+                    resolve(channel);
                 }
             );
             emitAuthenticated({
