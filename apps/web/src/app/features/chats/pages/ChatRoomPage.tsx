@@ -51,8 +51,42 @@ export const ChatRoomPage = () => {
     };
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollTop = messagesEndRef.current.scrollHeight;
+        }
     };
+
+    // 메시지가 추가될 때마다 스크롤을 맨 아래로
+    useEffect(() => {
+        if (messages.length > 0) {
+            scrollToBottom();
+        }
+    }, [messages.length]);
+
+    // 가상 키보드 대응
+    useEffect(() => {
+        const handleResize = () => {
+            // 키보드가 올라오면 스크롤을 맨 아래로
+            setTimeout(() => {
+                scrollToBottom();
+            }, 100);
+        };
+
+        const handleFocus = () => {
+            // 입력창 포커스 시 스크롤
+            setTimeout(() => {
+                scrollToBottom();
+            }, 300);
+        };
+
+        window.addEventListener('resize', handleResize);
+        inputRef.current?.addEventListener('focus', handleFocus);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            inputRef.current?.removeEventListener('focus', handleFocus);
+        };
+    }, []);
 
     // 입력창 크기 조절 훅
     useEffect(() => {
@@ -71,10 +105,6 @@ export const ChatRoomPage = () => {
         if (!content.trim() || !channelId || isPending) return;
 
         setContent('');
-
-        requestAnimationFrame(() => {
-            scrollToBottom();
-        });
 
         try {
             const newMessage = await sendMessage(channelId, content.trim());
@@ -177,7 +207,7 @@ export const ChatRoomPage = () => {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-auto px-[18px] py-3 flex flex-col gap-3.5">
+            <div ref={messagesEndRef} className="flex-1 overflow-auto px-[18px] py-3 flex flex-col gap-3.5">
                 {Object.entries(groupedMessages).map(([dateKey, dateMessages]) => (
                     <div key={dateKey} className="flex flex-col gap-3.5">
                         {/* Date Separator */}
@@ -232,7 +262,6 @@ export const ChatRoomPage = () => {
                             })}
                     </div>
                 ))}
-                <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
