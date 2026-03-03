@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import { DebugHomeScreen, FcmTestScreen, IapTestScreen, SocketTestScreen } from '../screens';
+import { DebugHomeScreen, DeeplinkTestScreen, FcmTestScreen, IapTestScreen, SocketTestScreen } from '../screens';
 
 import type { DebugStackParamList } from '../../../navigation';
 
@@ -49,6 +49,14 @@ export const DebugNavigator = () => {
                 component={FcmTestScreen}
                 options={{
                     title: 'FCM 테스트',
+                    headerBackButtonDisplayMode: 'minimal',
+                }}
+            />
+            <DebugStack.Screen
+                name="DeeplinkTest"
+                component={DeeplinkTestScreen}
+                options={{
+                    title: '딥링크 테스트',
                     headerBackButtonDisplayMode: 'minimal',
                 }}
             />

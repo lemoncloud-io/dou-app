@@ -29,6 +29,7 @@ export { extractCampaignParams, extractShortCode, isShortUrl, isValidDeepLink } 
 export { convertDeepLinkToFrontendUrl, convertShortUrlToFrontendUrl, needsConversion } from './urlConverter';
 export { generateFingerprint, getFingerprintComponents } from './fingerprint';
 export { retrieveDeferredLinkFromFirestore, storeDeferredLinkToFirestore } from './firestoreDeferred';
+export { createInviteLink, getInviteLink, checkInviteLinkExists, deleteInviteLink } from './inviteLink';
 // Export only public constants and type guards
 export {
     CUSTOM_SCHEMES,
@@ -45,3 +46,4 @@ export {
 export type { DeepLinkConfig, DeepLinkSource, DeferredLinkData, WebViewHandler } from './types';
 export type { FingerprintComponents } from './fingerprint';
 export type { DeferredLinkDocument } from './firestoreDeferred';
+export type { InviteLinkDocument, InviteLink } from './inviteLink';
