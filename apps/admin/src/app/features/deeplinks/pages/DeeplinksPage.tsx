@@ -22,7 +22,13 @@ import {
     AlertDialogTitle,
 } from '@chatic/ui-kit/components/ui/alert-dialog';
 
-import { FirebaseLoginDialog, CreateDeeplinkDialog, DeeplinksPageHeader, DeeplinksTable } from '../components';
+import {
+    FirebaseLoginDialog,
+    CreateDeeplinkDialog,
+    DeeplinkDetailDialog,
+    DeeplinksPageHeader,
+    DeeplinksTable,
+} from '../components';
 import { useFirebaseAuth, useDeeplinks, useDeleteDeeplink } from '../hooks';
 
 import type { AdminDeeplink } from '../types';
@@ -30,6 +36,7 @@ import type { JSX } from 'react';
 
 export const DeeplinksPage = (): JSX.Element => {
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
+    const [viewTargetUserId, setViewTargetUserId] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<AdminDeeplink | null>(null);
 
     const { isAuthenticated, isLoading: isAuthLoading, user, signIn, signOut, error: authError } = useFirebaseAuth();
@@ -143,7 +150,14 @@ export const DeeplinksPage = (): JSX.Element => {
                 </AlertDialogContent>
             </AlertDialog>
 
-            <DeeplinksTable deeplinks={data?.list ?? []} isLoading={isLoading} onDelete={setDeleteTarget} />
+            <DeeplinkDetailDialog userId={viewTargetUserId} onOpenChange={open => !open && setViewTargetUserId(null)} />
+
+            <DeeplinksTable
+                deeplinks={data?.list ?? []}
+                isLoading={isLoading}
+                onView={deeplink => setViewTargetUserId(deeplink.user.id)}
+                onDelete={setDeleteTarget}
+            />
 
             {data?.total && data.total > 20 && (
                 <div className="flex items-center justify-between mt-4">

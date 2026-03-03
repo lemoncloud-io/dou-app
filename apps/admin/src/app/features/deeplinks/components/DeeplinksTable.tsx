@@ -4,7 +4,7 @@
  * Table component for displaying and managing deeplinks.
  */
 
-import { Copy, ExternalLink, Trash2 } from 'lucide-react';
+import { Copy, ExternalLink, Eye, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import copy from 'copy-to-clipboard';
 
@@ -19,6 +19,7 @@ import type { JSX } from 'react';
 interface DeeplinksTableProps {
     deeplinks: AdminDeeplink[];
     isLoading?: boolean;
+    onView: (deeplink: AdminDeeplink) => void;
     onDelete: (deeplink: AdminDeeplink) => void;
 }
 
@@ -46,7 +47,7 @@ const TableSkeleton = (): JSX.Element => (
     </TableBody>
 );
 
-export const DeeplinksTable = ({ deeplinks, isLoading, onDelete }: DeeplinksTableProps): JSX.Element => {
+export const DeeplinksTable = ({ deeplinks, isLoading, onView, onDelete }: DeeplinksTableProps): JSX.Element => {
     const handleCopyUrl = (url: string) => {
         const success = copy(url);
         if (success) {
@@ -104,6 +105,14 @@ export const DeeplinksTable = ({ deeplinks, isLoading, onDelete }: DeeplinksTabl
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-1">
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => onView(deeplink)}
+                                                title="View Details"
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                            </Button>
                                             <Button
                                                 size="sm"
                                                 variant="ghost"

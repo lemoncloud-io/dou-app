@@ -8,7 +8,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { createQueryKeys } from '@chatic/shared';
 
-import { fetchDeeplinks, createDeeplink, deleteDeeplink, checkDeeplinkExists } from '../services';
+import {
+    fetchDeeplinks,
+    createDeeplink,
+    deleteDeeplink,
+    checkDeeplinkExists,
+    fetchDeeplinkByUserId,
+} from '../services';
 
 import type { UserView } from '@lemoncloud/chatic-backend-api';
 
@@ -40,6 +46,17 @@ export const useDeeplinks = (params: { limit?: number } = {}) => {
 export const useCheckDeeplinkExists = () => {
     return useMutation({
         mutationFn: (userId: string) => checkDeeplinkExists(userId),
+    });
+};
+
+/**
+ * Hook to fetch a single deeplink by user ID
+ */
+export const useDeeplinkDetail = (userId: string | null) => {
+    return useQuery({
+        queryKey: deeplinksKeys.detail(userId ?? ''),
+        queryFn: () => fetchDeeplinkByUserId(userId!),
+        enabled: !!userId,
     });
 };
 

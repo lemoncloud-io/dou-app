@@ -56,7 +56,7 @@
     "private": true,
     "dependencies": {
         "@hookform/resolvers": "^3.9.1",
-        "@lemoncloud/chatic-backend-api": "^0.26.122",
+        "@lemoncloud/chatic-backend-api": "^0.26.124",
         "@lemoncloud/chatic-socials-api": "^0.26.126",
         "@lemoncloud/chatic-sockets-api": "^0.26.121",
         "@lemoncloud/lemon-web-core": "^1.5.0",
