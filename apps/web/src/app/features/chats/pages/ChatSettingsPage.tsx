@@ -1,9 +1,13 @@
-import { ChevronLeft, UserPlus } from 'lucide-react';
+import { ChevronLeft, LogOut, MessageCircle, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
+import { useMyChannel } from '../hooks/useMyChannel';
+import { useLeaveRoom } from '../hooks/useLeaveRoom';
+import { useSimpleWebCore } from '@chatic/web-core';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 // import { useUsersInChannel } from '@chatic/channels';
 
 export const ChatSettingsPage = () => {
@@ -11,8 +15,63 @@ export const ChatSettingsPage = () => {
     const { channelId } = useParams<{ channelId: string }>();
     const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
     const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+    const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
+    const { leaveRoom } = useLeaveRoom();
+    const { toast } = useToast();
 
-    // const { data: users } = useUsersInChannel(channelId as string, { limit: -1 });
+    const { profile } = useSimpleWebCore();
+
+    const isOwner = channel?.ownerId === profile?.id;
+
+    const handleLeaveRoomClick = () => {
+        if (confirm('정말로 채팅방을 나가시겠습니까?')) {
+            handleLeaveRoom();
+        }
+    };
+
+    const handleDeleteRoomClick = () => {
+        handleDeleteRoom();
+    };
+
+    const handleLeaveRoom = async () => {
+        if (!channelId) return;
+
+        try {
+            await leaveRoom(channelId, profile?.id);
+            toast({ title: '채팅방을 나갔습니다' });
+            navigate('/home');
+        } catch (error) {
+            console.error('Failed to leave room:', error);
+            toast({ title: '방 나가기에 실패했습니다', variant: 'destructive' });
+        }
+    };
+
+    const handleDeleteRoom = () => {
+        toast({ title: '방 삭제 기능은 아직 지원되지 않습니다' });
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-white">
+                <div className="text-center">
+                    <div className="text-sm text-gray-500">채널 정보를 불러오는 중...</div>
+                </div>
+            </div>
+        );
+    }
+
+    if (isError) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-white">
+                <div className="text-center">
+                    <div className="text-sm text-red-500">채널 정보를 불러올 수 없습니다</div>
+                    <button onClick={() => navigate(-1)} className="mt-2 text-sm text-blue-500 underline">
+                        뒤로 가기
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen flex-col bg-white">
@@ -30,14 +89,14 @@ export const ChatSettingsPage = () => {
                 {/* Room Info */}
                 <div className="flex flex-col items-center gap-[19px]">
                     {/* Profile */}
-                    {/* <div className="flex flex-col items-center gap-2">
+                    <div className="flex flex-col items-center gap-2">
                         <div className="w-14 h-14 rounded-full bg-[#F4F5F5] border border-[#F4F5F5] flex items-center justify-center">
                             <MessageCircle className="text-[#84888F]" />
                         </div>
                         <div className="flex flex-col items-center gap-1">
                             <div className="flex items-center gap-1">
                                 <span className="text-[17px] font-semibold leading-[1.294] tracking-[-0.02em] text-[#3A3C40]">
-                                    &lt;방 이름&gt;
+                                    {channel?.name || '방 이름'}
                                 </span>
                             </div>
                             <button
@@ -47,13 +106,13 @@ export const ChatSettingsPage = () => {
                                 편집
                             </button>
                         </div>
-                    </div> */}
+                    </div>
 
                     {/* Menu */}
                     <div className="flex gap-6">
                         <button onClick={() => setIsInviteDialogOpen(true)} className="flex flex-col items-center">
                             <div className="w-[46px] h-[46px]  flex items-center justify-center">
-                                <UserPlus className="w-5 h-5 text-[#84888F]" />
+                                <UserPlus className="w-5 h-5 text-black" />
                             </div>
                             <span className="text-[14px] font-medium text-[#84888F] mt-1">친구 초대</span>
                         </button>
@@ -62,13 +121,22 @@ export const ChatSettingsPage = () => {
                                 <Bell className="w-5 h-5 text-[#84888F]" />
                             </div>
                             <span className="text-[14px] font-medium text-[#84888F] mt-1">알림</span>
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <div className="w-[46px] h-[46px] flex items-center justify-center">
-                                <Trash2 className="w-5 h-5 text-[#FF4C35]" />
-                            </div>
-                            <span className="text-[14px] font-medium text-[#84888F] mt-1">방 삭제</span>
                         </div> */}
+                        {isOwner ? (
+                            <button onClick={handleDeleteRoomClick} className="flex flex-col items-center">
+                                <div className="w-[46px] h-[46px] flex items-center justify-center">
+                                    <Trash2 className="w-5 h-5 text-[#FF4C35]" />
+                                </div>
+                                <span className="text-[14px] font-medium text-[#84888F] mt-1">방 삭제</span>
+                            </button>
+                        ) : (
+                            <button onClick={handleLeaveRoomClick} className="flex flex-col items-center">
+                                <div className="w-[46px] h-[46px] flex items-center justify-center">
+                                    <LogOut className="w-5 h-5 text-black" />
+                                </div>
+                                <span className="text-[14px] font-medium text-[#84888F] mt-1">방 나가기</span>
+                            </button>
+                        )}
                     </div>
                 </div>
 

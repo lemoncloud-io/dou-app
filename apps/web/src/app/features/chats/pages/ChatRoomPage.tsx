@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { useLeaveRoom } from '../hooks/useLeaveRoom';
 import { useSendMessage } from '../hooks/useSendMessage';
+import { useMyChannel } from '../hooks/useMyChannel';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -27,6 +28,7 @@ export const ChatRoomPage = () => {
     const { leaveRoom } = useLeaveRoom();
     const { toast } = useToast();
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
 
     const { profile } = useSimpleWebCore();
     const {
@@ -172,6 +174,29 @@ export const ChatRoomPage = () => {
         {} as Record<string, typeof messages>
     );
 
+    if (isLoading) {
+        return (
+            <div className="flex h-full items-center justify-center bg-white">
+                <div className="text-center">
+                    <div className="text-sm text-gray-500">채널 정보를 불러오는 중...</div>
+                </div>
+            </div>
+        );
+    }
+
+    if (isError) {
+        return (
+            <div className="flex h-full items-center justify-center bg-white">
+                <div className="text-center">
+                    <div className="text-sm text-red-500">채널 정보를 불러올 수 없습니다</div>
+                    <button onClick={() => navigate(-1)} className="mt-2 text-sm text-blue-500 underline">
+                        뒤로 가기
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex h-full flex-col bg-white">
             {/* Top Bar */}
@@ -179,7 +204,9 @@ export const ChatRoomPage = () => {
                 <button onClick={() => navigate(-1)} className="w-11 h-11 flex items-center justify-center">
                     <ChevronLeft className="w-6 h-6 text-[#3A3C40]" />
                 </button>
-                <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#171725]">채팅방</h1>
+                <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#171725]">
+                    {channel?.name || '채팅방'}
+                </h1>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <button className="w-11 h-11 flex items-center justify-center">
