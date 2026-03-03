@@ -7,6 +7,13 @@ import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useCreateChannel } from '../hooks/useCreateChannel';
+import type { ChannelBody, ChannelStereo } from '@lemoncloud/chatic-socials-api';
+
+const STEREO_OPTIONS: { value: ChannelStereo; label: string }[] = [
+    { value: 'public', label: '공개' },
+    { value: 'private', label: '나와의 채팅' },
+    { value: 'dm', label: 'DM' },
+];
 
 interface CreateChannelDialogProps {
     open: boolean;
@@ -21,11 +28,11 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
         handleSubmit,
         reset,
         formState: { errors },
-    } = useForm<{ name: string; desc?: string }>();
+    } = useForm<{ name: string; desc?: string; stereo: ChannelStereo }>({ defaultValues: { stereo: 'public' } });
 
-    const onSubmit = async (data: { name: string; desc?: string }) => {
+    const onSubmit = async (data: ChannelBody) => {
         try {
-            await createChannel({ stereo: 'public', name: data.name, desc: data.desc });
+            await createChannel({ stereo: data.stereo ?? 'public', name: data.name, desc: data.desc });
             reset();
             onOpenChange(false);
             onComplete?.();
@@ -73,6 +80,33 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
 
                         {/* Form Section */}
                         <div className="flex flex-col justify-center gap-6">
+                            {/* Stereo Select */}
+                            <div className="flex flex-col justify-center items-center gap-1.5 px-4 rounded-lg">
+                                <div className="flex flex-col gap-1.5 w-full">
+                                    <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-[#9FA2A7]">
+                                        채널 유형
+                                    </Label>
+                                    <div className="flex gap-2">
+                                        {STEREO_OPTIONS.map(option => (
+                                            <label
+                                                key={option.value}
+                                                className="flex items-center gap-1.5 cursor-pointer"
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    value={option.value}
+                                                    {...register('stereo')}
+                                                    className="w-4 h-4 accent-[#102346]"
+                                                />
+                                                <span className="text-[14px] font-medium text-[#3A3C40]">
+                                                    {option.label}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Room Name Input */}
                             <div className="flex flex-col justify-center items-center gap-1.5 px-4 rounded-lg">
                                 <div className="flex flex-col gap-1.5 w-full">
