@@ -15,7 +15,7 @@ export const WebMessageTypes = {
     GetFcmToken: 'GetFcmToken',
     GetSafeArea: 'GetSafeArea',
     PurchaseSubscription: 'PurchaseSubscription',
-    CheckUnfinishedPurchases: 'CheckUnfinishedPurchases',
+    RestorePurchase: 'RestorePurchase',
     GetProducts: 'GetProducts',
     GetCurrentPurchases: 'GetCurrentPurchases',
 } as const;
@@ -103,7 +103,7 @@ interface WebMessageMap {
      * IAP Event
      */
     PurchaseSubscription: PurchaseSubscription;
-    CheckUnfinishedPurchases: DefaultMessage<'CheckUnfinishedPurchases'>;
+    RestorePurchase: DefaultMessage<'RestorePurchase'>;
     GetProducts: DefaultMessage<'GetProducts'>;
     GetCurrentPurchases: DefaultMessage<'GetCurrentPurchases'>;
 }

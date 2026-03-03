@@ -12,7 +12,7 @@ import type { PurchaseError } from 'react-native-iap';
  * @param bridge
  */
 export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
-    const { products, currentPurchases, handlePurchase, checkUnfinishedPurchases, loading } = useSubscriptionIap({
+    const { products, currentPurchases, handlePurchase, restorePurchases, loading } = useSubscriptionIap({
         /**
          * 모든 결제 및 서버 검증 프로세스가 성공적으로 마무리 되었을 때 수행되는 콜백
          */
@@ -62,15 +62,15 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
     }, [bridge, currentPurchases]);
 
     /**
-     * 미완료 결제 건 처리 요청
+     * 구매 복구
      */
-    const checkPurchases = useCallback(async () => {
-        await checkUnfinishedPurchases();
+    const restorePurchase = useCallback(async () => {
+        await restorePurchases();
         const message: AppMessageData<'OnSuccessPurchase'> = {
             type: 'OnSuccessPurchase',
         };
         bridge.post(message);
-    }, [bridge, checkUnfinishedPurchases]);
+    }, [bridge, restorePurchases]);
 
     /**
      * 구독권 구매 수행
@@ -85,7 +85,7 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
     return {
         getProducts,
         getCurrentPurchases,
-        checkPurchases,
+        restorePurchase,
         purchaseSubscription,
         isIapLoading: loading,
     };

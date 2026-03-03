@@ -32,7 +32,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const { bridge } = useAppBridge(webViewRef);
     const { getSafeAreaInfo } = useSafeAreaHandler(bridge);
     const { getFcmToken } = useFcmHandler(bridge);
-    const { getProducts, getCurrentPurchases, checkPurchases, purchaseSubscription, isIapLoading } =
+    const { getProducts, getCurrentPurchases, restorePurchase, purchaseSubscription, isIapLoading } =
         useSubscriptionIapHandler(bridge);
 
     useAndroidBack(webViewRef, canGoBack);
@@ -98,8 +98,8 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                         getSafeAreaInfo();
                         break;
                     }
-                    case 'CheckUnfinishedPurchases': {
-                        void checkPurchases();
+                    case 'RestorePurchase': {
+                        void restorePurchase();
                         break;
                     }
 
@@ -145,7 +145,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         );
     }, [
         bridge,
-        checkPurchases,
+        restorePurchase,
         getCurrentPurchases,
         getFcmToken,
         getProducts,
