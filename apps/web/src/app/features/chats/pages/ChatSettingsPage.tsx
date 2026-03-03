@@ -182,7 +182,7 @@ export const ChatSettingsPage = () => {
             </div>
 
             <InviteFriendsDialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen} channelId={channelId} />
-            <UpdateChannelDialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen} />
+            <UpdateChannelDialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen} channelId={channelId} />
         </div>
     );
 };
