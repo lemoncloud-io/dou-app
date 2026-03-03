@@ -30,7 +30,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 import { useUsers } from '@chatic/users';
 
-import { useCreateDeeplink, useCheckDeeplinkExists } from '../hooks';
+import { useCreateDeeplink, useDeeplinks } from '../hooks';
 
 import type { UserView } from '@lemoncloud/chatic-backend-api';
 import type { JSX } from 'react';
@@ -46,8 +46,11 @@ export const CreateDeeplinkDialog = ({ open, onOpenChange, onSuccess }: CreateDe
     const [selectedUser, setSelectedUser] = useState<UserView | null>(null);
 
     const { data: usersData, isLoading: isLoadingUsers } = useUsers({ limit: 100 });
+    const { data: deeplinksData } = useDeeplinks({ limit: 1000 });
     const { mutateAsync: createDeeplink, isPending: isCreating } = useCreateDeeplink();
-    const { mutateAsync: checkExists } = useCheckDeeplinkExists();
+
+    // Set of user IDs that already have deeplinks
+    const existingUserIds = new Set(deeplinksData?.list.map(d => d.user.id) ?? []);
 
     const handleSelectUser = async (user: UserView) => {
         setSelectedUser(user);
@@ -61,13 +64,6 @@ export const CreateDeeplinkDialog = ({ open, onOpenChange, onSuccess }: CreateDe
         }
 
         try {
-            // Check if deeplink already exists
-            const exists = await checkExists(selectedUser.id);
-            if (exists) {
-                toast.error('Deeplink already exists for this user');
-                return;
-            }
-
             await createDeeplink(selectedUser);
             toast.success('Deeplink created successfully');
             setSelectedUser(null);
@@ -128,26 +124,34 @@ export const CreateDeeplinkDialog = ({ open, onOpenChange, onSuccess }: CreateDe
                                     <CommandList>
                                         <CommandEmpty>No users found.</CommandEmpty>
                                         <CommandGroup>
-                                            {users.map(user => (
-                                                <CommandItem
-                                                    key={user.id}
-                                                    value={`${user.name} ${user.loginId || ''} ${user.id}`}
-                                                    onSelect={() => handleSelectUser(user)}
-                                                >
-                                                    <Check
-                                                        className={cn(
-                                                            'mr-2 h-4 w-4',
-                                                            selectedUser?.id === user.id ? 'opacity-100' : 'opacity-0'
-                                                        )}
-                                                    />
-                                                    <div className="flex flex-col">
-                                                        <span className="font-medium">{user.name}</span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {user.loginId || user.id}
-                                                        </span>
-                                                    </div>
-                                                </CommandItem>
-                                            ))}
+                                            {users.map(user => {
+                                                const hasDeeplink = existingUserIds.has(user.id);
+                                                return (
+                                                    <CommandItem
+                                                        key={user.id}
+                                                        value={`${user.name} ${user.loginId || ''} ${user.id}`}
+                                                        onSelect={() => !hasDeeplink && handleSelectUser(user)}
+                                                        disabled={hasDeeplink}
+                                                        className={hasDeeplink ? 'opacity-50' : ''}
+                                                    >
+                                                        <Check
+                                                            className={cn(
+                                                                'mr-2 h-4 w-4',
+                                                                selectedUser?.id === user.id
+                                                                    ? 'opacity-100'
+                                                                    : 'opacity-0'
+                                                            )}
+                                                        />
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium">{user.name}</span>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {user.loginId || user.id}
+                                                                {hasDeeplink && ' (Deeplink exists)'}
+                                                            </span>
+                                                        </div>
+                                                    </CommandItem>
+                                                );
+                                            })}
                                         </CommandGroup>
                                     </CommandList>
                                 </Command>
