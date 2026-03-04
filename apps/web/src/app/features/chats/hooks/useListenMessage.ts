@@ -15,47 +15,66 @@ export const useListenMessage = () => {
     const { setChannels } = useMyChannels();
 
     useEffect(() => {
-        const chatMessage = lastMessage as WSSEnvelope<ChatModel>;
-        if (chatMessage?.type === 'model' && chatMessage.action === 'create') {
-            const channelId = chatMessage?.payload?.channelId;
-            if (!channelId) return;
+        const envelope = lastMessage as WSSEnvelope<ChatModel & { sourceType?: string; nick?: string }>;
+        if (envelope?.type !== 'model') return;
 
-            const id = chatMessage.payload?.id || '0';
-            const content = chatMessage.payload?.content || 'unknown';
-            const timestamp = chatMessage.payload?.createdAt ? new Date(chatMessage.payload?.createdAt) : new Date();
-            const ownerId = chatMessage.payload?.ownerId || '';
-            const ownerName = chatMessage.payload?.owner$?.name || '알 수 없음';
-            const chatNo = chatMessage.payload?.chatNo;
-            const isCurrentChannel = window.location.pathname.includes(channelId);
+        const channelId = envelope?.payload?.channelId ?? (envelope.meta as { channel?: string })?.channel;
+        if (!channelId) return;
 
-            setChannels(prev =>
-                prev.map(ch =>
-                    ch.id === channelId
-                        ? {
-                              ...ch,
-                              lastChat$: {
-                                  ...chatMessage.payload,
-                                  id,
-                                  content,
-                                  createdAt: chatMessage.payload?.createdAt,
-                              },
-                          }
-                        : ch
-                )
-            );
-
+        // 누군가 나간 경우
+        if (envelope.action === 'delete' && envelope.payload?.sourceType === 'join') {
+            const nick = (envelope.payload as unknown as { nick?: string })?.nick ?? '알 수 없음';
+            const timestamp = new Date();
             addMessage(
                 {
-                    id,
-                    content,
+                    id: envelope.mid ?? String(timestamp.getTime()),
+                    content: `${nick}님이 나갔습니다.`,
                     timestamp,
-                    ownerId,
-                    ownerName,
-                    chatNo,
-                    isRead: isCurrentChannel,
+                    ownerId: '',
+                    isRead: true,
+                    isSystem: true,
                 },
                 channelId
             );
+            return;
         }
+
+        if (envelope.action !== 'create') return;
+
+        // 누군가 입장한 경우
+        if (envelope.payload?.sourceType === 'join') {
+            const nick = (envelope.payload as unknown as { nick?: string })?.nick ?? '알 수 없음';
+            const timestamp = new Date();
+            addMessage(
+                {
+                    id: envelope.mid ?? String(timestamp.getTime()),
+                    content: `${nick}님이 들어왔습니다.`,
+                    timestamp,
+                    ownerId: '',
+                    isRead: true,
+                    isSystem: true,
+                },
+                channelId
+            );
+            return;
+        }
+
+        const id = envelope.payload?.id || '0';
+        const content = envelope.payload?.content || 'unknown';
+        const timestamp = envelope.payload?.createdAt ? new Date(envelope.payload.createdAt) : new Date();
+        const ownerId = envelope.payload?.ownerId || '';
+        const ownerName = envelope.payload?.owner$?.name || '알 수 없음';
+        const chatNo = envelope.payload?.chatNo;
+        const isCurrentChannel = window.location.pathname.includes(channelId);
+
+        setChannels(prev =>
+            prev.map(ch =>
+                ch.id === channelId
+                    ? { ...ch, lastChat$: { ...envelope.payload, id, content, createdAt: envelope.payload?.createdAt } }
+                    : ch
+            )
+        );
+
+        addMessage({ id, content, timestamp, ownerId, ownerName, chatNo, isRead: isCurrentChannel }, channelId);
     }, [lastMessage, addMessage]);
 };

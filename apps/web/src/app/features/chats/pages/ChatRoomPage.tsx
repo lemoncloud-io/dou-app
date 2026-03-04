@@ -13,6 +13,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
 import { useSimpleWebCore } from '@chatic/web-core';
+import { useWebSocketV2 } from '@chatic/socket';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useReadMessage } from '../hooks/useReadMessage';
@@ -25,6 +26,7 @@ export const ChatRoomPage = () => {
     const [content, setContent] = useState('');
     const [isComposing, setIsComposing] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const { emit } = useWebSocketV2();
     const { sendMessage, isPending } = useSendMessage();
     const { leaveRoom } = useLeaveRoom();
     const { toast } = useToast();
@@ -98,6 +100,7 @@ export const ChatRoomPage = () => {
         if (inputRef.current) {
             inputRef.current.style.height = 'auto';
             inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
+            inputRef.current.style.overflowY = inputRef.current.scrollHeight > 120 ? 'auto' : 'hidden';
         }
     }, [content]);
 
@@ -121,6 +124,11 @@ export const ChatRoomPage = () => {
             const chatNo = newMessage?.chatNo;
 
             addMessage({ id, content: content.trim(), timestamp, ownerId, ownerName, chatNo }, channelId);
+
+            if (chatNo && profile?.id) {
+                emit({ type: 'chat', action: 'read', payload: { channelId, chatNo } });
+                applyReadEvent(chatNo, profile.id);
+            }
             setChannels(prev =>
                 prev.map(ch =>
                     ch.id === channelId
@@ -271,9 +279,26 @@ export const ChatRoomPage = () => {
                             .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
                             .map(message => {
                                 const isMine = message.ownerId === profile?.id;
+                                if (message.isSystem) {
+                                    const systemMatch = message.content.match(/^(.+?)(님이.+)$/);
+                                    return (
+                                        <div key={message.id} className="flex justify-center py-1">
+                                            <span className="text-[13px] font-medium text-[#6B7280] bg-[#F4F5F5] px-4 py-1.5 my-3 rounded-full">
+                                                {systemMatch ? (
+                                                    <>
+                                                        <strong>{systemMatch[1]}</strong>
+                                                        {systemMatch[2]}
+                                                    </>
+                                                ) : (
+                                                    message.content
+                                                )}
+                                            </span>
+                                        </div>
+                                    );
+                                }
                                 return isMine ? (
-                                    <div key={message.id} className="flex flex-col items-end gap-1">
-                                        <div className="flex items-end gap-2">
+                                    <div key={message.id} className="flex justify-end">
+                                        <div className="flex items-end gap-1">
                                             <div className="flex flex-col items-end gap-0.5">
                                                 {(() => {
                                                     const unread =
@@ -289,7 +314,7 @@ export const ChatRoomPage = () => {
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2 px-3 py-3 bg-[#102346] rounded-[14px_14px_0px_14px] max-w-[269px]">
-                                                <span className="text-[14px] font-normal leading-[1.3] text-white">
+                                                <span className="text-[14px] font-normal leading-[1.3] text-white whitespace-pre-wrap">
                                                     {message.content}
                                                 </span>
                                             </div>
@@ -303,25 +328,29 @@ export const ChatRoomPage = () => {
                                                 <span className="text-[12px] font-medium text-[#84888F]">
                                                     {message.ownerName}
                                                 </span>
-                                                <div className="flex items-center gap-2 px-6 py-3 bg-[#F6F6F6] rounded-[0px_14px_14px_14px]">
-                                                    <span className="text-[14px] font-normal leading-[1.3] text-[#171725]">
-                                                        {message.content}
-                                                    </span>
+                                                <div className="flex items-end gap-1">
+                                                    <div className="flex items-center gap-2 px-6 py-3 bg-[#F6F6F6] rounded-[0px_14px_14px_14px] max-w-[269px]">
+                                                        <span className="text-[14px] font-normal leading-[1.3] text-[#171725] whitespace-pre-wrap">
+                                                            {message.content}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex flex-col items-start gap-0.5">
+                                                        {(() => {
+                                                            const unread =
+                                                                (channel?.memberNo ?? 0) -
+                                                                (message.readBy?.length ?? 0);
+                                                            return unread > 0 ? (
+                                                                <span className="text-[10px] font-medium text-[#2A7EF4]">
+                                                                    {unread}
+                                                                </span>
+                                                            ) : null;
+                                                        })()}
+                                                        <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
+                                                            {formatTime(message.timestamp)}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 pl-[47px]">
-                                            {(() => {
-                                                const unread = (channel?.memberNo ?? 0) - (message.readBy?.length ?? 0);
-                                                return unread > 0 ? (
-                                                    <span className="text-[10px] font-medium text-[#2A7EF4]">
-                                                        {unread}
-                                                    </span>
-                                                ) : null;
-                                            })()}
-                                            <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
-                                                {formatTime(message.timestamp)}
-                                            </span>
                                         </div>
                                     </div>
                                 );

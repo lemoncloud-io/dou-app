@@ -7,6 +7,7 @@ export interface Message {
     readBy?: string[];
     chatNo?: number;
     isRead?: boolean;
+    isSystem?: boolean;
 }
 
 export interface ChatStorageAdapter {

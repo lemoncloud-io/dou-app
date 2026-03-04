@@ -62,6 +62,7 @@ export const IndexedDBStorageAdapter: ChatStorageAdapter = {
                         chatNo: s.chatNo,
                         readBy: s.readBy,
                         isRead: s.isRead,
+                        isSystem: s.isSystem,
                     }))
                 );
         });

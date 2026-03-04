@@ -1,3 +1,4 @@
+import { Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 import { useSimpleWebCore } from '@chatic/web-core';
@@ -26,21 +27,25 @@ const ChannelItem = ({ channel }: { channel: ChannelView }) => {
             onClick={() => navigate(`/chats/${channel.id}/room`)}
             className="flex items-center gap-2.5 w-full text-left"
         >
-            <div className="flex h-[39px] w-[39px] items-center justify-center rounded-full bg-[#F4F5F5]">
-                <div className="h-4 w-4 text-[#CFD0D3]">💬</div>
-            </div>
-            <div className="flex flex-1 items-center">
-                <div className="flex flex-1 flex-col">
+            <div className="flex h-[39px] w-[39px] shrink-0 rounded-full bg-[#F4F5F5]" />
+            <div className="flex flex-1 items-center min-w-0">
+                <div className="flex flex-1 flex-col min-w-0">
                     <div className="flex items-center gap-1">
                         <span className="text-[14px] font-semibold leading-[1.57] tracking-[0.005em] text-[#171725]">
                             {channel.name || 'Unnamed Channel'}
                         </span>
+                        {channel.memberNo ? (
+                            <div className="flex items-center gap-0.5 bg-[#EEF2FF] px-1.5 py-0.5 rounded-full">
+                                <Users className="w-3 h-3 text-[#4F6EF7]" />
+                                <span className="text-[11px] font-semibold text-[#4F6EF7]">{channel.memberNo}</span>
+                            </div>
+                        ) : null}
                     </div>
-                    <span className="text-[12px] font-normal leading-[1.67] tracking-[0.005em] text-[#9FA2A7]">
+                    <span className="text-[12px] font-normal leading-[1.67] tracking-[0.005em] text-[#9FA2A7] truncate">
                         {channel.lastChat$?.content || channel.desc || '채널 설명 없음'}
                     </span>
                 </div>
-                <div className="flex h-[45px] flex-col items-end gap-1">
+                <div className="flex h-[45px] shrink-0 flex-col items-end gap-1">
                     <span className="w-[67px] text-right text-[10px] font-normal leading-[2] tracking-[0.005em] text-[#9CA4AB]">
                         {(channel.lastChat$?.createdAt ?? channel.updatedAt)
                             ? new Date(channel.lastChat$?.createdAt ?? channel.updatedAt!).toLocaleTimeString('ko-KR', {
