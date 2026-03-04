@@ -6,7 +6,14 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { DOU_ENDPOINT, WS_ENDPOINT, loginWithInviteCode, simpleWebCore, useSimpleWebCore } from '@chatic/web-core';
+import {
+    DOU_ENDPOINT,
+    OAUTH_ENDPOINT,
+    WS_ENDPOINT,
+    loginWithInviteCode,
+    simpleWebCore,
+    useSimpleWebCore,
+} from '@chatic/web-core';
 import { LoadingFallback } from '@chatic/shared';
 
 import type { JSX } from 'react';
@@ -122,13 +129,12 @@ export const LoginPage = (): JSX.Element => {
             {/* Debug Panel */}
             {showDebug && (
                 <div className="bg-gray-100 p-2 text-xs font-mono border-b space-y-0.5">
-                    <div className="text-gray-500">DOU_ENDPOINT: {DOU_ENDPOINT || '(not set)'}</div>
-                    <div className="text-gray-500">WS_ENDPOINT: {WS_ENDPOINT || '(not set)'}</div>
-                    <div className="text-gray-400">
-                        localStorage.DOU: {localStorage.getItem('CHATIC_DOU_ENDPOINT') || '(not set)'}
-                    </div>
-                    <div className="text-gray-400">
-                        localStorage.WS: {localStorage.getItem('CHATIC_WS_ENDPOINT') || '(not set)'}
+                    <div className="text-gray-500">OAUTH: {OAUTH_ENDPOINT || '(not set)'}</div>
+                    <div className="text-gray-500">DOU: {DOU_ENDPOINT || '(not set)'}</div>
+                    <div className="text-gray-500">WS: {WS_ENDPOINT || '(not set)'}</div>
+                    <div className="text-gray-400 text-[10px]">
+                        ls: {localStorage.getItem('CHATIC_OAUTH_ENDPOINT') || '-'} |{' '}
+                        {localStorage.getItem('CHATIC_DOU_ENDPOINT') || '-'}
                     </div>
                 </div>
             )}
