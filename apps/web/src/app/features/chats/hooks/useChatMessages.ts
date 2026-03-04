@@ -1,276 +1,93 @@
 import { useCallback, useEffect, useState } from 'react';
 
-interface Message {
-    id: string;
-    content: string;
-    timestamp: Date;
-    ownerId: string;
-    ownerName?: string;
-    readCount?: number;
-    chatNo?: number;
-    isRead?: boolean;
-}
+import type { Message } from '../storages/ChatStorageAdapter';
+import { BROADCAST_CHANNEL_NAME } from '../storages/IndexedDBStorageAdapter';
+import { useDynamicStorage } from './useDynamicStorage';
 
-interface StoredMessage extends Omit<Message, 'timestamp'> {
-    timestamp: string;
-    chatKey: string;
-    compositeKey: string;
-}
-
-const DB_NAME = 'ChatDB';
-const DB_VERSION = 2;
-const STORE_NAME = 'messages';
-const BROADCAST_CHANNEL_NAME = 'chat-messages-update';
-
-const openDB = (): Promise<IDBDatabase> => {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
-
-        request.onupgradeneeded = event => {
-            const db = request.result;
-
-            if (event.oldVersion < 2) {
-                if (db.objectStoreNames.contains(STORE_NAME)) {
-                    db.deleteObjectStore(STORE_NAME);
-                }
-                const store = db.createObjectStore(STORE_NAME, { keyPath: 'compositeKey' });
-                store.createIndex('chatKey', 'chatKey', { unique: false });
-            }
-        };
-    });
-};
-
-const getChatKey = (userId: string, channelId: string): string => {
-    return `${userId}@${channelId}`;
-};
-
-const saveMessage = async (userId: string, channelId: string, message: Message): Promise<void> => {
-    const db = await openDB();
-    const transaction = db.transaction([STORE_NAME], 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-
-    const chatKey = getChatKey(userId, channelId);
-    const storedMessage: StoredMessage = {
-        ...message,
-        timestamp: message.timestamp.toISOString(),
-        chatKey,
-        compositeKey: `${chatKey}@${message.id}`,
-    };
-
-    store.put(storedMessage);
-
-    // Broadcast update
-    const channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
-    channel.postMessage({ type: 'message-added', userId, channelId, message });
-    channel.close();
-};
-
-const loadMessages = async (userId: string, channelId: string): Promise<Message[]> => {
-    const db = await openDB();
-    const transaction = db.transaction([STORE_NAME], 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const index = store.index('chatKey');
-
-    return new Promise((resolve, reject) => {
-        const request = index.getAll(getChatKey(userId, channelId));
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-            const messages = request.result.map((stored: StoredMessage) => ({
-                id: stored.id,
-                content: stored.content,
-                timestamp: new Date(stored.timestamp),
-                ownerId: stored.ownerId,
-                ownerName: stored.ownerName,
-                chatNo: stored.chatNo,
-                readCount: stored.readCount,
-                isRead: stored.isRead,
-            }));
-            resolve(messages);
-        };
-    });
-};
-
-export const countUnreadMessages = async (userId: string, channelId: string): Promise<number> => {
-    const db = await openDB();
-    const transaction = db.transaction([STORE_NAME], 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const index = store.index('chatKey');
-
-    return new Promise((resolve, reject) => {
-        const request = index.getAll(getChatKey(userId, channelId));
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-            const count = request.result.filter((m: StoredMessage) => m.isRead === false).length;
-            resolve(count);
-        };
-    });
-};
-
-export const markAllAsReadInDB = async (userId: string, channelId: string): Promise<void> => {
-    const db = await openDB();
-    const transaction = db.transaction([STORE_NAME], 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const index = store.index('chatKey');
-
-    return new Promise((resolve, reject) => {
-        const request = index.getAll(getChatKey(userId, channelId));
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-            const unread = request.result.filter((m: StoredMessage) => m.isRead === false);
-            unread.forEach((m: StoredMessage) => store.put({ ...m, isRead: true }));
-
-            const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
-            bc.postMessage({ type: 'read-all', userId, channelId });
-            bc.close();
-
-            resolve();
-        };
-    });
-};
-
-const clearMessages = async (userId: string, channelId: string): Promise<void> => {
-    const db = await openDB();
-    const transaction = db.transaction([STORE_NAME], 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const index = store.index('chatKey');
-
-    const request = index.getAllKeys(getChatKey(userId, channelId));
-    request.onsuccess = () => {
-        const keys = request.result;
-        keys.forEach(key => store.delete(key));
-    };
-};
+export type { Message };
 
 export const useChatMessages = (userId: string | null, channelId: string | null) => {
+    const storage = useDynamicStorage();
     const [messages, setMessages] = useState<Message[]>([]);
 
-    // 초기 로드
+    useEffect(() => {
+        if (!userId || !channelId) return;
+        storage.load(userId, channelId).then(setMessages).catch(console.error);
+    }, [userId, channelId, storage]);
+
     useEffect(() => {
         if (!userId || !channelId) return;
 
-        loadMessages(userId, channelId).then(setMessages).catch(console.error);
-    }, [userId, channelId]);
-
-    // BroadcastChannel 리스너
-    useEffect(() => {
-        if (!userId || !channelId) return;
-
-        const channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
-
-        channel.onmessage = event => {
+        const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+        bc.onmessage = event => {
             const { type, userId: msgUserId, channelId: msgChannelId, message } = event.data;
-
             if (type === 'message-added' && msgUserId === userId && msgChannelId === channelId) {
-                setMessages(prev => {
-                    // 중복 방지
-                    if (prev.some(m => m.id === message.id)) return prev;
-                    return [...prev, message];
-                });
+                setMessages(prev => (prev.some(m => m.id === message.id) ? prev : [...prev, message]));
             }
         };
-
-        return () => channel.close();
+        return () => bc.close();
     }, [userId, channelId]);
 
-    // 메시지 추가
     const addMessage = useCallback(
         async (message: Message, targetChannelId?: string) => {
-            const effectiveChannelId = targetChannelId || channelId;
+            const effectiveChannelId = targetChannelId ?? channelId;
             if (!effectiveChannelId) return;
 
+            const messageWithReadBy = { ...message, readBy: message.readBy ?? [message.ownerId] };
+
             if (effectiveChannelId === channelId) {
-                setMessages(prev => {
-                    if (prev.some(m => m.id === message.id)) return prev;
-                    return [...prev, message];
-                });
+                setMessages(prev => (prev.some(m => m.id === message.id) ? prev : [...prev, messageWithReadBy]));
             }
 
-            if (userId && effectiveChannelId) {
-                try {
-                    await saveMessage(userId, effectiveChannelId, message);
-                } catch (error) {
-                    console.error('Failed to save message:', error);
-                }
+            if (userId) {
+                await storage.save(userId, effectiveChannelId, messageWithReadBy).catch(console.error);
             }
         },
-        [userId, channelId]
+        [userId, channelId, storage]
     );
 
-    // 메시지 클리어
-    const clearChatMessages = useCallback(async () => {
+    const clearMessages = useCallback(async () => {
         setMessages([]);
-
         if (userId && channelId) {
-            try {
-                await clearMessages(userId, channelId);
-            } catch (error) {
-                console.error('Failed to clear messages:', error);
-            }
+            await storage.clear(userId, channelId).catch(console.error);
         }
-    }, [userId, channelId]);
+    }, [userId, channelId, storage]);
 
-    // 메시지 다시 로드
     const reloadMessages = useCallback(async () => {
         if (!userId || !channelId) return;
-
-        try {
-            const savedMessages = await loadMessages(userId, channelId);
-            setMessages(savedMessages);
-        } catch (error) {
-            console.error('Failed to reload messages:', error);
-        }
-    }, [userId, channelId]);
+        const saved = await storage.load(userId, channelId).catch(() => [] as Message[]);
+        setMessages(saved);
+    }, [userId, channelId, storage]);
 
     const markAllAsRead = useCallback(async () => {
         if (!userId || !channelId) return;
-        const hasUnread = messages.some(m => m.isRead === false);
-        if (!hasUnread) return;
+        if (!messages.some(m => m.isRead === false)) return;
 
         setMessages(prev => prev.map(m => ({ ...m, isRead: true })));
-        await markAllAsReadInDB(userId, channelId).catch(console.error);
-    }, [userId, channelId, messages]);
+        await storage.markAllRead(userId, channelId).catch(console.error);
+    }, [userId, channelId, messages, storage]);
 
-    // read 이벤트 수신 시 해당 chatNo 이하 unread 메시지 readCount++ + isRead: true
     const applyReadEvent = useCallback(
-        async (chatNo: number, newReadCount: number) => {
+        async (chatNo: number, readerUserId: string) => {
             if (!userId || !channelId) return;
 
             setMessages(prev =>
                 prev.map(m => {
-                    if ((m.chatNo ?? 0) <= chatNo) {
-                        return { ...m, readCount: Math.max(m.readCount ?? 0, newReadCount), isRead: true };
-                    }
-                    return m;
+                    if ((m.chatNo ?? 0) > chatNo) return m;
+                    const readBy = m.readBy ?? [];
+                    if (readBy.includes(readerUserId)) return m;
+                    const newReadBy = [...readBy, readerUserId];
+                    return { ...m, readBy: newReadBy, isRead: true };
                 })
             );
 
-            // DB도 업데이트
-            const db = await openDB();
-            const tx = db.transaction([STORE_NAME], 'readwrite');
-            const store = tx.objectStore(STORE_NAME);
-            const index = store.index('chatKey');
-            const request = index.getAll(getChatKey(userId, channelId));
-            request.onsuccess = () => {
-                request.result
-                    .filter((m: StoredMessage) => (m.chatNo ?? 0) <= chatNo)
-                    .forEach((m: StoredMessage) =>
-                        store.put({ ...m, readCount: Math.max(m.readCount ?? 0, newReadCount), isRead: true })
-                    );
-            };
+            await storage.update(userId, channelId, chatNo, readerUserId).catch(console.error);
         },
-        [userId, channelId]
+        [userId, channelId, storage]
     );
 
-    return {
-        messages,
-        addMessage,
-        clearMessages: clearChatMessages,
-        reloadMessages,
-        markAllAsRead,
-        applyReadEvent,
-    };
+    return { messages, addMessage, clearMessages, reloadMessages, markAllAsRead, applyReadEvent };
 };
+
+// storage 직접 접근이 필요한 외부 훅용 re-export
+export const useStorageAdapter = () => useDynamicStorage();
