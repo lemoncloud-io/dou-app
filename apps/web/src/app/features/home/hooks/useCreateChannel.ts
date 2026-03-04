@@ -1,14 +1,9 @@
 import { useState } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
-import type { ChannelView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelBody, ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
-
-interface CreateChannelPayload {
-    stereo: string;
-    name: string;
-    desc?: string;
-}
+import { useMyChannels } from './useMyChannels';
 
 export const useCreateChannel = () => {
     const { emitAuthenticated } = useWebSocketV2();
@@ -16,7 +11,9 @@ export const useCreateChannel = () => {
     const [isError, setIsError] = useState(false);
     const [channel, setChannel] = useState<ChannelView | null>(null);
 
-    const createChannel = (payload: CreateChannelPayload): Promise<ChannelView> => {
+    const { setChannels } = useMyChannels();
+
+    const createChannel = (payload: ChannelBody): Promise<ChannelView> => {
         setIsLoading(true);
         setIsError(false);
 
@@ -34,10 +31,11 @@ export const useCreateChannel = () => {
                     }
                     if (envelope.action !== 'start') return;
                     unsub();
-                    const result = envelope.payload as ChannelView;
-                    setChannel(result);
+                    const newChannel = envelope.payload as ChannelView;
+                    setChannel(newChannel);
                     setIsLoading(false);
-                    resolve(result);
+                    setChannels(prev => [...prev, newChannel]);
+                    resolve(newChannel);
                 }
             );
             emitAuthenticated({ type: 'chat', action: 'start', payload });

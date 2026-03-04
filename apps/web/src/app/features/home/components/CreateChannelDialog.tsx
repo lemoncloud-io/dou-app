@@ -7,6 +7,7 @@ import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useCreateChannel } from '../hooks/useCreateChannel';
+import type { ChannelBody } from '@lemoncloud/chatic-socials-api';
 
 interface CreateChannelDialogProps {
     open: boolean;
@@ -21,11 +22,11 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
         handleSubmit,
         reset,
         formState: { errors },
-    } = useForm<{ name: string; desc?: string }>();
+    } = useForm<{ name: string; desc?: string }>({});
 
-    const onSubmit = async (data: { name: string; desc?: string }) => {
+    const onSubmit = async (data: ChannelBody) => {
         try {
-            await createChannel({ stereo: 'public', name: data.name, desc: data.desc });
+            await createChannel({ stereo: 'private', name: data.name, desc: data.desc });
             reset();
             onOpenChange(false);
             onComplete?.();

@@ -6,24 +6,47 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import { useUpdateChannel } from '../hooks/useUpdateChannel';
+import { useMyChannel } from '../hooks/useMyChannel';
 import type { ChatStartBody } from '@lemoncloud/chatic-socials-api';
 
 interface UpdateChannelDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    channelId?: string;
 }
 
-export const UpdateChannelDialog = ({ open, onOpenChange }: UpdateChannelDialogProps) => {
+export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateChannelDialogProps) => {
+    const { updateChannel, isPending } = useUpdateChannel();
+    const { channel } = useMyChannel(channelId ?? null);
+    const { toast } = useToast();
+
     const {
         register,
         handleSubmit,
         formState: { errors },
-    } = useForm<ChatStartBody>();
+        reset,
+    } = useForm<ChatStartBody>({
+        defaultValues: {
+            name: channel?.name || '',
+        },
+    });
 
     const onSubmit = async (data: ChatStartBody) => {
-        // TODO: API 연동 필요
-        console.log('Update channel:', data);
-        onOpenChange(false);
+        if (!channelId || !data.name) return;
+
+        try {
+            await updateChannel({
+                channelId,
+                name: data.name,
+            });
+            toast({ title: '채널 정보가 업데이트되었습니다' });
+            onOpenChange(false);
+        } catch (error) {
+            console.error('Failed to update channel:', error);
+            toast({ title: '채널 업데이트에 실패했습니다', variant: 'destructive' });
+        }
     };
 
     return (
@@ -83,7 +106,7 @@ export const UpdateChannelDialog = ({ open, onOpenChange }: UpdateChannelDialogP
                             </div>
 
                             {/* Room Description Input */}
-                            <div className="flex flex-col justify-center items-center gap-1.5 px-4 rounded-lg">
+                            {/* <div className="flex flex-col justify-center items-center gap-1.5 px-4 rounded-lg">
                                 <div className="flex flex-col gap-1.5 w-full">
                                     <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-[#9FA2A7]">
                                         방 설명
@@ -94,10 +117,10 @@ export const UpdateChannelDialog = ({ open, onOpenChange }: UpdateChannelDialogP
                                         className="h-11 px-3.5 bg-white border border-[#EAEAEC] rounded-[10px] text-[15px] font-medium leading-[1.45] tracking-[0.005em] placeholder:text-[#84888F]"
                                     />
                                 </div>
-                            </div>
+                            </div> */}
 
                             {/* Room Image Section */}
-                            <div className="flex flex-col gap-1.5 px-[18px]">
+                            {/* <div className="flex flex-col gap-1.5 px-[18px]">
                                 <Label className="text-[14px] font-semibold leading-[1.571] tracking-[0.005em] text-[#9FA2A7]">
                                     방 이미지 [선택]
                                 </Label>
@@ -116,7 +139,7 @@ export const UpdateChannelDialog = ({ open, onOpenChange }: UpdateChannelDialogP
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </div> */}
                         </div>
                     </div>
 
@@ -125,9 +148,10 @@ export const UpdateChannelDialog = ({ open, onOpenChange }: UpdateChannelDialogP
                         <div className="flex flex-col gap-4 px-4 pt-5 pb-4">
                             <Button
                                 type="submit"
+                                disabled={isPending}
                                 className="flex items-center justify-center gap-1.5 h-[50px] px-6 py-3 bg-[#B0EA10] rounded-full text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-[#EAEAEC] disabled:text-[#BABCC0]"
                             >
-                                완료
+                                {isPending ? '업데이트 중...' : '완료'}
                             </Button>
                         </div>
                     </div>

@@ -30,7 +30,6 @@ export const DEEP_LINK_DOMAINS = ['app.chatic.io', 'app-dev.chatic.io'] as const
 const getIsDev = (): boolean => {
     // React Native: use react-native-config
     try {
-         
         const Config = require('react-native-config').default;
         if (Config?.VITE_ENV) {
             return Config.VITE_ENV === 'DEV';
