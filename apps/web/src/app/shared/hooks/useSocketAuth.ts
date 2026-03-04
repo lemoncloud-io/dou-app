@@ -4,13 +4,13 @@ import { useWebSocketV2 } from '@chatic/socket';
 import { simpleWebCore, useSimpleWebCore } from '@chatic/web-core';
 
 export const useSocketAuth = () => {
-    const { emit } = useWebSocketV2();
+    const { emit, isConnected } = useWebSocketV2();
     const { isAuthenticated } = useSimpleWebCore();
 
     useEffect(() => {
-        if (!isAuthenticated) return;
+        if (!isAuthenticated || !isConnected) return;
         const token = simpleWebCore.getToken();
         if (!token) return;
         emit({ type: 'auth', action: 'update', payload: { token } });
-    }, [isAuthenticated]);
+    }, [isAuthenticated, isConnected]);
 };
