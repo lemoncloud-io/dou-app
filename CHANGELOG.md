@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-03-04] - root@0.2.0, @chatic/web@0.2.0
+
+### Features
+
+- update lastChat$ in channel list on send/receive message
+- improve chat UX - system message style, member count badge, read event handling
+- emit auth token on websocket reconnect
+
 ## [2026-03-04] - No version updates
 
 ### Features
