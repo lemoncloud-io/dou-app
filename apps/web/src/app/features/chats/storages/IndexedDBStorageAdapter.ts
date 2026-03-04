@@ -60,14 +60,14 @@ export const IndexedDBStorageAdapter: ChatStorageAdapter = {
                         ownerId: s.ownerId,
                         ownerName: s.ownerName,
                         chatNo: s.chatNo,
-                        readCount: s.readCount,
+                        readBy: s.readBy,
                         isRead: s.isRead,
                     }))
                 );
         });
     },
 
-    update: async (userId, channelId, chatNo, newReadCount) => {
+    update: async (userId, channelId, chatNo, readerUserId) => {
         const db = await openDB();
         const store = db.transaction([STORE_NAME], 'readwrite').objectStore(STORE_NAME);
         const index = store.index('chatKey');
@@ -75,9 +75,12 @@ export const IndexedDBStorageAdapter: ChatStorageAdapter = {
         request.onsuccess = () => {
             request.result
                 .filter((m: StoredMessage) => (m.chatNo ?? 0) <= chatNo)
-                .forEach((m: StoredMessage) =>
-                    store.put({ ...m, readCount: Math.max(m.readCount ?? 0, newReadCount), isRead: true })
-                );
+                .forEach((m: StoredMessage) => {
+                    const readBy = m.readBy ?? [];
+                    if (readBy.includes(readerUserId)) return;
+                    const newReadBy = [...readBy, readerUserId];
+                    store.put({ ...m, readBy: newReadBy, isRead: true });
+                });
         };
     },
 

@@ -4,7 +4,7 @@ export interface Message {
     timestamp: Date;
     ownerId: string;
     ownerName?: string;
-    readCount?: number;
+    readBy?: string[];
     chatNo?: number;
     isRead?: boolean;
 }
@@ -12,7 +12,7 @@ export interface Message {
 export interface ChatStorageAdapter {
     save(userId: string, channelId: string, message: Message): Promise<void>;
     load(userId: string, channelId: string): Promise<Message[]>;
-    update(userId: string, channelId: string, chatNo: number, newReadCount: number): Promise<void>;
+    update(userId: string, channelId: string, chatNo: number, readerUserId: string): Promise<void>;
     clear(userId: string, channelId: string): Promise<void>;
     countUnread(userId: string, channelId: string): Promise<number>;
     markAllRead(userId: string, channelId: string): Promise<void>;

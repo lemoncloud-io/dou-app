@@ -116,10 +116,9 @@ export const ChatRoomPage = () => {
             const timestamp = newMessage?.createdAt ? new Date(newMessage.createdAt) : new Date();
             const ownerId = newMessage.ownerId || '';
             const ownerName = newMessage.owner$?.name || '알 수 없음';
-            const readCount = newMessage?.readCount ?? 0;
             const chatNo = newMessage?.chatNo;
 
-            addMessage({ id, content: content.trim(), timestamp, ownerId, ownerName, readCount, chatNo }, channelId);
+            addMessage({ id, content: content.trim(), timestamp, ownerId, ownerName, chatNo }, channelId);
         } catch (error) {
             console.error('Failed to send message:', error);
         }
@@ -258,7 +257,7 @@ export const ChatRoomPage = () => {
                                             <div className="flex flex-col items-end gap-0.5">
                                                 {(() => {
                                                     const unread =
-                                                        (channel?.memberNo ?? 0) - 1 - (message.readCount ?? 0);
+                                                        (channel?.memberNo ?? 0) - (message.readBy?.length ?? 0);
                                                     return unread > 0 ? (
                                                         <span className="text-[10px] font-medium text-[#2A7EF4]">
                                                             {unread}
@@ -293,7 +292,7 @@ export const ChatRoomPage = () => {
                                         </div>
                                         <div className="flex items-center gap-2 pl-[47px]">
                                             {(() => {
-                                                const unread = (channel?.memberNo ?? 0) - 1 - (message.readCount ?? 0);
+                                                const unread = (channel?.memberNo ?? 0) - (message.readBy?.length ?? 0);
                                                 return unread > 0 ? (
                                                     <span className="text-[10px] font-medium text-[#2A7EF4]">
                                                         {unread}

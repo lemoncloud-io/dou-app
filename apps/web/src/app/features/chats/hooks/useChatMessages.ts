@@ -33,12 +33,14 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
             const effectiveChannelId = targetChannelId ?? channelId;
             if (!effectiveChannelId) return;
 
+            const messageWithReadBy = { ...message, readBy: message.readBy ?? [message.ownerId] };
+
             if (effectiveChannelId === channelId) {
-                setMessages(prev => (prev.some(m => m.id === message.id) ? prev : [...prev, message]));
+                setMessages(prev => (prev.some(m => m.id === message.id) ? prev : [...prev, messageWithReadBy]));
             }
 
             if (userId) {
-                await storage.save(userId, effectiveChannelId, message).catch(console.error);
+                await storage.save(userId, effectiveChannelId, messageWithReadBy).catch(console.error);
             }
         },
         [userId, channelId, storage]
@@ -66,18 +68,20 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
     }, [userId, channelId, messages, storage]);
 
     const applyReadEvent = useCallback(
-        async (chatNo: number, newReadCount: number) => {
+        async (chatNo: number, readerUserId: string) => {
             if (!userId || !channelId) return;
 
             setMessages(prev =>
-                prev.map(m =>
-                    (m.chatNo ?? 0) <= chatNo
-                        ? { ...m, readCount: Math.max(m.readCount ?? 0, newReadCount), isRead: true }
-                        : m
-                )
+                prev.map(m => {
+                    if ((m.chatNo ?? 0) > chatNo) return m;
+                    const readBy = m.readBy ?? [];
+                    if (readBy.includes(readerUserId)) return m;
+                    const newReadBy = [...readBy, readerUserId];
+                    return { ...m, readBy: newReadBy, isRead: true };
+                })
             );
 
-            await storage.update(userId, channelId, chatNo, newReadCount).catch(console.error);
+            await storage.update(userId, channelId, chatNo, readerUserId).catch(console.error);
         },
         [userId, channelId, storage]
     );
