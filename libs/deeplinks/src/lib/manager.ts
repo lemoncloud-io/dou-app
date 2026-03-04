@@ -16,8 +16,9 @@ import { Linking } from 'react-native';
 
 import { handleDeferredDeepLink } from './deferred';
 import { isValidDeepLink } from './parser';
-import { convertDeepLinkToFrontendUrl, convertShortUrlToFrontendUrl, needsConversion } from './urlConverter';
+import { convertDeepLinkToFrontendUrl, convertShortUrlWithEnvs, needsConversion } from './urlConverter';
 
+import type { ServiceEndpoints } from './urlConverter';
 import type { DeepLinkConfig, DeepLinkSource, WebViewHandler } from './types';
 
 const DEFAULT_CONFIG: DeepLinkConfig = {
@@ -96,10 +97,14 @@ export class DeepLinkManager {
      * Processes URL and passes to handler (Zustand store manages pending state)
      */
     private async handleDeepLink(url: string, source: DeepLinkSource): Promise<void> {
-        // Expand short URL if needed
+        // Expand short URL if needed and get envs
         let processedUrl = url;
+        let envs: ServiceEndpoints | undefined;
+
         try {
-            processedUrl = await convertShortUrlToFrontendUrl(url);
+            const result = await convertShortUrlWithEnvs(url);
+            processedUrl = result.url;
+            envs = result.envs;
         } catch (error) {
             console.error('[DeepLinkManager] Error expanding short URL:', error);
         }
@@ -127,8 +132,8 @@ export class DeepLinkManager {
             return;
         }
 
-        console.log('[DeepLinkManager] Delivering deep link:', processedUrl, 'source:', source);
-        this.webViewHandler.handleDeepLink(processedUrl, source);
+        console.log('[DeepLinkManager] Delivering deep link:', processedUrl, 'source:', source, 'envs:', envs);
+        this.webViewHandler.handleDeepLink(processedUrl, source, envs);
     }
 
     /**

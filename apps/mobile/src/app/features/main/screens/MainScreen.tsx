@@ -27,7 +27,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
 
     // Deep Link Store
-    const { pendingUrl, clearPendingUrl, setWebViewReady } = useDeepLinkStore();
+    const { pendingUrl, pendingEnvs, clearPendingUrl, setWebViewReady } = useDeepLinkStore();
 
     const { bridge } = useAppBridge(webViewRef);
     const { getSafeAreaInfo } = useSafeAreaHandler(bridge);
@@ -47,16 +47,30 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     // Handle pending deep link URL
     useEffect(() => {
         if (pendingUrl && isWebViewLoaded && webViewRef.current) {
-            Logger.info('DEEPLINK', `Loading deep link URL: ${pendingUrl}`);
-            // Escape URL to prevent XSS injection
+            Logger.info('DEEPLINK', `Loading deep link URL: ${pendingUrl}`, pendingEnvs);
+
+            // Build injection script
+            let script = '';
+
+            // Store envs in localStorage (persists across navigations and app restarts)
+            if (pendingEnvs?.backend) {
+                const safeBackend = encodeURI(pendingEnvs.backend).replace(/'/g, '%27');
+                script += `localStorage.setItem('CHATIC_DOU_ENDPOINT', '${safeBackend}');\n`;
+            }
+            if (pendingEnvs?.wss) {
+                const safeWss = encodeURI(pendingEnvs.wss).replace(/'/g, '%27');
+                script += `localStorage.setItem('CHATIC_WS_ENDPOINT', '${safeWss}');\n`;
+            }
+
+            // Navigate to URL
             const safeUrl = encodeURI(pendingUrl).replace(/'/g, '%27');
-            webViewRef.current.injectJavaScript(`
-                window.location.href = '${safeUrl}';
-                true;
-            `);
+            script += `window.location.href = '${safeUrl}';\n`;
+            script += 'true;';
+
+            webViewRef.current.injectJavaScript(script);
             clearPendingUrl();
         }
-    }, [pendingUrl, isWebViewLoaded, clearPendingUrl]);
+    }, [pendingUrl, pendingEnvs, isWebViewLoaded, clearPendingUrl]);
 
     useEffect(() => {
         if (isFocused && isModalOpened.current) {

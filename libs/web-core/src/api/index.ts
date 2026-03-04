@@ -1,4 +1,4 @@
-import { ENV, OAUTH_ENDPOINT, webCore } from '../core';
+import { DOU_ENDPOINT, ENV, OAUTH_ENDPOINT, webCore } from '../core';
 import { MAX_RETRIES, validateTokenResponse, withRetry } from '../utils';
 
 import type { UserProfile } from '../stores';
@@ -113,6 +113,26 @@ export const createCredentialsByProvider = async (provider = 'google', code: str
         .buildSignedRequest({
             method: 'POST',
             baseURL: `${OAUTH_ENDPOINT}/oauth/${provider}/token`,
+        })
+        .setBody({ code })
+        .execute<{ Token: LemonOAuthToken }>();
+
+    return await webCore.buildCredentialsByToken(data.Token);
+};
+
+/**
+ * Login with invite code
+ * - Uses POST /dou-d1/oauth/0/invite-login endpoint
+ * - Code format: invt:<id>:<code>
+ *
+ * @param code - Invite code (format: invt:<id>:<code>)
+ * @returns Promise resolving to authentication credentials
+ */
+export const loginWithInviteCode = async (code: string) => {
+    const { data } = await webCore
+        .buildSignedRequest({
+            method: 'POST',
+            baseURL: `${DOU_ENDPOINT}/oauth/0/invite-login`,
         })
         .setBody({ code })
         .execute<{ Token: LemonOAuthToken }>();
