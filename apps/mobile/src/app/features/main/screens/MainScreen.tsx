@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Config from 'react-native-config';
 
-import { AppWebView, FullScreenLoader, Logger } from '../../../common';
+import { AppWebView, FullScreenLoader, Logger, useDeepLinkStore } from '../../../common';
 import {
     useAndroidBack,
     useAppBridge,
@@ -24,6 +24,10 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const isFocused = useIsFocused();
     const isModalOpened = useRef(false);
     const [canGoBack, setCanGoBack] = useState(false);
+    const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
+
+    // Deep Link Store
+    const { pendingUrl, clearPendingUrl, setWebViewReady } = useDeepLinkStore();
 
     const { bridge } = useAppBridge(webViewRef);
     const { getSafeAreaInfo } = useSafeAreaHandler(bridge);
@@ -32,6 +36,27 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         useSubscriptionIapHandler(bridge);
 
     useAndroidBack(webViewRef, canGoBack);
+
+    // Handle WebView load complete
+    const handleWebViewLoad = useCallback(() => {
+        Logger.info('WEBVIEW', 'WebView loaded');
+        setIsWebViewLoaded(true);
+        setWebViewReady(true);
+    }, [setWebViewReady]);
+
+    // Handle pending deep link URL
+    useEffect(() => {
+        if (pendingUrl && isWebViewLoaded && webViewRef.current) {
+            Logger.info('DEEPLINK', `Loading deep link URL: ${pendingUrl}`);
+            // Escape URL to prevent XSS injection
+            const safeUrl = encodeURI(pendingUrl).replace(/'/g, '%27');
+            webViewRef.current.injectJavaScript(`
+                window.location.href = '${safeUrl}';
+                true;
+            `);
+            clearPendingUrl();
+        }
+    }, [pendingUrl, isWebViewLoaded, clearPendingUrl]);
 
     useEffect(() => {
         if (isFocused && isModalOpened.current) {
@@ -121,6 +146,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                     source={{ uri: webviewUrl }}
                     scrollEnabled={false}
                     onMessage={handleMessage}
+                    onLoad={handleWebViewLoad}
                     onNavigationStateChange={navState => {
                         setCanGoBack(navState.canGoBack);
                     }}

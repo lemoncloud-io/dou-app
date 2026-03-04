@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom';
 
 import { AuthTestRoutes } from '../../features/auth-test';
+import { DeeplinksRoutes } from '../../features/deeplinks';
 import { PointerTestRoutes } from '../../features/pointer-test';
 import { SocketTestRoutes } from '../../features/socket-test';
 import { UsersRoutes } from '../../features/users';
@@ -12,6 +13,7 @@ const defaultRoutes = [
     { path: '/auth-test/*', element: <AuthTestRoutes /> },
     { path: '/pointer-test/*', element: <PointerTestRoutes /> },
     { path: '/users/*', element: <UsersRoutes /> },
+    { path: '/deeplinks/*', element: <DeeplinksRoutes /> },
 ];
 
 export const usePrivateRoutes = () => {
