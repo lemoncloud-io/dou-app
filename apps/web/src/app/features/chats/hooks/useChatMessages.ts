@@ -21,8 +21,12 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
         const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
         bc.onmessage = event => {
             const { type, userId: msgUserId, channelId: msgChannelId, message } = event.data;
-            if (type === 'message-added' && msgUserId === userId && msgChannelId === channelId) {
-                setMessages(prev => (prev.some(m => m.id === message.id) ? prev : [...prev, message]));
+            if (type === 'message-added' && msgChannelId === channelId && (msgUserId === userId || message.isSystem)) {
+                setMessages(prev =>
+                    prev.some(m => m.id === message.id)
+                        ? prev
+                        : [...prev, { ...message, timestamp: new Date(message.timestamp) }]
+                );
             }
         };
         return () => bc.close();

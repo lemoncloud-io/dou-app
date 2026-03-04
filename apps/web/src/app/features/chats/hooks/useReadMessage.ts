@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
 import { useWebSocketV2 } from '@chatic/socket';
 import { useSimpleWebCore } from '@chatic/web-core';
@@ -8,59 +8,59 @@ import { IndexedDBStorageAdapter } from '../storages/IndexedDBStorageAdapter';
 
 export const useReadMessage = (
     channelId: string | undefined,
-    messages: { chatNo?: number; isRead?: boolean; readCount?: number }[] = [],
+    messages: { chatNo?: number }[] = [],
     applyReadEvent?: (chatNo: number, readerUserId: string) => void
 ) => {
     const { emit, lastMessage } = useWebSocketV2();
     const { profile } = useSimpleWebCore();
-    const hasMarkedRef = useRef(false);
 
-    // messages 로드 완료 후 한 번만: unread 있으면 read emit + DB 업데이트
+    // 진입 시 + 새 메시지 추가될 때마다: 마지막 chatNo 기준으로 무조건 read emit
     useEffect(() => {
-        if (hasMarkedRef.current || !channelId || !messages.length || !profile?.id) return;
-        const hasUnread = messages.some(m => m.isRead === false);
-        if (!hasUnread) return;
+        if (!channelId || !messages.length || !profile?.id) return;
 
-        hasMarkedRef.current = true;
         const lastChatNo = messages[messages.length - 1]?.chatNo;
-        if (lastChatNo) {
-            emit({ type: 'chat', action: 'read', payload: { channelId, chatNo: lastChatNo } });
-            applyReadEvent?.(lastChatNo, profile.id);
-        }
+        if (!lastChatNo) return;
+
+        emit({ type: 'chat', action: 'read', payload: { channelId, chatNo: lastChatNo } });
+        applyReadEvent?.(lastChatNo, profile.id);
         IndexedDBStorageAdapter.markAllRead(profile.id, channelId).catch(console.error);
     }, [messages.length]);
 
-    // action:read 수신 시 해당 chatNo 이하 readCount++ + isRead: true
+    // type:chat action:read 또는 type:model action:update sourceType:join 수신 시 applyReadEvent
     useEffect(() => {
-        const envelope = lastMessage as any;
+        const envelope = lastMessage as WSSEnvelope<{
+            channelId?: string;
+            userId?: string;
+            chatNo?: number;
+            sourceType?: string;
+        }> | null;
         if (!envelope || !applyReadEvent) return;
 
+        const isChatRead = envelope.type === 'chat' && envelope.action === 'read';
         const isJoinUpdate =
             envelope.type === 'model' && envelope.action === 'update' && envelope.payload?.sourceType === 'join';
-        const isChatRead = envelope.type === 'chat' && envelope.action === 'read';
-        if (!isJoinUpdate && !isChatRead) return;
+        if (!isChatRead && !isJoinUpdate) return;
 
-        const channelIdFromPayload = envelope.payload?.channelId ?? envelope.meta?.channel;
-        if (channelIdFromPayload !== channelId) return;
+        const incomingChannelId = envelope.payload?.channelId ?? (envelope.meta as { channel?: string })?.channel;
+        if (incomingChannelId !== channelId) return;
 
         const chatNo = envelope.payload?.chatNo;
-        if (!chatNo) return;
-
         const readerUserId = envelope.payload?.userId;
-        if (!readerUserId) return;
+        if (!chatNo || !readerUserId) return;
 
         applyReadEvent(chatNo, readerUserId);
     }, [lastMessage, channelId, applyReadEvent]);
 
-    // 새 메시지 수신 시 내 것 아니면 read 전송
+    // 새 메시지 수신 시 read emit
     useEffect(() => {
         const envelope = lastMessage as WSSEnvelope<ChatModel> | null;
         if (envelope?.type !== 'model' || envelope.action !== 'create') return;
         if (envelope.payload?.channelId !== channelId) return;
 
         const chatNo = envelope.payload?.chatNo;
-        if (!chatNo) return;
+        if (!chatNo || !profile?.id) return;
 
         emit({ type: 'chat', action: 'read', payload: { channelId, chatNo } });
+        applyReadEvent?.(chatNo, profile.id);
     }, [lastMessage, channelId, profile?.id]);
 };
