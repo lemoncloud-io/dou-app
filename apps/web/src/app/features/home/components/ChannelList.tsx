@@ -37,13 +37,13 @@ const ChannelItem = ({ channel }: { channel: ChannelView }) => {
                         </span>
                     </div>
                     <span className="text-[12px] font-normal leading-[1.67] tracking-[0.005em] text-[#9FA2A7]">
-                        {channel.desc || '채널 설명 없음'}
+                        {channel.lastChat$?.content || channel.desc || '채널 설명 없음'}
                     </span>
                 </div>
                 <div className="flex h-[45px] flex-col items-end gap-1">
                     <span className="w-[67px] text-right text-[10px] font-normal leading-[2] tracking-[0.005em] text-[#9CA4AB]">
-                        {channel.updatedAt
-                            ? new Date(channel.updatedAt).toLocaleTimeString('ko-KR', {
+                        {(channel.lastChat$?.createdAt ?? channel.updatedAt)
+                            ? new Date(channel.lastChat$?.createdAt ?? channel.updatedAt!).toLocaleTimeString('ko-KR', {
                                   hour: '2-digit',
                                   minute: '2-digit',
                               })

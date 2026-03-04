@@ -17,6 +17,7 @@ import { useSimpleWebCore } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useReadMessage } from '../hooks/useReadMessage';
 import { useChatMessages } from '../hooks/useChatMessages';
+import { useMyChannels } from '../../home/hooks/useMyChannels';
 
 export const ChatRoomPage = () => {
     const navigate = useNavigate();
@@ -31,6 +32,7 @@ export const ChatRoomPage = () => {
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
 
     const { profile } = useSimpleWebCore();
+    const { setChannels } = useMyChannels();
     const {
         messages,
         clearMessages: clearChatMessages,
@@ -119,6 +121,21 @@ export const ChatRoomPage = () => {
             const chatNo = newMessage?.chatNo;
 
             addMessage({ id, content: content.trim(), timestamp, ownerId, ownerName, chatNo }, channelId);
+            setChannels(prev =>
+                prev.map(ch =>
+                    ch.id === channelId
+                        ? {
+                              ...ch,
+                              lastChat$: {
+                                  ...newMessage,
+                                  id,
+                                  content: content.trim(),
+                                  createdAt: newMessage.createdAt,
+                              },
+                          }
+                        : ch
+                )
+            );
         } catch (error) {
             console.error('Failed to send message:', error);
         }
@@ -206,6 +223,9 @@ export const ChatRoomPage = () => {
                 </button>
                 <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#171725]">
                     {channel?.name || '채팅방'}
+                    {channel?.memberNo ? (
+                        <span className="ml-1.5 text-[14px] font-normal text-[#84888F]">{channel.memberNo}</span>
+                    ) : null}
                 </h1>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>

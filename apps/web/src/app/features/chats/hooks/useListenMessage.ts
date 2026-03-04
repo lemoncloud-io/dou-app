@@ -6,11 +6,13 @@ import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chats/model';
 
 import { useChatMessages } from './useChatMessages';
+import { useMyChannels } from '../../home/hooks/useMyChannels';
 
 export const useListenMessage = () => {
     const { lastMessage } = useWebSocketV2();
     const { profile } = useSimpleWebCore();
     const { addMessage } = useChatMessages(profile?.id ?? null, null);
+    const { setChannels } = useMyChannels();
 
     useEffect(() => {
         const chatMessage = lastMessage as WSSEnvelope<ChatModel>;
@@ -23,9 +25,24 @@ export const useListenMessage = () => {
             const timestamp = chatMessage.payload?.createdAt ? new Date(chatMessage.payload?.createdAt) : new Date();
             const ownerId = chatMessage.payload?.ownerId || '';
             const ownerName = chatMessage.payload?.owner$?.name || '알 수 없음';
-            const readCount = chatMessage.payload?.readCount ?? 0;
             const chatNo = chatMessage.payload?.chatNo;
             const isCurrentChannel = window.location.pathname.includes(channelId);
+
+            setChannels(prev =>
+                prev.map(ch =>
+                    ch.id === channelId
+                        ? {
+                              ...ch,
+                              lastChat$: {
+                                  ...chatMessage.payload,
+                                  id,
+                                  content,
+                                  createdAt: chatMessage.payload?.createdAt,
+                              },
+                          }
+                        : ch
+                )
+            );
 
             addMessage(
                 {
@@ -34,7 +51,6 @@ export const useListenMessage = () => {
                     timestamp,
                     ownerId,
                     ownerName,
-                    readCount,
                     chatNo,
                     isRead: isCurrentChannel,
                 },
