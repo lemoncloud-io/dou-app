@@ -21,6 +21,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@chatic/ui-kit/components/ui/select';
 
 import { useInviteAndCreateDeeplink } from '../hooks';
 import { firebaseService } from '../services';
@@ -43,6 +44,8 @@ export const CreateDeeplinkDialog = ({
 }: CreateDeeplinkDialogProps): JSX.Element => {
     const [channelId, setChannelId] = useState('');
     const [name, setName] = useState('');
+    const [alias, setAlias] = useState('');
+    const [type, setType] = useState<'phone' | 'email'>('phone');
 
     const { mutateAsync: inviteAndCreate, isPending } = useInviteAndCreateDeeplink(env);
 
@@ -62,6 +65,8 @@ export const CreateDeeplinkDialog = ({
             const deeplink = await inviteAndCreate({
                 channelId: channelId.trim(),
                 name: name.trim(),
+                alias: alias.trim() || undefined,
+                type,
             });
             toast.success(`Deeplink created: ${deeplink.deepLinkUrl}`);
             resetForm();
@@ -76,6 +81,8 @@ export const CreateDeeplinkDialog = ({
     const resetForm = () => {
         setChannelId('');
         setName('');
+        setAlias('');
+        setType('phone');
     };
 
     const handleClose = () => {
@@ -118,6 +125,36 @@ export const CreateDeeplinkDialog = ({
                             disabled={isPending}
                         />
                         <p className="text-xs text-muted-foreground">Display name for the invited user</p>
+                    </div>
+
+                    {/* Type Select */}
+                    <div className="space-y-2">
+                        <Label htmlFor="type">Type</Label>
+                        <Select value={type} onValueChange={v => setType(v as 'phone' | 'email')} disabled={isPending}>
+                            <SelectTrigger id="type">
+                                <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="phone">Phone</SelectItem>
+                                <SelectItem value="email">Email</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">Invite type (phone or email)</p>
+                    </div>
+
+                    {/* Alias Input */}
+                    <div className="space-y-2">
+                        <Label htmlFor="alias">Alias</Label>
+                        <Input
+                            id="alias"
+                            placeholder={type === 'phone' ? 'Enter phone number' : 'Enter email address'}
+                            value={alias}
+                            onChange={e => setAlias(e.target.value)}
+                            disabled={isPending}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            {type === 'phone' ? 'Phone number for the invite' : 'Email address for the invite'}
+                        </p>
                     </div>
 
                     {/* Preview */}
