@@ -1,12 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { DOU_ENDPOINT, WS_ENDPOINT, loginWithInviteCode, simpleWebCore, useSimpleWebCore } from '@chatic/web-core';
+import {
+    DOU_ENDPOINT,
+    OAUTH_ENDPOINT,
+    WS_ENDPOINT,
+    loginWithInviteCode,
+    simpleWebCore,
+    useSimpleWebCore,
+} from '@chatic/web-core';
 import { LoadingFallback } from '@chatic/shared';
 
 import type { JSX } from 'react';
@@ -32,13 +39,12 @@ const decodeJWT = (token: string) => {
                 .join('')
         );
         return JSON.parse(jsonPayload);
-    } catch (error) {
+    } catch {
         return null;
     }
 };
 
 export const LoginPage = (): JSX.Element => {
-    const navigate = useNavigate();
     const location = useLocation();
     const { setIsAuthenticated, setProfile } = useSimpleWebCore();
     const { toast } = useToast();
@@ -49,6 +55,7 @@ export const LoginPage = (): JSX.Element => {
         handleSubmit,
         formState: { errors },
         watch,
+        setValue,
     } = useForm<LoginFormData>({
         defaultValues: {
             token: '',
@@ -71,10 +78,17 @@ export const LoginPage = (): JSX.Element => {
 
             const handleInviteLogin = async () => {
                 try {
-                    await loginWithInviteCode(code);
-                    setIsAuthenticated(true);
-                    toast({ title: '로그인 성공' });
-                    navigate('/home', { replace: true });
+                    const result = await loginWithInviteCode(code);
+                    const identityToken = result.Token?.identityToken;
+
+                    if (identityToken) {
+                        // Set token in form for user to see
+                        setValue('token', identityToken);
+                        setIsInviteLogin(false);
+                        toast({ title: '초대 토큰을 가져왔습니다. 다음 버튼을 눌러주세요.' });
+                    } else {
+                        throw new Error('No identityToken in response');
+                    }
                 } catch (error) {
                     console.error('[LoginPage] Invite login failed:', error);
                     toast({ title: '초대 로그인 실패', variant: 'destructive' });
@@ -84,7 +98,7 @@ export const LoginPage = (): JSX.Element => {
 
             handleInviteLogin();
         }
-    }, [location.search, navigate, setIsAuthenticated, toast]);
+    }, [location.search, setValue, toast]);
 
     const tokenValue = watch('token');
     const decodedToken = tokenValue ? decodeJWT(tokenValue) : null;
@@ -122,13 +136,12 @@ export const LoginPage = (): JSX.Element => {
             {/* Debug Panel */}
             {showDebug && (
                 <div className="bg-gray-100 p-2 text-xs font-mono border-b space-y-0.5">
-                    <div className="text-gray-500">DOU_ENDPOINT: {DOU_ENDPOINT || '(not set)'}</div>
-                    <div className="text-gray-500">WS_ENDPOINT: {WS_ENDPOINT || '(not set)'}</div>
-                    <div className="text-gray-400">
-                        localStorage.DOU: {localStorage.getItem('CHATIC_DOU_ENDPOINT') || '(not set)'}
-                    </div>
-                    <div className="text-gray-400">
-                        localStorage.WS: {localStorage.getItem('CHATIC_WS_ENDPOINT') || '(not set)'}
+                    <div className="text-gray-500">OAUTH: {OAUTH_ENDPOINT || '(not set)'}</div>
+                    <div className="text-gray-500">DOU: {DOU_ENDPOINT || '(not set)'}</div>
+                    <div className="text-gray-500">WS: {WS_ENDPOINT || '(not set)'}</div>
+                    <div className="text-gray-400 text-[10px]">
+                        ls: {localStorage.getItem('CHATIC_OAUTH_ENDPOINT') || '-'} |{' '}
+                        {localStorage.getItem('CHATIC_DOU_ENDPOINT') || '-'}
                     </div>
                 </div>
             )}

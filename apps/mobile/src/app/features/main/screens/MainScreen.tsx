@@ -53,8 +53,10 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
             let script = '';
 
             // Store envs in localStorage (persists across navigations and app restarts)
+            // backend replaces all API endpoints (OAUTH, DOU)
             if (pendingEnvs?.backend) {
                 const safeBackend = encodeURI(pendingEnvs.backend).replace(/'/g, '%27');
+                script += `localStorage.setItem('CHATIC_OAUTH_ENDPOINT', '${safeBackend}');\n`;
                 script += `localStorage.setItem('CHATIC_DOU_ENDPOINT', '${safeBackend}');\n`;
             }
             if (pendingEnvs?.wss) {
