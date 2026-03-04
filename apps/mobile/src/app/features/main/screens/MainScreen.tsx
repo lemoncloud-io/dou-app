@@ -8,6 +8,7 @@ import {
     useFcmHandler,
     useSafeAreaHandler,
     useSubscriptionIapHandler,
+    useCacheHandler,
 } from '../../../common/webview/hooks';
 
 import type { AppMessageData, WebMessageData, WebMessageType } from '@chatic/app-messages';
@@ -31,7 +32,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
 
     const { bridge } = useAppBridge(webViewRef);
     const { fetchSafeAreaInfo } = useSafeAreaHandler(bridge);
-    const { getFcmToken } = useFcmHandler(bridge);
+    const { fetchFcmToken } = useFcmHandler(bridge);
     const { fetchProducts, fetchCurrentPurchases, restorePurchase, purchaseSubscription, isIapLoading } =
         useSubscriptionIapHandler(bridge);
 
@@ -93,7 +94,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
             (message: WebMessageData<WebMessageType>) => {
                 switch (message.type) {
                     case 'FetchFcmToken': {
-                        void getFcmToken();
+                        void fetchFcmToken();
                         break;
                     }
                     case 'FetchSafeArea': {
@@ -137,6 +138,19 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                         break;
                     }
 
+                    case 'FetchAllCacheData': {
+                        void handleFetchAllCacheData(message.data);
+                        break;
+                    }
+                    case 'FetchCacheData': {
+                        void handleFetchCacheData(message.data);
+                        break;
+                    }
+                    case 'SaveCacheData': {
+                        void handleSaveCacheData(message.data);
+                        break;
+                    }
+
                     default:
                         Logger.error('BRIDGE', `Failed received error. : ${message.type}`);
                 }
@@ -149,11 +163,14 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         bridge,
         restorePurchase,
         fetchCurrentPurchases,
-        getFcmToken,
+        fetchFcmToken,
         fetchProducts,
         fetchSafeAreaInfo,
         navigation,
         purchaseSubscription,
+        handleFetchAllCacheData,
+        handleFetchCacheData,
+        handleSaveCacheData,
     ]);
 
     return (
