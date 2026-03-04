@@ -1,3 +1,6 @@
+import type { CacheType } from './common';
+import type { ChannelView, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
+
 /**
  * Web Message:
  * message from Web to App
@@ -11,13 +14,16 @@ export const WebMessageTypes = {
     OnScroll: 'OnScroll',
     OpenModal: 'OpenModal',
     CloseModal: 'CloseModal',
-    GetDeviceInfo: 'GetDeviceInfo',
-    GetFcmToken: 'GetFcmToken',
-    GetSafeArea: 'GetSafeArea',
+    FetchDeviceInfo: 'FetchDeviceInfo',
+    FetchFcmToken: 'FetchFcmToken',
+    FetchSafeArea: 'FetchSafeArea',
     PurchaseSubscription: 'PurchaseSubscription',
-    CheckUnfinishedPurchases: 'CheckUnfinishedPurchases',
-    GetProducts: 'GetProducts',
-    GetCurrentPurchases: 'GetCurrentPurchases',
+    RestorePurchase: 'RestorePurchase',
+    FetchProducts: 'FetchProducts',
+    FetchCurrentPurchases: 'FetchCurrentPurchases',
+    FetchAllCacheData: 'FetchAllCacheData',
+    FetchCacheData: 'FetchCacheData',
+    SaveCacheData: 'SaveCacheData',
 } as const;
 export type WebMessageType = (typeof WebMessageTypes)[keyof typeof WebMessageTypes];
 
@@ -70,6 +76,27 @@ export interface OpenModal extends DefaultMessage<'OpenModal'> {
     };
 }
 
+export interface FetchAllCacheData extends DefaultMessage<'FetchAllCacheData'> {
+    data: {
+        type: CacheType;
+    };
+}
+
+export interface FetchCacheData extends DefaultMessage<'FetchCacheData'> {
+    data: {
+        type: CacheType;
+        id: string;
+    };
+}
+
+export interface SaveCacheData extends DefaultMessage<'SaveCacheData'> {
+    data: {
+        type: CacheType;
+        id: string;
+        value: ChannelView | ChatView | UserView | JoinView;
+    };
+}
+
 interface WebMessageMap {
     /**
      * TODO: Not Implement
@@ -81,7 +108,7 @@ interface WebMessageMap {
     SyncCredential: DefaultMessage<'SyncCredential'>;
     PopWebView: DefaultMessage<'PopWebView'>;
     OnScroll: OnScrollData;
-    GetDeviceInfo: DefaultMessage<'GetDeviceInfo'>;
+    FetchDeviceInfo: DefaultMessage<'FetchDeviceInfo'>;
 
     /**
      * Control Device Event
@@ -92,20 +119,27 @@ interface WebMessageMap {
     /**
      * Device Info Event
      */
-    GetSafeArea: DefaultMessage<'GetSafeArea'>;
+    FetchSafeArea: DefaultMessage<'FetchSafeArea'>;
 
     /**
      * FCM Event
      */
-    GetFcmToken: DefaultMessage<'GetFcmToken'>;
+    FetchFcmToken: DefaultMessage<'FetchFcmToken'>;
 
     /**
      * IAP Event
      */
     PurchaseSubscription: PurchaseSubscription;
-    CheckUnfinishedPurchases: DefaultMessage<'CheckUnfinishedPurchases'>;
-    GetProducts: DefaultMessage<'GetProducts'>;
-    GetCurrentPurchases: DefaultMessage<'GetCurrentPurchases'>;
+    RestorePurchase: DefaultMessage<'RestorePurchase'>;
+    FetchProducts: DefaultMessage<'FetchProducts'>;
+    FetchCurrentPurchases: DefaultMessage<'FetchCurrentPurchases'>;
+
+    /**
+     * Cache Event
+     */
+    FetchAllCacheData: FetchAllCacheData;
+    FetchCacheData: FetchCacheData;
+    SaveCacheData: SaveCacheData;
 }
 
 export type WebMessageData<T extends WebMessageType> = WebMessageMap[T];

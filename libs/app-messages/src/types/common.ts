@@ -65,3 +65,10 @@ export interface ProductSubscriptionInfo {
 export interface PurchaseInfo {
     purchases: Purchase[];
 }
+
+/**
+ * 케시 데이터 타입
+ * TODO: (주의) 업데이트 될 수 있음
+ * @author raine@lemoncloud.io
+ */
+export type CacheType = 'channel' | 'chat' | 'user' | 'join';

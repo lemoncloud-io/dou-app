@@ -8,6 +8,7 @@ import {
     useFcmHandler,
     useSafeAreaHandler,
     useSubscriptionIapHandler,
+    useCacheHandler,
 } from '../../../common/webview/hooks';
 
 import type { AppMessageData, WebMessageData, WebMessageType } from '@chatic/app-messages';
@@ -30,10 +31,12 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const { pendingUrl, pendingEnvs, clearPendingUrl, setWebViewReady } = useDeepLinkStore();
 
     const { bridge } = useAppBridge(webViewRef);
-    const { getSafeAreaInfo } = useSafeAreaHandler(bridge);
-    const { getFcmToken } = useFcmHandler(bridge);
-    const { getProducts, getCurrentPurchases, checkPurchases, purchaseSubscription, isIapLoading } =
+    const { fetchSafeAreaInfo } = useSafeAreaHandler(bridge);
+    const { fetchFcmToken } = useFcmHandler(bridge);
+    const { fetchProducts, fetchCurrentPurchases, restorePurchase, purchaseSubscription, isIapLoading } =
         useSubscriptionIapHandler(bridge);
+
+    const { handleFetchAllCacheData, handleFetchCacheData, handleSaveCacheData } = useCacheHandler(bridge);
 
     useAndroidBack(webViewRef, canGoBack);
 
@@ -90,26 +93,26 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         return bridge.receive(
             (message: WebMessageData<WebMessageType>) => {
                 switch (message.type) {
-                    case 'GetFcmToken': {
-                        void getFcmToken();
+                    case 'FetchFcmToken': {
+                        void fetchFcmToken();
                         break;
                     }
-                    case 'GetSafeArea': {
-                        getSafeAreaInfo();
+                    case 'FetchSafeArea': {
+                        fetchSafeAreaInfo();
                         break;
                     }
-                    case 'CheckUnfinishedPurchases': {
-                        void checkPurchases();
-                        break;
-                    }
-
-                    case 'GetProducts': {
-                        void getProducts();
+                    case 'RestorePurchase': {
+                        void restorePurchase();
                         break;
                     }
 
-                    case 'GetCurrentPurchases': {
-                        void getCurrentPurchases();
+                    case 'FetchProducts': {
+                        void fetchProducts();
+                        break;
+                    }
+
+                    case 'FetchCurrentPurchases': {
+                        void fetchCurrentPurchases();
                         break;
                     }
 
@@ -135,6 +138,19 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                         break;
                     }
 
+                    case 'FetchAllCacheData': {
+                        void handleFetchAllCacheData(message.data);
+                        break;
+                    }
+                    case 'FetchCacheData': {
+                        void handleFetchCacheData(message.data);
+                        break;
+                    }
+                    case 'SaveCacheData': {
+                        void handleSaveCacheData(message.data);
+                        break;
+                    }
+
                     default:
                         Logger.error('BRIDGE', `Failed received error. : ${message.type}`);
                 }
@@ -145,13 +161,16 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         );
     }, [
         bridge,
-        checkPurchases,
-        getCurrentPurchases,
-        getFcmToken,
-        getProducts,
-        getSafeAreaInfo,
+        restorePurchase,
+        fetchCurrentPurchases,
+        fetchFcmToken,
+        fetchProducts,
+        fetchSafeAreaInfo,
         navigation,
         purchaseSubscription,
+        handleFetchAllCacheData,
+        handleFetchCacheData,
+        handleSaveCacheData,
     ]);
 
     return (
