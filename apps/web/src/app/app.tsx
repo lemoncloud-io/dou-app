@@ -73,7 +73,7 @@ export function App() {
                                 <SonnerToaster />
                                 <Toaster />
                             </ThemeProvider>
-                            {process.env.NODE_ENV !== 'prod' && <ReactQueryDevtools />}
+                            {process.env.NODE_ENV !== 'prod' && <ReactQueryDevtools buttonPosition="bottom-left" />}
                         </QueryClientProvider>
                     </HelmetProvider>
                 </ErrorBoundary>

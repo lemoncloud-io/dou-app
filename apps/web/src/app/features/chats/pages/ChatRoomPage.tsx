@@ -15,8 +15,8 @@ import {
 import { useSimpleWebCore } from '@chatic/web-core';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useChatMessages } from '../hooks/useChatMessages';
 import { useReadMessage } from '../hooks/useReadMessage';
+import { useChatMessages } from '../hooks/useChatMessages';
 
 export const ChatRoomPage = () => {
     const navigate = useNavigate();
@@ -35,9 +35,10 @@ export const ChatRoomPage = () => {
         messages,
         clearMessages: clearChatMessages,
         addMessage,
+        applyReadEvent,
     } = useChatMessages(profile?.id ?? null, channelId ?? null);
 
-    useReadMessage(channelId, messages);
+    useReadMessage(channelId, messages, applyReadEvent);
 
     const handleLeaveRoom = async () => {
         if (!channelId) return;
@@ -254,9 +255,20 @@ export const ChatRoomPage = () => {
                                 return isMine ? (
                                     <div key={message.id} className="flex flex-col items-end gap-1">
                                         <div className="flex items-end gap-2">
-                                            <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
-                                                {formatTime(message.timestamp)}
-                                            </span>
+                                            <div className="flex flex-col items-end gap-0.5">
+                                                {(() => {
+                                                    const unread =
+                                                        (channel?.memberNo ?? 0) - 1 - (message.readCount ?? 0);
+                                                    return unread > 0 ? (
+                                                        <span className="text-[10px] font-medium text-[#2A7EF4]">
+                                                            {unread}
+                                                        </span>
+                                                    ) : null;
+                                                })()}
+                                                <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
+                                                    {formatTime(message.timestamp)}
+                                                </span>
+                                            </div>
                                             <div className="flex items-center gap-2 px-3 py-3 bg-[#102346] rounded-[14px_14px_0px_14px] max-w-[269px]">
                                                 <span className="text-[14px] font-normal leading-[1.3] text-white">
                                                     {message.content}
@@ -280,6 +292,14 @@ export const ChatRoomPage = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 pl-[47px]">
+                                            {(() => {
+                                                const unread = (channel?.memberNo ?? 0) - 1 - (message.readCount ?? 0);
+                                                return unread > 0 ? (
+                                                    <span className="text-[10px] font-medium text-[#2A7EF4]">
+                                                        {unread}
+                                                    </span>
+                                                ) : null;
+                                            })()}
                                             <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
                                                 {formatTime(message.timestamp)}
                                             </span>

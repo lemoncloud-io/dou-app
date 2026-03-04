@@ -23,8 +23,6 @@ export const ChatSettingsPage = () => {
 
     const isOwner = channel?.ownerId === profile?.id;
 
-    const isInvitable = channel?.stereo === 'public';
-
     const handleLeaveRoomClick = () => {
         if (confirm('정말로 채팅방을 나가시겠습니까?')) {
             handleLeaveRoom();
@@ -114,14 +112,12 @@ export const ChatSettingsPage = () => {
 
                     {/* Menu */}
                     <div className="flex gap-6">
-                        {isInvitable && (
-                            <button onClick={() => setIsInviteDialogOpen(true)} className="flex flex-col items-center">
-                                <div className="w-[46px] h-[46px]  flex items-center justify-center">
-                                    <UserPlus className="w-5 h-5 text-black" />
-                                </div>
-                                <span className="text-[14px] font-medium text-[#84888F] mt-1">친구 초대</span>
-                            </button>
-                        )}
+                        <button onClick={() => setIsInviteDialogOpen(true)} className="flex flex-col items-center">
+                            <div className="w-[46px] h-[46px]  flex items-center justify-center">
+                                <UserPlus className="w-5 h-5 text-black" />
+                            </div>
+                            <span className="text-[14px] font-medium text-[#84888F] mt-1">친구 초대</span>
+                        </button>
 
                         {/* <div className="flex flex-col items-center">
                             <div className="w-[46px] h-[46px] flex items-center justify-center">
