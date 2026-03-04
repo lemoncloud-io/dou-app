@@ -1,5 +1,5 @@
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-type LogTag = 'APP' | 'FCM' | 'IAP' | 'BRIDGE' | 'NETWORK' | 'WEBVIEW' | 'GLOBAL' | 'STORAGE';
+type LogTag = 'APP' | 'FCM' | 'IAP' | 'BRIDGE' | 'NETWORK' | 'WEBVIEW' | 'GLOBAL' | 'STORAGE' | 'CACHE';
 
 type LogListener = (level: LogLevel, tag: LogTag, message: string, data?: any, error?: any) => void;
 

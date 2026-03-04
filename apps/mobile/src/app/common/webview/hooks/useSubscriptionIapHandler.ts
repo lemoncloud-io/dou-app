@@ -12,7 +12,7 @@ import type { PurchaseError } from 'react-native-iap';
  * @param bridge
  */
 export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
-    const { products, currentPurchases, handlePurchase, checkUnfinishedPurchases, loading } = useSubscriptionIap({
+    const { products, currentPurchases, handlePurchase, restorePurchases, loading } = useSubscriptionIap({
         /**
          * 모든 결제 및 서버 검증 프로세스가 성공적으로 마무리 되었을 때 수행되는 콜백
          */
@@ -32,8 +32,8 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
     });
 
     useEffect(() => {
-        const message: AppMessageData<'OnUpdatePurchases'> = {
-            type: 'OnUpdatePurchases',
+        const message: AppMessageData<'OnFetchPurchases'> = {
+            type: 'OnFetchPurchases',
             data: { purchases: currentPurchases },
         };
         bridge.post(message);
@@ -42,9 +42,9 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
     /**
      * 구독 상품 목록 조회
      */
-    const getProducts = useCallback(async () => {
-        const message: AppMessageData<'OnUpdateProductSubscriptions'> = {
-            type: 'OnUpdateProductSubscriptions',
+    const fetchProducts = useCallback(async () => {
+        const message: AppMessageData<'OnFetchProductSubscriptions'> = {
+            type: 'OnFetchProductSubscriptions',
             data: { products },
         };
         bridge.post(message);
@@ -53,24 +53,24 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
     /**
      * 현재 보유 중인 구독권 조회
      */
-    const getCurrentPurchases = useCallback(async () => {
-        const message: AppMessageData<'OnUpdatePurchases'> = {
-            type: 'OnUpdatePurchases',
+    const fetchCurrentPurchases = useCallback(async () => {
+        const message: AppMessageData<'OnFetchPurchases'> = {
+            type: 'OnFetchPurchases',
             data: { purchases: currentPurchases },
         };
         bridge.post(message);
     }, [bridge, currentPurchases]);
 
     /**
-     * 미완료 결제 건 처리 요청
+     * 구매 복구
      */
-    const checkPurchases = useCallback(async () => {
-        await checkUnfinishedPurchases();
+    const restorePurchase = useCallback(async () => {
+        await restorePurchases();
         const message: AppMessageData<'OnSuccessPurchase'> = {
             type: 'OnSuccessPurchase',
         };
         bridge.post(message);
-    }, [bridge, checkUnfinishedPurchases]);
+    }, [bridge, restorePurchases]);
 
     /**
      * 구독권 구매 수행
@@ -83,9 +83,9 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
     );
 
     return {
-        getProducts,
-        getCurrentPurchases,
-        checkPurchases,
+        fetchProducts,
+        fetchCurrentPurchases,
+        restorePurchase,
         purchaseSubscription,
         isIapLoading: loading,
     };
