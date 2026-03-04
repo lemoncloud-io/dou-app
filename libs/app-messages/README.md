@@ -17,16 +17,19 @@ This library was generated with [Nx](https://nx.dev).
 
 웹에서 네이티브 기능을 실행하기 위해 보내는 메시지입니다.
 
-| Message Type               | Payload (Data)                                                                        | Description                                              | Expected Response                                            |
-| :------------------------- | :------------------------------------------------------------------------------------ | :------------------------------------------------------- | :----------------------------------------------------------- |
-| `CloseModal`               | -                                                                                     | 모달 닫기                                                | -                                                            |
-| `OpenModal`                | `{ url: string; type?: 'full';'sheet'; heightRatio?: number; dragHandle?: boolean; }` | 모달 열기                                                | -                                                            |
-| `GetFcmToken`              | -                                                                                     | FCM 푸시 토큰을 요청합니다.                              | `OnUpdateFcmToken`                                           |
-| `GetSafeArea`              | -                                                                                     | 기기의 Safe Area(Notch 등) 정보를 요청합니다.            | `OnUpdateSafeArea`                                           |
-| `GetProducts`              | -                                                                                     | 스토어에 등록된 구독 상품 목록을 요청합니다.             | `OnUpdateProductSubscriptions`                               |
-| `GetCurrentPurchases`      | -                                                                                     | 현재 사용자가 보유 중인 구독 내역을 요청합니다.          | `OnUpdatePurchases`                                          |
-| `CheckUnfinishedPurchases` | -                                                                                     | 미완료된 결제 건을 복구하거나, 구매 내역을 최신화합니다. | `OnSuccessPurchase`                                          |
-| `PurchaseSubscription`     | `{ sku: string }`                                                                     | 특정 상품(`sku`)의 구독 결제 프로세스를 시작합니다.      | 성공 시: `OnSuccessPurchase`<br/>실패 시: `OnAppLog` (Error) |
+| Message Type            | Payload (Data)                                                                        | Description                                                  | Expected Response                                            |
+| :---------------------- | :------------------------------------------------------------------------------------ | :----------------------------------------------------------- | :----------------------------------------------------------- |
+| `CloseModal`            | -                                                                                     | 모달 닫기                                                    | -                                                            |
+| `OpenModal`             | `{ url: string; type?: 'full';'sheet'; heightRatio?: number; dragHandle?: boolean; }` | 모달 열기                                                    | -                                                            |
+| `FetchFcmToken`         | -                                                                                     | FCM 푸시 토큰을 요청합니다.                                  | `OnFetchFcmToken`                                            |
+| `FetchSafeArea`         | -                                                                                     | 기기의 Safe Area(Notch 등) 정보를 요청합니다.                | `OnFetchSafeArea`                                            |
+| `FetchProducts`         | -                                                                                     | 스토어에 등록된 구독 상품 목록을 요청합니다.                 | `OnFetchProductSubscriptions`                                |
+| `FetchCurrentPurchases` | -                                                                                     | 현재 사용자가 보유 중인 구독 내역을 요청합니다.              | `OnFetchPurchases`                                           |
+| `RestorePurchase`       | -                                                                                     | 미완료된 결제 건을 복구하거나, 구매 내역을 최신화합니다.     | `OnSuccessPurchase`                                          |
+| `PurchaseSubscription`  | `{ sku: string }`                                                                     | 특정 상품(`sku`)의 구독 결제 프로세스를 시작합니다.          | 성공 시: `OnSuccessPurchase`<br/>실패 시: `OnAppLog` (Error) |
+| `FetchAllCacheData`     | `{ type: 'channel'\|'chat'\|'user'\|'join' }`                                         | 로컬 캐시(MMKV/SQLite)의 특정 도메인 전체 목록을 요청합니다. | `OnFetchAllCacheData`                                        |
+| `FetchCacheData`        | `{ type: ...; id: string }`                                                           | 로컬 캐시의 특정 데이터를 요청합니다.                        | `OnFetchCacheData`                                           |
+| `SaveCacheData`         | `{ type: ...; id: string; value: object }`                                            | 데이터를 로컬 캐시에 저장(Upsert)합니다.                     | `OnSaveCacheData`                                            |
 
 ---
 
@@ -43,23 +46,31 @@ This library was generated with [Nx](https://nx.dev).
 
 ### System
 
-| Message Type       | Description                                   | Data Structure (Example)                          |
-| :----------------- | :-------------------------------------------- | :------------------------------------------------ |
-| `OnUpdateSafeArea` | Safe Area 정보가 갱신되었을 때 전달           | `{ top: 47, bottom: 34, left: 0, right: 0 }`      |
-| `OnAppLog`         | 네이티브에서 발생한 에러나 로그를 웹으로 전달 | `{ level: "error", message: "Network Error..." }` |
+| Message Type      | Description                                   | Data Structure (Example)                          |
+| :---------------- | :-------------------------------------------- | :------------------------------------------------ |
+| `OnFetchSafeArea` | Safe Area 정보가 갱신되었을 때 전달           | `{ top: 47, bottom: 34, left: 0, right: 0 }`      |
+| `OnAppLog`        | 네이티브에서 발생한 에러나 로그를 웹으로 전달 | `{ level: "error", message: "Network Error..." }` |
 
 ### Notification
 
 | Message Type            | Description                                      | Data Structure (Example)                               |
 | :---------------------- | :----------------------------------------------- | :----------------------------------------------------- |
-| `OnUpdateFcmToken`      | FCM 토큰이 발급되거나 갱신되었을 때 전달         | `{ token: "ey..." }`                                   |
+| `OnFetchFcmToken`       | FCM 토큰이 발급되거나 갱신되었을 때 전달         | `{ token: "ey..." }`                                   |
 | `OnReceiveNotification` | 앱이 **실행 중(Foreground)**일 때 푸시 알림 수신 | `{ title: "이벤트", body: "할인 시작!", data: {...} }` |
 | `OnOpenNotification`    | 유저가 **알림을 클릭**하여 앱에 진입했을 때 발생 | `{ type: "chat", id: "123", ... }`                     |
 
 ### In-App Purchase
 
-| Message Type                   | Description                                               | Data Structure (Example)                                      |
-| :----------------------------- | :-------------------------------------------------------- | :------------------------------------------------------------ |
-| `OnUpdateProductSubscriptions` | 스토어의 구독 상품 목록 정보 전달                         | `{ products: [{ productId: "pro_monthly", price: "..." }] }`  |
-| `OnUpdatePurchases`            | 사용자의 현재 구독(구매) 보유 현황 전달                   | `{ purchases: [{ productId: "...", transactionDate: ... }] }` |
-| `OnSuccessPurchase`            | 결제 프로세스(서버 검증 포함)가 **최종 성공**했을 때 발생 | -                                                             |
+| Message Type                  | Description                                               | Data Structure (Example)                                      |
+| :---------------------------- | :-------------------------------------------------------- | :------------------------------------------------------------ |
+| `OnFetchProductSubscriptions` | 스토어의 구독 상품 목록 정보 전달                         | `{ products: [{ productId: "pro_monthly", price: "..." }] }`  |
+| `OnFetchPurchases`            | 사용자의 현재 구독(구매) 보유 현황 전달                   | `{ purchases: [{ productId: "...", transactionDate: ... }] }` |
+| `OnSuccessPurchase`           | 결제 프로세스(서버 검증 포함)가 **최종 성공**했을 때 발생 | -                                                             |
+
+### Cache
+
+| Message Type          | Description                                | Data Structure (Example)                              |
+| :-------------------- | :----------------------------------------- | :---------------------------------------------------- |
+| `OnFetchAllCacheData` | 요청된 도메인의 전체 캐시 데이터 목록 전달 | `{ type: "channel", items: [{ id: "ch_1", ... }] }`   |
+| `OnFetchCacheData`    | 요청된 단건 캐시 데이터 전달               | `{ type: "user", id: "user_1", item: { name: ... } }` |
+| `OnSaveCacheData`     | 캐시 저장 작업의 성공 여부 전달            | `{ type: "chat", id: "msg_1" }`                       |
