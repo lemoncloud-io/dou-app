@@ -30,10 +30,12 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const { pendingUrl, pendingEnvs, clearPendingUrl, setWebViewReady } = useDeepLinkStore();
 
     const { bridge } = useAppBridge(webViewRef);
-    const { getSafeAreaInfo } = useSafeAreaHandler(bridge);
+    const { fetchSafeAreaInfo } = useSafeAreaHandler(bridge);
     const { getFcmToken } = useFcmHandler(bridge);
-    const { getProducts, getCurrentPurchases, restorePurchase, purchaseSubscription, isIapLoading } =
+    const { fetchProducts, fetchCurrentPurchases, restorePurchase, purchaseSubscription, isIapLoading } =
         useSubscriptionIapHandler(bridge);
+
+    const { handleFetchAllCacheData, handleFetchCacheData, handleSaveCacheData } = useCacheHandler(bridge);
 
     useAndroidBack(webViewRef, canGoBack);
 
@@ -90,12 +92,12 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         return bridge.receive(
             (message: WebMessageData<WebMessageType>) => {
                 switch (message.type) {
-                    case 'GetFcmToken': {
+                    case 'FetchFcmToken': {
                         void getFcmToken();
                         break;
                     }
-                    case 'GetSafeArea': {
-                        getSafeAreaInfo();
+                    case 'FetchSafeArea': {
+                        fetchSafeAreaInfo();
                         break;
                     }
                     case 'RestorePurchase': {
@@ -103,13 +105,13 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                         break;
                     }
 
-                    case 'GetProducts': {
-                        void getProducts();
+                    case 'FetchProducts': {
+                        void fetchProducts();
                         break;
                     }
 
-                    case 'GetCurrentPurchases': {
-                        void getCurrentPurchases();
+                    case 'FetchCurrentPurchases': {
+                        void fetchCurrentPurchases();
                         break;
                     }
 
@@ -146,10 +148,10 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     }, [
         bridge,
         restorePurchase,
-        getCurrentPurchases,
+        fetchCurrentPurchases,
         getFcmToken,
-        getProducts,
-        getSafeAreaInfo,
+        fetchProducts,
+        fetchSafeAreaInfo,
         navigation,
         purchaseSubscription,
     ]);

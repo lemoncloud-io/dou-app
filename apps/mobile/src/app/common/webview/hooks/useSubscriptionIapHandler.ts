@@ -32,8 +32,8 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
     });
 
     useEffect(() => {
-        const message: AppMessageData<'OnUpdatePurchases'> = {
-            type: 'OnUpdatePurchases',
+        const message: AppMessageData<'OnFetchPurchases'> = {
+            type: 'OnFetchPurchases',
             data: { purchases: currentPurchases },
         };
         bridge.post(message);
@@ -42,9 +42,9 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
     /**
      * 구독 상품 목록 조회
      */
-    const getProducts = useCallback(async () => {
-        const message: AppMessageData<'OnUpdateProductSubscriptions'> = {
-            type: 'OnUpdateProductSubscriptions',
+    const fetchProducts = useCallback(async () => {
+        const message: AppMessageData<'OnFetchProductSubscriptions'> = {
+            type: 'OnFetchProductSubscriptions',
             data: { products },
         };
         bridge.post(message);
@@ -53,9 +53,9 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
     /**
      * 현재 보유 중인 구독권 조회
      */
-    const getCurrentPurchases = useCallback(async () => {
-        const message: AppMessageData<'OnUpdatePurchases'> = {
-            type: 'OnUpdatePurchases',
+    const fetchCurrentPurchases = useCallback(async () => {
+        const message: AppMessageData<'OnFetchPurchases'> = {
+            type: 'OnFetchPurchases',
             data: { purchases: currentPurchases },
         };
         bridge.post(message);
@@ -83,8 +83,8 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
     );
 
     return {
-        getProducts,
-        getCurrentPurchases,
+        fetchProducts,
+        fetchCurrentPurchases,
         restorePurchase,
         purchaseSubscription,
         isIapLoading: loading,
