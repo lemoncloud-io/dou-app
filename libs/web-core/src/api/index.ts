@@ -121,23 +121,42 @@ export const createCredentialsByProvider = async (provider = 'google', code: str
 };
 
 /**
+ * Login invite response type
+ */
+export interface LoginInviteResponse {
+    id: string;
+    name: string;
+    code: string;
+    userRole: string;
+    userStatus: string;
+    Token: {
+        authId: string;
+        accountId: string;
+        identityId: string;
+        identityPoolId: string;
+        identityToken: string;
+    };
+}
+
+/**
  * Login with invite code
- * - Uses POST /dou-d1/oauth/0/invite-login endpoint
+ * - Uses POST /oauth/login-invite endpoint
  * - Code format: invt:<id>:<code>
+ * - Returns response with Token.identityToken for JWT-based auth
  *
  * @param code - Invite code (format: invt:<id>:<code>)
- * @returns Promise resolving to authentication credentials
+ * @returns Promise resolving to login response with identityToken
  */
-export const loginWithInviteCode = async (code: string) => {
+export const loginWithInviteCode = async (code: string): Promise<LoginInviteResponse> => {
     const { data } = await webCore
         .buildSignedRequest({
             method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/oauth/0/invite-login`,
+            baseURL: `${DOU_ENDPOINT}/oauth/login-invite`,
         })
         .setBody({ code })
-        .execute<{ Token: LemonOAuthToken }>();
+        .execute<LoginInviteResponse>();
 
-    return await webCore.buildCredentialsByToken(data.Token);
+    return data;
 };
 
 export const refreshAuthToken = async () => {
