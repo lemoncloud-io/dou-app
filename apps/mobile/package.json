@@ -4,6 +4,7 @@
     "private": true,
     "dependencies": {
         "@lemoncloud/chatic-sockets-api": "*",
+        "@lemoncloud/chatic-socials-api": "*",
         "@nx/eslint-plugin": "*",
         "@nx/vite": "*",
         "@react-native-async-storage/async-storage": "*",
@@ -66,8 +67,7 @@
         "react-native-play-install-referrer": "*",
         "uuid": "*",
         "@react-native-firebase/firestore": "*",
-        "firebase": "*"
-        "zustand": "*",
+        "firebase": "*",
         "react-native-mmkv": "*"
     },
     "devDependencies": {}

@@ -2776,6 +2776,13 @@
   dependencies:
     lemon-model "^1.1.1"
 
+"@lemoncloud/chatic-socials-api@*":
+  version "0.26.128"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-socials-api/-/chatic-socials-api-0.26.128.tgz#94ae50b682be76ee10aa5bc08dffe22a6fb27470"
+  integrity sha512-WMd2lySv7ALn+lEZCH2ey7UrXOLt5CuxcBhRXLRO8xKg7DAqEo/qaK4f1p6pGN7qtyF74BcSabtdTP2y6HGMnQ==
+  dependencies:
+    lemon-model "^1.1.1"
+
 "@lemoncloud/chatic-socials-api@^0.26.127":
   version "0.26.127"
   resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-socials-api/-/chatic-socials-api-0.26.127.tgz#fb11d7311a53af167c8b88d68ec3cef507e86c4c"
@@ -13999,7 +14006,7 @@ react-native-localize@*, react-native-localize@^3.6.1:
   resolved "https://registry.yarnpkg.com/react-native-localize/-/react-native-localize-3.6.1.tgz#35e42681119c2594e3b358f53399cc666a9d49f6"
   integrity sha512-0kVFUh8TWeh+8p13yVIDjbcdxR2ZOfPBFNcY/VBh/3/g8KfvXywY/XJkCuCVrX5dCLumMi3aXmy+MmJNy4IaYQ==
 
-react-native-mmkv@^4.1.2:
+react-native-mmkv@*, react-native-mmkv@^4.1.2:
   version "4.1.2"
   resolved "https://registry.yarnpkg.com/react-native-mmkv/-/react-native-mmkv-4.1.2.tgz#fb337930ec50d509392832c649b578a00c0d008e"
   integrity sha512-6LHb2DQBXuo96Aues13EugmlWw/HAYuh3KoJoQNrC4JsBwn3J3KiRYAg2mCm5Je0VYq2YsmbgZG7XJwX/WFYZA==

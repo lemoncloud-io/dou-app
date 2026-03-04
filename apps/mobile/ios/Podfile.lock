@@ -1389,6 +1389,7 @@ PODS:
     - hermes-engine/Pre-built (= 0.14.0)
   - hermes-engine/Pre-built (0.14.0)
   - leveldb-library (1.22.6)
+  - MMKVCore (2.2.4)
   - nanopb (3.30910.0):
     - nanopb/decode (= 3.30910.0)
     - nanopb/encode (= 3.30910.0)
@@ -1403,6 +1404,37 @@ PODS:
     - hermes-engine
     - NitroModules
     - openiap (= 1.3.14)
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-callinvoker
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
+  - NitroMmkv (4.1.2):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - MMKVCore (= 2.2.4)
+    - NitroModules
     - RCT-Folly
     - RCT-Folly/Fabric
     - RCTRequired
@@ -3370,34 +3402,6 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-document-picker (9.3.1):
-    - boost
-    - DoubleConversion
-    - fast_float
-    - fmt
-    - glog
-    - hermes-engine
-    - RCT-Folly
-    - RCT-Folly/Fabric
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-jsi
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - SocketRocket
-    - Yoga
   - react-native-safe-area-context (5.6.2):
     - boost
     - DoubleConversion
@@ -3485,8 +3489,6 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-sqlite-storage (6.0.1):
-    - React-Core
   - react-native-webview (13.16.0):
     - boost
     - DoubleConversion
@@ -4251,8 +4253,6 @@ PODS:
     - RNFBApp
     - SocketRocket
     - Yoga
-  - RNFS (2.20.0):
-    - React-Core
   - RNLocalize (3.6.1):
     - boost
     - DoubleConversion
@@ -4340,34 +4340,6 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - RNShare (12.2.5):
-    - boost
-    - DoubleConversion
-    - fast_float
-    - fmt
-    - glog
-    - hermes-engine
-    - RCT-Folly
-    - RCT-Folly/Fabric
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-jsi
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - SocketRocket
-    - Yoga
   - RNSVG (15.15.1):
     - boost
     - DoubleConversion
@@ -4437,6 +4409,7 @@ DEPENDENCIES:
   - glog (from `../../../node_modules/react-native/third-party-podspecs/glog.podspec`)
   - hermes-engine (from `../../../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - NitroIap (from `../../../node_modules/react-native-iap`)
+  - NitroMmkv (from `../../../node_modules/react-native-mmkv`)
   - NitroModules (from `../../../node_modules/react-native-nitro-modules`)
   - RCT-Folly (from `../../../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec`)
   - RCTDeprecation (from `../../../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
@@ -4476,9 +4449,7 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../../../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../../../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-config (from `../../../node_modules/react-native-config`)
-  - react-native-document-picker (from `../../../node_modules/react-native-document-picker`)
   - react-native-safe-area-context (from `../../../node_modules/react-native-safe-area-context`)
-  - react-native-sqlite-storage (from `../../../node_modules/react-native-sqlite-storage`)
   - react-native-webview (from `../../../node_modules/react-native-webview`)
   - React-NativeModulesApple (from `../../../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-networking (from `../../../node_modules/react-native/ReactCommon/react/networking`)
@@ -4520,10 +4491,8 @@ DEPENDENCIES:
   - "RNFBAuth (from `../../../node_modules/@react-native-firebase/auth`)"
   - "RNFBFirestore (from `../../../node_modules/@react-native-firebase/firestore`)"
   - "RNFBMessaging (from `../../../node_modules/@react-native-firebase/messaging`)"
-  - RNFS (from `../../../node_modules/react-native-fs`)
   - RNLocalize (from `../../../node_modules/react-native-localize`)
   - RNScreens (from `../../../node_modules/react-native-screens`)
-  - RNShare (from `../../../node_modules/react-native-share`)
   - RNSVG (from `../../../node_modules/react-native-svg`)
   - SocketRocket (~> 0.7.1)
   - Yoga (from `../../../node_modules/react-native/ReactCommon/yoga`)
@@ -4550,6 +4519,7 @@ SPEC REPOS:
     - gRPC-Core
     - GTMSessionFetcher
     - leveldb-library
+    - MMKVCore
     - nanopb
     - openiap
     - PromisesObjC
@@ -4574,6 +4544,8 @@ EXTERNAL SOURCES:
     :tag: hermes-v0.14.0
   NitroIap:
     :path: "../../../node_modules/react-native-iap"
+  NitroMmkv:
+    :path: "../../../node_modules/react-native-mmkv"
   NitroModules:
     :path: "../../../node_modules/react-native-nitro-modules"
   RCT-Folly:
@@ -4650,12 +4622,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   react-native-config:
     :path: "../../../node_modules/react-native-config"
-  react-native-document-picker:
-    :path: "../../../node_modules/react-native-document-picker"
   react-native-safe-area-context:
     :path: "../../../node_modules/react-native-safe-area-context"
-  react-native-sqlite-storage:
-    :path: "../../../node_modules/react-native-sqlite-storage"
   react-native-webview:
     :path: "../../../node_modules/react-native-webview"
   React-NativeModulesApple:
@@ -4738,14 +4706,10 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/@react-native-firebase/firestore"
   RNFBMessaging:
     :path: "../../../node_modules/@react-native-firebase/messaging"
-  RNFS:
-    :path: "../../../node_modules/react-native-fs"
   RNLocalize:
     :path: "../../../node_modules/react-native-localize"
   RNScreens:
     :path: "../../../node_modules/react-native-screens"
-  RNShare:
-    :path: "../../../node_modules/react-native-share"
   RNSVG:
     :path: "../../../node_modules/react-native-svg"
   Yoga:
@@ -4777,10 +4741,12 @@ SPEC CHECKSUMS:
   "gRPC-C++": cc207623316fb041a7a3e774c252cf68a058b9e8
   gRPC-Core: 860978b7db482de8b4f5e10677216309b5ff6330
   GTMSessionFetcher: b8ab00db932816e14b0a0664a08cb73dda6d164b
-  hermes-engine: f50cf9e4aa226e9e0bfe3f03c3c1c7d2f99ea4fd
+  hermes-engine: 4f0e25b2b0010ede06083febe4486b6844f80bef
   leveldb-library: cc8b8f8e013647a295ad3f8cd2ddf49a6f19be19
+  MMKVCore: f2dd4c9befea04277a55e84e7812f930537993df
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   NitroIap: ef0c13836088d2731d0d7d0d04d2719733f9cf93
+  NitroMmkv: 4a2d747ce97a4ae740b3cb3a3853366813faf831
   NitroModules: 0177670ebe559c536f64eeab9b73cf4ca3977efc
   openiap: ab2a58a26223bf7167dd47d42e0532f97ed7dae4
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
@@ -4821,9 +4787,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: d0c5f3793332ebec11bfbbbd962ea526ee85efff
   React-microtasksnativemodule: 1a7d806e2ec20df1c6d88b29e72787fb48aeab70
   react-native-config: 916e53e7333d5b2bcb7ee9882f5605143b4fc4c5
-  react-native-document-picker: 9f54873c9ba2a6f23fefd96b206a13b26fb2a2f4
   react-native-safe-area-context: 0a3b034bb63a5b684dd2f5fffd3c90ef6ed41ee8
-  react-native-sqlite-storage: 0c84826214baaa498796c7e46a5ccc9a82e114ed
   react-native-webview: cdce419e8022d0ef6f07db21890631258e7a9e6e
   React-NativeModulesApple: e554252d69442010807867cc7d70c0008048ad20
   React-networking: 669cb54cc7e5b65d7dafeeb36970a1421adc8bb3
@@ -4866,10 +4830,8 @@ SPEC CHECKSUMS:
   RNFBAuth: 445570306659fca0d6953d193667ae158d470415
   RNFBFirestore: e06d6fa7a2fe6de350c67ce97a36b8040ab7a892
   RNFBMessaging: 8bee64a40bb3e1463bea7abffc43548d072f8ffc
-  RNFS: 89de7d7f4c0f6bafa05343c578f61118c8282ed8
   RNLocalize: 9988fa71fb84c415902898b35cc6aa5af052731e
   RNScreens: d6413aeb1878cdafd3c721e2c5218faf5d5d3b13
-  RNShare: aecde3c90553869e633cb8143da784f03ce09edd
   RNSVG: b5da7cb4bb60503fd841bf6eddae1d171e515d79
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: 33b53536a0500d039f2cd78caf1d5d68712d3af7
