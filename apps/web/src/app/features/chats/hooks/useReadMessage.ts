@@ -23,21 +23,31 @@ export const useReadMessage = (
 
         hasMarkedRef.current = true;
         const lastChatNo = messages[messages.length - 1]?.chatNo;
-        if (lastChatNo) emit({ type: 'chat', action: 'read', payload: { channelId, chatNo: lastChatNo } });
+        if (lastChatNo) {
+            emit({ type: 'chat', action: 'read', payload: { channelId, chatNo: lastChatNo } });
+            applyReadEvent?.(lastChatNo, 1);
+        }
         markAllAsReadInDB(profile.id, channelId).catch(console.error);
     }, [messages.length]);
 
-    // action:read 수신 시 해당 chatNo 이하 unread readCount++ + isRead: true
+    // action:read 수신 시 해당 chatNo 이하 readCount++ + isRead: true
     useEffect(() => {
-        const envelope = lastMessage as WSSEnvelope<ChatModel> | null;
-        if (envelope?.type !== 'chat' || envelope.action !== 'read') return;
-        if (envelope.payload?.channelId !== channelId) return;
+         
+        const envelope = lastMessage as any;
+        if (!envelope || !applyReadEvent) return;
+
+        const isJoinUpdate =
+            envelope.type === 'model' && envelope.action === 'update' && envelope.payload?.sourceType === 'join';
+        const isChatRead = envelope.type === 'chat' && envelope.action === 'read';
+        if (!isJoinUpdate && !isChatRead) return;
+
+        const channelIdFromPayload = envelope.payload?.channelId ?? envelope.meta?.channel;
+        if (channelIdFromPayload !== channelId) return;
 
         const chatNo = envelope.payload?.chatNo;
-        const readCount = envelope.payload?.readCount ?? 1;
-        if (!chatNo || !applyReadEvent) return;
+        if (!chatNo) return;
 
-        applyReadEvent(chatNo, readCount);
+        applyReadEvent(chatNo, 1);
     }, [lastMessage, channelId, applyReadEvent]);
 
     // 새 메시지 수신 시 내 것 아니면 read 전송
