@@ -1,6 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
+import { useSimpleWebCore } from '@chatic/web-core';
+import { useUnreadCount } from '../../chats/hooks/useUnreadCount';
 import { useMyChannels } from '../hooks/useMyChannels';
+import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 
 const ChannelSkeleton = () => (
     <div className="flex items-center gap-2.5">
@@ -12,9 +15,53 @@ const ChannelSkeleton = () => (
     </div>
 );
 
+const ChannelItem = ({ channel }: { channel: ChannelView }) => {
+    const navigate = useNavigate();
+    const { profile } = useSimpleWebCore();
+    const unreadCount = useUnreadCount(profile?.id ?? null, channel.id ?? '');
+
+    return (
+        <button
+            key={channel.id}
+            onClick={() => navigate(`/chats/${channel.id}/room`)}
+            className="flex items-center gap-2.5 w-full text-left"
+        >
+            <div className="flex h-[39px] w-[39px] items-center justify-center rounded-full bg-[#F4F5F5]">
+                <div className="h-4 w-4 text-[#CFD0D3]">💬</div>
+            </div>
+            <div className="flex flex-1 items-center">
+                <div className="flex flex-1 flex-col">
+                    <div className="flex items-center gap-1">
+                        <span className="text-[14px] font-semibold leading-[1.57] tracking-[0.005em] text-[#171725]">
+                            {channel.name || 'Unnamed Channel'}
+                        </span>
+                    </div>
+                    <span className="text-[12px] font-normal leading-[1.67] tracking-[0.005em] text-[#9FA2A7]">
+                        {channel.desc || '채널 설명 없음'}
+                    </span>
+                </div>
+                <div className="flex h-[45px] flex-col items-end gap-1">
+                    <span className="w-[67px] text-right text-[10px] font-normal leading-[2] tracking-[0.005em] text-[#9CA4AB]">
+                        {channel.updatedAt
+                            ? new Date(channel.updatedAt).toLocaleTimeString('ko-KR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                              })
+                            : ''}
+                    </span>
+                    {unreadCount > 0 && (
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-semibold text-white">
+                            {unreadCount}
+                        </span>
+                    )}
+                </div>
+            </div>
+        </button>
+    );
+};
+
 export const ChannelList = () => {
     const { channels, isLoading, isError } = useMyChannels();
-    const navigate = useNavigate();
 
     if (isLoading) {
         return (
@@ -37,37 +84,7 @@ export const ChannelList = () => {
     return (
         <div className="flex flex-col gap-[15px]">
             {channels.map(channel => (
-                <button
-                    key={channel.id}
-                    onClick={() => navigate(`/chats/${channel.id}/room`)}
-                    className="flex items-center gap-2.5 w-full text-left"
-                >
-                    <div className="flex h-[39px] w-[39px] items-center justify-center rounded-full bg-[#F4F5F5]">
-                        <div className="h-4 w-4 text-[#CFD0D3]">💬</div>
-                    </div>
-                    <div className="flex flex-1 items-center">
-                        <div className="flex flex-1 flex-col">
-                            <div className="flex items-center gap-1">
-                                <span className="text-[14px] font-semibold leading-[1.57] tracking-[0.005em] text-[#171725]">
-                                    {channel.name || 'Unnamed Channel'}
-                                </span>
-                            </div>
-                            <span className="text-[12px] font-normal leading-[1.67] tracking-[0.005em] text-[#9FA2A7]">
-                                {channel.desc || '채널 설명 없음'}
-                            </span>
-                        </div>
-                        <div className="flex h-[45px] flex-col items-end gap-1">
-                            <span className="w-[67px] text-right text-[10px] font-normal leading-[2] tracking-[0.005em] text-[#9CA4AB]">
-                                {channel.updatedAt
-                                    ? new Date(channel.updatedAt).toLocaleTimeString('ko-KR', {
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                      })
-                                    : ''}
-                            </span>
-                        </div>
-                    </div>
-                </button>
+                <ChannelItem key={channel.id} channel={channel} />
             ))}
         </div>
     );

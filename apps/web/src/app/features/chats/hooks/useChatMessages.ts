@@ -8,6 +8,7 @@ interface Message {
     ownerName?: string;
     readCount?: number;
     chatNo?: number;
+    isRead?: boolean;
 }
 
 interface StoredMessage extends Omit<Message, 'timestamp'> {
@@ -85,8 +86,48 @@ const loadMessages = async (userId: string, channelId: string): Promise<Message[
                 ownerId: stored.ownerId,
                 ownerName: stored.ownerName,
                 chatNo: stored.chatNo,
+                readCount: stored.readCount,
+                isRead: stored.isRead,
             }));
             resolve(messages);
+        };
+    });
+};
+
+export const countUnreadMessages = async (userId: string, channelId: string): Promise<number> => {
+    const db = await openDB();
+    const transaction = db.transaction([STORE_NAME], 'readonly');
+    const store = transaction.objectStore(STORE_NAME);
+    const index = store.index('chatKey');
+
+    return new Promise((resolve, reject) => {
+        const request = index.getAll(getChatKey(userId, channelId));
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+            const count = request.result.filter((m: StoredMessage) => m.isRead === false).length;
+            resolve(count);
+        };
+    });
+};
+
+export const markAllAsReadInDB = async (userId: string, channelId: string): Promise<void> => {
+    const db = await openDB();
+    const transaction = db.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const index = store.index('chatKey');
+
+    return new Promise((resolve, reject) => {
+        const request = index.getAll(getChatKey(userId, channelId));
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+            const unread = request.result.filter((m: StoredMessage) => m.isRead === false);
+            unread.forEach((m: StoredMessage) => store.put({ ...m, isRead: true }));
+
+            const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+            bc.postMessage({ type: 'read-all', userId, channelId });
+            bc.close();
+
+            resolve();
         };
     });
 };
@@ -184,10 +225,52 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
         }
     }, [userId, channelId]);
 
+    const markAllAsRead = useCallback(async () => {
+        if (!userId || !channelId) return;
+        const hasUnread = messages.some(m => m.isRead === false);
+        if (!hasUnread) return;
+
+        setMessages(prev => prev.map(m => ({ ...m, isRead: true })));
+        await markAllAsReadInDB(userId, channelId).catch(console.error);
+    }, [userId, channelId, messages]);
+
+    // read 이벤트 수신 시 해당 chatNo 이하 unread 메시지 readCount++ + isRead: true
+    const applyReadEvent = useCallback(
+        async (chatNo: number, newReadCount: number) => {
+            if (!userId || !channelId) return;
+
+            setMessages(prev =>
+                prev.map(m => {
+                    if ((m.chatNo ?? 0) <= chatNo) {
+                        return { ...m, readCount: Math.max(m.readCount ?? 0, newReadCount), isRead: true };
+                    }
+                    return m;
+                })
+            );
+
+            // DB도 업데이트
+            const db = await openDB();
+            const tx = db.transaction([STORE_NAME], 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const index = store.index('chatKey');
+            const request = index.getAll(getChatKey(userId, channelId));
+            request.onsuccess = () => {
+                request.result
+                    .filter((m: StoredMessage) => (m.chatNo ?? 0) <= chatNo)
+                    .forEach((m: StoredMessage) =>
+                        store.put({ ...m, readCount: Math.max(m.readCount ?? 0, newReadCount), isRead: true })
+                    );
+            };
+        },
+        [userId, channelId]
+    );
+
     return {
         messages,
         addMessage,
         clearMessages: clearChatMessages,
         reloadMessages,
+        markAllAsRead,
+        applyReadEvent,
     };
 };

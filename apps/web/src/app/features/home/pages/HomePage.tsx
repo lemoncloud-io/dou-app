@@ -1,14 +1,13 @@
 import { ChevronDown, CirclePlus, User } from 'lucide-react';
 import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 
-import { publicChannelsKeys } from '@chatic/channels';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useSimpleWebCore } from '@chatic/web-core';
 
 import { SettingsDialog } from '../../../components/SettingsDialog';
@@ -25,10 +24,10 @@ export const HomePage = () => {
         window.location.href = '/auth/login';
     };
 
-    const queryClient = useQueryClient();
+    const { toast } = useToast();
 
     const handleComplete = () => {
-        queryClient.invalidateQueries({ queryKey: publicChannelsKeys.list({ limit: -1 }) });
+        toast({ title: '채팅방이 생성되었습니다' });
     };
 
     return (

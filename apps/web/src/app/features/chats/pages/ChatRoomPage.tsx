@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { useLeaveRoom } from '../hooks/useLeaveRoom';
 import { useSendMessage } from '../hooks/useSendMessage';
+import { useMyChannel } from '../hooks/useMyChannel';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -14,8 +15,8 @@ import {
 import { useSimpleWebCore } from '@chatic/web-core';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useChatMessages } from '../hooks/useChatMessages';
 import { useReadMessage } from '../hooks/useReadMessage';
+import { useChatMessages } from '../hooks/useChatMessages';
 
 export const ChatRoomPage = () => {
     const navigate = useNavigate();
@@ -27,15 +28,17 @@ export const ChatRoomPage = () => {
     const { leaveRoom } = useLeaveRoom();
     const { toast } = useToast();
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
 
     const { profile } = useSimpleWebCore();
     const {
         messages,
         clearMessages: clearChatMessages,
         addMessage,
+        applyReadEvent,
     } = useChatMessages(profile?.id ?? null, channelId ?? null);
 
-    useReadMessage(channelId, messages);
+    useReadMessage(channelId, messages, applyReadEvent);
 
     const handleLeaveRoom = async () => {
         if (!channelId) return;
@@ -51,8 +54,42 @@ export const ChatRoomPage = () => {
     };
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollTop = messagesEndRef.current.scrollHeight;
+        }
     };
+
+    // 메시지가 추가될 때마다 스크롤을 맨 아래로
+    useEffect(() => {
+        if (messages.length > 0) {
+            scrollToBottom();
+        }
+    }, [messages.length]);
+
+    // 가상 키보드 대응
+    useEffect(() => {
+        const handleResize = () => {
+            // 키보드가 올라오면 스크롤을 맨 아래로
+            setTimeout(() => {
+                scrollToBottom();
+            }, 100);
+        };
+
+        const handleFocus = () => {
+            // 입력창 포커스 시 스크롤
+            setTimeout(() => {
+                scrollToBottom();
+            }, 300);
+        };
+
+        window.addEventListener('resize', handleResize);
+        inputRef.current?.addEventListener('focus', handleFocus);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            inputRef.current?.removeEventListener('focus', handleFocus);
+        };
+    }, []);
 
     // 입력창 크기 조절 훅
     useEffect(() => {
@@ -71,10 +108,6 @@ export const ChatRoomPage = () => {
         if (!content.trim() || !channelId || isPending) return;
 
         setContent('');
-
-        requestAnimationFrame(() => {
-            scrollToBottom();
-        });
 
         try {
             const newMessage = await sendMessage(channelId, content.trim());
@@ -142,6 +175,29 @@ export const ChatRoomPage = () => {
         {} as Record<string, typeof messages>
     );
 
+    if (isLoading) {
+        return (
+            <div className="flex h-full items-center justify-center bg-white">
+                <div className="text-center">
+                    <div className="text-sm text-gray-500">채널 정보를 불러오는 중...</div>
+                </div>
+            </div>
+        );
+    }
+
+    if (isError) {
+        return (
+            <div className="flex h-full items-center justify-center bg-white">
+                <div className="text-center">
+                    <div className="text-sm text-red-500">채널 정보를 불러올 수 없습니다</div>
+                    <button onClick={() => navigate(-1)} className="mt-2 text-sm text-blue-500 underline">
+                        뒤로 가기
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex h-full flex-col bg-white">
             {/* Top Bar */}
@@ -149,7 +205,9 @@ export const ChatRoomPage = () => {
                 <button onClick={() => navigate(-1)} className="w-11 h-11 flex items-center justify-center">
                     <ChevronLeft className="w-6 h-6 text-[#3A3C40]" />
                 </button>
-                <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#171725]">채팅방</h1>
+                <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#171725]">
+                    {channel?.name || '채팅방'}
+                </h1>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <button className="w-11 h-11 flex items-center justify-center">
@@ -171,13 +229,13 @@ export const ChatRoomPage = () => {
             </div>
 
             {/* Participants */}
-            <div className="flex items-center gap-1 px-[18px] py-3">
-                <div className="flex items-center gap-[-6px]">{/* Placeholder for participant avatars */}</div>
-                {/* <span className="text-[14px] font-medium leading-[1.857] tracking-[0.005em] text-[#84888F]">+22</span> */}
-            </div>
+            {/* <div className="flex items-center gap-1 px-[18px] py-3">
+                <div className="flex items-center gap-[-6px]">Placeholder for participant avatars</div>
+                <span className="text-[14px] font-medium leading-[1.857] tracking-[0.005em] text-[#84888F]">+22</span>
+            </div> */}
 
             {/* Messages */}
-            <div className="flex-1 overflow-auto px-[18px] py-3 flex flex-col gap-3.5">
+            <div ref={messagesEndRef} className="flex-1 overflow-auto px-[18px] py-3 flex flex-col gap-3.5">
                 {Object.entries(groupedMessages).map(([dateKey, dateMessages]) => (
                     <div key={dateKey} className="flex flex-col gap-3.5">
                         {/* Date Separator */}
@@ -197,9 +255,20 @@ export const ChatRoomPage = () => {
                                 return isMine ? (
                                     <div key={message.id} className="flex flex-col items-end gap-1">
                                         <div className="flex items-end gap-2">
-                                            <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
-                                                {formatTime(message.timestamp)}
-                                            </span>
+                                            <div className="flex flex-col items-end gap-0.5">
+                                                {(() => {
+                                                    const unread =
+                                                        (channel?.memberNo ?? 0) - 1 - (message.readCount ?? 0);
+                                                    return unread > 0 ? (
+                                                        <span className="text-[10px] font-medium text-[#2A7EF4]">
+                                                            {unread}
+                                                        </span>
+                                                    ) : null;
+                                                })()}
+                                                <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
+                                                    {formatTime(message.timestamp)}
+                                                </span>
+                                            </div>
                                             <div className="flex items-center gap-2 px-3 py-3 bg-[#102346] rounded-[14px_14px_0px_14px] max-w-[269px]">
                                                 <span className="text-[14px] font-normal leading-[1.3] text-white">
                                                     {message.content}
@@ -223,6 +292,14 @@ export const ChatRoomPage = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 pl-[47px]">
+                                            {(() => {
+                                                const unread = (channel?.memberNo ?? 0) - 1 - (message.readCount ?? 0);
+                                                return unread > 0 ? (
+                                                    <span className="text-[10px] font-medium text-[#2A7EF4]">
+                                                        {unread}
+                                                    </span>
+                                                ) : null;
+                                            })()}
                                             <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
                                                 {formatTime(message.timestamp)}
                                             </span>
@@ -232,7 +309,6 @@ export const ChatRoomPage = () => {
                             })}
                     </div>
                 ))}
-                <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
