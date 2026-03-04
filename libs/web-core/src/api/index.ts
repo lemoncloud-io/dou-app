@@ -122,7 +122,7 @@ export const createCredentialsByProvider = async (provider = 'google', code: str
 
 /**
  * Login with invite code
- * - Uses POST /dou-d1/oauth/0/invite-login endpoint
+ * - Uses POST /oauth/login-invite endpoint
  * - Code format: invt:<id>:<code>
  *
  * @param code - Invite code (format: invt:<id>:<code>)
@@ -132,7 +132,7 @@ export const loginWithInviteCode = async (code: string) => {
     const { data } = await webCore
         .buildSignedRequest({
             method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/oauth/0/invite-login`,
+            baseURL: `${DOU_ENDPOINT}/oauth/login-invite`,
         })
         .setBody({ code })
         .execute<{ Token: LemonOAuthToken }>();
