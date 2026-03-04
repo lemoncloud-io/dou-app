@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Config from 'react-native-config';
 
 import { AppWebView, FullScreenLoader, Logger } from '../../../common';
 import {
@@ -16,8 +17,7 @@ import type { MainScreenProps } from '../navigation';
 import { useIsFocused } from '@react-navigation/native';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 
-// const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
-const webviewUrl = 'http://localhost:5003';
+const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
