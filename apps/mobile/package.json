@@ -30,10 +30,6 @@
         "react-native-screens": "*",
         "react-native-svg": "*",
         "react-native-svg-transformer": "*",
-        "react-native-sqlite-storage": "*",
-        "react-native-document-picker": "*",
-        "react-native-fs": "*",
-        "react-native-share": "*",
         "react-native-uuid": "*",
         "react-native-webview": "*",
         "vite": "*",
@@ -71,6 +67,8 @@
         "uuid": "*",
         "@react-native-firebase/firestore": "*",
         "firebase": "*"
+        "zustand": "*",
+        "react-native-mmkv": "*"
     },
     "devDependencies": {}
 }
