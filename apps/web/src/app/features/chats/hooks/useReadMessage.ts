@@ -4,7 +4,7 @@ import { useWebSocketV2 } from '@chatic/socket';
 import { useSimpleWebCore } from '@chatic/web-core';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chats/model';
-import { markAllAsReadInDB } from './useChatMessages';
+import { IndexedDBStorageAdapter } from '../storages/IndexedDBStorageAdapter';
 
 export const useReadMessage = (
     channelId: string | undefined,
@@ -27,12 +27,11 @@ export const useReadMessage = (
             emit({ type: 'chat', action: 'read', payload: { channelId, chatNo: lastChatNo } });
             applyReadEvent?.(lastChatNo, 1);
         }
-        markAllAsReadInDB(profile.id, channelId).catch(console.error);
+        IndexedDBStorageAdapter.markAllRead(profile.id, channelId).catch(console.error);
     }, [messages.length]);
 
     // action:read 수신 시 해당 chatNo 이하 readCount++ + isRead: true
     useEffect(() => {
-         
         const envelope = lastMessage as any;
         if (!envelope || !applyReadEvent) return;
 
