@@ -11,6 +11,8 @@ declare global {
         HOST?: string;
         IMAGE_API_ENDPOINT?: string;
         SOCIAL_OAUTH_ENDPOINT?: string;
+        DOU_ENDPOINT?: string;
+        WS_ENDPOINT?: string;
     }
 }
 
@@ -30,6 +32,19 @@ export const SOCIAL_OAUTH_ENDPOINT = (
     import.meta.env.VITE_SOCIAL_OAUTH_ENDPOINT ||
     ''
 ).toLowerCase();
+// localStorage takes priority (injected by mobile WebView for deeplink)
+const getLocalStorageItem = (key: string): string | null => {
+    try {
+        return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+    } catch {
+        return null;
+    }
+};
+
+export const DOU_ENDPOINT =
+    getLocalStorageItem('CHATIC_DOU_ENDPOINT') || window.DOU_ENDPOINT || import.meta.env.VITE_DOU_ENDPOINT || '';
+export const WS_ENDPOINT =
+    getLocalStorageItem('CHATIC_WS_ENDPOINT') || window.WS_ENDPOINT || import.meta.env.VITE_WS_ENDPOINT || '';
 
 /**
  * Key for storing language preference

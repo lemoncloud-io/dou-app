@@ -4,6 +4,8 @@
  * Type definitions for native deep linking implementation
  */
 
+import type { ServiceEndpoints } from './urlConverter';
+
 export type DeepLinkSource = 'cold_start' | 'warm_start' | 'deferred';
 
 export interface DeepLinkConfig {
@@ -20,8 +22,9 @@ export interface WebViewHandler {
      * Handle a deep link URL after processing
      * @param url - The processed frontend URL (after domain conversion)
      * @param source - The source of the deep link
+     * @param envs - Optional service endpoints to inject into WebView
      */
-    handleDeepLink: (url: string, source: DeepLinkSource) => void | Promise<void>;
+    handleDeepLink: (url: string, source: DeepLinkSource, envs?: ServiceEndpoints) => void | Promise<void>;
 }
 
 export interface DeferredLinkData {

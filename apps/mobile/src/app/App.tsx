@@ -10,7 +10,7 @@ import { getDeepLinkManager } from '@chatic/deeplinks';
 import { FloatingMenu, useDeepLinkStore } from './common';
 import { RootNavigator } from './navigation';
 
-import type { DeepLinkSource } from '@chatic/deeplinks';
+import type { DeepLinkSource, ServiceEndpoints } from '@chatic/deeplinks';
 import type { RootStackParamList } from './navigation';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
@@ -38,10 +38,10 @@ function App() {
         const manager = deepLinkManagerRef.current;
 
         manager.initialize({
-            handleDeepLink: (url: string, source: DeepLinkSource) => {
-                console.log('[App] Deep link received:', url, 'source:', source);
+            handleDeepLink: (url: string, source: DeepLinkSource, envs?: ServiceEndpoints) => {
+                console.log('[App] Deep link received:', url, 'source:', source, 'envs:', envs);
                 // Store in Zustand - WebView will pick up when ready
-                useDeepLinkStore.getState().setPendingUrl(url, source);
+                useDeepLinkStore.getState().setPendingUrl(url, source, envs);
             },
         });
 
