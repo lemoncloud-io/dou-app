@@ -4,3 +4,4 @@ export * from './useBaseBridge';
 export * from './useSafeAreaHandler';
 export * from './useAppBridge';
 export * from './useSubscriptionIapHandler';
+export * from './useCacheHandler';

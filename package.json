@@ -117,6 +117,7 @@
         "react-native-device-info": "^15.0.1",
         "react-native-iap": "^14.7.7",
         "react-native-localize": "^3.6.1",
+        "react-native-mmkv": "^4.1.2",
         "react-native-nitro-modules": "^0.33.7",
         "react-native-play-install-referrer": "^1.1.9",
         "react-native-screens": "^4.19.0",

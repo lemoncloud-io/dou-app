@@ -1,211 +1,292 @@
-import React, { useCallback } from 'react';
-import { ActivityIndicator, Alert, FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import {
+    FlatList,
+    LayoutAnimation,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    UIManager,
+    View,
+} from 'react-native';
 import { type ProductSubscription } from 'react-native-iap';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSubscriptionIap } from '../../../common';
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+type LogType = 'info' | 'success' | 'error' | 'event';
+
+interface LogItem {
+    id: string;
+    type: LogType;
+    message: string;
+    timestamp: string;
+}
+
 export const IapTestScreen = () => {
+    const insets = useSafeAreaInsets();
+    const [logs, setLogs] = useState<LogItem[]>([]);
+    const [isExpanded, setIsExpanded] = useState(true);
+    const flatListRef = useRef<FlatList>(null);
+
+    const togglePanel = () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setIsExpanded(!isExpanded);
+    };
+
+    /**
+     * 로그 추가하기
+     */
+    const addLog = (type: LogType, message: string) => {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('ko-KR', {
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        });
+
+        const newLog: LogItem = {
+            id: Date.now().toString() + Math.random(),
+            type,
+            message,
+            timestamp: timeString,
+        };
+
+        setLogs(prev => [...prev, newLog]);
+
+        setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+    };
+
     const { products, currentPurchases, loading, handlePurchase, restorePurchases, openSubscriptionManagement } =
         useSubscriptionIap({
             onPurchaseSuccess: () => {
-                Alert.alert('구독 완료', '구독 처리 완료!');
+                addLog('success', 'Purchase/Restore Process Completed');
             },
             onPurchaseError: error => {
-                Alert.alert('구매 실패', error.message);
+                addLog('error', `Purchase Failed: ${error.message}`);
             },
         });
 
     const handleRestore = async () => {
         if (loading) return;
-
-        Alert.alert('구매 복원', '미처리된 결제 내역을 확인하고 복구를 시도합니다.', [
-            { text: '취소', style: 'cancel' },
-            {
-                text: '확인',
-                onPress: async () => {
-                    await restorePurchases();
-                },
-            },
-        ]);
+        addLog('info', 'Starting Restore...');
+        await restorePurchases();
     };
 
     const getDisplayPrice = useCallback((item: ProductSubscription) => {
         const p = item as any;
-
         if (Platform.OS === 'android') {
             const offer = p.subscriptionOffers?.[0] || p.subscriptionOfferDetails?.[0];
             const pricingPhase = offer?.pricingPhases?.pricingPhaseList?.[0];
-
             if (pricingPhase?.formattedPrice) {
                 return pricingPhase.formattedPrice;
             }
         }
-
         return p.localizedPrice || p.price || '가격 문의';
     }, []);
 
-    const renderItem = ({ item }: { item: ProductSubscription }) => {
-        const isPurchased = currentPurchases.some(p => p.productId === item.id);
+    const handleClearLogs = () => {
+        setLogs([]);
+    };
+
+    const renderLogItem = ({ item }: { item: LogItem }) => {
+        let color = '#888';
+        if (item.type === 'success') color = '#50E3C2';
+        if (item.type === 'error') color = '#FF5A5F';
+        if (item.type === 'event') color = '#F5A623';
+        if (item.type === 'info') color = '#4A90E2';
 
         return (
-            <View style={[styles.itemContainer, isPurchased && styles.purchasedItem]}>
-                <View style={styles.textContainer}>
-                    <Text style={styles.title}>{item.title || item.displayName}</Text>
-                    <Text style={styles.desc}>{item.description}</Text>
-                </View>
-
-                {isPurchased ? (
-                    <TouchableOpacity style={[styles.buyButton]} onPress={openSubscriptionManagement}>
-                        <Text style={styles.purchasedText}>구독 관리</Text>
-                    </TouchableOpacity>
-                ) : (
-                    <TouchableOpacity
-                        style={[styles.buyButton, loading && styles.disabledButton]}
-                        onPress={() => handlePurchase(item.id)}
-                        disabled={loading}
-                    >
-                        <Text style={styles.buttonText}>{getDisplayPrice(item)} / 구매</Text>
-                    </TouchableOpacity>
-                )}
+            <View style={styles.logRow}>
+                <Text style={styles.logTime}>[{item.timestamp}]</Text>
+                <Text style={[styles.logText, { color }]}>{item.message}</Text>
             </View>
         );
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.header}>구독 결제</Text>
+        <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
+            <View style={styles.controlPanel}>
+                <View style={styles.panelHeader}>
+                    <TouchableOpacity style={styles.statusIndicatorButton} onPress={togglePanel} activeOpacity={0.7}>
+                        <View
+                            style={[
+                                styles.dot,
+                                {
+                                    backgroundColor: loading ? '#F5A623' : '#50E3C2',
+                                },
+                            ]}
+                        />
+                        <Text style={styles.statusText}>IAP Debugger</Text>
+                        <Text style={styles.toggleIcon}>{isExpanded ? '▲' : '▼'}</Text>
+                    </TouchableOpacity>
 
-            {products.length === 0 ? (
-                <View style={styles.emptyContainer}>
-                    {loading ? (
-                        <Text>상품 정보를 불러오는 중입니다...</Text>
-                    ) : (
-                        <>
-                            <Text>판매 중인 상품이 없습니다.</Text>
-                            <Text style={styles.subText}>(스토어 콘솔 및 .env 설정을 확인해주세요)</Text>
-                        </>
-                    )}
+                    <TouchableOpacity style={styles.refreshButton} onPress={handleClearLogs}>
+                        <Text style={styles.buttonText}>Clear Logs</Text>
+                    </TouchableOpacity>
                 </View>
-            ) : (
-                <FlatList
-                    data={products}
-                    keyExtractor={item => item.id ?? item.id}
-                    renderItem={renderItem}
-                    contentContainerStyle={{ paddingBottom: 100 }}
-                />
-            )}
 
-            <View style={styles.footer}>
-                <TouchableOpacity style={styles.restoreButton} onPress={handleRestore} disabled={loading}>
-                    <Text style={styles.restoreText}>↺ 구매 오류 복원 / 재시도</Text>
-                </TouchableOpacity>
-                <Text style={styles.footerNote}>결제가 되었으나 혜택이 적용되지 않았을 경우 눌러주세요.</Text>
+                {isExpanded && (
+                    <View style={styles.infoContainer}>
+                        <View style={styles.dividerHorizontal} />
+
+                        <View style={styles.deviceStatusRow}>
+                            <Text style={styles.deviceStatusLabel}>Status:</Text>
+                            <Text style={[styles.deviceStatusValue, { color: loading ? '#F5A623' : '#50E3C2' }]}>
+                                {loading ? 'Processing...' : 'Idle'}
+                            </Text>
+                        </View>
+                        <View style={styles.deviceStatusRow}>
+                            <Text style={styles.deviceStatusLabel}>Products:</Text>
+                            <Text style={styles.deviceStatusValue}>{products.length} items found</Text>
+                        </View>
+                        <View style={styles.deviceStatusRow}>
+                            <Text style={styles.deviceStatusLabel}>Purchased:</Text>
+                            <Text style={styles.deviceStatusValue}>{currentPurchases.length} active subscriptions</Text>
+                        </View>
+                        {currentPurchases.length > 0 && (
+                            <View style={styles.deviceStatusRow}>
+                                <Text style={styles.deviceStatusLabel}>Active SKUs:</Text>
+                                <Text style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}>
+                                    {currentPurchases.map(p => p.productId).join(', ')}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                )}
             </View>
 
-            {loading && (
-                <View style={styles.loadingOverlay}>
-                    <View style={styles.indicatorWrapper}>
-                        <ActivityIndicator size="large" color="#ffffff" />
-                        <Text style={styles.loadingText}>처리 중...</Text>
-                    </View>
-                </View>
-            )}
+            <FlatList
+                ref={flatListRef}
+                data={logs}
+                keyExtractor={item => item.id}
+                renderItem={renderLogItem}
+                style={styles.logList}
+                contentContainerStyle={styles.logContent}
+                ListEmptyComponent={<Text style={styles.emptyText}>로그가 비어있습니다.</Text>}
+            />
+
+            <View style={styles.bottomContainer}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollActionContainer}
+                >
+                    {/* Products List as Buttons */}
+                    {products.map(product => {
+                        const isPurchased = currentPurchases.some(p => p.productId === product.id);
+                        return (
+                            <TouchableOpacity
+                                key={product.id}
+                                style={[
+                                    styles.actionButton,
+                                    { backgroundColor: isPurchased ? '#2E7D32' : '#4A90E2' },
+                                    loading && { opacity: 0.5 },
+                                ]}
+                                onPress={() => {
+                                    addLog('info', `Requesting purchase: ${product.id}`);
+                                    handlePurchase(product.id);
+                                }}
+                                disabled={loading}
+                            >
+                                <Text style={styles.buttonText}>
+                                    {isPurchased ? 'Owned' : 'Buy'} {product.id.split('.').pop()}
+                                </Text>
+                                <Text style={[styles.buttonText, { fontSize: 10, fontWeight: 'normal' }]}>
+                                    {getDisplayPrice(product)}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+
+                    <View style={styles.divider} />
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#F5A623' }]}
+                        onPress={handleRestore}
+                        disabled={loading}
+                    >
+                        <Text style={styles.buttonText}>Restore</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#8E44AD' }]}
+                        onPress={openSubscriptionManagement}
+                    >
+                        <Text style={styles.buttonText}>Manage</Text>
+                    </TouchableOpacity>
+                </ScrollView>
+            </View>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 20, backgroundColor: '#fff' },
-    header: { fontSize: 28, fontWeight: 'bold', marginBottom: 20, color: '#333' },
-
-    activeSubBanner: {
-        backgroundColor: '#E8F5E9',
-        padding: 10,
-        borderRadius: 8,
-        marginBottom: 15,
+    screen: { flex: 1, backgroundColor: '#121212' },
+    controlPanel: {
+        flexDirection: 'column',
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#333',
+        backgroundColor: '#1E1E1E',
+    },
+    panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' },
+    statusIndicatorButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+    dot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
+    statusText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+    toggleIcon: { color: '#888', fontSize: 12, marginLeft: 8 },
+    infoContainer: { marginTop: 4, gap: 4 },
+    dividerHorizontal: { height: 1, backgroundColor: '#333', marginVertical: 8 },
+    deviceStatusRow: { flexDirection: 'row', alignItems: 'center' },
+    deviceStatusLabel: { color: '#888', fontSize: 11, width: 85 },
+    deviceStatusValue: { color: '#FFFFFF', fontSize: 12, fontWeight: 'bold', flex: 1 },
+    refreshButton: {
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 6,
+        backgroundColor: '#333',
         alignItems: 'center',
     },
-    activeSubText: { color: '#2E7D32', fontWeight: 'bold' },
-
-    emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    subText: { fontSize: 12, color: 'gray', marginTop: 10 },
-
-    itemContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 20,
-        marginBottom: 15,
-        borderRadius: 16,
-        backgroundColor: '#f8f9fa',
-        borderWidth: 1,
-        borderColor: '#eee',
-        elevation: 2,
+    logList: { flex: 1, backgroundColor: '#000000' },
+    logContent: { padding: 16 },
+    logRow: { marginBottom: 8, flexDirection: 'row', flexWrap: 'wrap' },
+    logTime: {
+        color: '#666',
+        fontSize: 12,
+        marginRight: 8,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     },
-    purchasedItem: {
-        backgroundColor: '#F1F8E9',
-        borderColor: '#C5E1A5',
-    },
-    textContainer: { flex: 1, paddingRight: 10 },
-    title: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 4 },
-    desc: { fontSize: 13, color: '#666' },
-
-    buyButton: {
-        backgroundColor: '#4A90E2',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 12,
-    },
-    disabledButton: { backgroundColor: '#A0A0A0' },
-    buttonText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
-
-    // 이용 중 배지
-    purchasedBadge: {
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        backgroundColor: '#4CAF50',
-        borderRadius: 12,
-    },
-    purchasedText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
-
-    footer: {
-        marginTop: 'auto',
-        alignItems: 'center',
-        paddingVertical: 20,
+    logText: { fontSize: 14, flex: 1 },
+    emptyText: { color: '#444', textAlign: 'center', marginTop: 20 },
+    bottomContainer: {
+        backgroundColor: '#1E1E1E',
         borderTopWidth: 1,
-        borderTopColor: '#eee',
-    },
-    restoreButton: {
+        borderTopColor: '#333',
         paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 30,
-        backgroundColor: '#f0f0f0',
-        borderWidth: 1,
-        borderColor: '#ddd',
     },
-    restoreText: {
-        color: '#555',
-        fontWeight: '600',
-        fontSize: 14,
-    },
-    footerNote: {
-        fontSize: 11,
-        color: '#999',
-        marginTop: 8,
-    },
-
-    loadingOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+    scrollActionContainer: { paddingHorizontal: 12, alignItems: 'center', gap: 8 },
+    actionButton: {
+        height: 44,
+        paddingHorizontal: 20,
         justifyContent: 'center',
         alignItems: 'center',
-        zIndex: 1000,
+        borderRadius: 8,
+        opacity: 0.9,
+        minWidth: 80,
     },
-    indicatorWrapper: {
-        padding: 20,
-        backgroundColor: '#333',
-        borderRadius: 10,
-        alignItems: 'center',
+    divider: {
+        width: 1,
+        height: 24,
+        backgroundColor: '#444',
+        marginHorizontal: 4,
     },
-    loadingText: { color: 'white', marginTop: 10, fontWeight: '600' },
+    buttonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 14, textAlign: 'center' },
 });

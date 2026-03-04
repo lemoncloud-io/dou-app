@@ -11,7 +11,7 @@ import type { AppMessageData } from '@chatic/app-messages';
  * @param bridge
  */
 export const useFcmHandler = (bridge: WebViewBridge) => {
-    const getFcmToken = useCallback(async () => {
+    const fetchFcmToken = useCallback(async () => {
         try {
             const hasPermission = await FcmService.requestPermission();
 
@@ -24,8 +24,8 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
                 const token = await FcmService.getToken();
 
                 if (token) {
-                    const message: AppMessageData<'OnUpdateFcmToken'> = {
-                        type: 'OnUpdateFcmToken',
+                    const message: AppMessageData<'OnFetchFcmToken'> = {
+                        type: 'OnFetchFcmToken',
                         data: { token },
                     };
                     bridge.post(message);
@@ -85,5 +85,5 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
         };
     }, [bridge]);
 
-    return { getFcmToken };
+    return { fetchFcmToken };
 };

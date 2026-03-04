@@ -4,6 +4,7 @@
  */
 import type {
     AppLogInfo,
+    CacheType,
     DeviceInfo,
     FcmTokenInfo,
     NotificationInfo,
@@ -12,19 +13,23 @@ import type {
     SafeAreaInfo,
     VersionInfo,
 } from './common';
+import type { ChannelView, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
 
 export const AppMessageTypes = {
     OnSuccessSyncCredential: 'OnSuccessSyncCredential',
     OnUpdateDeviceInfo: 'OnUpdateDeviceInfo',
     OnCloseModal: 'OnCloseModal',
-    OnUpdateSafeArea: 'OnUpdateSafeArea',
-    OnUpdateFcmToken: 'OnUpdateFcmToken',
+    OnFetchSafeArea: 'OnFetchSafeArea',
+    OnFetchFcmToken: 'OnFetchFcmToken',
     OnAppLog: 'OnAppLog',
     OnReceiveNotification: 'OnReceiveNotification',
     OnOpenNotification: 'OnOpenNotification',
     OnSuccessPurchase: 'OnSuccessPurchase',
-    OnUpdateProductSubscriptions: 'OnUpdateProductSubscriptions',
-    OnUpdatePurchases: 'OnUpdatePurchases',
+    OnFetchProductSubscriptions: 'OnFetchProductSubscriptions',
+    OnFetchPurchases: 'OnFetchPurchases',
+    OnFetchAllCacheData: 'OnFetchAllCacheData',
+    OnFetchCacheData: 'OnFetchCacheData',
+    OnSaveCacheData: 'OnSaveCacheData',
 } as const;
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
 
@@ -36,11 +41,11 @@ export interface OnUpdateDeviceInfo extends DefaultMessage<'OnUpdateDeviceInfo'>
     data: DeviceInfo & VersionInfo;
 }
 
-export interface OnUpdateSafeArea extends DefaultMessage<'OnUpdateSafeArea'> {
+export interface OnFetchSafeArea extends DefaultMessage<'OnFetchSafeArea'> {
     data: SafeAreaInfo;
 }
 
-export interface OnUpdateFcmToken extends DefaultMessage<'OnUpdateFcmToken'> {
+export interface OnFetchFcmToken extends DefaultMessage<'OnFetchFcmToken'> {
     data: FcmTokenInfo;
 }
 
@@ -56,12 +61,34 @@ export interface OnOpenNotification extends DefaultMessage<'OnOpenNotification'>
     data: NotificationInfo;
 }
 
-export interface OnUpdateProductSubscriptions extends DefaultMessage<'OnUpdateProductSubscriptions'> {
+export interface OnFetchProductSubscriptions extends DefaultMessage<'OnFetchProductSubscriptions'> {
     data: ProductSubscriptionInfo;
 }
 
-export interface OnUpdatePurchases extends DefaultMessage<'OnUpdatePurchases'> {
+export interface OnFetchPurchases extends DefaultMessage<'OnFetchPurchases'> {
     data: PurchaseInfo;
+}
+
+export interface OnFetchAllCacheData extends DefaultMessage<'OnFetchAllCacheData'> {
+    data: {
+        type: CacheType;
+        items: (ChannelView | ChatView | UserView | JoinView)[];
+    };
+}
+
+export interface OnFetchCacheData extends DefaultMessage<'OnFetchCacheData'> {
+    data: {
+        type: CacheType;
+        id: string;
+        item: ChannelView | ChatView | UserView | JoinView | null;
+    };
+}
+
+export interface OnSaveCacheData extends DefaultMessage<'OnSaveCacheData'> {
+    data: {
+        type: CacheType;
+        id: string;
+    };
 }
 
 export interface AppMessageMap {
@@ -80,12 +107,12 @@ export interface AppMessageMap {
     /**
      * Device Info Event
      */
-    OnUpdateSafeArea: OnUpdateSafeArea;
+    OnFetchSafeArea: OnFetchSafeArea;
 
     /**
      * Notification Event
      */
-    OnUpdateFcmToken: OnUpdateFcmToken;
+    OnFetchFcmToken: OnFetchFcmToken;
     OnReceiveNotification: OnReceiveNotification;
     OnOpenNotification: OnOpenNotification;
 
@@ -97,9 +124,16 @@ export interface AppMessageMap {
     /**
      * IAP Event
      */
-    OnUpdateProductSubscriptions: OnUpdateProductSubscriptions;
-    OnUpdatePurchases: OnUpdatePurchases;
+    OnFetchProductSubscriptions: OnFetchProductSubscriptions;
+    OnFetchPurchases: OnFetchPurchases;
     OnSuccessPurchase: DefaultMessage<'OnSuccessPurchase'>;
+
+    /**
+     * Cache Event
+     */
+    OnFetchAllCacheData: OnFetchAllCacheData;
+    OnFetchCacheData: OnFetchCacheData;
+    OnSaveCacheData: OnSaveCacheData;
 }
 
 export type AppMessageData<T extends AppMessageType> = AppMessageMap[T];
