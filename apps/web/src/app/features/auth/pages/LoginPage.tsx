@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
@@ -39,13 +39,12 @@ const decodeJWT = (token: string) => {
                 .join('')
         );
         return JSON.parse(jsonPayload);
-    } catch (error) {
+    } catch {
         return null;
     }
 };
 
 export const LoginPage = (): JSX.Element => {
-    const navigate = useNavigate();
     const location = useLocation();
     const { setIsAuthenticated, setProfile } = useSimpleWebCore();
     const { toast } = useToast();
@@ -56,6 +55,7 @@ export const LoginPage = (): JSX.Element => {
         handleSubmit,
         formState: { errors },
         watch,
+        setValue,
     } = useForm<LoginFormData>({
         defaultValues: {
             token: '',
@@ -78,10 +78,17 @@ export const LoginPage = (): JSX.Element => {
 
             const handleInviteLogin = async () => {
                 try {
-                    await loginWithInviteCode(code);
-                    setIsAuthenticated(true);
-                    toast({ title: '로그인 성공' });
-                    navigate('/home', { replace: true });
+                    const result = await loginWithInviteCode(code);
+                    const identityToken = result.Token?.identityToken;
+
+                    if (identityToken) {
+                        // Set token in form for user to see
+                        setValue('token', identityToken);
+                        setIsInviteLogin(false);
+                        toast({ title: '초대 토큰을 가져왔습니다. 다음 버튼을 눌러주세요.' });
+                    } else {
+                        throw new Error('No identityToken in response');
+                    }
                 } catch (error) {
                     console.error('[LoginPage] Invite login failed:', error);
                     toast({ title: '초대 로그인 실패', variant: 'destructive' });
@@ -91,7 +98,7 @@ export const LoginPage = (): JSX.Element => {
 
             handleInviteLogin();
         }
-    }, [location.search, navigate, setIsAuthenticated, toast]);
+    }, [location.search, setValue, toast]);
 
     const tokenValue = watch('token');
     const decodedToken = tokenValue ? decodeJWT(tokenValue) : null;
