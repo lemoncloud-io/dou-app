@@ -17,8 +17,14 @@ export const CUSTOM_SCHEMES = ['chatic', 'chatic-dev'] as const;
 /** Deep link domains that need conversion to frontend domain */
 export const DEEP_LINK_DOMAINS = ['app.chatic.io', 'app-dev.chatic.io'] as const;
 
+/** Check if running in development environment */
+const isDev = typeof process !== 'undefined' && process.env?.VITE_ENV === 'DEV';
+
 /** Frontend domain for WebView navigation */
-export const FRONTEND_DOMAIN = 'dou.chatic.io';
+export const FRONTEND_DOMAIN = isDev ? 'dou-dev.chatic.io' : 'dou.chatic.io';
+
+/** Deep link domain for URL generation */
+export const DEEPLINK_DOMAIN = isDev ? 'app-dev.chatic.io' : 'app.chatic.io';
 
 /** Time constants */
 export const ONE_HOUR_MS = 60 * 60 * 1000;

@@ -7,12 +7,12 @@
 
 import firestore from '@react-native-firebase/firestore';
 
-import { DEFERRED_LINKS_COLLECTION } from './constants';
+import { DEEPLINK_DOMAIN, DEFERRED_LINKS_COLLECTION } from './constants';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 /** Deep link URL base */
-const DEEPLINK_BASE = 'https://app.chatic.io/s';
+const DEEPLINK_BASE = `https://${DEEPLINK_DOMAIN}/s`;
 
 /**
  * Invite link document structure stored in Firestore
