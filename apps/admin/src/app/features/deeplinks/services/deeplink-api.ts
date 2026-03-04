@@ -129,7 +129,7 @@ export const createDeeplink = async (user: UserView): Promise<AdminDeeplink> => 
         shortCode: user.id,
         invite,
         createdAt: now,
-        createdBy: currentUser.email || currentUser.uid,
+        createdBy: currentUser.isAnonymous ? 'anonymous-admin' : currentUser.email || currentUser.uid,
     };
 
     await setDoc(docRef, data);

@@ -2,12 +2,17 @@
  * Firebase Service Singleton
  *
  * Handles Firebase initialization with environment-based configuration.
- * Supports email/password authentication for admin access.
+ * Supports anonymous authentication for admin access.
  */
 
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection } from 'firebase/firestore';
-import { getAuth, signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
+import {
+    getAuth,
+    signInAnonymously as firebaseSignInAnonymously,
+    signOut as firebaseSignOut,
+    onAuthStateChanged,
+} from 'firebase/auth';
 
 import type { FirebaseApp } from 'firebase/app';
 import type { Firestore, CollectionReference } from 'firebase/firestore';
@@ -138,11 +143,17 @@ class FirebaseService {
     }
 
     /**
-     * Sign in with email and password
+     * Sign in anonymously
      */
-    async signIn(email: string, password: string): Promise<User> {
+    async signInAnonymously(): Promise<User> {
         const auth = this.getAuth();
-        const result = await signInWithEmailAndPassword(auth, email, password);
+
+        // Return existing user if already signed in
+        if (auth.currentUser) {
+            return auth.currentUser;
+        }
+
+        const result = await firebaseSignInAnonymously(auth);
         return result.user;
     }
 

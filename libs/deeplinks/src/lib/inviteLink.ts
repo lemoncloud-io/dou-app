@@ -96,7 +96,15 @@ export const getInviteLink = async (id: string): Promise<InviteLinkDocument | nu
         return null;
     }
 
-    return snapshot.data() as InviteLinkDocument;
+    const data = snapshot.data();
+
+    // Runtime validation of document structure
+    if (!data?.deepLinkUrl || !data?.shortCode || !data?.invite) {
+        console.error('[InviteLink] Invalid document structure:', id);
+        return null;
+    }
+
+    return data as InviteLinkDocument;
 };
 
 /**

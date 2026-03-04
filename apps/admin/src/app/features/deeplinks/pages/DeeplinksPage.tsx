@@ -2,7 +2,7 @@
  * Deeplinks Page
  *
  * Main page for managing admin deeplinks.
- * Requires Firebase authentication.
+ * Uses anonymous Firebase authentication.
  */
 
 import { useState } from 'react';
@@ -22,13 +22,7 @@ import {
     AlertDialogTitle,
 } from '@chatic/ui-kit/components/ui/alert-dialog';
 
-import {
-    FirebaseLoginDialog,
-    CreateDeeplinkDialog,
-    DeeplinkDetailDialog,
-    DeeplinksPageHeader,
-    DeeplinksTable,
-} from '../components';
+import { CreateDeeplinkDialog, DeeplinkDetailDialog, DeeplinksPageHeader, DeeplinksTable } from '../components';
 import { useFirebaseAuth, useDeeplinks, useDeleteDeeplink } from '../hooks';
 
 import type { AdminDeeplink } from '../types';
@@ -39,22 +33,9 @@ export const DeeplinksPage = (): JSX.Element => {
     const [viewTargetUserId, setViewTargetUserId] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<AdminDeeplink | null>(null);
 
-    const { isAuthenticated, isLoading: isAuthLoading, user, signIn, signOut, error: authError } = useFirebaseAuth();
+    const { isAuthenticated, isLoading: isAuthLoading, error: authError } = useFirebaseAuth();
     const { data, isLoading, isFetching, error, refetch } = useDeeplinks();
     const { mutateAsync: deleteDeeplink, isPending: isDeleting } = useDeleteDeeplink();
-
-    const handleLogin = async (email: string, password: string) => {
-        await signIn(email, password);
-    };
-
-    const handleLogout = async () => {
-        try {
-            await signOut();
-            toast.success('Logged out successfully');
-        } catch {
-            toast.error('Failed to logout');
-        }
-    };
 
     const handleDelete = async () => {
         if (!deleteTarget) return;
@@ -68,26 +49,6 @@ export const DeeplinksPage = (): JSX.Element => {
             toast.error(message);
         }
     };
-
-    // Show login dialog if not authenticated
-    if (!isAuthenticated && !isAuthLoading) {
-        return (
-            <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                    <h1 className="text-2xl font-bold">Deeplinks</h1>
-                </div>
-                <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-                    <p className="text-muted-foreground">Please sign in to Firebase to manage deeplinks</p>
-                    <FirebaseLoginDialog
-                        open={true}
-                        onOpenChange={() => undefined}
-                        onLogin={handleLogin}
-                        error={authError}
-                    />
-                </div>
-            </div>
-        );
-    }
 
     // Loading auth state
     if (isAuthLoading) {
@@ -103,11 +64,26 @@ export const DeeplinksPage = (): JSX.Element => {
         );
     }
 
-    // Error state
+    // Auth error state
+    if (authError || !isAuthenticated) {
+        return (
+            <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h1 className="text-2xl font-bold">Deeplinks</h1>
+                </div>
+                <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+                    <p className="text-destructive">{authError || 'Authentication failed'}</p>
+                    <Button onClick={() => window.location.reload()}>Retry</Button>
+                </div>
+            </div>
+        );
+    }
+
+    // Data error state
     if (error) {
         return (
             <div className="p-6">
-                <DeeplinksPageHeader userEmail={user?.email} onLogout={handleLogout} />
+                <DeeplinksPageHeader isFetching={isFetching} onCreateClick={() => setCreateDialogOpen(true)} />
                 <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
                     <p className="text-destructive">Failed to load deeplinks</p>
                     <Button onClick={() => refetch()}>Retry</Button>
@@ -119,9 +95,7 @@ export const DeeplinksPage = (): JSX.Element => {
     return (
         <div className="p-6">
             <DeeplinksPageHeader
-                userEmail={user?.email}
                 isFetching={isFetching}
-                onLogout={handleLogout}
                 onCreateClick={() => setCreateDialogOpen(true)}
                 showCreateButton
             />

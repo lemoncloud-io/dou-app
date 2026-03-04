@@ -34,11 +34,12 @@ export const retrieveDeferredLinkFromFirestore = async (): Promise<string | null
         const now = firestore.Timestamp.now();
 
         // Query for matching fingerprint that hasn't expired
+        // Order by createdAt desc to get the most recent link (not the one expiring latest)
         const querySnapshot = await firestore()
             .collection(DEFERRED_LINKS_COLLECTION)
             .where('fingerprint', '==', fingerprint)
             .where('expiresAt', '>', now)
-            .orderBy('expiresAt', 'desc')
+            .orderBy('createdAt', 'desc')
             .limit(1)
             .get();
 
@@ -82,6 +83,27 @@ export const storeDeferredLinkToFirestore = async (deepLinkUrl: string): Promise
         const now = firestore.Timestamp.now();
         const expiresAt = firestore.Timestamp.fromDate(new Date(Date.now() + LINK_TTL_HOURS * 60 * 60 * 1000));
 
+        // Check for existing non-expired link with same fingerprint to prevent duplicates
+        const existingSnapshot = await firestore()
+            .collection(DEFERRED_LINKS_COLLECTION)
+            .where('fingerprint', '==', fingerprint)
+            .where('expiresAt', '>', now)
+            .limit(1)
+            .get();
+
+        if (!existingSnapshot.empty) {
+            // Update existing document instead of creating duplicate
+            const existingDoc = existingSnapshot.docs[0];
+            await existingDoc.ref.update({
+                deepLinkUrl,
+                createdAt: now,
+                expiresAt,
+            });
+            console.log('[DeferredFirestore] Updated existing deferred link:', { fingerprint, deepLinkUrl });
+            return true;
+        }
+
+        // No existing link, create new one
         await firestore().collection(DEFERRED_LINKS_COLLECTION).add({
             fingerprint,
             deepLinkUrl,

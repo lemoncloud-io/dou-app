@@ -54,6 +54,7 @@ export interface FirebaseConfig {
  */
 export interface FirebaseAuthState {
     isAuthenticated: boolean;
+    isAnonymous: boolean;
     isLoading: boolean;
     user: {
         email: string | null;

@@ -5,7 +5,8 @@
             "queryScope": "COLLECTION",
             "fields": [
                 { "fieldPath": "fingerprint", "order": "ASCENDING" },
-                { "fieldPath": "expiresAt", "order": "DESCENDING" }
+                { "fieldPath": "expiresAt", "order": "ASCENDING" },
+                { "fieldPath": "createdAt", "order": "DESCENDING" }
             ]
         }
     ],

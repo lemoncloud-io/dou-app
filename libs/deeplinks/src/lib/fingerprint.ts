@@ -36,10 +36,20 @@ const getPublicIP = async (): Promise<string> => {
             method: 'GET',
             headers: { Accept: 'application/json' },
         });
-        const data: IpifyResponse = await response.json();
-        return data.ip || 'unknown';
+        const data: unknown = await response.json();
+
+        // Validate API response structure
+        if (typeof data === 'object' && data !== null && 'ip' in data) {
+            const ip = (data as IpifyResponse).ip;
+            if (typeof ip === 'string' && ip.length > 0) {
+                return ip;
+            }
+        }
+        console.warn('[Fingerprint] Invalid IP response format');
+        return 'unknown';
     } catch (error) {
-        console.error('[Fingerprint] Failed to get IP:', error);
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[Fingerprint] Failed to get IP:', message);
         return 'unknown';
     }
 };

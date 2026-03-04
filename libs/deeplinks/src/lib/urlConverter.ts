@@ -7,6 +7,7 @@
  */
 
 import { FRONTEND_DOMAIN, isCustomScheme, isDeepLinkDomain } from './constants';
+import { getInviteLink } from './inviteLink';
 import { isShortUrl } from './parser';
 
 /**
@@ -52,37 +53,61 @@ export const convertDeepLinkToFrontendUrl = (deepLinkUrl: string): string => {
         console.log('[UrlConverter] Deep link → Frontend:', deepLinkUrl, '→', frontendUrl);
         return frontendUrl;
     } catch (error) {
-        console.error('[UrlConverter] Failed to convert URL:', error);
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[UrlConverter] Failed to convert URL:', message);
         return deepLinkUrl;
     }
 };
 
 /**
- * Converts short URL to frontend URL
- * For now, returns the URL as-is (short URL expansion to be implemented later)
+ * Converts short URL to frontend URL by looking up invite link in Firestore
  *
- * @param url - Potentially short URL
- * @returns Original URL or expanded URL
+ * @param url - Potentially short URL (e.g., https://app.chatic.io/s/abc123)
+ * @returns Expanded frontend URL with invite data, or domain-converted URL as fallback
+ *
+ * @example
+ * convertShortUrlToFrontendUrl('https://app.chatic.io/s/invite123')
+ * // Returns: 'https://dou.chatic.io/chat/123' (from invite data)
  */
 export const convertShortUrlToFrontendUrl = async (url: string): Promise<string> => {
-    // Check if it's a short URL
     if (!isShortUrl(url)) {
         return url;
     }
 
-    // TODO: Implement short URL expansion via Firebase Firestore or API
-    // For now, convert the short URL domain to frontend domain
-    console.warn('[UrlConverter] Short URL expansion not implemented yet');
-
     try {
         const parsed = new URL(url);
-        // Convert app.chatic.io/s/xxx or app-dev.chatic.io/s/xxx to dou.chatic.io/s/xxx
-        // The frontend should handle the short URL redirect
+        // Extract short code from path: /s/abc123 -> abc123
+        const pathParts = parsed.pathname.split('/');
+        const shortCode = pathParts[pathParts.length - 1];
+
+        if (!shortCode) {
+            console.warn('[UrlConverter] No short code found in URL:', url);
+            return convertDeepLinkToFrontendUrl(url);
+        }
+
+        // Look up invite link in Firestore
+        const inviteLink = await getInviteLink(shortCode);
+
+        if (inviteLink?.invite) {
+            // Build frontend URL from invite data
+            const { chatId } = inviteLink.invite;
+            if (chatId) {
+                const expandedUrl = `https://${FRONTEND_DOMAIN}/chat/${chatId}`;
+                console.log('[UrlConverter] Short URL expanded:', url, '→', expandedUrl);
+                return expandedUrl;
+            }
+        }
+
+        // Fallback: convert domain but keep short URL path
+        // Frontend will handle the /s/{code} route
+        console.log('[UrlConverter] Short URL fallback to domain conversion:', url);
         if (isDeepLinkDomain(parsed.hostname)) {
             return `https://${FRONTEND_DOMAIN}${parsed.pathname}${parsed.search}`;
         }
         return url;
-    } catch {
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[UrlConverter] Error expanding short URL:', message);
         return url;
     }
 };

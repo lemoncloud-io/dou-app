@@ -1,10 +1,11 @@
 /**
  * Firebase Authentication Hook
  *
- * Manages Firebase auth state with email/password login.
+ * Manages Firebase auth state with anonymous authentication.
+ * Auto signs in anonymously on mount.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 
 import { firebaseService } from '../services';
 
@@ -12,87 +13,55 @@ import type { FirebaseAuthState } from '../types';
 
 /**
  * Hook for Firebase authentication
+ * Automatically signs in anonymously on mount
  */
 export const useFirebaseAuth = () => {
     const [state, setState] = useState<FirebaseAuthState>({
         isAuthenticated: false,
+        isAnonymous: false,
         isLoading: true,
         user: null,
         error: null,
     });
 
-    // Initialize Firebase and listen to auth state
+    // Initialize Firebase and auto sign-in anonymously
     useEffect(() => {
         firebaseService.initialize();
 
         const unsubscribe = firebaseService.onAuthStateChanged(user => {
-            setState({
-                isAuthenticated: user !== null,
-                isLoading: false,
-                user: user
-                    ? {
-                          email: user.email,
-                          uid: user.uid,
-                      }
-                    : null,
-                error: null,
-            });
+            if (user) {
+                setState({
+                    isAuthenticated: true,
+                    isAnonymous: user.isAnonymous,
+                    isLoading: false,
+                    user: {
+                        email: user.email,
+                        uid: user.uid,
+                    },
+                    error: null,
+                });
+            } else {
+                // No user - trigger anonymous sign in
+                firebaseService
+                    .signInAnonymously()
+                    .then(() => {
+                        // State will be updated by onAuthStateChanged
+                    })
+                    .catch(error => {
+                        const message = error instanceof Error ? error.message : 'Anonymous auth failed';
+                        setState({
+                            isAuthenticated: false,
+                            isAnonymous: false,
+                            isLoading: false,
+                            user: null,
+                            error: message,
+                        });
+                    });
+            }
         });
 
         return () => unsubscribe();
     }, []);
 
-    /**
-     * Sign in with email and password
-     */
-    const signIn = useCallback(async (email: string, password: string) => {
-        setState(prev => ({ ...prev, isLoading: true, error: null }));
-
-        try {
-            await firebaseService.signIn(email, password);
-            // State will be updated by onAuthStateChanged
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Login failed';
-            setState(prev => ({
-                ...prev,
-                isLoading: false,
-                error: message,
-            }));
-            throw error;
-        }
-    }, []);
-
-    /**
-     * Sign out
-     */
-    const signOut = useCallback(async () => {
-        setState(prev => ({ ...prev, isLoading: true, error: null }));
-
-        try {
-            await firebaseService.signOut();
-            // State will be updated by onAuthStateChanged
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Logout failed';
-            setState(prev => ({
-                ...prev,
-                isLoading: false,
-                error: message,
-            }));
-            throw error;
-        }
-    }, []);
-
-    /**
-     * Clear error
-     */
-    const clearError = useCallback(() => {
-        setState(prev => ({ ...prev, error: null }));
-    }, []);
-
-    return {
-        ...state,
-        signIn,
-        signOut,
-        clearError,
-    };
+    return state;
 };
