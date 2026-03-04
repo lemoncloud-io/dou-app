@@ -229,10 +229,10 @@ export const ChatRoomPage = () => {
             </div>
 
             {/* Participants */}
-            <div className="flex items-center gap-1 px-[18px] py-3">
-                <div className="flex items-center gap-[-6px]">{/* Placeholder for participant avatars */}</div>
-                {/* <span className="text-[14px] font-medium leading-[1.857] tracking-[0.005em] text-[#84888F]">+22</span> */}
-            </div>
+            {/* <div className="flex items-center gap-1 px-[18px] py-3">
+                <div className="flex items-center gap-[-6px]">Placeholder for participant avatars</div>
+                <span className="text-[14px] font-medium leading-[1.857] tracking-[0.005em] text-[#84888F]">+22</span>
+            </div> */}
 
             {/* Messages */}
             <div ref={messagesEndRef} className="flex-1 overflow-auto px-[18px] py-3 flex flex-col gap-3.5">
