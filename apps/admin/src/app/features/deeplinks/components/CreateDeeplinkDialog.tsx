@@ -1,25 +1,16 @@
 /**
  * Create Deeplink Dialog
  *
- * Dialog for selecting a user and creating a deeplink.
- * Supports environment-specific deeplink URLs.
+ * Dialog for creating a user invite + deeplink.
+ * Form-based: channelId and name input.
  */
 
 import { useState } from 'react';
 
-import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from '@chatic/ui-kit/components/ui/command';
 import {
     Dialog,
     DialogContent,
@@ -28,13 +19,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@chatic/ui-kit/components/ui/dialog';
-import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
-import { useUsers } from '@chatic/users';
+import { Input } from '@chatic/ui-kit/components/ui/input';
+import { Label } from '@chatic/ui-kit/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@chatic/ui-kit/components/ui/select';
 
-import { useCreateDeeplink, useDeeplinks } from '../hooks';
+import { useInviteAndCreateDeeplink } from '../hooks';
 import { firebaseService } from '../services';
 
-import type { UserView } from '@lemoncloud/chatic-backend-api';
 import type { DeeplinkEnvironment } from '../types';
 import type { JSX } from 'react';
 
@@ -51,33 +42,34 @@ export const CreateDeeplinkDialog = ({
     onSuccess,
     env,
 }: CreateDeeplinkDialogProps): JSX.Element => {
-    const [comboboxOpen, setComboboxOpen] = useState(false);
-    const [selectedUser, setSelectedUser] = useState<UserView | null>(null);
+    const [channelId, setChannelId] = useState('');
+    const [name, setName] = useState('');
+    const [alias, setAlias] = useState('');
+    const [type, setType] = useState<'phone' | 'email'>('phone');
 
-    const { data: usersData, isLoading: isLoadingUsers } = useUsers({ limit: 100 });
-    const { data: deeplinksData } = useDeeplinks(env, { limit: 1000 });
-    const { mutateAsync: createDeeplink, isPending: isCreating } = useCreateDeeplink(env);
-
-    // Set of user IDs that already have deeplinks (document ID = user ID)
-    const existingUserIds = new Set(deeplinksData?.list.map(d => d.id) ?? []);
+    const { mutateAsync: inviteAndCreate, isPending } = useInviteAndCreateDeeplink(env);
 
     const deeplinkUrlBase = firebaseService.getDeeplinkUrlBase(env);
 
-    const handleSelectUser = async (user: UserView) => {
-        setSelectedUser(user);
-        setComboboxOpen(false);
-    };
-
     const handleCreate = async () => {
-        if (!selectedUser) {
-            toast.error('Please select a user');
+        if (!channelId.trim()) {
+            toast.error('Channel ID is required');
+            return;
+        }
+        if (!name.trim()) {
+            toast.error('Name is required');
             return;
         }
 
         try {
-            await createDeeplink(selectedUser);
-            toast.success('Deeplink created successfully');
-            setSelectedUser(null);
+            const deeplink = await inviteAndCreate({
+                channelId: channelId.trim(),
+                name: name.trim(),
+                alias: alias.trim() || undefined,
+                type,
+            });
+            toast.success(`Deeplink created: ${deeplink.deepLinkUrl}`);
+            resetForm();
             onOpenChange(false);
             onSuccess?.();
         } catch (error) {
@@ -86,107 +78,105 @@ export const CreateDeeplinkDialog = ({
         }
     };
 
+    const resetForm = () => {
+        setChannelId('');
+        setName('');
+        setAlias('');
+        setType('phone');
+    };
+
     const handleClose = () => {
-        setSelectedUser(null);
+        resetForm();
         onOpenChange(false);
     };
 
-    const users: UserView[] = usersData?.list ?? [];
+    const isValid = channelId.trim() && name.trim();
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                     <DialogTitle>Create Deeplink ({env})</DialogTitle>
-                    <DialogDescription>Select a user to create a deeplink for</DialogDescription>
+                    <DialogDescription>Create a new user invite and generate a deeplink</DialogDescription>
                 </DialogHeader>
 
                 <div className="py-4 space-y-4">
-                    {/* User Selection */}
+                    {/* Channel ID Input */}
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Select User</label>
-                        <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    aria-expanded={comboboxOpen}
-                                    className="w-full justify-between"
-                                    disabled={isLoadingUsers}
-                                >
-                                    {isLoadingUsers ? (
-                                        <span className="flex items-center gap-2">
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                            Loading users...
-                                        </span>
-                                    ) : selectedUser ? (
-                                        <span>
-                                            {selectedUser.name} ({selectedUser.loginId || selectedUser.id})
-                                        </span>
-                                    ) : (
-                                        'Select a user...'
-                                    )}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[450px] p-0" align="start">
-                                <Command>
-                                    <CommandInput placeholder="Search users..." />
-                                    <CommandList>
-                                        <CommandEmpty>No users found.</CommandEmpty>
-                                        <CommandGroup>
-                                            {users.map(user => {
-                                                const hasDeeplink = existingUserIds.has(user.id);
-                                                return (
-                                                    <CommandItem
-                                                        key={user.id}
-                                                        value={`${user.name} ${user.loginId || ''} ${user.id}`}
-                                                        onSelect={() => !hasDeeplink && handleSelectUser(user)}
-                                                        disabled={hasDeeplink}
-                                                        className={hasDeeplink ? 'opacity-50' : ''}
-                                                    >
-                                                        <Check
-                                                            className={cn(
-                                                                'mr-2 h-4 w-4',
-                                                                selectedUser?.id === user.id
-                                                                    ? 'opacity-100'
-                                                                    : 'opacity-0'
-                                                            )}
-                                                        />
-                                                        <div className="flex flex-col">
-                                                            <span className="font-medium">{user.name}</span>
-                                                            <span className="text-xs text-muted-foreground">
-                                                                {user.loginId || user.id}
-                                                                {hasDeeplink && ' (Deeplink exists)'}
-                                                            </span>
-                                                        </div>
-                                                    </CommandItem>
-                                                );
-                                            })}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
+                        <Label htmlFor="channelId">Channel ID</Label>
+                        <Input
+                            id="channelId"
+                            placeholder="Enter channel ID"
+                            value={channelId}
+                            onChange={e => setChannelId(e.target.value)}
+                            disabled={isPending}
+                        />
+                        <p className="text-xs text-muted-foreground">The channel ID where the invited user will join</p>
+                    </div>
+
+                    {/* Name Input */}
+                    <div className="space-y-2">
+                        <Label htmlFor="name">User Name</Label>
+                        <Input
+                            id="name"
+                            placeholder="Enter user name"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            disabled={isPending}
+                        />
+                        <p className="text-xs text-muted-foreground">Display name for the invited user</p>
+                    </div>
+
+                    {/* Type Select */}
+                    <div className="space-y-2">
+                        <Label htmlFor="type">Type</Label>
+                        <Select value={type} onValueChange={v => setType(v as 'phone' | 'email')} disabled={isPending}>
+                            <SelectTrigger id="type">
+                                <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="phone">Phone</SelectItem>
+                                <SelectItem value="email">Email</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">Invite type (phone or email)</p>
+                    </div>
+
+                    {/* Alias Input */}
+                    <div className="space-y-2">
+                        <Label htmlFor="alias">Alias</Label>
+                        <Input
+                            id="alias"
+                            placeholder={type === 'phone' ? 'Enter phone number' : 'Enter email address'}
+                            value={alias}
+                            onChange={e => setAlias(e.target.value)}
+                            disabled={isPending}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            {type === 'phone' ? 'Phone number for the invite' : 'Email address for the invite'}
+                        </p>
                     </div>
 
                     {/* Preview */}
-                    {selectedUser && (
+                    {isValid && (
                         <div className="p-4 rounded-md bg-muted space-y-2">
                             <div className="text-sm font-medium">Deeplink Preview</div>
                             <div className="text-sm text-muted-foreground break-all font-mono">
-                                {deeplinkUrlBase}/{selectedUser.id}
+                                {deeplinkUrlBase}/{'<userId>'}
                             </div>
+                            <p className="text-xs text-muted-foreground">
+                                The actual userId will be assigned by the backend
+                            </p>
                         </div>
                     )}
                 </div>
 
                 <DialogFooter>
-                    <Button type="button" variant="outline" onClick={handleClose}>
+                    <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
                         Cancel
                     </Button>
-                    <Button onClick={handleCreate} disabled={!selectedUser || isCreating}>
-                        {isCreating ? (
+                    <Button onClick={handleCreate} disabled={!isValid || isPending}>
+                        {isPending ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 Creating...

@@ -45,7 +45,7 @@ export const DeeplinkDetailDialog = ({ userId, onOpenChange, env }: DeeplinkDeta
                 ) : error ? (
                     <div className="py-4 text-center text-destructive">Failed to load deeplink details</div>
                 ) : deeplink ? (
-                    <div className="space-y-4">
+                    <div className="space-y-4 min-w-0">
                         <div>
                             <label className="text-sm font-medium text-muted-foreground">Deep Link URL</label>
                             <p className="mt-1 font-mono text-sm break-all bg-muted p-2 rounded">
@@ -66,7 +66,7 @@ export const DeeplinkDetailDialog = ({ userId, onOpenChange, env }: DeeplinkDeta
 
                         <div>
                             <label className="text-sm font-medium text-muted-foreground">Raw Data (JSON)</label>
-                            <pre className="mt-1 text-xs bg-muted p-3 rounded overflow-auto max-h-[500px]">
+                            <pre className="mt-1 text-xs bg-muted p-3 rounded overflow-auto max-h-[500px] w-full">
                                 {JSON.stringify(deeplink, null, 2)}
                             </pre>
                         </div>

@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { LoadingFallback } from '@chatic/shared';
-import { createCredentialsByProvider, useWebCoreStore } from '@chatic/web-core';
+import { createCredentialsByProvider, loginWithInviteCode, useWebCoreStore } from '@chatic/web-core';
 
 export const OAuthResponsePage = () => {
     const { t } = useTranslation();
@@ -28,7 +28,12 @@ export const OAuthResponsePage = () => {
             const isSuccess = code.length > 5;
 
             if (isSuccess) {
-                await createCredentialsByProvider(provider, code);
+                // Handle invite provider separately
+                if (provider === 'invite') {
+                    await loginWithInviteCode(code);
+                } else {
+                    await createCredentialsByProvider(provider, code);
+                }
                 setIsAuthenticated(true);
 
                 let redirectTo = '/home';

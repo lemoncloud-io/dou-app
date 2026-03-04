@@ -1,11 +1,13 @@
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { simpleWebCore, useSimpleWebCore } from '@chatic/web-core';
+import { DOU_ENDPOINT, WS_ENDPOINT, loginWithInviteCode, simpleWebCore, useSimpleWebCore } from '@chatic/web-core';
+import { LoadingFallback } from '@chatic/shared';
 
 import type { JSX } from 'react';
 
@@ -37,8 +39,11 @@ const decodeJWT = (token: string) => {
 
 export const LoginPage = (): JSX.Element => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { setIsAuthenticated, setProfile } = useSimpleWebCore();
     const { toast } = useToast();
+    const [isInviteLogin, setIsInviteLogin] = useState(false);
+    const inviteLoginCalled = useRef(false);
     const {
         register,
         handleSubmit,
@@ -50,10 +55,46 @@ export const LoginPage = (): JSX.Element => {
         },
     });
 
+    // Handle invite login from deeplink
+    useEffect(() => {
+        if (inviteLoginCalled.current) {
+            return;
+        }
+
+        const params = new URLSearchParams(location.search);
+        const code = params.get('code');
+        const provider = params.get('provider');
+
+        if (code && provider === 'invite') {
+            inviteLoginCalled.current = true;
+            setIsInviteLogin(true);
+
+            const handleInviteLogin = async () => {
+                try {
+                    await loginWithInviteCode(code);
+                    setIsAuthenticated(true);
+                    toast({ title: '로그인 성공' });
+                    navigate('/home', { replace: true });
+                } catch (error) {
+                    console.error('[LoginPage] Invite login failed:', error);
+                    toast({ title: '초대 로그인 실패', variant: 'destructive' });
+                    setIsInviteLogin(false);
+                }
+            };
+
+            handleInviteLogin();
+        }
+    }, [location.search, navigate, setIsAuthenticated, toast]);
+
     const tokenValue = watch('token');
     const decodedToken = tokenValue ? decodeJWT(tokenValue) : null;
     const isValidToken = tokenValue && decodedToken !== null;
     const showInvalidMessage = tokenValue && !isValidToken;
+
+    // Show loading while processing invite login
+    if (isInviteLogin) {
+        return <LoadingFallback message="초대 로그인 중..." />;
+    }
 
     const onSubmit = async (data: LoginFormData) => {
         if (data.token.trim()) {
@@ -73,8 +114,25 @@ export const LoginPage = (): JSX.Element => {
         }
     };
 
+    // Debug: Show current endpoints
+    const showDebug = import.meta.env.VITE_ENV !== 'PROD';
+
     return (
         <div className="h-full flex flex-col w-full mx-auto ">
+            {/* Debug Panel */}
+            {showDebug && (
+                <div className="bg-gray-100 p-2 text-xs font-mono border-b space-y-0.5">
+                    <div className="text-gray-500">DOU_ENDPOINT: {DOU_ENDPOINT || '(not set)'}</div>
+                    <div className="text-gray-500">WS_ENDPOINT: {WS_ENDPOINT || '(not set)'}</div>
+                    <div className="text-gray-400">
+                        localStorage.DOU: {localStorage.getItem('CHATIC_DOU_ENDPOINT') || '(not set)'}
+                    </div>
+                    <div className="text-gray-400">
+                        localStorage.WS: {localStorage.getItem('CHATIC_WS_ENDPOINT') || '(not set)'}
+                    </div>
+                </div>
+            )}
+
             <div className="flex-1 flex flex-col px-7 pt-28">
                 <div className="flex flex-col items-center gap-2 mb-24">
                     <h1 className="text-2xl font-bold text-center leading-[1.35] tracking-[0.005em] text-black">

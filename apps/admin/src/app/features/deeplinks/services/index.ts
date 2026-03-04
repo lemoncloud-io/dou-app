@@ -1,2 +1,3 @@
 export { firebaseService } from './firebase';
-export { fetchDeeplinks, fetchDeeplinkByUserId, createDeeplink, deleteDeeplink } from './deeplink-api';
+export { fetchDeeplinks, fetchDeeplinkByUserId, createDeeplinkFromInvite, deleteDeeplink } from './deeplink-api';
+export { inviteUser } from './invite-api';
