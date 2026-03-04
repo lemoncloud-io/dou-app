@@ -27,6 +27,9 @@ export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
                 {renderMenuItem('FCM 테스트', () => {
                     navigation.navigate('FcmTest');
                 })}
+                {renderMenuItem('딥링크 테스트', () => {
+                    navigation.navigate('DeeplinkTest');
+                })}
             </ScrollView>
         </SafeAreaView>
     );

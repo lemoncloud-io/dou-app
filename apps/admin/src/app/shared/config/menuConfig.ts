@@ -1,4 +1,4 @@
-import { KeyRound, MousePointer2, Users, Wifi } from 'lucide-react';
+import { KeyRound, Link, MousePointer2, Users, Wifi } from 'lucide-react';
 
 import type { LucideIcon } from 'lucide-react';
 
@@ -28,5 +28,10 @@ export const adminMenuItems: MenuItem[] = [
         label: 'Users',
         icon: Users,
         path: '/users',
+    },
+    {
+        label: 'Deeplinks',
+        icon: Link,
+        path: '/deeplinks',
     },
 ];

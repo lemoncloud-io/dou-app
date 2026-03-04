@@ -33,6 +33,9 @@
         },
         {
             "path": "../../libs/device-utils/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/deeplinks/tsconfig.lib.json"
         }
     ]
 }
