@@ -1,12 +1,14 @@
 import { PermissionsAndroid, Platform } from 'react-native';
 
+import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import messaging, { AuthorizationStatus } from '@react-native-firebase/messaging';
-
 import { Logger } from './log';
 
-import type { RemoteMessage } from '@react-native-firebase/messaging';
-
 export const FcmService = {
+    hasPermission: async (): Promise<FirebaseMessagingTypes.AuthorizationStatus> => {
+        return messaging().hasPermission();
+    },
+
     requestPermission: async (): Promise<boolean> => {
         if (Platform.OS === 'android' && Platform.Version >= 33) {
             const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
@@ -28,7 +30,23 @@ export const FcmService = {
         }
     },
 
-    getInitialNotification: async (): Promise<RemoteMessage | null> => {
+    deleteToken: async (): Promise<void> => {
+        try {
+            await messaging().deleteToken();
+        } catch (e) {
+            Logger.error('FCM', 'Delete token error.', e);
+        }
+    },
+
+    registerAPNs: async () => {
+        try {
+            await messaging().registerDeviceForRemoteMessages();
+        } catch (e) {
+            Logger.error('FCM', 'Register APNs error.', e);
+        }
+    },
+
+    getInitialNotification: async (): Promise<FirebaseMessagingTypes.RemoteMessage | null> => {
         return messaging().getInitialNotification();
     },
 
@@ -38,5 +56,9 @@ export const FcmService = {
 
     onNotificationOpenedApp: (callback: (message: any) => void) => {
         return messaging().onNotificationOpenedApp(callback);
+    },
+
+    onTokenRefresh: (callback: (token: string) => void) => {
+        return messaging().onTokenRefresh(callback);
     },
 };

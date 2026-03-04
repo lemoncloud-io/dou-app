@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { Animated, PanResponder, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 import type { RootStackParamList } from '../../navigation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,9 +14,30 @@ export const FloatingMenu = ({ onNavigate }: FloatingMenuProps) => {
 
     const FAB_BOTTOM_MARGIN = 20;
     const fabBottomPosition = insets.bottom + FAB_BOTTOM_MARGIN;
-    const menuBottomPosition = fabBottomPosition + 70;
 
     const animation = useRef(new Animated.Value(0)).current;
+    const pan = useRef(new Animated.ValueXY()).current;
+
+    const panResponder = useRef(
+        PanResponder.create({
+            onMoveShouldSetPanResponder: (_, gestureState) => {
+                return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+            },
+            onPanResponderGrant: () => {
+                pan.setOffset({
+                    x: (pan.x as any)._value,
+                    y: (pan.y as any)._value,
+                });
+                pan.setValue({ x: 0, y: 0 });
+            },
+            onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
+                useNativeDriver: false,
+            }),
+            onPanResponderRelease: () => {
+                pan.flattenOffset();
+            },
+        })
+    ).current;
 
     const toggleMenu = () => {
         const toValue = isExpanded ? 0 : 1;
@@ -37,8 +58,8 @@ export const FloatingMenu = ({ onNavigate }: FloatingMenuProps) => {
     };
 
     const menuItems: { id: string; label: string; target: keyof RootStackParamList }[] = [
-        { id: 'web', label: 'Main Screen', target: 'Main' },
-        { id: 'debug', label: 'Debug Menu Screen', target: 'Debug' },
+        { id: 'web', label: 'DoU 접속', target: 'Main' },
+        { id: 'debug', label: '디버그 메뉴', target: 'Debug' },
     ];
 
     const menuStyle = {
@@ -65,29 +86,36 @@ export const FloatingMenu = ({ onNavigate }: FloatingMenuProps) => {
 
             <Animated.View
                 style={[
-                    styles.menuItemsContainer,
-                    menuStyle,
-                    { bottom: menuBottomPosition },
-                    !isExpanded && { pointerEvents: 'none' },
+                    styles.draggableContainer,
+                    { bottom: fabBottomPosition },
+                    { transform: pan.getTranslateTransform() },
                 ]}
             >
-                {menuItems.map(item => (
-                    <TouchableOpacity key={item.id} style={styles.menuItemFab} onPress={() => handlePress(item.target)}>
-                        <Text style={styles.menuText}>{item.label}</Text>
-                    </TouchableOpacity>
-                ))}
-            </Animated.View>
-
-            <TouchableOpacity
-                style={[styles.fab, isExpanded && styles.fabClose, { bottom: fabBottomPosition }]}
-                onPress={toggleMenu}
-                activeOpacity={0.9}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-                <Animated.View style={{ transform: [{ rotate: rotation }] }}>
-                    <Text style={styles.fabText}>+</Text>
+                <Animated.View style={[styles.menuItemsContainer, menuStyle, !isExpanded && { pointerEvents: 'none' }]}>
+                    {menuItems.map(item => (
+                        <TouchableOpacity
+                            key={item.id}
+                            style={styles.menuItemFab}
+                            onPress={() => handlePress(item.target)}
+                        >
+                            <Text style={styles.menuText}>{item.label}</Text>
+                        </TouchableOpacity>
+                    ))}
                 </Animated.View>
-            </TouchableOpacity>
+
+                <Animated.View {...panResponder.panHandlers} style={[styles.fab, isExpanded && styles.fabClose]}>
+                    <TouchableOpacity
+                        onPress={toggleMenu}
+                        activeOpacity={0.9}
+                        style={styles.touchableFab}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                        <Animated.View style={{ transform: [{ rotate: rotation }] }}>
+                            <Text style={styles.fabText}>+</Text>
+                        </Animated.View>
+                    </TouchableOpacity>
+                </Animated.View>
+            </Animated.View>
         </>
     );
 };
@@ -98,9 +126,12 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.4)',
         zIndex: 1,
     },
-    fab: {
+    draggableContainer: {
         position: 'absolute',
         left: 20,
+        zIndex: 3,
+    },
+    fab: {
         width: 56,
         height: 56,
         borderRadius: 16,
@@ -108,7 +139,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         elevation: 8,
-        zIndex: 3,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
@@ -117,6 +147,12 @@ const styles = StyleSheet.create({
     fabClose: {
         backgroundColor: '#333',
     },
+    touchableFab: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     fabText: {
         color: '#FFFFFF',
         fontSize: 30,
@@ -124,8 +160,8 @@ const styles = StyleSheet.create({
     },
     menuItemsContainer: {
         position: 'absolute',
-        left: 20,
-        bottom: 110,
+        left: 0,
+        bottom: 70,
         alignItems: 'flex-start',
         zIndex: 2,
     },

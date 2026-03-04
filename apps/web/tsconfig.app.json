@@ -23,6 +23,9 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
+            "path": "../../libs/channels/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/socket/tsconfig.lib.json"
         },
         {
