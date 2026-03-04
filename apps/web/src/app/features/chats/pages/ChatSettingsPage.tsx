@@ -6,6 +6,7 @@ import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
 import { useMyChannel } from '../hooks/useMyChannel';
 import { useLeaveRoom } from '../hooks/useLeaveRoom';
+import { useChatMessages } from '../hooks/useChatMessages';
 import { useSimpleWebCore } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 // import { useUsersInChannel } from '@chatic/channels';
@@ -20,6 +21,7 @@ export const ChatSettingsPage = () => {
     const { toast } = useToast();
 
     const { profile } = useSimpleWebCore();
+    const { clearMessages } = useChatMessages(profile?.id ?? null, channelId ?? null);
 
     const isOwner = channel?.ownerId === profile?.id;
 
@@ -38,6 +40,7 @@ export const ChatSettingsPage = () => {
 
         try {
             await leaveRoom(channelId, profile?.id);
+            await clearMessages();
             toast({ title: '채팅방을 나갔습니다' });
             navigate('/home');
         } catch (error) {

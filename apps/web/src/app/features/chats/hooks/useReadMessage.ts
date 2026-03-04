@@ -4,12 +4,12 @@ import { useWebSocketV2 } from '@chatic/socket';
 import { useSimpleWebCore } from '@chatic/web-core';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chats/model';
-import { markAllAsReadInDB } from './useChatMessages';
+import { IndexedDBStorageAdapter } from '../storages/IndexedDBStorageAdapter';
 
 export const useReadMessage = (
     channelId: string | undefined,
     messages: { chatNo?: number; isRead?: boolean; readCount?: number }[] = [],
-    applyReadEvent?: (chatNo: number, readCount: number) => void
+    applyReadEvent?: (chatNo: number, readerUserId: string) => void
 ) => {
     const { emit, lastMessage } = useWebSocketV2();
     const { profile } = useSimpleWebCore();
@@ -25,14 +25,13 @@ export const useReadMessage = (
         const lastChatNo = messages[messages.length - 1]?.chatNo;
         if (lastChatNo) {
             emit({ type: 'chat', action: 'read', payload: { channelId, chatNo: lastChatNo } });
-            applyReadEvent?.(lastChatNo, 1);
+            applyReadEvent?.(lastChatNo, profile.id);
         }
-        markAllAsReadInDB(profile.id, channelId).catch(console.error);
+        IndexedDBStorageAdapter.markAllRead(profile.id, channelId).catch(console.error);
     }, [messages.length]);
 
     // action:read 수신 시 해당 chatNo 이하 readCount++ + isRead: true
     useEffect(() => {
-         
         const envelope = lastMessage as any;
         if (!envelope || !applyReadEvent) return;
 
@@ -47,7 +46,10 @@ export const useReadMessage = (
         const chatNo = envelope.payload?.chatNo;
         if (!chatNo) return;
 
-        applyReadEvent(chatNo, 1);
+        const readerUserId = envelope.payload?.userId;
+        if (!readerUserId) return;
+
+        applyReadEvent(chatNo, readerUserId);
     }, [lastMessage, channelId, applyReadEvent]);
 
     // 새 메시지 수신 시 내 것 아니면 read 전송
@@ -55,7 +57,6 @@ export const useReadMessage = (
         const envelope = lastMessage as WSSEnvelope<ChatModel> | null;
         if (envelope?.type !== 'model' || envelope.action !== 'create') return;
         if (envelope.payload?.channelId !== channelId) return;
-        if (envelope.payload?.ownerId === profile?.id) return;
 
         const chatNo = envelope.payload?.chatNo;
         if (!chatNo) return;

@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { countUnreadMessages } from './useChatMessages';
-
-const BROADCAST_CHANNEL_NAME = 'chat-messages-update';
+import { IndexedDBStorageAdapter, BROADCAST_CHANNEL_NAME } from '../storages/IndexedDBStorageAdapter';
 
 export const useUnreadCount = (userId: string | null, channelId: string) => {
     const [unreadCount, setUnreadCount] = useState(0);
@@ -11,7 +9,7 @@ export const useUnreadCount = (userId: string | null, channelId: string) => {
         if (!userId) return;
 
         const refresh = () => {
-            countUnreadMessages(userId, channelId).then(setUnreadCount).catch(console.error);
+            IndexedDBStorageAdapter.countUnread(userId, channelId).then(setUnreadCount).catch(console.error);
         };
 
         refresh();
