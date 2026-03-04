@@ -23,7 +23,7 @@ import {
 import { firebaseService } from './firebase';
 
 import type { DocumentSnapshot, QueryDocumentSnapshot } from 'firebase/firestore';
-import type { MyInviteView, UserView } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { AdminDeeplink, AdminDeeplinkDocument, DeeplinkEnvironment } from '../types';
 
 /**
@@ -47,18 +47,6 @@ const convertDoc = (doc: QueryDocumentSnapshot | DocumentSnapshot): AdminDeeplin
         displayId: data.invite.userId ?? doc.id,
     };
 };
-
-/**
- * Convert UserView to MyInviteView for storage
- */
-const userToInvite = (user: UserView): MyInviteView => ({
-    id: user.id,
-    userId: user.id,
-    user$: {
-        id: user.id,
-        name: user.name,
-    },
-});
 
 /**
  * Fetch all deeplinks with pagination for specific environment
@@ -105,17 +93,25 @@ export const fetchDeeplinkByUserId = async (
 };
 
 /**
- * Create a deeplink for a user in specific environment
- * Uses userId as document ID (one link per user)
+ * Create a deeplink from MyInviteView (from backend invite API)
+ * Uses invite.userId as document ID (one link per user)
  */
-export const createDeeplink = async (env: DeeplinkEnvironment, user: UserView): Promise<AdminDeeplink> => {
+export const createDeeplinkFromInvite = async (
+    env: DeeplinkEnvironment,
+    invite: MyInviteView
+): Promise<AdminDeeplink> => {
     const currentUser = firebaseService.getCurrentUser(env);
     if (!currentUser) {
         throw new Error('Not authenticated');
     }
 
+    const userId = invite.userId;
+    if (!userId) {
+        throw new Error('Invite must have userId');
+    }
+
     const col = firebaseService.getDeeplinksCollection(env);
-    const docId = user.id;
+    const docId = userId;
     const docRef = doc(col, docId);
 
     // Check if already exists
@@ -125,13 +121,12 @@ export const createDeeplink = async (env: DeeplinkEnvironment, user: UserView): 
     }
 
     const urlBase = firebaseService.getDeeplinkUrlBase(env);
-    const deepLinkUrl = `${urlBase}/${user.id}`;
+    const deepLinkUrl = `${urlBase}/${userId}`;
     const now = Timestamp.now();
-    const invite = userToInvite(user);
 
     const data: AdminDeeplinkDocument = {
         deepLinkUrl,
-        shortCode: user.id,
+        shortCode: userId,
         invite,
         createdAt: now,
         createdBy: currentUser.isAnonymous ? 'anonymous-admin' : currentUser.email || currentUser.uid,
@@ -139,15 +134,17 @@ export const createDeeplink = async (env: DeeplinkEnvironment, user: UserView): 
 
     await setDoc(docRef, data);
 
+    const displayName = invite.user$?.name ?? invite.name ?? userId;
+
     return {
         id: docId,
         deepLinkUrl,
-        shortCode: user.id,
+        shortCode: userId,
         invite,
         createdAt: now.toMillis(),
         createdBy: data.createdBy,
-        displayName: user.name,
-        displayId: user.loginId || user.id,
+        displayName,
+        displayId: userId,
     };
 };
 

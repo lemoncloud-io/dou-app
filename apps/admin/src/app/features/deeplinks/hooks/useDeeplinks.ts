@@ -9,9 +9,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { createQueryKeys } from '@chatic/shared';
 
-import { fetchDeeplinks, createDeeplink, deleteDeeplink, fetchDeeplinkByUserId } from '../services';
+import {
+    fetchDeeplinks,
+    createDeeplinkFromInvite,
+    deleteDeeplink,
+    fetchDeeplinkByUserId,
+    inviteUser,
+} from '../services';
 
-import type { UserView } from '@lemoncloud/chatic-backend-api';
+import type { MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 import type { DeeplinkEnvironment } from '../types';
 
 /** Query keys for deeplinks */
@@ -48,13 +54,25 @@ export const useDeeplinkDetail = (env: DeeplinkEnvironment, userId: string | nul
 };
 
 /**
- * Hook to create a deeplink for a user in specific environment
+ * Hook to invite user via backend API and create deeplink
+ *
+ * Flow:
+ * 1. POST /users/0/invite - creates user + returns MyInviteView
+ * 2. Create deeplink in Firestore with invite data
  */
-export const useCreateDeeplink = (env: DeeplinkEnvironment) => {
+export const useInviteAndCreateDeeplink = (env: DeeplinkEnvironment) => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (user: UserView) => createDeeplink(env, user),
+        mutationFn: async (body: MyUserInviteBody) => {
+            // Step 1: Call backend invite API
+            const invite = await inviteUser(body);
+
+            // Step 2: Create deeplink in Firestore
+            const deeplink = await createDeeplinkFromInvite(env, invite);
+
+            return deeplink;
+        },
         onSuccess: () => {
             // Invalidate deeplinks list for this environment
             queryClient.invalidateQueries({ queryKey: deeplinksKeys.list({ env }) });

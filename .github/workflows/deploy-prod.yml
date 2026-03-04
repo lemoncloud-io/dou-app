@@ -1,0 +1,409 @@
+name: deploy-prod
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    changes:
+        name: Check changed projects
+        runs-on: ubuntu-latest
+        outputs:
+            web: ${{ steps.filter.outputs.web == 'true' && 'true' || 'false' }}
+            admin: ${{ steps.filter.outputs.admin == 'true' && 'true' || 'false' }}
+            projects: ${{ steps.filter.outputs.changes }}
+            matrix: ${{ steps.set-matrix.outputs.matrix }}
+            has-changes: ${{ steps.set-matrix.outputs.has-changes }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: main
+
+            - uses: dorny/paths-filter@v2
+              id: filter
+              with:
+                  base: 'main'
+                  filters: |
+                      admin:
+                          - 'apps/admin/src/**'
+                          - 'apps/admin/public/**'
+                          - 'apps/admin/index.html'
+                          - 'apps/admin/vite.config.ts'
+                          - 'apps/admin/project.json'
+                          - 'apps/admin/tsconfig*.json'
+                          - 'apps/admin/tailwind.config.js'
+                          - 'apps/admin/postcss.config.js'
+                      web:
+                          - 'apps/web/src/**'
+                          - 'apps/web/public/**'
+                          - 'apps/web/index.html'
+                          - 'apps/web/vite.config.ts'
+                          - 'apps/web/project.json'
+                          - 'apps/web/tsconfig*.json'
+                          - 'apps/web/tailwind.config.js'
+                          - 'apps/web/postcss.config.js'
+
+            - name: Set matrix for changed projects
+              id: set-matrix
+              run: |
+                  PROJECTS=()
+                  [[ "${{ steps.filter.outputs.web }}" == "true" ]] && PROJECTS+=('"web"')
+                  [[ "${{ steps.filter.outputs.admin }}" == "true" ]] && PROJECTS+=('"admin"')
+
+                  if [ ${#PROJECTS[@]} -eq 0 ]; then
+                      echo "matrix=[]" >> $GITHUB_OUTPUT
+                      echo "has-changes=false" >> $GITHUB_OUTPUT
+                  else
+                      MATRIX="[$(IFS=,; echo "${PROJECTS[*]}")]"
+                      echo "matrix=${MATRIX}" >> $GITHUB_OUTPUT
+                      echo "has-changes=true" >> $GITHUB_OUTPUT
+                  fi
+
+    get-version:
+        needs: changes
+        if: ${{ needs.changes.outputs.admin == 'true' || needs.changes.outputs.web == 'true' }}
+        name: Build and Set Version
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            pull-requests: write
+        outputs:
+            root-version: ${{ steps.get-root-version.outputs.root-version }}
+            web-version: ${{ steps.get-web-version.outputs.web-version }}
+            admin-version: ${{ steps.get-admin-version.outputs.admin-version }}
+        steps:
+            - name: Check out a copy of the repo
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.LEMON_BOT_TOKEN }}
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Get Yarn cache path
+              id: yarn-cache-dir-path
+              run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+
+            - name: Cache dependencies
+              id: cache-dependencies
+              uses: actions/cache@v3
+              with:
+                  path: |
+                      ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                      node_modules
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-yarn-
+
+            - name: Install dependencies
+              if: steps.cache-dependencies.outputs.cache-hit != 'true'
+              run: yarn install --frozen-lockfile
+
+            - name: Configure git
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            - name: Get Root Version
+              id: get-root-version
+              run: |
+                  ROOT_VERSION=$(node -p "require('./package.json').version")
+                  if ! echo "$ROOT_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+                    echo "Error: Invalid root version format: $ROOT_VERSION"
+                    exit 1
+                  fi
+                  echo "root-version=${ROOT_VERSION}" >> $GITHUB_OUTPUT
+
+            - name: Get Web Version
+              if: ${{ needs.changes.outputs.web == 'true' }}
+              id: get-web-version
+              run: |
+                  WEB_VERSION=$(node -p "require('./apps/web/package.json').version")
+                  if ! echo "$WEB_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+                    echo "Error: Invalid web version format: $WEB_VERSION"
+                    exit 1
+                  fi
+                  echo "web-version=${WEB_VERSION}" >> $GITHUB_OUTPUT
+
+            - name: Get Admin Version
+              if: ${{ needs.changes.outputs.admin == 'true' }}
+              id: get-admin-version
+              run: |
+                  ADMIN_VERSION=$(node -p "require('./apps/admin/package.json').version")
+                  if ! echo "$ADMIN_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+                    echo "Error: Invalid admin version format: $ADMIN_VERSION"
+                    exit 1
+                  fi
+                  echo "admin-version=${ADMIN_VERSION}" >> $GITHUB_OUTPUT
+
+    build-and-deploy:
+        needs: [changes, get-version]
+        if: ${{ needs.changes.outputs.has-changes == 'true' }}
+        runs-on: ubuntu-latest
+        name: Build and Deploy
+        strategy:
+            fail-fast: false
+            matrix:
+                project: ${{ fromJson(needs.changes.outputs.matrix) }}
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.LEMON_BOT_TOKEN }}
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Get Yarn cache path
+              id: yarn-cache-dir-path
+              run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+
+            - name: Cache dependencies
+              id: cache-dependencies
+              uses: actions/cache@v3
+              with:
+                  path: |
+                      ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                      node_modules
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-yarn-
+
+            - name: Install dependencies
+              if: ${{ steps.cache-dependencies.outputs.cache-hit != 'true' }}
+              run: yarn install --frozen-lockfile
+
+            - name: Configure AWS Credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                  aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+            - name: Deploy to PROD
+              run: |
+                  set -e
+                  chmod +x scripts/deploy-${{ matrix.project }}.sh
+                  yarn ${{ matrix.project }}:deploy:prod
+
+    notify-slack:
+        needs: [changes, get-version, build-and-deploy]
+        if: ${{ success() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true') }}
+        name: Notify Slack
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            pull-requests: write
+        steps:
+            - uses: release-drafter/release-drafter@v5
+              id: release-drafted
+              with:
+                  publish: true
+                  version: ${{ needs.get-version.outputs.root-version }}
+                  tag: ${{ needs.get-version.outputs.root-version }}
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Convert notes to slack body
+              id: slack-body
+              uses: LoveToKnow/slackify-markdown-action@v1.0.2
+              with:
+                  text: ${{ steps.release-drafted.outputs.body || 'Release Notes를 확인해주세요.' }}
+
+            - name: Prepare Slack message
+              id: slack-message
+              run: |
+                  set -e
+                  TIMESTAMP=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S')
+                  COMMIT_SHA="${GITHUB_SHA:0:7}"
+                  DEPLOY_MESSAGES=()
+
+                  if [[ "${{ needs.changes.outputs.web }}" == "true" ]]; then
+                      DEPLOY_MESSAGES+=("• *웹* <https://dou.chatic.io/|PROD 서버> \`v${{ needs.get-version.outputs.web-version }}\`")
+                  fi
+
+                  if [[ "${{ needs.changes.outputs.admin }}" == "true" ]]; then
+                      DEPLOY_MESSAGES+=("• *어드민* <https://admin.chatic.io/|PROD 서버> \`v${{ needs.get-version.outputs.admin-version }}\`")
+                  fi
+
+                  if [ ${#DEPLOY_MESSAGES[@]} -eq 0 ]; then
+                      DEPLOY_INFO="*PROD 환경 배포가 완료되었습니다.*"
+                  else
+                      DEPLOY_INFO=$(printf "%s\n" "${DEPLOY_MESSAGES[@]}")
+                  fi
+
+                  {
+                    echo "deploy_info<<EOF"
+                    echo -e "$DEPLOY_INFO"
+                    echo "EOF"
+                    echo "timestamp=${TIMESTAMP}"
+                    echo "commit_sha=${COMMIT_SHA}"
+                  } >> $GITHUB_OUTPUT || {
+                    echo "deploy_info=⚠️ 배포 메시지 생성 실패" >> $GITHUB_OUTPUT
+                    echo "timestamp=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+                    echo "commit_sha=error" >> $GITHUB_OUTPUT
+                  }
+
+            - name: Post to a Slack channel
+              id: post-slack
+              continue-on-error: true
+              uses: slackapi/slack-github-action@v2.1.1
+              with:
+                  method: chat.postMessage
+                  token: ${{ secrets.RELEASE_BOT_TOKEN }}
+                  payload: |
+                      channel: ${{ secrets.CHATIC_CHANNEL }}
+                      text: "Chatic PROD 배포 알림"
+                      unfurl_links: false
+                      unfurl_media: false
+                      blocks: [
+                          {
+                              "type": "header",
+                              "text": {
+                                  "type": "plain_text",
+                                  "text": ":dou: Chatic PROD 환경 배포 완료"
+                              }
+                          },
+                          {
+                              "type": "section",
+                              "text": {
+                                  "type": "mrkdwn",
+                                  "text": ${{ toJSON(steps.slack-message.outputs.deploy_info) }}
+                              }
+                          },
+                          {
+                              "type": "divider"
+                          },
+                          {
+                              "type": "section",
+                              "fields": [
+                                  {
+                                      "type": "mrkdwn",
+                                      "text": "*배포 시각:*\n${{ steps.slack-message.outputs.timestamp }}"
+                                  },
+                                  {
+                                      "type": "mrkdwn",
+                                      "text": "*커밋:*\n<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ steps.slack-message.outputs.commit_sha }}>"
+                                  }
+                              ]
+                          },
+                          {
+                              "type": "divider"
+                          },
+                          {
+                              "type": "section",
+                              "text": {
+                                  "type": "mrkdwn",
+                                  "text": "*Release Notes:*\n${{ steps.slack-body.outputs.text }}"
+                              }
+                          },
+                          {
+                              "type": "context",
+                              "elements": [
+                                  {
+                                      "type": "mrkdwn",
+                                      "text": "by ${{ github.actor }} | <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Actions Run>"
+                                  }
+                              ]
+                          }
+                      ]
+
+    notify-slack-failure:
+        needs: [changes, get-version, build-and-deploy]
+        if: ${{ failure() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true') }}
+        name: Notify Slack - Failure
+        runs-on: ubuntu-latest
+        steps:
+            - name: Prepare Slack message
+              id: slack-message
+              run: |
+                  set -e
+                  TIMESTAMP=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S')
+                  COMMIT_SHA="${GITHUB_SHA:0:7}"
+                  DEPLOY_MESSAGES=()
+
+                  if [[ "${{ needs.changes.outputs.web }}" == "true" ]]; then
+                      DEPLOY_MESSAGES+=("• *웹* PROD 서버")
+                  fi
+
+                  if [[ "${{ needs.changes.outputs.admin }}" == "true" ]]; then
+                      DEPLOY_MESSAGES+=("• *어드민* PROD 서버")
+                  fi
+
+                  if [ ${#DEPLOY_MESSAGES[@]} -eq 0 ]; then
+                      DEPLOY_INFO="*PROD 환경 배포 중 오류가 발생했습니다.*"
+                  else
+                      DEPLOY_INFO=$(printf "*배포 실패:*\n%s" "$(printf "%s\n" "${DEPLOY_MESSAGES[@]}")")
+                  fi
+
+                  {
+                    echo "deploy_info<<EOF"
+                    echo -e "$DEPLOY_INFO"
+                    echo "EOF"
+                    echo "timestamp=${TIMESTAMP}"
+                    echo "commit_sha=${COMMIT_SHA}"
+                  } >> $GITHUB_OUTPUT || {
+                    echo "deploy_info=⚠️ 배포 메시지 생성 실패" >> $GITHUB_OUTPUT
+                    echo "timestamp=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+                    echo "commit_sha=error" >> $GITHUB_OUTPUT
+                  }
+
+            - name: Post failure to Slack
+              continue-on-error: true
+              uses: slackapi/slack-github-action@v2.1.1
+              with:
+                  method: chat.postMessage
+                  token: ${{ secrets.RELEASE_BOT_TOKEN }}
+                  payload: |
+                      channel: ${{ secrets.CHATIC_CHANNEL }}
+                      text: "Chatic PROD 배포 알림"
+                      unfurl_links: false
+                      unfurl_media: false
+                      blocks: [
+                          {
+                              "type": "header",
+                              "text": {
+                                  "type": "plain_text",
+                                  "text": ":x: Chatic PROD 환경 배포 실패"
+                              }
+                          },
+                          {
+                              "type": "section",
+                              "text": {
+                                  "type": "mrkdwn",
+                                  "text": ${{ toJSON(steps.slack-message.outputs.deploy_info) }}
+                              }
+                          },
+                          {
+                              "type": "divider"
+                          },
+                          {
+                              "type": "section",
+                              "fields": [
+                                  {
+                                      "type": "mrkdwn",
+                                      "text": "*배포 시각:*\n${{ steps.slack-message.outputs.timestamp }}"
+                                  },
+                                  {
+                                      "type": "mrkdwn",
+                                      "text": "*커밋:*\n<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ steps.slack-message.outputs.commit_sha }}>"
+                                  }
+                              ]
+                          },
+                          {
+                              "type": "context",
+                              "elements": [
+                                  {
+                                      "type": "mrkdwn",
+                                      "text": "by ${{ github.actor }} | <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Failed Actions Run>"
+                                  }
+                              ]
+                          }
+                      ]

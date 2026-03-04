@@ -1,0 +1,612 @@
+name: force-deploy
+on:
+    workflow_dispatch:
+        inputs:
+            deploy_web_dev:
+                description: 'Deploy Web to DEV'
+                required: true
+                type: boolean
+                default: false
+            deploy_admin_dev:
+                description: 'Deploy Admin to DEV'
+                required: true
+                type: boolean
+                default: false
+            deploy_web_prod:
+                description: 'Deploy Web to PROD'
+                required: true
+                type: boolean
+                default: false
+            deploy_admin_prod:
+                description: 'Deploy Admin to PROD'
+                required: true
+                type: boolean
+                default: false
+
+jobs:
+    get-versions:
+        runs-on: ubuntu-latest
+        name: Get Versions
+        outputs:
+            web-version: ${{ steps.get-web-version.outputs.web-version }}
+            admin-version: ${{ steps.get-admin-version.outputs.admin-version }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.LEMON_BOT_TOKEN }}
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Get Web Version
+              if: ${{ github.event.inputs.deploy_web_dev == 'true' || github.event.inputs.deploy_web_prod == 'true' }}
+              id: get-web-version
+              run: |
+                  WEB_VERSION=$(node -p "require('./apps/web/package.json').version")
+                  if ! echo "$WEB_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+                    echo "Error: Invalid web version format: $WEB_VERSION"
+                    exit 1
+                  fi
+                  echo "web-version=${WEB_VERSION}" >> $GITHUB_OUTPUT
+
+            - name: Get Admin Version
+              if: ${{ github.event.inputs.deploy_admin_dev == 'true' || github.event.inputs.deploy_admin_prod == 'true' }}
+              id: get-admin-version
+              run: |
+                  ADMIN_VERSION=$(node -p "require('./apps/admin/package.json').version")
+                  if ! echo "$ADMIN_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+                    echo "Error: Invalid admin version format: $ADMIN_VERSION"
+                    exit 1
+                  fi
+                  echo "admin-version=${ADMIN_VERSION}" >> $GITHUB_OUTPUT
+
+    deploy-dev:
+        needs: [get-versions]
+        if: ${{ github.event.inputs.deploy_web_dev == 'true' || github.event.inputs.deploy_admin_dev == 'true' }}
+        runs-on: ubuntu-latest
+        name: Deploy to DEV
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - project: web
+                      should_run: ${{ github.event.inputs.deploy_web_dev == 'true' && 'true' || 'false' }}
+                    - project: admin
+                      should_run: ${{ github.event.inputs.deploy_admin_dev == 'true' && 'true' || 'false' }}
+        steps:
+            - name: Skip if not selected
+              if: ${{ matrix.should_run != 'true' }}
+              run: echo "Skipping ${{ matrix.project }} DEV deployment"
+
+            - name: Checkout code
+              if: ${{ matrix.should_run == 'true' }}
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.LEMON_BOT_TOKEN }}
+
+            - name: Setup Node.js
+              if: ${{ matrix.should_run == 'true' }}
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Get Yarn cache path
+              if: ${{ matrix.should_run == 'true' }}
+              id: yarn-cache-dir-path
+              run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+
+            - name: Cache dependencies
+              if: ${{ matrix.should_run == 'true' }}
+              id: cache-dependencies
+              uses: actions/cache@v3
+              with:
+                  path: |
+                      ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                      node_modules
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-yarn-
+
+            - name: Install dependencies
+              if: ${{ matrix.should_run == 'true' && steps.cache-dependencies.outputs.cache-hit != 'true' }}
+              run: yarn install --frozen-lockfile
+
+            - name: Configure AWS Credentials
+              if: ${{ matrix.should_run == 'true' }}
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                  aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+            - name: Deploy to DEV
+              if: ${{ matrix.should_run == 'true' }}
+              run: |
+                  set -e
+                  chmod +x scripts/deploy-${{ matrix.project }}.sh
+                  yarn ${{ matrix.project }}:deploy:dev
+
+    deploy-prod:
+        needs: [get-versions]
+        if: ${{ github.event.inputs.deploy_web_prod == 'true' || github.event.inputs.deploy_admin_prod == 'true' }}
+        runs-on: ubuntu-latest
+        name: Deploy to PROD
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - project: web
+                      should_run: ${{ github.event.inputs.deploy_web_prod == 'true' && 'true' || 'false' }}
+                    - project: admin
+                      should_run: ${{ github.event.inputs.deploy_admin_prod == 'true' && 'true' || 'false' }}
+        steps:
+            - name: Skip if not selected
+              if: ${{ matrix.should_run != 'true' }}
+              run: echo "Skipping ${{ matrix.project }} PROD deployment"
+
+            - name: Checkout code
+              if: ${{ matrix.should_run == 'true' }}
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.LEMON_BOT_TOKEN }}
+
+            - name: Setup Node.js
+              if: ${{ matrix.should_run == 'true' }}
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Get Yarn cache path
+              if: ${{ matrix.should_run == 'true' }}
+              id: yarn-cache-dir-path
+              run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+
+            - name: Cache dependencies
+              if: ${{ matrix.should_run == 'true' }}
+              id: cache-dependencies
+              uses: actions/cache@v3
+              with:
+                  path: |
+                      ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                      node_modules
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-yarn-
+
+            - name: Install dependencies
+              if: ${{ matrix.should_run == 'true' && steps.cache-dependencies.outputs.cache-hit != 'true' }}
+              run: yarn install --frozen-lockfile
+
+            - name: Configure AWS Credentials
+              if: ${{ matrix.should_run == 'true' }}
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                  aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+            - name: Deploy to PROD
+              if: ${{ matrix.should_run == 'true' }}
+              run: |
+                  set -e
+                  chmod +x scripts/deploy-${{ matrix.project }}.sh
+                  yarn ${{ matrix.project }}:deploy:prod
+
+    notify-slack:
+        needs: [get-versions, deploy-dev, deploy-prod]
+        if: ${{ !cancelled() && (github.event.inputs.deploy_web_dev == 'true' || github.event.inputs.deploy_admin_dev == 'true' || github.event.inputs.deploy_web_prod == 'true' || github.event.inputs.deploy_admin_prod == 'true') }}
+        name: Notify Slack
+        runs-on: ubuntu-latest
+        steps:
+            - name: Prepare deployment info
+              id: deploy-info
+              run: |
+                  set -e
+
+                  # 개발 환경 체크
+                  DEV_WEB="${{ github.event.inputs.deploy_web_dev }}"
+                  DEV_ADMIN="${{ github.event.inputs.deploy_admin_dev }}"
+
+                  # PROD 환경 체크
+                  PROD_WEB="${{ github.event.inputs.deploy_web_prod }}"
+                  PROD_ADMIN="${{ github.event.inputs.deploy_admin_prod }}"
+
+                  # 버전 정보
+                  WEB_VER="${{ needs.get-versions.outputs.web-version }}"
+                  ADMIN_VER="${{ needs.get-versions.outputs.admin-version }}"
+
+                  # 메타 정보
+                  TIMESTAMP=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S')
+                  COMMIT_SHA="${GITHUB_SHA:0:7}"
+
+                  # 개발/PROD 환경 카운트
+                  DEV_COUNT=0
+                  PROD_COUNT=0
+
+                  [[ "$DEV_WEB" == "true" ]] && ((DEV_COUNT++)) || true
+                  [[ "$DEV_ADMIN" == "true" ]] && ((DEV_COUNT++)) || true
+                  [[ "$PROD_WEB" == "true" ]] && ((PROD_COUNT++)) || true
+                  [[ "$PROD_ADMIN" == "true" ]] && ((PROD_COUNT++)) || true
+
+                  # Outputs 저장
+                  {
+                    echo "dev_web=${DEV_WEB}"
+                    echo "dev_admin=${DEV_ADMIN}"
+                    echo "prod_web=${PROD_WEB}"
+                    echo "prod_admin=${PROD_ADMIN}"
+                    echo "web_version=${WEB_VER}"
+                    echo "admin_version=${ADMIN_VER}"
+                    echo "timestamp=${TIMESTAMP}"
+                    echo "commit_sha=${COMMIT_SHA}"
+                    echo "dev_count=${DEV_COUNT}"
+                    echo "prod_count=${PROD_COUNT}"
+                  } >> $GITHUB_OUTPUT
+
+            - name: Build Slack blocks
+              id: slack-blocks
+              run: |
+                  set -e
+
+                  # 기본 블록들
+                  BLOCKS='[
+                      {
+                          "type": "header",
+                          "text": {
+                              "type": "plain_text",
+                              "text": ":dou: Chatic 수동 배포 완료",
+                              "emoji": true
+                          }
+                      },
+                      {
+                          "type": "section",
+                          "text": {
+                              "type": "mrkdwn",
+                              "text": "*배포 완료:* '"${{ steps.deploy-info.outputs.dev_count }}"'개 (개발) + '"${{ steps.deploy-info.outputs.prod_count }}"'개 (PROD)"
+                          }
+                      },
+                      {
+                          "type": "divider"
+                      }'
+
+                  # 개발 환경 섹션
+                  if [[ "${{ steps.deploy-info.outputs.dev_count }}" != "0" ]]; then
+                      BLOCKS+=',
+                      {
+                          "type": "section",
+                          "text": {
+                              "type": "mrkdwn",
+                              "text": "*개발 환경*"
+                          }
+                      },
+                      {
+                          "type": "section",
+                          "fields": ['
+
+                      DEV_FIELDS=()
+
+                      if [[ "${{ steps.deploy-info.outputs.dev_web }}" == "true" ]]; then
+                          DEV_FIELDS+=('{
+                              "type": "mrkdwn",
+                              "text": "*웹* <https://dou-dev.chatic.io/|개발 서버> `v'"${{ steps.deploy-info.outputs.web_version }}"'`"
+                          }')
+                      fi
+
+                      if [[ "${{ steps.deploy-info.outputs.dev_admin }}" == "true" ]]; then
+                          DEV_FIELDS+=('{
+                              "type": "mrkdwn",
+                              "text": "*어드민* <https://admin-dev.chatic.io/|개발 서버> `v'"${{ steps.deploy-info.outputs.admin_version }}"'`"
+                          }')
+                      fi
+
+                      # Join fields with comma
+                      DEV_FIELDS_JSON=$(printf "%s," "${DEV_FIELDS[@]}")
+                      DEV_FIELDS_JSON="${DEV_FIELDS_JSON%,}"
+
+                      BLOCKS+="${DEV_FIELDS_JSON}"'
+                          ]
+                      }'
+                  fi
+
+                  # PROD 환경 섹션
+                  if [[ "${{ steps.deploy-info.outputs.prod_count }}" != "0" ]]; then
+                      BLOCKS+=',
+                      {
+                          "type": "section",
+                          "text": {
+                              "type": "mrkdwn",
+                              "text": "*PROD 환경*"
+                          }
+                      },
+                      {
+                          "type": "section",
+                          "fields": ['
+
+                      PROD_FIELDS=()
+
+                      if [[ "${{ steps.deploy-info.outputs.prod_web }}" == "true" ]]; then
+                          PROD_FIELDS+=('{
+                              "type": "mrkdwn",
+                              "text": "*웹* <https://dou.chatic.io/|PROD 서버> `v'"${{ steps.deploy-info.outputs.web_version }}"'`"
+                          }')
+                      fi
+
+                      if [[ "${{ steps.deploy-info.outputs.prod_admin }}" == "true" ]]; then
+                          PROD_FIELDS+=('{
+                              "type": "mrkdwn",
+                              "text": "*어드민* <https://admin.chatic.io/|PROD 서버> `v'"${{ steps.deploy-info.outputs.admin_version }}"'`"
+                          }')
+                      fi
+
+                      # Join fields with comma
+                      PROD_FIELDS_JSON=$(printf "%s," "${PROD_FIELDS[@]}")
+                      PROD_FIELDS_JSON="${PROD_FIELDS_JSON%,}"
+
+                      BLOCKS+="${PROD_FIELDS_JSON}"'
+                          ]
+                      }'
+                  fi
+
+                  # 메타 정보 블록
+                  BLOCKS+=',
+                  {
+                      "type": "divider"
+                  },
+                  {
+                      "type": "section",
+                      "fields": [
+                          {
+                              "type": "mrkdwn",
+                              "text": "*배포 시각*\n'"${{ steps.deploy-info.outputs.timestamp }}"'"
+                          },
+                          {
+                              "type": "mrkdwn",
+                              "text": "*커밋*\n<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|`'"${{ steps.deploy-info.outputs.commit_sha }}"'`>"
+                          }
+                      ]
+                  },
+                  {
+                      "type": "context",
+                      "elements": [
+                          {
+                              "type": "mrkdwn",
+                              "text": "수동 실행(Github Workflows) by *${{ github.actor }}* | <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Actions>"
+                          }
+                      ]
+                  }]'
+
+                  # JSON 유효성 검증 (optional)
+                  echo "$BLOCKS" | jq empty 2>/dev/null || {
+                      echo "Error: Invalid JSON blocks"
+                      exit 1
+                  }
+
+                  {
+                      echo "blocks<<EOF"
+                      echo "$BLOCKS"
+                      echo "EOF"
+                  } >> $GITHUB_OUTPUT
+
+            - name: Post to Slack
+              continue-on-error: true
+              uses: slackapi/slack-github-action@v2.1.1
+              with:
+                  method: chat.postMessage
+                  token: ${{ secrets.RELEASE_BOT_TOKEN }}
+                  payload: |
+                      channel: ${{ secrets.CHATIC_CHANNEL }}
+                      text: "Chatic 수동 배포 완료"
+                      unfurl_links: false
+                      unfurl_media: false
+                      blocks: ${{ steps.slack-blocks.outputs.blocks }}
+
+    notify-slack-failure:
+        needs: [deploy-dev, deploy-prod]
+        if: ${{ !cancelled() && failure() }}
+        name: Notify Slack - Failure
+        runs-on: ubuntu-latest
+        steps:
+            - name: Determine failed deployments
+              id: failure-info
+              run: |
+                  set -e
+
+                  # 실패한 배포 체크
+                  DEV_WEB="${{ github.event.inputs.deploy_web_dev }}"
+                  DEV_ADMIN="${{ github.event.inputs.deploy_admin_dev }}"
+                  PROD_WEB="${{ github.event.inputs.deploy_web_prod }}"
+                  PROD_ADMIN="${{ github.event.inputs.deploy_admin_prod }}"
+
+                  TIMESTAMP=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S')
+                  COMMIT_SHA="${GITHUB_SHA:0:7}"
+
+                  # 실패 카운트
+                  DEV_COUNT=0
+                  PROD_COUNT=0
+
+                  [[ "$DEV_WEB" == "true" ]] && ((DEV_COUNT++)) || true
+                  [[ "$DEV_ADMIN" == "true" ]] && ((DEV_COUNT++)) || true
+                  [[ "$PROD_WEB" == "true" ]] && ((PROD_COUNT++)) || true
+                  [[ "$PROD_ADMIN" == "true" ]] && ((PROD_COUNT++)) || true
+
+                  {
+                    echo "dev_web=${DEV_WEB}"
+                    echo "dev_admin=${DEV_ADMIN}"
+                    echo "prod_web=${PROD_WEB}"
+                    echo "prod_admin=${PROD_ADMIN}"
+                    echo "timestamp=${TIMESTAMP}"
+                    echo "commit_sha=${COMMIT_SHA}"
+                    echo "dev_count=${DEV_COUNT}"
+                    echo "prod_count=${PROD_COUNT}"
+                  } >> $GITHUB_OUTPUT
+
+            - name: Build failure blocks
+              id: failure-blocks
+              run: |
+                  set -e
+
+                  BLOCKS='[
+                      {
+                          "type": "header",
+                          "text": {
+                              "type": "plain_text",
+                              "text": ":x: Chatic 수동 배포 실패",
+                              "emoji": true
+                          }
+                      },
+                      {
+                          "type": "section",
+                          "text": {
+                              "type": "mrkdwn",
+                              "text": ":warning: *배포 중 오류가 발생했습니다*\n배포 시도: '"${{ steps.failure-info.outputs.dev_count }}"'개 (개발) + '"${{ steps.failure-info.outputs.prod_count }}"'개 (PROD)"
+                          }
+                      },
+                      {
+                          "type": "divider"
+                      }'
+
+                  # 개발 환경 실패
+                  if [[ "${{ steps.failure-info.outputs.dev_count }}" != "0" ]]; then
+                      BLOCKS+=',
+                      {
+                          "type": "section",
+                          "text": {
+                              "type": "mrkdwn",
+                              "text": "*개발 환경 배포 시도*"
+                          }
+                      },
+                      {
+                          "type": "section",
+                          "fields": ['
+
+                      DEV_FIELDS=()
+
+                      [[ "${{ steps.failure-info.outputs.dev_web }}" == "true" ]] && \
+                          DEV_FIELDS+=('{
+                              "type": "mrkdwn",
+                              "text": "*웹* 개발 서버"
+                          }')
+
+                      [[ "${{ steps.failure-info.outputs.dev_admin }}" == "true" ]] && \
+                          DEV_FIELDS+=('{
+                              "type": "mrkdwn",
+                              "text": "*어드민* 개발 서버"
+                          }')
+
+                      DEV_FIELDS_JSON=$(printf "%s," "${DEV_FIELDS[@]}")
+                      DEV_FIELDS_JSON="${DEV_FIELDS_JSON%,}"
+
+                      BLOCKS+="${DEV_FIELDS_JSON}"'
+                          ]
+                      }'
+                  fi
+
+                  # PROD 환경 실패
+                  if [[ "${{ steps.failure-info.outputs.prod_count }}" != "0" ]]; then
+                      BLOCKS+=',
+                      {
+                          "type": "section",
+                          "text": {
+                              "type": "mrkdwn",
+                              "text": "*PROD 환경 배포 시도*"
+                          }
+                      },
+                      {
+                          "type": "section",
+                          "fields": ['
+
+                      PROD_FIELDS=()
+
+                      [[ "${{ steps.failure-info.outputs.prod_web }}" == "true" ]] && \
+                          PROD_FIELDS+=('{
+                              "type": "mrkdwn",
+                              "text": "*웹* PROD 서버"
+                          }')
+
+                      [[ "${{ steps.failure-info.outputs.prod_admin }}" == "true" ]] && \
+                          PROD_FIELDS+=('{
+                              "type": "mrkdwn",
+                              "text": "*어드민* PROD 서버"
+                          }')
+
+                      PROD_FIELDS_JSON=$(printf "%s," "${PROD_FIELDS[@]}")
+                      PROD_FIELDS_JSON="${PROD_FIELDS_JSON%,}"
+
+                      BLOCKS+="${PROD_FIELDS_JSON}"'
+                          ]
+                      }'
+                  fi
+
+                  # 메타 정보
+                  BLOCKS+=',
+                  {
+                      "type": "divider"
+                  },
+                  {
+                      "type": "section",
+                      "fields": [
+                          {
+                              "type": "mrkdwn",
+                              "text": "*실패 시각*\n'"${{ steps.failure-info.outputs.timestamp }}"'"
+                          },
+                          {
+                              "type": "mrkdwn",
+                              "text": "*커밋*\n<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|`'"${{ steps.failure-info.outputs.commit_sha }}"'`>"
+                          }
+                      ]
+                  },
+                  {
+                      "type": "section",
+                      "text": {
+                          "type": "mrkdwn",
+                          "text": ":mag: *로그를 확인하여 원인을 파악하세요*"
+                      },
+                      "accessory": {
+                          "type": "button",
+                          "text": {
+                              "type": "plain_text",
+                              "text": "워크플로우 로그 보기",
+                              "emoji": true
+                          },
+                          "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                          "action_id": "view_logs"
+                      }
+                  },
+                  {
+                      "type": "context",
+                      "elements": [
+                          {
+                              "type": "mrkdwn",
+                              "text": "수동 실행(Github Workflows) by *${{ github.actor }}* | <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Failed Actions>"
+                          }
+                      ]
+                  }]'
+
+                  echo "$BLOCKS" | jq empty 2>/dev/null || {
+                      echo "Error: Invalid JSON blocks"
+                      exit 1
+                  }
+
+                  {
+                      echo "blocks<<EOF"
+                      echo "$BLOCKS"
+                      echo "EOF"
+                  } >> $GITHUB_OUTPUT
+
+            - name: Post failure to Slack
+              continue-on-error: true
+              uses: slackapi/slack-github-action@v2.1.1
+              with:
+                  method: chat.postMessage
+                  token: ${{ secrets.RELEASE_BOT_TOKEN }}
+                  payload: |
+                      channel: ${{ secrets.CHATIC_CHANNEL }}
+                      text: "Chatic 수동 배포 실패"
+                      unfurl_links: false
+                      unfurl_media: false
+                      blocks: ${{ steps.failure-blocks.outputs.blocks }}
