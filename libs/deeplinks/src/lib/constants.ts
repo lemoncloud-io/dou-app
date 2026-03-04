@@ -6,7 +6,13 @@
  */
 
 /** Valid domains that can be used as deep link sources */
-export const VALID_DOMAINS = ['app.chatic.io', 'app-dev.chatic.io', 'dou.chatic.io', 'chatic.io'] as const;
+export const VALID_DOMAINS = [
+    'app.chatic.io',
+    'app-dev.chatic.io',
+    'dou.chatic.io',
+    'dou-dev.chatic.io',
+    'chatic.io',
+] as const;
 
 /** Valid URL schemes */
 export const VALID_SCHEMES = ['chatic', 'chatic-dev', 'https', 'http'] as const;
@@ -17,8 +23,32 @@ export const CUSTOM_SCHEMES = ['chatic', 'chatic-dev'] as const;
 /** Deep link domains that need conversion to frontend domain */
 export const DEEP_LINK_DOMAINS = ['app.chatic.io', 'app-dev.chatic.io'] as const;
 
-/** Check if running in development environment */
-const isDev = typeof process !== 'undefined' && process.env?.VITE_ENV === 'DEV';
+/**
+ * Check if running in development environment
+ * Supports both web (process.env) and React Native (react-native-config)
+ */
+const getIsDev = (): boolean => {
+    // React Native: use react-native-config
+    try {
+         
+        const Config = require('react-native-config').default;
+        if (Config?.VITE_ENV) {
+            return Config.VITE_ENV === 'DEV';
+        }
+    } catch {
+        // Not in React Native environment
+    }
+
+    // Web: use process.env
+    if (typeof process !== 'undefined' && process.env?.VITE_ENV) {
+        return process.env.VITE_ENV === 'DEV';
+    }
+
+    // Default to production
+    return false;
+};
+
+const isDev = getIsDev();
 
 /** Frontend domain for WebView navigation */
 export const FRONTEND_DOMAIN = isDev ? 'dou-dev.chatic.io' : 'dou.chatic.io';

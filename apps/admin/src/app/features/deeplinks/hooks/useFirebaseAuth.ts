@@ -2,20 +2,20 @@
  * Firebase Authentication Hook
  *
  * Manages Firebase auth state with anonymous authentication.
- * Auto signs in anonymously on mount.
+ * Auto signs in anonymously on mount for specified environment.
  */
 
 import { useState, useEffect } from 'react';
 
 import { firebaseService } from '../services';
 
-import type { FirebaseAuthState } from '../types';
+import type { FirebaseAuthState, DeeplinkEnvironment } from '../types';
 
 /**
  * Hook for Firebase authentication
- * Automatically signs in anonymously on mount
+ * Automatically signs in anonymously on mount for the specified environment
  */
-export const useFirebaseAuth = () => {
+export const useFirebaseAuth = (env: DeeplinkEnvironment) => {
     const [state, setState] = useState<FirebaseAuthState>({
         isAuthenticated: false,
         isAnonymous: false,
@@ -26,9 +26,9 @@ export const useFirebaseAuth = () => {
 
     // Initialize Firebase and auto sign-in anonymously
     useEffect(() => {
-        firebaseService.initialize();
+        firebaseService.initializeForEnv(env);
 
-        const unsubscribe = firebaseService.onAuthStateChanged(user => {
+        const unsubscribe = firebaseService.onAuthStateChanged(env, user => {
             if (user) {
                 setState({
                     isAuthenticated: true,
@@ -43,7 +43,7 @@ export const useFirebaseAuth = () => {
             } else {
                 // No user - trigger anonymous sign in
                 firebaseService
-                    .signInAnonymously()
+                    .signInAnonymously(env)
                     .then(() => {
                         // State will be updated by onAuthStateChanged
                     })
@@ -61,7 +61,7 @@ export const useFirebaseAuth = () => {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [env]);
 
     return state;
 };

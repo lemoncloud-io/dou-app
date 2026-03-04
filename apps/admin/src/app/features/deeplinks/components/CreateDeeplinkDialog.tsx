@@ -2,6 +2,7 @@
  * Create Deeplink Dialog
  *
  * Dialog for selecting a user and creating a deeplink.
+ * Supports environment-specific deeplink URLs.
  */
 
 import { useState } from 'react';
@@ -31,26 +32,36 @@ import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/componen
 import { useUsers } from '@chatic/users';
 
 import { useCreateDeeplink, useDeeplinks } from '../hooks';
+import { firebaseService } from '../services';
 
 import type { UserView } from '@lemoncloud/chatic-backend-api';
+import type { DeeplinkEnvironment } from '../types';
 import type { JSX } from 'react';
 
 interface CreateDeeplinkDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSuccess?: () => void;
+    env: DeeplinkEnvironment;
 }
 
-export const CreateDeeplinkDialog = ({ open, onOpenChange, onSuccess }: CreateDeeplinkDialogProps): JSX.Element => {
+export const CreateDeeplinkDialog = ({
+    open,
+    onOpenChange,
+    onSuccess,
+    env,
+}: CreateDeeplinkDialogProps): JSX.Element => {
     const [comboboxOpen, setComboboxOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<UserView | null>(null);
 
     const { data: usersData, isLoading: isLoadingUsers } = useUsers({ limit: 100 });
-    const { data: deeplinksData } = useDeeplinks({ limit: 1000 });
-    const { mutateAsync: createDeeplink, isPending: isCreating } = useCreateDeeplink();
+    const { data: deeplinksData } = useDeeplinks(env, { limit: 1000 });
+    const { mutateAsync: createDeeplink, isPending: isCreating } = useCreateDeeplink(env);
 
     // Set of user IDs that already have deeplinks (document ID = user ID)
     const existingUserIds = new Set(deeplinksData?.list.map(d => d.id) ?? []);
+
+    const deeplinkUrlBase = firebaseService.getDeeplinkUrlBase(env);
 
     const handleSelectUser = async (user: UserView) => {
         setSelectedUser(user);
@@ -86,7 +97,7 @@ export const CreateDeeplinkDialog = ({ open, onOpenChange, onSuccess }: CreateDe
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Create Deeplink</DialogTitle>
+                    <DialogTitle>Create Deeplink ({env})</DialogTitle>
                     <DialogDescription>Select a user to create a deeplink for</DialogDescription>
                 </DialogHeader>
 
@@ -164,7 +175,7 @@ export const CreateDeeplinkDialog = ({ open, onOpenChange, onSuccess }: CreateDe
                         <div className="p-4 rounded-md bg-muted space-y-2">
                             <div className="text-sm font-medium">Deeplink Preview</div>
                             <div className="text-sm text-muted-foreground break-all font-mono">
-                                https://app.chatic.io/s/{selectedUser.id}
+                                {deeplinkUrlBase}/{selectedUser.id}
                             </div>
                         </div>
                     )}

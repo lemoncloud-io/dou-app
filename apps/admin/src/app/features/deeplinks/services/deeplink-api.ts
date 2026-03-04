@@ -2,6 +2,7 @@
  * Deeplink API Service
  *
  * Firestore CRUD operations for admin deeplinks.
+ * Supports both DEV and PROD environments.
  * Each user has one deeplink with userId as document ID.
  */
 
@@ -23,10 +24,7 @@ import { firebaseService } from './firebase';
 
 import type { DocumentSnapshot, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { MyInviteView, UserView } from '@lemoncloud/chatic-backend-api';
-import type { AdminDeeplink, AdminDeeplinkDocument } from '../types';
-
-/** Deep link URL base */
-const DEEPLINK_BASE = 'https://app.chatic.io/s';
+import type { AdminDeeplink, AdminDeeplinkDocument, DeeplinkEnvironment } from '../types';
 
 /**
  * Convert Firestore document to AdminDeeplink
@@ -63,14 +61,17 @@ const userToInvite = (user: UserView): MyInviteView => ({
 });
 
 /**
- * Fetch all deeplinks with pagination
+ * Fetch all deeplinks with pagination for specific environment
  */
-export const fetchDeeplinks = async (params: {
-    pageSize?: number;
-    lastDoc?: DocumentSnapshot;
-}): Promise<{ list: AdminDeeplink[]; lastDoc: DocumentSnapshot | null; total: number }> => {
+export const fetchDeeplinks = async (
+    env: DeeplinkEnvironment,
+    params: {
+        pageSize?: number;
+        lastDoc?: DocumentSnapshot;
+    }
+): Promise<{ list: AdminDeeplink[]; lastDoc: DocumentSnapshot | null; total: number }> => {
     const { pageSize = 20, lastDoc } = params;
-    const col = firebaseService.getDeeplinksCollection();
+    const col = firebaseService.getDeeplinksCollection(env);
 
     // Get total count
     const countSnapshot = await getCountFromServer(col);
@@ -91,26 +92,29 @@ export const fetchDeeplinks = async (params: {
 };
 
 /**
- * Fetch a single deeplink by user ID
+ * Fetch a single deeplink by user ID for specific environment
  */
-export const fetchDeeplinkByUserId = async (userId: string): Promise<AdminDeeplink | null> => {
-    const col = firebaseService.getDeeplinksCollection();
+export const fetchDeeplinkByUserId = async (
+    env: DeeplinkEnvironment,
+    userId: string
+): Promise<AdminDeeplink | null> => {
+    const col = firebaseService.getDeeplinksCollection(env);
     const docRef = doc(col, userId);
     const snapshot = await getDoc(docRef);
     return convertDoc(snapshot);
 };
 
 /**
- * Create a deeplink for a user
+ * Create a deeplink for a user in specific environment
  * Uses userId as document ID (one link per user)
  */
-export const createDeeplink = async (user: UserView): Promise<AdminDeeplink> => {
-    const currentUser = firebaseService.getCurrentUser();
+export const createDeeplink = async (env: DeeplinkEnvironment, user: UserView): Promise<AdminDeeplink> => {
+    const currentUser = firebaseService.getCurrentUser(env);
     if (!currentUser) {
         throw new Error('Not authenticated');
     }
 
-    const col = firebaseService.getDeeplinksCollection();
+    const col = firebaseService.getDeeplinksCollection(env);
     const docId = user.id;
     const docRef = doc(col, docId);
 
@@ -120,7 +124,8 @@ export const createDeeplink = async (user: UserView): Promise<AdminDeeplink> => 
         throw new Error('Deeplink already exists for this user');
     }
 
-    const deepLinkUrl = `${DEEPLINK_BASE}/${user.id}`;
+    const urlBase = firebaseService.getDeeplinkUrlBase(env);
+    const deepLinkUrl = `${urlBase}/${user.id}`;
     const now = Timestamp.now();
     const invite = userToInvite(user);
 
@@ -147,15 +152,15 @@ export const createDeeplink = async (user: UserView): Promise<AdminDeeplink> => 
 };
 
 /**
- * Delete a deeplink
+ * Delete a deeplink in specific environment
  */
-export const deleteDeeplink = async (id: string): Promise<void> => {
-    const currentUser = firebaseService.getCurrentUser();
+export const deleteDeeplink = async (env: DeeplinkEnvironment, id: string): Promise<void> => {
+    const currentUser = firebaseService.getCurrentUser(env);
     if (!currentUser) {
         throw new Error('Not authenticated');
     }
 
-    const col = firebaseService.getDeeplinksCollection();
+    const col = firebaseService.getDeeplinksCollection(env);
     const docRef = doc(col, id);
     await deleteDoc(docRef);
 };

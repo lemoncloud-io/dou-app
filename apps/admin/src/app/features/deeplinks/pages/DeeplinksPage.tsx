@@ -2,6 +2,7 @@
  * Deeplinks Page
  *
  * Main page for managing admin deeplinks.
+ * Uses tabs to switch between DEV and PROD environments.
  * Uses anonymous Firebase authentication.
  */
 
@@ -21,21 +22,23 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@chatic/ui-kit/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@chatic/ui-kit/components/ui/tabs';
 
 import { CreateDeeplinkDialog, DeeplinkDetailDialog, DeeplinksPageHeader, DeeplinksTable } from '../components';
 import { useFirebaseAuth, useDeeplinks, useDeleteDeeplink } from '../hooks';
 
-import type { AdminDeeplink } from '../types';
+import type { AdminDeeplink, DeeplinkEnvironment } from '../types';
 import type { JSX } from 'react';
 
-export const DeeplinksPage = (): JSX.Element => {
+/** Content for a single environment tab */
+const EnvironmentContent = ({ env }: { env: DeeplinkEnvironment }): JSX.Element => {
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [viewTargetUserId, setViewTargetUserId] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<AdminDeeplink | null>(null);
 
-    const { isAuthenticated, isLoading: isAuthLoading, error: authError } = useFirebaseAuth();
-    const { data, isLoading, isFetching, error, refetch } = useDeeplinks();
-    const { mutateAsync: deleteDeeplink, isPending: isDeleting } = useDeleteDeeplink();
+    const { isAuthenticated, isLoading: isAuthLoading, error: authError } = useFirebaseAuth(env);
+    const { data, isLoading, isFetching, error, refetch } = useDeeplinks(env);
+    const { mutateAsync: deleteDeeplink, isPending: isDeleting } = useDeleteDeeplink(env);
 
     const handleDelete = async () => {
         if (!deleteTarget) return;
@@ -53,13 +56,8 @@ export const DeeplinksPage = (): JSX.Element => {
     // Loading auth state
     if (isAuthLoading) {
         return (
-            <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                    <h1 className="text-2xl font-bold">Deeplinks</h1>
-                </div>
-                <div className="flex items-center justify-center min-h-[400px]">
-                    <Skeleton className="h-8 w-32" />
-                </div>
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Skeleton className="h-8 w-32" />
             </div>
         );
     }
@@ -67,14 +65,9 @@ export const DeeplinksPage = (): JSX.Element => {
     // Auth error state
     if (authError || !isAuthenticated) {
         return (
-            <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                    <h1 className="text-2xl font-bold">Deeplinks</h1>
-                </div>
-                <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-                    <p className="text-destructive">{authError || 'Authentication failed'}</p>
-                    <Button onClick={() => window.location.reload()}>Retry</Button>
-                </div>
+            <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+                <p className="text-destructive">{authError || 'Authentication failed'}</p>
+                <Button onClick={() => window.location.reload()}>Retry</Button>
             </div>
         );
     }
@@ -82,28 +75,30 @@ export const DeeplinksPage = (): JSX.Element => {
     // Data error state
     if (error) {
         return (
-            <div className="p-6">
+            <>
                 <DeeplinksPageHeader isFetching={isFetching} onCreateClick={() => setCreateDialogOpen(true)} />
                 <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
                     <p className="text-destructive">Failed to load deeplinks</p>
                     <Button onClick={() => refetch()}>Retry</Button>
                 </div>
-            </div>
+            </>
         );
     }
 
     return (
-        <div className="p-6">
-            <DeeplinksPageHeader
-                isFetching={isFetching}
-                onCreateClick={() => setCreateDialogOpen(true)}
-                showCreateButton
-            />
+        <>
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                    {isFetching && <span className="text-sm text-muted-foreground">Refreshing...</span>}
+                </div>
+                <Button onClick={() => setCreateDialogOpen(true)}>Create Deeplink</Button>
+            </div>
 
             <CreateDeeplinkDialog
                 open={createDialogOpen}
                 onOpenChange={setCreateDialogOpen}
                 onSuccess={() => refetch()}
+                env={env}
             />
 
             <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
@@ -124,7 +119,11 @@ export const DeeplinksPage = (): JSX.Element => {
                 </AlertDialogContent>
             </AlertDialog>
 
-            <DeeplinkDetailDialog userId={viewTargetUserId} onOpenChange={open => !open && setViewTargetUserId(null)} />
+            <DeeplinkDetailDialog
+                userId={viewTargetUserId}
+                onOpenChange={open => !open && setViewTargetUserId(null)}
+                env={env}
+            />
 
             <DeeplinksTable
                 deeplinks={data?.list ?? []}
@@ -140,6 +139,31 @@ export const DeeplinksPage = (): JSX.Element => {
                     </div>
                 </div>
             )}
+        </>
+    );
+};
+
+export const DeeplinksPage = (): JSX.Element => {
+    const [activeEnv, setActiveEnv] = useState<DeeplinkEnvironment>('DEV');
+
+    return (
+        <div className="p-6">
+            <h1 className="text-2xl font-bold mb-4">Deeplinks</h1>
+
+            <Tabs value={activeEnv} onValueChange={value => setActiveEnv(value as DeeplinkEnvironment)}>
+                <TabsList className="mb-4">
+                    <TabsTrigger value="DEV">Development</TabsTrigger>
+                    <TabsTrigger value="PROD">Production</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="DEV">
+                    <EnvironmentContent env="DEV" />
+                </TabsContent>
+
+                <TabsContent value="PROD">
+                    <EnvironmentContent env="PROD" />
+                </TabsContent>
+            </Tabs>
         </div>
     );
 };

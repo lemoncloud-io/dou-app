@@ -34,6 +34,7 @@ export { createInviteLink, getInviteLink, checkInviteLinkExists, deleteInviteLin
 export {
     CUSTOM_SCHEMES,
     DEEP_LINK_DOMAINS,
+    DEEPLINK_DOMAIN,
     FRONTEND_DOMAIN,
     VALID_DOMAINS,
     VALID_SCHEMES,

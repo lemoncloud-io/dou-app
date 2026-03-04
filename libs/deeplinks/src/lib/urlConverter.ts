@@ -66,8 +66,8 @@ export const convertDeepLinkToFrontendUrl = (deepLinkUrl: string): string => {
  * @returns Expanded frontend URL with invite data, or domain-converted URL as fallback
  *
  * @example
- * convertShortUrlToFrontendUrl('https://app.chatic.io/s/invite123')
- * // Returns: 'https://dou.chatic.io/chat/123' (from invite data)
+ * convertShortUrlToFrontendUrl('https://app.chatic.io/s/1000028')
+ * // Returns: 'https://dou.chatic.io/users/1000028' (from invite data)
  */
 export const convertShortUrlToFrontendUrl = async (url: string): Promise<string> => {
     if (!isShortUrl(url)) {
@@ -90,9 +90,9 @@ export const convertShortUrlToFrontendUrl = async (url: string): Promise<string>
 
         if (inviteLink?.invite) {
             // Build frontend URL from invite data
-            const { chatId } = inviteLink.invite;
-            if (chatId) {
-                const expandedUrl = `https://${FRONTEND_DOMAIN}/chat/${chatId}`;
+            const { userId } = inviteLink.invite;
+            if (userId) {
+                const expandedUrl = `https://${FRONTEND_DOMAIN}/users/${userId}`;
                 console.log('[UrlConverter] Short URL expanded:', url, '→', expandedUrl);
                 return expandedUrl;
             }

@@ -4,7 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import auth from '@react-native-firebase/auth';
 
-import { checkInviteLinkExists, createInviteLink, deleteInviteLink, getInviteLink } from '@chatic/deeplinks';
+import {
+    checkInviteLinkExists,
+    createInviteLink,
+    deleteInviteLink,
+    getInviteLink,
+    DEEPLINK_DOMAIN,
+} from '@chatic/deeplinks';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
@@ -133,7 +139,9 @@ export const DeeplinkTestScreen = () => {
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Test ID: {TEST_ID}</Text>
-                    <Text style={styles.urlText}>URL: https://app.chatic.io/s/{TEST_ID}</Text>
+                    <Text style={styles.urlText}>
+                        URL: https://{DEEPLINK_DOMAIN}/s/{TEST_ID}
+                    </Text>
                     <Text style={styles.authStatus}>{authStatus}</Text>
                 </View>
 

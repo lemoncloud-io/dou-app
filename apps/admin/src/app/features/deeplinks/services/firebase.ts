@@ -1,7 +1,7 @@
 /**
- * Firebase Service Singleton
+ * Firebase Service for Admin Deeplinks
  *
- * Handles Firebase initialization with environment-based configuration.
+ * Manages dual Firebase instances (DEV/PROD) for deeplink management.
  * Supports anonymous authentication for admin access.
  */
 
@@ -17,13 +17,19 @@ import {
 import type { FirebaseApp } from 'firebase/app';
 import type { Firestore, CollectionReference } from 'firebase/firestore';
 import type { Auth, User } from 'firebase/auth';
-import type { FirebaseConfig } from '../types';
+import type { FirebaseConfig, DeeplinkEnvironment } from '../types';
 
 /** Firestore collection name for deferred deeplinks */
 const COLLECTION_NAME = 'deferredDeepLinks';
 
-/** Firebase app name for admin */
-const APP_NAME = 'chatic-admin';
+/** Firebase app name prefix for admin */
+const APP_NAME_PREFIX = 'chatic-admin';
+
+/** Deep link URL bases by environment */
+export const DEEPLINK_URLS: Record<DeeplinkEnvironment, string> = {
+    DEV: 'https://app-dev.chatic.io/s',
+    PROD: 'https://app.chatic.io/s',
+};
 
 /**
  * Firebase configuration for dev environment (lemondu-ecb38)
@@ -52,101 +58,105 @@ const PROD_CONFIG: FirebaseConfig = {
 };
 
 /**
- * Get Firebase config based on environment
+ * Get Firebase config for environment
  */
-const getConfig = (): FirebaseConfig => {
-    const env = import.meta.env.VITE_ENV;
+const getConfigForEnv = (env: DeeplinkEnvironment): FirebaseConfig => {
     return env === 'PROD' ? PROD_CONFIG : DEV_CONFIG;
 };
 
 /**
+ * Get app name for environment
+ */
+const getAppName = (env: DeeplinkEnvironment): string => {
+    return `${APP_NAME_PREFIX}-${env.toLowerCase()}`;
+};
+
+/**
+ * Firebase instance for a specific environment
+ */
+interface FirebaseInstance {
+    app: FirebaseApp;
+    firestore: Firestore;
+    auth: Auth;
+    env: DeeplinkEnvironment;
+}
+
+/**
  * Firebase Service Class
- * Singleton pattern for managing Firebase instances
+ * Manages dual Firebase instances for DEV and PROD environments
  */
 class FirebaseService {
-    private app: FirebaseApp | null = null;
-    private firestore: Firestore | null = null;
-    private auth: Auth | null = null;
-    private initialized = false;
+    private instances: Map<DeeplinkEnvironment, FirebaseInstance> = new Map();
 
     /**
-     * Initialize Firebase with environment-based config
+     * Initialize Firebase for a specific environment
      */
-    initialize(): void {
-        if (this.initialized) {
-            return;
+    initializeForEnv(env: DeeplinkEnvironment): FirebaseInstance {
+        // Return existing instance if already initialized
+        const existing = this.instances.get(env);
+        if (existing) {
+            return existing;
         }
 
-        const config = getConfig();
+        const config = getConfigForEnv(env);
+        const appName = getAppName(env);
 
         // Check if app already exists
         const existingApps = getApps();
-        const existingApp = existingApps.find(app => app.name === APP_NAME);
+        let app = existingApps.find(a => a.name === appName);
 
-        if (existingApp) {
-            this.app = existingApp;
-        } else {
-            this.app = initializeApp(config, APP_NAME);
+        if (!app) {
+            app = initializeApp(config, appName);
         }
 
-        this.firestore = getFirestore(this.app);
-        this.auth = getAuth(this.app);
-        this.initialized = true;
+        const firestore = getFirestore(app);
+        const auth = getAuth(app);
 
-        console.log('[FirebaseService] Initialized for project:', config.projectId);
+        const instance: FirebaseInstance = { app, firestore, auth, env };
+        this.instances.set(env, instance);
+
+        console.log(`[FirebaseService] Initialized for ${env} (${config.projectId})`);
+
+        return instance;
     }
 
     /**
-     * Get Firebase app instance
+     * Get Firebase instance for environment
      */
-    getApp(): FirebaseApp {
-        if (!this.app) {
-            this.initialize();
+    private getInstance(env: DeeplinkEnvironment): FirebaseInstance {
+        let instance = this.instances.get(env);
+        if (!instance) {
+            instance = this.initializeForEnv(env);
         }
-        if (!this.app) {
-            throw new Error('Firebase app not initialized');
-        }
-        return this.app;
+        return instance;
     }
 
     /**
-     * Get Firestore instance
+     * Get Firestore instance for environment
      */
-    getFirestore(): Firestore {
-        if (!this.firestore) {
-            this.initialize();
-        }
-        if (!this.firestore) {
-            throw new Error('Firestore not initialized');
-        }
-        return this.firestore;
+    getFirestore(env: DeeplinkEnvironment): Firestore {
+        return this.getInstance(env).firestore;
     }
 
     /**
-     * Get Auth instance
+     * Get Auth instance for environment
      */
-    getAuth(): Auth {
-        if (!this.auth) {
-            this.initialize();
-        }
-        if (!this.auth) {
-            throw new Error('Firebase Auth not initialized');
-        }
-        return this.auth;
+    getAuth(env: DeeplinkEnvironment): Auth {
+        return this.getInstance(env).auth;
     }
 
     /**
-     * Get admin deeplinks collection reference
+     * Get deeplinks collection reference for environment
      */
-    getDeeplinksCollection(): CollectionReference {
-        return collection(this.getFirestore(), COLLECTION_NAME);
+    getDeeplinksCollection(env: DeeplinkEnvironment): CollectionReference {
+        return collection(this.getFirestore(env), COLLECTION_NAME);
     }
 
     /**
-     * Sign in anonymously
+     * Sign in anonymously for environment
      */
-    async signInAnonymously(): Promise<User> {
-        const auth = this.getAuth();
+    async signInAnonymously(env: DeeplinkEnvironment): Promise<User> {
+        const auth = this.getAuth(env);
 
         // Return existing user if already signed in
         if (auth.currentUser) {
@@ -158,33 +168,40 @@ class FirebaseService {
     }
 
     /**
-     * Sign out current user
+     * Sign out from environment
      */
-    async signOut(): Promise<void> {
-        const auth = this.getAuth();
+    async signOut(env: DeeplinkEnvironment): Promise<void> {
+        const auth = this.getAuth(env);
         await firebaseSignOut(auth);
     }
 
     /**
-     * Get current user
+     * Get current user for environment
      */
-    getCurrentUser(): User | null {
-        return this.getAuth().currentUser;
+    getCurrentUser(env: DeeplinkEnvironment): User | null {
+        return this.getAuth(env).currentUser;
     }
 
     /**
-     * Subscribe to auth state changes
+     * Subscribe to auth state changes for environment
      */
-    onAuthStateChanged(callback: (user: User | null) => void): () => void {
-        const auth = this.getAuth();
+    onAuthStateChanged(env: DeeplinkEnvironment, callback: (user: User | null) => void): () => void {
+        const auth = this.getAuth(env);
         return onAuthStateChanged(auth, callback);
     }
 
     /**
-     * Check if user is authenticated
+     * Check if user is authenticated for environment
      */
-    isAuthenticated(): boolean {
-        return this.getCurrentUser() !== null;
+    isAuthenticated(env: DeeplinkEnvironment): boolean {
+        return this.getCurrentUser(env) !== null;
+    }
+
+    /**
+     * Get deeplink URL base for environment
+     */
+    getDeeplinkUrlBase(env: DeeplinkEnvironment): string {
+        return DEEPLINK_URLS[env];
     }
 }
 
