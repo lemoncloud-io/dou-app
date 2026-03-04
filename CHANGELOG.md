@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-03-04] - No version updates
+
+### Features
+
+- (auth) add support for oauth endpoint override
+
+### Refactor
+
+- (api) update invite login endpoint
+- (auth) update login with invite code logic
+
 ## [2026-03-04] - root@0.1.0, @chatic/web@0.1.0, @chatic/admin@0.1.0
 
 ### Features
