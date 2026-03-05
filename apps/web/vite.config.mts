@@ -1,4 +1,7 @@
 /// <reference types='vitest' />
+import * as fs from 'fs';
+import * as path from 'path';
+
 import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import react from '@vitejs/plugin-react';
@@ -6,6 +9,32 @@ import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import svgr from 'vite-plugin-svgr';
 
 import webPkg from './package.json' with { type: 'json' };
+
+const copySharedPublicPlugin = () => {
+    const sharedPublicDir = path.resolve(import.meta.dirname, '../../assets/public');
+    return {
+        name: 'copy-shared-public',
+        configureServer(server: { middlewares: { use: (middleware: unknown) => void } }) {
+            server.middlewares.use((req: { url?: string }, res: { end: (data: Buffer) => void }, next: () => void) => {
+                if (!req.url) return next();
+                const filePath = path.join(sharedPublicDir, req.url);
+                if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+                    res.end(fs.readFileSync(filePath));
+                } else {
+                    next();
+                }
+            });
+        },
+        writeBundle() {
+            const outDir = path.resolve(import.meta.dirname, '../../dist/apps/web');
+            if (fs.existsSync(sharedPublicDir)) {
+                fs.readdirSync(sharedPublicDir).forEach(file => {
+                    fs.copyFileSync(path.join(sharedPublicDir, file), path.join(outDir, file));
+                });
+            }
+        },
+    };
+};
 
 const removeVitePrefix = (envVar: string) => envVar.replace('VITE_', '');
 
@@ -83,7 +112,14 @@ export default defineConfig({
         host: 'localhost',
     },
 
-    plugins: [htmlEnvInjectionPlugin(), svgr(), react(), nxViteTsPaths(), nxCopyAssetsPlugin(['*.md'])],
+    plugins: [
+        htmlEnvInjectionPlugin(),
+        svgr(),
+        react(),
+        nxViteTsPaths(),
+        nxCopyAssetsPlugin(['*.md']),
+        copySharedPublicPlugin(),
+    ],
 
     build: {
         sourcemap: process.env.VITE_ENV !== 'PROD',

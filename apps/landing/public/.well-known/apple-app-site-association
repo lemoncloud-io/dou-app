@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "CH8U9VM6SR.io.chatic.dou",
+        "paths": [ "*" ]
+      },
+      {
+        "appID": "CH8U9VM6SR.io.chatic.dou.dev",
+        "paths": [ "*" ]
+      }
+    ]
+  }
+}
