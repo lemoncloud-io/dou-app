@@ -18,8 +18,8 @@ export const ChatSettingsPage = () => {
     const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
     const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
-    const { leaveRoom } = useLeaveRoom();
-    const { deleteChannel } = useDeleteChannel();
+    const { leaveRoom, isPending: isLeavePending } = useLeaveRoom();
+    const { deleteChannel, isPending: isDeletePending } = useDeleteChannel();
     const { toast } = useToast();
 
     const { profile } = useSimpleWebCore();
@@ -34,6 +34,7 @@ export const ChatSettingsPage = () => {
     };
 
     const handleDeleteRoomClick = () => {
+        if (isDeletePending) return;
         handleDeleteRoom();
     };
 
@@ -140,14 +141,26 @@ export const ChatSettingsPage = () => {
                             <span className="text-[14px] font-medium text-[#84888F] mt-1">알림</span>
                         </div> */}
                         {isOwner ? (
-                            <button onClick={handleDeleteRoomClick} className="flex flex-col items-center">
+                            <button
+                                onClick={handleDeleteRoomClick}
+                                disabled={isDeletePending}
+                                className="flex flex-col items-center disabled:opacity-50"
+                            >
                                 <div className="w-[46px] h-[46px] flex items-center justify-center">
-                                    <Trash2 className="w-5 h-5 text-[#FF4C35]" />
+                                    {isDeletePending ? (
+                                        <div className="w-5 h-5 border-2 border-[#FF4C35] border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <Trash2 className="w-5 h-5 text-[#FF4C35]" />
+                                    )}
                                 </div>
                                 <span className="text-[14px] font-medium text-[#84888F] mt-1">방 삭제</span>
                             </button>
                         ) : (
-                            <button onClick={handleLeaveRoomClick} className="flex flex-col items-center">
+                            <button
+                                onClick={handleLeaveRoomClick}
+                                disabled={isLeavePending}
+                                className="flex flex-col items-center disabled:opacity-50"
+                            >
                                 <div className="w-[46px] h-[46px] flex items-center justify-center">
                                     <LogOut className="w-5 h-5 text-black" />
                                 </div>

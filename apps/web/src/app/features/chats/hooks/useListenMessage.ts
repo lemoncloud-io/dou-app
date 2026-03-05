@@ -41,8 +41,10 @@ export const useListenMessage = () => {
 
         if (envelope.action !== 'create') return;
 
-        // 누군가 입장한 경우
+        // 누군가 입장한 경우 - joined < 1이면 최초 초대 이벤트이므로 무시
         if (envelope.payload?.sourceType === 'join') {
+            const joined = (envelope.payload as unknown as { joined?: number })?.joined ?? 0;
+            if (joined < 1) return;
             const nick = (envelope.payload as unknown as { nick?: string })?.nick ?? '알 수 없음';
             const timestamp = new Date();
             addMessage(
