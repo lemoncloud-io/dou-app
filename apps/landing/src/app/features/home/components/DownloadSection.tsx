@@ -1,35 +1,60 @@
+import { useTranslation } from 'react-i18next';
+
 import { storeUrls } from '../constants';
 
-export const DownloadSection = (): JSX.Element => (
-    <section className="w-full py-16 sm:py-24 px-6 bg-[#222325]">
-        <div className="max-w-[800px] mx-auto text-center">
-            <h2 className="text-[28px] sm:text-[36px] xl:text-[40px] font-bold text-white mb-4">지금 시작하세요</h2>
-            <p className="text-[16px] sm:text-[18px] text-[#babcc0] mb-10 sm:mb-12">
-                DoU와 함께 안전한 대화를 경험해보세요
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <a
-                    href={storeUrls.ios}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-3 bg-white text-[#222325] px-8 py-4 rounded-xl text-[16px] font-medium hover:bg-[#f4f5f5] transition-colors min-w-[200px]"
-                >
-                    <AppleIcon />
-                    App Store
-                </a>
-                <a
-                    href={storeUrls.android}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-3 bg-[#c4ff00] text-[#222325] px-8 py-4 rounded-xl text-[16px] font-medium hover:bg-[#b3e600] transition-colors min-w-[200px]"
-                >
-                    <PlayStoreIcon />
-                    Google Play
-                </a>
+export const DownloadSection = (): JSX.Element => {
+    const { t } = useTranslation();
+
+    return (
+        <section className="relative w-full py-20 sm:py-28 px-6 bg-gradient-to-b from-[#0a0a0f] to-[#12131a] overflow-hidden">
+            {/* Background glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[#c4ff00]/5 rounded-full blur-3xl" />
+
+            <div className="relative z-10 max-w-[800px] mx-auto text-center">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4 animate-fade-in-up">
+                    {t('download.title')}
+                </h2>
+                <p className="text-base sm:text-lg text-white/50 mb-10 sm:mb-12 animate-fade-in-up animate-delay-100">
+                    {t('download.subtitle')}
+                </p>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up animate-delay-200">
+                    <a
+                        href={storeUrls.ios}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group btn-shimmer inline-flex items-center justify-center gap-3
+                                   bg-white text-[#0a0a0f]
+                                   px-8 py-4 rounded-xl text-base font-semibold
+                                   w-full sm:w-auto sm:min-w-[240px]
+                                   transition-all duration-300
+                                   hover:shadow-lg hover:shadow-white/10
+                                   hover:-translate-y-0.5 active:translate-y-0"
+                    >
+                        <AppleIcon />
+                        {t('download.appStore')}
+                    </a>
+
+                    <a
+                        href={storeUrls.android}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group btn-shimmer inline-flex items-center justify-center gap-3
+                                   bg-[#c4ff00] text-[#0a0a0f]
+                                   px-8 py-4 rounded-xl text-base font-semibold
+                                   w-full sm:w-auto sm:min-w-[240px]
+                                   transition-all duration-300
+                                   hover:shadow-lg hover:shadow-[#c4ff00]/20
+                                   hover:-translate-y-0.5 active:translate-y-0"
+                    >
+                        <PlayStoreIcon />
+                        {t('download.googlePlay')}
+                    </a>
+                </div>
             </div>
-        </div>
-    </section>
-);
+        </section>
+    );
+};
 
 const AppleIcon = () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">

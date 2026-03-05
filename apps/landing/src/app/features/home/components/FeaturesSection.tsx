@@ -1,20 +1,30 @@
-import { FeatureCard } from './FeatureCard';
-import { features } from '../constants';
+import { useTranslation } from 'react-i18next';
 
-export const FeaturesSection = (): JSX.Element => (
-    <section className="w-full py-16 sm:py-24 px-6 bg-white">
-        <div className="max-w-[1200px] mx-auto">
-            <h2 className="text-[28px] sm:text-[36px] xl:text-[40px] font-bold text-[#222325] text-center mb-4">
-                DoU의 특별한 기능
-            </h2>
-            <p className="text-[16px] sm:text-[18px] text-[#53555b] text-center mb-12 sm:mb-16">
-                프라이버시를 지키며 안전하게 소통하세요
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-                {features.map(feature => (
-                    <FeatureCard key={feature.id} feature={feature} />
-                ))}
+import { FeatureCard } from './FeatureCard';
+
+const featureKeys = ['private', 'safe', 'group', 'memo'] as const;
+
+export const FeaturesSection = (): JSX.Element => {
+    const { t } = useTranslation();
+
+    return (
+        <section className="w-full py-20 sm:py-28 px-6 bg-[#0a0a0f]">
+            <div className="max-w-[1200px] mx-auto">
+                <div className="text-center mb-12 sm:mb-16">
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4 animate-fade-in-up">
+                        {t('features.title')}
+                    </h2>
+                    <p className="text-base sm:text-lg text-white/50 animate-fade-in-up animate-delay-100">
+                        {t('features.subtitle')}
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                    {featureKeys.map((key, index) => (
+                        <FeatureCard key={key} featureKey={key} index={index} />
+                    ))}
+                </div>
             </div>
-        </div>
-    </section>
-);
+        </section>
+    );
+};

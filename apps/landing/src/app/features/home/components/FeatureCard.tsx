@@ -1,61 +1,98 @@
-import type { Feature } from '../constants';
+import { useTranslation } from 'react-i18next';
 
 interface FeatureCardProps {
-    feature: Feature;
+    featureKey: 'private' | 'safe' | 'group' | 'memo';
+    index: number;
 }
 
 const featureIcons: Record<string, JSX.Element> = {
-    place: <PlaceIcon />,
-    invite: <InviteIcon />,
-    security: <SecurityIcon />,
     private: <PrivateIcon />,
+    safe: <SafeIcon />,
+    group: <GroupIcon />,
+    memo: <MemoIcon />,
 };
 
-export const FeatureCard = ({ feature }: FeatureCardProps): JSX.Element => (
-    <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-[#eaeaec] hover:shadow-md transition-shadow">
-        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#c4ff00] rounded-xl flex items-center justify-center mb-4 sm:mb-6">
-            {featureIcons[feature.id]}
+export const FeatureCard = ({ featureKey, index }: FeatureCardProps): JSX.Element => {
+    const { t } = useTranslation();
+    const delayClass = `animate-delay-${(index + 1) * 100}`;
+
+    return (
+        <div
+            className={`group relative bg-[#12131a] rounded-2xl p-6 sm:p-8
+                       border border-white/5
+                       transition-all duration-300 ease-out
+                       hover:border-[#c4ff00]/20
+                       hover:bg-[#1a1b23]
+                       hover:-translate-y-1
+                       animate-fade-in-up ${delayClass}`}
+        >
+            {/* Icon */}
+            <div
+                className="w-14 h-14 bg-[#c4ff00]/10 rounded-xl
+                          flex items-center justify-center mb-5
+                          transition-all duration-300
+                          group-hover:bg-[#c4ff00] group-hover:scale-110"
+            >
+                <div className="text-[#c4ff00] group-hover:text-[#0a0a0f] transition-colors">
+                    {featureIcons[featureKey]}
+                </div>
+            </div>
+
+            {/* Title */}
+            <h3 className="text-lg sm:text-xl font-bold text-white mb-2">{t(`features.${featureKey}.title`)}</h3>
+
+            {/* Description */}
+            <p className="text-sm sm:text-base text-white/50 leading-relaxed">
+                {t(`features.${featureKey}.description`)}
+            </p>
+
+            {/* Hover glow effect */}
+            <div
+                className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#c4ff00]/0 to-[#c4ff00]/5
+                          opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+            />
         </div>
-        <h3 className="text-[18px] sm:text-[20px] font-semibold text-[#222325] mb-2 sm:mb-3 leading-snug">
-            {feature.title}
-        </h3>
-        <p className="text-[14px] sm:text-[16px] text-[#53555b] leading-relaxed">{feature.description}</p>
-    </div>
-);
-
-function PlaceIcon() {
-    return (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#222325" strokeWidth="2">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
-        </svg>
     );
-}
-
-function InviteIcon() {
-    return (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#222325" strokeWidth="2">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <line x1="19" y1="8" x2="19" y2="14" />
-            <line x1="22" y1="11" x2="16" y2="11" />
-        </svg>
-    );
-}
-
-function SecurityIcon() {
-    return (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#222325" strokeWidth="2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        </svg>
-    );
-}
+};
 
 function PrivateIcon() {
     return (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#222325" strokeWidth="2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+    );
+}
+
+function SafeIcon() {
+    return (
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <path d="M9 12l2 2 4-4" />
+        </svg>
+    );
+}
+
+function GroupIcon() {
+    return (
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            <path d="M8 9h8" />
+            <path d="M8 13h6" />
+        </svg>
+    );
+}
+
+function MemoIcon() {
+    return (
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
         </svg>
     );
 }
