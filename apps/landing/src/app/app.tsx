@@ -1,11 +1,7 @@
-import NxWelcome from './nx-welcome';
+import { Router } from './routes';
 
-export function App() {
-    return (
-        <div>
-            <NxWelcome title="@chatic/landing" />
-        </div>
-    );
-}
+export const App = (): JSX.Element => {
+    return <Router />;
+};
 
 export default App;
