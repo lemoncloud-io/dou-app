@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-03-05] - root@0.3.0, @chatic/web@0.3.0
+
+### Features
+
+- add useDeleteChannel, handle channel-deleted event in ChatRoomPage and useMyChannels
+- add 10s timeout and retry to useMyChannels channel list
+- add delete loading state, skip duplicate join create events
+
+### Chores
+
+- bump chatic-sockets-api to 0.26.123 and update lock files
+
 ## [2026-03-04] - root@0.2.0, @chatic/web@0.2.0
 
 ### Features
