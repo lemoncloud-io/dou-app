@@ -27,10 +27,10 @@ export const PolicyPageLayout = ({
             style={{ WebkitOverflowScrolling: 'touch' }}
         >
             {/* Logo Section */}
-            <div className="w-full border-b border-gray-100">
+            <div className="w-full border-b border-[#eaeaec]">
                 <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-4 sm:py-5">
                     <Link to="/" className="inline-block hover:opacity-80 transition-opacity">
-                        <span className="text-[24px] font-bold text-indigo-600">DoU</span>
+                        <span className="text-[24px] font-bold text-[#222325]">DoU</span>
                     </Link>
                 </div>
             </div>

@@ -51,7 +51,7 @@
         "admin:deploy:dev": "(rm -rf ./dist/apps/admin || true) && yarn admin:build:dev && ./scripts/deploy-admin.sh dev",
         "admin:deploy:prod": "(rm -rf ./dist/apps/admin || true) && yarn admin:build:prod && ./scripts/deploy-admin.sh prod",
         "!landing": "------------- Landing scripts -------------",
-        "landing:start": "npx nx serve admin --port 5004",
+        "landing:start": "npx nx serve landing --port 5004",
         "landing:build:prod": "yarn clean:cache && npx nx build --configuration=prod landing",
         "landing:deploy:prod": "(rm -rf ./dist/apps/landing || true) && yarn landing:build:prod && ./scripts/deploy-landing.sh prod"
     },
