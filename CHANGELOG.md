@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-03-05] - root@0.4.0, @chatic/web@0.4.0, @chatic/admin@0.2.0
+
+### Features
+
+- setup landing app folder
+- migrate landing from clipbiz
+- setup landing
+- update landing page
+- integrate deeplink to landing
+- centralize favicon
+
+### Other
+
+- ci: add landing project to deploy workflows
+
 ## [2026-03-05] - root@0.3.0, @chatic/web@0.3.0
 
 ### Features
