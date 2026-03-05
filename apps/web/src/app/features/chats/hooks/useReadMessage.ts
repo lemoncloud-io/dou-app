@@ -5,6 +5,7 @@ import { useSimpleWebCore } from '@chatic/web-core';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chats/model';
 import { IndexedDBStorageAdapter } from '../storages/IndexedDBStorageAdapter';
+import { useMyChannel } from './useMyChannel';
 
 export const useReadMessage = (
     channelId: string | undefined,
@@ -13,18 +14,17 @@ export const useReadMessage = (
 ) => {
     const { emit, lastMessage } = useWebSocketV2();
     const { profile } = useSimpleWebCore();
+    const { channel } = useMyChannel(channelId ?? null);
 
-    // 진입 시 + 새 메시지 추가될 때마다: 마지막 chatNo 기준으로 무조건 read emit
+    // 마운트 시: channel의 lastChat$.chatNo 기준으로 무조건 read emit
     useEffect(() => {
-        if (!channelId || !messages.length || !profile?.id) return;
-
-        const lastChatNo = messages[messages.length - 1]?.chatNo;
-        if (!lastChatNo) return;
-
-        emit({ type: 'chat', action: 'read', payload: { channelId, chatNo: lastChatNo } });
-        applyReadEvent?.(lastChatNo, profile.id);
+        if (!channelId || !profile?.id) return;
+        const chatNo = (channel?.lastChat$ as { chatNo?: number } | undefined)?.chatNo;
+        if (!chatNo) return;
+        emit({ type: 'chat', action: 'read', payload: { channelId, chatNo } });
+        applyReadEvent?.(chatNo, profile.id);
         IndexedDBStorageAdapter.markAllRead(profile.id, channelId).catch(console.error);
-    }, [messages.length]);
+    }, [channelId]);
 
     // type:chat action:read 또는 type:model action:update sourceType:join 수신 시 applyReadEvent
     useEffect(() => {
