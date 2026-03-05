@@ -3,6 +3,28 @@
         "terms": "이용약관",
         "privacy": "개인정보처리방침"
     },
+    "deeplink": {
+        "title": {
+            "openApp": "DoU 앱으로 이동",
+            "launching": "앱을 여는 중...",
+            "download": "DoU 앱 다운로드"
+        },
+        "subtitle": {
+            "checkInstall": "앱 설치 확인을 위해",
+            "pressButton": "아래 버튼을 눌러주세요",
+            "notInstalled": "앱이 설치되어 있지 않습니다",
+            "downloadFromStore": "스토어에서 다운로드해 주세요"
+        },
+        "button": {
+            "openInApp": "DoU 앱에서 열기",
+            "downloadFrom": "{{store}}에서 다운로드"
+        },
+        "desktop": {
+            "message": "모바일 기기에서 접속해 주세요.",
+            "ios": "App Store에서 'DoU' 검색",
+            "android": "Google Play에서 'DoU' 검색"
+        }
+    },
     "hero": {
         "badge": "프라이버시 우선 메시징",
         "title1": "소중한 대화는",

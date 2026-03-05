@@ -3,6 +3,28 @@
         "terms": "Terms of Service",
         "privacy": "Privacy Policy"
     },
+    "deeplink": {
+        "title": {
+            "openApp": "Open in DoU App",
+            "launching": "Opening app...",
+            "download": "Download DoU App"
+        },
+        "subtitle": {
+            "checkInstall": "To check if the app is installed,",
+            "pressButton": "please press the button below",
+            "notInstalled": "The app is not installed",
+            "downloadFromStore": "Please download from the store"
+        },
+        "button": {
+            "openInApp": "Open in DoU App",
+            "downloadFrom": "Download from {{store}}"
+        },
+        "desktop": {
+            "message": "Please access from a mobile device.",
+            "ios": "Search 'DoU' on App Store",
+            "android": "Search 'DoU' on Google Play"
+        }
+    },
     "hero": {
         "badge": "Privacy-First Messaging",
         "title1": "Meaningful conversations",

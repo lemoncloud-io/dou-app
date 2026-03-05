@@ -19,7 +19,7 @@ i18n.use(LanguageDetector)
             escapeValue: false,
         },
         detection: {
-            order: ['navigator', 'htmlTag'],
+            order: ['localStorage', 'navigator', 'htmlTag'],
             caches: ['localStorage'],
             lookupLocalStorage: '@landing.language',
         },

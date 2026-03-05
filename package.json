@@ -52,7 +52,9 @@
         "admin:deploy:prod": "(rm -rf ./dist/apps/admin || true) && yarn admin:build:prod && ./scripts/deploy-admin.sh prod",
         "!landing": "------------- Landing scripts -------------",
         "landing:start": "npx nx serve landing --port 5004",
+        "landing:build:dev": "yarn clean:cache && npx nx build --configuration=dev landing",
         "landing:build:prod": "yarn clean:cache && npx nx build --configuration=prod landing",
+        "landing:deploy:dev": "(rm -rf ./dist/apps/landing || true) && yarn landing:build:dev && ./scripts/deploy-landing.sh dev",
         "landing:deploy:prod": "(rm -rf ./dist/apps/landing || true) && yarn landing:build:prod && ./scripts/deploy-landing.sh prod"
     },
     "private": true,

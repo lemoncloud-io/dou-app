@@ -22,13 +22,11 @@ export const VersionSelector = ({ versions, currentVersion, onVersionChange }: V
         <div className="relative w-full sm:w-auto">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-white border-2 border-[#222325] rounded-[20px] text-[14px] sm:text-[16px] font-semibold text-[#222325] hover:bg-[#f4f5f5] transition-colors flex items-center justify-between gap-3"
+                className="w-full sm:w-auto px-4 py-2.5 bg-white border border-[#dfe0e2] rounded-lg text-[14px] font-medium text-[#222325] hover:border-[#babcc0] hover:bg-[#f4f5f5] transition-all flex items-center justify-between gap-2 whitespace-nowrap"
             >
-                <span>
-                    {selectedVersionData?.version} ({selectedVersionData?.effectiveDate})
-                </span>
+                <span>{selectedVersionData?.version}</span>
                 <svg
-                    className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    className={`w-4 h-4 text-[#84888f] transition-transform ${isOpen ? 'rotate-180' : ''}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -40,20 +38,25 @@ export const VersionSelector = ({ versions, currentVersion, onVersionChange }: V
             {isOpen && (
                 <>
                     <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-                    <div className="absolute z-20 w-full mt-2 bg-white border-2 border-[#222325] rounded-[20px] shadow-lg overflow-hidden">
+                    <div className="absolute right-0 z-20 min-w-[180px] mt-1 bg-white border border-[#dfe0e2] rounded-lg shadow-lg overflow-hidden">
                         {versions.map(version => (
                             <button
                                 key={version.version}
                                 onClick={() => handleVersionSelect(version.version)}
-                                className={`w-full px-4 sm:px-6 py-2 sm:py-3 text-left text-[14px] sm:text-[16px] hover:bg-[#f4f5f5] transition-colors ${
+                                className={`w-full px-4 py-3 text-left text-[14px] hover:bg-[#f4f5f5] transition-colors flex items-center justify-between gap-3 ${
                                     version.version === currentVersion
-                                        ? 'bg-[#c4ff00]/20 text-[#222325] font-semibold'
+                                        ? 'bg-[#f4f5f5] text-[#222325] font-medium'
                                         : 'text-[#53555b]'
                                 }`}
                             >
-                                {version.version} ({version.effectiveDate})
+                                <div className="flex flex-col">
+                                    <span className="font-medium text-[#222325]">{version.version}</span>
+                                    <span className="text-[12px] text-[#84888f]">{version.effectiveDate}</span>
+                                </div>
                                 {version.version === currentVersion && (
-                                    <span className="ml-2 text-[12px]">현재 버전</span>
+                                    <span className="px-2 py-0.5 bg-[#c4ff00] text-[#222325] text-[11px] font-semibold rounded">
+                                        현재
+                                    </span>
                                 )}
                             </button>
                         ))}
