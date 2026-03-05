@@ -1,0 +1,70 @@
+{
+    "header": {
+        "terms": "Terms of Service",
+        "privacy": "Privacy Policy"
+    },
+    "deeplink": {
+        "title": {
+            "openApp": "Open in DoU App",
+            "launching": "Opening app...",
+            "download": "Download DoU App"
+        },
+        "subtitle": {
+            "checkInstall": "To check if the app is installed,",
+            "pressButton": "please press the button below",
+            "notInstalled": "The app is not installed",
+            "downloadFromStore": "Please download from the store"
+        },
+        "button": {
+            "openInApp": "Open in DoU App",
+            "downloadFrom": "Download from {{store}}"
+        },
+        "desktop": {
+            "message": "Please access from a mobile device.",
+            "ios": "Search 'DoU' on App Store",
+            "android": "Search 'DoU' on Google Play"
+        }
+    },
+    "hero": {
+        "badge": "Privacy-First Messaging",
+        "title1": "Meaningful conversations",
+        "title2": "deserve safe spaces.",
+        "subtitle": "A private community with people you invite. Experience focused conversations and secure communication.",
+        "appStore": "App Store",
+        "googlePlay": "Google Play"
+    },
+    "features": {
+        "title": "What Makes DoU Special",
+        "subtitle": "Communicate safely while protecting your privacy",
+        "private": {
+            "title": "Private Community",
+            "description": "Create up to 5 spaces and 5 chat rooms to share the right conversations with the right people"
+        },
+        "safe": {
+            "title": "Safe Conversation Space",
+            "description": "Chat securely with friends who received your invite link"
+        },
+        "group": {
+            "title": "Group Communication",
+            "description": "Up to 100 members for focused discussions and active participation"
+        },
+        "memo": {
+            "title": "Personal Memo Space",
+            "description": "Organize tasks and quick notes in your own private memo space"
+        }
+    },
+    "download": {
+        "title": "Get Started Now",
+        "subtitle": "Experience secure messaging with DoU",
+        "appStore": "Download on App Store",
+        "googlePlay": "Get it on Google Play"
+    },
+    "footer": {
+        "ceo": "CEO",
+        "ceoName": "Donghyuk Kim",
+        "email": "Email",
+        "terms": "Terms of Service",
+        "privacy": "Privacy Policy",
+        "copyright": "Copyrightⓒ2026 LEMONCLOUD. All rights reserved."
+    }
+}

@@ -1,0 +1,70 @@
+{
+    "header": {
+        "terms": "이용약관",
+        "privacy": "개인정보처리방침"
+    },
+    "deeplink": {
+        "title": {
+            "openApp": "DoU 앱으로 이동",
+            "launching": "앱을 여는 중...",
+            "download": "DoU 앱 다운로드"
+        },
+        "subtitle": {
+            "checkInstall": "앱 설치 확인을 위해",
+            "pressButton": "아래 버튼을 눌러주세요",
+            "notInstalled": "앱이 설치되어 있지 않습니다",
+            "downloadFromStore": "스토어에서 다운로드해 주세요"
+        },
+        "button": {
+            "openInApp": "DoU 앱에서 열기",
+            "downloadFrom": "{{store}}에서 다운로드"
+        },
+        "desktop": {
+            "message": "모바일 기기에서 접속해 주세요.",
+            "ios": "App Store에서 'DoU' 검색",
+            "android": "Google Play에서 'DoU' 검색"
+        }
+    },
+    "hero": {
+        "badge": "프라이버시 우선 메시징",
+        "title1": "소중한 대화는",
+        "title2": "안전한 공간에서",
+        "subtitle": "초대받은 사람들과 함께하는 프라이빗 커뮤니티. 집중된 대화, 안전한 소통을 경험하세요.",
+        "appStore": "App Store",
+        "googlePlay": "Google Play"
+    },
+    "features": {
+        "title": "DoU의 특별한 기능",
+        "subtitle": "프라이버시를 지키며 안전하게 소통하세요",
+        "private": {
+            "title": "프라이빗 커뮤니티",
+            "description": "최대 5개의 대화공간과, 5개의 채팅방으로 필요한 사람들과 필요한 이야기를 나눠요"
+        },
+        "safe": {
+            "title": "안전한 대화 공간",
+            "description": "초대 링크를 받은 친구끼리 안전하게 대화가 가능해요"
+        },
+        "group": {
+            "title": "그룹 소통",
+            "description": "최대 100명의 적정 규모로 더 집중된 대화와 활발한 참여가 가능해요"
+        },
+        "memo": {
+            "title": "나에게 보내는 메모 공간",
+            "description": "할 일 정리, 빠른 기록까지 나만 보는 개인 메모 공간을 활용해요"
+        }
+    },
+    "download": {
+        "title": "지금 바로 시작하세요",
+        "subtitle": "DoU와 함께 안전한 대화를 경험해보세요",
+        "appStore": "App Store에서 다운로드",
+        "googlePlay": "Google Play에서 다운로드"
+    },
+    "footer": {
+        "ceo": "대표자",
+        "ceoName": "김동혁",
+        "email": "이메일",
+        "terms": "이용약관",
+        "privacy": "개인정보처리방침",
+        "copyright": "Copyrightⓒ2026 LEMONCLOUD. All rights reserved."
+    }
+}

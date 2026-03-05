@@ -11,6 +11,7 @@ jobs:
         outputs:
             web: ${{ steps.filter.outputs.web == 'true' && 'true' || 'false' }}
             admin: ${{ steps.filter.outputs.admin == 'true' && 'true' || 'false' }}
+            landing: ${{ steps.filter.outputs.landing == 'true' && 'true' || 'false' }}
             projects: ${{ steps.filter.outputs.changes }}
             matrix: ${{ steps.set-matrix.outputs.matrix }}
             has-changes: ${{ steps.set-matrix.outputs.has-changes }}
@@ -42,6 +43,15 @@ jobs:
                           - 'apps/web/tsconfig*.json'
                           - 'apps/web/tailwind.config.js'
                           - 'apps/web/postcss.config.js'
+                      landing:
+                          - 'apps/landing/src/**'
+                          - 'apps/landing/public/**'
+                          - 'apps/landing/index.html'
+                          - 'apps/landing/vite.config.mts'
+                          - 'apps/landing/project.json'
+                          - 'apps/landing/tsconfig*.json'
+                          - 'apps/landing/tailwind.config.js'
+                          - 'apps/landing/postcss.config.js'
 
             - name: Set matrix for changed projects
               id: set-matrix
@@ -49,6 +59,7 @@ jobs:
                   PROJECTS=()
                   [[ "${{ steps.filter.outputs.web }}" == "true" ]] && PROJECTS+=('"web"')
                   [[ "${{ steps.filter.outputs.admin }}" == "true" ]] && PROJECTS+=('"admin"')
+                  [[ "${{ steps.filter.outputs.landing }}" == "true" ]] && PROJECTS+=('"landing"')
 
                   if [ ${#PROJECTS[@]} -eq 0 ]; then
                       echo "matrix=[]" >> $GITHUB_OUTPUT
@@ -61,7 +72,7 @@ jobs:
 
     get-version:
         needs: changes
-        if: ${{ needs.changes.outputs.admin == 'true' || needs.changes.outputs.web == 'true' }}
+        if: ${{ needs.changes.outputs.admin == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.landing == 'true' }}
         name: Build and Set Version
         runs-on: ubuntu-latest
         permissions:
@@ -71,6 +82,7 @@ jobs:
             root-version: ${{ steps.get-root-version.outputs.root-version }}
             web-version: ${{ steps.get-web-version.outputs.web-version }}
             admin-version: ${{ steps.get-admin-version.outputs.admin-version }}
+            landing-version: ${{ steps.get-landing-version.outputs.landing-version }}
         steps:
             - name: Check out a copy of the repo
               uses: actions/checkout@v4
@@ -139,6 +151,17 @@ jobs:
                   fi
                   echo "admin-version=${ADMIN_VERSION}" >> $GITHUB_OUTPUT
 
+            - name: Get Landing Version
+              if: ${{ needs.changes.outputs.landing == 'true' }}
+              id: get-landing-version
+              run: |
+                  LANDING_VERSION=$(node -p "require('./apps/landing/package.json').version")
+                  if ! echo "$LANDING_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+                    echo "Error: Invalid landing version format: $LANDING_VERSION"
+                    exit 1
+                  fi
+                  echo "landing-version=${LANDING_VERSION}" >> $GITHUB_OUTPUT
+
     build-and-deploy:
         needs: [changes, get-version]
         if: ${{ needs.changes.outputs.has-changes == 'true' }}
@@ -195,7 +218,7 @@ jobs:
 
     notify-slack:
         needs: [changes, get-version, build-and-deploy]
-        if: ${{ success() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true') }}
+        if: ${{ success() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true') }}
         name: Notify Slack
         runs-on: ubuntu-latest
         permissions:
@@ -231,6 +254,10 @@ jobs:
 
                   if [[ "${{ needs.changes.outputs.admin }}" == "true" ]]; then
                       DEPLOY_MESSAGES+=("• *어드민* <https://admin.chatic.io/|PROD 서버> \`v${{ needs.get-version.outputs.admin-version }}\`")
+                  fi
+
+                  if [[ "${{ needs.changes.outputs.landing }}" == "true" ]]; then
+                      DEPLOY_MESSAGES+=("• *랜딩* <https://app.chatic.io/|PROD 서버> \`v${{ needs.get-version.outputs.landing-version }}\`")
                   fi
 
                   if [ ${#DEPLOY_MESSAGES[@]} -eq 0 ]; then
@@ -317,7 +344,7 @@ jobs:
 
     notify-slack-failure:
         needs: [changes, get-version, build-and-deploy]
-        if: ${{ failure() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true') }}
+        if: ${{ failure() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true') }}
         name: Notify Slack - Failure
         runs-on: ubuntu-latest
         steps:
@@ -335,6 +362,10 @@ jobs:
 
                   if [[ "${{ needs.changes.outputs.admin }}" == "true" ]]; then
                       DEPLOY_MESSAGES+=("• *어드민* PROD 서버")
+                  fi
+
+                  if [[ "${{ needs.changes.outputs.landing }}" == "true" ]]; then
+                      DEPLOY_MESSAGES+=("• *랜딩* PROD 서버")
                   fi
 
                   if [ ${#DEPLOY_MESSAGES[@]} -eq 0 ]; then

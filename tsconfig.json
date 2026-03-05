@@ -53,6 +53,9 @@
         },
         {
             "path": "./libs/deeplinks"
+        },
+        {
+            "path": "./apps/landing"
         }
     ]
 }

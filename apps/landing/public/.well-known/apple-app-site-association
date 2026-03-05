@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "REDACTED_TEAM_ID.io.chatic.dou",
+        "paths": [ "*" ]
+      },
+      {
+        "appID": "REDACTED_TEAM_ID.io.chatic.dou.dev",
+        "paths": [ "*" ]
+      }
+    ]
+  }
+}
