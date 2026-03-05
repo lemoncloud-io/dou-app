@@ -153,7 +153,7 @@
         "@react-native/babel-preset": "~0.83.0",
         "@react-native/metro-config": "~0.83.0",
         "@swc-node/register": "~1.9.1",
-        "@swc/cli": "~0.3.12",
+        "@swc/cli": "~0.6.0",
         "@swc/core": "~1.5.7",
         "@swc/helpers": "~0.5.11",
         "@testing-library/react": "15.0.6",
