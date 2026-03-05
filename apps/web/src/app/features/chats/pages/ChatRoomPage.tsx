@@ -2,7 +2,6 @@ import { ChevronLeft, Ellipsis } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { useLeaveRoom } from '../hooks/useLeaveRoom';
 import { useSendMessage } from '../hooks/useSendMessage';
 import { useMyChannel } from '../hooks/useMyChannel';
 import {
@@ -13,7 +12,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
 import { useSimpleWebCore } from '@chatic/web-core';
-import { useWebSocketV2 } from '@chatic/socket';
+import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useReadMessage } from '../hooks/useReadMessage';
@@ -28,7 +27,6 @@ export const ChatRoomPage = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { emit } = useWebSocketV2();
     const { sendMessage, isPending } = useSendMessage();
-    const { leaveRoom } = useLeaveRoom();
     const { toast } = useToast();
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
@@ -42,20 +40,18 @@ export const ChatRoomPage = () => {
         applyReadEvent,
     } = useChatMessages(profile?.id ?? null, channelId ?? null);
 
+    const lastMessage = useWebSocketV2Store(s => s.lastMessage);
+
     useReadMessage(channelId, messages, applyReadEvent);
 
-    const handleLeaveRoom = async () => {
-        if (!channelId) return;
-
-        try {
-            await leaveRoom(channelId, profile?.id);
-            await clearChatMessages();
-            toast({ title: '채팅방을 나갔습니다' });
-            navigate(-1);
-        } catch (error) {
-            console.error('Failed to leave room:', error);
-        }
-    };
+    useEffect(() => {
+        if (lastMessage?.type !== 'model' || lastMessage.action !== 'update') return;
+        const payload = lastMessage.payload as { reason?: string; channelId?: string } | undefined;
+        if (payload?.reason !== 'channel-deleted' || payload.channelId !== channelId) return;
+        setChannels(prev => prev.filter(ch => ch.id !== channelId));
+        clearChatMessages();
+        navigate('/', { replace: true });
+    }, [lastMessage]);
 
     const scrollToBottom = () => {
         if (messagesEndRef.current) {
@@ -247,9 +243,6 @@ export const ChatRoomPage = () => {
                             className="cursor-pointer"
                         >
                             <span>설정</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleLeaveRoom} className="cursor-pointer text-destructive">
-                            <span>방 나가기</span>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
