@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
 import { useMyChannel } from '../hooks/useMyChannel';
+import { useDeleteChannel } from '../hooks/useDeleteChannel';
 import { useLeaveRoom } from '../hooks/useLeaveRoom';
 import { useChatMessages } from '../hooks/useChatMessages';
 import { useSimpleWebCore } from '@chatic/web-core';
@@ -18,6 +19,7 @@ export const ChatSettingsPage = () => {
     const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
     const { leaveRoom } = useLeaveRoom();
+    const { deleteChannel } = useDeleteChannel();
     const { toast } = useToast();
 
     const { profile } = useSimpleWebCore();
@@ -49,8 +51,17 @@ export const ChatSettingsPage = () => {
         }
     };
 
-    const handleDeleteRoom = () => {
-        toast({ title: '방 삭제 기능은 아직 지원되지 않습니다' });
+    const handleDeleteRoom = async () => {
+        if (!channelId) return;
+
+        try {
+            await deleteChannel(channelId);
+            toast({ title: '채팅방이 삭제되었습니다' });
+            navigate('/', { replace: true });
+        } catch (error) {
+            console.error('Failed to delete room:', error);
+            toast({ title: '방 삭제에 실패했습니다', variant: 'destructive' });
+        }
     };
 
     if (isLoading) {

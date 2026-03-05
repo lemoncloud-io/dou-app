@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
+import { useSimpleWebCore } from '@chatic/web-core';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
@@ -21,7 +22,7 @@ const setGlobalState = (channels: ChannelView[], isLoading: boolean, isError: bo
 };
 
 // 훅 외부에서 싱글톤으로 소켓 메시지 처리
-const bootstrap = (emitAuthenticated: (msg: object) => void) => {
+const bootstrap = (emitAuthenticated: (msg: object) => void, profileId: string) => {
     if (isBootstrapped) return;
     isBootstrapped = true;
 
@@ -30,8 +31,41 @@ const bootstrap = (emitAuthenticated: (msg: object) => void) => {
     useWebSocketV2Store.subscribe(
         s => s.lastMessage,
         lastMessage => {
-            const envelope = lastMessage as WSSEnvelope<{ list: ChannelView[]; sourceType?: string }> | null;
+            const envelope = lastMessage as WSSEnvelope<{
+                list: ChannelView[];
+                sourceType?: string;
+                userId?: string;
+                channelId?: string;
+            }> | null;
             if (!envelope) return;
+
+            if (envelope.type === 'model' && envelope.action === 'delete' && envelope.payload?.sourceType === 'join') {
+                const { userId, channelId } = envelope.payload;
+                if (userId === profileId && channelId) {
+                    setGlobalState(
+                        globalChannels.filter(ch => ch.id !== channelId),
+                        false,
+                        false
+                    );
+                }
+                return;
+            }
+
+            if (
+                envelope.type === 'model' &&
+                envelope.action === 'update' &&
+                (envelope.payload as { reason?: string })?.reason === 'channel-deleted'
+            ) {
+                const channelId = (envelope.payload as { channelId?: string })?.channelId;
+                if (channelId) {
+                    setGlobalState(
+                        globalChannels.filter(ch => ch.id !== channelId),
+                        false,
+                        false
+                    );
+                }
+                return;
+            }
 
             if (envelope.action === 'update' && envelope.payload?.sourceType === 'channel') {
                 emitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
@@ -56,16 +90,17 @@ const setChannels = (updater: ChannelView[] | ((prev: ChannelView[]) => ChannelV
 
 export const useMyChannels = () => {
     const { emitAuthenticated } = useWebSocketV2();
+    const { profile } = useSimpleWebCore();
     const [, forceUpdate] = useState({});
 
     useEffect(() => {
         const listener = () => forceUpdate({});
         listeners.add(listener);
-        bootstrap(emitAuthenticated);
+        if (profile?.id) bootstrap(emitAuthenticated, profile.id);
         return () => {
             listeners.delete(listener);
         };
-    }, []);
+    }, [profile?.id]);
 
     return {
         channels: globalChannels,
