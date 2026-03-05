@@ -11,6 +11,7 @@ jobs:
         outputs:
             admin: ${{ steps.filter.outputs.admin == 'true' && 'true' || 'false' }}
             web: ${{ steps.filter.outputs.web == 'true' && 'true' || 'false' }}
+            landing: ${{ steps.filter.outputs.landing == 'true' && 'true' || 'false' }}
             projects: ${{ steps.filter.outputs.changes }}
             matrix: ${{ steps.set-matrix.outputs.matrix }}
             has-changes: ${{ steps.set-matrix.outputs.has-changes }}
@@ -42,6 +43,15 @@ jobs:
                           - 'apps/web/tsconfig*.json'
                           - 'apps/web/tailwind.config.js'
                           - 'apps/web/postcss.config.js'
+                      landing:
+                          - 'apps/landing/src/**'
+                          - 'apps/landing/public/**'
+                          - 'apps/landing/index.html'
+                          - 'apps/landing/vite.config.mts'
+                          - 'apps/landing/project.json'
+                          - 'apps/landing/tsconfig*.json'
+                          - 'apps/landing/tailwind.config.js'
+                          - 'apps/landing/postcss.config.js'
 
             - name: Set matrix for changed projects
               id: set-matrix
@@ -49,6 +59,7 @@ jobs:
                   PROJECTS=()
                   [[ "${{ steps.filter.outputs.web }}" == "true" ]] && PROJECTS+=('"web"')
                   [[ "${{ steps.filter.outputs.admin }}" == "true" ]] && PROJECTS+=('"admin"')
+                  [[ "${{ steps.filter.outputs.landing }}" == "true" ]] && PROJECTS+=('"landing"')
 
                   if [ ${#PROJECTS[@]} -eq 0 ]; then
                       echo "matrix=[]" >> $GITHUB_OUTPUT
@@ -61,7 +72,7 @@ jobs:
 
     version-update:
         needs: changes
-        if: ${{ needs.changes.outputs.admin == 'true' || needs.changes.outputs.web == 'true' }}
+        if: ${{ needs.changes.outputs.admin == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.landing == 'true' }}
         name: Update Versions
         runs-on: ubuntu-latest
         permissions:
@@ -71,6 +82,7 @@ jobs:
             root-version: ${{ steps.version-update.outputs.root-version }}
             admin-version: ${{ steps.version-update.outputs.admin-version }}
             web-version: ${{ steps.version-update.outputs.web-version }}
+            landing-version: ${{ steps.version-update.outputs.landing-version }}
         steps:
             - name: Check out repository
               uses: actions/checkout@v4
@@ -116,10 +128,11 @@ jobs:
                   PROJECTS=()
                   [[ "${{ needs.changes.outputs.web }}" == "true" ]] && PROJECTS+=("web")
                   [[ "${{ needs.changes.outputs.admin }}" == "true" ]] && PROJECTS+=("admin")
+                  [[ "${{ needs.changes.outputs.landing }}" == "true" ]] && PROJECTS+=("landing")
 
                   if [ ${#PROJECTS[@]} -eq 0 ]; then
                     echo "No projects to update"
-                  elif [ ${#PROJECTS[@]} -eq 2 ]; then
+                  elif [ ${#PROJECTS[@]} -eq 3 ]; then
                     echo "All projects changed - updating all projects"
                     node scripts/version-update.js
                   else
@@ -137,6 +150,9 @@ jobs:
                   ADMIN_VERSION=$(node -p "require('./apps/admin/package.json').version")
                   echo "admin-version=${ADMIN_VERSION}" >> $GITHUB_OUTPUT
 
+                  LANDING_VERSION=$(node -p "require('./apps/landing/package.json').version")
+                  echo "landing-version=${LANDING_VERSION}" >> $GITHUB_OUTPUT
+
             - name: Commit and push changes
               env:
                   ROOT_VERSION: ${{ steps.version-update.outputs.root-version }}
@@ -148,7 +164,7 @@ jobs:
 
     create-draft-release:
         needs: [changes, version-update]
-        if: ${{ needs.changes.outputs.admin == 'true' || needs.changes.outputs.web == 'true' }}
+        if: ${{ needs.changes.outputs.admin == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.landing == 'true' }}
         runs-on: ubuntu-latest
         permissions:
             contents: write
@@ -219,7 +235,7 @@ jobs:
 
     notify-slack:
         needs: [changes, version-update, build-and-deploy]
-        if: ${{ success() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true') }}
+        if: ${{ success() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true') }}
         name: Notify Slack
         runs-on: ubuntu-latest
         permissions:
@@ -240,6 +256,10 @@ jobs:
 
                   if [[ "${{ needs.changes.outputs.admin }}" == "true" ]]; then
                       DEPLOY_MESSAGES+=("• *어드민* <https://admin-dev.chatic.io/|개발 서버> \`v${{ needs.version-update.outputs.admin-version }}\`")
+                  fi
+
+                  if [[ "${{ needs.changes.outputs.landing }}" == "true" ]]; then
+                      DEPLOY_MESSAGES+=("• *랜딩* <https://app-dev.chatic.io/|개발 서버> \`v${{ needs.version-update.outputs.landing-version }}\`")
                   fi
 
                   if [ ${#DEPLOY_MESSAGES[@]} -eq 0 ]; then
@@ -315,7 +335,7 @@ jobs:
 
     notify-slack-failure:
         needs: [changes, version-update, create-draft-release, build-and-deploy]
-        if: ${{ failure() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true') }}
+        if: ${{ failure() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true') }}
         name: Notify Slack - Failure
         runs-on: ubuntu-latest
         steps:
@@ -333,6 +353,10 @@ jobs:
 
                   if [[ "${{ needs.changes.outputs.admin }}" == "true" ]]; then
                       DEPLOY_MESSAGES+=("• *어드민* 개발 서버")
+                  fi
+
+                  if [[ "${{ needs.changes.outputs.landing }}" == "true" ]]; then
+                      DEPLOY_MESSAGES+=("• *랜딩* 개발 서버")
                   fi
 
                   if [ ${#DEPLOY_MESSAGES[@]} -eq 0 ]; then
