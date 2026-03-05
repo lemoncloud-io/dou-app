@@ -67,7 +67,7 @@ const LaunchingContent = ({ t }: ContentProps): JSX.Element => (
                 {t('deeplink.title.launching')}
             </h1>
         </div>
-        <div className="w-10 h-10 border-3 border-white/20 border-t-[#c4ff00] rounded-full animate-spin" />
+        <div className="w-10 h-10 border-[3px] border-white/20 border-t-[#c4ff00] rounded-full animate-spin" />
     </>
 );
 
