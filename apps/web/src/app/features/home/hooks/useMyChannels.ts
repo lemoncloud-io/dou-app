@@ -28,6 +28,10 @@ const bootstrap = (emitAuthenticated: (msg: object) => void, profileId: string) 
 
     emitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
 
+    let timeoutId: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+        if (globalIsLoading) setGlobalState([], false, true);
+    }, 10000);
+
     useWebSocketV2Store.subscribe(
         s => s.lastMessage,
         lastMessage => {
@@ -74,10 +78,18 @@ const bootstrap = (emitAuthenticated: (msg: object) => void, profileId: string) 
 
             if (envelope.type !== 'chat') return;
             if (envelope.action === 'error') {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
                 setGlobalState([], false, true);
                 return;
             }
             if (envelope.action !== 'mine') return;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
             setGlobalState(envelope.payload?.list ?? [], false, false);
         }
     );
@@ -88,12 +100,21 @@ const setChannels = (updater: ChannelView[] | ((prev: ChannelView[]) => ChannelV
     setGlobalState(next, globalIsLoading, globalIsError);
 };
 
+let globalEmitAuthenticated: ((msg: object) => void) | null = null;
+
+const retryMine = () => {
+    if (!globalEmitAuthenticated) return;
+    setGlobalState([], true, false);
+    globalEmitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
+};
+
 export const useMyChannels = () => {
     const { emitAuthenticated } = useWebSocketV2();
     const { profile } = useSimpleWebCore();
     const [, forceUpdate] = useState({});
 
     useEffect(() => {
+        globalEmitAuthenticated = emitAuthenticated;
         const listener = () => forceUpdate({});
         listeners.add(listener);
         if (profile?.id) bootstrap(emitAuthenticated, profile.id);
@@ -107,5 +128,6 @@ export const useMyChannels = () => {
         isLoading: globalIsLoading,
         isError: globalIsError,
         setChannels,
+        retry: retryMine,
     };
 };

@@ -66,7 +66,7 @@ const ChannelItem = ({ channel }: { channel: ChannelView }) => {
 };
 
 export const ChannelList = () => {
-    const { channels, isLoading, isError } = useMyChannels();
+    const { channels, isLoading, isError, retry } = useMyChannels();
 
     if (isLoading) {
         return (
@@ -79,7 +79,14 @@ export const ChannelList = () => {
     }
 
     if (isError) {
-        return <div className="text-center text-sm text-red-500">채널을 불러올 수 없습니다</div>;
+        return (
+            <div className="flex flex-col items-center gap-2">
+                <p className="text-sm text-red-500">채널을 불러올 수 없습니다</p>
+                <button onClick={retry} className="text-sm text-blue-500 underline">
+                    다시 시도
+                </button>
+            </div>
+        );
     }
 
     if (!channels.length) {
