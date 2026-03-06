@@ -37,18 +37,6 @@ export const Header = (): JSX.Element => {
                     <span className="text-[22px] font-bold text-white tracking-tight">DoU</span>
                 </Link>
                 <nav className="flex items-center gap-4 sm:gap-6">
-                    <Link
-                        to="/policy/terms"
-                        className="hidden sm:block text-[14px] text-white/70 hover:text-white transition-colors"
-                    >
-                        {t('header.terms')}
-                    </Link>
-                    <Link
-                        to="/policy/privacy"
-                        className="hidden sm:block text-[14px] text-white/70 hover:text-white transition-colors"
-                    >
-                        {t('header.privacy')}
-                    </Link>
                     <button
                         onClick={toggleLanguage}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-full transition-all
