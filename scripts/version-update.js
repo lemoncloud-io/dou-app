@@ -10,10 +10,12 @@ const CONFIG = {
     projectPaths: {
         web: 'apps/web/package.json',
         admin: 'apps/admin/package.json',
+        landing: 'apps/landing/package.json',
     },
     scopeMap: {
         web: 'web',
         admin: 'admin',
+        landing: 'landing',
     },
 };
 
@@ -36,7 +38,8 @@ function getProjectsToProcess() {
     // Validate all provided projects
     const invalidProjects = targetProjects.filter(p => !CONFIG.projectPaths[p]);
     if (invalidProjects.length > 0) {
-        console.error(`Error: Invalid project(s) "${invalidProjects.join(', ')}". Valid options are: web, admin`);
+        const validOptions = Object.keys(CONFIG.projectPaths).join(', ');
+        console.error(`Error: Invalid project(s) "${invalidProjects.join(', ')}". Valid options are: ${validOptions}`);
         process.exit(1);
     }
 
