@@ -22,6 +22,16 @@ on:
                 required: true
                 type: boolean
                 default: false
+            deploy_landing_dev:
+                description: 'Deploy Landing to DEV'
+                required: true
+                type: boolean
+                default: false
+            deploy_landing_prod:
+                description: 'Deploy Landing to PROD'
+                required: true
+                type: boolean
+                default: false
 
 jobs:
     get-versions:
@@ -30,6 +40,7 @@ jobs:
         outputs:
             web-version: ${{ steps.get-web-version.outputs.web-version }}
             admin-version: ${{ steps.get-admin-version.outputs.admin-version }}
+            landing-version: ${{ steps.get-landing-version.outputs.landing-version }}
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
@@ -64,9 +75,20 @@ jobs:
                   fi
                   echo "admin-version=${ADMIN_VERSION}" >> $GITHUB_OUTPUT
 
+            - name: Get Landing Version
+              if: ${{ github.event.inputs.deploy_landing_dev == 'true' || github.event.inputs.deploy_landing_prod == 'true' }}
+              id: get-landing-version
+              run: |
+                  LANDING_VERSION=$(node -p "require('./apps/landing/package.json').version")
+                  if ! echo "$LANDING_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+                    echo "Error: Invalid landing version format: $LANDING_VERSION"
+                    exit 1
+                  fi
+                  echo "landing-version=${LANDING_VERSION}" >> $GITHUB_OUTPUT
+
     deploy-dev:
         needs: [get-versions]
-        if: ${{ github.event.inputs.deploy_web_dev == 'true' || github.event.inputs.deploy_admin_dev == 'true' }}
+        if: ${{ github.event.inputs.deploy_web_dev == 'true' || github.event.inputs.deploy_admin_dev == 'true' || github.event.inputs.deploy_landing_dev == 'true' }}
         runs-on: ubuntu-latest
         name: Deploy to DEV
         strategy:
@@ -77,6 +99,8 @@ jobs:
                       should_run: ${{ github.event.inputs.deploy_web_dev == 'true' && 'true' || 'false' }}
                     - project: admin
                       should_run: ${{ github.event.inputs.deploy_admin_dev == 'true' && 'true' || 'false' }}
+                    - project: landing
+                      should_run: ${{ github.event.inputs.deploy_landing_dev == 'true' && 'true' || 'false' }}
         steps:
             - name: Skip if not selected
               if: ${{ matrix.should_run != 'true' }}
@@ -133,7 +157,7 @@ jobs:
 
     deploy-prod:
         needs: [get-versions]
-        if: ${{ github.event.inputs.deploy_web_prod == 'true' || github.event.inputs.deploy_admin_prod == 'true' }}
+        if: ${{ github.event.inputs.deploy_web_prod == 'true' || github.event.inputs.deploy_admin_prod == 'true' || github.event.inputs.deploy_landing_prod == 'true' }}
         runs-on: ubuntu-latest
         name: Deploy to PROD
         strategy:
@@ -144,6 +168,8 @@ jobs:
                       should_run: ${{ github.event.inputs.deploy_web_prod == 'true' && 'true' || 'false' }}
                     - project: admin
                       should_run: ${{ github.event.inputs.deploy_admin_prod == 'true' && 'true' || 'false' }}
+                    - project: landing
+                      should_run: ${{ github.event.inputs.deploy_landing_prod == 'true' && 'true' || 'false' }}
         steps:
             - name: Skip if not selected
               if: ${{ matrix.should_run != 'true' }}
@@ -200,7 +226,7 @@ jobs:
 
     notify-slack:
         needs: [get-versions, deploy-dev, deploy-prod]
-        if: ${{ !cancelled() && (github.event.inputs.deploy_web_dev == 'true' || github.event.inputs.deploy_admin_dev == 'true' || github.event.inputs.deploy_web_prod == 'true' || github.event.inputs.deploy_admin_prod == 'true') }}
+        if: ${{ !cancelled() && (github.event.inputs.deploy_web_dev == 'true' || github.event.inputs.deploy_admin_dev == 'true' || github.event.inputs.deploy_landing_dev == 'true' || github.event.inputs.deploy_web_prod == 'true' || github.event.inputs.deploy_admin_prod == 'true' || github.event.inputs.deploy_landing_prod == 'true') }}
         name: Notify Slack
         runs-on: ubuntu-latest
         steps:
@@ -212,14 +238,17 @@ jobs:
                   # 개발 환경 체크
                   DEV_WEB="${{ github.event.inputs.deploy_web_dev }}"
                   DEV_ADMIN="${{ github.event.inputs.deploy_admin_dev }}"
+                  DEV_LANDING="${{ github.event.inputs.deploy_landing_dev }}"
 
                   # PROD 환경 체크
                   PROD_WEB="${{ github.event.inputs.deploy_web_prod }}"
                   PROD_ADMIN="${{ github.event.inputs.deploy_admin_prod }}"
+                  PROD_LANDING="${{ github.event.inputs.deploy_landing_prod }}"
 
                   # 버전 정보
                   WEB_VER="${{ needs.get-versions.outputs.web-version }}"
                   ADMIN_VER="${{ needs.get-versions.outputs.admin-version }}"
+                  LANDING_VER="${{ needs.get-versions.outputs.landing-version }}"
 
                   # 메타 정보
                   TIMESTAMP=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S')
@@ -231,17 +260,22 @@ jobs:
 
                   [[ "$DEV_WEB" == "true" ]] && ((DEV_COUNT++)) || true
                   [[ "$DEV_ADMIN" == "true" ]] && ((DEV_COUNT++)) || true
+                  [[ "$DEV_LANDING" == "true" ]] && ((DEV_COUNT++)) || true
                   [[ "$PROD_WEB" == "true" ]] && ((PROD_COUNT++)) || true
                   [[ "$PROD_ADMIN" == "true" ]] && ((PROD_COUNT++)) || true
+                  [[ "$PROD_LANDING" == "true" ]] && ((PROD_COUNT++)) || true
 
                   # Outputs 저장
                   {
                     echo "dev_web=${DEV_WEB}"
                     echo "dev_admin=${DEV_ADMIN}"
+                    echo "dev_landing=${DEV_LANDING}"
                     echo "prod_web=${PROD_WEB}"
                     echo "prod_admin=${PROD_ADMIN}"
+                    echo "prod_landing=${PROD_LANDING}"
                     echo "web_version=${WEB_VER}"
                     echo "admin_version=${ADMIN_VER}"
+                    echo "landing_version=${LANDING_VER}"
                     echo "timestamp=${TIMESTAMP}"
                     echo "commit_sha=${COMMIT_SHA}"
                     echo "dev_count=${DEV_COUNT}"
@@ -304,6 +338,13 @@ jobs:
                           }')
                       fi
 
+                      if [[ "${{ steps.deploy-info.outputs.dev_landing }}" == "true" ]]; then
+                          DEV_FIELDS+=('{
+                              "type": "mrkdwn",
+                              "text": "*랜딩* <https://app-dev.chatic.io/|개발 서버> `v'"${{ steps.deploy-info.outputs.landing_version }}"'`"
+                          }')
+                      fi
+
                       # Join fields with comma
                       DEV_FIELDS_JSON=$(printf "%s," "${DEV_FIELDS[@]}")
                       DEV_FIELDS_JSON="${DEV_FIELDS_JSON%,}"
@@ -340,6 +381,13 @@ jobs:
                           PROD_FIELDS+=('{
                               "type": "mrkdwn",
                               "text": "*어드민* <https://admin.chatic.io/|PROD 서버> `v'"${{ steps.deploy-info.outputs.admin_version }}"'`"
+                          }')
+                      fi
+
+                      if [[ "${{ steps.deploy-info.outputs.prod_landing }}" == "true" ]]; then
+                          PROD_FIELDS+=('{
+                              "type": "mrkdwn",
+                              "text": "*랜딩* <https://app.chatic.io/|PROD 서버> `v'"${{ steps.deploy-info.outputs.landing_version }}"'`"
                           }')
                       fi
 
@@ -419,8 +467,10 @@ jobs:
                   # 실패한 배포 체크
                   DEV_WEB="${{ github.event.inputs.deploy_web_dev }}"
                   DEV_ADMIN="${{ github.event.inputs.deploy_admin_dev }}"
+                  DEV_LANDING="${{ github.event.inputs.deploy_landing_dev }}"
                   PROD_WEB="${{ github.event.inputs.deploy_web_prod }}"
                   PROD_ADMIN="${{ github.event.inputs.deploy_admin_prod }}"
+                  PROD_LANDING="${{ github.event.inputs.deploy_landing_prod }}"
 
                   TIMESTAMP=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S')
                   COMMIT_SHA="${GITHUB_SHA:0:7}"
@@ -431,14 +481,18 @@ jobs:
 
                   [[ "$DEV_WEB" == "true" ]] && ((DEV_COUNT++)) || true
                   [[ "$DEV_ADMIN" == "true" ]] && ((DEV_COUNT++)) || true
+                  [[ "$DEV_LANDING" == "true" ]] && ((DEV_COUNT++)) || true
                   [[ "$PROD_WEB" == "true" ]] && ((PROD_COUNT++)) || true
                   [[ "$PROD_ADMIN" == "true" ]] && ((PROD_COUNT++)) || true
+                  [[ "$PROD_LANDING" == "true" ]] && ((PROD_COUNT++)) || true
 
                   {
                     echo "dev_web=${DEV_WEB}"
                     echo "dev_admin=${DEV_ADMIN}"
+                    echo "dev_landing=${DEV_LANDING}"
                     echo "prod_web=${PROD_WEB}"
                     echo "prod_admin=${PROD_ADMIN}"
+                    echo "prod_landing=${PROD_LANDING}"
                     echo "timestamp=${TIMESTAMP}"
                     echo "commit_sha=${COMMIT_SHA}"
                     echo "dev_count=${DEV_COUNT}"
@@ -498,6 +552,12 @@ jobs:
                               "text": "*어드민* 개발 서버"
                           }')
 
+                      [[ "${{ steps.failure-info.outputs.dev_landing }}" == "true" ]] && \
+                          DEV_FIELDS+=('{
+                              "type": "mrkdwn",
+                              "text": "*랜딩* 개발 서버"
+                          }')
+
                       DEV_FIELDS_JSON=$(printf "%s," "${DEV_FIELDS[@]}")
                       DEV_FIELDS_JSON="${DEV_FIELDS_JSON%,}"
 
@@ -532,6 +592,12 @@ jobs:
                           PROD_FIELDS+=('{
                               "type": "mrkdwn",
                               "text": "*어드민* PROD 서버"
+                          }')
+
+                      [[ "${{ steps.failure-info.outputs.prod_landing }}" == "true" ]] && \
+                          PROD_FIELDS+=('{
+                              "type": "mrkdwn",
+                              "text": "*랜딩* PROD 서버"
                           }')
 
                       PROD_FIELDS_JSON=$(printf "%s," "${PROD_FIELDS[@]}")
