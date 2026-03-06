@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-03-06] - root@0.5.0, @chatic/web@0.5.0
+
+### Features
+
+- implement dynamic storage adapter with native DB caching for mobile
+
+### Bug Fixes
+
+- send read on mount using channel lastChat$.chatNo
+
 ## [2026-03-05] - root@0.4.0, @chatic/web@0.4.0, @chatic/admin@0.2.0
 
 ### Features
