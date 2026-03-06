@@ -1,5 +1,6 @@
 import { StorageService } from './mmkv';
-import type { ChannelView, JoinView, UserView, ChatView } from '@lemoncloud/chatic-socials-api';
+import type { ClientMessage } from '@chatic/app-messages';
+import type { ChannelView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
 
 const PREFIX = {
     CHANNEL: 'channel:',
@@ -17,7 +18,8 @@ const PREFIX = {
  */
 const Keys = {
     channel: (channelId: string) => `${PREFIX.CHANNEL}${channelId}`,
-    chat: (chatId: string) => `${PREFIX.CHAT}${chatId}`,
+    chat: (channelId: string, messageId: string) => `${PREFIX.CHAT}${channelId}:${messageId}`,
+    chatPrefix: (channelId: string) => `${PREFIX.CHAT}${channelId}:`,
     user: (userId: string) => `${PREFIX.USER}${userId}`,
     join: (joinId: string) => `${PREFIX.JOIN}${joinId}`,
 } as const;
@@ -40,19 +42,33 @@ export const CacheRepository = {
     },
 
     // Chat Repository
-    saveChat: async (chatId: string, data: ChatView) => {
-        await StorageService.set(Keys.chat(chatId), data);
+    saveChat: async (channelId: string, messageId: string, data: ClientMessage) => {
+        await StorageService.set(Keys.chat(channelId, messageId), data);
     },
-    getChat: async (chatId: string) => {
-        return await StorageService.get<ChatView>(Keys.chat(chatId));
+    getChat: async (channelId: string, messageId: string) => {
+        const raw = await StorageService.get<Omit<ClientMessage, 'timestamp'> & { timestamp: string }>(
+            Keys.chat(channelId, messageId)
+        );
+        if (!raw) return null;
+        return { ...raw, timestamp: new Date(raw.timestamp) } as ClientMessage;
     },
-    removeChat: async (chatId: string) => {
-        await StorageService.remove(Keys.chat(chatId));
+    removeChat: async (channelId: string, messageId: string) => {
+        await StorageService.remove(Keys.chat(channelId, messageId));
     },
-    getAllChats: async () => {
-        const keys = StorageService.getAllKeys().filter(key => key.startsWith(PREFIX.CHAT));
-        const results = await Promise.all(keys.map(key => StorageService.get<ChatView>(key)));
-        return results.filter((item): item is ChatView => item !== null);
+    getChatsByChannel: async (channelId: string) => {
+        const prefix = Keys.chatPrefix(channelId);
+        const keys = StorageService.getAllKeys().filter(key => key.startsWith(prefix));
+        const results = await Promise.all(
+            keys.map(key => StorageService.get<Omit<ClientMessage, 'timestamp'> & { timestamp: string }>(key))
+        );
+        return results
+            .filter((item): item is Omit<ClientMessage, 'timestamp'> & { timestamp: string } => item !== null)
+            .map(item => ({ ...item, timestamp: new Date(item.timestamp) }) as ClientMessage);
+    },
+    clearChatsByChannel: async (channelId: string) => {
+        const prefix = Keys.chatPrefix(channelId);
+        const keys = StorageService.getAllKeys().filter(key => key.startsWith(prefix));
+        await Promise.all(keys.map(key => StorageService.remove(key)));
     },
 
     // User Repository

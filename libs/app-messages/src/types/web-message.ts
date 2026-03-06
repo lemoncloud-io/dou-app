@@ -1,5 +1,6 @@
 import type { CacheType } from './common';
-import type { ChannelView, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
+import type { ClientMessage } from './client-message';
+import type { ChannelView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
 
 /**
  * Web Message:
@@ -79,6 +80,7 @@ export interface OpenModal extends DefaultMessage<'OpenModal'> {
 export interface FetchAllCacheData extends DefaultMessage<'FetchAllCacheData'> {
     data: {
         type: CacheType;
+        channelId?: string;
     };
 }
 
@@ -93,7 +95,7 @@ export interface SaveCacheData extends DefaultMessage<'SaveCacheData'> {
     data: {
         type: CacheType;
         id: string;
-        value: ChannelView | ChatView | UserView | JoinView;
+        value: ChannelView | ClientMessage | UserView | JoinView;
     };
 }
 

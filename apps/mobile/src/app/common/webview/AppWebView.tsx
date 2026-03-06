@@ -51,6 +51,16 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 (function() {
                     ${safeAreaScript}
                     ${deviceInfoScript}
+                    const _origLog = console.log.bind(console);
+                    const _origError = console.error.bind(console);
+                    console.log = (...args) => {
+                        _origLog(...args);
+                        try { window.ReactNativeWebView?.postMessage(JSON.stringify({ type: '__console__', level: 'log', msg: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') })); } catch(e) {}
+                    };
+                    console.error = (...args) => {
+                        _origError(...args);
+                        try { window.ReactNativeWebView?.postMessage(JSON.stringify({ type: '__console__', level: 'error', msg: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') })); } catch(e) {}
+                    };
                 })();
                 true;
             `;
@@ -81,7 +91,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             domStorageEnabled={true}
             allowsBackForwardNavigationGestures={true}
             userAgent={initData.userAgent}
-            injectedJavaScriptBeforeContentLoaded={initData.script}
+            injectedJavaScript={initData.script}
             hideKeyboardAccessoryView={true}
             forceDarkOn={false}
             {...props}

@@ -1,4 +1,4 @@
-import { Suspense, useCallback } from 'react';
+import { Suspense, useCallback, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { HelmetProvider } from 'react-helmet-async';
 import { I18nextProvider } from 'react-i18next';
@@ -11,6 +11,7 @@ import { ErrorFallback, GlobalLoader, LoadingFallback, VersionUpdateBanner, useV
 import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
+import { initializeMessageListener } from '@chatic/app-messages';
 
 import { WebSocketV2Connection } from './components';
 import { Router } from './routes';
@@ -41,6 +42,13 @@ export function App() {
     const { isInitialized: isTokenInitialized } = useTokenRefresh(isWebCoreReady);
     const canRenderApp = isWebCoreReady && (!isAuthenticated || isTokenInitialized);
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
+
+    useEffect(() => {
+        const cleanup = initializeMessageListener();
+        return () => {
+            cleanup?.();
+        };
+    }, []);
 
     const handleError = useCallback(
         (error: Error, info: ErrorInfo): void => {
