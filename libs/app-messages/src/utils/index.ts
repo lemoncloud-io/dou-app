@@ -7,6 +7,9 @@ declare global {
     interface Window {
         CHATIC_APP_APPLICATION?: string;
         CHATIC_APP_PLATFORM?: string;
+        ReactNativeWebView?: {
+            postMessage: (message: string) => void;
+        };
         webkit?: {
             messageHandlers?: {
                 ChaticMessageHandler?: {
@@ -28,8 +31,9 @@ export const initializeMessageListener = () => {
     }
     const handleMessage = (event: Event) => {
         try {
-            const customEvent = event as CustomEvent<string>;
-            const message: AppMessage = JSON.parse(customEvent.detail || (event as MessageEvent).data);
+            const data = (event as CustomEvent).detail ?? (event as MessageEvent).data;
+            if (!data) return;
+            const message: AppMessage = JSON.parse(data);
             useAppMessageStore.getState().handleMessage(message);
         } catch (error) {
             console.error('Error processing message:', error);
@@ -37,10 +41,14 @@ export const initializeMessageListener = () => {
     };
 
     window.addEventListener('AppMessage', handleMessage as EventListener);
+    window.addEventListener('message', handleMessage as EventListener);
+    document.addEventListener('message', handleMessage as EventListener);
     isListenerInitialized = true;
 
     return () => {
         window.removeEventListener('AppMessage', handleMessage as EventListener);
+        window.removeEventListener('message', handleMessage as EventListener);
+        document.removeEventListener('message', handleMessage as EventListener);
         isListenerInitialized = false;
     };
 };
@@ -53,29 +61,19 @@ export const getMobileAppInfo = () => {
     const application = window.CHATIC_APP_APPLICATION;
     const platform = window.CHATIC_APP_PLATFORM;
 
-    const isOnMobileApp = application?.toLowerCase() === 'chatic';
-    const isIOS = platform === 'ios';
-    const isAOS = platform === 'aos';
+    const isOnMobileApp = application?.toLowerCase() === 'dou';
+    const isIOS = platform?.toLowerCase() === 'ios';
+    const isAOS = platform?.toLowerCase() === 'android';
 
     return { isOnMobileApp, isIOS, isAOS };
 };
 
 export const sendWebMessage = (message: WebMessage) => {
-    const { isOnMobileApp, isIOS, isAOS } = getMobileAppInfo();
-
-    if (!isOnMobileApp) {
-        console.log('sendMessage: ', message);
-    }
-
-    if (isIOS) {
-        sendIosMessage(message);
+    if (!window.ReactNativeWebView) {
+        console.log('sendMessage skipped (no ReactNativeWebView):', message);
         return;
     }
-
-    if (isAOS) {
-        sendAosMessage(message);
-        return;
-    }
+    window.ReactNativeWebView.postMessage(JSON.stringify(message));
 };
 
 export const sendIosMessage = (message: WebMessage) => {

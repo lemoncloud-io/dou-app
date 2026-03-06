@@ -13,7 +13,8 @@ import type {
     SafeAreaInfo,
     VersionInfo,
 } from './common';
-import type { ChannelView, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
+import type { ClientMessage } from './client-message';
+import type { ChannelView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
 
 export const AppMessageTypes = {
     OnSuccessSyncCredential: 'OnSuccessSyncCredential',
@@ -72,7 +73,8 @@ export interface OnFetchPurchases extends DefaultMessage<'OnFetchPurchases'> {
 export interface OnFetchAllCacheData extends DefaultMessage<'OnFetchAllCacheData'> {
     data: {
         type: CacheType;
-        items: (ChannelView | ChatView | UserView | JoinView)[];
+        channelId?: string;
+        items: (ChannelView | ClientMessage | UserView | JoinView)[];
     };
 }
 
@@ -80,7 +82,7 @@ export interface OnFetchCacheData extends DefaultMessage<'OnFetchCacheData'> {
     data: {
         type: CacheType;
         id: string;
-        item: ChannelView | ChatView | UserView | JoinView | null;
+        item: ChannelView | ClientMessage | UserView | JoinView | null;
     };
 }
 

@@ -139,20 +139,36 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                     }
 
                     case 'FetchAllCacheData': {
-                        void handleFetchAllCacheData(message.data);
-                        break;
-                    }
-                    case 'FetchCacheData': {
-                        void handleFetchCacheData(message.data);
+                        Logger.info('WEBVIEW', 'WebView requested FetchAllCacheData', message.data);
+                        void handleFetchAllCacheData(message.data)
+                            .then(() => {
+                                Logger.info('WEBVIEW', 'FetchAllCacheData handled successfully');
+                            })
+                            .catch((e: unknown) => {
+                                Logger.error('WEBVIEW', 'FetchAllCacheData error', e);
+                            });
                         break;
                     }
                     case 'SaveCacheData': {
-                        void handleSaveCacheData(message.data);
+                        Logger.info('WEBVIEW', 'WebView requested SaveCacheData', message.data);
+                        void handleSaveCacheData(message.data)
+                            .then(() => {
+                                Logger.info('WEBVIEW', 'SaveCacheData handled successfully', (message.data as any).id);
+                            })
+                            .catch((e: unknown) => {
+                                Logger.error('WEBVIEW', 'SaveCacheData error', e);
+                            });
                         break;
                     }
 
                     default:
-                        Logger.error('BRIDGE', `Failed received error. : ${message.type}`);
+                        if ((message as any).type === '__console__') {
+                            const m = message as any;
+                            if (m.level === 'error') Logger.error('WEB', m.msg);
+                            else Logger.info('WEB', m.msg);
+                        } else {
+                            Logger.error('BRIDGE', `Failed received error. : ${message.type}`);
+                        }
                 }
             },
             (error: any, nativeEvent: WebViewMessage) => {

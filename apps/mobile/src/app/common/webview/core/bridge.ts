@@ -15,7 +15,8 @@ export const createBridge = (webViewRef: RefObject<WebView | null>) => ({
      */
     post: <T extends AppMessageType>(message: AppMessageData<T>) => {
         if (!webViewRef.current) return;
-        webViewRef.current.postMessage(JSON.stringify(message));
+        const json = JSON.stringify(message).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        webViewRef.current.injectJavaScript(`window.dispatchEvent(new MessageEvent('message',{data:'${json}'}));true;`);
     },
 
     /**

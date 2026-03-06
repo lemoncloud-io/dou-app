@@ -26,6 +26,9 @@
             "path": "../../libs/socket/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/app-messages/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/web-core/tsconfig.lib.json"
         },
         {
