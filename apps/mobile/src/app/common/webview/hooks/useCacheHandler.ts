@@ -5,6 +5,7 @@ import { CacheRepository } from '../../services/cache';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type { AppMessageData, FetchAllCacheData, FetchCacheData, SaveCacheData } from '@chatic/app-messages';
+import type { ClientMessage } from '@chatic/app-messages';
 
 export const useCacheHandler = (bridge: WebViewBridge) => {
     const handleFetchAllCacheData = useCallback(
@@ -16,7 +17,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
                         items = await CacheRepository.getAllChannels();
                         break;
                     case 'chat':
-                        items = await CacheRepository.getAllChats();
+                        items = data.channelId ? await CacheRepository.getChatsByChannel(data.channelId) : [];
                         break;
                     case 'user':
                         items = await CacheRepository.getAllUsers();
@@ -30,6 +31,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
                     type: 'OnFetchAllCacheData',
                     data: {
                         type: data.type,
+                        channelId: data.channelId,
                         items,
                     },
                 };
@@ -49,9 +51,11 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
                     case 'channel':
                         item = await CacheRepository.getChannel(data.id);
                         break;
-                    case 'chat':
-                        item = await CacheRepository.getChat(data.id);
+                    case 'chat': {
+                        const [channelId, messageId] = data.id.split('@');
+                        item = await CacheRepository.getChat(channelId, messageId);
                         break;
+                    }
                     case 'user':
                         item = await CacheRepository.getUser(data.id);
                         break;
@@ -83,9 +87,11 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
                     case 'channel':
                         await CacheRepository.saveChannel(data.id, data.value as any);
                         break;
-                    case 'chat':
-                        await CacheRepository.saveChat(data.id, data.value as any);
+                    case 'chat': {
+                        const [channelId, messageId] = data.id.split('@');
+                        await CacheRepository.saveChat(channelId, messageId, data.value as ClientMessage);
                         break;
+                    }
                     case 'user':
                         await CacheRepository.saveUser(data.id, data.value as any);
                         break;
