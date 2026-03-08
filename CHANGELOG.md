@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-03-08] - root@0.6.0, @chatic/web@0.6.0
+
+### Features
+
+- add onboarding modal
+
+### Refactor
+
+- simplify onboarding logic and improve modal animation
+- refactor onboading
+
 ## [2026-03-06] - root@0.5.0, @chatic/web@0.5.0
 
 ### Features
