@@ -1,3 +1,5 @@
+import { cn } from '@chatic/lib/utils';
+
 import { StepIndicator } from './StepIndicator';
 
 interface OnboardingHeaderProps {
@@ -14,9 +16,10 @@ export const OnboardingHeader = ({ currentStep, totalSteps, isLastStep, onSkip }
             <button
                 onClick={onSkip}
                 disabled={isLastStep}
-                className={`text-[15px] font-medium ${
-                    isLastStep ? 'text-[#DFE0E2] cursor-not-allowed' : 'text-[#9FA2A7]'
-                }`}
+                className={cn(
+                    'text-[15px] font-medium',
+                    isLastStep ? 'cursor-not-allowed text-muted' : 'text-muted-foreground'
+                )}
             >
                 SKIP
             </button>

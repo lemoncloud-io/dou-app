@@ -15,26 +15,17 @@ export const OnboardingFooter = ({ isFirstStep, isLastStep, onPrev, onNext, onCo
                 <Button
                     variant="outline"
                     onClick={onPrev}
-                    className="h-[52px] flex-1 rounded-xl border-[#DFE0E2] text-[16px] font-semibold text-[#3A3C40]"
+                    className="h-[52px] flex-1 rounded-xl border-border text-[16px] font-semibold text-foreground"
                 >
                     이전
                 </Button>
             )}
-            {isLastStep ? (
-                <Button
-                    onClick={onComplete}
-                    className="h-[52px] flex-1 rounded-xl bg-[#B0EA10] text-[16px] font-semibold text-[#222325] hover:bg-[#9DD00E]"
-                >
-                    완료
-                </Button>
-            ) : (
-                <Button
-                    onClick={onNext}
-                    className="h-[52px] flex-1 rounded-xl bg-[#B0EA10] text-[16px] font-semibold text-[#222325] hover:bg-[#9DD00E]"
-                >
-                    다음
-                </Button>
-            )}
+            <Button
+                onClick={isLastStep ? onComplete : onNext}
+                className="h-[52px] flex-1 rounded-xl bg-primary text-[16px] font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+                {isLastStep ? '완료' : '다음'}
+            </Button>
         </div>
     );
 };

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { cn } from '@chatic/lib/utils';
+
 import { ONBOARDING_STEPS } from '../consts';
 import { useOnboardingNavigation } from '../hooks';
 import { OnboardingContent } from './OnboardingContent';
@@ -12,6 +14,7 @@ interface OnboardingModalProps {
 }
 
 const SWIPE_THRESHOLD = 50;
+const ANIMATION_DURATION = 400;
 
 export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
     const { currentStep, totalSteps, isFirstStep, isLastStep, handleNext, handlePrev } = useOnboardingNavigation();
@@ -21,7 +24,6 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
     const [isAnimating, setIsAnimating] = useState(false);
     const touchStartX = useRef(0);
 
-    // Handle open/close with animation
     useEffect(() => {
         if (open) {
             setIsVisible(true);
@@ -32,18 +34,10 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
             setIsAnimating(false);
             const timer = setTimeout(() => {
                 setIsVisible(false);
-            }, 400);
+            }, ANIMATION_DURATION);
             return () => clearTimeout(timer);
         }
     }, [open, isVisible]);
-
-    const handleSkip = () => {
-        onComplete();
-    };
-
-    const handleComplete = () => {
-        onComplete();
-    };
 
     const onTouchStart = useCallback((e: React.TouchEvent) => {
         touchStartX.current = e.touches[0].clientX;
@@ -83,27 +77,25 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
         <div className="fixed inset-0 z-50">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black"
-                style={{
-                    opacity: isAnimating ? 0.5 : 0,
-                    transition: 'opacity 400ms ease-out',
-                }}
+                className={cn(
+                    'absolute inset-0 bg-black transition-opacity duration-[400ms] ease-out',
+                    isAnimating ? 'opacity-50' : 'opacity-0'
+                )}
             />
 
             {/* Modal */}
             <div
-                className="absolute inset-0 bg-white"
-                style={{
-                    transform: isAnimating ? 'translateY(0)' : 'translateY(100%)',
-                    transition: 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1)',
-                }}
+                className={cn(
+                    'absolute inset-0 bg-white transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)]',
+                    isAnimating ? 'translate-y-0' : 'translate-y-full'
+                )}
             >
                 <div className="flex h-full w-screen flex-col">
                     <OnboardingHeader
                         currentStep={currentStep}
                         totalSteps={totalSteps}
                         isLastStep={isLastStep}
-                        onSkip={handleSkip}
+                        onSkip={onComplete}
                     />
 
                     <div
@@ -133,7 +125,7 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
                         isLastStep={isLastStep}
                         onPrev={handlePrev}
                         onNext={handleNext}
-                        onComplete={handleComplete}
+                        onComplete={onComplete}
                     />
                 </div>
             </div>
