@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
-import { simpleWebCore } from '@chatic/web-core';
+import { simpleWebCore, useOnboardingStore } from '@chatic/web-core';
 import { useWebSocketV2 } from '@chatic/socket';
 
 interface SettingsDialogProps {
@@ -15,6 +15,7 @@ interface SettingsDialogProps {
 export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
     const [tokenInput, setTokenInput] = useState('');
     const { connectionStatus, send, lastMessage } = useWebSocketV2();
+    const { resetOnboarding } = useOnboardingStore();
 
     const currentToken = simpleWebCore.getToken();
 
@@ -111,6 +112,21 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
                                     변경
                                 </Button>
                             </div>
+                        </div>
+
+                        {/* Onboarding */}
+                        <div className="flex flex-col gap-3">
+                            <h3 className="text-base font-semibold text-gray-900">온보딩</h3>
+                            <Button
+                                onClick={() => {
+                                    resetOnboarding();
+                                    onOpenChange?.(false);
+                                }}
+                                variant="outline"
+                                className="h-11 border-[#DFE0E2] text-[#3A3C40]"
+                            >
+                                온보딩 다시보기
+                            </Button>
                         </div>
                     </div>
                 </div>
