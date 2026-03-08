@@ -1,6 +1,6 @@
+import { ChatRoutes } from '../../features/chats';
 import { HomeRoutes } from '../../features/home';
 import { PointerTestRoutes } from '../../features/pointer-test';
-import { ChatRoutes } from '../../features/chats';
 import { SafeAreaLayout } from '../../shared/layouts';
 
 export const privateRoutes = [
