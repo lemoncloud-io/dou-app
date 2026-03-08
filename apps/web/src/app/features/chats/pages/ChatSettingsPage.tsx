@@ -1,16 +1,36 @@
-import { ChevronLeft, LogOut, MessageCircle, Trash2, UserPlus } from 'lucide-react';
+import { Bell, ChevronLeft, Crown, Lock, LogOut, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import { useSimpleWebCore } from '@chatic/web-core';
+
+import { InviteCodeCard } from '../../workspace/components/InviteCodeCard';
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
-import { useMyChannel } from '../hooks/useMyChannel';
+import { useChatMessages } from '../hooks/useChatMessages';
 import { useDeleteChannel } from '../hooks/useDeleteChannel';
 import { useLeaveRoom } from '../hooks/useLeaveRoom';
-import { useChatMessages } from '../hooks/useChatMessages';
-import { useSimpleWebCore } from '@chatic/web-core';
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-// import { useUsersInChannel } from '@chatic/channels';
+import { useMyChannel } from '../hooks/useMyChannel';
+
+// Mock members for now - TODO: Replace with API data
+const mockMembers = [
+    { id: '1', name: 'sunny', avatar: null, role: 'host', isMe: true },
+    {
+        id: '2',
+        name: '김민수',
+        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face',
+        role: 'member',
+        isMe: false,
+    },
+    {
+        id: '3',
+        name: '이지은',
+        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=face',
+        role: 'member',
+        isMe: false,
+    },
+];
 
 export const ChatSettingsPage = () => {
     const navigate = useNavigate();
@@ -26,6 +46,7 @@ export const ChatSettingsPage = () => {
     const { clearMessages } = useChatMessages(profile?.id ?? null, channelId ?? null);
 
     const isOwner = channel?.ownerId === profile?.id;
+    const inviteCode = 'ABC123'; // TODO: Get from channel data
 
     const handleLeaveRoomClick = () => {
         if (confirm('정말로 채팅방을 나가시겠습니까?')) {
@@ -35,7 +56,9 @@ export const ChatSettingsPage = () => {
 
     const handleDeleteRoomClick = () => {
         if (isDeletePending) return;
-        handleDeleteRoom();
+        if (confirm('정말로 채팅방을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+            handleDeleteRoom();
+        }
     };
 
     const handleLeaveRoom = async () => {
@@ -45,7 +68,7 @@ export const ChatSettingsPage = () => {
             await leaveRoom(channelId, profile?.id);
             await clearMessages();
             toast({ title: '채팅방을 나갔습니다' });
-            navigate('/home');
+            navigate('/');
         } catch (error) {
             console.error('Failed to leave room:', error);
             toast({ title: '방 나가기에 실패했습니다', variant: 'destructive' });
@@ -67,9 +90,9 @@ export const ChatSettingsPage = () => {
 
     if (isLoading) {
         return (
-            <div className="flex h-screen items-center justify-center bg-white">
+            <div className="flex h-screen items-center justify-center bg-background">
                 <div className="text-center">
-                    <div className="text-sm text-gray-500">채널 정보를 불러오는 중...</div>
+                    <div className="text-sm text-muted-foreground">채널 정보를 불러오는 중...</div>
                 </div>
             </div>
         );
@@ -77,10 +100,10 @@ export const ChatSettingsPage = () => {
 
     if (isError) {
         return (
-            <div className="flex h-screen items-center justify-center bg-white">
+            <div className="flex h-screen items-center justify-center bg-background">
                 <div className="text-center">
-                    <div className="text-sm text-red-500">채널 정보를 불러올 수 없습니다</div>
-                    <button onClick={() => navigate(-1)} className="mt-2 text-sm text-blue-500 underline">
+                    <div className="text-sm text-destructive">채널 정보를 불러올 수 없습니다</div>
+                    <button onClick={() => navigate(-1)} className="mt-2 text-sm text-primary underline">
                         뒤로 가기
                     </button>
                 </div>
@@ -89,124 +112,116 @@ export const ChatSettingsPage = () => {
     }
 
     return (
-        <div className="flex h-screen flex-col bg-white">
-            {/* Top Bar */}
-            <div className="flex items-center justify-between px-1.5 py-3 bg-white">
-                <button onClick={() => navigate(-1)} className="w-11 h-11 flex items-center justify-center">
-                    <ChevronLeft className="w-6 h-6 text-[#3A3C40]" />
+        <div className="flex min-h-screen flex-col bg-background">
+            {/* Header */}
+            <header className="flex items-center justify-between border-b border-border px-4 pb-3 pt-3">
+                <button onClick={() => navigate(-1)} className="p-1">
+                    <ChevronLeft size={24} className="text-foreground" />
                 </button>
-                <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#171725]">방 설정</h1>
-                <div className="w-11 h-11" />
-            </div>
+                <h1 className="text-[17px] font-semibold text-foreground">방 설정</h1>
+                <div className="w-8" />
+            </header>
 
-            {/* Content */}
-            <div className="flex-1 overflow-auto flex flex-col gap-[25px] py-[10px]">
+            <div className="space-y-6 px-5 pt-6">
                 {/* Room Info */}
-                <div className="flex flex-col items-center gap-[19px]">
-                    {/* Profile */}
-                    <div className="flex flex-col items-center gap-2">
-                        <div className="w-14 h-14 rounded-full bg-[#F4F5F5] border border-[#F4F5F5] flex items-center justify-center">
-                            <MessageCircle className="text-[#84888F]" />
-                        </div>
-                        <div className="flex flex-col items-center gap-1">
-                            <div className="flex items-center gap-1">
-                                <span className="text-[17px] font-semibold leading-[1.294] tracking-[-0.02em] text-[#3A3C40]">
-                                    {channel?.name || '방 이름'}
-                                </span>
-                            </div>
+                <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted text-2xl">💬</div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-lg font-bold text-foreground">{channel?.name || '방 이름'}</h2>
                             {isOwner && (
                                 <button
                                     onClick={() => setIsUpdateDialogOpen(true)}
-                                    className="text-[13px] font-medium text-[#2A7EF4]"
+                                    className="text-xs font-medium text-primary"
                                 >
                                     편집
                                 </button>
                             )}
                         </div>
-                    </div>
-
-                    {/* Menu */}
-                    <div className="flex gap-6">
-                        <button onClick={() => setIsInviteDialogOpen(true)} className="flex flex-col items-center">
-                            <div className="w-[46px] h-[46px]  flex items-center justify-center">
-                                <UserPlus className="w-5 h-5 text-black" />
-                            </div>
-                            <span className="text-[14px] font-medium text-[#84888F] mt-1">친구 초대</span>
-                        </button>
-
-                        {/* <div className="flex flex-col items-center">
-                            <div className="w-[46px] h-[46px] flex items-center justify-center">
-                                <Bell className="w-5 h-5 text-[#84888F]" />
-                            </div>
-                            <span className="text-[14px] font-medium text-[#84888F] mt-1">알림</span>
-                        </div> */}
-                        {isOwner ? (
-                            <button
-                                onClick={handleDeleteRoomClick}
-                                disabled={isDeletePending}
-                                className="flex flex-col items-center disabled:opacity-50"
-                            >
-                                <div className="w-[46px] h-[46px] flex items-center justify-center">
-                                    {isDeletePending ? (
-                                        <div className="w-5 h-5 border-2 border-[#FF4C35] border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                        <Trash2 className="w-5 h-5 text-[#FF4C35]" />
-                                    )}
-                                </div>
-                                <span className="text-[14px] font-medium text-[#84888F] mt-1">방 삭제</span>
-                            </button>
-                        ) : (
-                            <button
-                                onClick={handleLeaveRoomClick}
-                                disabled={isLeavePending}
-                                className="flex flex-col items-center disabled:opacity-50"
-                            >
-                                <div className="w-[46px] h-[46px] flex items-center justify-center">
-                                    <LogOut className="w-5 h-5 text-black" />
-                                </div>
-                                <span className="text-[14px] font-medium text-[#84888F] mt-1">방 나가기</span>
-                            </button>
-                        )}
+                        <div className="mt-0.5 flex items-center gap-1.5">
+                            <Lock size={12} className="text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">
+                                {channel?.stereo === 'public' ? '공개' : '비공개'}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
-                {/* Room Friends */}
-                <div className="flex flex-col gap-[18px]">
-                    {/* <div className="flex items-center gap-1 px-[18px]">
-                        <span className="text-[16px] font-semibold leading-[1.5] tracking-[-0.02em] text-[#3A3C40]">
-                            방 친구
-                        </span>
-                        <span className="text-[16px] font-semibold leading-[1.5] text-[#84888F]">100</span>
-                    </div> */}
+                {/* Invite Code */}
+                <InviteCodeCard code={inviteCode} label="채팅방 초대 코드" />
 
-                    {/* Friends List */}
-                    <div className="flex flex-col gap-3 px-4">
-                        {/* My Profile */}
-                        {/* <div className="flex items-center gap-2">
-                            <div className="w-10 h-10 rounded-full bg-[#F4F5F5] border border-[#F4F5F5]" />
-                            <div className="flex-1 flex flex-col justify-center gap-0.5">
-                                <div className="flex items-center gap-1">
-                                    <span className="text-[16px] font-medium leading-[1.375] tracking-[0.005em] text-[#222325]">
-                                        써니 써니
-                                    </span>
-                                    <div className="px-[5px] py-[3px] bg-[#102346] rounded-[3px]">
-                                        <span className="text-[11px] font-medium text-white">MY</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div> */}
+                {/* Actions */}
+                <div className="space-y-0">
+                    <button
+                        onClick={() => setIsInviteDialogOpen(true)}
+                        className="flex w-full items-center gap-3.5 rounded-lg px-1 py-4 transition-colors active:bg-muted"
+                    >
+                        <UserPlus size={20} className="text-muted-foreground" />
+                        <span className="text-[15px] text-foreground">친구 초대</span>
+                    </button>
+                    <button className="flex w-full items-center gap-3.5 rounded-lg px-1 py-4 transition-colors active:bg-muted">
+                        <Bell size={20} className="text-muted-foreground" />
+                        <span className="text-[15px] text-foreground">알림</span>
+                    </button>
+                    {isOwner ? (
+                        <button
+                            onClick={handleDeleteRoomClick}
+                            disabled={isDeletePending}
+                            className="flex w-full items-center gap-3.5 rounded-lg px-1 py-4 transition-colors disabled:opacity-50 active:bg-muted"
+                        >
+                            {isDeletePending ? (
+                                <div className="h-5 w-5 animate-spin rounded-full border-2 border-destructive border-t-transparent" />
+                            ) : (
+                                <Trash2 size={20} className="text-destructive" />
+                            )}
+                            <span className="text-[15px] text-destructive">방 삭제</span>
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleLeaveRoomClick}
+                            disabled={isLeavePending}
+                            className="flex w-full items-center gap-3.5 rounded-lg px-1 py-4 transition-colors disabled:opacity-50 active:bg-muted"
+                        >
+                            {isLeavePending ? (
+                                <div className="h-5 w-5 animate-spin rounded-full border-2 border-destructive border-t-transparent" />
+                            ) : (
+                                <LogOut size={20} className="text-destructive" />
+                            )}
+                            <span className="text-[15px] text-destructive">방 나가기</span>
+                        </button>
+                    )}
+                </div>
 
-                        {/* Friend Items */}
-                        {/* {[1, 2, 3, 4, 5, 6, 7].map(i => (
-                            <div key={i} className="flex items-center gap-2">
-                                <div className="w-10 h-10 rounded-full bg-[#F4F5F5] border border-[#F4F5F5]" />
-                                <div className="flex-1 flex items-center justify-between">
-                                    <span className="text-[16px] font-medium leading-[1.375] tracking-[0.005em] text-[#222325]">
-                                        {i === 1 ? '레모닝' : '&lt;친구 이름&gt;'}
-                                    </span>
+                <div className="h-px bg-border" />
+
+                {/* Members */}
+                <div>
+                    <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                        방 친구 <span className="text-muted-foreground">{channel?.memberNo ?? mockMembers.length}</span>
+                    </h3>
+                    <div className="space-y-0">
+                        {mockMembers.map(m => (
+                            <div key={m.id} className="flex items-center gap-3 px-1 py-3">
+                                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-muted">
+                                    {m.avatar ? (
+                                        <img src={m.avatar} alt={m.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                        <span className="text-lg">👤</span>
+                                    )}
                                 </div>
+                                <span className="flex-1 text-[15px] font-medium text-foreground">{m.name}</span>
+                                {m.role === 'host' && (
+                                    <span className="flex items-center gap-1 rounded-full bg-accent/20 px-2 py-1 text-xs text-accent-foreground">
+                                        <Crown size={12} /> 호스트
+                                    </span>
+                                )}
+                                {m.isMe && (
+                                    <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
+                                        MY
+                                    </span>
+                                )}
                             </div>
-                        ))} */}
+                        ))}
                     </div>
                 </div>
             </div>
