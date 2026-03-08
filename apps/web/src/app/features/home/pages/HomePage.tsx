@@ -1,5 +1,5 @@
 import { ChevronDown, CirclePlus, User } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import {
     DropdownMenu,
@@ -17,12 +17,7 @@ import { CreateChannelDialog } from '../components/CreateChannelDialog';
 
 export const HomePage = () => {
     const { profile, logout } = useSimpleWebCore();
-    const { isCompleted, initializeOnboardingState, completeOnboarding } = useOnboardingStore();
-
-    useEffect(() => {
-        initializeOnboardingState();
-    }, [initializeOnboardingState]);
-
+    const { isCompleted, completeOnboarding } = useOnboardingStore();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 

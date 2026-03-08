@@ -1,6 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
-
-import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ONBOARDING_STEPS } from '../consts';
 import { useOnboardingNavigation } from '../hooks';
@@ -19,7 +17,25 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
     const { currentStep, totalSteps, isFirstStep, isLastStep, handleNext, handlePrev } = useOnboardingNavigation();
     const [dragOffset, setDragOffset] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
+    const [isVisible, setIsVisible] = useState(false);
+    const [isAnimating, setIsAnimating] = useState(false);
     const touchStartX = useRef(0);
+
+    // Handle open/close with animation
+    useEffect(() => {
+        if (open) {
+            setIsVisible(true);
+            requestAnimationFrame(() => {
+                setIsAnimating(true);
+            });
+        } else if (isVisible) {
+            setIsAnimating(false);
+            const timer = setTimeout(() => {
+                setIsVisible(false);
+            }, 400);
+            return () => clearTimeout(timer);
+        }
+    }, [open, isVisible]);
 
     const handleSkip = () => {
         onComplete();
@@ -40,9 +56,8 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
             const currentX = e.touches[0].clientX;
             const diff = currentX - touchStartX.current;
 
-            // 첫 스텝에서 오른쪽 스와이프 제한, 마지막 스텝에서 왼쪽 스와이프 제한
             if ((isFirstStep && diff > 0) || (isLastStep && diff < 0)) {
-                setDragOffset(diff * 0.2); // 저항감
+                setDragOffset(diff * 0.2);
             } else {
                 setDragOffset(diff);
             }
@@ -62,14 +77,26 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
         setDragOffset(0);
     }, [dragOffset, isFirstStep, isLastStep, handleNext, handlePrev]);
 
+    if (!isVisible) return null;
+
     return (
-        <Dialog open={open}>
-            <DialogContent
-                hideClose
-                variant="slide-up"
-                className="m-0 max-w-full overflow-hidden rounded-none bg-white p-0"
-                onPointerDownOutside={e => e.preventDefault()}
-                onEscapeKeyDown={e => e.preventDefault()}
+        <div className="fixed inset-0 z-50">
+            {/* Backdrop */}
+            <div
+                className="absolute inset-0 bg-black"
+                style={{
+                    opacity: isAnimating ? 0.5 : 0,
+                    transition: 'opacity 400ms ease-out',
+                }}
+            />
+
+            {/* Modal */}
+            <div
+                className="absolute inset-0 bg-white"
+                style={{
+                    transform: isAnimating ? 'translateY(0)' : 'translateY(100%)',
+                    transition: 'transform 400ms cubic-bezier(0.32, 0.72, 0, 1)',
+                }}
             >
                 <div className="flex h-full w-screen flex-col">
                     <OnboardingHeader
@@ -109,7 +136,7 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
                         onComplete={handleComplete}
                     />
                 </div>
-            </DialogContent>
-        </Dialog>
+            </div>
+        </div>
     );
 };

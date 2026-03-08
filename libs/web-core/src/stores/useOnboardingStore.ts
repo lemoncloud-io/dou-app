@@ -2,34 +2,26 @@ import { create } from 'zustand';
 
 const ONBOARDING_COMPLETED_KEY = 'chatic-onboarding-completed';
 
+const getInitialCompleted = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    return sessionStorage.getItem(ONBOARDING_COMPLETED_KEY) === 'true';
+};
+
 interface OnboardingState {
     isCompleted: boolean;
 }
 
 interface OnboardingStore extends OnboardingState {
-    initializeOnboardingState: () => void;
     completeOnboarding: () => void;
     resetOnboarding: () => void;
 }
-
-const initialState: OnboardingState = {
-    isCompleted: false,
-};
 
 /**
  * Zustand store for managing onboarding state
  * Uses sessionStorage to persist completion status
  */
 export const useOnboardingStore = create<OnboardingStore>()(set => ({
-    ...initialState,
-
-    /**
-     * Initialize onboarding state from sessionStorage
-     */
-    initializeOnboardingState: () => {
-        const completed = sessionStorage.getItem(ONBOARDING_COMPLETED_KEY) === 'true';
-        set({ isCompleted: completed });
-    },
+    isCompleted: getInitialCompleted(),
 
     /**
      * Mark onboarding as completed and persist to sessionStorage
