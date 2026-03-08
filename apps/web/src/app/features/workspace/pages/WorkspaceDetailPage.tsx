@@ -1,6 +1,58 @@
 import { ChevronLeft, Globe, Lock, Plus, Settings, Users } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+interface RoomListItemProps {
+    room: {
+        id: string;
+        name: string;
+        visibility: 'public' | 'private';
+        memberCount: number;
+        lastMsg: string;
+        time: string;
+        unread: number;
+    };
+    onClick: () => void;
+}
+
+const RoomListItem = ({ room, onClick }: RoomListItemProps) => {
+    return (
+        <button
+            onClick={onClick}
+            className="flex w-full items-center gap-3 rounded-lg px-1 py-3.5 text-left transition-colors active:bg-muted"
+        >
+            <div className="relative flex-shrink-0">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-muted">
+                    <span className="text-lg text-muted-foreground">💬</span>
+                </div>
+                <span className="absolute -left-1 -top-1 flex h-4 w-7 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-accent-foreground">
+                    {room.memberCount}
+                </span>
+            </div>
+
+            <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                    <span className="truncate text-[15px] font-semibold text-foreground">{room.name}</span>
+                    {room.visibility === 'private' ? (
+                        <Lock size={11} className="flex-shrink-0 text-muted-foreground" />
+                    ) : (
+                        <Globe size={11} className="flex-shrink-0 text-muted-foreground" />
+                    )}
+                </div>
+                <p className="mt-0.5 truncate text-sm text-muted-foreground">{room.lastMsg}</p>
+            </div>
+
+            <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                <span className="text-[11px] text-muted-foreground">{room.time}</span>
+                {room.unread > 0 && (
+                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-badge-unread px-1.5 text-[11px] font-bold text-badge-unread-foreground">
+                        {room.unread}
+                    </span>
+                )}
+            </div>
+        </button>
+    );
+};
+
 const mockWorkspaceDetail = {
     id: '1',
     name: 'Sunny Place',
@@ -43,6 +95,7 @@ const mockRooms = [
 
 export const WorkspaceDetailPage = () => {
     const navigate = useNavigate();
+    // TODO: wsId will be used when fetching real workspace data from API
     const { wsId } = useParams();
 
     return (
@@ -104,43 +157,7 @@ export const WorkspaceDetailPage = () => {
 
                 <div className="space-y-0">
                     {mockRooms.map(room => (
-                        <button
-                            key={room.id}
-                            onClick={() => navigate(`/room/${room.id}`)}
-                            className="flex w-full items-center gap-3 rounded-lg px-1 py-3.5 text-left transition-colors active:bg-muted"
-                        >
-                            <div className="relative flex-shrink-0">
-                                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-muted">
-                                    <span className="text-lg text-muted-foreground">💬</span>
-                                </div>
-                                <span className="absolute -left-1 -top-1 flex h-4 w-7 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-accent-foreground">
-                                    {room.memberCount}
-                                </span>
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="truncate text-[15px] font-semibold text-foreground">
-                                        {room.name}
-                                    </span>
-                                    {room.visibility === 'private' ? (
-                                        <Lock size={11} className="flex-shrink-0 text-muted-foreground" />
-                                    ) : (
-                                        <Globe size={11} className="flex-shrink-0 text-muted-foreground" />
-                                    )}
-                                </div>
-                                <p className="mt-0.5 truncate text-sm text-muted-foreground">{room.lastMsg}</p>
-                            </div>
-
-                            <div className="flex flex-shrink-0 flex-col items-end gap-1">
-                                <span className="text-[11px] text-muted-foreground">{room.time}</span>
-                                {room.unread > 0 && (
-                                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-badge-unread px-1.5 text-[11px] font-bold text-badge-unread-foreground">
-                                        {room.unread}
-                                    </span>
-                                )}
-                            </div>
-                        </button>
+                        <RoomListItem key={room.id} room={room} onClick={() => navigate(`/room/${room.id}`)} />
                     ))}
                 </div>
             </section>

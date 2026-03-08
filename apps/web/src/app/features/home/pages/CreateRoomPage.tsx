@@ -4,9 +4,58 @@ import { useNavigate } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { InviteCodeCard } from '../../workspace/components/InviteCodeCard';
-import { VisibilityToggle } from '../../workspace/components/VisibilityToggle';
+import { InviteCodeCard, VisibilityToggle } from '../../workspace/components';
 import { useCreateChannel } from '../hooks/useCreateChannel';
+
+interface CreateRoomSuccessProps {
+    name: string;
+    visibility: 'public' | 'private';
+    inviteCode: string;
+    createdChannelId: string | null;
+    onClose: () => void;
+    onConfirm: () => void;
+}
+
+const CreateRoomSuccess = ({ name, visibility, inviteCode, onClose, onConfirm }: CreateRoomSuccessProps) => {
+    return (
+        <div className="flex min-h-screen flex-col bg-background">
+            <header className="flex items-center justify-between px-5 pb-3 pt-3">
+                <div className="w-8" />
+                <h1 className="text-[17px] font-semibold text-foreground">채팅방 생성 완료</h1>
+                <button onClick={onClose} className="p-1">
+                    <X size={22} className="text-foreground" />
+                </button>
+            </header>
+
+            <div className="flex-1 space-y-6 px-5 pt-8">
+                <div className="text-center">
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent">
+                        <span className="text-2xl">🎉</span>
+                    </div>
+                    <h2 className="text-xl font-bold text-foreground">"{name}" 생성 완료!</h2>
+                    <p className="mt-2 text-sm text-muted-foreground">초대 코드를 공유하여 친구를 초대하세요</p>
+                </div>
+
+                <InviteCodeCard code={inviteCode} label="채팅방 초대 코드" />
+
+                <div className="flex items-center gap-2 rounded-xl bg-muted/50 px-4 py-3">
+                    <span className="text-sm text-muted-foreground">
+                        {visibility === 'public' ? '🌐 공개 채팅방' : '🔒 비공개 채팅방'}
+                    </span>
+                </div>
+            </div>
+
+            <div className="px-5 pb-10 pt-4">
+                <button
+                    onClick={onConfirm}
+                    className="w-full rounded-2xl bg-accent py-4 text-[15px] font-semibold text-accent-foreground transition-transform active:scale-[0.98]"
+                >
+                    확인
+                </button>
+            </div>
+        </div>
+    );
+};
 
 export const CreateRoomPage = () => {
     const navigate = useNavigate();
@@ -36,48 +85,20 @@ export const CreateRoomPage = () => {
 
     if (created) {
         return (
-            <div className="flex min-h-screen flex-col bg-background">
-                <header className="flex items-center justify-between px-5 pb-3 pt-3">
-                    <div className="w-8" />
-                    <h1 className="text-[17px] font-semibold text-foreground">채팅방 생성 완료</h1>
-                    <button onClick={() => navigate('/')} className="p-1">
-                        <X size={22} className="text-foreground" />
-                    </button>
-                </header>
-
-                <div className="flex-1 space-y-6 px-5 pt-8">
-                    <div className="text-center">
-                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent">
-                            <span className="text-2xl">🎉</span>
-                        </div>
-                        <h2 className="text-xl font-bold text-foreground">"{name}" 생성 완료!</h2>
-                        <p className="mt-2 text-sm text-muted-foreground">초대 코드를 공유하여 친구를 초대하세요</p>
-                    </div>
-
-                    <InviteCodeCard code={inviteCode} label="채팅방 초대 코드" />
-
-                    <div className="flex items-center gap-2 rounded-xl bg-muted/50 px-4 py-3">
-                        <span className="text-sm text-muted-foreground">
-                            {visibility === 'public' ? '🌐 공개 채팅방' : '🔒 비공개 채팅방'}
-                        </span>
-                    </div>
-                </div>
-
-                <div className="px-5 pb-10 pt-4">
-                    <button
-                        onClick={() => {
-                            if (createdChannelId) {
-                                navigate(`/chats/${createdChannelId}/room`);
-                            } else {
-                                navigate('/');
-                            }
-                        }}
-                        className="w-full rounded-2xl bg-accent py-4 text-[15px] font-semibold text-accent-foreground transition-transform active:scale-[0.98]"
-                    >
-                        확인
-                    </button>
-                </div>
-            </div>
+            <CreateRoomSuccess
+                name={name}
+                visibility={visibility}
+                inviteCode={inviteCode}
+                createdChannelId={createdChannelId}
+                onClose={() => navigate('/')}
+                onConfirm={() => {
+                    if (createdChannelId) {
+                        navigate(`/chats/${createdChannelId}/room`);
+                    } else {
+                        navigate('/');
+                    }
+                }}
+            />
         );
     }
 

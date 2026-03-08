@@ -2,6 +2,110 @@ import { ChevronLeft, Home, MoreHorizontal, Pin } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+interface WorkspaceItem {
+    id: string;
+    name: string;
+    image: string | null;
+    isDefault?: boolean;
+    isPinned: boolean;
+}
+
+interface WorkspaceListItemProps {
+    workspace: WorkspaceItem;
+    isMenuOpen: boolean;
+    onMenuToggle: () => void;
+    onMenuClose: () => void;
+    onNavigateToSettings: () => void;
+    onDelete: () => void;
+}
+
+const WorkspaceListItem = ({
+    workspace,
+    isMenuOpen,
+    onMenuToggle,
+    onMenuClose,
+    onNavigateToSettings,
+    onDelete,
+}: WorkspaceListItemProps) => {
+    return (
+        <div className="relative">
+            <div className="flex items-center gap-3 py-3.5">
+                {/* Drag handle */}
+                <button className="flex-shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                </button>
+
+                {/* Pin */}
+                <button className="flex-shrink-0">
+                    {workspace.isPinned ? (
+                        <Pin size={16} className="fill-foreground text-foreground" />
+                    ) : (
+                        <Pin size={16} className="text-muted-foreground" />
+                    )}
+                </button>
+
+                {/* Avatar */}
+                <div
+                    className="flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full"
+                    onClick={onNavigateToSettings}
+                >
+                    {workspace.isDefault ? (
+                        <div className="flex h-full w-full items-center justify-center bg-primary">
+                            <Home size={18} className="text-primary-foreground" />
+                        </div>
+                    ) : (
+                        <img src={workspace.image ?? ''} alt={workspace.name} className="h-full w-full object-cover" />
+                    )}
+                </div>
+
+                {/* Name */}
+                <span
+                    className="flex-1 cursor-pointer text-[15px] font-medium text-foreground"
+                    onClick={onNavigateToSettings}
+                >
+                    {workspace.name}
+                </span>
+
+                {/* More menu */}
+                <button onClick={onMenuToggle} className="flex-shrink-0 p-1">
+                    <MoreHorizontal size={20} className="text-muted-foreground" />
+                </button>
+            </div>
+
+            {/* Dropdown */}
+            {isMenuOpen && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={onMenuClose} />
+                    <div className="absolute right-4 top-12 z-50 min-w-[120px] animate-fade-in overflow-hidden rounded-xl border border-border bg-card shadow-lg">
+                        <button
+                            onClick={() => {
+                                onMenuClose();
+                                onNavigateToSettings();
+                            }}
+                            className="w-full px-4 py-3 text-left text-[15px] text-foreground transition-colors active:bg-muted"
+                        >
+                            설정
+                        </button>
+                        <button
+                            onClick={() => {
+                                onMenuClose();
+                                onDelete();
+                            }}
+                            className="w-full px-4 py-3 text-left text-[15px] text-destructive transition-colors active:bg-muted"
+                        >
+                            삭제
+                        </button>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
+
 const mockWorkspaces = {
     mine: [
         { id: '1', name: 'Sunny Place', image: null, isDefault: true, isPinned: true },
@@ -69,88 +173,17 @@ export const WorkspaceListPage = () => {
             {/* List */}
             <div className="space-y-0 px-5">
                 {list.map(ws => (
-                    <div key={ws.id} className="relative">
-                        <div className="flex items-center gap-3 py-3.5">
-                            {/* Drag handle */}
-                            <button className="flex-shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing">
-                                <svg
-                                    width="18"
-                                    height="18"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                >
-                                    <line x1="3" y1="6" x2="21" y2="6" />
-                                    <line x1="3" y1="12" x2="21" y2="12" />
-                                    <line x1="3" y1="18" x2="21" y2="18" />
-                                </svg>
-                            </button>
-
-                            {/* Pin */}
-                            <button className="flex-shrink-0">
-                                {ws.isPinned ? (
-                                    <Pin size={16} className="fill-foreground text-foreground" />
-                                ) : (
-                                    <Pin size={16} className="text-muted-foreground" />
-                                )}
-                            </button>
-
-                            {/* Avatar */}
-                            <div
-                                className="flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full"
-                                onClick={() => navigate(`/workspace/${ws.id}/settings`)}
-                            >
-                                {ws.isDefault ? (
-                                    <div className="flex h-full w-full items-center justify-center bg-primary">
-                                        <Home size={18} className="text-primary-foreground" />
-                                    </div>
-                                ) : (
-                                    <img src={ws.image ?? ''} alt={ws.name} className="h-full w-full object-cover" />
-                                )}
-                            </div>
-
-                            {/* Name */}
-                            <span
-                                className="flex-1 cursor-pointer text-[15px] font-medium text-foreground"
-                                onClick={() => navigate(`/workspace/${ws.id}/settings`)}
-                            >
-                                {ws.name}
-                            </span>
-
-                            {/* More menu */}
-                            <button
-                                onClick={() => setMenuOpen(menuOpen === ws.id ? null : ws.id)}
-                                className="flex-shrink-0 p-1"
-                            >
-                                <MoreHorizontal size={20} className="text-muted-foreground" />
-                            </button>
-                        </div>
-
-                        {/* Dropdown */}
-                        {menuOpen === ws.id && (
-                            <>
-                                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(null)} />
-                                <div className="absolute right-4 top-12 z-50 min-w-[120px] animate-fade-in overflow-hidden rounded-xl border border-border bg-card shadow-lg">
-                                    <button
-                                        onClick={() => {
-                                            setMenuOpen(null);
-                                            navigate(`/workspace/${ws.id}/settings`);
-                                        }}
-                                        className="w-full px-4 py-3 text-left text-[15px] text-foreground transition-colors active:bg-muted"
-                                    >
-                                        설정
-                                    </button>
-                                    <button
-                                        onClick={() => setMenuOpen(null)}
-                                        className="w-full px-4 py-3 text-left text-[15px] text-destructive transition-colors active:bg-muted"
-                                    >
-                                        삭제
-                                    </button>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                    <WorkspaceListItem
+                        key={ws.id}
+                        workspace={ws}
+                        isMenuOpen={menuOpen === ws.id}
+                        onMenuToggle={() => setMenuOpen(menuOpen === ws.id ? null : ws.id)}
+                        onMenuClose={() => setMenuOpen(null)}
+                        onNavigateToSettings={() => navigate(`/workspace/${ws.id}/settings`)}
+                        onDelete={() => {
+                            // TODO: Implement delete functionality
+                        }}
+                    />
                 ))}
             </div>
         </div>
