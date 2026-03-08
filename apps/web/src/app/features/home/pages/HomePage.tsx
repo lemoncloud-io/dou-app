@@ -8,14 +8,16 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useSimpleWebCore } from '@chatic/web-core';
+import { useOnboardingStore, useSimpleWebCore } from '@chatic/web-core';
 
 import { SettingsDialog } from '../../../components/SettingsDialog';
+import { OnboardingModal } from '../../onboarding';
 import { ChannelList } from '../components/ChannelList';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
 
 export const HomePage = () => {
     const { profile, logout } = useSimpleWebCore();
+    const { isCompleted, completeOnboarding } = useOnboardingStore();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -148,6 +150,7 @@ export const HomePage = () => {
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
             <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+            <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
         </div>
     );
 };
