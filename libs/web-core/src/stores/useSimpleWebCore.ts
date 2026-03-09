@@ -10,6 +10,7 @@ export interface SimpleWebCoreState {
     isAuthenticated: boolean;
     isInitialized: boolean;
     profile: UserView | null;
+    isGuest: boolean;
 }
 
 export interface SimpleWebCoreStore extends SimpleWebCoreState {
@@ -34,40 +35,42 @@ const getProfile = (): UserView | null => {
     return stored ? JSON.parse(stored) : null;
 };
 
+const getIsGuest = (profile: UserView | null): boolean =>
+    (profile as unknown as Record<string, unknown>)?.['userRole'] === 'guest';
+
 export const useSimpleWebCore = create<SimpleWebCoreStore>(set => ({
     isAuthenticated: false,
     isInitialized: false,
     profile: null,
+    isGuest: false,
 
     setIsAuthenticated: (isAuthenticated: boolean) => set({ isAuthenticated }),
 
     setProfile: (profile: UserView | null) => {
         saveProfile(profile);
-        set({ profile });
+        set({ profile, isGuest: getIsGuest(profile) });
     },
 
     login: (profile?: UserView) => {
-        if (profile) {
-            saveProfile(profile);
-        }
-        set({ isAuthenticated: true, profile: profile || null });
+        if (profile) saveProfile(profile);
+        set({ isAuthenticated: true, profile: profile || null, isGuest: getIsGuest(profile ?? null) });
     },
 
     logout: () => {
         simpleWebCore.clearToken();
         saveProfile(null);
-        set({ isAuthenticated: false, profile: null });
+        set({ isAuthenticated: false, profile: null, isGuest: false });
     },
 
     checkAuth: () => {
         const token = simpleWebCore.getToken();
         const profile = getProfile();
-        set({ isAuthenticated: !!token, profile });
+        set({ isAuthenticated: !!token, profile, isGuest: getIsGuest(profile) });
     },
 
     initialize: () => {
         const token = simpleWebCore.getToken();
         const profile = getProfile();
-        set({ isAuthenticated: !!token, profile, isInitialized: true });
+        set({ isAuthenticated: !!token, profile, isInitialized: true, isGuest: getIsGuest(profile) });
     },
 }));
