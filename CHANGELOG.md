@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-03-09] - root@0.9.0, @chatic/admin@0.3.0, @chatic/landing@0.2.0
+
+### Features
+
+- update light theme to landing
+- update landing page for deeplink
+- initialize env from URL query params
+
+### Refactor
+
+- remove debug logs
+- handle deferred deeplink test data
+- update displayName and displayId logic
+
 ## [2026-03-09] - root@0.8.1, @chatic/web@0.7.1
 
 ### Features
