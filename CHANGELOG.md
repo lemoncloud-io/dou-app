@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-03-09] - root@0.8.0, @chatic/landing@0.1.0
+
+### Features
+
+- support desktop browser
+- add continue in browser button
+
+### Refactor
+
+- (deeplink) add new exports
+
 ## [2026-03-09] - root@0.7.0, @chatic/web@0.7.0
 
 ### Features
