@@ -8,13 +8,13 @@ export const FeaturesSection = (): JSX.Element => {
     const { t } = useTranslation();
 
     return (
-        <section className="w-full py-20 sm:py-28 px-6 bg-[#0a0a0f]">
+        <section className="w-full py-20 sm:py-28 px-6 bg-background">
             <div className="max-w-[1200px] mx-auto">
                 <div className="text-center mb-12 sm:mb-16">
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4 animate-fade-in-up">
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-4 animate-fade-in-up">
                         {t('features.title')}
                     </h2>
-                    <p className="text-base sm:text-lg text-white/50 animate-fade-in-up animate-delay-100">
+                    <p className="text-base sm:text-lg text-muted-foreground animate-fade-in-up animate-delay-100">
                         {t('features.subtitle')}
                     </p>
                 </div>

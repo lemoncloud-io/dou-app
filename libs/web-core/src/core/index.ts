@@ -16,6 +16,43 @@ declare global {
     }
 }
 
+/**
+ * Initialize environment from URL query parameters (web browser deeplink flow)
+ *
+ * When user clicks deeplink on landing page, envs are passed as query params:
+ * - _backend → CHATIC_OAUTH_ENDPOINT, CHATIC_DOU_ENDPOINT
+ * - _wss → CHATIC_WS_ENDPOINT
+ *
+ * Mobile WebView does NOT use query params (injects directly to localStorage),
+ * so this only runs for web browser flow.
+ */
+const initEnvFromQueryParams = (): void => {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+        return;
+    }
+
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const backend = params.get('_backend');
+        const wss = params.get('_wss');
+
+        // Only set if query params exist (web browser flow from landing page)
+        // Mobile WebView doesn't have these params - it injects directly to localStorage
+        if (backend) {
+            localStorage.setItem('CHATIC_OAUTH_ENDPOINT', backend);
+            localStorage.setItem('CHATIC_DOU_ENDPOINT', backend);
+        }
+        if (wss) {
+            localStorage.setItem('CHATIC_WS_ENDPOINT', wss);
+        }
+    } catch {
+        // Ignore errors (e.g., localStorage disabled)
+    }
+};
+
+// Initialize from query params before reading localStorage
+initEnvFromQueryParams();
+
 // localStorage takes priority (injected by mobile WebView for deeplink)
 const getLocalStorageItem = (key: string): string | null => {
     try {

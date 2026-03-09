@@ -1,14 +1,10 @@
-import { useMemo } from 'react';
-
 import type { DeepLinkInfo } from '../types';
 
-export const useDeepLinkInfo = (): DeepLinkInfo => {
-    return useMemo(() => {
-        const path = window.location.pathname;
-        const search = window.location.search;
-        const fullPath = path + search;
-        const deepLinkUrl = window.location.href;
-
-        return { fullPath, deepLinkUrl };
-    }, []);
-};
+/**
+ * Hook to get current deep link info from URL.
+ * URL doesn't change during component lifecycle, so no memoization needed.
+ */
+export const useDeepLinkInfo = (): DeepLinkInfo => ({
+    fullPath: window.location.pathname + window.location.search,
+    deepLinkUrl: window.location.href,
+});

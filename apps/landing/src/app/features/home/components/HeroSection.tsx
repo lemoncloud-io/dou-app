@@ -1,17 +1,19 @@
 import { useTranslation } from 'react-i18next';
 
 import { Logo } from '@chatic/assets';
+import { useTheme } from '@chatic/theme';
 
 import { storeUrls } from '../constants';
 
 export const HeroSection = (): JSX.Element => {
     const { t } = useTranslation();
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
 
     return (
-        <section className="relative w-full min-h-[calc(100vh-64px)] flex flex-col items-center justify-center px-6 pt-20 pb-24 bg-[#0a0a0f] overflow-hidden">
+        <section className="relative w-full min-h-[calc(100vh-64px)] flex flex-col items-center justify-center px-6 pt-20 pb-24 bg-background overflow-hidden">
             {/* Background Effects */}
-            <div className="absolute inset-0 grid-pattern" />
-            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] sm:w-[800px] sm:h-[800px] bg-[#c4ff00]/5 rounded-full blur-3xl animate-pulse-glow" />
+            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] sm:w-[800px] sm:h-[800px] bg-accent/10 rounded-full blur-3xl animate-pulse-glow" />
             <div className="absolute bottom-0 right-0 w-[400px] h-[400px] sm:w-[500px] sm:h-[500px] bg-blue-500/5 rounded-full blur-3xl" />
             <div className="absolute top-1/3 left-0 w-[300px] h-[300px] bg-purple-500/5 rounded-full blur-3xl" />
 
@@ -22,20 +24,20 @@ export const HeroSection = (): JSX.Element => {
                 </div>
 
                 {/* Badge */}
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full mb-8 animate-fade-in animate-delay-100">
-                    <span className="w-2 h-2 bg-[#c4ff00] rounded-full animate-pulse" />
-                    <span className="text-sm text-white/70">{t('hero.badge')}</span>
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-full mb-8 animate-fade-in animate-delay-100 shadow-sm">
+                    <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+                    <span className="text-sm text-muted-foreground">{t('hero.badge')}</span>
                 </div>
 
                 {/* Title */}
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-6 tracking-tight leading-tight animate-fade-in-up">
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground mb-6 tracking-tight leading-tight animate-fade-in-up">
                     {t('hero.title1')}
                     <br />
-                    <span className="text-gradient">{t('hero.title2')}</span>
+                    <span className={isDark ? 'text-gradient' : 'text-gradient-light'}>{t('hero.title2')}</span>
                 </h1>
 
                 {/* Subtitle */}
-                <p className="text-base sm:text-lg lg:text-xl text-white/60 mb-10 sm:mb-12 max-w-[600px] mx-auto leading-relaxed animate-fade-in-up animate-delay-100">
+                <p className="text-base sm:text-lg lg:text-xl text-muted-foreground mb-10 sm:mb-12 max-w-[600px] mx-auto leading-relaxed animate-fade-in-up animate-delay-100">
                     {t('hero.subtitle')}
                 </p>
 
@@ -46,11 +48,11 @@ export const HeroSection = (): JSX.Element => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="group btn-shimmer inline-flex items-center justify-center gap-3
-                                   bg-[#c4ff00] text-[#0a0a0f]
+                                   bg-foreground text-background
                                    px-8 py-4 rounded-xl text-base font-semibold
                                    w-full sm:w-auto sm:min-w-[200px]
                                    transition-all duration-300
-                                   hover:shadow-lg hover:shadow-[#c4ff00]/20
+                                   hover:shadow-lg hover:shadow-foreground/20
                                    hover:-translate-y-0.5 active:translate-y-0"
                     >
                         <AppleIcon />
@@ -63,12 +65,12 @@ export const HeroSection = (): JSX.Element => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center justify-center gap-3
-                                   bg-transparent text-white
-                                   border border-white/20 hover:border-white/40
+                                   bg-transparent text-foreground
+                                   border border-foreground/20 hover:border-foreground/40
                                    px-8 py-4 rounded-xl text-base font-medium
                                    w-full sm:w-auto sm:min-w-[200px]
                                    transition-all duration-300
-                                   hover:bg-white/5"
+                                   hover:bg-foreground/5"
                     >
                         <PlayStoreIcon />
                         {t('hero.googlePlay')}
@@ -78,8 +80,8 @@ export const HeroSection = (): JSX.Element => {
 
             {/* Scroll indicator */}
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-fade-in animate-delay-500">
-                <div className="w-6 h-10 border-2 border-white/20 rounded-full flex justify-center pt-2">
-                    <div className="w-1 h-2 bg-white/40 rounded-full animate-bounce" />
+                <div className="w-6 h-10 border-2 border-foreground/20 rounded-full flex justify-center pt-2">
+                    <div className="w-1 h-2 bg-foreground/40 rounded-full animate-bounce" />
                 </div>
             </div>
         </section>
