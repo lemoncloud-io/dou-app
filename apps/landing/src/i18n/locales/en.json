@@ -19,8 +19,21 @@
         },
         "button": {
             "openInApp": "Open in DoU App",
+            "openApp": "Open App",
+            "viewInWeb": "View in Web",
             "downloadFrom": "Download from {{store}}",
             "continueBrowser": "Continue in browser"
+        },
+        "dialog": {
+            "cancel": "Cancel",
+            "confirm": "Confirm",
+            "appConfirm": {
+                "title": "Open in DoU app?"
+            },
+            "storeConfirm": {
+                "title": "App installation required.",
+                "subtitle": "Go to store?"
+            }
         },
         "desktop": {
             "message": "Please access from a mobile device.",

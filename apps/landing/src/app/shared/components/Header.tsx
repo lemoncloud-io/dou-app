@@ -28,19 +28,19 @@ export const Header = (): JSX.Element => {
     return (
         <header
             className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-                isScrolled ? 'bg-[#0a0a0f]/95 backdrop-blur-xl border-b border-white/5 shadow-lg' : ''
+                isScrolled ? 'bg-white/95 backdrop-blur-xl border-b border-[#eaeaec] shadow-sm' : ''
             }`}
         >
             <div className="max-w-[1440px] mx-auto flex items-center justify-between h-16 px-6 md:px-10">
                 <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                     <img src={Logo.logo} alt="DoU" className="h-7 w-7" />
-                    <span className="text-[22px] font-bold text-white tracking-tight">DoU</span>
+                    <span className="text-[22px] font-bold text-[#191d31] tracking-tight">DoU</span>
                 </Link>
                 <nav className="flex items-center gap-4 sm:gap-6">
                     <button
                         onClick={toggleLanguage}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-full transition-all
-                                   text-white/80 hover:text-white bg-white/10 hover:bg-white/20 border border-white/10"
+                                   text-[#53555b] hover:text-[#191d31] bg-white hover:bg-[#f4f5f5] border border-[#eaeaec] shadow-sm"
                     >
                         <GlobeIcon />
                         {i18n.language === 'ko' ? 'EN' : '한국어'}

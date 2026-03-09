@@ -26,7 +26,7 @@ body,
 #root {
     height: 100%;
     overflow: hidden;
-    background-color: #0a0a0f;
+    background-color: #ffffff;
 }
 
 @layer base {
@@ -151,6 +151,14 @@ body,
     background-clip: text;
 }
 
+/* Gradient text for light theme */
+.text-gradient-dark {
+    background: linear-gradient(135deg, #7cb300 0%, #5a8a00 50%, #7cb300 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
 /* Glass effect */
 .glass {
     background: rgba(255, 255, 255, 0.05);
@@ -179,10 +187,18 @@ body,
     animation: shimmer 0.75s ease-out;
 }
 
-/* Grid pattern */
+/* Grid pattern (dark theme) */
 .grid-pattern {
     background-image:
         linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+}
+
+/* Grid pattern (light theme) */
+.grid-pattern-light {
+    background-image:
+        linear-gradient(rgba(0, 0, 0, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.015) 1px, transparent 1px);
     background-size: 60px 60px;
 }

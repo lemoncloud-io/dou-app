@@ -9,6 +9,8 @@ export const Images = {
     octopus: new URL('./images/octopus.png', import.meta.url).href,
     mapCenter: new URL('./images/map_center.png', import.meta.url).href,
     thumb: new URL('./images/thumb.png', import.meta.url).href,
+    dou1: new URL('./images/dou1.png', import.meta.url).href,
+    dou2: new URL('./images/dou2.png', import.meta.url).href,
 } as const;
 
 export const Logo = {

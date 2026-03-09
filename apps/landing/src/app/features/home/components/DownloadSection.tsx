@@ -6,15 +6,15 @@ export const DownloadSection = (): JSX.Element => {
     const { t } = useTranslation();
 
     return (
-        <section className="relative w-full py-20 sm:py-28 px-6 bg-gradient-to-b from-[#0a0a0f] to-[#12131a] overflow-hidden">
+        <section className="relative w-full py-20 sm:py-28 px-6 bg-white overflow-hidden">
             {/* Background glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[#c4ff00]/5 rounded-full blur-3xl" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[#c4ff00]/8 rounded-full blur-3xl" />
 
             <div className="relative z-10 max-w-[800px] mx-auto text-center">
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4 animate-fade-in-up">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#191d31] mb-4 animate-fade-in-up">
                     {t('download.title')}
                 </h2>
-                <p className="text-base sm:text-lg text-white/50 mb-10 sm:mb-12 animate-fade-in-up animate-delay-100">
+                <p className="text-base sm:text-lg text-[#53555b] mb-10 sm:mb-12 animate-fade-in-up animate-delay-100">
                     {t('download.subtitle')}
                 </p>
 
@@ -24,11 +24,11 @@ export const DownloadSection = (): JSX.Element => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="group btn-shimmer inline-flex items-center justify-center gap-3
-                                   bg-white text-[#0a0a0f]
+                                   bg-[#191d31] text-white
                                    px-8 py-4 rounded-xl text-base font-semibold
                                    w-full sm:w-auto sm:min-w-[240px]
                                    transition-all duration-300
-                                   hover:shadow-lg hover:shadow-white/10
+                                   hover:shadow-lg hover:shadow-[#191d31]/20
                                    hover:-translate-y-0.5 active:translate-y-0"
                     >
                         <AppleIcon />
@@ -40,11 +40,11 @@ export const DownloadSection = (): JSX.Element => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="group btn-shimmer inline-flex items-center justify-center gap-3
-                                   bg-[#c4ff00] text-[#0a0a0f]
+                                   bg-[#c4ff00] text-[#191d31]
                                    px-8 py-4 rounded-xl text-base font-semibold
                                    w-full sm:w-auto sm:min-w-[240px]
                                    transition-all duration-300
-                                   hover:shadow-lg hover:shadow-[#c4ff00]/20
+                                   hover:shadow-lg hover:shadow-[#c4ff00]/30
                                    hover:-translate-y-0.5 active:translate-y-0"
                     >
                         <PlayStoreIcon />
