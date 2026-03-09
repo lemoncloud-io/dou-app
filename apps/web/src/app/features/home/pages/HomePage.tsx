@@ -1,6 +1,8 @@
-import { ChevronDown, CirclePlus, User } from 'lucide-react';
+import { ChevronDown, Home, Plus, Search, User } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
+import { cn } from '@chatic/lib/utils';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -15,11 +17,35 @@ import { OnboardingModal } from '../../onboarding';
 import { ChannelList } from '../components/ChannelList';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
 
+// Mock workspaces for now
+const mockWorkspaces = [
+    { id: 'default', name: 'sunny place', image: null, isDefault: true },
+    {
+        id: 'ws-2',
+        name: '개발자 모임',
+        image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=200&h=200&fit=crop',
+    },
+    {
+        id: 'ws-3',
+        name: '디자인 팀',
+        image: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=200&h=200&fit=crop',
+    },
+    {
+        id: 'ws-4',
+        name: '독서 클럽',
+        image: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=200&h=200&fit=crop',
+    },
+];
+
 export const HomePage = () => {
+    const navigate = useNavigate();
     const { profile, logout } = useSimpleWebCore();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [activeWorkspaceId, setActiveWorkspaceId] = useState('default');
+
+    const activeWorkspace = mockWorkspaces.find(ws => ws.id === activeWorkspaceId);
 
     const handleLogout = () => {
         logout();
@@ -33,120 +59,107 @@ export const HomePage = () => {
     };
 
     return (
-        <div className="flex h-screen flex-col bg-white ">
-            {/* Main Content */}
-            <div className="flex-1 overflow-auto">
-                {/* Profile Section */}
-                <div className="flex gap-0.5 pt-6 pb-8 px-4">
-                    <div className="flex flex-1 items-center gap-0.5 ">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <button className="flex items-center gap-2">
-                                    <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-[rgba(0,43,126,0.04)] border border-[#F4F5F5]">
-                                        <User className="h-4 w-4 text-[rgba(0,15,44,0.49)]" />
-                                    </div>
-                                    <div className="flex flex-col justify-center">
-                                        <div className="flex items-center gap-1">
-                                            <span className="text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-[#3A3C40]">
-                                                {profile?.name || '-'}
-                                            </span>
-                                            <ChevronDown className="h-[18px] w-[18px] text-black" />
-                                        </div>
-                                        <span className="text-[13px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
-                                            {profile?.email || '-'}
+        <div className="flex min-h-screen flex-col bg-background pb-20">
+            {/* Header */}
+            <header className="flex items-center justify-between px-5 pb-3 pt-3">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className="flex items-center gap-3">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary">
+                                <User size={20} className="text-primary-foreground" />
+                            </div>
+                            <div className="flex flex-col items-start">
+                                <div className="flex items-center gap-1">
+                                    <h1 className="text-lg font-bold text-foreground">{profile?.name || '-'}</h1>
+                                    <ChevronDown size={18} className="text-muted-foreground" />
+                                </div>
+                                <p className="text-xs text-muted-foreground">{profile?.email || '-'}</p>
+                            </div>
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48">
+                        <DropdownMenuItem onClick={() => setIsSettingsOpen(true)} className="cursor-pointer">
+                            <span>설정</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                            <span>로그아웃</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                <div className="flex items-center gap-1">
+                    <button onClick={() => navigate('/join')} className="p-2">
+                        <Plus size={22} className="text-foreground" />
+                    </button>
+                    <button onClick={() => navigate('/search')} className="p-2">
+                        <Search size={22} className="text-foreground" />
+                    </button>
+                </div>
+            </header>
+
+            {/* Workspace Carousel */}
+            <section className="px-5 pb-4 pt-2">
+                <p className="mb-3 text-xs font-medium text-muted-foreground">내 워크스페이스 목록</p>
+                <div className="scrollbar-hide flex gap-3 overflow-x-auto pb-1">
+                    {mockWorkspaces.map(ws => {
+                        const isActive = ws.id === activeWorkspaceId;
+                        return (
+                            <div
+                                key={ws.id}
+                                onClick={() => setActiveWorkspaceId(ws.id)}
+                                className={cn(
+                                    'relative h-[110px] w-[110px] flex-shrink-0 cursor-pointer overflow-hidden rounded-xl transition-all active:scale-95',
+                                    isActive && 'ring-2 ring-accent ring-offset-2 ring-offset-background'
+                                )}
+                            >
+                                {ws.isDefault ? (
+                                    <div className="flex h-full w-full flex-col items-center justify-center bg-primary">
+                                        <Home size={24} className="mb-1 text-primary-foreground" />
+                                        <span className="px-2 text-center text-[11px] font-medium leading-tight text-primary-foreground">
+                                            {ws.name}
                                         </span>
                                     </div>
-                                </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-48">
-                                <DropdownMenuItem onClick={() => setIsSettingsOpen(true)} className="cursor-pointer">
-                                    <span>설정</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                                    <span>로그아웃</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                    {/* <button>
-                        <Search />
-                    </button> */}
-                </div>
-
-                {/* Place Section */}
-                {/* <div className="flex flex-col gap-4 px-[18px]">
-                    <h2 className="text-[16px] font-semibold leading-[1.33] tracking-[-0.023em] text-black">
-                        내 플레이스
-                    </h2>
-                    <div className="flex gap-5 overflow-x-auto py-2">
-                        <button
-                            onClick={() => setIsPlaceDialogOpen(true)}
-                            className="flex flex-col items-center justify-center gap-[5px] rounded-[14px]  flex-shrink-0"
-                        >
-                            <div className="h-14 w-14 rounded-full border border-[#EAEAEC] flex items-center justify-center">
-                                <Plus className="h-6 w-6 text-[#84888F]" />
+                                ) : (
+                                    <>
+                                        <img
+                                            src={ws.image ?? ''}
+                                            alt={ws.name}
+                                            className="h-full w-full object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                        <span className="absolute bottom-2 left-2 right-2 truncate text-[11px] font-medium leading-tight text-primary-foreground">
+                                            {ws.name}
+                                        </span>
+                                    </>
+                                )}
                             </div>
-                            <span className="text-[14px] font-normal leading-[1.19] tracking-[-0.018em] text-[#9FA2A7]">
-                                플레이스 추가
-                            </span>
-                        </button>
-
-                        {[
-                            { id: 1, name: 'Place Name', selected: true, hasNotification: true },
-                            { id: 2, name: 'Place Name', selected: false, hasNotification: true },
-                            { id: 3, name: 'Place Name', selected: false, hasNotification: false },
-                        ].map(place => (
-                            <button
-                                key={place.id}
-                                className="flex flex-col items-center justify-center gap-[5px] rounded-[14px]  flex-shrink-0 relative"
-                            >
-                                <div className="relative">
-                                    <div className="h-14 w-14 rounded-full bg-[#102346] flex items-center justify-center">
-                                        <div className="text-white text-2xl">🏠</div>
-                                    </div>
-                                    {place.selected && (
-                                        <div className="absolute bottom-0 right-0 w-[14px] h-[14px] bg-white rounded-full flex items-center justify-center">
-                                            <div className="w-2 h-2 bg-[#C139E3] rounded-full" />
-                                        </div>
-                                    )}
-                                    {place.hasNotification && (
-                                        <div className="absolute top-0 right-0 w-[7px] h-[7px] bg-[#FF4C35] rounded-full border-[1.5px] border-white" />
-                                    )}
-                                </div>
-                                <span
-                                    className={`text-[14px] font-normal leading-[1.19] tracking-[-0.018em] ${
-                                        place.selected ? 'text-black' : 'text-[#9FA2A7]'
-                                    }`}
-                                >
-                                    {place.name}
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-                </div> */}
-
-                {/* Divider */}
-                {/* <div className="my-3 px-4">
-                    <div className="h-[3px] w-full bg-[#F4F5F5]" />
-                </div> */}
-
-                {/* Chat Section */}
-                <div className="flex flex-col">
-                    <div className="flex items-center justify-between px-[18px] py-3">
-                        <h2 className="text-[18px] font-semibold leading-[1.33] tracking-[-0.023em] text-black">
-                            Chat2
-                        </h2>
-                        <button onClick={() => setIsDialogOpen(true)} className="h-6 w-6 text-black">
-                            <CirclePlus className="h-6 w-6" />
-                        </button>
-                    </div>
-
-                    {/* Chat List */}
-                    <div className="flex flex-col gap-[15px] px-5 py-3">
-                        <ChannelList />
-                    </div>
+                        );
+                    })}
+                    {/* + Button */}
+                    <button
+                        onClick={() => navigate('/create-workspace')}
+                        className="flex h-[110px] w-[110px] flex-shrink-0 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-border transition-all hover:border-muted-foreground active:scale-95"
+                    >
+                        <Plus size={28} className="text-muted-foreground" />
+                    </button>
                 </div>
-            </div>
+            </section>
+
+            <div className="mx-5 h-px bg-border" />
+
+            {/* Chat List */}
+            <section className="flex-1 px-5 pt-4">
+                <div className="mb-3 flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-foreground">{activeWorkspace?.name || 'Chat'}</h2>
+                    <button
+                        onClick={() => setIsDialogOpen(true)}
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-border"
+                    >
+                        <Plus size={18} className="text-foreground" />
+                    </button>
+                </div>
+
+                <ChannelList workspaceId={activeWorkspaceId} />
+            </section>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
             <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
