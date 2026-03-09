@@ -56,7 +56,7 @@ export const createInviteLink = async (id: string, invite: MyInviteView, created
 
     // Check if already exists
     const existing = await docRef.get();
-    if (existing.exists) {
+    if (existing.exists()) {
         throw new Error('Invite link already exists for this ID');
     }
 
@@ -92,12 +92,13 @@ export const getInviteLink = async (id: string): Promise<InviteLinkDocument | nu
     const docRef = firestore().collection(DEFERRED_LINKS_COLLECTION).doc(id);
     const snapshot = await docRef.get();
 
-    if (!snapshot.exists) {
+    if (!snapshot.exists()) {
+        console.warn('[InviteLink] Not found:', id);
         return null;
     }
 
     const data = snapshot.data();
-
+    console.log('[InviteLink] Retrieved:', { id, data });
     // Runtime validation of document structure
     if (!data?.deepLinkUrl || !data?.shortCode || !data?.invite) {
         console.error('[InviteLink] Invalid document structure:', id);
@@ -116,7 +117,7 @@ export const getInviteLink = async (id: string): Promise<InviteLinkDocument | nu
 export const checkInviteLinkExists = async (id: string): Promise<boolean> => {
     const docRef = firestore().collection(DEFERRED_LINKS_COLLECTION).doc(id);
     const snapshot = await docRef.get();
-    return snapshot.exists;
+    return snapshot.exists();
 };
 
 /**
