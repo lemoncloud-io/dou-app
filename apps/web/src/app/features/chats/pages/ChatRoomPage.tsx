@@ -211,7 +211,7 @@ export const ChatRoomPage = () => {
     return (
         <div className="flex h-screen flex-col bg-background">
             {/* Header */}
-            <header className="z-10 flex items-center justify-between border-b border-border bg-background px-4 pb-2 pt-3">
+            <header className="z-10 flex items-center justify-between border-b border-border bg-background px-4 pb-2">
                 <button onClick={() => navigate(-1)} className="p-1">
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>
@@ -327,7 +327,10 @@ export const ChatRoomPage = () => {
             </div>
 
             {/* Input */}
-            <div className="border-t border-border bg-background px-4 pb-8 pt-2">
+            <div
+                className="border-t border-border bg-background px-4 pt-6 mb-safe-bottom"
+                style={{ paddingBottom: 'calc(8px + var(--safe-bottom, 0px))' }}
+            >
                 <div className="flex items-center gap-2 rounded-full bg-muted px-4 py-2.5">
                     <textarea
                         ref={inputRef}

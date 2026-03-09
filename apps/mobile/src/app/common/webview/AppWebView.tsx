@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useState } from 'react';
+import React, { forwardRef, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { WebView, type WebViewProps } from 'react-native-webview';
 import DeviceInfo from 'react-native-device-info';
@@ -12,11 +12,10 @@ interface AppWebViewProps extends WebViewProps {}
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const [initData, setInitData] = useState<{ userAgent: string; script: string } | null>(null);
     const insets = useSafeAreaInsets();
+    const webViewRef = useRef<WebView | null>(null);
 
+    // 최초 1회: deviceInfo + 초기 safeArea 주입
     useEffect(() => {
-        /**
-         * 웹 스크립트 주입을 통해 디바이스 정보 저장
-         */
         const prepareWebView = async () => {
             const [userAgent, uniqueId] = await Promise.all([getUserAgent(), DeviceInfo.getUniqueId()]);
 
@@ -27,14 +26,6 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             const appLanguage = getAppLanguage();
             const platform = Platform.OS === 'ios' ? 'iOS' : 'Android';
             const stage = Config.VITE_ENV || 'PROD';
-
-            const safeAreaScript = `
-                const root = document.documentElement;
-                root.style.setProperty('--safe-top', '${insets.top}px');
-                root.style.setProperty('--safe-bottom', '${insets.bottom}px');
-                root.style.setProperty('--safe-left', '${insets.left}px');
-                root.style.setProperty('--safe-right', '${insets.right}px');
-            `;
 
             const deviceInfoScript = `
                 window.CHATIC_APP_PLATFORM = '${platform}';
@@ -49,7 +40,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
 
             const injectionScript = `
                 (function() {
-                    ${safeAreaScript}
+                    const root = document.documentElement;
+                    root.style.setProperty('--safe-top', '${insets.top}px');
+                    root.style.setProperty('--safe-bottom', '${insets.bottom}px');
+                    root.style.setProperty('--safe-left', '${insets.left}px');
+                    root.style.setProperty('--safe-right', '${insets.right}px');
                     ${deviceInfoScript}
                     const _origLog = console.log.bind(console);
                     const _origError = console.error.bind(console);
@@ -65,13 +60,29 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 true;
             `;
 
-            setInitData({
-                userAgent: userAgent,
-                script: injectionScript,
-            });
+            setInitData({ userAgent, script: injectionScript });
         };
         void prepareWebView();
-    }, [insets]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // insets 변경 시 명령형으로 재주입
+    useEffect(() => {
+        const target = (ref as React.RefObject<WebView>)?.current ?? webViewRef.current;
+        if (!target || !initData) return;
+
+        const safeAreaScript = `
+            (function() {
+                const root = document.documentElement;
+                root.style.setProperty('--safe-top', '${insets.top}px');
+                root.style.setProperty('--safe-bottom', '${insets.bottom}px');
+                root.style.setProperty('--safe-left', '${insets.left}px');
+                root.style.setProperty('--safe-right', '${insets.right}px');
+            })();
+            true;
+        `;
+        target.injectJavaScript(safeAreaScript);
+    }, [insets, ref, initData]);
 
     if (!initData) {
         return (
@@ -83,7 +94,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
 
     return (
         <WebView
-            ref={ref}
+            ref={node => {
+                webViewRef.current = node;
+                if (typeof ref === 'function') ref(node);
+                else if (ref) (ref as React.MutableRefObject<WebView | null>).current = node;
+            }}
             style={{ backgroundColor: '#ffffff' }}
             startInLoadingState={true}
             showsVerticalScrollIndicator={false}
