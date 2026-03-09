@@ -109,6 +109,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             injectedJavaScript={initData.script}
             hideKeyboardAccessoryView={true}
             forceDarkOn={false}
+            originWhitelist={['*']}
+            allowFileAccess={true}
+            allowFileAccessFromFileURLs={true}
+            allowUniversalAccessFromFileURLs={true}
+            mixedContentMode="always"
             {...props}
         />
     );
