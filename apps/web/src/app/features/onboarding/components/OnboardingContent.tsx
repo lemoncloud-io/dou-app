@@ -6,21 +6,25 @@ interface OnboardingContentProps {
 
 export const OnboardingContent = ({ step }: OnboardingContentProps) => {
     return (
-        <div className="flex h-full flex-col items-center justify-center px-6">
-            {/* Placeholder for app screenshot image */}
-            <div className="mb-8 flex h-[300px] w-full max-w-[280px] items-center justify-center rounded-2xl bg-muted">
-                <span className="text-muted-foreground">App Preview</span>
-            </div>
-
+        <div className="flex h-full flex-col px-6 pt-4">
             {/* Title */}
-            <h1 className="mb-3 text-center text-[24px] font-bold leading-[1.3] tracking-[-0.02em] text-foreground">
+            <h1 className="mb-2 text-[24px] font-bold leading-[1.3] tracking-[-0.02em] text-foreground">
                 {step.title}
             </h1>
 
             {/* Description */}
-            <p className="whitespace-pre-line text-center text-[15px] leading-[1.5] tracking-[-0.01em] text-muted-foreground">
+            <p className="mb-6 whitespace-pre-line text-[15px] leading-[1.5] tracking-[-0.01em] text-muted-foreground">
                 {step.description}
             </p>
+
+            {/* App Screenshot Image */}
+            <div className="flex flex-1 items-center justify-center overflow-hidden">
+                <img
+                    src={step.image}
+                    alt={step.title}
+                    className="h-auto max-h-full w-full max-w-[320px] rounded-2xl object-contain"
+                />
+            </div>
         </div>
     );
 };

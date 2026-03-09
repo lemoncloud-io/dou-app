@@ -9,6 +9,10 @@ export const Images = {
     octopus: new URL('./images/octopus.png', import.meta.url).href,
     mapCenter: new URL('./images/map_center.png', import.meta.url).href,
     thumb: new URL('./images/thumb.png', import.meta.url).href,
+    onboardingStep1: new URL('./images/onboarding_step1.png', import.meta.url).href,
+    onboardingStep2: new URL('./images/onboarding_step2.png', import.meta.url).href,
+    onboardingStep3: new URL('./images/onboarding_step3.png', import.meta.url).href,
+    onboardingStep4: new URL('./images/onboarding_step4.png', import.meta.url).href,
 } as const;
 
 export const Logo = {
