@@ -19,7 +19,8 @@
         },
         "button": {
             "openInApp": "DoU 앱에서 열기",
-            "downloadFrom": "{{store}}에서 다운로드"
+            "downloadFrom": "{{store}}에서 다운로드",
+            "continueBrowser": "브라우저에서 계속하기"
         },
         "desktop": {
             "message": "모바일 기기에서 접속해 주세요.",

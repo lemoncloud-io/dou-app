@@ -9,10 +9,10 @@ interface DeepLinkUIProps {
     state: DeepLinkState;
     deviceType: DeviceType;
     onLaunchApp: () => void;
-    webError?: string | null;
+    onContinueBrowser?: () => void;
 }
 
-export const DeepLinkUI = ({ state, deviceType, onLaunchApp, webError }: DeepLinkUIProps): JSX.Element => {
+export const DeepLinkUI = ({ state, deviceType, onLaunchApp, onContinueBrowser }: DeepLinkUIProps): JSX.Element => {
     const { t } = useTranslation();
 
     const storeUrl = deviceType === 'ios' ? APP_CONFIG.storeUrls.ios : APP_CONFIG.storeUrls.android;
@@ -29,8 +29,15 @@ export const DeepLinkUI = ({ state, deviceType, onLaunchApp, webError }: DeepLin
                 {/* Content based on state */}
                 {state === 'initial' && <InitialContent t={t} onLaunchApp={onLaunchApp} />}
                 {state === 'launching' && <LaunchingContent t={t} />}
-                {state === 'store' && <StoreContent t={t} storeUrl={storeUrl} storeName={storeName} />}
-                {state === 'desktop' && <DesktopContent t={t} webError={webError} />}
+                {state === 'store' && (
+                    <StoreContent
+                        t={t}
+                        storeUrl={storeUrl}
+                        storeName={storeName}
+                        onContinueBrowser={onContinueBrowser}
+                    />
+                )}
+                {state === 'desktop' && <DesktopContent t={t} />}
                 {state === 'web-redirecting' && <WebRedirectingContent t={t} />}
             </div>
         </div>
@@ -77,7 +84,8 @@ const StoreContent = ({
     t,
     storeUrl,
     storeName,
-}: ContentProps & { storeUrl: string; storeName: string }): JSX.Element => (
+    onContinueBrowser,
+}: ContentProps & { storeUrl: string; storeName: string; onContinueBrowser?: () => void }): JSX.Element => (
     <>
         <div className="mb-12 flex-shrink-0">
             <h1 className="text-2xl font-bold text-white mb-6 leading-tight tracking-tight">
@@ -95,19 +103,20 @@ const StoreContent = ({
         >
             {t('deeplink.button.downloadFrom', { store: storeName })}
         </a>
+        {onContinueBrowser && (
+            <button
+                onClick={onContinueBrowser}
+                className="mt-4 text-white/60 text-sm underline hover:text-white transition-colors"
+            >
+                {t('deeplink.button.continueBrowser')}
+            </button>
+        )}
     </>
 );
 
-const DesktopContent = ({ t, webError }: ContentProps & { webError?: string | null }): JSX.Element => (
+const DesktopContent = ({ t }: ContentProps): JSX.Element => (
     <div className="text-white/60 leading-relaxed text-base">
-        {webError ? (
-            <>
-                <p className="mb-4 text-red-400">{webError}</p>
-                <p className="mb-4">{t('deeplink.desktop.fallback')}</p>
-            </>
-        ) : (
-            <p className="mb-4">{t('deeplink.desktop.message')}</p>
-        )}
+        <p className="mb-4">{t('deeplink.desktop.message')}</p>
         <p className="text-white">
             <strong>iOS:</strong> {t('deeplink.desktop.ios')}
         </p>

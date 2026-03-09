@@ -19,7 +19,8 @@
         },
         "button": {
             "openInApp": "Open in DoU App",
-            "downloadFrom": "Download from {{store}}"
+            "downloadFrom": "Download from {{store}}",
+            "continueBrowser": "Continue in browser"
         },
         "desktop": {
             "message": "Please access from a mobile device.",

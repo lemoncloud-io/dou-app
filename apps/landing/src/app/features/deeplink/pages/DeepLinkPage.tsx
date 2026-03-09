@@ -6,18 +6,19 @@ export const DeepLinkPage = (): JSX.Element => {
     const deepLinkInfo = useDeepLinkInfo();
     const { state, launchApp } = useAppLauncher({ deviceType, deepLinkInfo });
 
-    // For desktop users, fetch from Firebase and redirect to web app
-    const isDesktop = deviceType === 'desktop';
-    const { loading: webLoading, error: webError } = useWebRedirect(deepLinkInfo, isDesktop);
+    // Web redirect for "Continue in browser" button (mobile only, not auto-triggered)
+    const isMobile = deviceType === 'ios' || deviceType === 'android';
+    const { redirect: continueInBrowser, loading: webLoading } = useWebRedirect(deepLinkInfo, false);
 
-    // Override state for desktop with web redirect states
-    const effectiveState = isDesktop
-        ? webLoading
-            ? 'web-redirecting'
-            : webError
-              ? 'desktop' // Show desktop fallback on error
-              : 'web-redirecting'
-        : state;
+    // Show web-redirecting state when Continue in browser is clicked
+    const effectiveState = webLoading ? 'web-redirecting' : state;
 
-    return <DeepLinkUI state={effectiveState} deviceType={deviceType} onLaunchApp={launchApp} webError={webError} />;
+    return (
+        <DeepLinkUI
+            state={effectiveState}
+            deviceType={deviceType}
+            onLaunchApp={launchApp}
+            onContinueBrowser={isMobile ? continueInBrowser : undefined}
+        />
+    );
 };
