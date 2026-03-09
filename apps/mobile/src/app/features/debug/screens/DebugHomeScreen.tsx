@@ -30,6 +30,9 @@ export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
                 {renderMenuItem('딥링크 테스트', () => {
                     navigation.navigate('DeeplinkTest');
                 })}
+                {renderMenuItem('디바이스 기능 테스트', () => {
+                    navigation.navigate('DeviceTest');
+                })}
             </ScrollView>
         </SafeAreaView>
     );
