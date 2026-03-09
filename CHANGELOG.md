@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-03-09] - root@0.8.1, @chatic/web@0.7.1
+
+### Features
+
+- (onboarding) add app screenshot images to onboarding steps
+
+### Chores
+
+- update primary color scheme
+
 ## [2026-03-09] - root@0.8.0, @chatic/landing@0.1.0
 
 ### Features
