@@ -1,0 +1,114 @@
+import { AlertCircle, CheckCircle2, ChevronLeft } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+export const JoinByCodePage = () => {
+    const navigate = useNavigate();
+    const [code, setCode] = useState('');
+    const [status, setStatus] = useState<'idle' | 'found' | 'notfound'>('idle');
+
+    const mockResult = {
+        type: 'workspace' as const,
+        name: '개발자 모임',
+        members: 42,
+        image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=200&h=200&fit=crop',
+    };
+
+    const handleSearch = () => {
+        if (code.length >= 4) {
+            setStatus('found');
+        } else {
+            setStatus('notfound');
+        }
+    };
+
+    return (
+        <div className="flex min-h-screen flex-col bg-background">
+            {/* Header */}
+            <header className="flex items-center justify-between border-b border-border px-4 pb-3 pt-3">
+                <button onClick={() => navigate(-1)} className="p-1">
+                    <ChevronLeft size={24} className="text-foreground" />
+                </button>
+                <h1 className="text-[17px] font-semibold text-foreground">초대 코드 참여</h1>
+                <div className="w-8" />
+            </header>
+
+            <div className="flex-1 px-5 pt-8">
+                <h2 className="text-2xl font-extrabold leading-tight text-foreground">
+                    초대 코드를
+                    <br />
+                    입력해 주세요
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground">워크스페이스 또는 채팅방 초대 코드를 입력하세요</p>
+
+                {/* Code Input */}
+                <div className="mt-8">
+                    <label className="text-sm font-semibold text-foreground">초대 코드</label>
+                    <div className="mt-2 flex gap-2">
+                        <input
+                            type="text"
+                            value={code}
+                            onChange={e => {
+                                setCode(e.target.value.toUpperCase());
+                                setStatus('idle');
+                            }}
+                            placeholder="예: ABC123"
+                            maxLength={10}
+                            className="flex-1 rounded-xl border border-border px-4 py-3.5 font-mono text-[15px] uppercase tracking-widest text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground"
+                        />
+                        <button
+                            onClick={handleSearch}
+                            disabled={code.length < 4}
+                            className="rounded-xl bg-muted px-5 py-3.5 text-sm font-semibold text-muted-foreground transition-all disabled:opacity-50 enabled:bg-foreground enabled:text-background active:scale-[0.97]"
+                        >
+                            확인
+                        </button>
+                    </div>
+                </div>
+
+                {/* Result */}
+                {status === 'found' && (
+                    <div className="mt-8 animate-fade-in">
+                        <div className="rounded-2xl border border-border p-5">
+                            <div className="flex items-center gap-4">
+                                <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl">
+                                    <img
+                                        src={mockResult.image}
+                                        alt={mockResult.name}
+                                        className="h-full w-full object-cover"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                        {mockResult.type === 'workspace' ? '워크스페이스' : '채팅방'}
+                                    </p>
+                                    <h3 className="text-lg font-bold text-foreground">{mockResult.name}</h3>
+                                    <p className="mt-0.5 text-xs text-muted-foreground">멤버 {mockResult.members}명</p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => navigate('/chats')}
+                                className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-semibold text-accent-foreground transition-transform active:scale-[0.98]"
+                            >
+                                <CheckCircle2 size={18} />
+                                참여하기
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {status === 'notfound' && (
+                    <div className="mt-8 flex animate-fade-in flex-col items-center gap-2 py-8">
+                        <AlertCircle size={40} className="text-muted-foreground" />
+                        <p className="text-center text-sm text-muted-foreground">
+                            유효하지 않은 초대 코드입니다.
+                            <br />
+                            코드를 다시 확인해 주세요.
+                        </p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
