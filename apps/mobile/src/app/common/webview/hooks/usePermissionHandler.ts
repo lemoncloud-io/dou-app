@@ -21,7 +21,6 @@ export const usePermissionHandler = (bridge: WebViewBridge) => {
                     type: 'OnRequestPermission',
                     data: {
                         permission,
-                        success: isGranted,
                         status,
                     },
                 };
@@ -32,7 +31,6 @@ export const usePermissionHandler = (bridge: WebViewBridge) => {
                     type: 'OnRequestPermission',
                     data: {
                         permission,
-                        success: false,
                         status: 'UNAVAILABLE',
                     },
                 };

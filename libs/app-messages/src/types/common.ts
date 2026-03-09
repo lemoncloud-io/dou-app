@@ -215,3 +215,19 @@ export type AppPermissionType = 'CONTACTS' | 'NOTIFICATIONS' | 'CAMERA' | 'PHOTO
  * - UNAVAILABLE: 사용 불가 (하드웨어 미지원 등)
  */
 export type PermissionStatus = 'GRANTED' | 'DENIED' | 'BLOCKED' | 'UNAVAILABLE';
+
+/**
+ * 공유 결과 정보
+ */
+export interface ShareInfo {
+    /**
+     * -  공유 액션 결과
+     * - sharedAction: 공유됨 (Android 는 항상 해당 값 고정)
+     * - dismissedAction: 취소됨 - iOS 전용)
+     */
+    action: 'sharedAction' | 'dismissedAction';
+    /**
+     * - 공유 활동 유형 (iOS 전용, 예: com.apple.UIKit.activity.CopyToPasteboard)
+     */
+    activityType?: string | null;
+}

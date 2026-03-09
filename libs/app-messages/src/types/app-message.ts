@@ -16,6 +16,7 @@ import type {
     ProductSubscriptionInfo,
     PurchaseInfo,
     SafeAreaInfo,
+    ShareInfo,
     VersionInfo,
 } from './common';
 import type { ClientMessage } from './client-message';
@@ -52,6 +53,10 @@ interface DefaultMessage<T extends AppMessageType> {
 
 export interface OnUpdateDeviceInfo extends DefaultMessage<'OnUpdateDeviceInfo'> {
     data: DeviceInfo & VersionInfo;
+}
+
+export interface OnOpenShareSheet extends DefaultMessage<'OnOpenShareSheet'> {
+    data: ShareInfo;
 }
 
 export interface OnOpenDocument extends DefaultMessage<'OnOpenDocument'> {
@@ -136,7 +141,6 @@ export interface OnSetWsEndpoint extends DefaultMessage<'OnSetWsEndpoint'> {
 export interface OnRequestPermission extends DefaultMessage<'OnRequestPermission'> {
     data: {
         permission: AppPermissionType;
-        success: boolean;
         status: PermissionStatus;
     };
 }
@@ -153,7 +157,7 @@ export interface AppMessageMap {
      * Control Device Event
      */
     OnCloseModal: DefaultMessage<'OnCloseModal'>;
-    OnOpenShareSheet: DefaultMessage<'OnOpenShareSheet'>;
+    OnOpenShareSheet: OnOpenShareSheet;
     OnOpenDocument: OnOpenDocument;
     OnGetContacts: OnGetContacts;
     OnOpenCamera: OnOpenCamera;

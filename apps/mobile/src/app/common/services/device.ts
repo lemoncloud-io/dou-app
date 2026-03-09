@@ -1,4 +1,4 @@
-import { Linking, PermissionsAndroid, Platform, Share } from 'react-native';
+import { Linking, PermissionsAndroid, Platform, Share, type ShareAction } from 'react-native';
 import {
     type Asset,
     type CameraOptions,
@@ -25,24 +25,19 @@ export const DeviceService = {
     /**
      * 공유 시트 열기
      */
-    openShareSheet: async (data: { title?: string; message?: string; url?: string }) => {
+    openShareSheet: async (data: { title?: string; message?: string; url?: string }): Promise<ShareAction> => {
         try {
-            const result = await Share.share({
+            // url 필드는 ios 전용
+            const message =
+                Platform.OS === 'android' && data.url
+                    ? `${data.message ?? ''} ${data.url}`.trim()
+                    : (data.message ?? '');
+
+            return await Share.share({
                 title: data.title,
-                message: data.message ?? '',
+                message,
                 url: data.url,
             });
-
-            if (result.action === Share.sharedAction) {
-                if (result.activityType) {
-                    return { success: true, message: result.activityType };
-                } else {
-                    return { success: true };
-                }
-            } else if (result.action === Share.dismissedAction) {
-                return { success: false, message: 'dismissed' };
-            }
-            return { success: false, message: 'unknown' };
         } catch (error: any) {
             Logger.error('DEVICE', 'Share error', error);
             throw error;

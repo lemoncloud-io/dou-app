@@ -19,6 +19,10 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                 const result = await DeviceService.openShareSheet(data);
                 const response: AppMessageData<'OnOpenShareSheet'> = {
                     type: 'OnOpenShareSheet',
+                    data: {
+                        action: result.action,
+                        activityType: result.activityType ?? null,
+                    },
                 };
                 bridge.post(response);
             } catch (e: any) {
