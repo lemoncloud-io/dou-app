@@ -50,15 +50,14 @@ export const LoginPage = (): JSX.Element => {
 
             const handleInviteLogin = async () => {
                 try {
-                    const result = await loginWithInviteCode(code);
-                    const identityToken = result.Token?.identityToken;
+                    const {
+                        Token: { identityToken },
+                        ...rest
+                    } = await loginWithInviteCode(code);
 
                     if (!identityToken) throw new Error('No identityToken in response');
 
-                    const decoded = decodeJWT(identityToken);
-                    if (decoded?.User) {
-                        setProfile({ id: decoded.uid, name: decoded.User.name, nick: decoded.User.nick });
-                    }
+                    setProfile({ ...rest });
                     simpleWebCore.saveToken(identityToken);
                     setIsAuthenticated(true);
                 } catch (error) {
@@ -74,13 +73,11 @@ export const LoginPage = (): JSX.Element => {
                 try {
                     const {
                         Token: { identityToken },
+                        ...rest
                     } = await registerDevice(deviceId);
                     if (!identityToken) throw new Error('No identityToken in response');
+                    setProfile({ ...rest });
 
-                    const decoded = decodeJWT(identityToken);
-                    if (decoded?.User) {
-                        setProfile({ id: decoded.uid, name: decoded.User.name, nick: decoded.User.nick });
-                    }
                     simpleWebCore.saveToken(identityToken);
                     setIsAuthenticated(true);
                 } catch (error) {
