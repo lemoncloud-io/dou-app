@@ -9,9 +9,10 @@ interface DeepLinkUIProps {
     state: DeepLinkState;
     deviceType: DeviceType;
     onLaunchApp: () => void;
+    webError?: string | null;
 }
 
-export const DeepLinkUI = ({ state, deviceType, onLaunchApp }: DeepLinkUIProps): JSX.Element => {
+export const DeepLinkUI = ({ state, deviceType, onLaunchApp, webError }: DeepLinkUIProps): JSX.Element => {
     const { t } = useTranslation();
 
     const storeUrl = deviceType === 'ios' ? APP_CONFIG.storeUrls.ios : APP_CONFIG.storeUrls.android;
@@ -29,7 +30,8 @@ export const DeepLinkUI = ({ state, deviceType, onLaunchApp }: DeepLinkUIProps):
                 {state === 'initial' && <InitialContent t={t} onLaunchApp={onLaunchApp} />}
                 {state === 'launching' && <LaunchingContent t={t} />}
                 {state === 'store' && <StoreContent t={t} storeUrl={storeUrl} storeName={storeName} />}
-                {state === 'desktop' && <DesktopContent t={t} />}
+                {state === 'desktop' && <DesktopContent t={t} webError={webError} />}
+                {state === 'web-redirecting' && <WebRedirectingContent t={t} />}
             </div>
         </div>
     );
@@ -96,9 +98,16 @@ const StoreContent = ({
     </>
 );
 
-const DesktopContent = ({ t }: ContentProps): JSX.Element => (
+const DesktopContent = ({ t, webError }: ContentProps & { webError?: string | null }): JSX.Element => (
     <div className="text-white/60 leading-relaxed text-base">
-        <p className="mb-4">{t('deeplink.desktop.message')}</p>
+        {webError ? (
+            <>
+                <p className="mb-4 text-red-400">{webError}</p>
+                <p className="mb-4">{t('deeplink.desktop.fallback')}</p>
+            </>
+        ) : (
+            <p className="mb-4">{t('deeplink.desktop.message')}</p>
+        )}
         <p className="text-white">
             <strong>iOS:</strong> {t('deeplink.desktop.ios')}
         </p>
@@ -106,4 +115,16 @@ const DesktopContent = ({ t }: ContentProps): JSX.Element => (
             <strong>Android:</strong> {t('deeplink.desktop.android')}
         </p>
     </div>
+);
+
+const WebRedirectingContent = ({ t }: ContentProps): JSX.Element => (
+    <>
+        <div className="mb-12 flex-shrink-0">
+            <h1 className="text-2xl font-bold text-white mb-6 leading-tight tracking-tight">
+                {t('deeplink.title.redirecting')}
+            </h1>
+            <p className="text-base text-white/60 leading-relaxed">{t('deeplink.subtitle.pleaseWait')}</p>
+        </div>
+        <div className="w-10 h-10 border-[3px] border-white/20 border-t-[#c4ff00] rounded-full animate-spin" />
+    </>
 );

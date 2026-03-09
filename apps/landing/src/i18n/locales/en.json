@@ -7,13 +7,15 @@
         "title": {
             "openApp": "Open in DoU App",
             "launching": "Opening app...",
-            "download": "Download DoU App"
+            "download": "Download DoU App",
+            "redirecting": "Redirecting to web..."
         },
         "subtitle": {
             "checkInstall": "To check if the app is installed,",
             "pressButton": "please press the button below",
             "notInstalled": "The app is not installed",
-            "downloadFromStore": "Please download from the store"
+            "downloadFromStore": "Please download from the store",
+            "pleaseWait": "Please wait a moment"
         },
         "button": {
             "openInApp": "Open in DoU App",
@@ -21,6 +23,7 @@
         },
         "desktop": {
             "message": "Please access from a mobile device.",
+            "fallback": "Link not found. Please use the mobile app.",
             "ios": "Search 'DoU' on App Store",
             "android": "Search 'DoU' on Google Play"
         }
