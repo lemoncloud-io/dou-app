@@ -10,6 +10,18 @@ import type {
 
 const DOU_ENDPOINT = import.meta.env.VITE_DOU_ENDPOINT;
 
+export const registerDevice = async (deviceId: string): Promise<UserTokenView> => {
+    const { data } = await simpleWebCore
+        .buildRequest({
+            method: 'POST',
+            baseURL: `${DOU_ENDPOINT}/oauth/register-device`,
+        })
+        .setBody({ deviceId })
+        .execute<UserTokenView>();
+
+    return data;
+};
+
 export const registerUser = async (body: UserBody): Promise<UserView> => {
     const { data } = await simpleWebCore
         .buildRequest({

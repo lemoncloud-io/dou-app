@@ -42,6 +42,12 @@
         },
         {
             "path": "../../libs/shared/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/auth/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/places/tsconfig.lib.json"
         }
     ]
 }

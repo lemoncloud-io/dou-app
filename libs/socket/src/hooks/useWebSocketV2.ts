@@ -188,10 +188,12 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
 
     useEffect(() => {
         if (!enabled) {
+            console.log(`${logPrefix} Disconnecting (enabled=false)`);
             disconnectRef.current();
             return;
         }
 
+        console.log(`${logPrefix} Connecting to:`, endpoint);
         void connectRef.current();
 
         return () => {
@@ -206,7 +208,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                 globalSendFn = null;
             }
         };
-    }, [enabled]);
+    }, [enabled, endpoint]);
 
     return {
         ...store,

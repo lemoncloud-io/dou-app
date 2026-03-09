@@ -1,7 +1,7 @@
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
 import { useSimpleWebCore } from '@chatic/web-core';
 
-import { login, registerUser, registerUserV2 } from '../apis';
+import { login, registerDevice, registerUser, registerUserV2 } from '../apis';
 
 import type {
     LoginUserBody,
@@ -12,6 +12,8 @@ import type {
 } from '@lemoncloud/chatic-backend-api';
 
 export const authKeys = createQueryKeys('auth');
+
+export const useRegisterDevice = () => useCustomMutation<UserTokenView, string, string>(registerDevice);
 
 export const useRegisterUser = () =>
     useCustomMutation<UserView, string, UserBody>(registerUser, {

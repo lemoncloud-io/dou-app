@@ -31,6 +31,7 @@ export const AppMessageTypes = {
     OnFetchAllCacheData: 'OnFetchAllCacheData',
     OnFetchCacheData: 'OnFetchCacheData',
     OnSaveCacheData: 'OnSaveCacheData',
+    OnSetWsEndpoint: 'OnSetWsEndpoint',
 } as const;
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
 
@@ -93,6 +94,10 @@ export interface OnSaveCacheData extends DefaultMessage<'OnSaveCacheData'> {
     };
 }
 
+export interface OnSetWsEndpoint extends DefaultMessage<'OnSetWsEndpoint'> {
+    data: { wss: string };
+}
+
 export interface AppMessageMap {
     /**
      * TODO: Not Implement
@@ -136,6 +141,7 @@ export interface AppMessageMap {
     OnFetchAllCacheData: OnFetchAllCacheData;
     OnFetchCacheData: OnFetchCacheData;
     OnSaveCacheData: OnSaveCacheData;
+    OnSetWsEndpoint: OnSetWsEndpoint;
 }
 
 export type AppMessageData<T extends AppMessageType> = AppMessageMap[T];
