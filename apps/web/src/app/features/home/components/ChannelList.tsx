@@ -1,14 +1,16 @@
-import { Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 import { useSimpleWebCore } from '@chatic/web-core';
+
 import { useUnreadCount } from '../../chats/hooks/useUnreadCount';
 import { useMyChannels } from '../hooks/useMyChannels';
+
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 
 const ChannelSkeleton = () => (
-    <div className="flex items-center gap-2.5">
-        <Skeleton className="h-[39px] w-[39px] rounded-full" />
+    <div className="flex items-center gap-3 rounded-lg px-1 py-3.5">
+        <Skeleton className="h-12 w-12 rounded-full" />
         <div className="flex flex-1 flex-col gap-2">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-3 w-48" />
@@ -20,57 +22,82 @@ const ChannelItem = ({ channel }: { channel: ChannelView }) => {
     const navigate = useNavigate();
     const { profile } = useSimpleWebCore();
     const unreadCount = useUnreadCount(profile?.id ?? null, channel.id ?? '');
+    const isSelf = channel.memberNo === 1;
+
+    const formatTime = (dateValue?: string | number) => {
+        if (!dateValue) return '';
+        const date = new Date(dateValue);
+        return date.toLocaleTimeString('ko-KR', {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
 
     return (
         <button
             key={channel.id}
             onClick={() => navigate(`/chats/${channel.id}/room`)}
-            className="flex items-center gap-2.5 w-full text-left"
+            className="flex w-full items-center gap-3 rounded-lg px-1 py-3.5 text-left transition-colors active:bg-muted"
         >
-            <div className="flex h-[39px] w-[39px] shrink-0 rounded-full bg-[#F4F5F5]" />
-            <div className="flex flex-1 items-center min-w-0">
-                <div className="flex flex-1 flex-col min-w-0">
-                    <div className="flex items-center gap-1">
-                        <span className="text-[14px] font-semibold leading-[1.57] tracking-[0.005em] text-[#171725]">
-                            {channel.name || 'Unnamed Channel'}
-                        </span>
-                        {channel.memberNo ? (
-                            <div className="flex items-center gap-0.5 bg-[#EEF2FF] px-1.5 py-0.5 rounded-full">
-                                <Users className="w-3 h-3 text-[#4F6EF7]" />
-                                <span className="text-[11px] font-semibold text-[#4F6EF7]">{channel.memberNo}</span>
-                            </div>
-                        ) : null}
-                    </div>
-                    <span className="text-[12px] font-normal leading-[1.67] tracking-[0.005em] text-[#9FA2A7] truncate">
-                        {channel.lastChat$?.content || channel.desc || '채널 설명 없음'}
-                    </span>
-                </div>
-                <div className="flex h-[45px] shrink-0 flex-col items-end gap-1">
-                    <span className="w-[67px] text-right text-[10px] font-normal leading-[2] tracking-[0.005em] text-[#9CA4AB]">
-                        {(channel.lastChat$?.createdAt ?? channel.updatedAt)
-                            ? new Date(channel.lastChat$?.createdAt ?? channel.updatedAt!).toLocaleTimeString('ko-KR', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                              })
-                            : ''}
-                    </span>
-                    {unreadCount > 0 && (
-                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-semibold text-white">
-                            {unreadCount}
-                        </span>
+            {/* Avatar */}
+            <div className="relative flex-shrink-0">
+                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-muted">
+                    {isSelf ? (
+                        <span className="text-lg text-muted-foreground">👤</span>
+                    ) : (
+                        <span className="text-lg text-muted-foreground">👥</span>
                     )}
                 </div>
+                {channel.memberNo && (
+                    <span className="absolute -left-1 -top-1 flex h-4 w-7 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-accent-foreground">
+                        {channel.memberNo}
+                    </span>
+                )}
+            </div>
+
+            {/* Content */}
+            <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                    {isSelf && (
+                        <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
+                            MY
+                        </span>
+                    )}
+                    <span className="truncate text-[15px] font-semibold text-foreground">
+                        {channel.name || 'Unnamed Channel'}
+                    </span>
+                </div>
+                <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                    {channel.lastChat$?.content || channel.desc || '채널 설명 없음'}
+                </p>
+            </div>
+
+            {/* Time + Unread */}
+            <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                <span className="text-[11px] text-muted-foreground">
+                    {formatTime(channel.lastChat$?.createdAt ?? channel.updatedAt)}
+                </span>
+                {unreadCount > 0 && (
+                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-badge-unread px-1.5 text-[11px] font-bold text-badge-unread-foreground">
+                        {unreadCount}
+                    </span>
+                )}
             </div>
         </button>
     );
 };
 
-export const ChannelList = () => {
+interface ChannelListProps {
+    workspaceId?: string;
+}
+
+export const ChannelList = ({ workspaceId: _workspaceId }: ChannelListProps) => {
+    // TODO: Filter channels by workspaceId when API is ready
     const { channels, isLoading, isError, retry } = useMyChannels();
 
     if (isLoading) {
         return (
-            <div className="flex flex-col gap-[15px]">
+            <div className="space-y-0">
                 <ChannelSkeleton />
                 <ChannelSkeleton />
                 <ChannelSkeleton />
@@ -80,9 +107,9 @@ export const ChannelList = () => {
 
     if (isError) {
         return (
-            <div className="flex flex-col items-center gap-2">
-                <p className="text-sm text-red-500">채널을 불러올 수 없습니다</p>
-                <button onClick={retry} className="text-sm text-blue-500 underline">
+            <div className="flex flex-col items-center gap-2 py-8">
+                <p className="text-sm text-destructive">채널을 불러올 수 없습니다</p>
+                <button onClick={retry} className="text-sm text-primary underline">
                     다시 시도
                 </button>
             </div>
@@ -90,11 +117,15 @@ export const ChannelList = () => {
     }
 
     if (!channels.length) {
-        return <div className="text-center text-sm text-gray-500">채널이 없습니다</div>;
+        return (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+                채널이 없습니다. 새 채팅방을 만들어보세요!
+            </div>
+        );
     }
 
     return (
-        <div className="flex flex-col gap-[15px]">
+        <div className="space-y-0">
             {channels.map(channel => (
                 <ChannelItem key={channel.id} channel={channel} />
             ))}

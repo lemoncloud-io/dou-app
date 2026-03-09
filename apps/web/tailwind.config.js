@@ -53,6 +53,23 @@ module.exports = {
                     DEFAULT: 'hsl(var(--card))',
                     foreground: 'hsl(var(--card-foreground))',
                 },
+                // Chatic custom colors
+                'bubble-mine': {
+                    DEFAULT: 'hsl(var(--bubble-mine))',
+                    foreground: 'hsl(var(--bubble-mine-foreground))',
+                },
+                'bubble-other': {
+                    DEFAULT: 'hsl(var(--bubble-other))',
+                    foreground: 'hsl(var(--bubble-other-foreground))',
+                },
+                'badge-unread': {
+                    DEFAULT: 'hsl(var(--badge-unread))',
+                    foreground: 'hsl(var(--badge-unread-foreground))',
+                },
+                'badge-member': 'hsl(var(--badge-member))',
+                'tab-active': 'hsl(var(--tab-active))',
+                'tab-inactive': 'hsl(var(--tab-inactive))',
+                overlay: 'hsl(var(--overlay))',
             },
             borderRadius: {
                 lg: 'var(--radius)',

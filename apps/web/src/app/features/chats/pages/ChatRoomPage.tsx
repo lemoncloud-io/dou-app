@@ -1,20 +1,18 @@
-import { ChevronLeft, Ellipsis } from 'lucide-react';
+import { ArrowUp, ChevronLeft, MoreHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { useSendMessage } from '../hooks/useSendMessage';
-import { useMyChannel } from '../hooks/useMyChannel';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
-
 import { useSimpleWebCore } from '@chatic/web-core';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import { useSendMessage } from '../hooks/useSendMessage';
+import { useMyChannel } from '../hooks/useMyChannel';
 import { useReadMessage } from '../hooks/useReadMessage';
 import { useChatMessages } from '../hooks/useChatMessages';
 import { useMyChannels } from '../../home/hooks/useMyChannels';
@@ -27,7 +25,6 @@ export const ChatRoomPage = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { emit } = useWebSocketV2();
     const { sendMessage, isPending } = useSendMessage();
-    const { toast } = useToast();
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
 
@@ -40,7 +37,7 @@ export const ChatRoomPage = () => {
         applyReadEvent,
     } = useChatMessages(profile?.id ?? null, channelId ?? null);
 
-    const lastMessage = useWebSocketV2Store(s => s.lastMessage);
+    const lastMessage = useWebSocketV2Store((s: { lastMessage: unknown }) => s.lastMessage);
 
     useReadMessage(channelId, messages, applyReadEvent);
 
@@ -59,24 +56,20 @@ export const ChatRoomPage = () => {
         }
     };
 
-    // 메시지가 추가될 때마다 스크롤을 맨 아래로
     useEffect(() => {
         if (messages.length > 0) {
             scrollToBottom();
         }
     }, [messages.length]);
 
-    // 가상 키보드 대응
     useEffect(() => {
         const handleResize = () => {
-            // 키보드가 올라오면 스크롤을 맨 아래로
             setTimeout(() => {
                 scrollToBottom();
             }, 100);
         };
 
         const handleFocus = () => {
-            // 입력창 포커스 시 스크롤
             setTimeout(() => {
                 scrollToBottom();
             }, 300);
@@ -91,7 +84,6 @@ export const ChatRoomPage = () => {
         };
     }, []);
 
-    // 입력창 크기 조절 훅
     useEffect(() => {
         if (inputRef.current) {
             inputRef.current.style.height = 'auto';
@@ -148,7 +140,6 @@ export const ChatRoomPage = () => {
     const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (isComposing) return;
 
-        // `Enter`와 `Shift`를 동시에 누르지 않을때만 진행
         if (e.key === 'Enter' && !e.shiftKey) {
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
@@ -156,7 +147,6 @@ export const ChatRoomPage = () => {
                 return;
             }
 
-            // PC의 기본 동작인 줄바꿈이 실행되지 않고, 전송 수행
             e.preventDefault();
             void handleSend(e);
         }
@@ -197,9 +187,9 @@ export const ChatRoomPage = () => {
 
     if (isLoading) {
         return (
-            <div className="flex h-full items-center justify-center bg-white">
+            <div className="flex h-full items-center justify-center bg-background">
                 <div className="text-center">
-                    <div className="text-sm text-gray-500">채널 정보를 불러오는 중...</div>
+                    <div className="text-sm text-muted-foreground">채널 정보를 불러오는 중...</div>
                 </div>
             </div>
         );
@@ -207,10 +197,10 @@ export const ChatRoomPage = () => {
 
     if (isError) {
         return (
-            <div className="flex h-full items-center justify-center bg-white">
+            <div className="flex h-full items-center justify-center bg-background">
                 <div className="text-center">
-                    <div className="text-sm text-red-500">채널 정보를 불러올 수 없습니다</div>
-                    <button onClick={() => navigate(-1)} className="mt-2 text-sm text-blue-500 underline">
+                    <div className="text-sm text-destructive">채널 정보를 불러올 수 없습니다</div>
+                    <button onClick={() => navigate(-1)} className="mt-2 text-sm text-primary underline">
                         뒤로 가기
                     </button>
                 </div>
@@ -219,22 +209,22 @@ export const ChatRoomPage = () => {
     }
 
     return (
-        <div className="flex h-full flex-col bg-white">
-            {/* Top Bar */}
-            <div className="flex items-center justify-between px-1.5 py-3 bg-white">
-                <button onClick={() => navigate(-1)} className="w-11 h-11 flex items-center justify-center">
-                    <ChevronLeft className="w-6 h-6 text-[#3A3C40]" />
+        <div className="flex h-screen flex-col bg-background">
+            {/* Header */}
+            <header className="z-10 flex items-center justify-between border-b border-border bg-background px-4 pb-2 pt-3">
+                <button onClick={() => navigate(-1)} className="p-1">
+                    <ChevronLeft size={24} className="text-foreground" />
                 </button>
-                <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#171725]">
+                <h1 className="text-[17px] font-bold text-foreground">
                     {channel?.name || '채팅방'}
-                    {channel?.memberNo ? (
-                        <span className="ml-1.5 text-[14px] font-normal text-[#84888F]">{channel.memberNo}</span>
-                    ) : null}
+                    {channel?.memberNo && (
+                        <span className="ml-1.5 text-sm font-normal text-muted-foreground">{channel.memberNo}</span>
+                    )}
                 </h1>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <button className="w-11 h-11 flex items-center justify-center">
-                            <Ellipsis className="w-6 h-6 text-[#3A3C40]" />
+                        <button className="p-1">
+                            <MoreHorizontal size={22} className="text-foreground" />
                         </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
@@ -246,25 +236,17 @@ export const ChatRoomPage = () => {
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
-            </div>
-
-            {/* Participants */}
-            {/* <div className="flex items-center gap-1 px-[18px] py-3">
-                <div className="flex items-center gap-[-6px]">Placeholder for participant avatars</div>
-                <span className="text-[14px] font-medium leading-[1.857] tracking-[0.005em] text-[#84888F]">+22</span>
-            </div> */}
+            </header>
 
             {/* Messages */}
-            <div ref={messagesEndRef} className="flex-1 overflow-auto px-[18px] py-3 flex flex-col gap-3.5">
+            <div ref={messagesEndRef} className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 pt-2">
                 {Object.entries(groupedMessages).map(([dateKey, dateMessages]) => (
-                    <div key={dateKey} className="flex flex-col gap-3.5">
+                    <div key={dateKey} className="flex flex-col gap-3">
                         {/* Date Separator */}
-                        <div className="flex items-center justify-center gap-2.5 px-4 py-2">
-                            <div className="flex items-center justify-center gap-2.5 px-2 py-1 bg-[#F4F5F5] rounded-[7px]">
-                                <span className="text-[11px] font-medium text-[#84888F]">
-                                    {formatDateSeparator(dateMessages[0].timestamp)}
-                                </span>
-                            </div>
+                        <div className="mb-4 text-center">
+                            <span className="text-xs text-muted-foreground">
+                                {formatDateSeparator(dateMessages[0].timestamp)}
+                            </span>
                         </div>
 
                         {/* Messages for this date */}
@@ -272,11 +254,12 @@ export const ChatRoomPage = () => {
                             .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
                             .map(message => {
                                 const isMine = message.ownerId === profile?.id;
+
                                 if (message.isSystem) {
                                     const systemMatch = message.content.match(/^(.+?)(님이.+)$/);
                                     return (
                                         <div key={message.id} className="flex justify-center py-1">
-                                            <span className="text-[13px] font-medium text-[#6B7280] bg-[#F4F5F5] px-4 py-1.5 my-3 rounded-full">
+                                            <span className="my-3 rounded-full bg-muted px-4 py-1.5 text-[13px] font-medium text-muted-foreground">
                                                 {systemMatch ? (
                                                     <>
                                                         <strong>{systemMatch[1]}</strong>
@@ -289,60 +272,51 @@ export const ChatRoomPage = () => {
                                         </div>
                                     );
                                 }
-                                return isMine ? (
-                                    <div key={message.id} className="flex justify-end">
-                                        <div className="flex items-end gap-1">
-                                            <div className="flex flex-col items-end gap-0.5">
+
+                                return (
+                                    <div
+                                        key={message.id}
+                                        className={`flex gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}
+                                    >
+                                        {!isMine && (
+                                            <img
+                                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${message.ownerId}`}
+                                                alt=""
+                                                className="mt-1 h-9 w-9 flex-shrink-0 rounded-full object-cover"
+                                            />
+                                        )}
+                                        <div
+                                            className={`flex max-w-[75%] flex-col ${isMine ? 'items-end' : 'items-start'}`}
+                                        >
+                                            {!isMine && (
+                                                <span className="mb-1 text-xs text-muted-foreground">
+                                                    {message.ownerName}
+                                                </span>
+                                            )}
+                                            <div
+                                                className={`whitespace-pre-wrap rounded-[20px] px-4 py-3 text-[14px] leading-relaxed ${
+                                                    isMine
+                                                        ? 'rounded-br-md bg-bubble-mine text-bubble-mine-foreground'
+                                                        : 'rounded-bl-md bg-bubble-other text-bubble-other-foreground'
+                                                }`}
+                                            >
+                                                {message.content}
+                                            </div>
+                                            <div
+                                                className={`mt-1 flex items-center gap-1.5 ${isMine ? 'flex-row-reverse' : ''}`}
+                                            >
+                                                <span className="text-[11px] text-muted-foreground">
+                                                    {formatTime(message.timestamp)}
+                                                </span>
                                                 {(() => {
                                                     const unread =
                                                         (channel?.memberNo ?? 0) - (message.readBy?.length ?? 0);
                                                     return unread > 0 ? (
-                                                        <span className="text-[10px] font-medium text-[#2A7EF4]">
+                                                        <span className="text-[10px] font-medium text-primary">
                                                             {unread}
                                                         </span>
                                                     ) : null;
                                                 })()}
-                                                <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
-                                                    {formatTime(message.timestamp)}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2 px-3 py-3 bg-[#102346] rounded-[14px_14px_0px_14px] max-w-[269px]">
-                                                <span className="text-[14px] font-normal leading-[1.3] text-white whitespace-pre-wrap">
-                                                    {message.content}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div key={message.id} className="flex flex-col gap-1">
-                                        <div className="flex gap-2">
-                                            <div className="flex h-[39px] w-[39px] items-center justify-center rounded-full bg-[#F4F5F5]" />
-                                            <div className="flex flex-col gap-1">
-                                                <span className="text-[12px] font-medium text-[#84888F]">
-                                                    {message.ownerName}
-                                                </span>
-                                                <div className="flex items-end gap-1">
-                                                    <div className="flex items-center gap-2 px-6 py-3 bg-[#F6F6F6] rounded-[0px_14px_14px_14px] max-w-[269px]">
-                                                        <span className="text-[14px] font-normal leading-[1.3] text-[#171725] whitespace-pre-wrap">
-                                                            {message.content}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex flex-col items-start gap-0.5">
-                                                        {(() => {
-                                                            const unread =
-                                                                (channel?.memberNo ?? 0) -
-                                                                (message.readBy?.length ?? 0);
-                                                            return unread > 0 ? (
-                                                                <span className="text-[10px] font-medium text-[#2A7EF4]">
-                                                                    {unread}
-                                                                </span>
-                                                            ) : null;
-                                                        })()}
-                                                        <span className="text-[11px] font-normal leading-[1.4] tracking-[0.005em] text-[#9CA4AB]">
-                                                            {formatTime(message.timestamp)}
-                                                        </span>
-                                                    </div>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -352,42 +326,32 @@ export const ChatRoomPage = () => {
                 ))}
             </div>
 
-            {/* Input Area */}
-            <div className="flex flex-col gap-2.5 px-4 py-3">
-                <div className="flex items-end gap-1.5 px-1.5 py-1.5 bg-[#F4F5F5] rounded-2xl">
-                    <div className="flex-1 flex items-center gap-1.5 px-1.5 min-h-[40px]">
-                        <textarea
-                            ref={inputRef}
-                            value={content}
-                            onChange={e => setContent(e.target.value)}
-                            onKeyDown={handleKeyPress}
-                            onCompositionStart={() => setIsComposing(true)}
-                            onCompositionEnd={() => setIsComposing(false)}
-                            placeholder="메시지를 입력해 주세요"
-                            rows={1}
-                            enterKeyHint="enter"
-                            className="flex-1 bg-transparent border-0 outline-none text-[14px] font-normal leading-[1.45] tracking-[-0.02em] text-[#9CA4AB] placeholder:text-[#9CA4AB] disabled:opacity-50 resize-none py-1 max-h-[120px] overflow-y-auto"
-                        />
-                    </div>
+            {/* Input */}
+            <div className="border-t border-border bg-background px-4 pb-8 pt-2">
+                <div className="flex items-center gap-2 rounded-full bg-muted px-4 py-2.5">
+                    <textarea
+                        ref={inputRef}
+                        value={content}
+                        onChange={e => setContent(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        onCompositionStart={() => setIsComposing(true)}
+                        onCompositionEnd={() => setIsComposing(false)}
+                        placeholder="메시지를 입력해 주세요"
+                        rows={1}
+                        enterKeyHint="enter"
+                        className="max-h-[120px] flex-1 resize-none overflow-y-auto bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                    />
                     <button
                         onMouseDown={e => e.preventDefault()}
                         onTouchStart={e => e.preventDefault()}
                         onClick={handleSend}
                         disabled={isPending || !content.trim()}
-                        className="flex items-center justify-center gap-2.5 w-10 h-10 bg-[#CFD0D3] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-muted transition-colors disabled:opacity-50"
                     >
                         {isPending ? (
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
                         ) : (
-                            <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
-                                <path
-                                    d="M13 1L6.5 7.5M13 1L9 13L6.5 7.5M13 1L1 5L6.5 7.5"
-                                    stroke="white"
-                                    strokeWidth="1.5"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                />
-                            </svg>
+                            <ArrowUp size={18} className="text-muted-foreground" />
                         )}
                     </button>
                 </div>

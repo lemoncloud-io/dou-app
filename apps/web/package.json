@@ -1,5 +1,5 @@
 {
-  "name": "@chatic/web",
-  "version": "0.6.0",
-  "private": true
+    "name": "@chatic/web",
+    "version": "0.7.0",
+    "private": true
 }

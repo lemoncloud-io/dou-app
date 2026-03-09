@@ -7,20 +7,24 @@
         "title": {
             "openApp": "DoU 앱으로 이동",
             "launching": "앱을 여는 중...",
-            "download": "DoU 앱 다운로드"
+            "download": "DoU 앱 다운로드",
+            "redirecting": "웹으로 이동 중..."
         },
         "subtitle": {
             "checkInstall": "앱 설치 확인을 위해",
             "pressButton": "아래 버튼을 눌러주세요",
             "notInstalled": "앱이 설치되어 있지 않습니다",
-            "downloadFromStore": "스토어에서 다운로드해 주세요"
+            "downloadFromStore": "스토어에서 다운로드해 주세요",
+            "pleaseWait": "잠시만 기다려주세요"
         },
         "button": {
             "openInApp": "DoU 앱에서 열기",
-            "downloadFrom": "{{store}}에서 다운로드"
+            "downloadFrom": "{{store}}에서 다운로드",
+            "continueBrowser": "브라우저에서 계속하기"
         },
         "desktop": {
             "message": "모바일 기기에서 접속해 주세요.",
+            "fallback": "링크를 찾을 수 없습니다. 모바일 앱을 이용해주세요.",
             "ios": "App Store에서 'DoU' 검색",
             "android": "Google Play에서 'DoU' 검색"
         }

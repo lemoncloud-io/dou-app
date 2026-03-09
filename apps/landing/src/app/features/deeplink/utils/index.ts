@@ -1,2 +1,2 @@
 export { generateFingerprint } from './fingerprint';
-export { storeDeferredDeepLink } from './firebase';
+export { storeDeferredDeepLink, fetchShortLink } from './firebase';

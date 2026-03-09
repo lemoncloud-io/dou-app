@@ -9,9 +9,10 @@ interface DeepLinkUIProps {
     state: DeepLinkState;
     deviceType: DeviceType;
     onLaunchApp: () => void;
+    onContinueBrowser?: () => void;
 }
 
-export const DeepLinkUI = ({ state, deviceType, onLaunchApp }: DeepLinkUIProps): JSX.Element => {
+export const DeepLinkUI = ({ state, deviceType, onLaunchApp, onContinueBrowser }: DeepLinkUIProps): JSX.Element => {
     const { t } = useTranslation();
 
     const storeUrl = deviceType === 'ios' ? APP_CONFIG.storeUrls.ios : APP_CONFIG.storeUrls.android;
@@ -28,8 +29,16 @@ export const DeepLinkUI = ({ state, deviceType, onLaunchApp }: DeepLinkUIProps):
                 {/* Content based on state */}
                 {state === 'initial' && <InitialContent t={t} onLaunchApp={onLaunchApp} />}
                 {state === 'launching' && <LaunchingContent t={t} />}
-                {state === 'store' && <StoreContent t={t} storeUrl={storeUrl} storeName={storeName} />}
+                {state === 'store' && (
+                    <StoreContent
+                        t={t}
+                        storeUrl={storeUrl}
+                        storeName={storeName}
+                        onContinueBrowser={onContinueBrowser}
+                    />
+                )}
                 {state === 'desktop' && <DesktopContent t={t} />}
+                {state === 'web-redirecting' && <WebRedirectingContent t={t} />}
             </div>
         </div>
     );
@@ -75,7 +84,8 @@ const StoreContent = ({
     t,
     storeUrl,
     storeName,
-}: ContentProps & { storeUrl: string; storeName: string }): JSX.Element => (
+    onContinueBrowser,
+}: ContentProps & { storeUrl: string; storeName: string; onContinueBrowser?: () => void }): JSX.Element => (
     <>
         <div className="mb-12 flex-shrink-0">
             <h1 className="text-2xl font-bold text-white mb-6 leading-tight tracking-tight">
@@ -93,6 +103,14 @@ const StoreContent = ({
         >
             {t('deeplink.button.downloadFrom', { store: storeName })}
         </a>
+        {onContinueBrowser && (
+            <button
+                onClick={onContinueBrowser}
+                className="mt-4 text-white/60 text-sm underline hover:text-white transition-colors"
+            >
+                {t('deeplink.button.continueBrowser')}
+            </button>
+        )}
     </>
 );
 
@@ -106,4 +124,16 @@ const DesktopContent = ({ t }: ContentProps): JSX.Element => (
             <strong>Android:</strong> {t('deeplink.desktop.android')}
         </p>
     </div>
+);
+
+const WebRedirectingContent = ({ t }: ContentProps): JSX.Element => (
+    <>
+        <div className="mb-12 flex-shrink-0">
+            <h1 className="text-2xl font-bold text-white mb-6 leading-tight tracking-tight">
+                {t('deeplink.title.redirecting')}
+            </h1>
+            <p className="text-base text-white/60 leading-relaxed">{t('deeplink.subtitle.pleaseWait')}</p>
+        </div>
+        <div className="w-10 h-10 border-[3px] border-white/20 border-t-[#c4ff00] rounded-full animate-spin" />
+    </>
 );
