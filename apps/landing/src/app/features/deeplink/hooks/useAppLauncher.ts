@@ -49,9 +49,13 @@ export const useAppLauncher = ({ deviceType, deepLinkInfo }: UseAppLauncherProps
 
         const pathWithoutLeadingSlash = deepLinkInfo.fullPath.replace(/^\//, '');
 
+        console.log('[AppLauncher] Device:', deviceType);
+        console.log('[AppLauncher] Full path:', deepLinkInfo.fullPath);
+        console.log('[AppLauncher] Path without slash:', pathWithoutLeadingSlash);
+
         if (deviceType === 'ios') {
             const customSchemeUrl = `${APP_CONFIG.scheme}://${pathWithoutLeadingSlash}`;
-            console.log('[iOS] Opening:', customSchemeUrl);
+            console.log('[iOS] Opening custom scheme:', customSchemeUrl);
             window.location.href = customSchemeUrl;
         } else if (deviceType === 'android') {
             const intentUrl =

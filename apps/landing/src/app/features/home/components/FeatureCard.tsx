@@ -18,32 +18,32 @@ export const FeatureCard = ({ featureKey, index }: FeatureCardProps): JSX.Elemen
 
     return (
         <div
-            className={`group relative bg-white rounded-2xl p-6 sm:p-8
-                       border border-[#eaeaec]
+            className={`group relative bg-card rounded-2xl p-6 sm:p-8
+                       border border-border
                        transition-all duration-300 ease-out
-                       hover:border-[#c4ff00]
-                       hover:bg-[#f4f5f5]
+                       hover:border-accent
+                       hover:bg-muted
                        hover:-translate-y-1
                        shadow-sm hover:shadow-md
                        animate-fade-in-up ${delayClass}`}
         >
             {/* Icon */}
             <div
-                className="w-14 h-14 bg-[#c4ff00]/20 rounded-xl
+                className="w-14 h-14 bg-accent/20 rounded-xl
                           flex items-center justify-center mb-5
                           transition-all duration-300
-                          group-hover:bg-[#c4ff00] group-hover:scale-110"
+                          group-hover:bg-accent group-hover:scale-110"
             >
-                <div className="text-[#191d31] group-hover:text-[#191d31] transition-colors">
+                <div className="text-foreground group-hover:text-accent-foreground transition-colors">
                     {featureIcons[featureKey]}
                 </div>
             </div>
 
             {/* Title */}
-            <h3 className="text-lg sm:text-xl font-bold text-[#191d31] mb-2">{t(`features.${featureKey}.title`)}</h3>
+            <h3 className="text-lg sm:text-xl font-bold text-foreground mb-2">{t(`features.${featureKey}.title`)}</h3>
 
             {/* Description */}
-            <p className="text-sm sm:text-base text-[#53555b] leading-relaxed">
+            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                 {t(`features.${featureKey}.description`)}
             </p>
         </div>
