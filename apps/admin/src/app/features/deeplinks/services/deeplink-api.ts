@@ -28,6 +28,7 @@ import type { AdminDeeplink, AdminDeeplinkDocument, DeeplinkEnvironment } from '
 
 /**
  * Convert Firestore document to AdminDeeplink
+ * Handles both admin-created deeplinks and deferred deeplink test data
  */
 const convertDoc = (doc: QueryDocumentSnapshot | DocumentSnapshot): AdminDeeplink | null => {
     if (!doc.exists()) {
@@ -39,12 +40,12 @@ const convertDoc = (doc: QueryDocumentSnapshot | DocumentSnapshot): AdminDeeplin
     return {
         id: doc.id,
         deepLinkUrl: data.deepLinkUrl,
-        shortCode: data.shortCode,
+        shortCode: data.shortCode ?? doc.id,
         invite: data.invite,
         createdAt: data.createdAt?.toMillis() ?? Date.now(),
-        createdBy: data.createdBy,
-        displayName: data.invite.user$?.name ?? doc.id,
-        displayId: data.invite.userId ?? doc.id,
+        createdBy: data.createdBy ?? 'unknown',
+        displayName: data.invite?.user$?.name ?? doc.id,
+        displayId: data.invite?.userId ?? doc.id,
     };
 };
 
