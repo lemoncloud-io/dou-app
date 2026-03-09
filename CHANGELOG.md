@@ -1,5 +1,32 @@
 # Changelog
 
+## [2026-03-09] - root@0.10.0, @chatic/web@0.8.0
+
+### Features
+
+- support dynamic WebSocket endpoint via localStorage and RN bridge
+- add places lib with api, hooks, and types
+- add registerDevice api and hook to auth lib
+- add useDynamicDeviceId hook to resolve deviceId by environment
+- integrate PlaceList with usePlaces in HomePage
+- add isGuest computed state to useSimpleWebCore
+
+### Bug Fixes
+
+- use function call instead of value reference in inviteLink
+- inject safe area CSS variables via injectJavaScript on insets change
+- set profile from server response after login
+- update fetchPlaces endpoint
+
+### Refactor
+
+- replace LoginPage with auto login, move token login to TokenTestLoginPage
+
+### Other
+
+- style: update styles
+- revert: restore webviewUrl to original value
+
 ## [2026-03-09] - root@0.9.0, @chatic/admin@0.3.0, @chatic/landing@0.2.0
 
 ### Features
