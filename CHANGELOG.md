@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-03-09] - root@0.7.0, @chatic/web@0.7.0
+
+### Features
+
+- publish page
+
+### Refactor
+
+- extract success components for room and workspace creation
+
 ## [2026-03-08] - root@0.6.0, @chatic/web@0.6.0
 
 ### Features
