@@ -19,8 +19,21 @@
         },
         "button": {
             "openInApp": "DoU 앱에서 열기",
+            "openApp": "앱 열기",
+            "viewInWeb": "웹으로 보기",
             "downloadFrom": "{{store}}에서 다운로드",
             "continueBrowser": "브라우저에서 계속하기"
+        },
+        "dialog": {
+            "cancel": "취소",
+            "confirm": "확인",
+            "appConfirm": {
+                "title": "DoU 앱으로 이동하시겠습니까?"
+            },
+            "storeConfirm": {
+                "title": "앱 설치가 필요합니다.",
+                "subtitle": "스토어로 이동하시겠습니까?"
+            }
         },
         "desktop": {
             "message": "모바일 기기에서 접속해 주세요.",

@@ -18,39 +18,34 @@ export const FeatureCard = ({ featureKey, index }: FeatureCardProps): JSX.Elemen
 
     return (
         <div
-            className={`group relative bg-[#12131a] rounded-2xl p-6 sm:p-8
-                       border border-white/5
+            className={`group relative bg-card rounded-2xl p-6 sm:p-8
+                       border border-border
                        transition-all duration-300 ease-out
-                       hover:border-[#c4ff00]/20
-                       hover:bg-[#1a1b23]
+                       hover:border-accent
+                       hover:bg-muted
                        hover:-translate-y-1
+                       shadow-sm hover:shadow-md
                        animate-fade-in-up ${delayClass}`}
         >
             {/* Icon */}
             <div
-                className="w-14 h-14 bg-[#c4ff00]/10 rounded-xl
+                className="w-14 h-14 bg-accent/20 rounded-xl
                           flex items-center justify-center mb-5
                           transition-all duration-300
-                          group-hover:bg-[#c4ff00] group-hover:scale-110"
+                          group-hover:bg-accent group-hover:scale-110"
             >
-                <div className="text-[#c4ff00] group-hover:text-[#0a0a0f] transition-colors">
+                <div className="text-foreground group-hover:text-accent-foreground transition-colors">
                     {featureIcons[featureKey]}
                 </div>
             </div>
 
             {/* Title */}
-            <h3 className="text-lg sm:text-xl font-bold text-white mb-2">{t(`features.${featureKey}.title`)}</h3>
+            <h3 className="text-lg sm:text-xl font-bold text-foreground mb-2">{t(`features.${featureKey}.title`)}</h3>
 
             {/* Description */}
-            <p className="text-sm sm:text-base text-white/50 leading-relaxed">
+            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                 {t(`features.${featureKey}.description`)}
             </p>
-
-            {/* Hover glow effect */}
-            <div
-                className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#c4ff00]/0 to-[#c4ff00]/5
-                          opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-            />
         </div>
     );
 };

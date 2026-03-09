@@ -1,7 +1,7 @@
 /**
  * useWebRedirect Hook
  *
- * Handles web browser redirect for desktop users.
+ * Handles web browser redirect.
  * Fetches short link from Firebase and redirects to web app.
  */
 
@@ -12,13 +12,8 @@ import { fetchShortLink } from '../utils';
 
 import type { ShortLinkDocument, DeepLinkInfo } from '../types';
 
-interface UseWebRedirectState {
+interface UseWebRedirectResult {
     loading: boolean;
-    error: string | null;
-    document: ShortLinkDocument | null;
-}
-
-interface UseWebRedirectResult extends UseWebRedirectState {
     redirect: () => void;
 }
 
@@ -45,8 +40,8 @@ const buildRedirectUrl = (doc: ShortLinkDocument): string => {
 
     // Replace domain in Location URL to use configured web domain
     const url = new URL(baseUrl);
-    url.host = WEB_CONFIG.domain; // Use host (includes port) instead of hostname
-    url.protocol = `${WEB_CONFIG.protocol}:`; // Protocol needs colon suffix
+    url.host = WEB_CONFIG.domain;
+    url.protocol = `${WEB_CONFIG.protocol}:`;
 
     // Add envs as query params for web app to pick up
     if (doc.invite.$envs?.backend) {
@@ -63,71 +58,45 @@ const buildRedirectUrl = (doc: ShortLinkDocument): string => {
  * Hook for web redirect functionality
  *
  * @param deepLinkInfo - Deep link info from useDeepLinkInfo
- * @param enabled - Whether to enable auto-fetch (for desktop only)
+ * @param autoRedirect - Whether to auto-redirect on mount
  */
-export const useWebRedirect = (deepLinkInfo: DeepLinkInfo, enabled: boolean): UseWebRedirectResult => {
-    const [state, setState] = useState<UseWebRedirectState>({
-        loading: false,
-        error: null,
-        document: null,
-    });
+export const useWebRedirect = (deepLinkInfo: DeepLinkInfo, autoRedirect: boolean): UseWebRedirectResult => {
+    const [loading, setLoading] = useState(false);
 
     const shortCode = extractShortCode(deepLinkInfo.fullPath);
 
-    const fetchAndRedirect = useCallback(async () => {
+    const redirect = useCallback(async () => {
         if (!shortCode) {
-            setState({
-                loading: false,
-                error: 'Invalid short code',
-                document: null,
-            });
+            console.error('[WebRedirect] Invalid short code');
             return;
         }
 
-        setState(prev => ({ ...prev, loading: true, error: null }));
+        setLoading(true);
 
         try {
             const doc = await fetchShortLink(shortCode);
 
             if (!doc) {
-                setState({
-                    loading: false,
-                    error: `Short link not found: ${shortCode}`,
-                    document: null,
-                });
+                console.error(`[WebRedirect] Short link not found: ${shortCode}`);
+                setLoading(false);
                 return;
             }
 
-            setState({
-                loading: false,
-                error: null,
-                document: doc,
-            });
-
-            // Build and navigate to redirect URL
             const redirectUrl = buildRedirectUrl(doc);
             console.log('[WebRedirect] Redirecting to:', redirectUrl);
             window.location.href = redirectUrl;
         } catch (err) {
-            const message = err instanceof Error ? err.message : 'Unknown error';
             console.error('[WebRedirect] Error:', err);
-            setState({
-                loading: false,
-                error: message,
-                document: null,
-            });
+            setLoading(false);
         }
     }, [shortCode]);
 
-    // Auto-fetch when enabled (for desktop)
+    // Auto-redirect when enabled
     useEffect(() => {
-        if (enabled && shortCode) {
-            void fetchAndRedirect();
+        if (autoRedirect && shortCode) {
+            void redirect();
         }
-    }, [enabled, shortCode, fetchAndRedirect]);
+    }, [autoRedirect, shortCode, redirect]);
 
-    return {
-        ...state,
-        redirect: fetchAndRedirect,
-    };
+    return { loading, redirect };
 };
