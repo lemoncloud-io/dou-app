@@ -15,19 +15,24 @@ export type DeeplinkEnvironment = 'DEV' | 'PROD';
  * Firestore document structure for deeplinks
  * Collection: deferredDeepLinks
  *
- * Unified format for both Admin and Mobile
+ * Unified format for both Admin and Mobile.
+ * Note: Deferred deeplink test data may not have invite/shortCode/createdBy fields.
  */
 export interface AdminDeeplinkDocument {
     /** Deep link URL (https://app.chatic.io/s/{id}) */
     deepLinkUrl: string;
-    /** Short code - also used as document ID */
-    shortCode: string;
-    /** Invite data from backend API */
-    invite: MyInviteView;
+    /** Short code - also used as document ID (optional for deferred deeplink test data) */
+    shortCode?: string;
+    /** Invite data from backend API (optional for deferred deeplink test data) */
+    invite?: MyInviteView;
     /** When the deeplink was created */
     createdAt: Timestamp;
-    /** Who created the deeplink */
-    createdBy: string;
+    /** Who created the deeplink (optional for deferred deeplink test data) */
+    createdBy?: string;
+    /** Expiration time (deferred deeplink test data only) */
+    expiresAt?: Timestamp;
+    /** Device fingerprint (deferred deeplink test data only) */
+    fingerprint?: string;
 }
 
 /**

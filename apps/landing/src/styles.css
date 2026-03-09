@@ -25,32 +25,41 @@ html,
 body,
 #root {
     height: 100%;
-    overflow: hidden;
-    background-color: #0a0a0f;
 }
 
 @layer base {
+    /* Light Theme (default) */
     :root {
         --background: 0 0% 100%;
-        --foreground: 222 84% 5%;
-        /* DoU Design Guide Colors */
-        --point: #c4ff00;
-        --point-hover: #b3e600;
-        --point-glow: rgba(196, 255, 0, 0.15);
-        --black-01: #191d31;
-        --bk-900: #222325;
-        --bk-700: #53555b;
-        --bk-600: #84888f;
-        --bk-500: #9fa2a7;
-        --bk-400: #babcc0;
-        --bk-300: #cfd0d3;
-        --bk-200: #dfe0e2;
-        --bk-100: #eaeaec;
-        --bk-50: #f4f5f5;
-        /* Dark Theme */
-        --bg-dark-primary: #0a0a0f;
-        --bg-dark-secondary: #12131a;
-        --bg-dark-tertiary: #1a1b23;
+        --foreground: 229 47% 15%;
+        --muted: 220 14% 96%;
+        --muted-foreground: 220 9% 35%;
+        --border: 220 13% 91%;
+        --accent: 72 100% 50%;
+        --accent-foreground: 229 47% 15%;
+        --card: 0 0% 100%;
+        --card-foreground: 229 47% 15%;
+    }
+
+    /* Dark Theme */
+    .dark {
+        --background: 240 10% 4%;
+        --foreground: 0 0% 98%;
+        --muted: 240 6% 10%;
+        --muted-foreground: 220 9% 65%;
+        --border: 240 4% 16%;
+        --accent: 72 100% 50%;
+        --accent-foreground: 240 10% 4%;
+        --card: 240 6% 10%;
+        --card-foreground: 0 0% 98%;
+    }
+
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background text-foreground;
     }
 }
 
@@ -143,7 +152,7 @@ body,
     animation-delay: 600ms;
 }
 
-/* Gradient text */
+/* Gradient text - for dark background */
 .text-gradient {
     background: linear-gradient(135deg, #c4ff00 0%, #a0e000 50%, #c4ff00 100%);
     -webkit-background-clip: text;
@@ -151,11 +160,17 @@ body,
     background-clip: text;
 }
 
+/* Gradient text - for light background */
+.text-gradient-light {
+    background: linear-gradient(135deg, #7cb300 0%, #5a8a00 50%, #7cb300 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
 /* Glass effect */
 .glass {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    @apply bg-background/5 backdrop-blur-md border border-border/10;
 }
 
 /* Button shimmer effect */
@@ -179,10 +194,18 @@ body,
     animation: shimmer 0.75s ease-out;
 }
 
-/* Grid pattern */
+/* Grid pattern - for dark background */
 .grid-pattern {
     background-image:
         linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+}
+
+/* Grid pattern - for light background */
+.grid-pattern-light {
+    background-image:
+        linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
     background-size: 60px 60px;
 }
