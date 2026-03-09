@@ -1,4 +1,4 @@
-import type { CacheType } from './common';
+import type { AppPermissionType, CacheType } from './common';
 import type { ClientMessage } from './client-message';
 import type { ChannelView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
 
@@ -12,6 +12,7 @@ export const WebMessageTypes = {
     HideLoader: 'HideLoader',
     SyncCredential: 'SyncCredential',
     PopWebView: 'PopWebView',
+    RequestPermission: 'RequestPermission',
     OnScroll: 'OnScroll',
     OpenModal: 'OpenModal',
     CloseModal: 'CloseModal',
@@ -203,6 +204,16 @@ export interface SaveCacheData extends DefaultMessage<'SaveCacheData'> {
     };
 }
 
+/**
+ * 권한 요청 데이터
+ */
+export interface RequestPermission extends DefaultMessage<'RequestPermission'> {
+    data: {
+        /** 요청할 권한 타입 */
+        permission: AppPermissionType;
+    };
+}
+
 interface WebMessageMap {
     /**
      * TODO: Not Implement
@@ -227,6 +238,7 @@ interface WebMessageMap {
     GetContacts: GetContacts;
     OpenCamera: OpenCamera;
     OpenPhotoLibrary: OpenPhotoLibrary;
+    RequestPermission: RequestPermission;
 
     /**
      * Device Info Event

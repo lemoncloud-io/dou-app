@@ -4,6 +4,7 @@
  */
 import type {
     AppLogInfo,
+    AppPermissionType,
     CacheType,
     ContactInfo,
     DeviceInfo,
@@ -11,6 +12,7 @@ import type {
     FcmTokenInfo,
     MediaAsset,
     NotificationInfo,
+    PermissionStatus,
     ProductSubscriptionInfo,
     PurchaseInfo,
     SafeAreaInfo,
@@ -39,6 +41,7 @@ export const AppMessageTypes = {
     OnFetchAllCacheData: 'OnFetchAllCacheData',
     OnFetchCacheData: 'OnFetchCacheData',
     OnSaveCacheData: 'OnSaveCacheData',
+    OnRequestPermission: 'OnRequestPermission',
     OnSetWsEndpoint: 'OnSetWsEndpoint',
 } as const;
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
@@ -130,6 +133,14 @@ export interface OnSetWsEndpoint extends DefaultMessage<'OnSetWsEndpoint'> {
     data: { wss: string };
 }
 
+export interface OnRequestPermission extends DefaultMessage<'OnRequestPermission'> {
+    data: {
+        permission: AppPermissionType;
+        success: boolean;
+        status: PermissionStatus;
+    };
+}
+
 export interface AppMessageMap {
     /**
      * TODO: Not Implement
@@ -147,6 +158,7 @@ export interface AppMessageMap {
     OnGetContacts: OnGetContacts;
     OnOpenCamera: OnOpenCamera;
     OnOpenPhotoLibrary: OnOpenPhotoLibrary;
+    OnRequestPermission: OnRequestPermission;
 
     /**
      * Device Info Event

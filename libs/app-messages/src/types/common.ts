@@ -201,3 +201,17 @@ export interface DocumentInfo {
  * @author raine@lemoncloud.io
  */
 export type CacheType = 'channel' | 'chat' | 'user' | 'join';
+
+/**
+ * 앱 권한 타입
+ */
+export type AppPermissionType = 'CONTACTS' | 'NOTIFICATIONS' | 'CAMERA' | 'PHOTO_LIBRARY';
+
+/**
+ * 권한 상태
+ * - GRANTED: 허용됨
+ * - DENIED: 거부됨 (다시 요청 가능)
+ * - BLOCKED: 차단됨 (설정에서 변경 필요)
+ * - UNAVAILABLE: 사용 불가 (하드웨어 미지원 등)
+ */
+export type PermissionStatus = 'GRANTED' | 'DENIED' | 'BLOCKED' | 'UNAVAILABLE';
