@@ -37,6 +37,10 @@ const convertDoc = (doc: QueryDocumentSnapshot | DocumentSnapshot): AdminDeeplin
 
     const data = doc.data() as AdminDeeplinkDocument;
 
+    // Deferred deeplink test data: show fingerprint
+    const displayName = data.invite?.user$?.name ?? data.fingerprint ?? doc.id;
+    const displayId = data.invite?.userId ?? (data.fingerprint ? '[DEFERRED]' : doc.id);
+
     return {
         id: doc.id,
         deepLinkUrl: data.deepLinkUrl,
@@ -44,8 +48,8 @@ const convertDoc = (doc: QueryDocumentSnapshot | DocumentSnapshot): AdminDeeplin
         invite: data.invite,
         createdAt: data.createdAt?.toMillis() ?? Date.now(),
         createdBy: data.createdBy ?? 'unknown',
-        displayName: data.invite?.user$?.name ?? doc.id,
-        displayId: data.invite?.userId ?? doc.id,
+        displayName,
+        displayId,
     };
 };
 
