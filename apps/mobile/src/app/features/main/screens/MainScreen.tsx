@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Config from 'react-native-config';
 
 import { AppWebView, FullScreenLoader, Logger, useDeepLinkStore } from '../../../common';
 import {
@@ -18,7 +17,8 @@ import type { MainScreenProps } from '../navigation';
 import { useIsFocused } from '@react-navigation/native';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 
-const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
+// const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
+const webviewUrl = 'http://localhost:5003';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
@@ -63,8 +63,11 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                 script += `localStorage.setItem('CHATIC_DOU_ENDPOINT', '${safeBackend}');\n`;
             }
             if (pendingEnvs?.wss) {
-                const safeWss = encodeURI(pendingEnvs.wss).replace(/'/g, '%27');
-                script += `localStorage.setItem('CHATIC_WS_ENDPOINT', '${safeWss}');\n`;
+                const message: AppMessageData<'OnSetWsEndpoint'> = {
+                    type: 'OnSetWsEndpoint',
+                    data: { wss: pendingEnvs.wss },
+                };
+                bridge.post(message);
             }
 
             // Navigate to URL
