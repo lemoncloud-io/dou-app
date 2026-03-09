@@ -15,6 +15,12 @@ export const WebMessageTypes = {
     OnScroll: 'OnScroll',
     OpenModal: 'OpenModal',
     CloseModal: 'CloseModal',
+    OpenSettings: 'OpenSettings',
+    OpenShareSheet: 'OpenShareSheet',
+    GetContacts: 'GetContacts',
+    OpenDocument: 'OpenDocument',
+    OpenCamera: 'OpenCamera',
+    OpenPhotoLibrary: 'OpenPhotoLibrary',
     FetchDeviceInfo: 'FetchDeviceInfo',
     FetchFcmToken: 'FetchFcmToken',
     FetchSafeArea: 'FetchSafeArea',
@@ -43,12 +49,19 @@ export interface OnScrollData extends DefaultMessage<'OnScroll'> {
     };
 }
 
+/**
+ * 구독 상품 구매 요청
+ */
 export interface PurchaseSubscription extends DefaultMessage<'PurchaseSubscription'> {
     data: {
+        /** 상품 ID (SKU) */
         sku: string;
     };
 }
 
+/**
+ * 모달 열기 요청
+ */
 export interface OpenModal extends DefaultMessage<'OpenModal'> {
     data: {
         /**
@@ -77,6 +90,91 @@ export interface OpenModal extends DefaultMessage<'OpenModal'> {
     };
 }
 
+/**
+ * 앱 설정 화면 열기 요청
+ */
+export interface OpenSettings extends DefaultMessage<'OpenSettings'> {}
+
+/**
+ * 공유 시트 열기 요청 데이터
+ */
+export interface OpenShareSheet extends DefaultMessage<'OpenShareSheet'> {
+    data: {
+        /** 공유할 제목 */
+        title?: string;
+        /** 공유할 메시지 본문 */
+        message?: string;
+        /** 공유할 URL */
+        url?: string;
+        /** 파일 타입 (MIME type) */
+        type?: string;
+        /** 이메일 제목 등 */
+        subject?: string;
+    };
+}
+
+/**
+ * 문서 선택기 열기 요청 데이터
+ */
+export interface OpenDocument extends DefaultMessage<'OpenDocument'> {
+    data: {
+        /** 다중 선택 허용 여부 */
+        allowMultiSelection?: boolean;
+        /** 허용할 파일 타입 목록 (MIME types) */
+        type?: string[];
+        /** Base64 데이터 포함 여부 */
+        includeBase64?: boolean;
+    };
+}
+
+/**
+ * 연락처 가져오기 요청
+ */
+export interface GetContacts extends DefaultMessage<'GetContacts'> {}
+
+/**
+ * 카메라 열기 요청 데이터
+ */
+export interface OpenCamera extends DefaultMessage<'OpenCamera'> {
+    data: {
+        /** 미디어 타입 (사진, 비디오, 혼합) */
+        mediaType?: 'photo' | 'video' | 'mixed';
+        /** 이미지 품질 (0~1) */
+        quality?: 0 | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 0.6 | 0.7 | 0.8 | 0.9 | 1;
+        /** 최대 너비 */
+        maxWidth?: number;
+        /** 최대 높이 */
+        maxHeight?: number;
+        /** Base64 데이터 포함 여부 */
+        includeBase64?: boolean;
+        /** 카메라 방향 (전면, 후면) */
+        cameraType?: 'back' | 'front';
+    };
+}
+
+/**
+ * 사진 라이브러리 열기 요청 데이터
+ */
+export interface OpenPhotoLibrary extends DefaultMessage<'OpenPhotoLibrary'> {
+    data: {
+        /** 선택 가능한 최대 개수 */
+        selectionLimit?: number;
+        /** 미디어 타입 (사진, 비디오, 혼합) */
+        mediaType?: 'photo' | 'video' | 'mixed';
+        /** 최대 너비 */
+        maxWidth?: number;
+        /** 최대 높이 */
+        maxHeight?: number;
+        /** 이미지 품질 (0~1) */
+        quality?: 0 | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 0.6 | 0.7 | 0.8 | 0.9 | 1;
+        /** Base64 데이터 포함 여부 */
+        includeBase64?: boolean;
+    };
+}
+
+/**
+ * 모든 캐시 데이터 요청 데이터
+ */
 export interface FetchAllCacheData extends DefaultMessage<'FetchAllCacheData'> {
     data: {
         type: CacheType;
@@ -84,6 +182,9 @@ export interface FetchAllCacheData extends DefaultMessage<'FetchAllCacheData'> {
     };
 }
 
+/**
+ * 특정 캐시 데이터 요청 데이터
+ */
 export interface FetchCacheData extends DefaultMessage<'FetchCacheData'> {
     data: {
         type: CacheType;
@@ -91,6 +192,9 @@ export interface FetchCacheData extends DefaultMessage<'FetchCacheData'> {
     };
 }
 
+/**
+ * 캐시 데이터 저장 요청 데이터
+ */
 export interface SaveCacheData extends DefaultMessage<'SaveCacheData'> {
     data: {
         type: CacheType;
@@ -117,6 +221,12 @@ interface WebMessageMap {
      */
     OpenModal: OpenModal;
     CloseModal: DefaultMessage<'CloseModal'>;
+    OpenSettings: OpenSettings;
+    OpenShareSheet: OpenShareSheet;
+    OpenDocument: OpenDocument;
+    GetContacts: GetContacts;
+    OpenCamera: OpenCamera;
+    OpenPhotoLibrary: OpenPhotoLibrary;
 
     /**
      * Device Info Event

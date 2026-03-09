@@ -21,6 +21,11 @@ This library was generated with [Nx](https://nx.dev).
 | :---------------------- | :------------------------------------------------------------------------------------ | :----------------------------------------------------------- | :----------------------------------------------------------- |
 | `CloseModal`            | -                                                                                     | 모달 닫기                                                    | -                                                            |
 | `OpenModal`             | `{ url: string; type?: 'full';'sheet'; heightRatio?: number; dragHandle?: boolean; }` | 모달 열기                                                    | -                                                            |
+| `OpenSettings`          | -                                                                                     | 앱 설정 화면으로 이동합니다.                                 | -                                                            |
+| `OpenShareSheet`        | `{ title?: string; message?: string; url?: string; ... }`                             | 시스템 공유 시트를 엽니다.                                   | `OnOpenShareSheet`                                           |
+| `OpenDocument`          | `{ allowMultiSelection?: boolean; type?: string[] }`                                  | 파일 선택기를 엽니다.                                        | `OnPickDocument`                                             |
+| `OpenCamera`            | `{ mediaType?: 'photo'\|'video'; ... }`                                               | 카메라를 실행하여 사진/동영상을 촬영합니다.                  | `OnOpenCamera`                                               |
+| `OpenPhotoLibrary`      | `{ selectionLimit?: number; mediaType?: ... }`                                        | 갤러리(사진첩)를 엽니다.                                     | `OnOpenPhotoLibrary`                                         |
 | `FetchFcmToken`         | -                                                                                     | FCM 푸시 토큰을 요청합니다.                                  | `OnFetchFcmToken`                                            |
 | `FetchSafeArea`         | -                                                                                     | 기기의 Safe Area(Notch 등) 정보를 요청합니다.                | `OnFetchSafeArea`                                            |
 | `FetchProducts`         | -                                                                                     | 스토어에 등록된 구독 상품 목록을 요청합니다.                 | `OnFetchProductSubscriptions`                                |
@@ -40,9 +45,13 @@ This library was generated with [Nx](https://nx.dev).
 
 ### Control
 
-| Message Type   | Description             | Data Structure (Example) |
-| :------------- | :---------------------- | :----------------------- |
-| `OnCloseModal` | 모달이 닫혔음을 떄 전달 | -                        |
+| Message Type         | Description              | Data Structure (Example)                                |
+| :------------------- | :----------------------- | :------------------------------------------------------ |
+| `OnCloseModal`       | 모달이 닫혔음을 떄 전달  | -                                                       |
+| `OnOpenShareSheet`   | 공유 시트 닫혔을 때 전달 | -                                                       |
+| `OnOpenDocument`     | 선택된 파일 목록 전달    | `{ documents: [{ uri: "...", name: "file.pdf" }] }`     |
+| `OnOpenCamera`       | 촬영된 미디어 에셋 전달  | `{ assets: [{ uri: "...", width: 100, height: 100 }] }` |
+| `OnOpenPhotoLibrary` | 선택된 미디어 에셋 전달  | `{ assets: [{ uri: "...", width: 100, height: 100 }] }` |
 
 ### System
 

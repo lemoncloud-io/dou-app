@@ -5,8 +5,11 @@
 import type {
     AppLogInfo,
     CacheType,
+    ContactInfo,
     DeviceInfo,
+    DocumentInfo,
     FcmTokenInfo,
+    MediaAsset,
     NotificationInfo,
     ProductSubscriptionInfo,
     PurchaseInfo,
@@ -20,6 +23,11 @@ export const AppMessageTypes = {
     OnSuccessSyncCredential: 'OnSuccessSyncCredential',
     OnUpdateDeviceInfo: 'OnUpdateDeviceInfo',
     OnCloseModal: 'OnCloseModal',
+    OnOpenShareSheet: 'OnOpenShareSheet',
+    OnOpenDocument: 'OnOpenDocument',
+    OnGetContacts: 'OnGetContacts',
+    OnOpenCamera: 'OnOpenCamera',
+    OnOpenPhotoLibrary: 'OnOpenPhotoLibrary',
     OnFetchSafeArea: 'OnFetchSafeArea',
     OnFetchFcmToken: 'OnFetchFcmToken',
     OnAppLog: 'OnAppLog',
@@ -41,6 +49,30 @@ interface DefaultMessage<T extends AppMessageType> {
 
 export interface OnUpdateDeviceInfo extends DefaultMessage<'OnUpdateDeviceInfo'> {
     data: DeviceInfo & VersionInfo;
+}
+
+export interface OnOpenDocument extends DefaultMessage<'OnOpenDocument'> {
+    data: {
+        documents: DocumentInfo[];
+    };
+}
+
+export interface OnGetContacts extends DefaultMessage<'OnGetContacts'> {
+    data: {
+        contacts: ContactInfo[];
+    };
+}
+
+export interface OnOpenCamera extends DefaultMessage<'OnOpenCamera'> {
+    data: {
+        assets: MediaAsset[];
+    };
+}
+
+export interface OnOpenPhotoLibrary extends DefaultMessage<'OnOpenPhotoLibrary'> {
+    data: {
+        assets: MediaAsset[];
+    };
 }
 
 export interface OnFetchSafeArea extends DefaultMessage<'OnFetchSafeArea'> {
@@ -110,6 +142,11 @@ export interface AppMessageMap {
      * Control Device Event
      */
     OnCloseModal: DefaultMessage<'OnCloseModal'>;
+    OnOpenShareSheet: DefaultMessage<'OnOpenShareSheet'>;
+    OnOpenDocument: OnOpenDocument;
+    OnGetContacts: OnGetContacts;
+    OnOpenCamera: OnOpenCamera;
+    OnOpenPhotoLibrary: OnOpenPhotoLibrary;
 
     /**
      * Device Info Event
