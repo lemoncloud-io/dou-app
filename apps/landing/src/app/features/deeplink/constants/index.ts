@@ -12,9 +12,6 @@ export const APP_CONFIG = {
     storeUrls,
 } as const;
 
-// Debug log
-console.log('[APP_CONFIG] isDev:', isDev, 'scheme:', APP_CONFIG.scheme, 'packageId:', APP_CONFIG.packageId);
-
 export const DEEPLINK_CONFIG = {
     launchTimeout: 2500,
     collectionName: 'deferredDeepLinks',

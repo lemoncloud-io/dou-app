@@ -49,13 +49,8 @@ export const useAppLauncher = ({ deviceType, deepLinkInfo }: UseAppLauncherProps
 
         const pathWithoutLeadingSlash = deepLinkInfo.fullPath.replace(/^\//, '');
 
-        console.log('[AppLauncher] Device:', deviceType);
-        console.log('[AppLauncher] Full path:', deepLinkInfo.fullPath);
-        console.log('[AppLauncher] Path without slash:', pathWithoutLeadingSlash);
-
         if (deviceType === 'ios') {
             const customSchemeUrl = `${APP_CONFIG.scheme}://${pathWithoutLeadingSlash}`;
-            console.log('[iOS] Opening custom scheme:', customSchemeUrl);
             window.location.href = customSchemeUrl;
         } else if (deviceType === 'android') {
             const intentUrl =
@@ -64,13 +59,11 @@ export const useAppLauncher = ({ deviceType, deepLinkInfo }: UseAppLauncherProps
                 `;package=${APP_CONFIG.packageId}` +
                 `;S.browser_fallback_url=${encodeURIComponent(APP_CONFIG.storeUrls.android)}` +
                 `;end`;
-            console.log('[Android] Opening:', intentUrl);
             window.location.href = intentUrl;
         }
 
         // After timeout, show store dialog. User can dismiss if app actually opened.
         setTimeout(async () => {
-            console.log(`[${deviceType}] Timeout reached, storing deferred link`);
             await storeDeferredDeepLink(deepLinkInfo.deepLinkUrl);
             setState('initial');
             setDialogType('store-confirm');
