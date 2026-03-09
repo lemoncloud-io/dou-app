@@ -11,7 +11,7 @@ export const fetchPlaces = async (params: Params): Promise<ListResult<MySiteView
     const { data } = await simpleWebCore
         .buildRequest({
             method: 'GET',
-            baseURL: `${VITE_DOU_ENDPOINT}/places`,
+            baseURL: `${VITE_DOU_ENDPOINT}/users/0/places`,
         })
         .setParams(params)
         .execute<ListResult<MySiteView>>();
