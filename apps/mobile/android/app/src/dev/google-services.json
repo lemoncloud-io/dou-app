@@ -12,7 +12,12 @@
                     "package_name": "io.chatic.dou.dev"
                 }
             },
-            "oauth_client": [],
+            "oauth_client": [
+                {
+                    "client_id": "429595905351-augksgnj68drbjpntokdmkkbrrgskb21.apps.googleusercontent.com",
+                    "client_type": 3
+                }
+            ],
             "api_key": [
                 {
                     "current_key": "AIzaSyDlGgmZlzIVbq7zRYcTdxkyZnAsTmNNuOY"
@@ -20,7 +25,19 @@
             ],
             "services": {
                 "appinvite_service": {
-                    "other_platform_oauth_client": []
+                    "other_platform_oauth_client": [
+                        {
+                            "client_id": "429595905351-augksgnj68drbjpntokdmkkbrrgskb21.apps.googleusercontent.com",
+                            "client_type": 3
+                        },
+                        {
+                            "client_id": "429595905351-g1c6gl1nnq3a45n3v31cp2o5365rr24n.apps.googleusercontent.com",
+                            "client_type": 2,
+                            "ios_info": {
+                                "bundle_id": "io.chatic.dou.dev"
+                            }
+                        }
+                    ]
                 }
             }
         }
