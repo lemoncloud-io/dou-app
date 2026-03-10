@@ -10,9 +10,10 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 export const placesKeys = createQueryKeys('places');
 
-export const usePlaces = (params: Params = {}) =>
+export const usePlaces = (params: Params = {}, enabled = true) =>
     useQuery<ListResult<MySiteView>>({
         queryKey: placesKeys.list(params),
         queryFn: () => fetchPlaces(params),
         refetchOnWindowFocus: false,
+        enabled,
     });
