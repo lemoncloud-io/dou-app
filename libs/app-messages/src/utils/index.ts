@@ -59,9 +59,13 @@ export const initializeMessageListener = () => {
 export const getMobileAppInfo = () => {
     const platform = window.CHATIC_APP_PLATFORM?.toLowerCase();
 
+    const isIOS = platform === 'ios';
+    const isAndroid = platform === 'android';
+
     return {
-        isIOS: platform === 'ios',
-        isAndroid: platform === 'android',
+        isOnMobileApp: isIOS || isAndroid,
+        isIOS: isIOS,
+        isAndroid: isAndroid,
     };
 };
 
