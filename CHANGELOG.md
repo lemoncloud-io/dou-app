@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-03-10] - root@0.11.0, @chatic/landing@0.3.0
+
+### Features
+
+- update logo
+- (landing) add Open Graph and Twitter Card metadata
+
+### Refactor
+
+- (deeplink) simplify desktop UI
+
 ## [2026-03-09] - root@0.10.0, @chatic/web@0.8.0
 
 ### Features
