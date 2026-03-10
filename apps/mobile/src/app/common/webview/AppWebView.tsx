@@ -24,7 +24,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             const deviceModel = DeviceInfo.getDeviceId();
             const applicationName = DeviceInfo.getApplicationName();
             const appLanguage = getAppLanguage();
-            const platform = Platform.OS === 'ios' ? 'iOS' : 'Android';
+            const platform = Platform.OS.toLowerCase();
             const stage = Config.VITE_ENV || 'PROD';
 
             const deviceInfoScript = `
@@ -36,6 +36,17 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 window.CHATIC_APP_CURRENT_VERSION = '${appVersion}';
                 window.CHATIC_APP_BUILD_NUMBER = '${buildNumber}';
                 window.CHATIC_APP_CURRENT_LANGUAGE = '${appLanguage}';
+
+                const bridge = {
+                    postMessage: function(msg) {
+                        if (window.ReactNativeWebView) {
+                            window.ReactNativeWebView.postMessage(msg);
+                        }
+                    }
+                };
+
+                window.ChaticMessageHandler = bridge;
+                window.webkit.messageHandlers.ChaticMessageHandler = bridge;
             `;
 
             const injectionScript = `
@@ -107,12 +118,16 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             allowsBackForwardNavigationGestures={true}
             userAgent={initData.userAgent}
             injectedJavaScript={initData.script}
+            injectedJavaScriptBeforeContentLoaded={initData.script}
             hideKeyboardAccessoryView={true}
             forceDarkOn={false}
             originWhitelist={['*']}
             allowFileAccess={true}
             allowFileAccessFromFileURLs={true}
             allowUniversalAccessFromFileURLs={true}
+            onMessage={event => {
+                props.onMessage?.(event);
+            }}
             mixedContentMode="always"
             {...props}
         />

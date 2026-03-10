@@ -200,10 +200,10 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                     default:
                         if ((message as any).type === '__console__') {
                             const m = message as any;
-                            if (m.level === 'error') Logger.error('BRIDGE', m.msg);
-                            else Logger.info('BRIDGE', m.msg);
+                            if (m.level === 'error') console.error(m.msg);
+                            else console.info(m.msg);
                         } else {
-                            Logger.error('BRIDGE', `Failed received error. : ${message.type}`);
+                            console.error(`Failed received error. : ${message.type}`);
                         }
                 }
             },
@@ -234,7 +234,10 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
 
     return (
         <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
-            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS.toLowerCase() === 'ios' ? 'padding' : 'height'}
+            >
                 <AppWebView
                     ref={webViewRef}
                     source={{ uri: webviewUrl }}
