@@ -1,5 +1,36 @@
 # Changelog
 
+## [2026-03-10] - root@0.12.0, @chatic/web@0.9.0
+
+### Features
+
+- update app/web message
+- extend LogTag
+- implement permission service
+- implement device control service
+- add useDeviceHandler hooks
+- implement web/app message about permission
+- implement usePermissionHandler
+- add DeviceTestScreen
+- update AppWebView
+- add new bridge messages to MainScreen
+- update webview component
+- update bridge method
+- implement BridgeTestScreen
+
+### Refactor
+
+- replace export path
+- update messageStore
+- add case that picker canceled in openDocument func
+
+### Chores
+
+- add dependencies
+- add device permissions
+- revise app/web message type field
+- bump version 0.5.0
+
 ## [2026-03-10] - root@0.11.0, @chatic/landing@0.3.0
 
 ### Features
