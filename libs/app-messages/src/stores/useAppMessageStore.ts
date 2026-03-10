@@ -28,6 +28,11 @@ const createInitialHandlers = (): MessageHandlers => {
     return handlers;
 };
 
+/**
+ * - 앱 메시지 관리 Store
+ * - `addHandler`, `removeHandler`를 통해 특정 메시지 타입에 대한 리스너를 추가/제거 가능
+ * - `handleMessage`가 호출되면, 해당 메시지 타입에 등록된 모든 핸들러 함수를 실행
+ */
 export const useAppMessageStore = create<AppMessageStore>()((set, get) => ({
     handlers: createInitialHandlers(),
     addHandler: (type, handler) =>

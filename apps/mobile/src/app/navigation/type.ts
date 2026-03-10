@@ -11,6 +11,8 @@ export type DebugStackParamList = {
     InAppPurchaseTest: undefined;
     FcmTest: undefined;
     DeeplinkTest: undefined;
+    DeviceTest: undefined;
+    BridgeTest: undefined;
 };
 
 export type MainStackParamList = {

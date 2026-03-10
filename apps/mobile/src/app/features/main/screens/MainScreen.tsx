@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { AppWebView, FullScreenLoader, Logger, useDeepLinkStore } from '../../../common';
+import { AppWebView } from '../../../common';
+import { FullScreenLoader } from '../../../common';
+import { Logger } from '../../../common';
+import { useDeepLinkStore } from '../../../common';
 import {
     useAndroidBack,
     useAppBridge,
@@ -8,6 +11,8 @@ import {
     useSafeAreaHandler,
     useSubscriptionIapHandler,
     useCacheHandler,
+    useDeviceHandler,
+    usePermissionHandler,
 } from '../../../common/webview/hooks';
 
 import type { AppMessageData, WebMessageData, WebMessageType } from '@chatic/app-messages';
@@ -37,6 +42,15 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         useSubscriptionIapHandler(bridge);
 
     const { handleFetchAllCacheData, handleFetchCacheData, handleSaveCacheData } = useCacheHandler(bridge);
+    const {
+        handleOpenSettings,
+        handleOpenShareSheet,
+        handleOpenDocument,
+        handleGetContacts,
+        handleOpenCamera,
+        handleOpenPhotoLibrary,
+    } = useDeviceHandler(bridge);
+    const { handleRequestPermission } = usePermissionHandler(bridge);
 
     useAndroidBack(webViewRef, canGoBack);
 
@@ -141,36 +155,55 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                         break;
                     }
 
+                    case 'FetchCacheData': {
+                        void handleFetchCacheData(message.data);
+                        break;
+                    }
                     case 'FetchAllCacheData': {
-                        Logger.info('WEBVIEW', 'WebView requested FetchAllCacheData', message.data);
-                        void handleFetchAllCacheData(message.data)
-                            .then(() => {
-                                Logger.info('WEBVIEW', 'FetchAllCacheData handled successfully');
-                            })
-                            .catch((e: unknown) => {
-                                Logger.error('WEBVIEW', 'FetchAllCacheData error', e);
-                            });
+                        void handleFetchAllCacheData(message.data);
                         break;
                     }
                     case 'SaveCacheData': {
-                        Logger.info('WEBVIEW', 'WebView requested SaveCacheData', message.data);
-                        void handleSaveCacheData(message.data)
-                            .then(() => {
-                                Logger.info('WEBVIEW', 'SaveCacheData handled successfully', (message.data as any).id);
-                            })
-                            .catch((e: unknown) => {
-                                Logger.error('WEBVIEW', 'SaveCacheData error', e);
-                            });
+                        void handleSaveCacheData(message.data);
+                        break;
+                    }
+                    case 'OpenSettings': {
+                        void handleOpenSettings();
+                        break;
+                    }
+                    case 'OpenShareSheet': {
+                        void handleOpenShareSheet(message.data);
+                        break;
+                    }
+                    case 'OpenDocument': {
+                        void handleOpenDocument(message.data);
+                        break;
+                    }
+                    case 'GetContacts': {
+                        void handleGetContacts();
+                        break;
+                    }
+                    case 'OpenCamera': {
+                        void handleOpenCamera(message.data);
+                        break;
+                    }
+                    case 'OpenPhotoLibrary': {
+                        void handleOpenPhotoLibrary(message.data);
+                        break;
+                    }
+
+                    case 'RequestPermission': {
+                        void handleRequestPermission(message.data);
                         break;
                     }
 
                     default:
                         if ((message as any).type === '__console__') {
                             const m = message as any;
-                            if (m.level === 'error') Logger.error('WEB', m.msg);
-                            else Logger.info('WEB', m.msg);
+                            if (m.level === 'error') console.error(m.msg);
+                            else console.info(m.msg);
                         } else {
-                            Logger.error('BRIDGE', `Failed received error. : ${message.type}`);
+                            console.error(`Failed received error. : ${message.type}`);
                         }
                 }
             },
@@ -190,11 +223,21 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         handleFetchAllCacheData,
         handleFetchCacheData,
         handleSaveCacheData,
+        handleOpenSettings,
+        handleOpenShareSheet,
+        handleOpenDocument,
+        handleGetContacts,
+        handleOpenCamera,
+        handleOpenPhotoLibrary,
+        handleRequestPermission,
     ]);
 
     return (
         <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
-            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS.toLowerCase() === 'ios' ? 'padding' : 'height'}
+            >
                 <AppWebView
                     ref={webViewRef}
                     source={{ uri: webviewUrl }}

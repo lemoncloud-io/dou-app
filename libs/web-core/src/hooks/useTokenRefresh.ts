@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-import { sendWebMessage } from '@chatic/app-messages';
+import { postMessage } from '@chatic/app-messages';
 
 import { fetchProfile, refreshAuthToken } from '../api';
 import { useWebCoreStore } from '../stores';
@@ -32,7 +32,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
         try {
             if (isOnMobileApp) {
                 // NOTE: send message to MobileApp
-                sendWebMessage({ type: 'SyncCredential' });
+                postMessage({ type: 'SyncCredential' });
                 return true;
             }
 
