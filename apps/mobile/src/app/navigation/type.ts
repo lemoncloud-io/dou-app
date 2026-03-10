@@ -12,6 +12,7 @@ export type DebugStackParamList = {
     FcmTest: undefined;
     DeeplinkTest: undefined;
     DeviceTest: undefined;
+    BridgeTest: undefined;
 };
 
 export type MainStackParamList = {

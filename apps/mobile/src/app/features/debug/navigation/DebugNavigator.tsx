@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import {
+    BridgeTestScreen,
     DebugHomeScreen,
     DeeplinkTestScreen,
     DeviceTestScreen,
@@ -72,6 +73,14 @@ export const DebugNavigator = () => {
                 component={DeviceTestScreen}
                 options={{
                     title: '디바이스 기능 테스트',
+                    headerBackButtonDisplayMode: 'minimal',
+                }}
+            />
+            <DebugStack.Screen
+                name="BridgeTest"
+                component={BridgeTestScreen}
+                options={{
+                    title: '브릿지 테스트',
                     headerBackButtonDisplayMode: 'minimal',
                 }}
             />
