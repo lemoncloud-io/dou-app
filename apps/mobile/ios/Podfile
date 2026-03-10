@@ -26,6 +26,14 @@ if linkage != nil
   use_frameworks! :linkage => linkage.to_sym
 end
 
+# react-native-config: Build Configuration별 ENVFILE 매핑
+ENVFILES = {
+  'Debug' => '$(PODS_ROOT)/../../.env.prod',
+  'Release' => '$(PODS_ROOT)/../../.env.prod',
+  'Debug Dev' => '$(PODS_ROOT)/../../.env.dev',
+  'Release Dev' => '$(PODS_ROOT)/../../.env.dev',
+}
+
 project 'Chatic',
   'Debug' => :debug,
   'Release' => :release,
@@ -49,5 +57,14 @@ target 'Chatic' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # react-native-config: Build Configuration별 ENVFILE 설정
+    installer.pods_project.targets.each do |target|
+      if target.name == 'react-native-config'
+        target.build_configurations.each do |config|
+          config.build_settings['ENVFILE'] = ENVFILES[config.name]
+        end
+      end
+    end
   end
 end
