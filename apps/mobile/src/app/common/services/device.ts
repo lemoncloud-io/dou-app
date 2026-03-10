@@ -56,7 +56,7 @@ export const DeviceService = {
             Logger.info('DEVICE', 'Document opened:', results);
             return results;
         } catch (error: any) {
-            if (error?.code === 'DOCUMENT_PICKER_CANCELED') {
+            if (error?.code === 'DOCUMENT_PICKER_CANCELED' || error?.code === 'OPERATION_CANCELED') {
                 Logger.info('DEVICE', 'Document picker cancelled');
                 return [];
             }
