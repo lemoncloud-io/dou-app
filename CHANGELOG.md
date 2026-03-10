@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-03-10] - root@0.12.2, @chatic/web@0.9.1
+
+### Refactor
+
+- simplify modal logic and styling
+
 ## [2026-03-10] - root@0.12.1, @chatic/landing@0.3.1
 
 ### Chores
