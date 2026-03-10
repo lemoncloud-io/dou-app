@@ -11,6 +11,7 @@ import {
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useOnboardingStore, useSimpleWebCore } from '@chatic/web-core';
 
+import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { SettingsDialog } from '../../../components/SettingsDialog';
 import { OnboardingModal } from '../../onboarding';
 import { ChannelList } from '../components/ChannelList';
@@ -19,7 +20,8 @@ import { PlaceList } from '../components/PlaceList';
 
 export const HomePage = () => {
     const navigate = useNavigate();
-    const { profile, logout } = useSimpleWebCore();
+    const { profile, logout, isGuest } = useSimpleWebCore();
+    const { canCreate } = useCanCreateChannel();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -40,32 +42,36 @@ export const HomePage = () => {
         <div className="flex min-h-screen flex-col bg-background pb-20">
             {/* Header */}
             <header className="flex items-center justify-between px-5 pb-3 pt-safe-top">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <button className="flex items-center gap-3">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-                                <User size={20} className="text-primary-foreground" />
-                            </div>
-                            <div className="flex flex-col items-start">
-                                <div className="flex items-center gap-1">
-                                    <h1 className="max-w-[120px] truncate text-lg font-bold text-foreground">
-                                        {profile?.name || '-'}
-                                    </h1>
-                                    <ChevronDown size={18} className="text-muted-foreground" />
+                {isGuest ? (
+                    <img src="/logo-chatic.svg" alt="chatic" className="h-6" />
+                ) : (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button className="flex items-center gap-3">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary">
+                                    <User size={20} className="text-primary-foreground" />
                                 </div>
-                                <p className="text-xs text-muted-foreground">{profile?.email || '-'}</p>
-                            </div>
-                        </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-48">
-                        <DropdownMenuItem onClick={() => setIsSettingsOpen(true)} className="cursor-pointer">
-                            <span>설정</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                            <span>로그아웃</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                                <div className="flex flex-col items-start">
+                                    <div className="flex items-center gap-1">
+                                        <h1 className="max-w-[120px] truncate text-lg font-bold text-foreground">
+                                            {profile?.name || '-'}
+                                        </h1>
+                                        <ChevronDown size={18} className="text-muted-foreground" />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{profile?.email || '-'}</p>
+                                </div>
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-48">
+                            <DropdownMenuItem onClick={() => setIsSettingsOpen(true)} className="cursor-pointer">
+                                <span>설정</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                                <span>로그아웃</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
                 <div className="flex items-center gap-1">
                     <button onClick={() => navigate('/join')} className="p-2">
                         <Plus size={22} className="text-foreground" />
@@ -88,12 +94,14 @@ export const HomePage = () => {
             <section className="flex-1 px-5 pt-4">
                 <div className="mb-3 flex items-center justify-between">
                     <h2 className="text-xl font-bold text-foreground">Chat</h2>
-                    <button
-                        onClick={() => setIsDialogOpen(true)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full border border-border"
-                    >
-                        <Plus size={18} className="text-foreground" />
-                    </button>
+                    {canCreate && (
+                        <button
+                            onClick={() => setIsDialogOpen(true)}
+                            className="flex h-8 w-8 items-center justify-center rounded-full border border-border"
+                        >
+                            <Plus size={18} className="text-foreground" />
+                        </button>
+                    )}
                 </div>
 
                 <ChannelList workspaceId={selectedPlaceId ?? ''} />
