@@ -4,13 +4,19 @@
  */
 import type {
     AppLogInfo,
+    AppPermissionType,
     CacheType,
+    ContactInfo,
     DeviceInfo,
+    DocumentInfo,
     FcmTokenInfo,
+    MediaAsset,
     NotificationInfo,
+    PermissionStatus,
     ProductSubscriptionInfo,
     PurchaseInfo,
     SafeAreaInfo,
+    ShareInfo,
     VersionInfo,
 } from './common';
 import type { ClientMessage } from './client-message';
@@ -20,6 +26,11 @@ export const AppMessageTypes = {
     OnSuccessSyncCredential: 'OnSuccessSyncCredential',
     OnUpdateDeviceInfo: 'OnUpdateDeviceInfo',
     OnCloseModal: 'OnCloseModal',
+    OnOpenShareSheet: 'OnOpenShareSheet',
+    OnOpenDocument: 'OnOpenDocument',
+    OnGetContacts: 'OnGetContacts',
+    OnOpenCamera: 'OnOpenCamera',
+    OnOpenPhotoLibrary: 'OnOpenPhotoLibrary',
     OnFetchSafeArea: 'OnFetchSafeArea',
     OnFetchFcmToken: 'OnFetchFcmToken',
     OnAppLog: 'OnAppLog',
@@ -31,6 +42,7 @@ export const AppMessageTypes = {
     OnFetchAllCacheData: 'OnFetchAllCacheData',
     OnFetchCacheData: 'OnFetchCacheData',
     OnSaveCacheData: 'OnSaveCacheData',
+    OnRequestPermission: 'OnRequestPermission',
     OnSetWsEndpoint: 'OnSetWsEndpoint',
 } as const;
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
@@ -41,6 +53,34 @@ interface DefaultMessage<T extends AppMessageType> {
 
 export interface OnUpdateDeviceInfo extends DefaultMessage<'OnUpdateDeviceInfo'> {
     data: DeviceInfo & VersionInfo;
+}
+
+export interface OnOpenShareSheet extends DefaultMessage<'OnOpenShareSheet'> {
+    data: ShareInfo;
+}
+
+export interface OnOpenDocument extends DefaultMessage<'OnOpenDocument'> {
+    data: {
+        documents: DocumentInfo[];
+    };
+}
+
+export interface OnGetContacts extends DefaultMessage<'OnGetContacts'> {
+    data: {
+        contacts: ContactInfo[];
+    };
+}
+
+export interface OnOpenCamera extends DefaultMessage<'OnOpenCamera'> {
+    data: {
+        assets: MediaAsset[];
+    };
+}
+
+export interface OnOpenPhotoLibrary extends DefaultMessage<'OnOpenPhotoLibrary'> {
+    data: {
+        assets: MediaAsset[];
+    };
 }
 
 export interface OnFetchSafeArea extends DefaultMessage<'OnFetchSafeArea'> {
@@ -98,6 +138,13 @@ export interface OnSetWsEndpoint extends DefaultMessage<'OnSetWsEndpoint'> {
     data: { wss: string };
 }
 
+export interface OnRequestPermission extends DefaultMessage<'OnRequestPermission'> {
+    data: {
+        permission: AppPermissionType;
+        status: PermissionStatus;
+    };
+}
+
 export interface AppMessageMap {
     /**
      * TODO: Not Implement
@@ -110,6 +157,12 @@ export interface AppMessageMap {
      * Control Device Event
      */
     OnCloseModal: DefaultMessage<'OnCloseModal'>;
+    OnOpenShareSheet: OnOpenShareSheet;
+    OnOpenDocument: OnOpenDocument;
+    OnGetContacts: OnGetContacts;
+    OnOpenCamera: OnOpenCamera;
+    OnOpenPhotoLibrary: OnOpenPhotoLibrary;
+    OnRequestPermission: OnRequestPermission;
 
     /**
      * Device Info Event
