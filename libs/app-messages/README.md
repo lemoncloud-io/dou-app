@@ -35,6 +35,8 @@ This library was generated with [Nx](https://nx.dev).
 | `FetchAllCacheData`     | `{ type: 'channel'\|'chat'\|'user'\|'join' }`                                         | 로컬 캐시(MMKV/SQLite)의 특정 도메인 전체 목록을 요청합니다. | `OnFetchAllCacheData`                                        |
 | `FetchCacheData`        | `{ type: ...; id: string }`                                                           | 로컬 캐시의 특정 데이터를 요청합니다.                        | `OnFetchCacheData`                                           |
 | `SaveCacheData`         | `{ type: ...; id: string; value: object }`                                            | 데이터를 로컬 캐시에 저장(Upsert)합니다.                     | `OnSaveCacheData`                                            |
+| `OAuthLogin`            | `{ provider: 'google'\|'apple' }`                                                     | 소셜 로그인(OAuth)을 요청합니다.                             | `OnOAuthLogin`                                               |
+| `OAuthLogout`           | `{ provider: 'google'\|'apple' }`                                                     | 소셜 로그아웃을 요청합니다.                                  | `OnOAuthLogout`                                              |
 
 ---
 
@@ -83,3 +85,10 @@ This library was generated with [Nx](https://nx.dev).
 | `OnFetchAllCacheData` | 요청된 도메인의 전체 캐시 데이터 목록 전달 | `{ type: "channel", items: [{ id: "ch_1", ... }] }`   |
 | `OnFetchCacheData`    | 요청된 단건 캐시 데이터 전달               | `{ type: "user", id: "user_1", item: { name: ... } }` |
 | `OnSaveCacheData`     | 캐시 저장 작업의 성공 여부 전달            | `{ type: "chat", id: "msg_1" }`                       |
+
+### OAuth
+
+| Message Type    | Description                  | Data Structure (Example)                                                      |
+| :-------------- | :--------------------------- | :---------------------------------------------------------------------------- |
+| `OnOAuthLogin`  | 소셜 로그인 결과 전달        | `{ result: { provider: "google", idToken: "...", user: {...} } }` 또는 `null` |
+| `OnOAuthLogout` | 소셜 로그아웃 성공 여부 전달 | `{ success: true }`                                                           |

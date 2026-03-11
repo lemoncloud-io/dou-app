@@ -61,6 +61,7 @@
     "dependencies": {
         "@aws-crypto/sha256-js": "^5.2.0",
         "@hookform/resolvers": "^3.9.1",
+        "@invertase/react-native-apple-authentication": "^2.5.1",
         "@lemoncloud/chatic-backend-api": "^0.26.127",
         "@lemoncloud/chatic-socials-api": "^0.26.127",
         "@lemoncloud/chatic-sockets-api": "^0.26.123",
@@ -89,6 +90,7 @@
         "@react-native-firebase/app": "^23.8.5",
         "@react-native-firebase/firestore": "^23.8.6",
         "@react-native-firebase/messaging": "^23.8.5",
+        "@react-native-google-signin/google-signin": "^16.1.2",
         "@react-native/new-app-screen": "~0.83.0",
         "@react-navigation/native": "^7.1.26",
         "@react-navigation/native-stack": "^7.9.0",

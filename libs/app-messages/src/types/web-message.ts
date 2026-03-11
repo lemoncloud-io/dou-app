@@ -1,4 +1,4 @@
-import type { AppPermissionType, CacheType } from './common';
+import type { AppPermissionType, CacheType, OAuthLoginProvider } from './common';
 import type { ClientMessage } from './client-message';
 import type { ChannelView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
 
@@ -32,6 +32,8 @@ export const WebMessageTypes = {
     FetchAllCacheData: 'FetchAllCacheData',
     FetchCacheData: 'FetchCacheData',
     SaveCacheData: 'SaveCacheData',
+    OAuthLogin: 'OAuthLogin',
+    OAuthLogout: 'OAuthLogout',
 } as const;
 export type WebMessageType = (typeof WebMessageTypes)[keyof typeof WebMessageTypes];
 
@@ -214,6 +216,24 @@ export interface RequestPermission extends DefaultMessage<'RequestPermission'> {
     };
 }
 
+/**
+ * 로그인 요청 데이터
+ */
+export interface OAuthLogin extends DefaultMessage<'OAuthLogin'> {
+    data: {
+        provider: OAuthLoginProvider;
+    };
+}
+
+/**
+ * 로그아웃 요청 데이터
+ */
+export interface OAuthLogout extends DefaultMessage<'OAuthLogout'> {
+    data: {
+        provider: OAuthLoginProvider;
+    };
+}
+
 interface WebMessageMap {
     /**
      * TODO: Not Implement
@@ -264,6 +284,12 @@ interface WebMessageMap {
     FetchAllCacheData: FetchAllCacheData;
     FetchCacheData: FetchCacheData;
     SaveCacheData: SaveCacheData;
+
+    /**
+     * OAuth Event
+     */
+    OAuthLogin: OAuthLogin;
+    OAuthLogout: OAuthLogout;
 }
 
 export type WebMessageData<T extends WebMessageType> = WebMessageMap[T];

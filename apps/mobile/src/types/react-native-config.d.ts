@@ -6,6 +6,7 @@ declare module 'react-native-config' {
         VITE_SUBSCRIPTION_IAP_SKUS_IOS: string;
         VITE_SUBSCRIPTION_IAP_SKUS_ANDROID: string;
         VIEW_APP_NAME: string;
+        VITE_GOOGLE_WEB_CLIENT_ID: string;
     }
 
     export const Config: NativeConfig;

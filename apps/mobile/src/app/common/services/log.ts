@@ -1,5 +1,5 @@
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-type LogTag =
+export type LogTag =
     | 'APP'
     | 'FCM'
     | 'IAP'
@@ -11,7 +11,8 @@ type LogTag =
     | 'CACHE'
     | 'PERMISSION'
     | 'DEVICE'
-    | 'DEEPLINK';
+    | 'DEEPLINK'
+    | 'OAUTH';
 
 type LogListener = (level: LogLevel, tag: LogTag, message: string, data?: any, error?: any) => void;
 

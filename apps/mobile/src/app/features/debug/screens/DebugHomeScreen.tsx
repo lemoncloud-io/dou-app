@@ -1,4 +1,5 @@
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { HomeScreenProps } from '../navigation';
@@ -16,26 +17,31 @@ export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
             <StatusBar barStyle="light-content" backgroundColor="#121212" />
 
             <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.sectionTitle}>테스트 메뉴</Text>
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>테스트 메뉴</Text>
 
-                {renderMenuItem('소켓 테스트', () => {
-                    navigation.navigate('SocketTest');
-                })}
-                {renderMenuItem('인앱결제 테스트', () => {
-                    navigation.navigate('InAppPurchaseTest');
-                })}
-                {renderMenuItem('FCM 테스트', () => {
-                    navigation.navigate('FcmTest');
-                })}
-                {renderMenuItem('딥링크 테스트', () => {
-                    navigation.navigate('DeeplinkTest');
-                })}
-                {renderMenuItem('디바이스 기능 테스트', () => {
-                    navigation.navigate('DeviceTest');
-                })}
-                {renderMenuItem('브릿지 테스트', () => {
-                    navigation.navigate('BridgeTest');
-                })}
+                    {renderMenuItem('소켓 테스트', () => {
+                        navigation.navigate('SocketTest');
+                    })}
+                    {renderMenuItem('인앱결제 테스트', () => {
+                        navigation.navigate('InAppPurchaseTest');
+                    })}
+                    {renderMenuItem('FCM 테스트', () => {
+                        navigation.navigate('FcmTest');
+                    })}
+                    {renderMenuItem('딥링크 테스트', () => {
+                        navigation.navigate('DeeplinkTest');
+                    })}
+                    {renderMenuItem('디바이스 기능 테스트', () => {
+                        navigation.navigate('DeviceTest');
+                    })}
+                    {renderMenuItem('브릿지 테스트', () => {
+                        navigation.navigate('BridgeTest');
+                    })}
+                    {renderMenuItem('OAuth 테스트', () => {
+                        navigation.navigate('OAuthTest');
+                    })}
+                </View>
             </ScrollView>
         </SafeAreaView>
     );
@@ -48,6 +54,9 @@ const styles = StyleSheet.create({
     },
     content: {
         paddingBottom: 20,
+    },
+    section: {
+        marginBottom: 20,
     },
     sectionTitle: {
         color: '#888',
