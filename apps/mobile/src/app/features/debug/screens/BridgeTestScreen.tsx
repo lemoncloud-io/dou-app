@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { FlatList, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAppBridge, useDeviceHandler, usePermissionHandler } from '../../../common/webview/hooks';
+import { useAppBridge, useDeviceHandler, useOAuthHandler, usePermissionHandler } from '../../../common/webview/hooks';
 import type { AppMessageData } from '@chatic/app-messages';
 
 type LogType = 'sent' | 'received' | 'info' | 'error';
@@ -23,6 +23,7 @@ export const BridgeTestScreen = () => {
 
     const { handleOpenShareSheet, handleOpenDocument, handleGetContacts, handleOpenCamera } = useDeviceHandler(bridge);
     const { handleRequestPermission } = usePermissionHandler(bridge);
+    const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler(bridge);
 
     const addLog = (type: LogType, message: string) => {
         const now = new Date();
@@ -70,6 +71,12 @@ export const BridgeTestScreen = () => {
                     break;
                 case 'OpenCamera':
                     void handleOpenCamera(message.data);
+                    break;
+                case 'OAuthLogin':
+                    void handleOAuthLogin(message.data.provider);
+                    break;
+                case 'OAuthLogout':
+                    void handleOAuthLogout(message.data.provider);
                     break;
                 default:
                     addLog('info', `Unhandled message type: ${message.type}`);
@@ -171,6 +178,10 @@ export const BridgeTestScreen = () => {
                 <h2>WebView Area</h2>
 
                 <div class="button-container">
+                    <button onclick="sendToNative({ type: 'Login', data: { provider: 'google' } })">Google Login</button>
+                    <button onclick="sendToNative({ type: 'Login', data: { provider: 'apple' } })">Apple Login</button>
+                    <button onclick="sendToNative({ type: 'Logout', data: { provider: 'google' } })">Google Logout</button>
+                    <button onclick="sendToNative({ type: 'Logout', data: { provider: 'apple' } })">Apple Logout</button>
                     <button onclick="sendToNative({ type: 'GetContacts', data: {} })">Get Contacts</button>
                     <button onclick="sendToNative({ type: 'OpenCamera', data: { mediaType: 'photo' } })">Open Camera</button>
                     <button onclick="sendToNative({ type: 'RequestPermission', data: { permission: 'CAMERA' } })">Req Cam Perm</button>
