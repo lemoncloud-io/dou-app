@@ -9,6 +9,7 @@ import {
     FcmTestScreen,
     IapTestScreen,
     SocketTestScreen,
+    OAuthTestScreen,
 } from '../screens';
 
 import type { DebugStackParamList } from '../../../navigation';
@@ -81,6 +82,14 @@ export const DebugNavigator = () => {
                 component={BridgeTestScreen}
                 options={{
                     title: '브릿지 테스트',
+                    headerBackButtonDisplayMode: 'minimal',
+                }}
+            />
+            <DebugStack.Screen
+                name="OAuthTest"
+                component={OAuthTestScreen}
+                options={{
+                    title: 'OAuth 테스트',
                     headerBackButtonDisplayMode: 'minimal',
                 }}
             />

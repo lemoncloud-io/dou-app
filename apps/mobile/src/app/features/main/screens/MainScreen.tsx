@@ -13,6 +13,7 @@ import {
     useCacheHandler,
     useDeviceHandler,
     usePermissionHandler,
+    useOAuthHandler,
 } from '../../../common/webview/hooks';
 
 import type { AppMessageData, WebMessageData, WebMessageType } from '@chatic/app-messages';
@@ -51,6 +52,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         handleOpenPhotoLibrary,
     } = useDeviceHandler(bridge);
     const { handleRequestPermission } = usePermissionHandler(bridge);
+    const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler(bridge);
 
     useAndroidBack(webViewRef, canGoBack);
 
@@ -197,6 +199,15 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                         break;
                     }
 
+                    case 'OAuthLogin': {
+                        void handleOAuthLogin(message.data.provider);
+                        break;
+                    }
+                    case 'OAuthLogout': {
+                        void handleOAuthLogout(message.data.provider);
+                        break;
+                    }
+
                     default:
                         if ((message as any).type === '__console__') {
                             const m = message as any;
@@ -230,6 +241,8 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         handleOpenCamera,
         handleOpenPhotoLibrary,
         handleRequestPermission,
+        handleOAuthLogin,
+        handleOAuthLogout,
     ]);
 
     return (

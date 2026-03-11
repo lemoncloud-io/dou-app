@@ -12,6 +12,7 @@ import type {
     FcmTokenInfo,
     MediaAsset,
     NotificationInfo,
+    OAuthTokenResult,
     PermissionStatus,
     ProductSubscriptionInfo,
     PurchaseInfo,
@@ -44,6 +45,8 @@ export const AppMessageTypes = {
     OnSaveCacheData: 'OnSaveCacheData',
     OnRequestPermission: 'OnRequestPermission',
     OnSetWsEndpoint: 'OnSetWsEndpoint',
+    OnOAuthLogin: 'OnOAuthLogin',
+    OnOAuthLogout: 'OnOAuthLogout',
 } as const;
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
 
@@ -145,6 +148,18 @@ export interface OnRequestPermission extends DefaultMessage<'OnRequestPermission
     };
 }
 
+export interface OnOAuthLogin extends DefaultMessage<'OnOAuthLogin'> {
+    data: {
+        result: OAuthTokenResult | null;
+    };
+}
+
+export interface OnOAuthLogout extends DefaultMessage<'OnOAuthLogout'> {
+    data: {
+        success: boolean;
+    };
+}
+
 export interface AppMessageMap {
     /**
      * TODO: Not Implement
@@ -195,6 +210,12 @@ export interface AppMessageMap {
     OnFetchCacheData: OnFetchCacheData;
     OnSaveCacheData: OnSaveCacheData;
     OnSetWsEndpoint: OnSetWsEndpoint;
+
+    /**
+     * OAuth Event
+     */
+    OnOAuthLogin: OnOAuthLogin;
+    OnOAuthLogout: OnOAuthLogout;
 }
 
 export type AppMessageData<T extends AppMessageType> = AppMessageMap[T];
