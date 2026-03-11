@@ -1,34 +1,8 @@
-import { X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useState } from 'react';
 
-import { useInviteChannel } from '../hooks/useInviteChannel';
-import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
-import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-
-const decodeJWT = (token: string) => {
-    try {
-        if (!token || token.split('.').length !== 3) {
-            return null;
-        }
-        const base64Url = token.split('.')[1];
-        if (!base64Url) {
-            return null;
-        }
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-            atob(base64)
-                .split('')
-                .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                .join('')
-        );
-        return JSON.parse(jsonPayload);
-    } catch (error) {
-        return null;
-    }
-};
+import { AddFriendSheet } from './AddFriendSheet';
 
 interface InviteFriendsDialogProps {
     open?: boolean;
@@ -36,89 +10,84 @@ interface InviteFriendsDialogProps {
     channelId?: string;
 }
 
-export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFriendsDialogProps) => {
-    const [token, setToken] = useState('');
-    const { inviteChannel, isPending } = useInviteChannel();
-    const { toast } = useToast();
+const QUICK_ACTIONS = [
+    { label: '링크 복사', icon: '/assets/icons/icon-link.svg' },
+    { label: '친구 추가', icon: '/assets/icons/icon-user-plus.svg' },
+    { label: 'QR 코드', icon: '/assets/icons/icon-qr.svg' },
+] as const;
 
-    const decodedToken = token ? decodeJWT(token) : null;
-    const isValidToken = token && decodedToken !== null;
-    const showInvalidMessage = token && !isValidToken;
+export const InviteFriendsDialog = ({ open, onOpenChange }: InviteFriendsDialogProps) => {
+    const [search, setSearch] = useState('');
+    const [addFriendOpen, setAddFriendOpen] = useState(false);
 
-    const handleInvite = async () => {
-        if (!channelId || !isValidToken || !decodedToken?.uid) return;
-
-        try {
-            await inviteChannel(channelId, [decodedToken.uid]);
-            toast({ title: '초대되었습니다' });
-            setToken('');
-            onOpenChange?.(false);
-        } catch (error) {
-            toast({ title: '초대에 실패했습니다', variant: 'destructive' });
-            console.error('Failed to invite:', error);
-        }
-    };
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-full w-full m-0 rounded-none" hideClose variant="fullscreen">
-                <div className="flex flex-col h-full bg-white">
-                    {/* Top Bar */}
-                    <div className="flex items-center justify-between px-1.5 py-3 bg-white">
-                        <div className="w-11 h-11" />
-                        <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#222325]">
-                            친구 초대
-                        </h1>
-                        <button
-                            onClick={() => onOpenChange?.(false)}
-                            className="w-11 h-11 flex items-center justify-center"
-                        >
-                            <X className="w-6 h-6 text-[#3A3C40]" />
-                        </button>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 flex flex-col gap-6 px-7 pt-6">
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="token" className="text-xs font-medium text-[#9FA2A7]">
-                                Identity Token
-                            </Label>
-                            <Input
-                                id="token"
-                                type="text"
-                                value={token}
-                                onChange={e => setToken(e.target.value)}
-                                placeholder="토큰 입력"
-                                className="h-11 px-3 text-base border-[#EAEAEC] rounded-[10px]"
-                            />
-                            {showInvalidMessage && (
-                                <p className="text-xs text-destructive px-0.5">올바른 형식의 토큰이 아닙니다</p>
-                            )}
+        <>
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="max-w-full w-full m-0 rounded-none" hideClose variant="fullscreen">
+                    <div className="flex flex-col h-full bg-white">
+                        {/* Top Bar */}
+                        <div className="flex items-center justify-between px-1.5 py-3">
+                            <div className="w-11 h-11" />
+                            <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#222325]">
+                                친구 초대
+                            </h1>
+                            <button
+                                onClick={() => onOpenChange?.(false)}
+                                className="w-11 h-11 flex items-center justify-center"
+                            >
+                                <X className="w-6 h-6 text-[#3A3C40]" />
+                            </button>
                         </div>
 
-                        {decodedToken && (
-                            <div className="flex flex-col gap-2 p-3 bg-[#F4F5F5] rounded-lg">
-                                <p className="text-xs font-medium text-[#9FA2A7]">디코딩된 정보</p>
-                                <div className="flex flex-col gap-1 text-xs text-[#53555B]">
-                                    {decodedToken.User?.name && <p>이름: {decodedToken.User.name}</p>}
-                                    {decodedToken.User?.nick && <p>닉네임: {decodedToken.User.nick}</p>}
-                                    {decodedToken.uid && <p>UID: {decodedToken.uid}</p>}
-                                </div>
+                        {/* Quick Actions */}
+                        <div className="px-4 pt-5">
+                            <div
+                                className="flex items-center justify-center gap-[42px] rounded-[20px] py-4 px-[18px]"
+                                style={{ boxShadow: '0px 1px 8px 0px rgba(0,0,0,0.08)' }}
+                            >
+                                {QUICK_ACTIONS.map(({ label, icon }) => (
+                                    <button
+                                        key={label}
+                                        className="flex flex-col items-center gap-2"
+                                        onClick={() => label === '친구 추가' && setAddFriendOpen(true)}
+                                    >
+                                        <div
+                                            className="w-[42px] h-[42px] rounded-[28px] flex items-center justify-center"
+                                            style={{ background: 'rgba(0,43,126,0.06)' }}
+                                        >
+                                            <img src={icon} alt={label} className="w-[42px] h-[42px]" />
+                                        </div>
+                                        <span className="text-[15px] font-medium text-black w-16 text-center leading-[1.19] tracking-[-0.02em]">
+                                            {label}
+                                        </span>
+                                    </button>
+                                ))}
                             </div>
-                        )}
-                    </div>
+                        </div>
 
-                    {/* Bottom Button */}
-                    <div className="flex flex-col px-4 pb-4">
-                        <Button
-                            onClick={handleInvite}
-                            disabled={!isValidToken || isPending}
-                            className="w-full h-[50px] bg-[#B0EA10] hover:bg-[#9DD00E] text-[#222325] font-semibold text-base rounded-full disabled:opacity-50"
-                        >
-                            {isPending ? '초대 중...' : '초대하기'}
-                        </Button>
+                        {/* Search */}
+                        <div className="px-4 py-[10px]">
+                            <div
+                                className="flex items-center gap-[9px] rounded-full px-[14px] py-3"
+                                style={{ background: 'rgba(0,43,126,0.03)', border: '1px solid rgba(0,43,126,0.01)' }}
+                            >
+                                <Search size={18} className="text-[#3A3C40] shrink-0" />
+                                <input
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                    placeholder="친구 검색"
+                                    className="flex-1 bg-transparent text-[16px] text-[#222325] placeholder:text-[#84888F] outline-none leading-[1.19] tracking-[-0.015em]"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Contact List */}
+                        <div className="flex-1 overflow-y-auto px-4 flex flex-col gap-3 pt-2" />
                     </div>
-                </div>
-            </DialogContent>
-        </Dialog>
+                </DialogContent>
+            </Dialog>
+
+            <AddFriendSheet open={addFriendOpen} onOpenChange={setAddFriendOpen} />
+        </>
     );
 };
