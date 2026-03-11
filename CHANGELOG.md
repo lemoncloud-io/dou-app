@@ -1,5 +1,35 @@
 # Changelog
 
+## [2026-03-11] - root@0.13.0, @chatic/web@0.10.0
+
+### Features
+
+- skip places fetch for guest users
+- add internal login flow
+- add AWS SigV4 request signing
+- restrict channel creation for guest users
+- add BottomNavigation component
+- handle guest/user profile view in MyPage
+- add friend UI integration (AddFriendSheet)
+
+### Bug Fixes
+
+- prevent duplicate mine requests in useMyChannels
+- handle useLogin onComplete callback
+
+### Refactor
+
+- improve simpleWebCore session management
+
+### Chores
+
+- add image assets
+- update Podfile.lock and yarn.lock
+
+### Other
+
+- style: update page layouts
+
 ## [2026-03-10] - root@0.12.2, @chatic/web@0.9.1
 
 ### Refactor
