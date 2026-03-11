@@ -44,7 +44,7 @@ export const PlaceList = ({ selectedId, onSelect }: PlaceListProps) => {
     const profile = useWebCoreStore(s => s.profile);
     const isGuest = profile?.userRole === 'guest';
 
-    const { data, isError, isFetching, isRefetching, refetch } = usePlaces({}, !isGuest);
+    const { data, isError, isFetching, isRefetching, refetch } = usePlaces({ stereo: 'place' }, !isGuest);
 
     if (isGuest) {
         return (
