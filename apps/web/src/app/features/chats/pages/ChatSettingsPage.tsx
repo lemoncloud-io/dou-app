@@ -114,7 +114,7 @@ export const ChatSettingsPage = () => {
     return (
         <div className="flex min-h-screen flex-col bg-background">
             {/* Header */}
-            <header className="flex items-center justify-between border-b border-border px-4 pb-3 pt-3">
+            <header className="flex items-center justify-between border-b border-border px-4  pb-safe-top">
                 <button onClick={() => navigate(-1)} className="p-1">
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>

@@ -37,7 +37,8 @@ export const useLogin = () => {
 
     return useCustomMutation<UserTokenView, string, LoginUserBody>(login, {
         onSuccess: data => {
-            setProfile(data);
+            const { Token, ...rest } = data;
+            setProfile(rest);
             setIsAuthenticated(true);
             console.log('Login successful');
         },
