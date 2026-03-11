@@ -2,7 +2,7 @@ import { ArrowUp, ChevronLeft, MoreHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { useSimpleWebCore } from '@chatic/web-core';
+import { useWebCoreStore } from '@chatic/web-core';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -24,7 +24,7 @@ export const ChatRoomPage = () => {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
 
-    const { profile } = useSimpleWebCore();
+    const { profile } = useWebCoreStore();
     const { setChannels } = useMyChannels();
     const {
         messages,

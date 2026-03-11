@@ -3,7 +3,7 @@ import { RefreshCw, Users } from 'lucide-react';
 import { cn } from '@chatic/lib/utils';
 import { usePlaces } from '@chatic/places';
 
-import { useSimpleWebCore } from '@chatic/web-core';
+import { useWebCoreStore } from '@chatic/web-core';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 interface PlaceItemProps {
@@ -41,7 +41,8 @@ interface PlaceListProps {
 }
 
 export const PlaceList = ({ selectedId, onSelect }: PlaceListProps) => {
-    const { isGuest } = useSimpleWebCore();
+    const profile = useWebCoreStore(s => s.profile);
+    const isGuest = profile?.userRole === 'guest';
 
     const { data, isError, isFetching, isRefetching, refetch } = usePlaces({}, !isGuest);
 

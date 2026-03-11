@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useSimpleWebCore } from '@chatic/web-core';
+import { useWebCoreStore } from '@chatic/web-core';
 
 import { InviteCodeCard } from '../../workspace/components/InviteCodeCard';
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
@@ -42,7 +42,7 @@ export const ChatSettingsPage = () => {
     const { deleteChannel, isPending: isDeletePending } = useDeleteChannel();
     const { toast } = useToast();
 
-    const { profile } = useSimpleWebCore();
+    const profile = useWebCoreStore(s => s.profile);
     const { clearMessages } = useChatMessages(profile?.id ?? null, channelId ?? null);
 
     const isOwner = channel?.ownerId === profile?.id;

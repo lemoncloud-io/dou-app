@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { useWebSocketV2 } from '@chatic/socket';
-import { useSimpleWebCore } from '@chatic/web-core';
+import { useWebCoreStore } from '@chatic/web-core';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chats/model';
 import { IndexedDBStorageAdapter } from '../storages/IndexedDBStorageAdapter';
@@ -13,7 +13,7 @@ export const useReadMessage = (
     applyReadEvent?: (chatNo: number, readerUserId: string) => void
 ) => {
     const { emit, lastMessage } = useWebSocketV2();
-    const { profile } = useSimpleWebCore();
+    const profile = useWebCoreStore(s => s.profile);
     const { channel } = useMyChannel(channelId ?? null);
 
     // 마운트 시: channel의 lastChat$.chatNo 기준으로 무조건 read emit

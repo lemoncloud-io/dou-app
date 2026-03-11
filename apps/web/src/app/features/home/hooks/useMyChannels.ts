@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
-import { useSimpleWebCore } from '@chatic/web-core';
+import { useWebCoreStore } from '@chatic/web-core';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
@@ -120,7 +120,7 @@ const retryMine = () => {
 
 export const useMyChannels = () => {
     const { emitAuthenticated } = useWebSocketV2();
-    const { profile } = useSimpleWebCore();
+    const profile = useWebCoreStore(s => s.profile);
     const [, forceUpdate] = useState({});
 
     globalEmitAuthenticated = emitAuthenticated;

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
-import { useSimpleWebCore } from '@chatic/web-core';
+import { useWebCoreStore } from '@chatic/web-core';
 
 import { useUnreadCount } from '../../chats/hooks/useUnreadCount';
 import { useMyChannels } from '../hooks/useMyChannels';
@@ -20,7 +20,7 @@ const ChannelSkeleton = () => (
 
 const ChannelItem = ({ channel }: { channel: ChannelView }) => {
     const navigate = useNavigate();
-    const { profile } = useSimpleWebCore();
+    const profile = useWebCoreStore(s => s.profile);
     const unreadCount = useUnreadCount(profile?.id ?? null, channel.id ?? '');
     const isSelf = channel.memberNo === 1;
 

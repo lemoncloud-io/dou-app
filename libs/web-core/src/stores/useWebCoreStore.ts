@@ -6,6 +6,11 @@ import { updateProfile } from '../api';
 import { LANGUAGE_KEY, webCore } from '../core';
 
 export interface UserProfile {
+    uid?: string;
+    id?: string;
+    name?: string;
+    email?: string;
+    userRole?: string;
     $user?: {
         name?: string;
     };

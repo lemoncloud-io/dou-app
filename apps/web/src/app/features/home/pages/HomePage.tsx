@@ -9,7 +9,7 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useOnboardingStore, useSimpleWebCore } from '@chatic/web-core';
+import { useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { SettingsDialog } from '../../../components/SettingsDialog';
@@ -20,7 +20,9 @@ import { PlaceList } from '../components/PlaceList';
 
 export const HomePage = () => {
     const navigate = useNavigate();
-    const { profile, logout, isGuest } = useSimpleWebCore();
+    const profile = useWebCoreStore(s => s.profile);
+    const logout = useWebCoreStore(s => s.logout);
+    const isGuest = profile?.userRole === 'guest';
     const { canCreate } = useCanCreateChannel();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const [isDialogOpen, setIsDialogOpen] = useState(false);

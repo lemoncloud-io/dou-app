@@ -2,7 +2,7 @@ import { Bell, ChevronRight, Globe, LogOut, MessageSquare, Moon, Settings } from
 import { useNavigate } from 'react-router-dom';
 
 import type { LucideIcon } from 'lucide-react';
-import { useSimpleWebCore } from '@chatic/web-core';
+import { useWebCoreStore } from '@chatic/web-core';
 
 interface MenuItem {
     icon: LucideIcon;
@@ -22,7 +22,9 @@ const menuItems: MenuItem[] = [
 
 export const MyPage = () => {
     const navigate = useNavigate();
-    const { isGuest, profile, logout } = useSimpleWebCore();
+    const profile = useWebCoreStore(s => s.profile);
+    const logout = useWebCoreStore(s => s.logout);
+    const isGuest = profile?.userRole === 'guest';
 
     const handleLogout = () => {
         logout();

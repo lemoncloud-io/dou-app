@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useWebSocketV2 } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { simpleWebCore, useSimpleWebCore } from '@chatic/web-core';
+import { webCore, useWebCoreStore } from '@chatic/web-core';
 
 const decodeJWT = (token: string) => {
     try {
@@ -32,7 +32,7 @@ export const TokenLoginPage = () => {
     const { token } = useParams<{ token: string }>();
     const navigate = useNavigate();
     const { send } = useWebSocketV2();
-    const { setProfile, setIsAuthenticated } = useSimpleWebCore();
+    const { setProfile, setIsAuthenticated } = useWebCoreStore();
     const { toast } = useToast();
     const [isInvalid, setIsInvalid] = useState(false);
 
@@ -54,11 +54,13 @@ export const TokenLoginPage = () => {
                     id: decoded.uid,
                     name: decoded.User.name,
                     nick: decoded.User.nick,
-                });
+                } as Parameters<typeof setProfile>[0]);
                 setIsAuthenticated(true);
             }
 
-            simpleWebCore.saveToken(token);
+            await webCore.buildCredentialsByToken({ identityToken: token } as Parameters<
+                typeof webCore.buildCredentialsByToken
+            >[0]);
 
             send({
                 type: 'auth',

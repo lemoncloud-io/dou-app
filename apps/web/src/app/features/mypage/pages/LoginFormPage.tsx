@@ -4,8 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLogin } from '@chatic/auth';
 import { fetchPlaces } from '@chatic/places';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { simpleWebCore } from '@chatic/web-core';
-import type { AWSCredentials } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
+import { webCore } from '@chatic/web-core';
 
 export const LoginFormPage = () => {
     const navigate = useNavigate();
@@ -18,17 +17,14 @@ export const LoginFormPage = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const {
-                Token: { identityToken, credential },
-            } = await login({ uid, pwd });
-            simpleWebCore.saveToken(identityToken as string);
-            if (credential) simpleWebCore.saveCredential(credential as AWSCredentials);
+            const { Token } = await login({ uid, pwd });
+            await webCore.buildCredentialsByToken(Token as Parameters<typeof webCore.buildCredentialsByToken>[0]);
 
             const places = await fetchPlaces({});
             const firstPlace = places.list?.[0];
-            if (firstPlace?.id) simpleWebCore.saveSelectedPlaceId(firstPlace.id);
+            if (firstPlace?.id) webCore.saveSelectedPlaceId?.(firstPlace.id);
             const wss = (firstPlace as unknown as Record<string, Record<string, string>>)?.$envs?.wss;
-            if (wss) simpleWebCore.saveWsEndpoint(wss);
+            if (wss) webCore.saveWsEndpoint?.(wss);
 
             window.location.href = '/';
         } catch {

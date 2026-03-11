@@ -100,7 +100,8 @@ export const LANGUAGE_KEY = 'i18nextLng';
  */
 export const webCore = WebCoreFactory.create({
     cloud: 'aws',
-    project: ENV === 'local' ? `${PROJECT}_${ENV}` : PROJECT, // NOTE: chatic native에서 project 고정
+    project: ENV === 'local' ? `${PROJECT}_${ENV}` : PROJECT,
     oAuthEndpoint: OAUTH_ENDPOINT,
     region: REGION,
+    storage: sessionStorage,
 });

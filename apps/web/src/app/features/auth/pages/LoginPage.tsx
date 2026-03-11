@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { loginWithInviteCode, simpleWebCore, useSimpleWebCore } from '@chatic/web-core';
+import { loginWithInviteCode, webCore, useWebCoreStore } from '@chatic/web-core';
 import { LoadingFallback } from '@chatic/shared';
 
 import { useRegisterDevice } from '@chatic/auth';
@@ -30,7 +30,7 @@ const decodeJWT = (token: string) => {
 
 export const LoginPage = (): JSX.Element => {
     const location = useLocation();
-    const { setIsAuthenticated, setProfile } = useSimpleWebCore();
+    const { setIsAuthenticated, setProfile } = useWebCoreStore();
     const { toast } = useToast();
     const [isInviteLogin, setIsInviteLogin] = useState(false);
     const loginCalled = useRef(false);
@@ -50,15 +50,11 @@ export const LoginPage = (): JSX.Element => {
 
             const handleInviteLogin = async () => {
                 try {
-                    const {
-                        Token: { identityToken },
-                        ...rest
-                    } = await loginWithInviteCode(code);
+                    const { Token, ...rest } = await loginWithInviteCode(code);
+                    if (!Token.identityToken) throw new Error('No identityToken in response');
 
-                    if (!identityToken) throw new Error('No identityToken in response');
-
-                    setProfile({ ...rest });
-                    simpleWebCore.saveToken(identityToken);
+                    await webCore.buildCredentialsByToken(Token);
+                    setProfile(rest as Parameters<typeof setProfile>[0]);
                     setIsAuthenticated(true);
                 } catch (error) {
                     console.error('[LoginPage] Invite login failed:', error);
@@ -71,14 +67,11 @@ export const LoginPage = (): JSX.Element => {
         } else {
             const handleDeviceRegistration = async () => {
                 try {
-                    const {
-                        Token: { identityToken },
-                        ...rest
-                    } = await registerDevice(deviceId);
-                    if (!identityToken) throw new Error('No identityToken in response');
-                    setProfile({ ...rest });
+                    const { Token, ...rest } = await registerDevice(deviceId);
+                    if (!Token.identityToken) throw new Error('No identityToken in response');
 
-                    simpleWebCore.saveToken(identityToken);
+                    await webCore.buildCredentialsByToken(Token);
+                    setProfile(rest as Parameters<typeof setProfile>[0]);
                     setIsAuthenticated(true);
                 } catch (error) {
                     console.error('[LoginPage] Invite login failed:', error);
