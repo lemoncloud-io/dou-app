@@ -14,6 +14,38 @@
             },
             "oauth_client": [
                 {
+                    "client_id": "884488290426-2hunoguqe1ml223n5ca77qahnld68fas.apps.googleusercontent.com",
+                    "client_type": 1,
+                    "android_info": {
+                        "package_name": "io.chatic.dou",
+                        "certificate_hash": "14fd11e70aaba09140db8ead88800bc2e89083eb"
+                    }
+                },
+                {
+                    "client_id": "884488290426-2q4s6ol8pd6e879c3p295vc9373aumhs.apps.googleusercontent.com",
+                    "client_type": 1,
+                    "android_info": {
+                        "package_name": "io.chatic.dou",
+                        "certificate_hash": "5710a0da2f53adb4f7453373dfbf15dd7e059b1d"
+                    }
+                },
+                {
+                    "client_id": "884488290426-b8uv6ebpv9of7saqb8ad464a92p6rvbo.apps.googleusercontent.com",
+                    "client_type": 1,
+                    "android_info": {
+                        "package_name": "io.chatic.dou",
+                        "certificate_hash": "af5c874b0bc3f4033d6d7f789e50495a3c94700f"
+                    }
+                },
+                {
+                    "client_id": "884488290426-cvh671vkhel4omim55etvh4lb4g0c3cp.apps.googleusercontent.com",
+                    "client_type": 1,
+                    "android_info": {
+                        "package_name": "io.chatic.dou",
+                        "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+                    }
+                },
+                {
                     "client_id": "884488290426-5flnfom9hdde5hi7bike1m8peb8823v1.apps.googleusercontent.com",
                     "client_type": 3
                 }
