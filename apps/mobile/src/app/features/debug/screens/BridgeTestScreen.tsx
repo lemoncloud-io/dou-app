@@ -178,10 +178,10 @@ export const BridgeTestScreen = () => {
                 <h2>WebView Area</h2>
 
                 <div class="button-container">
-                    <button onclick="sendToNative({ type: 'Login', data: { provider: 'google' } })">Google Login</button>
-                    <button onclick="sendToNative({ type: 'Login', data: { provider: 'apple' } })">Apple Login</button>
-                    <button onclick="sendToNative({ type: 'Logout', data: { provider: 'google' } })">Google Logout</button>
-                    <button onclick="sendToNative({ type: 'Logout', data: { provider: 'apple' } })">Apple Logout</button>
+                    <button onclick="sendToNative({ type: 'OAuthLogin', data: { provider: 'google' } })">Google Login</button>
+                    <button onclick="sendToNative({ type: 'OAuthLogin', data: { provider: 'apple' } })">Apple Login</button>
+                    <button onclick="sendToNative({ type: 'OAuthLogout', data: { provider: 'google' } })">Google Logout</button>
+                    <button onclick="sendToNative({ type: 'OAuthLogout', data: { provider: 'apple' } })">Apple Logout</button>
                     <button onclick="sendToNative({ type: 'GetContacts', data: {} })">Get Contacts</button>
                     <button onclick="sendToNative({ type: 'OpenCamera', data: { mediaType: 'photo' } })">Open Camera</button>
                     <button onclick="sendToNative({ type: 'RequestPermission', data: { permission: 'CAMERA' } })">Req Cam Perm</button>
