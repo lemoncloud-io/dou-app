@@ -1,6 +1,10 @@
 {
     "name": "@chatic/web-core",
     "version": "0.0.0",
-    "dependencies": {},
+    "dependencies": {
+        "@aws-crypto/sha256-js": "^5.2.0",
+        "@smithy/protocol-http": "^5.3.11",
+        "@smithy/signature-v4": "^5.3.11"
+    },
     "private": true
 }

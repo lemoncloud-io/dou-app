@@ -2,6 +2,7 @@ import { Bell, ChevronRight, Globe, LogOut, MessageSquare, Moon, Settings } from
 import { useNavigate } from 'react-router-dom';
 
 import type { LucideIcon } from 'lucide-react';
+import { useSimpleWebCore } from '@chatic/web-core';
 
 interface MenuItem {
     icon: LucideIcon;
@@ -21,32 +22,50 @@ const menuItems: MenuItem[] = [
 
 export const MyPage = () => {
     const navigate = useNavigate();
+    const { isGuest, profile, logout } = useSimpleWebCore();
+
+    const handleLogout = () => {
+        logout();
+        window.location.href = '/auth/login';
+    };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pb-20">
-            <header className="px-5 pb-2 pt-3">
+        <div className="flex min-h-screen flex-col bg-background py-safe-top">
+            <header className="px-5 ">
                 <h1 className="text-2xl font-extrabold text-foreground">마이페이지</h1>
             </header>
 
             {/* Profile */}
             <div className="px-5 py-6">
-                <div className="flex items-center gap-4">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-2xl">
-                        <span role="img" aria-label="user">
-                            👤
-                        </span>
-                    </div>
-                    <div className="flex-1">
-                        <h2 className="text-lg font-bold text-foreground">sunny</h2>
-                        <p className="text-sm text-muted-foreground">user@example.com</p>
-                    </div>
-                    <button
-                        onClick={() => navigate('/profile/edit')}
-                        className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors active:bg-muted"
-                    >
-                        편집
+                {isGuest ? (
+                    <button onClick={() => navigate('/mypage/login')} className="flex flex-col gap-1.5 text-left">
+                        <div className="flex items-center gap-1">
+                            <span className="text-[22px] font-semibold text-[#3A3C40]">로그인하기</span>
+                            <ChevronRight size={18} className="text-[#3A3C40]" />
+                        </div>
+                        <p className="text-[14.5px] font-medium text-[#84888F]">
+                            로그인 하고, 대화내용을 안전하게 관리하세요.
+                        </p>
                     </button>
-                </div>
+                ) : (
+                    <div className="flex items-center gap-4">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-2xl">
+                            <span role="img" aria-label="user">
+                                👤
+                            </span>
+                        </div>
+                        <div className="flex-1">
+                            <h2 className="text-lg font-bold text-foreground">{profile?.name}</h2>
+                            <p className="text-sm text-muted-foreground">{profile?.email}</p>
+                        </div>
+                        <button
+                            onClick={() => navigate('/profile/edit')}
+                            className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors active:bg-muted"
+                        >
+                            편집
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="mx-5 h-px bg-border" />
@@ -76,12 +95,14 @@ export const MyPage = () => {
             <div className="mx-5 h-px bg-border" />
 
             {/* Logout */}
-            <div className="px-5 py-2">
-                <button className="flex w-full items-center gap-3.5 px-1 py-4">
-                    <LogOut size={20} className="text-destructive" />
-                    <span className="text-[15px] text-destructive">로그아웃</span>
-                </button>
-            </div>
+            {!isGuest && (
+                <div className="px-5 py-2">
+                    <button onClick={handleLogout} className="flex w-full items-center gap-3.5 px-1 py-4">
+                        <LogOut size={20} className="text-destructive" />
+                        <span className="text-[15px] text-destructive">로그아웃</span>
+                    </button>
+                </div>
+            )}
 
             {/* App version */}
             <div className="mt-auto px-5 pb-4">

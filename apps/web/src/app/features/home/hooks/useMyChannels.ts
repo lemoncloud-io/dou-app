@@ -101,6 +101,16 @@ const setChannels = (updater: ChannelView[] | ((prev: ChannelView[]) => ChannelV
 };
 
 let globalEmitAuthenticated: ((msg: object) => void) | null = null;
+let globalProfileId = '';
+
+useWebSocketV2Store.subscribe(
+    s => s.isVerified,
+    isVerified => {
+        if (!isVerified || !globalEmitAuthenticated || !globalProfileId) return;
+        isBootstrapped = false;
+        bootstrap(globalEmitAuthenticated, globalProfileId);
+    }
+);
 
 const retryMine = () => {
     if (!globalEmitAuthenticated) return;
@@ -113,11 +123,15 @@ export const useMyChannels = () => {
     const { profile } = useSimpleWebCore();
     const [, forceUpdate] = useState({});
 
+    globalEmitAuthenticated = emitAuthenticated;
+
     useEffect(() => {
-        globalEmitAuthenticated = emitAuthenticated;
         const listener = () => forceUpdate({});
         listeners.add(listener);
-        if (profile?.id) bootstrap(emitAuthenticated, profile.id);
+        if (profile?.id) {
+            globalProfileId = profile.id;
+            bootstrap(emitAuthenticated, profile.id);
+        }
         return () => {
             listeners.delete(listener);
         };

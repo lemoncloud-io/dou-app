@@ -2,15 +2,10 @@ import { ArrowUp, ChevronLeft, MoreHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useSimpleWebCore } from '@chatic/web-core';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useSendMessage } from '../hooks/useSendMessage';
 import { useMyChannel } from '../hooks/useMyChannel';
 import { useReadMessage } from '../hooks/useReadMessage';
@@ -24,6 +19,7 @@ export const ChatRoomPage = () => {
     const [isComposing, setIsComposing] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { emit } = useWebSocketV2();
+    const { toast } = useToast();
     const { sendMessage, isPending } = useSendMessage();
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
@@ -211,7 +207,7 @@ export const ChatRoomPage = () => {
     return (
         <div className="flex h-screen flex-col bg-background">
             {/* Header */}
-            <header className="z-10 flex items-center justify-between border-b border-border bg-background px-4 pb-2">
+            <header className="z-10 flex items-center justify-between border-b border-border bg-background px-4 pb-safe-top">
                 <button onClick={() => navigate(-1)} className="p-1">
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>
@@ -221,21 +217,9 @@ export const ChatRoomPage = () => {
                         <span className="ml-1.5 text-sm font-normal text-muted-foreground">{channel.memberNo}</span>
                     )}
                 </h1>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <button className="p-1">
-                            <MoreHorizontal size={22} className="text-foreground" />
-                        </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem
-                            onClick={() => navigate(`/chats/${channelId}/settings`)}
-                            className="cursor-pointer"
-                        >
-                            <span>설정</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <button className="p-1" onClick={() => toast({ description: '준비 중입니다.' })}>
+                    <MoreHorizontal size={22} className="text-foreground" />
+                </button>
             </header>
 
             {/* Messages */}

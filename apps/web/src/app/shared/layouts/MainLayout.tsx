@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 import { Outlet } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
+import { BottomNavigation } from '../components';
 
 /**
  * Main layout component for mobile-first design
@@ -18,9 +19,10 @@ export const MainLayout = (): JSX.Element => {
             )}
             style={{ colorScheme: 'light' }}
         >
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden pb-[98px]">
                 <Outlet />
             </div>
+            <BottomNavigation />
         </div>
     );
 };

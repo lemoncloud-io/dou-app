@@ -43,7 +43,7 @@ interface PlaceListProps {
 export const PlaceList = ({ selectedId, onSelect }: PlaceListProps) => {
     const { isGuest } = useSimpleWebCore();
 
-    const { data, isError, isFetching, isRefetching, refetch } = usePlaces();
+    const { data, isError, isFetching, isRefetching, refetch } = usePlaces({}, !isGuest);
 
     if (isGuest) {
         return (
