@@ -1,2 +1,2 @@
-export { FloatingMenu } from './FloatingMenu';
-export { FullScreenLoader } from './FullScreenLoader';
+export * from './FloatingMenu';
+export * from './FullScreenLoader';

@@ -1,7 +1,15 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import { DebugHomeScreen, DeeplinkTestScreen, FcmTestScreen, IapTestScreen, SocketTestScreen } from '../screens';
+import {
+    BridgeTestScreen,
+    DebugHomeScreen,
+    DeeplinkTestScreen,
+    DeviceTestScreen,
+    FcmTestScreen,
+    IapTestScreen,
+    SocketTestScreen,
+} from '../screens';
 
 import type { DebugStackParamList } from '../../../navigation';
 
@@ -57,6 +65,22 @@ export const DebugNavigator = () => {
                 component={DeeplinkTestScreen}
                 options={{
                     title: '딥링크 테스트',
+                    headerBackButtonDisplayMode: 'minimal',
+                }}
+            />
+            <DebugStack.Screen
+                name="DeviceTest"
+                component={DeviceTestScreen}
+                options={{
+                    title: '디바이스 기능 테스트',
+                    headerBackButtonDisplayMode: 'minimal',
+                }}
+            />
+            <DebugStack.Screen
+                name="BridgeTest"
+                component={BridgeTestScreen}
+                options={{
+                    title: '브릿지 테스트',
                     headerBackButtonDisplayMode: 'minimal',
                 }}
             />

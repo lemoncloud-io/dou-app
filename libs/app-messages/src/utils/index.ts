@@ -5,26 +5,25 @@ import type { AppMessage, WebMessage } from '../types';
 
 declare global {
     interface Window {
-        CHATIC_APP_APPLICATION?: string;
         CHATIC_APP_PLATFORM?: string;
-        ReactNativeWebView?: {
-            postMessage: (message: string) => void;
-        };
         webkit?: {
             messageHandlers?: {
-                ChaticMessageHandler?: {
-                    postMessage: (message: string) => void;
-                };
+                ChaticMessageHandler?: { postMessage: (message: string) => void };
             };
         };
         ChaticMessageHandler?: {
-            receiveWebMessage?: (message: string) => void;
+            postMessage?: (message: string) => void;
         };
+        ReactNativeWebView?: { postMessage: (message: string) => void };
     }
 }
 
 let isListenerInitialized = false;
 
+/**
+ * - 메시지 수신 리스너
+ * - 웹뷰 환경에서 앱으로부터 메시지를 수신하고 처리
+ */
 export const initializeMessageListener = () => {
     if (isListenerInitialized) {
         return;
@@ -58,48 +57,33 @@ export const initializeMessageListener = () => {
  * @returns Object with mobile app detection flags
  */
 export const getMobileAppInfo = () => {
-    const application = window.CHATIC_APP_APPLICATION;
-    const platform = window.CHATIC_APP_PLATFORM;
+    const platform = window.CHATIC_APP_PLATFORM?.toLowerCase();
 
-    const isOnMobileApp = application?.toLowerCase() === 'dou';
-    const isIOS = platform?.toLowerCase() === 'ios';
-    const isAOS = platform?.toLowerCase() === 'android';
+    const isIOS = platform === 'ios';
+    const isAndroid = platform === 'android';
 
-    return { isOnMobileApp, isIOS, isAOS };
+    return {
+        isOnMobileApp: isIOS || isAndroid,
+        isIOS: isIOS,
+        isAndroid: isAndroid,
+    };
 };
 
-export const sendWebMessage = (message: WebMessage) => {
-    if (!window.ReactNativeWebView) {
-        console.log('sendMessage skipped (no ReactNativeWebView):', message);
-        return;
+/**
+ * 웹에서 앱으로 메시지 전송 (Web -> App)
+ */
+export const postMessage: (message: WebMessage) => void = (message: WebMessage) => {
+    const messageStr = JSON.stringify(message);
+
+    try {
+        if (window.ChaticMessageHandler?.postMessage) {
+            window.ChaticMessageHandler.postMessage(messageStr);
+        } else if (window.webkit?.messageHandlers?.ChaticMessageHandler) {
+            window.webkit.messageHandlers.ChaticMessageHandler.postMessage(messageStr);
+        } else if (window.ReactNativeWebView?.postMessage) {
+            window.ReactNativeWebView.postMessage(messageStr);
+        }
+    } catch (error) {
+        console.error('[Bridge] Send Error:', error);
     }
-    window.ReactNativeWebView.postMessage(JSON.stringify(message));
-};
-
-export const sendIosMessage = (message: WebMessage) => {
-    const messageHandler = window.webkit?.messageHandlers?.ChaticMessageHandler;
-    if (!messageHandler) {
-        return;
-    }
-
-    messageHandler.postMessage(JSON.stringify(message));
-};
-
-export const sendAosMessage = (message: WebMessage) => {
-    const messageHandler = window.ChaticMessageHandler;
-    if (!messageHandler) {
-        return;
-    }
-
-    const receiveFunc = messageHandler.receiveWebMessage;
-    if (!receiveFunc || typeof receiveFunc !== 'function') {
-        return;
-    }
-
-    receiveFunc(JSON.stringify(message));
-};
-
-export const getIsWebView = () => {
-    const { isOnMobileApp, isIOS, isAOS } = getMobileAppInfo();
-    return { isWebView: isOnMobileApp, isIOS, isAOS };
 };

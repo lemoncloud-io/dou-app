@@ -68,7 +68,12 @@
         "uuid": "*",
         "@react-native-firebase/firestore": "*",
         "firebase": "*",
-        "react-native-mmkv": "*"
+        "react-native-mmkv": "*",
+        "react-native-image-picker": "*",
+        "@react-native-documents/picker": "*",
+        "react-native-contacts": "*",
+        "react-native-permissions": "*",
+        "react-native-fs": "*"
     },
     "devDependencies": {}
 }

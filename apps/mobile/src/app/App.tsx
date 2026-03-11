@@ -3,15 +3,15 @@ import { StatusBar, View } from 'react-native';
 import Config from 'react-native-config';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
-
-import { getDeepLinkManager } from '@chatic/deeplinks';
-
-import { FloatingMenu, useDeepLinkStore } from './common';
-import { RootNavigator } from './navigation';
+import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 
 import type { DeepLinkSource, ServiceEndpoints } from '@chatic/deeplinks';
+import { getDeepLinkManager } from '@chatic/deeplinks';
+
+import { useDeepLinkStore } from './common';
+import { FloatingMenu } from './common';
 import type { RootStackParamList } from './navigation';
+import { RootNavigator } from './navigation';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 

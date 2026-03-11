@@ -1,7 +1,5 @@
 import { useTranslation } from 'react-i18next';
 
-import { Logo } from '@chatic/assets';
-
 import { ChatBubbleIllustration } from './ChatBubbleIllustration';
 
 import type { DeepLinkState } from '../types';
@@ -14,25 +12,23 @@ interface DeepLinkUIProps {
 
 /**
  * Main UI component for the deep link landing page.
- * - Desktop: Light theme with mobile access instructions
+ * - Desktop: Light theme with chat illustration and mobile access instructions (no buttons)
  * - Mobile: Light theme with chat illustration and buttons
  */
 export const DeepLinkUI = ({ state, onLaunchApp, onContinueBrowser }: DeepLinkUIProps): JSX.Element => {
     const { t } = useTranslation();
 
-    // Desktop UI - with instructions
+    // Desktop UI - with chat illustration and instructions (no buttons)
     if (state === 'desktop') {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen w-full bg-background px-5 text-center">
-                <div className="relative z-10 max-w-[400px] w-full flex flex-col items-center">
-                    {/* Logo */}
-                    <div className="mb-8 w-[120px] h-[120px] flex items-center justify-center flex-shrink-0">
-                        <img src={Logo.logo} alt="DoU" className="w-full h-full object-contain rounded-3xl" />
-                    </div>
+            <div className="flex flex-col items-center min-h-screen w-full bg-background overflow-auto">
+                {/* Main content area - centered vertically */}
+                <div className="flex-1 flex flex-col items-center justify-center w-full py-12">
+                    <ChatBubbleIllustration />
 
                     {/* Desktop instructions */}
-                    <div className="text-muted-foreground leading-relaxed text-base">
-                        <p className="mb-4">{t('deeplink.desktop.message')}</p>
+                    <div className="mt-12 text-center leading-relaxed text-base max-w-[400px] px-5">
+                        <p className="mb-4 text-muted-foreground">{t('deeplink.desktop.message')}</p>
                         <p className="text-foreground">
                             <strong>iOS:</strong> {t('deeplink.desktop.ios')}
                         </p>

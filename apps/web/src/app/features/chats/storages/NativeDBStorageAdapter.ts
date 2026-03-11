@@ -1,4 +1,4 @@
-import { sendWebMessage, useAppMessageStore } from '@chatic/app-messages';
+import { postMessage, useAppMessageStore } from '@chatic/app-messages';
 
 import { BROADCAST_CHANNEL_NAME } from './IndexedDBStorageAdapter';
 import type { ChatStorageAdapter, Message } from './ChatStorageAdapter';
@@ -20,7 +20,7 @@ const waitForAppMessage = <T extends AppMessageType>(
 export const NativeDBStorageAdapter: ChatStorageAdapter = {
     save: async (userId, channelId, message) => {
         const id = `${channelId}@${message.id}`;
-        sendWebMessage({ type: 'SaveCacheData', data: { type: 'chat', id, value: message } });
+        postMessage({ type: 'SaveCacheData', data: { type: 'chat', id, value: message } });
         await waitForAppMessage('OnSaveCacheData', m => m.data.type === 'chat' && m.data.id === id);
 
         const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
@@ -29,7 +29,7 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
     },
 
     load: async (userId, channelId) => {
-        sendWebMessage({ type: 'FetchAllCacheData', data: { type: 'chat', channelId } });
+        postMessage({ type: 'FetchAllCacheData', data: { type: 'chat', channelId } });
         const response = await waitForAppMessage(
             'OnFetchAllCacheData',
             m => m.data.type === 'chat' && m.data.channelId === channelId
@@ -38,7 +38,7 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
     },
 
     update: async (_userId, channelId, chatNo, readerUserId) => {
-        sendWebMessage({ type: 'FetchAllCacheData', data: { type: 'chat', channelId } });
+        postMessage({ type: 'FetchAllCacheData', data: { type: 'chat', channelId } });
         const response = await waitForAppMessage(
             'OnFetchAllCacheData',
             m => m.data.type === 'chat' && m.data.channelId === channelId
@@ -52,7 +52,7 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
                     if (readBy.includes(readerUserId)) return Promise.resolve();
                     const updated = { ...m, readBy: [...readBy, readerUserId], isRead: true };
                     const id = `${channelId}@${m.id}`;
-                    sendWebMessage({ type: 'SaveCacheData', data: { type: 'chat', id, value: updated } });
+                    postMessage({ type: 'SaveCacheData', data: { type: 'chat', id, value: updated } });
                     return waitForAppMessage('OnSaveCacheData', msg => msg.data.type === 'chat' && msg.data.id === id);
                 })
         );
@@ -63,7 +63,7 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
     },
 
     countUnread: async (_userId, channelId) => {
-        sendWebMessage({ type: 'FetchAllCacheData', data: { type: 'chat', channelId } });
+        postMessage({ type: 'FetchAllCacheData', data: { type: 'chat', channelId } });
         const response = await waitForAppMessage(
             'OnFetchAllCacheData',
             m => m.data.type === 'chat' && m.data.channelId === channelId
@@ -72,7 +72,7 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
     },
 
     markAllRead: async (_userId, channelId) => {
-        sendWebMessage({ type: 'FetchAllCacheData', data: { type: 'chat', channelId } });
+        postMessage({ type: 'FetchAllCacheData', data: { type: 'chat', channelId } });
         const response = await waitForAppMessage(
             'OnFetchAllCacheData',
             m => m.data.type === 'chat' && m.data.channelId === channelId
@@ -83,7 +83,7 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
                 .filter(m => m.isRead === false)
                 .map(m => {
                     const id = `${channelId}@${m.id}`;
-                    sendWebMessage({
+                    postMessage({
                         type: 'SaveCacheData',
                         data: { type: 'chat', id, value: { ...m, isRead: true } },
                     });
