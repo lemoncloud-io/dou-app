@@ -1,64 +1,101 @@
+import { useEffect, useRef, useState } from 'react';
+
 import { RefreshCw, Users } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { usePlaces } from '@chatic/places';
-
-import { useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
+
+import { usePlaceSession } from '../../../shared/hooks/usePlaceSession';
 
 interface PlaceItemProps {
     place: MySiteView;
     isSelected: boolean;
-    onSelect: (id: string) => void;
+    isDisabled: boolean;
+    onSelectPlace: (placeId: string) => void;
 }
 
-const PlaceItem = ({ place, isSelected, onSelect }: PlaceItemProps) => (
-    <button onClick={() => onSelect(place.id)} className="flex flex-col items-center gap-[5px]">
-        <div className="relative">
-            <div className="flex h-[47px] w-[47px] items-center justify-center rounded-full bg-[#F4F5F5]">
-                <Users size={20} className="text-[#9FA2A7]" />
-            </div>
-            {isSelected && (
-                <div className="absolute -bottom-0.5 -right-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full border-[1.5px] border-[#C139E3] bg-white">
-                    <div className="h-2 w-2 rounded-full bg-[#C139E3]" />
-                </div>
-            )}
-        </div>
-        <span
-            className={cn(
-                'w-[60px] truncate text-center text-[14px] leading-[1.19]',
-                isSelected ? 'font-medium text-foreground' : 'font-normal text-[#9FA2A7]'
-            )}
+const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemProps) => {
+    const isSelectable = place.stereo === 'place';
+    const disabled = !isSelectable || isDisabled || isSelected;
+
+    const handleClick = () => {
+        if (disabled) return;
+        onSelectPlace(place.id);
+    };
+
+    return (
+        <button
+            onClick={handleClick}
+            disabled={disabled}
+            className={cn('flex flex-col items-center gap-[5px]', disabled && 'cursor-not-allowed')}
         >
-            {place.name}
-        </span>
-    </button>
-);
+            <div className="relative">
+                <div
+                    className={cn(
+                        'flex h-[47px] w-[47px] items-center justify-center rounded-full',
+                        isSelected ? 'outline outline-[1.5px] outline-[#C139E3] outline-offset-1' : '',
+                        isSelected ? 'bg-[#102346]' : 'bg-[#F4F5F5]'
+                    )}
+                >
+                    <Users size={20} className="text-white" />
+                </div>
+            </div>
+            <span
+                className={cn(
+                    'w-[80px] truncate text-center text-[14px] leading-[1.19]',
+                    isSelected ? 'font-medium text-foreground' : 'font-normal text-[#9FA2A7]'
+                )}
+            >
+                {place.name}
+            </span>
+        </button>
+    );
+};
 
 interface PlaceListProps {
-    selectedId: string | null;
-    onSelect: (id: string) => void;
+    onPlaceSelected?: (placeId: string) => void;
 }
 
-export const PlaceList = ({ selectedId, onSelect }: PlaceListProps) => {
-    const profile = useWebCoreStore(s => s.profile);
-    const isGuest = profile?.userRole === 'guest';
+export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
+    const { isGuest } = useWebCoreStore();
+    const { selectPlace, isPending } = usePlaceSession();
+    const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId);
+
+    const handleSelectPlace = async (placeId: string) => {
+        await selectPlace(placeId);
+        setSelectedId(placeId);
+        onPlaceSelected?.(placeId);
+    };
 
     const { data, isError, isFetching, isRefetching, refetch } = usePlaces({ stereo: 'place' }, !isGuest);
+    const autoSelectedRef = useRef(false);
+
+    useEffect(() => {
+        if (autoSelectedRef.current) return;
+        const places = data?.list ?? [];
+        const firstSelectable = places.find(p => p.stereo === 'place');
+        if (!firstSelectable) return;
+        autoSelectedRef.current = true;
+        const alreadySelected = cloudCore.getSelectedPlaceId() === firstSelectable.id;
+        if (alreadySelected) {
+            setSelectedId(firstSelectable.id);
+            return;
+        }
+        void handleSelectPlace(firstSelectable.id);
+    }, [data]);
 
     if (isGuest) {
         return (
-            <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1">
+            <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-2">
                 <div className="flex flex-col items-center gap-[5px]">
                     <div className="relative">
-                        <div className="flex h-[47px] w-[47px] items-center justify-center rounded-full bg-[#F4F5F5]">
-                            <Users size={20} className="text-[#9FA2A7]" />
-                        </div>
-                        <div className="absolute -bottom-0.5 -right-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full border-[1.5px] border-[#C139E3] bg-white">
-                            <div className="h-2 w-2 rounded-full bg-[#C139E3]" />
+                        <div className="flex h-[47px] w-[47px] items-center justify-center rounded-full bg-[#102346] outline outline-[1.5px] outline-[#C139E3] outline-offset-1">
+                            <Users size={20} className="text-white" />
                         </div>
                     </div>
-                    <span className="w-[60px] truncate text-center text-[14px] font-medium leading-[1.19] text-foreground">
+                    <span className="w-[80px] truncate text-center text-[14px] font-medium leading-[1.19] text-foreground">
                         기본 플레이스
                     </span>
                 </div>
@@ -104,9 +141,15 @@ export const PlaceList = ({ selectedId, onSelect }: PlaceListProps) => {
                     <RefreshCw size={14} className="animate-spin text-[#9FA2A7]" />
                 </div>
             )}
-            <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1">
+            <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
                 {places.map(place => (
-                    <PlaceItem key={place.id} place={place} isSelected={selectedId === place.id} onSelect={onSelect} />
+                    <PlaceItem
+                        key={place.id}
+                        place={place}
+                        isSelected={selectedId === place.id}
+                        isDisabled={isPending}
+                        onSelectPlace={handleSelectPlace}
+                    />
                 ))}
             </div>
         </div>
