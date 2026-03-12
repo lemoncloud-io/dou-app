@@ -175,5 +175,26 @@
             "hoursAgo": "{{count}}시간 전",
             "daysAgo": "{{count}}일 전"
         }
+    },
+    "mypage": {
+        "title": "마이페이지",
+        "loginPrompt": "로그인하기",
+        "loginDescription": "로그인 하고, 대화내용을 안전하게 관리하세요.",
+        "edit": "편집",
+        "notifications": "알림",
+        "darkMode": "다크 모드",
+        "languageSettings": "언어 설정",
+        "logout": "로그아웃",
+        "version": "ENCL v{{version}}",
+        "language": {
+            "ko": "한국어",
+            "en": "English",
+            "select": "언어 선택"
+        }
+    },
+    "notifications": {
+        "title": "알림",
+        "markAllRead": "모두 읽음",
+        "empty": "알림이 없습니다"
     }
 }
