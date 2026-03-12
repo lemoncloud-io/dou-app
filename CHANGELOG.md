@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-03-12] - root@0.13.1, @chatic/web@0.10.1, @chatic/admin@0.3.1
+
+### Refactor
+
+- (deeplinks) use inviteCode instead of userId
+- update invite link creation to use invite code as document ID
+- (deeplinks) change deeplink identifier from userId to inviteCode
+
 ## [2026-03-11] - root@0.13.0, @chatic/web@0.10.0
 
 ### Features
