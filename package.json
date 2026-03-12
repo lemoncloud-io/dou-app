@@ -60,7 +60,7 @@
     "private": true,
     "dependencies": {
         "@hookform/resolvers": "^3.9.1",
-        "@lemoncloud/chatic-backend-api": "^0.26.127",
+        "@lemoncloud/chatic-backend-api": "^0.26.128",
         "@lemoncloud/chatic-socials-api": "^0.26.127",
         "@lemoncloud/chatic-sockets-api": "^0.26.123",
         "@lemoncloud/lemon-web-core": "^1.5.0",
@@ -166,6 +166,7 @@
         "@swc/core": "~1.5.7",
         "@swc/helpers": "~0.5.11",
         "@testing-library/react": "15.0.6",
+        "@types/crypto-js": "^4.2.2",
         "@types/i18next": "^13.0.0",
         "@types/jest": "^29.5.12",
         "@types/lodash": "^4.17.0",
