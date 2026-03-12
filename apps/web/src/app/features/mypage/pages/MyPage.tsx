@@ -22,17 +22,17 @@ interface MenuItem {
 
 export const MyPage = () => {
     const navigate = useNavigate();
-    const { i18n } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { isGuest, profile, logout } = useSimpleWebCore();
     const { setTheme, isDarkTheme } = useTheme();
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
 
-    const currentLanguageLabel = i18n.language === 'ko' ? '한국어' : 'English';
+    const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
 
     const menuItems: MenuItem[] = [
-        { icon: Bell, label: '알림', path: '/notifications' },
-        { icon: Moon, label: '다크 모드', toggle: true },
-        { icon: Globe, label: '언어 설정', detail: currentLanguageLabel },
+        { icon: Bell, label: t('mypage.notifications'), path: '/notifications' },
+        { icon: Moon, label: t('mypage.darkMode'), toggle: true },
+        { icon: Globe, label: t('mypage.languageSettings'), detail: currentLanguageLabel },
     ];
 
     const handleThemeToggle = () => {
@@ -57,7 +57,7 @@ export const MyPage = () => {
     return (
         <div className="flex min-h-screen flex-col bg-background py-safe-top">
             <header className="px-5 ">
-                <h1 className="text-2xl font-extrabold text-foreground">마이페이지</h1>
+                <h1 className="text-2xl font-extrabold text-foreground">{t('mypage.title')}</h1>
             </header>
 
             {/* Profile */}
@@ -65,12 +65,10 @@ export const MyPage = () => {
                 {isGuest ? (
                     <button onClick={() => navigate('/mypage/login')} className="flex flex-col gap-1.5 text-left">
                         <div className="flex items-center gap-1">
-                            <span className="text-[22px] font-semibold text-[#3A3C40]">로그인하기</span>
+                            <span className="text-[22px] font-semibold text-[#3A3C40]">{t('mypage.loginPrompt')}</span>
                             <ChevronRight size={18} className="text-[#3A3C40]" />
                         </div>
-                        <p className="text-[14.5px] font-medium text-[#84888F]">
-                            로그인 하고, 대화내용을 안전하게 관리하세요.
-                        </p>
+                        <p className="text-[14.5px] font-medium text-[#84888F]">{t('mypage.loginDescription')}</p>
                     </button>
                 ) : (
                     <div className="flex items-center gap-4">
@@ -87,7 +85,7 @@ export const MyPage = () => {
                             onClick={() => navigate('/profile/edit')}
                             className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors active:bg-muted"
                         >
-                            편집
+                            {t('mypage.edit')}
                         </button>
                     </div>
                 )}
@@ -122,7 +120,7 @@ export const MyPage = () => {
                 <div className="px-5 py-2">
                     <button onClick={handleLogout} className="flex w-full items-center gap-3.5 px-1 py-4">
                         <LogOut size={20} className="text-destructive" />
-                        <span className="text-[15px] text-destructive">로그아웃</span>
+                        <span className="text-[15px] text-destructive">{t('mypage.logout')}</span>
                     </button>
                 </div>
             )}

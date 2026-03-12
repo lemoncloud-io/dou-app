@@ -1,4 +1,5 @@
 import { Bell, ChevronLeft, Megaphone, MessageSquare, UserPlus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import type { LucideIcon } from 'lucide-react';
@@ -31,6 +32,7 @@ const typeColor: Record<NotifType, string> = {
 
 export const NotificationsPage = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     return (
         <div className="flex min-h-screen flex-col bg-background">
@@ -39,8 +41,10 @@ export const NotificationsPage = () => {
                 <button onClick={() => navigate(-1)} className="p-1">
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>
-                <h1 className="text-[17px] font-semibold text-foreground">알림</h1>
-                <button className="px-1 text-sm font-medium text-muted-foreground">모두 읽음</button>
+                <h1 className="text-[17px] font-semibold text-foreground">{t('notifications.title')}</h1>
+                <button className="px-1 text-sm font-medium text-muted-foreground">
+                    {t('notifications.markAllRead')}
+                </button>
             </header>
 
             {/* Notification List */}
@@ -48,7 +52,7 @@ export const NotificationsPage = () => {
                 {notifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20">
                         <Bell size={48} className="mb-3 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">알림이 없습니다</p>
+                        <p className="text-sm text-muted-foreground">{t('notifications.empty')}</p>
                     </div>
                 ) : (
                     <div className="divide-y divide-border">
