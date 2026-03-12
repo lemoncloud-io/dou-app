@@ -1,4 +1,5 @@
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
@@ -18,6 +19,7 @@ interface UpdateChannelDialogProps {
 }
 
 export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateChannelDialogProps) => {
+    const { t } = useTranslation();
     const { updateChannel, isPending } = useUpdateChannel();
     const { channel } = useMyChannel(channelId ?? null);
     const { toast } = useToast();
@@ -41,11 +43,11 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                 channelId,
                 name: data.name,
             });
-            toast({ title: '채널 정보가 업데이트되었습니다' });
+            toast({ title: t('updateChannel.success') });
             onOpenChange(false);
         } catch (error) {
             console.error('Failed to update channel:', error);
-            toast({ title: '채널 업데이트에 실패했습니다', variant: 'destructive' });
+            toast({ title: t('updateChannel.error'), variant: 'destructive' });
         }
     };
 
@@ -56,7 +58,7 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                 <div className="flex items-center justify-between px-1.5 py-3 bg-white">
                     <div className="w-11 h-11" />
                     <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#171725]">
-                        방 편집
+                        {t('updateChannel.title')}
                     </h1>
                     <button onClick={() => onOpenChange(false)} className="w-11 h-11 flex items-center justify-center">
                         <X className="w-6 h-6 text-[#3A3C40]" />
@@ -72,11 +74,11 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                                 <div className="flex flex-col">
                                     <div className="flex items-center gap-1">
                                         <span className="text-[21px] font-semibold leading-[1.35] tracking-[-0.025em] text-black">
-                                            방 정보를
+                                            {t('updateChannel.subtitle1')}
                                         </span>
                                     </div>
                                     <span className="text-[21px] font-semibold leading-[1.35] tracking-[-0.025em] text-black">
-                                        수정해 주세요
+                                        {t('updateChannel.subtitle2')}
                                     </span>
                                 </div>
                             </div>
@@ -88,15 +90,15 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                             <div className="flex flex-col justify-center items-center gap-1.5 px-4 rounded-lg">
                                 <div className="flex flex-col gap-1.5 w-full">
                                     <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-[#9FA2A7]">
-                                        방 이름
+                                        {t('updateChannel.nameLabel')}
                                     </Label>
                                     <Input
                                         {...register('name', {
-                                            required: '방 이름을 입력해주세요',
-                                            minLength: { value: 2, message: '최소 2자 이상 입력해주세요' },
-                                            maxLength: { value: 20, message: '최대 20자까지 입력 가능합니다' },
+                                            required: t('updateChannel.nameRequired'),
+                                            minLength: { value: 2, message: t('updateChannel.nameMinLength') },
+                                            maxLength: { value: 20, message: t('updateChannel.nameMaxLength') },
                                         })}
-                                        placeholder="예: UIUX 스터디 방"
+                                        placeholder={t('updateChannel.namePlaceholder')}
                                         className="h-11 px-3.5 bg-white border border-[#EAEAEC] rounded-[10px] text-[15px] font-medium leading-[1.45] tracking-[0.005em] placeholder:text-[#84888F]"
                                     />
                                     {errors.name && (
@@ -151,7 +153,7 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                                 disabled={isPending}
                                 className="flex items-center justify-center gap-1.5 h-[50px] px-6 py-3 bg-[#B0EA10] rounded-full text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-[#EAEAEC] disabled:text-[#BABCC0]"
                             >
-                                {isPending ? '업데이트 중...' : '완료'}
+                                {isPending ? t('updateChannel.updating') : t('updateChannel.done')}
                             </Button>
                         </div>
                     </div>

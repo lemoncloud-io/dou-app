@@ -1,4 +1,5 @@
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { Loader2, X } from 'lucide-react';
 
@@ -16,6 +17,7 @@ interface CreateChannelDialogProps {
 }
 
 export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateChannelDialogProps) => {
+    const { t } = useTranslation();
     const { createChannel, isLoading } = useCreateChannel();
     const {
         register,
@@ -46,7 +48,7 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                 <div className="flex items-center justify-between px-1.5 py-3 bg-white">
                     <div className="w-11 h-11" />
                     <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#171725]">
-                        새 채팅
+                        {t('createChannel.title')}
                     </h1>
                     <button onClick={() => onOpenChange(false)} className="w-11 h-11 flex items-center justify-center">
                         <X className="w-6 h-6 text-[#3A3C40]" />
@@ -62,11 +64,11 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                                 <div className="flex flex-col">
                                     <div className="flex items-center gap-1">
                                         <span className="text-[21px] font-semibold leading-[1.35] tracking-[-0.025em] text-black">
-                                            친구와 채팅할 방을
+                                            {t('createChannel.subtitle1')}
                                         </span>
                                     </div>
                                     <span className="text-[21px] font-semibold leading-[1.35] tracking-[-0.025em] text-black">
-                                        설정해 주세요
+                                        {t('createChannel.subtitle2')}
                                     </span>
                                 </div>
                             </div>
@@ -78,15 +80,15 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                             <div className="flex flex-col justify-center items-center gap-1.5 px-4 rounded-lg">
                                 <div className="flex flex-col gap-1.5 w-full">
                                     <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-[#9FA2A7]">
-                                        방 이름
+                                        {t('createChannel.nameLabel')}
                                     </Label>
                                     <Input
                                         {...register('name', {
-                                            required: '방 이름을 입력해주세요',
-                                            minLength: { value: 2, message: '최소 2자 이상 입력해주세요' },
-                                            maxLength: { value: 20, message: '최대 20자까지 입력 가능합니다' },
+                                            required: t('createChannel.nameRequired'),
+                                            minLength: { value: 2, message: t('createChannel.nameMinLength') },
+                                            maxLength: { value: 20, message: t('createChannel.nameMaxLength') },
                                         })}
-                                        placeholder="예: UIUX 스터디 방"
+                                        placeholder={t('createChannel.namePlaceholder')}
                                         className="h-11 px-3.5 bg-white border border-[#EAEAEC] rounded-[10px] text-[15px] font-medium leading-[1.45] tracking-[0.005em] placeholder:text-[#84888F]"
                                     />
                                     {errors.name && (
@@ -99,11 +101,11 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                             <div className="flex flex-col justify-center items-center gap-1.5 px-4 rounded-lg">
                                 <div className="flex flex-col gap-1.5 w-full">
                                     <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-[#9FA2A7]">
-                                        방 설명
+                                        {t('createChannel.descLabel')}
                                     </Label>
                                     <Input
                                         {...register('desc')}
-                                        placeholder="예: UIUX 스터디를 위한 방입니다"
+                                        placeholder={t('createChannel.descPlaceholder')}
                                         className="h-11 px-3.5 bg-white border border-[#EAEAEC] rounded-[10px] text-[15px] font-medium leading-[1.45] tracking-[0.005em] placeholder:text-[#84888F]"
                                     />
                                 </div>
@@ -141,7 +143,7 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                                 disabled={isLoading}
                                 className="flex items-center justify-center gap-1.5 h-[50px] px-6 py-3 bg-[#B0EA10] rounded-full text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-[#EAEAEC] disabled:text-[#BABCC0]"
                             >
-                                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : '완료'}
+                                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : t('createChannel.done')}
                             </Button>
                         </div>
                     </div>

@@ -202,6 +202,23 @@
         "places": "Places",
         "roomCreated": "Chat room created"
     },
+    "placeList": {
+        "defaultPlace": "Default Place",
+        "errorLoading": "Failed to load places",
+        "retry": "Retry",
+        "empty": "No places"
+    },
+    "channelList": {
+        "noDescription": "No description",
+        "errorLoading": "Unable to load channels",
+        "retry": "Retry",
+        "empty": "No channels yet. Create a new chat room!",
+        "unnamedChannel": "Unnamed Channel"
+    },
+    "bottomNav": {
+        "chat": "Chat",
+        "my": "MY"
+    },
     "explore": {
         "title": "Explore",
         "searchPlaceholder": "Search chat rooms or places",
@@ -368,5 +385,154 @@
         "loading": "Signing in...",
         "error": "Sign in failed",
         "errorDescription": "Please check your email or password."
+    },
+    "createPlace": {
+        "title": "Create Place",
+        "subtitle1": "Set up your personal",
+        "subtitle2": "place",
+        "hint": "About your place...",
+        "nameLabel": "Place Name",
+        "namePlaceholder": "e.g., My Space, Book Club",
+        "nameHint": "Please enter up to 20 characters.",
+        "photoLabel": "Place Photo",
+        "photoOptional": "[Optional]",
+        "done": "Done"
+    },
+    "createChannel": {
+        "title": "New Chat",
+        "subtitle1": "Set up a room to",
+        "subtitle2": "chat with friends",
+        "nameLabel": "Room Name",
+        "namePlaceholder": "e.g., UIUX Study Room",
+        "nameRequired": "Please enter a room name",
+        "nameMinLength": "Please enter at least 2 characters",
+        "nameMaxLength": "Maximum 20 characters allowed",
+        "descLabel": "Room Description",
+        "descPlaceholder": "e.g., A room for UIUX study",
+        "imageLabel": "Room Image [Optional]",
+        "done": "Done"
+    },
+    "visibility": {
+        "public": "Public",
+        "private": "Private"
+    },
+    "inviteFriends": {
+        "title": "Invite Friends",
+        "copyLink": "Copy Link",
+        "addFriend": "Add Friend",
+        "qrCode": "QR Code",
+        "searchPlaceholder": "Search friends"
+    },
+    "addFriend": {
+        "title": "Add Friend",
+        "subtitle1": "Enter the name of",
+        "subtitle2": "the friend to invite",
+        "nameLabel": "Name",
+        "namePlaceholder": "Enter friend's name",
+        "nameHint": "Please enter up to 20 characters.",
+        "share": "Share"
+    },
+    "inviteCode": {
+        "label": "Invite Code",
+        "copied": "Copied",
+        "copy": "Copy"
+    },
+    "updateChannel": {
+        "title": "Edit Room",
+        "subtitle1": "Edit room",
+        "subtitle2": "information",
+        "nameLabel": "Room Name",
+        "namePlaceholder": "e.g., UIUX Study Room",
+        "nameRequired": "Please enter a room name",
+        "nameMinLength": "Please enter at least 2 characters",
+        "nameMaxLength": "Maximum 20 characters allowed",
+        "descLabel": "Room Description",
+        "descPlaceholder": "e.g., A room for UIUX study",
+        "imageLabel": "Room Image [Optional]",
+        "updating": "Updating...",
+        "done": "Done",
+        "success": "Channel updated successfully",
+        "error": "Failed to update channel"
+    },
+    "onboarding": {
+        "prev": "Previous",
+        "next": "Next",
+        "done": "Done"
+    },
+    "settingsDialog": {
+        "title": "Settings",
+        "wsStatus": "WebSocket Status",
+        "viewLastMessage": "View last message",
+        "noToken": "No token",
+        "newTokenPlaceholder": "Enter new token",
+        "change": "Change",
+        "onboarding": "Onboarding",
+        "resetOnboarding": "View Onboarding Again"
+    },
+    "tokenLogin": {
+        "title": "Token Login",
+        "subtitle": "Please enter your Identity Token",
+        "tokenRequired": "Please enter a token",
+        "tokenPlaceholder": "Enter token",
+        "invalidToken": "Invalid token format",
+        "decodedInfo": "Decoded Information",
+        "name": "Name",
+        "nickname": "Nickname",
+        "next": "Next",
+        "inviteTokenReceived": "Invite token received. Please press Next.",
+        "inviteLoginFailed": "Invite login failed",
+        "inviteLoading": "Invite login in progress...",
+        "loginSuccess": "Login successful"
+    },
+    "auth": {
+        "inviteLoading": "Invite login in progress...",
+        "deviceRegistering": "Registering device...",
+        "appPreparing": "Preparing app...",
+        "invalidAccess": "Invalid access",
+        "goToLogin": "Go to Login",
+        "loggingIn": "Logging in...",
+        "loginSuccess": "Logged in successfully",
+        "loginFailed": "Login failed"
+    },
+    "error": {
+        "network": {
+            "title": "Connection Error",
+            "description": "Unable to connect to server. Please check your internet connection.",
+            "retry": "Retry",
+            "refresh": "Refresh"
+        },
+        "auth": {
+            "title": "Authentication Error",
+            "description": "Your session has expired. Please log in again.",
+            "login": "Login",
+            "home": "Home"
+        },
+        "server": {
+            "title": "Server Error",
+            "description": "A server error occurred. Please try again later.",
+            "retry": "Retry",
+            "home": "Home"
+        },
+        "client": {
+            "title": "Request Error",
+            "description": "There was a problem with your request. Please try again.",
+            "retry": "Retry",
+            "home": "Home"
+        },
+        "unknown": {
+            "title": "Error Occurred",
+            "description": "An unexpected error occurred.",
+            "retry": "Retry",
+            "home": "Home"
+        },
+        "notFound": {
+            "title": "Page Not Found",
+            "description": "The page you requested does not exist or has been moved.",
+            "home": "Home",
+            "back": "Go Back"
+        },
+        "goHome": "Home",
+        "retrying": "Retrying...",
+        "unknownError": "An unknown error occurred"
     }
 }

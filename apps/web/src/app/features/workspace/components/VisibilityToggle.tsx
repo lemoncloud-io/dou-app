@@ -1,4 +1,5 @@
 import { Globe, Lock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface VisibilityToggleProps {
     value: 'public' | 'private';
@@ -6,6 +7,7 @@ interface VisibilityToggleProps {
 }
 
 export const VisibilityToggle = ({ value, onChange }: VisibilityToggleProps) => {
+    const { t } = useTranslation();
     return (
         <div className="flex gap-2">
             <button
@@ -16,7 +18,7 @@ export const VisibilityToggle = ({ value, onChange }: VisibilityToggleProps) => 
                 }`}
             >
                 <Globe size={16} />
-                공개
+                {t('visibility.public')}
             </button>
             <button
                 type="button"
@@ -26,7 +28,7 @@ export const VisibilityToggle = ({ value, onChange }: VisibilityToggleProps) => 
                 }`}
             >
                 <Lock size={16} />
-                비공개
+                {t('visibility.private')}
             </button>
         </div>
     );

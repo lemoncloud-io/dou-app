@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
@@ -13,6 +14,7 @@ interface SettingsDialogProps {
 }
 
 export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
+    const { t } = useTranslation();
     const [tokenInput, setTokenInput] = useState('');
     const [currentToken, setCurrentToken] = useState<string | null>(null);
     const { connectionStatus, send, lastMessage } = useWebSocketV2();
@@ -62,7 +64,7 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
                 <div className="flex flex-col h-full">
                     {/* Header */}
                     <div className="px-6 py-4 border-b flex items-center justify-between">
-                        <h2 className="text-xl font-semibold text-black">설정</h2>
+                        <h2 className="text-xl font-semibold text-black">{t('settingsDialog.title')}</h2>
                         <button
                             onClick={() => onOpenChange?.(false)}
                             className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100"
@@ -75,7 +77,7 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
                     <div className="flex-1 overflow-auto px-6 py-6 space-y-6">
                         {/* WebSocket Status */}
                         <div className="flex flex-col gap-3">
-                            <h3 className="text-base font-semibold text-gray-900">WebSocket 상태</h3>
+                            <h3 className="text-base font-semibold text-gray-900">{t('settingsDialog.wsStatus')}</h3>
                             <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
                                 <div className={`w-4 h-4 rounded-full ${getStatusColor()}`} />
                                 <span className="text-sm font-medium text-gray-700">{connectionStatus}</span>
@@ -83,7 +85,7 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
                             {lastMessage && (
                                 <details className="group">
                                     <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-900">
-                                        마지막 메시지 보기
+                                        {t('settingsDialog.viewLastMessage')}
                                     </summary>
                                     <div className="mt-2 text-xs text-gray-500 break-all max-h-60 overflow-auto p-3 bg-gray-50 rounded border">
                                         <pre className="whitespace-pre-wrap">
@@ -99,14 +101,14 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
                             <h3 className="text-base font-semibold text-gray-900">Identity Token</h3>
                             <div className="p-3 bg-gray-50 rounded-lg border">
                                 <p className="text-xs text-gray-500 break-all font-mono">
-                                    {currentToken || '토큰 없음'}
+                                    {currentToken || t('settingsDialog.noToken')}
                                 </p>
                             </div>
                             <div className="flex gap-2">
                                 <Input
                                     value={tokenInput}
                                     onChange={e => setTokenInput(e.target.value)}
-                                    placeholder="새 토큰 입력"
+                                    placeholder={t('settingsDialog.newTokenPlaceholder')}
                                     className="flex-1 h-11"
                                 />
                                 <Button
@@ -114,14 +116,14 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
                                     disabled={!tokenInput.trim()}
                                     className="bg-[#B0EA10] hover:bg-[#9DD00E] text-[#222325] h-11 px-6 disabled:opacity-50"
                                 >
-                                    변경
+                                    {t('settingsDialog.change')}
                                 </Button>
                             </div>
                         </div>
 
                         {/* Onboarding */}
                         <div className="flex flex-col gap-3">
-                            <h3 className="text-base font-semibold text-gray-900">온보딩</h3>
+                            <h3 className="text-base font-semibold text-gray-900">{t('settingsDialog.onboarding')}</h3>
                             <Button
                                 onClick={() => {
                                     resetOnboarding();
@@ -130,7 +132,7 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
                                 variant="outline"
                                 className="h-11 border-[#DFE0E2] text-[#3A3C40]"
                             >
-                                온보딩 다시보기
+                                {t('settingsDialog.resetOnboarding')}
                             </Button>
                         </div>
                     </div>

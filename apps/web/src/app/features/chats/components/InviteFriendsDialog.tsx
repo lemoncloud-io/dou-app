@@ -1,5 +1,6 @@
 import { Search, X } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
 import { AddFriendSheet } from './AddFriendSheet';
@@ -11,12 +12,13 @@ interface InviteFriendsDialogProps {
 }
 
 const QUICK_ACTIONS = [
-    { label: '링크 복사', icon: '/assets/icons/icon-link.svg' },
-    { label: '친구 추가', icon: '/assets/icons/icon-user-plus.svg' },
-    { label: 'QR 코드', icon: '/assets/icons/icon-qr.svg' },
+    { labelKey: 'inviteFriends.copyLink', icon: '/assets/icons/icon-link.svg', actionKey: 'copyLink' },
+    { labelKey: 'inviteFriends.addFriend', icon: '/assets/icons/icon-user-plus.svg', actionKey: 'addFriend' },
+    { labelKey: 'inviteFriends.qrCode', icon: '/assets/icons/icon-qr.svg', actionKey: 'qrCode' },
 ] as const;
 
 export const InviteFriendsDialog = ({ open, onOpenChange }: InviteFriendsDialogProps) => {
+    const { t } = useTranslation();
     const [search, setSearch] = useState('');
     const [addFriendOpen, setAddFriendOpen] = useState(false);
 
@@ -29,7 +31,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange }: InviteFriendsDialogP
                         <div className="flex items-center justify-between px-1.5 py-3">
                             <div className="w-11 h-11" />
                             <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#222325]">
-                                친구 초대
+                                {t('inviteFriends.title')}
                             </h1>
                             <button
                                 onClick={() => onOpenChange?.(false)}
@@ -45,20 +47,20 @@ export const InviteFriendsDialog = ({ open, onOpenChange }: InviteFriendsDialogP
                                 className="flex items-center justify-center gap-[42px] rounded-[20px] py-4 px-[18px]"
                                 style={{ boxShadow: '0px 1px 8px 0px rgba(0,0,0,0.08)' }}
                             >
-                                {QUICK_ACTIONS.map(({ label, icon }) => (
+                                {QUICK_ACTIONS.map(({ labelKey, icon, actionKey }) => (
                                     <button
-                                        key={label}
+                                        key={actionKey}
                                         className="flex flex-col items-center gap-2"
-                                        onClick={() => label === '친구 추가' && setAddFriendOpen(true)}
+                                        onClick={() => actionKey === 'addFriend' && setAddFriendOpen(true)}
                                     >
                                         <div
                                             className="w-[42px] h-[42px] rounded-[28px] flex items-center justify-center"
                                             style={{ background: 'rgba(0,43,126,0.06)' }}
                                         >
-                                            <img src={icon} alt={label} className="w-[42px] h-[42px]" />
+                                            <img src={icon} alt={t(labelKey)} className="w-[42px] h-[42px]" />
                                         </div>
                                         <span className="text-[15px] font-medium text-black w-16 text-center leading-[1.19] tracking-[-0.02em]">
-                                            {label}
+                                            {t(labelKey)}
                                         </span>
                                     </button>
                                 ))}
@@ -75,7 +77,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange }: InviteFriendsDialogP
                                 <input
                                     value={search}
                                     onChange={e => setSearch(e.target.value)}
-                                    placeholder="친구 검색"
+                                    placeholder={t('inviteFriends.searchPlaceholder')}
                                     className="flex-1 bg-transparent text-[16px] text-[#222325] placeholder:text-[#84888F] outline-none leading-[1.19] tracking-[-0.015em]"
                                 />
                             </div>

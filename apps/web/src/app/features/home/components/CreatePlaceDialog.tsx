@@ -1,6 +1,7 @@
 import { HelpCircle, X } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
@@ -15,6 +16,7 @@ interface CreatePlaceDialogProps {
 }
 
 export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps) => {
+    const { t } = useTranslation();
     const {
         register,
         handleSubmit,
@@ -47,7 +49,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                 <div className="flex items-center justify-between px-1.5 py-3 bg-white">
                     <div className="w-11 h-11" />
                     <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#222325]">
-                        플레이스 만들기
+                        {t('createPlace.title')}
                     </h1>
                     <button onClick={() => onOpenChange(false)} className="w-11 h-11 flex items-center justify-center">
                         <X className="w-6 h-6 text-[#3A3C40]" />
@@ -62,17 +64,17 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                             <div className="flex flex-col gap-[5px]">
                                 <div className="flex flex-col gap-0.5">
                                     <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-black">
-                                        나만의 공간 플레이스를
+                                        {t('createPlace.subtitle1')}
                                     </span>
                                     <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-black">
-                                        설정해 주세요
+                                        {t('createPlace.subtitle2')}
                                     </span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-1">
                                 <HelpCircle className="w-[18px] h-[18px] text-[#90C304]" />
                                 <span className="text-[14px] font-medium leading-[1.45] tracking-[-0.015em] text-[#84888F]">
-                                    플레이스에 대한 내용으로 ~~~
+                                    {t('createPlace.hint')}
                                 </span>
                             </div>
                         </div>
@@ -82,7 +84,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                             {/* Place Name Input */}
                             <div className="flex flex-col gap-2">
                                 <label className="text-[14px] font-semibold leading-[1.29] tracking-[0.005em] text-[#53555B]">
-                                    플레이스 이름
+                                    {t('createPlace.nameLabel')}
                                 </label>
                                 <div className="flex flex-col gap-2">
                                     <div className="flex items-center justify-between px-3 py-3 bg-white border border-[#EAEAEC] rounded-[10px]">
@@ -91,7 +93,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                                                 required: true,
                                                 maxLength: 20,
                                             })}
-                                            placeholder="예: 나만의 공간, 독서 모임 등"
+                                            placeholder={t('createPlace.namePlaceholder')}
                                             className="flex-1 bg-transparent border-0 outline-none text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-[#BABCC0] placeholder:text-[#BABCC0]"
                                         />
                                         <div className="flex items-center gap-0 opacity-70">
@@ -107,7 +109,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                                         </div>
                                     </div>
                                     <span className="text-[12px] font-medium leading-[1.5] text-[#84888F] pl-0.5">
-                                        20글자 이내로 입력해 주세요.
+                                        {t('createPlace.nameHint')}
                                     </span>
                                 </div>
                             </div>
@@ -116,10 +118,10 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                             <div className="flex flex-col gap-2.5 px-0.5">
                                 <div className="flex items-center gap-[3px]">
                                     <span className="text-[14px] font-semibold leading-[1.29] tracking-[0.005em] text-[#53555B]">
-                                        플레이스 사진
+                                        {t('createPlace.photoLabel')}
                                     </span>
                                     <span className="text-[13px] font-medium leading-[1.38] tracking-[0.005em] text-[#BABCC0]">
-                                        [선택]
+                                        {t('createPlace.photoOptional')}
                                     </span>
                                 </div>
                                 <div className="w-[86px] h-[86px] flex items-center justify-center bg-[#F7F7F7] border border-[#F4F5F5] rounded-2xl">
@@ -136,7 +138,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                             disabled={!nameValue.trim() || isLoading}
                             className="w-full h-[50px] bg-[#EAEAEC] text-[#BABCC0] hover:bg-[#EAEAEC] disabled:opacity-100 text-[16px] font-semibold leading-[1.375] tracking-[0.005em] rounded-full"
                         >
-                            완료
+                            {t('createPlace.done')}
                         </Button>
                     </div>
                 </form>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useWebSocketV2 } from '@chatic/socket';
@@ -29,6 +30,7 @@ const decodeJWT = (token: string) => {
 };
 
 export const TokenLoginPage = () => {
+    const { t } = useTranslation();
     const { token } = useParams<{ token: string }>();
     const navigate = useNavigate();
     const { send } = useWebSocketV2();
@@ -71,7 +73,7 @@ export const TokenLoginPage = () => {
                 },
             });
 
-            toast({ title: '로그인 되었습니다' });
+            toast({ title: t('auth.loginSuccess') });
         };
 
         handleTokenLogin();
@@ -80,8 +82,8 @@ export const TokenLoginPage = () => {
     if (isInvalid) {
         return (
             <div className="flex h-full items-center justify-center">
-                <p className="text-[16px] text-[#FF4C35]">잘못된 접근입니다</p>
-                <Button onClick={() => navigate('/auth/login')}>로그인하러 가기</Button>
+                <p className="text-[16px] text-[#FF4C35]">{t('auth.invalidAccess')}</p>
+                <Button onClick={() => navigate('/auth/login')}>{t('auth.goToLogin')}</Button>
             </div>
         );
     }
@@ -89,7 +91,7 @@ export const TokenLoginPage = () => {
     return (
         <div className="flex h-full items-center justify-center">
             <div className="text-center">
-                <p className="text-[16px] text-[#84888F]">로그인 중...</p>
+                <p className="text-[16px] text-[#84888F]">{t('auth.loggingIn')}</p>
             </div>
         </div>
     );
