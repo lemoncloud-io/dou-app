@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useDynamicProfile } from '@chatic/web-core';
 
 import { InviteCodeCard } from '../../workspace/components/InviteCodeCard';
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
@@ -42,10 +42,10 @@ export const ChatSettingsPage = () => {
     const { deleteChannel, isPending: isDeletePending } = useDeleteChannel();
     const { toast } = useToast();
 
-    const profile = useWebCoreStore(s => s.profile);
-    const { clearMessages } = useChatMessages(profile?.id ?? null, channelId ?? null);
+    const profile = useDynamicProfile();
+    const { clearMessages } = useChatMessages(profile?.uid ?? null, channelId ?? null);
 
-    const isOwner = channel?.ownerId === profile?.id;
+    const isOwner = channel?.ownerId === profile?.uid;
     const inviteCode = 'ABC123'; // TODO: Get from channel data
 
     const handleLeaveRoomClick = () => {
@@ -65,7 +65,7 @@ export const ChatSettingsPage = () => {
         if (!channelId) return;
 
         try {
-            await leaveRoom(channelId, profile?.id);
+            await leaveRoom(channelId, profile?.uid);
             await clearMessages();
             toast({ title: '채팅방을 나갔습니다' });
             navigate('/');
@@ -114,7 +114,7 @@ export const ChatSettingsPage = () => {
     return (
         <div className="flex min-h-screen flex-col bg-background">
             {/* Header */}
-            <header className="flex items-center justify-between border-b border-border px-4  pb-safe-top">
+            <header className="flex items-center justify-between border-b border-border px-4 py-4">
                 <button onClick={() => navigate(-1)} className="p-1">
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>

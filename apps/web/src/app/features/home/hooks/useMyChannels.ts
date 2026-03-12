@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useDynamicProfile } from '@chatic/web-core';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
@@ -106,9 +106,16 @@ let globalProfileId = '';
 useWebSocketV2Store.subscribe(
     s => s.isVerified,
     isVerified => {
-        if (!isVerified || !globalEmitAuthenticated || !globalProfileId) return;
+        if (!isVerified || !globalEmitAuthenticated) return;
         isBootstrapped = false;
         bootstrap(globalEmitAuthenticated, globalProfileId);
+    }
+);
+
+useWebSocketV2Store.subscribe(
+    s => s.isConnected,
+    isConnected => {
+        if (!isConnected) isBootstrapped = false;
     }
 );
 
@@ -120,22 +127,23 @@ const retryMine = () => {
 
 export const useMyChannels = () => {
     const { emitAuthenticated } = useWebSocketV2();
-    const profile = useWebCoreStore(s => s.profile);
+    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    const profile = useDynamicProfile();
     const [, forceUpdate] = useState({});
 
     globalEmitAuthenticated = emitAuthenticated;
+    globalProfileId = profile?.uid ?? '';
 
     useEffect(() => {
         const listener = () => forceUpdate({});
         listeners.add(listener);
-        if (profile?.id) {
-            globalProfileId = profile.id;
-            bootstrap(emitAuthenticated, profile.id);
+        if (isVerified && globalEmitAuthenticated && !isBootstrapped) {
+            bootstrap(globalEmitAuthenticated, globalProfileId);
         }
         return () => {
             listeners.delete(listener);
         };
-    }, [profile?.id]);
+    }, [profile?.uid, isVerified]);
 
     return {
         channels: globalChannels,
