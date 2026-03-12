@@ -1,5 +1,35 @@
 # Changelog
 
+## [2026-03-12] - root@0.15.0, @chatic/web@0.12.0
+
+### Features
+
+- (web-core) add cloudCore, calcSignature util, useDynamicProfile hook
+- (auth) add refreshCloudToken API and useRefreshCloudToken hook
+- (socket) replace useSocketAuth with useCloudTokenRefresh for token refresh
+- (users) add issueCloudDelegationToken API
+- (home) add usePlaceSession hook and getPlaceSession util
+- remove simplecore
+
+### Bug Fixes
+
+- add stereo=place query param to usePlaces
+- (home) expand PlaceList name width, add isGuest selection style
+- (ui) increase input height/padding, fix safe-top default to 0px
+
+### Refactor
+
+- migrate auth and data fetching to webCore
+- (layout) move BottomNavigation from MainLayout to HomePage and MyPage
+- (mypage) rename LoginFormPage to LoginPage, split MyPageLoginRoutes
+- (profile) unify profile.uid usage via useDynamicProfile across features
+
+### Chores
+
+- add @types/crypto-js dependency
+- (mobile) temporarily hardcode webview url to localhost:5004
+- (assets) add figma reference images
+
 ## [2026-03-12] - root@0.14.0, @chatic/web@0.11.0
 
 ### Features
