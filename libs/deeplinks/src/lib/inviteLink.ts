@@ -3,6 +3,7 @@
  *
  * Create and manage invite deep links from mobile app.
  * Stores invite data in Firestore for later retrieval.
+ * Document ID is the invite code (invite.code), not userId.
  */
 
 import firestore from '@react-native-firebase/firestore';
@@ -46,10 +47,17 @@ export interface InviteLink {
 /**
  * Create an invite deep link
  *
- * @param id - Unique identifier for the invite (used as document ID and in URL)
- * @param invite - MyInviteView data from backend API
- * @param createdBy - Creator identifier (user ID)
+ * @param id - Invite code from backend API (invite.code). Used as document ID and shortCode in URL.
+ *             This should be the `code` field from MyInviteView, NOT userId.
+ * @param invite - MyInviteView data from backend API (must include `code` field)
+ * @param createdBy - Creator identifier (user ID or app identifier)
  * @returns Created invite link with URL
+ *
+ * @example
+ * const invite = await createInvite({ channelId: '123', name: 'Test' });
+ * // invite.code = 'a442bfe0-0387-4422-86a1-8b53d41ac282'
+ * const link = await createInviteLink(invite.code, invite, 'admin');
+ * // link.deepLinkUrl = 'https://app.chatic.io/s/a442bfe0-0387-4422-86a1-8b53d41ac282'
  */
 export const createInviteLink = async (id: string, invite: MyInviteView, createdBy: string): Promise<InviteLink> => {
     const docRef = firestore().collection(DEFERRED_LINKS_COLLECTION).doc(id);
@@ -72,8 +80,6 @@ export const createInviteLink = async (id: string, invite: MyInviteView, created
     };
 
     await docRef.set(data);
-
-    console.log('[InviteLink] Created:', { id, deepLinkUrl });
 
     return {
         id,

@@ -33,7 +33,7 @@ import type { JSX } from 'react';
 /** Content for a single environment tab */
 const EnvironmentContent = ({ env }: { env: DeeplinkEnvironment }): JSX.Element => {
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
-    const [viewTargetUserId, setViewTargetUserId] = useState<string | null>(null);
+    const [viewTargetShortCode, setViewTargetShortCode] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<AdminDeeplink | null>(null);
 
     const { isAuthenticated, isLoading: isAuthLoading, error: authError } = useFirebaseAuth(env);
@@ -120,15 +120,15 @@ const EnvironmentContent = ({ env }: { env: DeeplinkEnvironment }): JSX.Element 
             </AlertDialog>
 
             <DeeplinkDetailDialog
-                userId={viewTargetUserId}
-                onOpenChange={open => !open && setViewTargetUserId(null)}
+                shortCode={viewTargetShortCode}
+                onOpenChange={open => !open && setViewTargetShortCode(null)}
                 env={env}
             />
 
             <DeeplinksTable
                 deeplinks={data?.list ?? []}
                 isLoading={isLoading}
-                onView={deeplink => setViewTargetUserId(deeplink.id)}
+                onView={deeplink => setViewTargetShortCode(deeplink.id)}
                 onDelete={setDeleteTarget}
             />
 
