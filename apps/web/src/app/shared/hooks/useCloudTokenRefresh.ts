@@ -10,31 +10,28 @@ export const useCloudTokenRefresh = () => {
     const { emit, isConnected } = useWebSocketV2();
 
     useEffect(() => {
-        if (!isAuthenticated || !isConnected) return;
-
-        const sendAuth = async () => {
-            const token = isGuest
-                ? (await webCore.getTokenSignature()).originToken?.identityToken
-                : cloudCore.getIdentityToken();
-            if (!token) return;
-            emit({ type: 'auth', action: 'update', payload: { token } });
-        };
-
-        void sendAuth();
-
-        if (isGuest) return;
+        if (!isConnected || (!isGuest && !isAuthenticated)) return;
 
         const refresh = async () => {
+            if (isGuest) {
+                const token = (await webCore.getTokenSignature()).originToken?.identityToken;
+                if (token) emit({ type: 'auth', action: 'update', payload: { token } });
+                return;
+            }
+
             try {
                 await cloudCore.refreshToken();
-                const token = cloudCore.getIdentityToken();
-                if (token && isConnected) {
-                    emit({ type: 'auth', action: 'update', payload: { token } });
-                }
             } catch (e) {
-                console.error('[useCloudTokenRefresh] failed', e);
+                console.error('[useCloudTokenRefresh] refreshToken failed', e);
             }
+
+            const token = cloudCore.getIdentityToken();
+            if (token) emit({ type: 'auth', action: 'update', payload: { token } });
         };
+
+        void refresh();
+
+        if (isGuest) return;
 
         const id = setInterval(refresh, REFRESH_INTERVAL_MS);
         return () => clearInterval(id);

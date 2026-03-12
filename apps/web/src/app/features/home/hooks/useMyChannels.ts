@@ -26,6 +26,7 @@ const bootstrap = (emitAuthenticated: (msg: object) => void, profileId: string) 
     if (isBootstrapped) return;
     isBootstrapped = true;
 
+    setGlobalState(globalChannels, true, false);
     emitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
 
     let timeoutId: ReturnType<typeof setTimeout> | null = setTimeout(() => {
@@ -72,6 +73,7 @@ const bootstrap = (emitAuthenticated: (msg: object) => void, profileId: string) 
             }
 
             if (envelope.action === 'update' && envelope.payload?.sourceType === 'channel') {
+                setGlobalState(globalChannels, true, false);
                 emitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
                 return;
             }
