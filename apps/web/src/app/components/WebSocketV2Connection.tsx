@@ -1,33 +1,34 @@
-import { useState } from 'react';
-
-import { useDynamicDeviceId } from '../shared/hooks/useDynamicDeviceId';
-import { useWebSocketV2 } from '@chatic/socket';
 import { useHandleAppMessage } from '@chatic/app-messages';
+import { useWebSocketV2 } from '@chatic/socket';
+import { WS_ENDPOINT_KEY, cloudCore, useWebCoreStore } from '@chatic/web-core';
+
 import { useListenMessage } from '../features/chats/hooks/useListenMessage';
 import { useMyChannels } from '../features/home/hooks/useMyChannels';
-import { useSocketAuth } from '../shared/hooks/useSocketAuth';
-import { simpleWebCore, WS_ENDPOINT_KEY } from '@chatic/web-core';
-
-const getWsEndpoint = () => sessionStorage.getItem(WS_ENDPOINT_KEY) || import.meta.env.VITE_WS_ENDPOINT;
+import { useDynamicDeviceId } from '../shared/hooks/useDynamicDeviceId';
+import { useCloudTokenRefresh } from '../shared/hooks/useCloudTokenRefresh';
+import { usePlaceSession } from '../shared/hooks/usePlaceSession';
 
 export const WebSocketV2Connection = () => {
     const { deviceId } = useDynamicDeviceId();
-    const [wsEndpoint, setWsEndpoint] = useState(getWsEndpoint);
+    const { isPending } = usePlaceSession();
+
+    const { isGuest } = useWebCoreStore();
+    const wss = cloudCore.getWss();
+    const endpoint = isGuest ? import.meta.env.VITE_WS_ENDPOINT : wss;
 
     useHandleAppMessage('OnSetWsEndpoint', ({ data }) => {
-        simpleWebCore.saveWsEndpoint(data.wss);
-        setWsEndpoint(data.wss);
+        sessionStorage.setItem(WS_ENDPOINT_KEY, data.wss);
     });
 
     useWebSocketV2({
-        endpoint: wsEndpoint,
+        endpoint,
         connectParams: { deviceId },
-        enabled: !!deviceId,
+        enabled: !!deviceId && !isPending && !!endpoint,
     });
 
     useListenMessage();
-    useSocketAuth();
     useMyChannels();
+    useCloudTokenRefresh();
 
     return null;
 };
