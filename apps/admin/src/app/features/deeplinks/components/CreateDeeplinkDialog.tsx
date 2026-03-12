@@ -162,10 +162,10 @@ export const CreateDeeplinkDialog = ({
                         <div className="p-4 rounded-md bg-muted space-y-2">
                             <div className="text-sm font-medium">Deeplink Preview</div>
                             <div className="text-sm text-muted-foreground break-all font-mono">
-                                {deeplinkUrlBase}/{'<userId>'}
+                                {deeplinkUrlBase}/{'<inviteCode>'}
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                The actual userId will be assigned by the backend
+                                The actual invite code will be assigned by the backend
                             </p>
                         </div>
                     )}

@@ -3,7 +3,7 @@
  *
  * Firestore CRUD operations for admin deeplinks.
  * Supports both DEV and PROD environments.
- * Each user has one deeplink with userId as document ID.
+ * Each invite has one deeplink with inviteCode as document ID.
  */
 
 import {
@@ -85,21 +85,21 @@ export const fetchDeeplinks = async (
 };
 
 /**
- * Fetch a single deeplink by user ID for specific environment
+ * Fetch a single deeplink by short code (inviteCode) for specific environment
  */
-export const fetchDeeplinkByUserId = async (
+export const fetchDeeplinkByShortCode = async (
     env: DeeplinkEnvironment,
-    userId: string
+    shortCode: string
 ): Promise<AdminDeeplink | null> => {
     const col = firebaseService.getDeeplinksCollection(env);
-    const docRef = doc(col, userId);
+    const docRef = doc(col, shortCode);
     const snapshot = await getDoc(docRef);
     return convertDoc(snapshot);
 };
 
 /**
  * Create a deeplink from MyInviteView (from backend invite API)
- * Uses invite.userId as document ID (one link per user)
+ * Uses invite.code (inviteCode) as document ID (one link per invite)
  */
 export const createDeeplinkFromInvite = async (
     env: DeeplinkEnvironment,
@@ -122,7 +122,7 @@ export const createDeeplinkFromInvite = async (
     // Check if already exists
     const existing = await getDoc(docRef);
     if (existing.exists()) {
-        throw new Error('Deeplink already exists for this user');
+        throw new Error('Deeplink already exists for this invite code');
     }
 
     const urlBase = firebaseService.getDeeplinkUrlBase(env);
