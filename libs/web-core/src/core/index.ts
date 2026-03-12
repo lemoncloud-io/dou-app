@@ -1,6 +1,9 @@
 import { WebCoreFactory } from '@lemoncloud/lemon-web-core';
 
-export * from './simpleWebCore';
+export * from './cloudCore';
+export * from './coreStorage';
+
+import { setStorageAdapter } from './coreStorage';
 
 declare global {
     interface Window {
@@ -53,6 +56,13 @@ const initEnvFromQueryParams = (): void => {
 // Initialize from query params before reading localStorage
 initEnvFromQueryParams();
 
+// RN WebView 환경이면 네이티브 스토리지 어댑터로 교체
+const isReactNativeWebView = (): boolean => !!(window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView;
+
+if (isReactNativeWebView()) {
+    setStorageAdapter(localStorage);
+}
+
 // localStorage takes priority (injected by mobile WebView for deeplink)
 const getLocalStorageItem = (key: string): string | null => {
     try {
@@ -100,7 +110,8 @@ export const LANGUAGE_KEY = 'i18nextLng';
  */
 export const webCore = WebCoreFactory.create({
     cloud: 'aws',
-    project: ENV === 'local' ? `${PROJECT}_${ENV}` : PROJECT, // NOTE: chatic native에서 project 고정
+    project: ENV === 'local' ? `${PROJECT}_${ENV}` : PROJECT,
     oAuthEndpoint: OAUTH_ENDPOINT,
     region: REGION,
+    storage: isReactNativeWebView() ? localStorage : sessionStorage,
 });

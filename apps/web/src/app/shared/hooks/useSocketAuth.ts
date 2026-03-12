@@ -1,16 +1,22 @@
 import { useEffect } from 'react';
 
 import { useWebSocketV2 } from '@chatic/socket';
-import { simpleWebCore, useSimpleWebCore } from '@chatic/web-core';
+import { cloudCore, useWebCoreStore, webCore } from '@chatic/web-core';
 
 export const useSocketAuth = () => {
     const { emit, isConnected } = useWebSocketV2();
-    const { isAuthenticated } = useSimpleWebCore();
+    const isAuthenticated = useWebCoreStore(s => s.isAuthenticated);
 
     useEffect(() => {
         if (!isAuthenticated || !isConnected) return;
-        const token = simpleWebCore.getToken();
-        if (!token) return;
-        emit({ type: 'auth', action: 'update', payload: { token } });
+
+        const sendAuth = async () => {
+            const token =
+                cloudCore.getIdentityToken() ?? (await webCore.getTokenSignature()).originToken?.identityToken;
+            if (!token) return;
+            emit({ type: 'auth', action: 'update', payload: { token } });
+        };
+
+        void sendAuth();
     }, [isAuthenticated, isConnected]);
 };

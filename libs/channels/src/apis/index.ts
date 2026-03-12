@@ -1,4 +1,4 @@
-import { simpleWebCore } from '@chatic/web-core';
+import { webCore } from '@chatic/web-core';
 
 import type { ListResult } from '@chatic/shared';
 import type {
@@ -14,7 +14,7 @@ import type { Params } from '@lemoncloud/lemon-web-core';
 const VITE_SOC_ENDPOINT = import.meta.env.VITE_SOC_ENDPOINT || '';
 
 export const fetchPublicChannels = async (params: Params): Promise<ListResult<ChannelView>> => {
-    const { data } = await simpleWebCore
+    const { data } = await webCore
         .buildRequest({
             method: 'GET',
             baseURL: `${VITE_SOC_ENDPOINT}/hello/channel/list`,
@@ -26,7 +26,7 @@ export const fetchPublicChannels = async (params: Params): Promise<ListResult<Ch
 };
 
 export const fetchChannels = async (params: Params): Promise<ListResult<ChannelView>> => {
-    const { data } = await simpleWebCore
+    const { data } = await webCore
         .buildRequest({
             method: 'GET',
             baseURL: `${VITE_SOC_ENDPOINT}/channels/0/mine`,
@@ -38,7 +38,7 @@ export const fetchChannels = async (params: Params): Promise<ListResult<ChannelV
 };
 
 export const createPublicChannel = async (body: ChatStartBody): Promise<ChannelView> => {
-    const { data } = await simpleWebCore
+    const { data } = await webCore
         .buildRequest({
             method: 'POST',
             baseURL: `${VITE_SOC_ENDPOINT}/hello/chat-start`,
@@ -49,7 +49,7 @@ export const createPublicChannel = async (body: ChatStartBody): Promise<ChannelV
 };
 
 export const leavePublicChannel = async (id: string, body: ChannelLeaveBody): Promise<JoinView> => {
-    const { data } = await simpleWebCore
+    const { data } = await webCore
         .buildRequest({
             method: 'POST',
             baseURL: `${VITE_SOC_ENDPOINT}/hello/chat-leave`,
@@ -62,7 +62,7 @@ export const leavePublicChannel = async (id: string, body: ChannelLeaveBody): Pr
 };
 
 export const invitePublicChannel = async (id: string, body: ChannelInviteBody): Promise<ChannelView> => {
-    const { data } = await simpleWebCore
+    const { data } = await webCore
         .buildRequest({
             method: 'POST',
             baseURL: `${VITE_SOC_ENDPOINT}/hello/chat-invite`,
@@ -75,7 +75,7 @@ export const invitePublicChannel = async (id: string, body: ChannelInviteBody): 
 };
 
 export const fetchUsersInChannel = async (id: string, params: Params): Promise<ListResult<UserView>> => {
-    const { data } = await simpleWebCore
+    const { data } = await webCore
         .buildRequest({
             method: 'GET',
             baseURL: `${VITE_SOC_ENDPOINT}/channels/${id}/users`,

@@ -1,18 +1,14 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom';
 
-import { useSimpleWebCore } from '@chatic/web-core';
+import { useWebCoreStore } from '@chatic/web-core';
 
 import { commonRoutes } from './common/CommonRoutes';
 import { privateRoutes } from './private/PrivateRoutes';
 import { publicRoutes } from './public/PublicRoutes';
 
 export const Router = () => {
-    const { isAuthenticated, isInitialized, initialize } = useSimpleWebCore();
-
-    useEffect(() => {
-        initialize();
-    }, [initialize]);
+    const { isAuthenticated, isInitialized } = useWebCoreStore();
 
     // const handleRouterError = useCallback(
     //     (error: Error, info: { componentStack?: string }): void => {

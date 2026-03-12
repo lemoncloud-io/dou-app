@@ -1,17 +1,17 @@
 import { useEffect } from 'react';
 
 import { useWebSocketV2 } from '@chatic/socket';
-import { useSimpleWebCore } from '@chatic/web-core';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chats/model';
 
 import { useChatMessages } from './useChatMessages';
 import { useMyChannels } from '../../home/hooks/useMyChannels';
+import { useDynamicProfile } from '@chatic/web-core';
 
 export const useListenMessage = () => {
     const { lastMessage } = useWebSocketV2();
-    const { profile } = useSimpleWebCore();
-    const { addMessage } = useChatMessages(profile?.id ?? null, null);
+    const profile = useDynamicProfile();
+    const { addMessage } = useChatMessages(profile?.uid ?? null, null);
     const { setChannels } = useMyChannels();
 
     useEffect(() => {

@@ -1,16 +1,9 @@
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-
-import { Bell, ChevronRight, Globe, LogOut, Moon } from 'lucide-react';
+import { Bell, ChevronRight, Globe, LogOut, MessageSquare, Moon, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-import { useTheme } from '@chatic/theme';
-import { Switch } from '@chatic/ui-kit/components/ui/switch';
-import { useSimpleWebCore } from '@chatic/web-core';
-
-import { LanguageSelectSheet } from '../components';
-
 import type { LucideIcon } from 'lucide-react';
+import { useWebCoreStore } from '@chatic/web-core';
+import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 
 interface MenuItem {
     icon: LucideIcon;
@@ -20,44 +13,30 @@ interface MenuItem {
     detail?: string;
 }
 
+const menuItems: MenuItem[] = [
+    { icon: Bell, label: '알림', path: '/notifications' },
+    { icon: MessageSquare, label: '나와의 채팅 관리' },
+    { icon: Settings, label: '워크스페이스 설정', path: '/workspace-list' },
+    { icon: Moon, label: '다크 모드', toggle: true },
+    { icon: Globe, label: '언어 설정', detail: '한국어' },
+];
+
 export const MyPage = () => {
     const navigate = useNavigate();
-    const { t, i18n } = useTranslation();
-    const { isGuest, profile, logout } = useSimpleWebCore();
-    const { setTheme, isDarkTheme } = useTheme();
-    const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
+    const isGuest = useWebCoreStore(s => s.isGuest);
+    const profile = useWebCoreStore(s => s.profile);
 
-    const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
-
-    const menuItems: MenuItem[] = [
-        { icon: Bell, label: t('mypage.notifications'), path: '/notifications' },
-        { icon: Moon, label: t('mypage.darkMode'), toggle: true },
-        { icon: Globe, label: t('mypage.languageSettings'), detail: currentLanguageLabel },
-    ];
-
-    const handleThemeToggle = () => {
-        setTheme(isDarkTheme ? 'light' : 'dark');
-    };
+    const logout = useWebCoreStore(s => s.logout);
 
     const handleLogout = () => {
         logout();
         window.location.href = '/auth/login';
     };
 
-    const handleMenuClick = (item: MenuItem) => {
-        if (item.toggle) {
-            handleThemeToggle();
-        } else if (item.icon === Globe) {
-            setIsLanguageSheetOpen(true);
-        } else if (item.path) {
-            navigate(item.path);
-        }
-    };
-
     return (
         <div className="flex min-h-screen flex-col bg-background py-safe-top">
             <header className="px-5 ">
-                <h1 className="text-2xl font-extrabold text-foreground">{t('mypage.title')}</h1>
+                <h1 className="text-2xl font-extrabold text-foreground">마이페이지</h1>
             </header>
 
             {/* Profile */}
@@ -65,10 +44,12 @@ export const MyPage = () => {
                 {isGuest ? (
                     <button onClick={() => navigate('/mypage/login')} className="flex flex-col gap-1.5 text-left">
                         <div className="flex items-center gap-1">
-                            <span className="text-[22px] font-semibold text-[#3A3C40]">{t('mypage.loginPrompt')}</span>
+                            <span className="text-[22px] font-semibold ">로그인하기</span>
                             <ChevronRight size={18} className="text-[#3A3C40]" />
                         </div>
-                        <p className="text-[14.5px] font-medium text-[#84888F]">{t('mypage.loginDescription')}</p>
+                        <p className="text-[14.5px] font-medium text-[#84888F]">
+                            로그인 하고, 대화내용을 안전하게 관리하세요.
+                        </p>
                     </button>
                 ) : (
                     <div className="flex items-center gap-4">
@@ -78,14 +59,14 @@ export const MyPage = () => {
                             </span>
                         </div>
                         <div className="flex-1">
-                            <h2 className="text-lg font-bold text-foreground">{profile?.name}</h2>
-                            <p className="text-sm text-muted-foreground">{profile?.email}</p>
+                            <h2 className="text-lg font-bold text-foreground">{profile?.$user?.name}</h2>
+                            <p className="text-sm text-muted-foreground">{profile?.$user?.email}</p>
                         </div>
                         <button
                             onClick={() => navigate('/profile/edit')}
                             className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors active:bg-muted"
                         >
-                            {t('mypage.edit')}
+                            편집
                         </button>
                     </div>
                 )}
@@ -98,14 +79,16 @@ export const MyPage = () => {
                 {menuItems.map((item, i) => (
                     <button
                         key={i}
-                        onClick={() => handleMenuClick(item)}
+                        onClick={() => item.path && navigate(item.path)}
                         className="flex w-full items-center gap-3.5 rounded-lg px-1 py-4 transition-colors active:bg-muted"
                     >
                         <item.icon size={20} className="text-muted-foreground" />
                         <span className="flex-1 text-left text-[15px] text-foreground">{item.label}</span>
                         {item.detail && <span className="text-sm text-muted-foreground">{item.detail}</span>}
                         {item.toggle ? (
-                            <Switch checked={isDarkTheme} />
+                            <div className="relative h-6 w-11 rounded-full bg-muted">
+                                <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-background shadow-sm" />
+                            </div>
                         ) : (
                             <ChevronRight size={18} className="text-muted-foreground" />
                         )}
@@ -120,7 +103,7 @@ export const MyPage = () => {
                 <div className="px-5 py-2">
                     <button onClick={handleLogout} className="flex w-full items-center gap-3.5 px-1 py-4">
                         <LogOut size={20} className="text-destructive" />
-                        <span className="text-[15px] text-destructive">{t('mypage.logout')}</span>
+                        <span className="text-[15px] text-destructive">로그아웃</span>
                     </button>
                 </div>
             )}
@@ -129,9 +112,7 @@ export const MyPage = () => {
             <div className="mt-auto px-5 pb-4">
                 <p className="text-center text-xs text-muted-foreground">ENCL v1.0.0</p>
             </div>
-
-            {/* Language Select Sheet */}
-            <LanguageSelectSheet isOpen={isLanguageSheetOpen} onClose={() => setIsLanguageSheetOpen(false)} />
+            <BottomNavigation />
         </div>
     );
 };

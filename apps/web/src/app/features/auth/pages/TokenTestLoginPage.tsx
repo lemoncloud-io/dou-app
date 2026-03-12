@@ -11,8 +11,8 @@ import {
     OAUTH_ENDPOINT,
     WS_ENDPOINT,
     loginWithInviteCode,
-    simpleWebCore,
-    useSimpleWebCore,
+    webCore,
+    useWebCoreStore,
 } from '@chatic/web-core';
 import { LoadingFallback } from '@chatic/shared';
 
@@ -46,7 +46,7 @@ const decodeJWT = (token: string) => {
 
 export const TokenTestLoginPage = (): JSX.Element => {
     const location = useLocation();
-    const { setIsAuthenticated, setProfile } = useSimpleWebCore();
+    const { setIsAuthenticated, setProfile } = useWebCoreStore();
     const { toast } = useToast();
     const [isInviteLogin, setIsInviteLogin] = useState(false);
     const inviteLoginCalled = useRef(false);
@@ -122,7 +122,7 @@ export const TokenTestLoginPage = (): JSX.Element => {
                 });
             }
 
-            simpleWebCore.saveToken(data.token.trim());
+            await webCore.getTokenStorage().saveOAuthToken({ identityToken: data.token.trim() } as never);
             setIsAuthenticated(true);
             toast({ title: '로그인 성공' });
         }

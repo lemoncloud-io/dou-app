@@ -1,9 +1,29 @@
 import { Sha256 } from '@aws-crypto/sha256-js';
 import { HttpRequest } from '@smithy/protocol-http';
 import { SignatureV4 } from '@smithy/signature-v4';
+import hmacSHA256 from 'crypto-js/hmac-sha256.js';
+import encBase64 from 'crypto-js/enc-base64.js';
 
 import type { AxiosRequestConfig } from 'axios';
 import type { AWSCredentials } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
+
+interface SignaturePayload {
+    authId: string;
+    accountId: string;
+    identityId: string;
+    identityToken: string;
+}
+
+const hmac = (message: string, key: string) => encBase64.stringify(hmacSHA256(message, key));
+
+export const calcSignature = (
+    payload: SignaturePayload,
+    current: string = new Date().toISOString(),
+    userAgent: string = navigator.userAgent
+): string => {
+    const data = [current, payload.accountId, payload.identityId, '', userAgent].join('&');
+    return hmac(hmac(hmac(data, payload.authId), payload.accountId), payload.identityId);
+};
 
 const AWS_REGION = 'ap-northeast-2';
 const AWS_SERVICE = 'execute-api';
