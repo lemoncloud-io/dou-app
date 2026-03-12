@@ -1,0 +1,142 @@
+import axios from 'axios';
+
+import type { AxiosRequestConfig, AxiosResponse } from 'axios';
+import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type { AWSCredentials } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
+
+import { calcSignature, signAwsRequest } from '../utils/func';
+
+export const CLOUD_DELEGATION_TOKEN_KEY = 'chatic-cloud-delegation-token';
+export const CLOUD_TOKEN_KEY = 'chatic-cloud-token';
+export const CLOUD_SELECTED_PLACE_KEY = 'chatic-selected-place-id';
+
+interface RequestBuilder {
+    setBody: (body: unknown) => RequestBuilder;
+    setParams: (params: Record<string, unknown>) => RequestBuilder;
+    execute: <T>() => Promise<AxiosResponse<T>>;
+}
+
+interface CloudCore {
+    saveDelegationToken: (token: CloudDelegationTokenView) => void;
+    getDelegationToken: () => CloudDelegationTokenView | null;
+    saveCloudToken: (token: UserTokenView) => void;
+    getCloudToken: () => UserTokenView | null;
+    saveSelectedPlaceId: (placeId: string) => void;
+    getSelectedPlaceId: () => string | null;
+    clearSession: () => void;
+    getBackend: () => string | null;
+    getWss: () => string | null;
+    getIdentityToken: () => string | null;
+    getCredential: () => AWSCredentials | null;
+    buildRequest: (config: AxiosRequestConfig) => RequestBuilder;
+    refreshToken: () => Promise<UserTokenView>;
+}
+
+export const cloudCore: CloudCore = {
+    saveDelegationToken: (token: CloudDelegationTokenView): void => {
+        sessionStorage.setItem(CLOUD_DELEGATION_TOKEN_KEY, JSON.stringify(token));
+    },
+
+    getDelegationToken: (): CloudDelegationTokenView | null => {
+        const raw = sessionStorage.getItem(CLOUD_DELEGATION_TOKEN_KEY);
+        return raw ? (JSON.parse(raw) as CloudDelegationTokenView) : null;
+    },
+
+    saveCloudToken: (token: UserTokenView): void => {
+        sessionStorage.setItem(CLOUD_TOKEN_KEY, JSON.stringify(token));
+    },
+
+    getCloudToken: (): UserTokenView | null => {
+        const raw = sessionStorage.getItem(CLOUD_TOKEN_KEY);
+        return raw ? (JSON.parse(raw) as UserTokenView) : null;
+    },
+
+    saveSelectedPlaceId: (placeId: string): void => {
+        sessionStorage.setItem(CLOUD_SELECTED_PLACE_KEY, placeId);
+    },
+
+    getSelectedPlaceId: (): string | null => {
+        return sessionStorage.getItem(CLOUD_SELECTED_PLACE_KEY);
+    },
+
+    clearSession: (): void => {
+        sessionStorage.removeItem(CLOUD_DELEGATION_TOKEN_KEY);
+        sessionStorage.removeItem(CLOUD_TOKEN_KEY);
+        sessionStorage.removeItem(CLOUD_SELECTED_PLACE_KEY);
+    },
+
+    getBackend: (): string | null => {
+        return cloudCore.getDelegationToken()?.backend ?? null;
+    },
+
+    getWss: (): string | null => {
+        return cloudCore.getDelegationToken()?.wss ?? null;
+    },
+
+    getIdentityToken: (): string | null => {
+        return cloudCore.getCloudToken()?.Token?.identityToken ?? null;
+    },
+
+    getCredential: (): AWSCredentials | null => {
+        const token = cloudCore.getCloudToken();
+        return (token?.Token?.credential as AWSCredentials) ?? null;
+    },
+
+    refreshToken: async (): Promise<UserTokenView> => {
+        const token = cloudCore.getCloudToken();
+        if (!token?.Token) throw new Error('No cloud token found');
+
+        const { authId, accountId, identityId, identityToken } = token.Token;
+        if (!authId || !accountId || !identityId || !identityToken) {
+            throw new Error('Missing token fields for refresh');
+        }
+
+        const current = new Date().toISOString();
+        const signature = calcSignature({ authId, accountId, identityId, identityToken: '' }, current);
+
+        const backend = cloudCore.getBackend();
+        const { data: refreshed } = await cloudCore
+            .buildRequest({
+                method: 'POST',
+                baseURL: `${backend}/oauth/${authId}/refresh`,
+            })
+            .setParams({ token: 1 })
+            .setBody({ current, signature })
+            .execute<UserTokenView>();
+
+        cloudCore.saveCloudToken(refreshed);
+        return refreshed;
+    },
+
+    buildRequest: (config: AxiosRequestConfig): RequestBuilder => {
+        const builder: RequestBuilder = {
+            setBody: (body: unknown) => {
+                config.data = body;
+                return builder;
+            },
+
+            setParams: (params: Record<string, unknown>) => {
+                config.params = params;
+                return builder;
+            },
+
+            execute: async <T>(): Promise<AxiosResponse<T>> => {
+                const identityToken = cloudCore.getIdentityToken();
+                const credential = cloudCore.getCredential();
+
+                config.headers = {
+                    ...config.headers,
+                    ...(identityToken && { 'x-lemon-identity': identityToken }),
+                };
+
+                if (credential) {
+                    config = await signAwsRequest(config, credential);
+                }
+
+                return axios.request<T>(config);
+            },
+        };
+
+        return builder;
+    },
+};

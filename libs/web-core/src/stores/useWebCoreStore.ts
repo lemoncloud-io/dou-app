@@ -3,30 +3,23 @@ import { create } from 'zustand';
 import { getMobileAppInfo, initializeMessageListener, useAppMessageStore } from '@chatic/app-messages';
 
 import { updateProfile } from '../api';
-import { LANGUAGE_KEY, webCore } from '../core';
+import { LANGUAGE_KEY, cloudCore, webCore } from '../core';
+import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
-export interface UserProfile {
-    uid?: string;
-    id?: string;
-    name?: string;
-    email?: string;
+export type UserView = Partial<UserProfile$>;
+
+interface UserViewExtended {
     userRole?: string;
-    $user?: {
-        name?: string;
-    };
-    nick?: string;
-    gender?: string;
-    bio?: string;
+    userStatus?: string;
 }
-
-export type UserView = Partial<UserProfile>;
 
 export interface WebCoreState {
     isInitialized: boolean;
     isAuthenticated: boolean;
     isOnMobileApp: boolean;
+    isGuest: boolean;
     error: Error | null;
-    profile: UserProfile | null;
+    profile: UserProfile$ | null;
     userName: string;
 }
 
@@ -34,7 +27,7 @@ export interface WebCoreStore extends WebCoreState {
     initialize: () => void;
     logout: () => Promise<void>;
     setIsAuthenticated: (isAuth: boolean) => void;
-    setProfile: (profile: UserProfile) => void;
+    setProfile: (profile: UserProfile$) => void;
     updateProfile: (user: UserView) => Promise<void>;
     registerLogoutCallback: (callback: () => void) => () => void;
 }
@@ -52,6 +45,7 @@ const initialState: Pick<WebCoreStore, keyof WebCoreState> = {
     isInitialized: false,
     isAuthenticated: false,
     isOnMobileApp: false,
+    isGuest: false,
     error: null,
     profile: null,
     userName: '',
@@ -108,7 +102,8 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         logoutCallbacks.clear();
 
         await webCore.logout();
-        set({ isAuthenticated: false, profile: null, userName: '' });
+        cloudCore.clearSession();
+        set({ isAuthenticated: false, profile: null, userName: '', isGuest: false });
         window.location.href = '/';
     },
 
@@ -122,9 +117,10 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      * Updates user profile information
      * @param profile - User profile data
      */
-    setProfile: (profile: UserProfile) =>
+    setProfile: (profile: UserProfile$) =>
         set({
             profile,
+            isGuest: (profile.$user as UserViewExtended)?.userRole === 'guest',
             userName: profile['$user']?.name || 'Unknown',
         }),
 
@@ -132,7 +128,7 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      * Updates username and related profile information
      * @param user - Updated user view data
      */
-    updateProfile: async (user: Partial<UserProfile>) => {
+    updateProfile: async (user: Partial<UserProfile$>) => {
         await updateProfile(user);
         // TODO: set updated profile
         // set(state => {
