@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import type { LucideIcon } from 'lucide-react';
 import { useWebCoreStore } from '@chatic/web-core';
+import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 
 interface MenuItem {
     icon: LucideIcon;
@@ -22,9 +23,10 @@ const menuItems: MenuItem[] = [
 
 export const MyPage = () => {
     const navigate = useNavigate();
+    const isGuest = useWebCoreStore(s => s.isGuest);
     const profile = useWebCoreStore(s => s.profile);
+
     const logout = useWebCoreStore(s => s.logout);
-    const isGuest = profile?.userRole === 'guest';
 
     const handleLogout = () => {
         logout();
@@ -42,7 +44,7 @@ export const MyPage = () => {
                 {isGuest ? (
                     <button onClick={() => navigate('/mypage/login')} className="flex flex-col gap-1.5 text-left">
                         <div className="flex items-center gap-1">
-                            <span className="text-[22px] font-semibold text-[#3A3C40]">로그인하기</span>
+                            <span className="text-[22px] font-semibold ">로그인하기</span>
                             <ChevronRight size={18} className="text-[#3A3C40]" />
                         </div>
                         <p className="text-[14.5px] font-medium text-[#84888F]">
@@ -57,8 +59,8 @@ export const MyPage = () => {
                             </span>
                         </div>
                         <div className="flex-1">
-                            <h2 className="text-lg font-bold text-foreground">{profile?.name}</h2>
-                            <p className="text-sm text-muted-foreground">{profile?.email}</p>
+                            <h2 className="text-lg font-bold text-foreground">{profile?.$user?.name}</h2>
+                            <p className="text-sm text-muted-foreground">{profile?.$user?.email}</p>
                         </div>
                         <button
                             onClick={() => navigate('/profile/edit')}
@@ -110,6 +112,7 @@ export const MyPage = () => {
             <div className="mt-auto px-5 pb-4">
                 <p className="text-center text-xs text-muted-foreground">ENCL v1.0.0</p>
             </div>
+            <BottomNavigation />
         </div>
     );
 };
