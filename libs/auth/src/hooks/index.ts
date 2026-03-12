@@ -1,15 +1,19 @@
+import { useMutation } from '@tanstack/react-query';
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
-import { useSimpleWebCore } from '@chatic/web-core';
+import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 
-import { login, registerDevice, registerUser, registerUserV2 } from '../apis';
+import { issueCloudToken, login, registerDevice, registerUser, registerUserV2 } from '../apis';
 
 import type {
+    CloudDelegationTokenView,
     LoginUserBody,
     RegisterUserV2Body,
     UserBody,
     UserTokenView,
     UserView,
 } from '@lemoncloud/chatic-backend-api';
+
+import { issueCloudDelegationToken } from '@chatic/users';
 
 export const authKeys = createQueryKeys('auth');
 
@@ -33,7 +37,7 @@ export const useRegisterUserV2 = () =>
     );
 
 export const useLogin = () => {
-    const { setProfile, setIsAuthenticated } = useSimpleWebCore();
+    const { setProfile, setIsAuthenticated } = useWebCoreStore();
 
     return useCustomMutation<UserTokenView, string, LoginUserBody>(login, {
         onSuccess: data => {
@@ -53,4 +57,26 @@ export const useIssueToken = () => {
         ...mutation,
         issuingLoginId: mutation.isPending ? mutation.variables?.uid : null,
     };
+};
+
+export type IssueCloudTokenResult = {
+    cloudDelegationToken: CloudDelegationTokenView;
+    userToken: UserTokenView;
+};
+
+export const useIssueCloudToken = () => {
+    return useCustomMutation<IssueCloudTokenResult, string, string>(async (placeId: string) => {
+        const cloudDelegationToken = await issueCloudDelegationToken(placeId);
+        const userToken = await issueCloudToken(cloudDelegationToken.backend as string, {
+            delegationToken: cloudDelegationToken.delegationToken,
+        });
+
+        return { cloudDelegationToken, userToken };
+    });
+};
+
+export const useRefreshCloudToken = () => {
+    return useMutation({
+        mutationFn: () => cloudCore.refreshToken(),
+    });
 };
