@@ -1,7 +1,7 @@
 import { DOU_ENDPOINT, ENV, OAUTH_ENDPOINT, webCore } from '../core';
 import { MAX_RETRIES, validateTokenResponse, withRetry } from '../utils';
 
-import type { UserProfile } from '../stores';
+import type { UserProfile$ as UserProfile } from '@lemoncloud/chatic-backend-api';
 import type { LemonRefreshTokenResult, VerifyNativeTokenBody } from '../types';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
 

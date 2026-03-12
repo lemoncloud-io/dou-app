@@ -1,11 +1,16 @@
-import { ArrowUp, ChevronLeft, MoreHorizontal } from 'lucide-react';
+import { ArrowUp, ChevronLeft, MoreHorizontal, Settings } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { useSimpleWebCore } from '@chatic/web-core';
+import { useDynamicProfile } from '@chatic/web-core';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@chatic/ui-kit/components/ui/dropdown-menu';
 
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useSendMessage } from '../hooks/useSendMessage';
 import { useMyChannel } from '../hooks/useMyChannel';
 import { useReadMessage } from '../hooks/useReadMessage';
@@ -19,19 +24,18 @@ export const ChatRoomPage = () => {
     const [isComposing, setIsComposing] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { emit } = useWebSocketV2();
-    const { toast } = useToast();
     const { sendMessage, isPending } = useSendMessage();
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
 
-    const { profile } = useSimpleWebCore();
+    const dynamicProfile = useDynamicProfile();
     const { setChannels } = useMyChannels();
     const {
         messages,
         clearMessages: clearChatMessages,
         addMessage,
         applyReadEvent,
-    } = useChatMessages(profile?.id ?? null, channelId ?? null);
+    } = useChatMessages(dynamicProfile?.uid ?? null, channelId ?? null);
 
     const lastMessage = useWebSocketV2Store((s: { lastMessage: unknown }) => s.lastMessage);
 
@@ -109,9 +113,9 @@ export const ChatRoomPage = () => {
 
             addMessage({ id, content: content.trim(), timestamp, ownerId, ownerName, chatNo }, channelId);
 
-            if (chatNo && profile?.id) {
+            if (chatNo && dynamicProfile?.uid) {
                 emit({ type: 'chat', action: 'read', payload: { channelId, chatNo } });
-                applyReadEvent(chatNo, profile.id);
+                applyReadEvent(chatNo, dynamicProfile.uid);
             }
             setChannels(prev =>
                 prev.map(ch =>
@@ -205,9 +209,9 @@ export const ChatRoomPage = () => {
     }
 
     return (
-        <div className="flex h-screen flex-col bg-background">
+        <div className="flex h-screen flex-col bg-background pb-safe-bottom">
             {/* Header */}
-            <header className="z-10 flex items-center justify-between border-b border-border bg-background px-4 pb-safe-top">
+            <header className="z-10 flex items-center justify-between border-b border-border  px-4 py-4">
                 <button onClick={() => navigate(-1)} className="p-1">
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>
@@ -217,9 +221,22 @@ export const ChatRoomPage = () => {
                         <span className="ml-1.5 text-sm font-normal text-muted-foreground">{channel.memberNo}</span>
                     )}
                 </h1>
-                <button className="p-1" onClick={() => toast({ description: '준비 중입니다.' })}>
-                    <MoreHorizontal size={22} className="text-foreground" />
-                </button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className="p-1">
+                            <MoreHorizontal size={22} className="text-foreground" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                            onClick={() => navigate(`/chats/${channelId}/settings`)}
+                            className="cursor-pointer gap-2"
+                        >
+                            <Settings size={16} />
+                            <span>설정</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </header>
 
             {/* Messages */}
@@ -237,7 +254,7 @@ export const ChatRoomPage = () => {
                         {dateMessages
                             .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
                             .map(message => {
-                                const isMine = message.ownerId === profile?.id;
+                                const isMine = message.ownerId === dynamicProfile?.uid;
 
                                 if (message.isSystem) {
                                     const systemMatch = message.content.match(/^(.+?)(님이.+)$/);

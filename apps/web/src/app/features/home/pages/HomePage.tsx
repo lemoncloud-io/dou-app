@@ -9,9 +9,10 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useOnboardingStore, useSimpleWebCore } from '@chatic/web-core';
+import { useDynamicProfile, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
+import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { SettingsDialog } from '../../../components/SettingsDialog';
 import { OnboardingModal } from '../../onboarding';
 import { ChannelList } from '../components/ChannelList';
@@ -20,7 +21,8 @@ import { PlaceList } from '../components/PlaceList';
 
 export const HomePage = () => {
     const navigate = useNavigate();
-    const { profile, logout, isGuest } = useSimpleWebCore();
+    const profile = useDynamicProfile();
+    const { logout, isGuest } = useWebCoreStore();
     const { canCreate } = useCanCreateChannel();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -39,7 +41,7 @@ export const HomePage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pb-20">
+        <div className="flex min-h-screen flex-col bg-background pb-[98px] pt-4">
             {/* Header */}
             <header className="flex items-center justify-between px-5 pb-3 pt-safe-top">
                 {isGuest ? (
@@ -84,7 +86,7 @@ export const HomePage = () => {
 
             {/* Place List */}
             <section className="pb-4 pt-2">
-                <p className="mb-3 px-4 text-[18px] font-semibold text-black">플레이스</p>
+                <p className="mb-3 px-4 text-[18px] font-semibold">플레이스</p>
                 <PlaceList selectedId={selectedPlaceId} onSelect={setSelectedPlaceId} />
             </section>
 
@@ -110,6 +112,7 @@ export const HomePage = () => {
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
             <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
             <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
+            <BottomNavigation />
         </div>
     );
 };

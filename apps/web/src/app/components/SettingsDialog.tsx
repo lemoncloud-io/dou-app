@@ -1,10 +1,10 @@
 import { X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
-import { simpleWebCore, useOnboardingStore } from '@chatic/web-core';
+import { webCore, useOnboardingStore } from '@chatic/web-core';
 import { useWebSocketV2 } from '@chatic/socket';
 
 interface SettingsDialogProps {
@@ -14,28 +14,33 @@ interface SettingsDialogProps {
 
 export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
     const [tokenInput, setTokenInput] = useState('');
+    const [currentToken, setCurrentToken] = useState<string | null>(null);
     const { connectionStatus, send, lastMessage } = useWebSocketV2();
     const { resetOnboarding } = useOnboardingStore();
 
-    const currentToken = simpleWebCore.getToken();
+    useEffect(() => {
+        webCore
+            .getTokenStorage()
+            .getCachedOAuthToken()
+            .then(token => {
+                setCurrentToken(token?.identityToken ?? null);
+            });
+    }, []);
 
     const handleUpdateToken = () => {
         if (!tokenInput.trim()) return;
-        const token = simpleWebCore.getToken();
-        if (token) {
-            simpleWebCore.saveToken(token);
+        void webCore.getTokenStorage().saveOAuthToken({ identityToken: tokenInput.trim() } as never);
 
-            send({
-                type: 'auth',
-                action: 'update',
-                payload: {
-                    token,
-                    dryRun: false,
-                },
-            });
+        send({
+            type: 'auth',
+            action: 'update',
+            payload: {
+                token: tokenInput.trim(),
+                dryRun: false,
+            },
+        });
 
-            setTokenInput('');
-        }
+        setTokenInput('');
     };
 
     const getStatusColor = () => {

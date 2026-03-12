@@ -26,9 +26,9 @@ export const privateRoutes = [
         path: '/',
         element: <SafeAreaLayout />,
         children: [
+            { path: 'mypage/*', element: <MyPageRoutes /> },
             { path: 'chats/*', element: <ChatRoutes /> },
             { path: 'pointer-test/*', element: <PointerTestRoutes /> },
-            { path: 'profile/*', element: <MyPageRoutes /> },
             { path: 'search/*', element: <SearchRoutes /> },
             { path: 'workspace/*', element: <WorkspaceRoutes /> },
             { path: 'create-workspace/*', element: <CreateWorkspaceRoutes /> },
