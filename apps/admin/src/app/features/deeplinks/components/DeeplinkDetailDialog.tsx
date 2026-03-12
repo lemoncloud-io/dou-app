@@ -22,16 +22,16 @@ import type { DeeplinkEnvironment } from '../types';
 import type { JSX } from 'react';
 
 interface DeeplinkDetailDialogProps {
-    userId: string | null;
+    shortCode: string | null;
     onOpenChange: (open: boolean) => void;
     env: DeeplinkEnvironment;
 }
 
-export const DeeplinkDetailDialog = ({ userId, onOpenChange, env }: DeeplinkDetailDialogProps): JSX.Element => {
-    const { data: deeplink, isLoading, error } = useDeeplinkDetail(env, userId);
+export const DeeplinkDetailDialog = ({ shortCode, onOpenChange, env }: DeeplinkDetailDialogProps): JSX.Element => {
+    const { data: deeplink, isLoading, error } = useDeeplinkDetail(env, shortCode);
 
     return (
-        <Dialog open={!!userId} onOpenChange={onOpenChange}>
+        <Dialog open={!!shortCode} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                     <DialogTitle>Deeplink Details ({env})</DialogTitle>

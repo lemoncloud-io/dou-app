@@ -12,7 +12,44 @@
                     "package_name": "io.chatic.dou.dev"
                 }
             },
-            "oauth_client": [],
+            "oauth_client": [
+                {
+                    "client_id": "429595905351-dpovb9jigl9pqi078a93pa4c4fssjm89.apps.googleusercontent.com",
+                    "client_type": 1,
+                    "android_info": {
+                        "package_name": "io.chatic.dou.dev",
+                        "certificate_hash": "14fd11e70aaba09140db8ead88800bc2e89083eb"
+                    }
+                },
+                {
+                    "client_id": "429595905351-dscvnpl0j9ochii54afrftc3gjb8nab7.apps.googleusercontent.com",
+                    "client_type": 1,
+                    "android_info": {
+                        "package_name": "io.chatic.dou.dev",
+                        "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+                    }
+                },
+                {
+                    "client_id": "429595905351-k1vknt84i2ts27oatapk1h4eodgtsdoa.apps.googleusercontent.com",
+                    "client_type": 1,
+                    "android_info": {
+                        "package_name": "io.chatic.dou.dev",
+                        "certificate_hash": "7bfc7ea25a04807f5fd91ccd25177034271c0ab3"
+                    }
+                },
+                {
+                    "client_id": "429595905351-pekop24u83tcvq0do8koemf6qvem208b.apps.googleusercontent.com",
+                    "client_type": 1,
+                    "android_info": {
+                        "package_name": "io.chatic.dou.dev",
+                        "certificate_hash": "af5c874b0bc3f4033d6d7f789e50495a3c94700f"
+                    }
+                },
+                {
+                    "client_id": "429595905351-augksgnj68drbjpntokdmkkbrrgskb21.apps.googleusercontent.com",
+                    "client_type": 3
+                }
+            ],
             "api_key": [
                 {
                     "current_key": "AIzaSyDlGgmZlzIVbq7zRYcTdxkyZnAsTmNNuOY"
@@ -20,7 +57,19 @@
             ],
             "services": {
                 "appinvite_service": {
-                    "other_platform_oauth_client": []
+                    "other_platform_oauth_client": [
+                        {
+                            "client_id": "429595905351-augksgnj68drbjpntokdmkkbrrgskb21.apps.googleusercontent.com",
+                            "client_type": 3
+                        },
+                        {
+                            "client_id": "429595905351-g1c6gl1nnq3a45n3v31cp2o5365rr24n.apps.googleusercontent.com",
+                            "client_type": 2,
+                            "ios_info": {
+                                "bundle_id": "io.chatic.dou.dev"
+                            }
+                        }
+                    ]
                 }
             }
         }

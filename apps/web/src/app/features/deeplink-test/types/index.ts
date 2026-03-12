@@ -12,6 +12,7 @@ export interface UserDeeplinkData {
     shortCode: string;
     invite: {
         id: string;
+        code: string; // inviteCode used as shortCode
         userId: string;
         user$?: {
             id: string;

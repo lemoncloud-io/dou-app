@@ -13,6 +13,7 @@ export type DebugStackParamList = {
     DeeplinkTest: undefined;
     DeviceTest: undefined;
     BridgeTest: undefined;
+    OAuthTest: undefined;
 };
 
 export type MainStackParamList = {

@@ -14,7 +14,12 @@ import {
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
-const TEST_ID = '1000029';
+const TEST_INVITE_CODE = 'test-invite-001';
+const TEST_USER_ID = '1000029';
+const TEST_INVITE_ID = '910001';
+
+/** Extract error message from unknown error */
+const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error');
 
 export const DeeplinkTestScreen = () => {
     const [result, setResult] = useState<string>('');
@@ -48,20 +53,21 @@ export const DeeplinkTestScreen = () => {
 
         try {
             const inviteData: MyInviteView = {
-                id: TEST_ID,
-                userId: TEST_ID,
+                id: TEST_INVITE_ID,
+                code: TEST_INVITE_CODE,
+                userId: TEST_USER_ID,
                 user$: {
-                    id: TEST_ID,
+                    id: TEST_USER_ID,
                     name: 'Test User',
                 },
             };
 
-            const link = await createInviteLink(TEST_ID, inviteData, 'mobile-test');
+            const link = await createInviteLink(TEST_INVITE_CODE, inviteData, 'mobile-test');
 
             setResult(`Created!\n\nURL: ${link.deepLinkUrl}\nID: ${link.id}`);
             Alert.alert('Success', `Deeplink created: ${link.deepLinkUrl}`);
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Unknown error';
+            const message = getErrorMessage(error);
             setResult(`Error: ${message}`);
             Alert.alert('Error', message);
         } finally {
@@ -74,7 +80,7 @@ export const DeeplinkTestScreen = () => {
         setResult('Fetching...');
 
         try {
-            const link = await getInviteLink(TEST_ID);
+            const link = await getInviteLink(TEST_INVITE_CODE);
 
             if (link) {
                 setResult(`Found!\n\n${JSON.stringify(link, null, 2)}`);
@@ -82,8 +88,7 @@ export const DeeplinkTestScreen = () => {
                 setResult('Not found');
             }
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Unknown error';
-            setResult(`Error: ${message}`);
+            setResult(`Error: ${getErrorMessage(error)}`);
         } finally {
             setIsLoading(false);
         }
@@ -94,11 +99,10 @@ export const DeeplinkTestScreen = () => {
         setResult('Checking...');
 
         try {
-            const exists = await checkInviteLinkExists(TEST_ID);
+            const exists = await checkInviteLinkExists(TEST_INVITE_CODE);
             setResult(`Exists: ${exists}`);
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Unknown error';
-            setResult(`Error: ${message}`);
+            setResult(`Error: ${getErrorMessage(error)}`);
         } finally {
             setIsLoading(false);
         }
@@ -109,11 +113,11 @@ export const DeeplinkTestScreen = () => {
         setResult('Deleting...');
 
         try {
-            await deleteInviteLink(TEST_ID);
+            await deleteInviteLink(TEST_INVITE_CODE);
             setResult('Deleted!');
             Alert.alert('Success', 'Deeplink deleted');
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Unknown error';
+            const message = getErrorMessage(error);
             setResult(`Error: ${message}`);
             Alert.alert('Error', message);
         } finally {
@@ -138,9 +142,10 @@ export const DeeplinkTestScreen = () => {
 
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Test ID: {TEST_ID}</Text>
+                    <Text style={styles.sectionTitle}>Invite Code: {TEST_INVITE_CODE}</Text>
+                    <Text style={styles.infoText}>User ID: {TEST_USER_ID}</Text>
                     <Text style={styles.urlText}>
-                        URL: https://{DEEPLINK_DOMAIN}/s/{TEST_ID}
+                        URL: https://{DEEPLINK_DOMAIN}/s/{TEST_INVITE_CODE}
                     </Text>
                     <Text style={styles.authStatus}>{authStatus}</Text>
                 </View>
@@ -179,6 +184,11 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 8,
+    },
+    infoText: {
+        color: '#AAAAAA',
+        fontSize: 14,
+        marginBottom: 4,
     },
     urlText: {
         color: '#888',

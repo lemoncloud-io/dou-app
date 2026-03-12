@@ -2,7 +2,7 @@ import type { ProductSubscription, Purchase } from 'react-native-iap';
 
 export type PageLanguage = 'ko' | 'en' | 'cn' | 'jp' | 'vn' | 'id' | 'th';
 export type Env = 'local' | 'stage' | 'prod';
-export type Platform = 'ios' | 'aos' | 'windows' | 'macos' | 'web';
+export type Platform = 'ios' | 'android' | 'windows' | 'macos' | 'web';
 
 /**
  * 앱 로그 레벨
@@ -231,3 +231,41 @@ export interface ShareInfo {
      */
     activityType?: string | null;
 }
+
+/**
+ * 로그인 제공자
+ */
+export type OAuthLoginProvider = 'google' | 'apple';
+
+interface BaseTokenResult {
+    platform: Platform;
+    provider: OAuthLoginProvider;
+}
+
+export interface GoogleOAuthTokenResult extends BaseTokenResult {
+    provider: 'google';
+    idToken: string;
+    accessToken?: string;
+    accessTokenExpiredAt?: string;
+    serverAuthCode?: string;
+    refreshToken?: string;
+}
+
+export interface AppleOAuthTokenResult extends BaseTokenResult {
+    provider: 'apple';
+    identityToken: string;
+    nonce?: string;
+    user: string;
+    email?: string;
+    fullName?: {
+        givenName?: string | null;
+        familyName?: string | null;
+        namePrefix?: string | null;
+        nameSuffix?: string | null;
+        nickname?: string | null;
+        middleName?: string | null;
+    };
+    authorizationCode?: string;
+}
+
+export type OAuthTokenResult = GoogleOAuthTokenResult | AppleOAuthTokenResult;
