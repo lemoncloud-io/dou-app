@@ -8,20 +8,20 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
-import { fetchUserDeeplink } from '../services';
+import { fetchDeeplinkByShortCode } from '../services';
 
 import type { JSX } from 'react';
 import type { UserDeeplinkData } from '../types';
 
 export const UserPage = (): JSX.Element => {
-    const { userId } = useParams<{ userId: string }>();
+    const { shortCode } = useParams<{ shortCode: string }>();
     const [data, setData] = useState<UserDeeplinkData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!userId) {
-            setError('userId is required');
+        if (!shortCode) {
+            setError('shortCode is required');
             setLoading(false);
             return;
         }
@@ -31,10 +31,10 @@ export const UserPage = (): JSX.Element => {
                 setLoading(true);
                 setError(null);
 
-                const result = await fetchUserDeeplink(userId);
+                const result = await fetchDeeplinkByShortCode(shortCode);
 
                 if (!result) {
-                    setError(`User not found: ${userId}`);
+                    setError(`Deeplink not found: ${shortCode}`);
                 } else {
                     setData(result);
                 }
@@ -47,7 +47,7 @@ export const UserPage = (): JSX.Element => {
         };
 
         void loadData();
-    }, [userId]);
+    }, [shortCode]);
 
     // Loading state
     if (loading) {
@@ -80,7 +80,7 @@ export const UserPage = (): JSX.Element => {
                 {/* Header */}
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold">Deeplink Test - User</h1>
-                    <p className="text-sm text-gray-500 mt-1">User ID: {userId}</p>
+                    <p className="text-sm text-gray-500 mt-1">Short Code: {shortCode}</p>
                 </div>
 
                 {/* User Info Card */}
