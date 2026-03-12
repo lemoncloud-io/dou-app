@@ -3,7 +3,7 @@
  *
  * Firestore CRUD operations for admin deeplinks.
  * Supports both DEV and PROD environments.
- * Each user has one deeplink with userId as document ID.
+ * Each invite has one deeplink with inviteCode as document ID.
  */
 
 import {
@@ -85,21 +85,21 @@ export const fetchDeeplinks = async (
 };
 
 /**
- * Fetch a single deeplink by user ID for specific environment
+ * Fetch a single deeplink by short code (inviteCode) for specific environment
  */
-export const fetchDeeplinkByUserId = async (
+export const fetchDeeplinkByShortCode = async (
     env: DeeplinkEnvironment,
-    userId: string
+    shortCode: string
 ): Promise<AdminDeeplink | null> => {
     const col = firebaseService.getDeeplinksCollection(env);
-    const docRef = doc(col, userId);
+    const docRef = doc(col, shortCode);
     const snapshot = await getDoc(docRef);
     return convertDoc(snapshot);
 };
 
 /**
  * Create a deeplink from MyInviteView (from backend invite API)
- * Uses invite.userId as document ID (one link per user)
+ * Uses invite.code (inviteCode) as document ID (one link per invite)
  */
 export const createDeeplinkFromInvite = async (
     env: DeeplinkEnvironment,
@@ -110,28 +110,28 @@ export const createDeeplinkFromInvite = async (
         throw new Error('Not authenticated');
     }
 
-    const userId = invite.userId;
-    if (!userId) {
-        throw new Error('Invite must have userId');
+    const inviteCode = invite.code;
+    if (!inviteCode) {
+        throw new Error('Invite must have inviteCode');
     }
 
     const col = firebaseService.getDeeplinksCollection(env);
-    const docId = userId;
+    const docId = inviteCode;
     const docRef = doc(col, docId);
 
     // Check if already exists
     const existing = await getDoc(docRef);
     if (existing.exists()) {
-        throw new Error('Deeplink already exists for this user');
+        throw new Error('Deeplink already exists for this invite code');
     }
 
     const urlBase = firebaseService.getDeeplinkUrlBase(env);
-    const deepLinkUrl = `${urlBase}/${userId}`;
+    const deepLinkUrl = `${urlBase}/${inviteCode}`;
     const now = Timestamp.now();
 
     const data: AdminDeeplinkDocument = {
         deepLinkUrl,
-        shortCode: userId,
+        shortCode: inviteCode,
         invite,
         createdAt: now,
         createdBy: currentUser.isAnonymous ? 'anonymous-admin' : currentUser.email || currentUser.uid,
@@ -139,17 +139,17 @@ export const createDeeplinkFromInvite = async (
 
     await setDoc(docRef, data);
 
-    const displayName = invite.user$?.name ?? invite.name ?? userId;
+    const displayName = invite.user$?.name ?? invite.name ?? invite.userId ?? inviteCode;
 
     return {
         id: docId,
         deepLinkUrl,
-        shortCode: userId,
+        shortCode: inviteCode,
         invite,
         createdAt: now.toMillis(),
         createdBy: data.createdBy,
         displayName,
-        displayId: userId,
+        displayId: invite.userId ?? inviteCode,
     };
 };
 

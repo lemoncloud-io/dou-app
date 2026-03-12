@@ -13,7 +13,7 @@ import {
     fetchDeeplinks,
     createDeeplinkFromInvite,
     deleteDeeplink,
-    fetchDeeplinkByUserId,
+    fetchDeeplinkByShortCode,
     inviteUser,
 } from '../services';
 
@@ -43,13 +43,13 @@ export const useDeeplinks = (env: DeeplinkEnvironment, params: { limit?: number 
 };
 
 /**
- * Hook to fetch a single deeplink by user ID for specific environment
+ * Hook to fetch a single deeplink by short code (inviteCode) for specific environment
  */
-export const useDeeplinkDetail = (env: DeeplinkEnvironment, userId: string | null) => {
+export const useDeeplinkDetail = (env: DeeplinkEnvironment, shortCode: string | null) => {
     return useQuery({
-        queryKey: deeplinksKeys.detail({ env, userId: userId ?? '' }),
-        queryFn: () => fetchDeeplinkByUserId(env, userId!),
-        enabled: !!userId,
+        queryKey: deeplinksKeys.detail({ env, shortCode: shortCode ?? '' }),
+        queryFn: () => fetchDeeplinkByShortCode(env, shortCode!),
+        enabled: !!shortCode,
     });
 };
 
