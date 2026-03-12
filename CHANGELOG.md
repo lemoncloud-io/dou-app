@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-03-12] - root@0.14.0, @chatic/web@0.11.0
+
+### Features
+
+- add my page feature with language settings
+- add internationalization support
+
 ## [2026-03-12] - root@0.13.1, @chatic/web@0.10.1, @chatic/admin@0.3.1
 
 ### Refactor
