@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-03-12] - No version updates
+
+### Features
+
+- (place) show global loader while selecting place
+- (channels) set isLoading true when requesting chat/mine
+
+### Bug Fixes
+
+- (auth) fix cloud token refresh not triggering on reconnect
+- (socket) reset isVerified on disconnect
+- (place) skip auto select if place session already exists
+
 ## [2026-03-12] - root@0.15.0, @chatic/web@0.12.0
 
 ### Features
