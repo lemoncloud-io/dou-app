@@ -175,5 +175,26 @@
             "hoursAgo": "{{count}}h ago",
             "daysAgo": "{{count}}d ago"
         }
+    },
+    "mypage": {
+        "title": "My Page",
+        "loginPrompt": "Sign in",
+        "loginDescription": "Sign in to safely manage your conversations.",
+        "edit": "Edit",
+        "notifications": "Notifications",
+        "darkMode": "Dark Mode",
+        "languageSettings": "Language",
+        "logout": "Logout",
+        "version": "ENCL v{{version}}",
+        "language": {
+            "ko": "한국어",
+            "en": "English",
+            "select": "Select Language"
+        }
+    },
+    "notifications": {
+        "title": "Notifications",
+        "markAllRead": "Mark all read",
+        "empty": "No notifications"
     }
 }

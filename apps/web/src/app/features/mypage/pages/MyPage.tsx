@@ -1,8 +1,16 @@
-import { Bell, ChevronRight, Globe, LogOut, MessageSquare, Moon, Settings } from 'lucide-react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { Bell, ChevronRight, Globe, LogOut, Moon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-import type { LucideIcon } from 'lucide-react';
+import { useTheme } from '@chatic/theme';
+import { Switch } from '@chatic/ui-kit/components/ui/switch';
 import { useSimpleWebCore } from '@chatic/web-core';
+
+import { LanguageSelectSheet } from '../components';
+
+import type { LucideIcon } from 'lucide-react';
 
 interface MenuItem {
     icon: LucideIcon;
@@ -12,21 +20,38 @@ interface MenuItem {
     detail?: string;
 }
 
-const menuItems: MenuItem[] = [
-    { icon: Bell, label: '알림', path: '/notifications' },
-    { icon: MessageSquare, label: '나와의 채팅 관리' },
-    { icon: Settings, label: '워크스페이스 설정', path: '/workspace-list' },
-    { icon: Moon, label: '다크 모드', toggle: true },
-    { icon: Globe, label: '언어 설정', detail: '한국어' },
-];
-
 export const MyPage = () => {
     const navigate = useNavigate();
+    const { i18n } = useTranslation();
     const { isGuest, profile, logout } = useSimpleWebCore();
+    const { setTheme, isDarkTheme } = useTheme();
+    const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
+
+    const currentLanguageLabel = i18n.language === 'ko' ? '한국어' : 'English';
+
+    const menuItems: MenuItem[] = [
+        { icon: Bell, label: '알림', path: '/notifications' },
+        { icon: Moon, label: '다크 모드', toggle: true },
+        { icon: Globe, label: '언어 설정', detail: currentLanguageLabel },
+    ];
+
+    const handleThemeToggle = () => {
+        setTheme(isDarkTheme ? 'light' : 'dark');
+    };
 
     const handleLogout = () => {
         logout();
         window.location.href = '/auth/login';
+    };
+
+    const handleMenuClick = (item: MenuItem) => {
+        if (item.toggle) {
+            handleThemeToggle();
+        } else if (item.icon === Globe) {
+            setIsLanguageSheetOpen(true);
+        } else if (item.path) {
+            navigate(item.path);
+        }
     };
 
     return (
@@ -75,16 +100,14 @@ export const MyPage = () => {
                 {menuItems.map((item, i) => (
                     <button
                         key={i}
-                        onClick={() => item.path && navigate(item.path)}
+                        onClick={() => handleMenuClick(item)}
                         className="flex w-full items-center gap-3.5 rounded-lg px-1 py-4 transition-colors active:bg-muted"
                     >
                         <item.icon size={20} className="text-muted-foreground" />
                         <span className="flex-1 text-left text-[15px] text-foreground">{item.label}</span>
                         {item.detail && <span className="text-sm text-muted-foreground">{item.detail}</span>}
                         {item.toggle ? (
-                            <div className="relative h-6 w-11 rounded-full bg-muted">
-                                <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-background shadow-sm" />
-                            </div>
+                            <Switch checked={isDarkTheme} />
                         ) : (
                             <ChevronRight size={18} className="text-muted-foreground" />
                         )}
@@ -108,6 +131,9 @@ export const MyPage = () => {
             <div className="mt-auto px-5 pb-4">
                 <p className="text-center text-xs text-muted-foreground">ENCL v1.0.0</p>
             </div>
+
+            {/* Language Select Sheet */}
+            <LanguageSelectSheet isOpen={isLanguageSheetOpen} onClose={() => setIsLanguageSheetOpen(false)} />
         </div>
     );
 };
