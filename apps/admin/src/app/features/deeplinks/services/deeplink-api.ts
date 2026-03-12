@@ -110,13 +110,13 @@ export const createDeeplinkFromInvite = async (
         throw new Error('Not authenticated');
     }
 
-    const userId = invite.userId;
-    if (!userId) {
-        throw new Error('Invite must have userId');
+    const inviteCode = invite.code;
+    if (!inviteCode) {
+        throw new Error('Invite must have inviteCode');
     }
 
     const col = firebaseService.getDeeplinksCollection(env);
-    const docId = userId;
+    const docId = inviteCode;
     const docRef = doc(col, docId);
 
     // Check if already exists
@@ -126,12 +126,12 @@ export const createDeeplinkFromInvite = async (
     }
 
     const urlBase = firebaseService.getDeeplinkUrlBase(env);
-    const deepLinkUrl = `${urlBase}/${userId}`;
+    const deepLinkUrl = `${urlBase}/${inviteCode}`;
     const now = Timestamp.now();
 
     const data: AdminDeeplinkDocument = {
         deepLinkUrl,
-        shortCode: userId,
+        shortCode: inviteCode,
         invite,
         createdAt: now,
         createdBy: currentUser.isAnonymous ? 'anonymous-admin' : currentUser.email || currentUser.uid,
@@ -139,17 +139,17 @@ export const createDeeplinkFromInvite = async (
 
     await setDoc(docRef, data);
 
-    const displayName = invite.user$?.name ?? invite.name ?? userId;
+    const displayName = invite.user$?.name ?? invite.name ?? invite.userId ?? inviteCode;
 
     return {
         id: docId,
         deepLinkUrl,
-        shortCode: userId,
+        shortCode: inviteCode,
         invite,
         createdAt: now.toMillis(),
         createdBy: data.createdBy,
         displayName,
-        displayId: userId,
+        displayId: invite.userId ?? inviteCode,
     };
 };
 
