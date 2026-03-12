@@ -185,7 +185,7 @@
         "darkMode": "Dark Mode",
         "languageSettings": "Language",
         "logout": "Logout",
-        "version": "ENCL v{{version}}",
+        "version": "DoU v{{version}}",
         "language": {
             "ko": "한국어",
             "en": "English",

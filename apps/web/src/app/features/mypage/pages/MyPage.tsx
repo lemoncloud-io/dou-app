@@ -110,7 +110,7 @@ export const MyPage = () => {
 
             {/* App version */}
             <div className="mt-auto px-5 pb-4">
-                <p className="text-center text-xs text-muted-foreground">ENCL v1.0.0</p>
+                <p className="text-center text-xs text-muted-foreground">DuO v1.0.0</p>
             </div>
             <BottomNavigation />
         </div>
