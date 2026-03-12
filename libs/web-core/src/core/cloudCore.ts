@@ -5,6 +5,7 @@ import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic
 import type { AWSCredentials } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
 import { calcSignature, signAwsRequest } from '../utils/func';
+import { coreStorage } from './coreStorage';
 
 export const CLOUD_DELEGATION_TOKEN_KEY = 'chatic-cloud-delegation-token';
 export const CLOUD_TOKEN_KEY = 'chatic-cloud-token';
@@ -34,35 +35,35 @@ interface CloudCore {
 
 export const cloudCore: CloudCore = {
     saveDelegationToken: (token: CloudDelegationTokenView): void => {
-        sessionStorage.setItem(CLOUD_DELEGATION_TOKEN_KEY, JSON.stringify(token));
+        coreStorage.set(CLOUD_DELEGATION_TOKEN_KEY, JSON.stringify(token));
     },
 
     getDelegationToken: (): CloudDelegationTokenView | null => {
-        const raw = sessionStorage.getItem(CLOUD_DELEGATION_TOKEN_KEY);
+        const raw = coreStorage.get(CLOUD_DELEGATION_TOKEN_KEY);
         return raw ? (JSON.parse(raw) as CloudDelegationTokenView) : null;
     },
 
     saveCloudToken: (token: UserTokenView): void => {
-        sessionStorage.setItem(CLOUD_TOKEN_KEY, JSON.stringify(token));
+        coreStorage.set(CLOUD_TOKEN_KEY, JSON.stringify(token));
     },
 
     getCloudToken: (): UserTokenView | null => {
-        const raw = sessionStorage.getItem(CLOUD_TOKEN_KEY);
+        const raw = coreStorage.get(CLOUD_TOKEN_KEY);
         return raw ? (JSON.parse(raw) as UserTokenView) : null;
     },
 
     saveSelectedPlaceId: (placeId: string): void => {
-        sessionStorage.setItem(CLOUD_SELECTED_PLACE_KEY, placeId);
+        coreStorage.set(CLOUD_SELECTED_PLACE_KEY, placeId);
     },
 
     getSelectedPlaceId: (): string | null => {
-        return sessionStorage.getItem(CLOUD_SELECTED_PLACE_KEY);
+        return coreStorage.get(CLOUD_SELECTED_PLACE_KEY);
     },
 
     clearSession: (): void => {
-        sessionStorage.removeItem(CLOUD_DELEGATION_TOKEN_KEY);
-        sessionStorage.removeItem(CLOUD_TOKEN_KEY);
-        sessionStorage.removeItem(CLOUD_SELECTED_PLACE_KEY);
+        coreStorage.remove(CLOUD_DELEGATION_TOKEN_KEY);
+        coreStorage.remove(CLOUD_TOKEN_KEY);
+        coreStorage.remove(CLOUD_SELECTED_PLACE_KEY);
     },
 
     getBackend: (): string | null => {

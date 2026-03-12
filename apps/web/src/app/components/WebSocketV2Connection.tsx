@@ -1,6 +1,6 @@
 import { useHandleAppMessage } from '@chatic/app-messages';
 import { useWebSocketV2 } from '@chatic/socket';
-import { WS_ENDPOINT_KEY, cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, coreStorage, useWebCoreStore } from '@chatic/web-core';
 
 import { useListenMessage } from '../features/chats/hooks/useListenMessage';
 import { useMyChannels } from '../features/home/hooks/useMyChannels';
@@ -17,7 +17,7 @@ export const WebSocketV2Connection = () => {
     const endpoint = isGuest ? import.meta.env.VITE_WS_ENDPOINT : wss;
 
     useHandleAppMessage('OnSetWsEndpoint', ({ data }) => {
-        sessionStorage.setItem(WS_ENDPOINT_KEY, data.wss);
+        coreStorage.set('chatic-ws-endpoint', data.wss);
     });
 
     useWebSocketV2({

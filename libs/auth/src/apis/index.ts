@@ -1,4 +1,4 @@
-import { simpleWebCore, webCore, cloudCore } from '@chatic/web-core';
+import { webCore, cloudCore } from '@chatic/web-core';
 
 import type {
     CloudExchangeTokenBody,
@@ -25,7 +25,7 @@ export const registerDevice = async (deviceId: string): Promise<UserTokenView> =
 };
 
 export const registerUser = async (body: UserBody): Promise<UserView> => {
-    const { data } = await simpleWebCore
+    const { data } = await webCore
         .buildRequest({
             method: 'POST',
             baseURL: `${DOU_ENDPOINT}/oauth/register-user`,
@@ -37,7 +37,7 @@ export const registerUser = async (body: UserBody): Promise<UserView> => {
 };
 
 export const registerUserV2 = async (body: RegisterUserV2Body, email?: boolean): Promise<UserView> => {
-    const { data } = await simpleWebCore
+    const { data } = await webCore
         .buildRequest({
             method: 'POST',
             baseURL: `${DOU_ENDPOINT}/oauth/register-user-v2`,
@@ -50,7 +50,7 @@ export const registerUserV2 = async (body: RegisterUserV2Body, email?: boolean):
 };
 
 export const login = async (body: LoginUserBody, email?: boolean): Promise<UserTokenView> => {
-    const { data } = await simpleWebCore
+    const { data } = await webCore
         .buildRequest({
             method: 'POST',
             baseURL: `${DOU_ENDPOINT}/oauth/login-user`,
