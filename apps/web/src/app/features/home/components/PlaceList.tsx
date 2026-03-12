@@ -7,7 +7,7 @@ import { usePlaces } from '@chatic/places';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
-import { usePlaceSession } from '../../../shared/hooks/usePlaceSession';
+import { getPlaceSession, usePlaceSession } from '../../../shared/hooks/usePlaceSession';
 
 interface PlaceItemProps {
     place: MySiteView;
@@ -61,7 +61,7 @@ interface PlaceListProps {
 export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
     const { isGuest } = useWebCoreStore();
     const { selectPlace, isPending } = usePlaceSession();
-    const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId);
+    const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
 
     const handleSelectPlace = async (placeId: string) => {
         await selectPlace(placeId);
@@ -78,11 +78,7 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
         const firstSelectable = places.find(p => p.stereo === 'place');
         if (!firstSelectable) return;
         autoSelectedRef.current = true;
-        const alreadySelected = cloudCore.getSelectedPlaceId() === firstSelectable.id;
-        if (alreadySelected) {
-            setSelectedId(firstSelectable.id);
-            return;
-        }
+        if (getPlaceSession()) return;
         void handleSelectPlace(firstSelectable.id);
     }, [data]);
 
