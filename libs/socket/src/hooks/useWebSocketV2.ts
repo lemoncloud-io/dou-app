@@ -115,6 +115,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
         }
         store.setConnectionStatus('disconnected');
         store.setIsConnected(false);
+        store.setIsVerified(false);
     }, [store]);
 
     const send = useCallback(
