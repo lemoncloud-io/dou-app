@@ -40,7 +40,7 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
             <DialogContent
                 className="m-0 max-w-full w-full rounded-none flex flex-col bg-white"
                 hideClose
-                variant="fullscreen"
+                variant="slide-up"
             >
                 {/* Top Bar */}
                 <div className="flex items-center justify-between px-1.5 py-3 bg-white">
