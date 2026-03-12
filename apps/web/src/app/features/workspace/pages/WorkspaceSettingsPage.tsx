@@ -1,4 +1,5 @@
 import { Bell, ChevronLeft, Crown, Lock, LogOut, Settings } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { InviteCodeCard } from '../components';
@@ -24,6 +25,7 @@ const mockMembers = [
 
 export const WorkspaceSettingsPage = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     return (
         <div className="flex min-h-screen flex-col bg-background">
@@ -31,7 +33,7 @@ export const WorkspaceSettingsPage = () => {
                 <button onClick={() => navigate(-1)} className="p-1">
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>
-                <h1 className="text-[17px] font-semibold text-foreground">워크스페이스 설정</h1>
+                <h1 className="text-[17px] font-semibold text-foreground">{t('workspace.settings.title')}</h1>
                 <div className="w-8" />
             </header>
 
@@ -45,27 +47,27 @@ export const WorkspaceSettingsPage = () => {
                         <h2 className="text-lg font-bold text-foreground">Sunny Place</h2>
                         <div className="mt-0.5 flex items-center gap-1.5">
                             <Lock size={12} className="text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground">비공개 워크스페이스</span>
+                            <span className="text-xs text-muted-foreground">{t('workspace.settings.private')}</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Invite Code */}
-                <InviteCodeCard code="WS7X9K" label="워크스페이스 초대 코드" />
+                <InviteCodeCard code="WS7X9K" label={t('workspace.settings.inviteCode')} />
 
                 {/* Actions */}
                 <div className="space-y-0">
                     <button className="flex w-full items-center gap-3.5 rounded-lg px-1 py-4 transition-colors active:bg-muted">
                         <Bell size={20} className="text-muted-foreground" />
-                        <span className="text-[15px] text-foreground">알림 설정</span>
+                        <span className="text-[15px] text-foreground">{t('workspace.settings.notifications')}</span>
                     </button>
                     <button className="flex w-full items-center gap-3.5 rounded-lg px-1 py-4 transition-colors active:bg-muted">
                         <Settings size={20} className="text-muted-foreground" />
-                        <span className="text-[15px] text-foreground">워크스페이스 편집</span>
+                        <span className="text-[15px] text-foreground">{t('workspace.settings.edit')}</span>
                     </button>
                     <button className="flex w-full items-center gap-3.5 rounded-lg px-1 py-4 transition-colors active:bg-muted">
                         <LogOut size={20} className="text-destructive" />
-                        <span className="text-[15px] text-destructive">워크스페이스 나가기</span>
+                        <span className="text-[15px] text-destructive">{t('workspace.settings.leave')}</span>
                     </button>
                 </div>
 
@@ -74,7 +76,7 @@ export const WorkspaceSettingsPage = () => {
                 {/* Members */}
                 <div>
                     <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                        멤버 <span>{mockMembers.length}</span>
+                        {t('workspace.settings.members')} <span>{mockMembers.length}</span>
                     </h3>
                     <div className="space-y-0">
                         {mockMembers.map(m => (
@@ -89,7 +91,7 @@ export const WorkspaceSettingsPage = () => {
                                 <span className="flex-1 text-[15px] font-medium text-foreground">{m.name}</span>
                                 {m.role === 'host' && (
                                     <span className="flex items-center gap-1 rounded-full bg-accent/20 px-2 py-1 text-xs text-accent-foreground">
-                                        <Crown size={12} /> 호스트
+                                        <Crown size={12} /> {t('workspace.settings.host')}
                                     </span>
                                 )}
                                 {m.isMe && (

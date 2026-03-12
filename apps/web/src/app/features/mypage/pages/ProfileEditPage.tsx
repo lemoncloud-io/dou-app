@@ -1,9 +1,11 @@
 import { Camera, ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 export const ProfileEditPage = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [name, setName] = useState('sunny');
 
     return (
@@ -13,7 +15,7 @@ export const ProfileEditPage = () => {
                 <button onClick={() => navigate(-1)} className="p-1">
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>
-                <h1 className="text-[17px] font-semibold text-foreground">프로필 편집</h1>
+                <h1 className="text-[17px] font-semibold text-foreground">{t('profileEdit.title')}</h1>
                 <div className="w-8" />
             </header>
 
@@ -33,7 +35,7 @@ export const ProfileEditPage = () => {
 
             {/* Name */}
             <div className="px-5">
-                <label className="text-sm font-semibold text-foreground">이름</label>
+                <label className="text-sm font-semibold text-foreground">{t('profileEdit.nameLabel')}</label>
                 <div className="relative mt-2">
                     <input
                         type="text"
@@ -50,7 +52,7 @@ export const ProfileEditPage = () => {
             {/* Save */}
             <div className="mt-auto px-5 pb-10 pt-4">
                 <button className="w-full rounded-2xl bg-accent py-4 text-[15px] font-semibold text-accent-foreground transition-transform active:scale-[0.98]">
-                    저장
+                    {t('profileEdit.save')}
                 </button>
             </div>
         </div>

@@ -1,5 +1,6 @@
 import { ArrowUp, ChevronLeft, MoreHorizontal, Settings } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useDynamicProfile } from '@chatic/web-core';
@@ -19,6 +20,7 @@ import { useMyChannels } from '../../home/hooks/useMyChannels';
 
 export const ChatRoomPage = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [content, setContent] = useState('');
     const [isComposing, setIsComposing] = useState(false);
@@ -108,7 +110,7 @@ export const ChatRoomPage = () => {
             const id = newMessage.id || '0';
             const timestamp = newMessage?.createdAt ? new Date(newMessage.createdAt) : new Date();
             const ownerId = newMessage.ownerId || '';
-            const ownerName = newMessage.owner$?.name || '알 수 없음';
+            const ownerName = newMessage.owner$?.name || t('chat.room.unknown');
             const chatNo = newMessage?.chatNo;
 
             addMessage({ id, content: content.trim(), timestamp, ownerId, ownerName, chatNo }, channelId);
@@ -155,7 +157,7 @@ export const ChatRoomPage = () => {
     const formatTime = (date: Date) => {
         const hours = date.getHours();
         const minutes = date.getMinutes();
-        const period = hours < 12 ? '오전' : '오후';
+        const period = hours < 12 ? t('chat.room.am') : t('chat.room.pm');
         const displayHours = hours % 12 || 12;
         return `${period} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
     };
@@ -164,9 +166,9 @@ export const ChatRoomPage = () => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
-        const weekdays = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
-        const weekday = weekdays[date.getDay()];
-        return `${year}년 ${month}월 ${day}일 ${weekday}`;
+        const weekdayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+        const weekday = t(`chat.room.weekdays.${weekdayKeys[date.getDay()]}`);
+        return t('chat.room.dateFormat', { year, month, day, weekday });
     };
 
     const getDateKey = (date: Date) => {
@@ -189,7 +191,7 @@ export const ChatRoomPage = () => {
         return (
             <div className="flex h-full items-center justify-center bg-background">
                 <div className="text-center">
-                    <div className="text-sm text-muted-foreground">채널 정보를 불러오는 중...</div>
+                    <div className="text-sm text-muted-foreground">{t('chat.room.loading')}</div>
                 </div>
             </div>
         );
@@ -199,9 +201,9 @@ export const ChatRoomPage = () => {
         return (
             <div className="flex h-full items-center justify-center bg-background">
                 <div className="text-center">
-                    <div className="text-sm text-destructive">채널 정보를 불러올 수 없습니다</div>
+                    <div className="text-sm text-destructive">{t('chat.room.error')}</div>
                     <button onClick={() => navigate(-1)} className="mt-2 text-sm text-primary underline">
-                        뒤로 가기
+                        {t('chat.room.goBack')}
                     </button>
                 </div>
             </div>
@@ -216,7 +218,7 @@ export const ChatRoomPage = () => {
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>
                 <h1 className="text-[17px] font-bold text-foreground">
-                    {channel?.name || '채팅방'}
+                    {channel?.name || t('chat.room.title')}
                     {channel?.memberNo && (
                         <span className="ml-1.5 text-sm font-normal text-muted-foreground">{channel.memberNo}</span>
                     )}
@@ -233,7 +235,7 @@ export const ChatRoomPage = () => {
                             className="cursor-pointer gap-2"
                         >
                             <Settings size={16} />
-                            <span>설정</span>
+                            <span>{t('home.settings')}</span>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -340,7 +342,7 @@ export const ChatRoomPage = () => {
                         onKeyDown={handleKeyPress}
                         onCompositionStart={() => setIsComposing(true)}
                         onCompositionEnd={() => setIsComposing(false)}
-                        placeholder="메시지를 입력해 주세요"
+                        placeholder={t('chat.room.inputPlaceholder')}
                         rows={1}
                         enterKeyHint="enter"
                         className="max-h-[120px] flex-1 resize-none overflow-y-auto bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"

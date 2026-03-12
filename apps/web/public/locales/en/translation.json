@@ -197,5 +197,176 @@
         "title": "Notifications",
         "markAllRead": "Mark all read",
         "empty": "No notifications"
+    },
+    "homePage": {
+        "places": "Places",
+        "roomCreated": "Chat room created"
+    },
+    "explore": {
+        "title": "Explore",
+        "searchPlaceholder": "Search chat rooms or places",
+        "tabs": {
+            "rooms": "Chat Rooms",
+            "workspaces": "Places"
+        },
+        "categories": {
+            "all": "All",
+            "study": "Study",
+            "development": "Development",
+            "design": "Design",
+            "reading": "Reading",
+            "exercise": "Exercise",
+            "music": "Music"
+        },
+        "members": "{{count}} members"
+    },
+    "chat": {
+        "room": {
+            "title": "Chat Room",
+            "loading": "Loading channel info...",
+            "error": "Unable to load channel info",
+            "goBack": "Go Back",
+            "inputPlaceholder": "Enter a message",
+            "unknown": "Unknown",
+            "am": "AM",
+            "pm": "PM",
+            "weekdays": {
+                "sunday": "Sunday",
+                "monday": "Monday",
+                "tuesday": "Tuesday",
+                "wednesday": "Wednesday",
+                "thursday": "Thursday",
+                "friday": "Friday",
+                "saturday": "Saturday"
+            },
+            "dateFormat": "{{month}}/{{day}}/{{year}} {{weekday}}"
+        },
+        "settings": {
+            "title": "Room Settings",
+            "loading": "Loading channel info...",
+            "error": "Unable to load channel info",
+            "goBack": "Go Back",
+            "edit": "Edit",
+            "public": "Public",
+            "private": "Private",
+            "inviteCode": "Chat room invite code",
+            "inviteFriends": "Invite Friends",
+            "notifications": "Notifications",
+            "deleteRoom": "Delete Room",
+            "leaveRoom": "Leave Room",
+            "roomMembers": "Room Members",
+            "host": "Host",
+            "leaveConfirm": "Are you sure you want to leave this room?",
+            "deleteConfirm": "Are you sure you want to delete this room? This action cannot be undone.",
+            "leftRoom": "Left the room",
+            "leaveFailed": "Failed to leave the room",
+            "deletedRoom": "Room deleted",
+            "deleteFailed": "Failed to delete the room",
+            "roomName": "Room Name"
+        }
+    },
+    "search": {
+        "placeholder": "Search...",
+        "recent": "Recent Searches",
+        "clearAll": "Clear All",
+        "places": "Places",
+        "chat": "Chat"
+    },
+    "workspace": {
+        "list": {
+            "title": "Workspace List",
+            "mine": "My Workspaces",
+            "friends": "Friend's Workspaces",
+            "settings": "Settings",
+            "delete": "Delete"
+        },
+        "detail": {
+            "private": "Private",
+            "public": "Public",
+            "members": "{{count}} members",
+            "chatRooms": "Chat Rooms"
+        },
+        "settings": {
+            "title": "Workspace Settings",
+            "private": "Private workspace",
+            "inviteCode": "Workspace invite code",
+            "notifications": "Notification Settings",
+            "edit": "Edit Workspace",
+            "leave": "Leave Workspace",
+            "members": "Members",
+            "host": "Host"
+        },
+        "create": {
+            "title": "Create Workspace",
+            "successTitle": "Workspace Created",
+            "subtitle": "Set up your personal workspace",
+            "hint": "About your workspace...",
+            "nameLabel": "Workspace Name",
+            "namePlaceholder": "e.g., My Space",
+            "nameHint": "Please enter up to 20 characters.",
+            "photoLabel": "Workspace Photo",
+            "photoOptional": "[Optional]",
+            "visibilityLabel": "Visibility Settings",
+            "visibilityPublic": "Public workspace",
+            "visibilityPrivate": "Private workspace",
+            "publicHint": "Anyone can find and join from Explore.",
+            "privateHint": "Can only join via invite code.",
+            "done": "Done",
+            "confirm": "Confirm",
+            "created": "Created!",
+            "shareCode": "Share the invite code to invite members"
+        }
+    },
+    "join": {
+        "title": "Join by Invite Code",
+        "subtitle": "Enter the invite code",
+        "description": "Enter the workspace or chat room invite code",
+        "codeLabel": "Invite Code",
+        "codePlaceholder": "e.g., ABC123",
+        "confirm": "Confirm",
+        "workspace": "Workspace",
+        "chatRoom": "Chat Room",
+        "memberCount": "{{count}} members",
+        "joinButton": "Join",
+        "invalidCode": "Invalid invite code. Please check and try again."
+    },
+    "createRoom": {
+        "title": "New Chat",
+        "successTitle": "Chat Room Created",
+        "subtitle": "Set up a room to chat with friends",
+        "nameLabel": "Room Name",
+        "namePlaceholder": "e.g., Study Room",
+        "nameHint": "Please enter up to 20 characters.",
+        "photoLabel": "Room Photo",
+        "photoOptional": "[Optional]",
+        "visibilityLabel": "Visibility Settings",
+        "visibilityPublic": "Public chat room",
+        "visibilityPrivate": "Private chat room",
+        "publicHint": "Anyone can find and join from Explore.",
+        "privateHint": "Can only join via invite code.",
+        "done": "Done",
+        "creating": "Creating...",
+        "confirm": "Confirm",
+        "created": "Created!",
+        "shareCode": "Share the invite code to invite friends",
+        "inviteCode": "Chat room invite code",
+        "successMessage": "Chat room created",
+        "errorMessage": "Failed to create chat room"
+    },
+    "profileEdit": {
+        "title": "Edit Profile",
+        "nameLabel": "Name",
+        "save": "Save"
+    },
+    "mypageLogin": {
+        "title": "Sign In",
+        "emailLabel": "Email",
+        "emailPlaceholder": "Enter your email",
+        "passwordLabel": "Password",
+        "passwordPlaceholder": "Enter your password",
+        "submit": "Sign In",
+        "loading": "Signing in...",
+        "error": "Sign in failed",
+        "errorDescription": "Please check your email or password."
     }
 }

@@ -1,4 +1,5 @@
 import { ChevronLeft, Globe, Lock, Plus, Settings, Users } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 interface RoomListItemProps {
@@ -95,6 +96,7 @@ const mockRooms = [
 
 export const WorkspaceDetailPage = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     // TODO: wsId will be used when fetching real workspace data from API
     const { wsId } = useParams();
 
@@ -127,13 +129,15 @@ export const WorkspaceDetailPage = () => {
                                     <Globe size={12} className="text-muted-foreground" />
                                 )}
                                 <span className="text-xs text-muted-foreground">
-                                    {mockWorkspaceDetail.visibility === 'private' ? '비공개' : '공개'}
+                                    {mockWorkspaceDetail.visibility === 'private'
+                                        ? t('workspace.detail.private')
+                                        : t('workspace.detail.public')}
                                 </span>
                             </div>
                             <div className="flex items-center gap-1">
                                 <Users size={12} className="text-muted-foreground" />
                                 <span className="text-xs text-muted-foreground">
-                                    {mockWorkspaceDetail.memberCount}명
+                                    {t('workspace.detail.members', { count: mockWorkspaceDetail.memberCount })}
                                 </span>
                             </div>
                         </div>
@@ -146,7 +150,7 @@ export const WorkspaceDetailPage = () => {
             {/* Room List */}
             <section className="flex-1 px-5 pt-4">
                 <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-foreground">채팅방</h3>
+                    <h3 className="text-lg font-bold text-foreground">{t('workspace.detail.chatRooms')}</h3>
                     <button
                         onClick={() => navigate('/create-room')}
                         className="flex h-8 w-8 items-center justify-center rounded-full border border-border"
