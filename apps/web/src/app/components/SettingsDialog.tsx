@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { webCore, useOnboardingStore } from '@chatic/web-core';
 import { useWebSocketV2 } from '@chatic/socket';
@@ -61,10 +61,13 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent hideClose variant="slide-up" className="max-w-full w-full m-0 rounded-none bg-white">
+                <DialogDescription className="sr-only">App settings and configuration</DialogDescription>
                 <div className="flex flex-col h-full">
                     {/* Header */}
                     <div className="px-6 py-4 border-b flex items-center justify-between">
-                        <h2 className="text-xl font-semibold text-black">{t('settingsDialog.title')}</h2>
+                        <DialogTitle className="text-xl font-semibold text-black">
+                            {t('settingsDialog.title')}
+                        </DialogTitle>
                         <button
                             onClick={() => onOpenChange?.(false)}
                             className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100"

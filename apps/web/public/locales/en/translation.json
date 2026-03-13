@@ -352,6 +352,14 @@
         "noResults": "No results found.",
         "noHistory": "No search history."
     },
+    "placeInfo": {
+        "title": "Place Information",
+        "createdDate": "Created Date",
+        "owner": "Place Owner",
+        "confirm": "Confirm",
+        "unnamed": "Unnamed Place",
+        "unknownOwner": "Unknown"
+    },
     "workspace": {
         "list": {
             "title": "Workspace List",

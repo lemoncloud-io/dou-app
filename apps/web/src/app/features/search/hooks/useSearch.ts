@@ -4,7 +4,10 @@ import { useDynamicProfile } from '@chatic/web-core';
 
 import { IndexedDBChannelAdapter } from '../../chats/storages/IndexedDBChannelAdapter';
 import { IndexedDBStorageAdapter } from '../../chats/storages/IndexedDBStorageAdapter';
+import { useMyChannels } from '../../home/hooks/useMyChannels';
+import { useMyPlaces } from '../../home/hooks/useMyPlaces';
 
+import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 
 export interface ChatSearchResult {
@@ -13,7 +16,7 @@ export interface ChatSearchResult {
 }
 
 export interface SearchResults {
-    places: ChannelView[];
+    places: MySiteView[];
     chats: ChatSearchResult[];
 }
 
@@ -22,6 +25,9 @@ const DEBOUNCE_MS = 300;
 export const useSearch = (query: string) => {
     const profile = useDynamicProfile();
     const userId = profile?.uid ?? '';
+
+    const { places: apiPlaces } = useMyPlaces();
+    const { channels: apiChannels } = useMyChannels();
 
     const [results, setResults] = useState<SearchResults>({ places: [], chats: [] });
     const [isSearching, setIsSearching] = useState(false);
@@ -37,14 +43,23 @@ export const useSearch = (query: string) => {
             setIsSearching(true);
 
             try {
-                const channels = await IndexedDBChannelAdapter.loadAll(userId);
                 const lowerQuery = searchQuery.toLowerCase();
 
-                // Filter channels by name (case-insensitive)
-                const matchedChannels = channels.filter(ch => ch.name?.toLowerCase().includes(lowerQuery));
+                // Filter places by name (case-insensitive)
+                const filteredPlaces = apiPlaces.filter(p => p.name?.toLowerCase().includes(lowerQuery));
 
-                // Search messages across all channels (parallel loading)
-                const validChannels = channels.filter((ch): ch is ChannelView & { id: string } => !!ch.id);
+                // Load IndexedDB channels and merge with memory channels
+                const indexedDbChannels = await IndexedDBChannelAdapter.loadAll(userId);
+
+                // Merge channels: memory (apiChannels) takes priority, then IndexedDB
+                const memoryChannelIds = new Set(apiChannels.map(c => c.id));
+                const mergedChannels = [...apiChannels, ...indexedDbChannels.filter(c => !memoryChannelIds.has(c.id))];
+
+                // Filter channels by name (case-insensitive)
+                const matchedChannels = mergedChannels.filter(ch => ch.name?.toLowerCase().includes(lowerQuery));
+
+                // Search messages across all merged channels (parallel loading)
+                const validChannels = mergedChannels.filter((ch): ch is ChannelView & { id: string } => !!ch.id);
                 const allMessages = await Promise.all(
                     validChannels.map(ch => IndexedDBStorageAdapter.load(userId, ch.id))
                 );
@@ -72,7 +87,7 @@ export const useSearch = (query: string) => {
                 chatResults.sort((a, b) => b.matchCount - a.matchCount);
 
                 setResults({
-                    places: matchedChannels,
+                    places: filteredPlaces,
                     chats: chatResults,
                 });
             } catch (error) {
@@ -82,7 +97,7 @@ export const useSearch = (query: string) => {
                 setIsSearching(false);
             }
         },
-        [userId]
+        [userId, apiPlaces, apiChannels]
     );
 
     useEffect(() => {

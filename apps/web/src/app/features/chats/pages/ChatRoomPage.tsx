@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { useDynamicProfile } from '@chatic/web-core';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
-import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -399,12 +399,15 @@ export const ChatRoomPage = () => {
             {/* Message Detail Modal */}
             <Dialog open={!!expandedMessage} onOpenChange={open => !open && setExpandedMessage(null)}>
                 <DialogContent variant="slide-up" hideClose className="flex flex-col gap-0 bg-background">
+                    <DialogDescription className="sr-only">View full message content</DialogDescription>
                     {/* Modal Header */}
                     <header className="flex items-center justify-between border-b border-border px-4 py-4">
                         <button onClick={() => setExpandedMessage(null)} className="p-1">
                             <ChevronLeft size={24} className="text-foreground" />
                         </button>
-                        <h1 className="text-[17px] font-bold text-foreground">{t('chat.room.messageDetail')}</h1>
+                        <DialogTitle className="text-[17px] font-bold text-foreground">
+                            {t('chat.room.messageDetail')}
+                        </DialogTitle>
                         <div className="w-8" />
                     </header>
 

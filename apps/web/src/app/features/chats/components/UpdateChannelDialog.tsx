@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -58,12 +58,13 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                 hideClose
                 variant="slide-up"
             >
+                <DialogDescription className="sr-only">Update channel settings</DialogDescription>
                 {/* Top Bar */}
                 <div className="flex items-center justify-between px-1.5 py-3 bg-background">
                     <div className="w-11 h-11" />
-                    <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-foreground">
+                    <DialogTitle className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-foreground">
                         {t('updateChannel.title')}
-                    </h1>
+                    </DialogTitle>
                     <button onClick={() => onOpenChange(false)} className="w-11 h-11 flex items-center justify-center">
                         <X className="w-6 h-6 text-foreground" />
                     </button>

@@ -352,6 +352,14 @@
         "noResults": "검색 결과가 없습니다.",
         "noHistory": "검색 내역이 없습니다."
     },
+    "placeInfo": {
+        "title": "플레이스 정보",
+        "createdDate": "만든 날짜",
+        "owner": "플레이스 관리자",
+        "confirm": "확인",
+        "unnamed": "이름 없는 플레이스",
+        "unknownOwner": "알 수 없음"
+    },
     "workspace": {
         "list": {
             "title": "워크스페이스 목록",

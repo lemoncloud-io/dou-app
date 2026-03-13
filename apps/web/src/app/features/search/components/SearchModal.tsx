@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
 import { useRecentSearches, useSearch } from '../hooks';
 import { ChatResults } from './ChatResults';
@@ -9,6 +9,8 @@ import { EmptyState } from './EmptyState';
 import { PlaceResults } from './PlaceResults';
 import { RecentSearches } from './RecentSearches';
 import { SearchInput } from './SearchInput';
+
+import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 interface SearchModalProps {
     open: boolean;
@@ -36,9 +38,14 @@ export const SearchModal = ({ open, onClose }: SearchModalProps) => {
         }
     };
 
-    const handleSelect = (channelId: string) => {
+    const handleChatSelect = (channelId: string) => {
         onClose();
         navigate(`/chats/${channelId}/room`);
+    };
+
+    const handlePlaceSelect = (place: MySiteView) => {
+        onClose();
+        navigate(`/places/${place.id}`);
     };
 
     const handleClose = () => {
@@ -52,6 +59,8 @@ export const SearchModal = ({ open, onClose }: SearchModalProps) => {
     return (
         <Dialog open={open} onOpenChange={isOpen => !isOpen && handleClose()}>
             <DialogContent variant="slide-up" hideClose className="flex flex-col gap-0 bg-[#FBFCFD]">
+                <DialogTitle className="sr-only">Search</DialogTitle>
+                <DialogDescription className="sr-only">Search for places and chats</DialogDescription>
                 <SearchInput value={query} onChange={handleQueryChange} onSubmit={handleSubmit} onClose={handleClose} />
 
                 <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
@@ -66,8 +75,8 @@ export const SearchModal = ({ open, onClose }: SearchModalProps) => {
                     {/* Search Results */}
                     {showResults && !showNoResults && (
                         <>
-                            <PlaceResults places={results.places} onSelect={handleSelect} />
-                            <ChatResults chats={results.chats} onSelect={handleSelect} />
+                            <PlaceResults places={results.places} onSelect={handlePlaceSelect} />
+                            <ChatResults chats={results.chats} onSelect={handleChatSelect} />
                         </>
                     )}
 
