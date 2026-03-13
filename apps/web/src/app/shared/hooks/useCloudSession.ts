@@ -34,8 +34,9 @@ export const useCloudSession = () => {
             cloudCore.saveCloudToken(userToken);
             cloudCore.saveSelectedPlaceId(placeId);
 
-            const { Token, ...profile } = userToken;
-            setProfile(profile as unknown as UserProfile$);
+            const currentProfile = useWebCoreStore.getState().profile;
+            const { Token, ...cloudProfile } = userToken;
+            setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
         } finally {
             setIsLoading(false);
         }

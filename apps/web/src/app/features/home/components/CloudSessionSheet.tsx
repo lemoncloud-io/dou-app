@@ -105,7 +105,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                         </button>
                     </div>
                 ) : (
-                    <div className="scrollbar-hide flex gap-[14px] overflow-x-auto pb-2">
+                    <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-1 pb-2 pt-1">
                         {clouds.map(place => (
                             <PlaceItem
                                 key={place.id}
