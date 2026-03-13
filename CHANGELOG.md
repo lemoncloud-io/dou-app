@@ -1,5 +1,27 @@
 # Changelog
 
+## [2026-03-13] - root@0.19.0, @chatic/web@0.16.0
+
+### Features
+
+- place 관리, 검색, UI 개선
+- (place) add place list, create place, cloud session sheet
+- (cloud) expose clouds/isCloudsError from useCloudSession, apply to CloudSessionSheet
+- (home) show no-cloud error state when isCloudsError
+- (i18n) add cloudSessionSheet and homePage cloud error keys
+- (search) implement real-time search with useMyPlaces and useMyChannels
+
+### Bug Fixes
+
+- (chat) fix textarea overflow by using items-end and rounded-3xl
+- (onboarding) persist onboarding completed state to localStorage
+- (mobile) restore Config-based webview URL
+- (auth) preserve profile $user on cloud select, wait for profile before render
+
+### Other
+
+- style: (ui) apply dark monochrome theme to BottomNavigation, remove workspace settings from MyPage
+
 ## [2026-03-13] - No version updates
 
 ### Features
