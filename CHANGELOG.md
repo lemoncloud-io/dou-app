@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-03-13] - No version updates
+
+### Features
+
+- (auth) add invite acceptance feature
+- (chats) implement invite friends functionality
+- (chats) add deeplink to invite friends share message
+
+### Refactor
+
+- (auth) update login and env storage logic
+
 ## [2026-03-13] - root@0.17.0, @chatic/web@0.14.0, @chatic/admin@0.4.0
 
 ### Features
