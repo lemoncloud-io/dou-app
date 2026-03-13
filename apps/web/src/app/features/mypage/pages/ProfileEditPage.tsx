@@ -1,20 +1,30 @@
-import { Camera, User, X } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { Camera, User, X } from 'lucide-react';
+
 import { cn } from '@chatic/lib/utils';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useLocalProfileStore, useWebCoreStore } from '@chatic/web-core';
+
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 
 export const ProfileEditPage = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const profile = useWebCoreStore(s => s.profile);
+    const localProfile = useLocalProfileStore();
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const initialName = profile?.$user?.name || '';
-    const initialImageUrl = profile?.$user?.imageUrl || '';
+    // Use local overrides if they exist, otherwise use server profile
+    const serverName = profile?.$user?.name || '';
+    const serverImageUrl = profile?.$user?.imageUrl || '';
+    const initialName = localProfile.name ?? serverName;
+    const initialImageUrl = localProfile.imageData ?? serverImageUrl;
+
     const [name, setName] = useState(initialName);
     const [imageUrl, setImageUrl] = useState(initialImageUrl);
+    const [imageSizeError, setImageSizeError] = useState(false);
 
     const hasChanges = name !== initialName || imageUrl !== initialImageUrl;
     const isValid = name.trim().length > 0 && name.length <= 20;
@@ -25,14 +35,44 @@ export const ProfileEditPage = () => {
 
     const handleSave = () => {
         if (!isValid || !hasChanges) return;
-        // TODO: Implement save functionality
+
+        // Save to local profile store
+        if (name !== (localProfile.name ?? serverName)) {
+            localProfile.setName(name);
+        }
+        if (imageUrl !== (localProfile.imageData ?? serverImageUrl)) {
+            localProfile.setImage(imageUrl);
+        }
+
         navigate(-1);
     };
 
-    const handleImageChange = () => {
-        // TODO: Implement image picker functionality
-        // For now, set a placeholder to demonstrate the change detection
-        setImageUrl(imageUrl ? '' : 'placeholder');
+    const handleImageClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        // Validate file size
+        if (file.size > MAX_IMAGE_SIZE) {
+            setImageSizeError(true);
+            return;
+        }
+
+        setImageSizeError(false);
+
+        // Convert to base64
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64 = reader.result as string;
+            setImageUrl(base64);
+        };
+        reader.readAsDataURL(file);
+
+        // Reset input so the same file can be selected again
+        event.target.value = '';
     };
 
     return (
@@ -91,13 +131,23 @@ export const ProfileEditPage = () => {
                             )}
                         </div>
                         <button
-                            onClick={handleImageChange}
+                            onClick={handleImageClick}
                             className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-[#B0EA10] shadow-md"
                             aria-label="Change profile photo"
                         >
                             <Camera size={16} className="text-foreground" />
                         </button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={handleImageChange}
+                            className="hidden"
+                        />
                     </div>
+                    {imageSizeError && (
+                        <p className="mt-2 text-[14px] text-destructive">{t('profileEdit.imageSizeError')}</p>
+                    )}
                 </div>
             </div>
 
