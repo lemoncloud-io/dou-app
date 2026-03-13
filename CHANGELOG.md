@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-03-13] - root@0.16.0, @chatic/web@0.13.0
+
+### Features
+
+- (mypage) add workspace settings and language select
+- add i18n to web pages
+- add chats indexedDB and update i18n
+
+### Refactor
+
+- (ui) update webview url and dialog variant
+
+### Chores
+
+- update branding to DoU
+
 ## [2026-03-12] - No version updates
 
 ### Features
