@@ -1,4 +1,4 @@
-import { ChevronDown, Plus, Search, User } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown, Plus, Search, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +18,8 @@ import { SettingsDialog } from '../../../components/SettingsDialog';
 import { OnboardingModal } from '../../onboarding';
 import { ChannelList } from '../components/ChannelList';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
+import { CreatePlaceDialog } from '../components/CreatePlaceDialog';
+import { CloudSessionSheet } from '../components/CloudSessionSheet';
 import { PlaceList } from '../components/PlaceList';
 
 export const HomePage = () => {
@@ -28,8 +30,9 @@ export const HomePage = () => {
     const { canCreate } = useCanCreateChannel();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isCreatePlaceOpen, setIsCreatePlaceOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+    const [isCloudSessionOpen, setIsCloudSessionOpen] = useState(false);
 
     const handleLogout = () => {
         logout();
@@ -77,9 +80,11 @@ export const HomePage = () => {
                     </DropdownMenu>
                 )}
                 <div className="flex items-center gap-1">
-                    <button onClick={() => navigate('/join')} className="p-2">
-                        <Plus size={22} className="text-foreground" />
-                    </button>
+                    {!isGuest && (
+                        <button onClick={() => setIsCloudSessionOpen(true)} className="p-2">
+                            <ArrowLeftRight size={22} className="text-foreground" />
+                        </button>
+                    )}
                     <button onClick={() => navigate('/search')} className="p-2">
                         <Search size={22} className="text-foreground" />
                     </button>
@@ -87,10 +92,23 @@ export const HomePage = () => {
             </header>
 
             {/* Place List */}
-            <section className="pb-4 pt-2">
-                <p className="mb-3 px-4 text-[18px] font-semibold">{t('homePage.places')}</p>
-                <PlaceList selectedId={selectedPlaceId} onSelect={setSelectedPlaceId} />
-            </section>
+            {!isGuest && (
+                <section className="px-5 py-4">
+                    <div className="mb-3 flex items-center justify-between">
+                        <h2 className="text-xl font-bold text-foreground">Place</h2>
+                        {canCreate && (
+                            <button
+                                onClick={() => setIsCreatePlaceOpen(true)}
+                                className="flex h-8 w-8 items-center justify-center rounded-full border border-border"
+                            >
+                                <Plus size={18} className="text-foreground" />
+                            </button>
+                        )}
+                    </div>
+
+                    <PlaceList />
+                </section>
+            )}
 
             <div className="mx-5 h-px bg-border" />
 
@@ -108,11 +126,13 @@ export const HomePage = () => {
                     )}
                 </div>
 
-                <ChannelList workspaceId={selectedPlaceId ?? ''} />
+                <ChannelList workspaceId={''} />
             </section>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
+            <CreatePlaceDialog open={isCreatePlaceOpen} onOpenChange={setIsCreatePlaceOpen} />
             <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+            <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
             <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
             <BottomNavigation />
         </div>

@@ -1,14 +1,14 @@
-import { HelpCircle, X } from 'lucide-react';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
+import { Loader2, X } from 'lucide-react';
+
+import { useCreatePlace } from '../hooks/useCreatePlace';
+
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
-
-interface CreatePlaceFormData {
-    name: string;
-}
+import { Input } from '@chatic/ui-kit/components/ui/input';
+import { Label } from '@chatic/ui-kit/components/ui/label';
 
 interface CreatePlaceDialogProps {
     open: boolean;
@@ -20,126 +20,88 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
     const {
         register,
         handleSubmit,
-        watch,
-        formState: { errors },
         reset,
-    } = useForm<CreatePlaceFormData>();
-    const [isLoading, setIsLoading] = useState(false);
+        formState: { errors, isSubmitting },
+    } = useForm<{ name: string }>();
 
-    const nameValue = watch('name', '');
+    const { createPlace } = useCreatePlace();
 
-    const onSubmit = async (data: CreatePlaceFormData) => {
-        setIsLoading(true);
+    const onSubmit = async (data: { name: string }) => {
         try {
-            console.log('Create place:', data);
-            // TODO: API 연동
-            onOpenChange(false);
+            await createPlace(data.name);
             reset();
-        } catch (error) {
-            console.error('Failed to create place:', error);
-        } finally {
-            setIsLoading(false);
+            onOpenChange(false);
+        } catch {
+            // handle error
         }
     };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent hideClose className="h-screen max-w-full w-full m-0 p-0 rounded-none flex flex-col">
+            <DialogContent
+                className="m-0 flex h-full max-h-screen w-full max-w-full flex-col rounded-none bg-white p-0"
+                hideClose
+                variant="slide-up"
+            >
                 {/* Top Bar */}
-                <div className="flex items-center justify-between px-1.5 py-3 bg-white">
-                    <div className="w-11 h-11" />
-                    <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#222325]">
+                <div className="flex items-center justify-between bg-white px-1.5 py-3">
+                    <div className="h-11 w-11" />
+                    <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#171725]">
                         {t('createPlace.title')}
                     </h1>
-                    <button onClick={() => onOpenChange(false)} className="w-11 h-11 flex items-center justify-center">
-                        <X className="w-6 h-6 text-[#3A3C40]" />
+                    <button onClick={() => onOpenChange(false)} className="flex h-11 w-11 items-center justify-center">
+                        <X className="h-6 w-6 text-[#3A3C40]" />
                     </button>
                 </div>
 
                 {/* Content */}
-                <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col">
-                    <div className="flex-1 overflow-auto flex flex-col gap-[26px] pt-[15px]">
+                <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-auto">
+                    <div className="flex flex-col gap-6 pt-6">
                         {/* Title Section */}
-                        <div className="flex flex-col gap-2 px-4">
-                            <div className="flex flex-col gap-[5px]">
-                                <div className="flex flex-col gap-0.5">
-                                    <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-black">
-                                        {t('createPlace.subtitle1')}
-                                    </span>
-                                    <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-black">
-                                        {t('createPlace.subtitle2')}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <HelpCircle className="w-[18px] h-[18px] text-[#90C304]" />
-                                <span className="text-[14px] font-medium leading-[1.45] tracking-[-0.015em] text-[#84888F]">
-                                    {t('createPlace.hint')}
+                        <div className="flex flex-col gap-1.5 px-4">
+                            <div className="flex flex-col gap-[2px]">
+                                <span className="text-[21px] font-semibold leading-[1.35] tracking-[-0.025em] text-black">
+                                    {t('createPlace.subtitle1')}
+                                </span>
+                                <span className="text-[21px] font-semibold leading-[1.35] tracking-[-0.025em] text-black">
+                                    {t('createPlace.subtitle2')}
                                 </span>
                             </div>
                         </div>
 
-                        {/* Form Fields */}
-                        <div className="flex flex-col gap-5 px-4">
-                            {/* Place Name Input */}
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[14px] font-semibold leading-[1.29] tracking-[0.005em] text-[#53555B]">
+                        {/* Name Input */}
+                        <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg px-4">
+                            <div className="flex w-full flex-col gap-1.5">
+                                <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-[#9FA2A7]">
                                     {t('createPlace.nameLabel')}
-                                </label>
-                                <div className="flex flex-col gap-2">
-                                    <div className="flex items-center justify-between px-3 py-3 bg-white border border-[#EAEAEC] rounded-[10px]">
-                                        <input
-                                            {...register('name', {
-                                                required: true,
-                                                maxLength: 20,
-                                            })}
-                                            placeholder={t('createPlace.namePlaceholder')}
-                                            className="flex-1 bg-transparent border-0 outline-none text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-[#BABCC0] placeholder:text-[#BABCC0]"
-                                        />
-                                        <div className="flex items-center gap-0 opacity-70">
-                                            <span className="text-[13px] font-medium leading-[1.38] tracking-[0.019em] text-[#53555B]">
-                                                {nameValue.length}
-                                            </span>
-                                            <span className="text-[13px] font-medium leading-[1.38] tracking-[0.019em] text-[#53555B]">
-                                                /
-                                            </span>
-                                            <span className="text-[13px] font-medium leading-[1.38] tracking-[0.019em] text-[#53555B]">
-                                                20
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <span className="text-[12px] font-medium leading-[1.5] text-[#84888F] pl-0.5">
-                                        {t('createPlace.nameHint')}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Place Photo */}
-                            <div className="flex flex-col gap-2.5 px-0.5">
-                                <div className="flex items-center gap-[3px]">
-                                    <span className="text-[14px] font-semibold leading-[1.29] tracking-[0.005em] text-[#53555B]">
-                                        {t('createPlace.photoLabel')}
-                                    </span>
-                                    <span className="text-[13px] font-medium leading-[1.38] tracking-[0.005em] text-[#BABCC0]">
-                                        {t('createPlace.photoOptional')}
-                                    </span>
-                                </div>
-                                <div className="w-[86px] h-[86px] flex items-center justify-center bg-[#F7F7F7] border border-[#F4F5F5] rounded-2xl">
-                                    <div className="w-9 h-9 text-[#1E1E1E]">📷</div>
-                                </div>
+                                </Label>
+                                <Input
+                                    {...register('name', {
+                                        required: true,
+                                        minLength: 2,
+                                        maxLength: 20,
+                                    })}
+                                    placeholder={t('createPlace.namePlaceholder')}
+                                    className="h-11 rounded-[10px] border border-[#EAEAEC] bg-white px-3.5 text-[15px] font-medium leading-[1.45] tracking-[0.005em] placeholder:text-[#84888F]"
+                                />
+                                {errors.name && (
+                                    <span className="text-[12px] text-red-500">{t('createPlace.nameHint')}</span>
+                                )}
                             </div>
                         </div>
                     </div>
 
                     {/* Bottom Button */}
-                    <div className="px-4 pt-5 pb-4">
-                        <Button
-                            type="submit"
-                            disabled={!nameValue.trim() || isLoading}
-                            className="w-full h-[50px] bg-[#EAEAEC] text-[#BABCC0] hover:bg-[#EAEAEC] disabled:opacity-100 text-[16px] font-semibold leading-[1.375] tracking-[0.005em] rounded-full"
-                        >
-                            {t('createPlace.done')}
-                        </Button>
+                    <div className="mt-auto">
+                        <div className="flex flex-col gap-4 px-4 pb-4 pt-5">
+                            <Button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="flex h-[50px] items-center justify-center gap-1.5 rounded-full bg-[#B0EA10] px-6 py-3 text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-[#EAEAEC] disabled:text-[#BABCC0]"
+                            >
+                                {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : t('createPlace.done')}
+                            </Button>
+                        </div>
                     </div>
                 </form>
             </DialogContent>
