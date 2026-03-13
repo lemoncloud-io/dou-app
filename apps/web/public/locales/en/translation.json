@@ -256,7 +256,18 @@
                 "friday": "Friday",
                 "saturday": "Saturday"
             },
-            "dateFormat": "{{month}}/{{day}}/{{year}} {{weekday}}"
+            "dateFormat": "{{month}}/{{day}}/{{year}} {{weekday}}",
+            "emptyState": {
+                "line1": "Invite friends to",
+                "line2": "start chatting.",
+                "inviteButton": "Invite Friends"
+            },
+            "read": "Read",
+            "unread": "Unread",
+            "readCount": "Read {{count}}",
+            "unreadCount": "Unread {{count}}",
+            "viewAll": "View All",
+            "messageDetail": "Full Message"
         },
         "settings": {
             "title": "Room Settings",
@@ -279,15 +290,28 @@
             "leaveFailed": "Failed to leave the room",
             "deletedRoom": "Room deleted",
             "deleteFailed": "Failed to delete the room",
-            "roomName": "Room Name"
+            "roomName": "Room Name",
+            "deleteDialog": {
+                "title": "Delete this chat room?",
+                "description": "Once deleted, all participants will no longer have access to this room, and all messages and data will be permanently removed.",
+                "confirm": "Delete"
+            },
+            "leaveDialog": {
+                "title": "Leave this chat room?",
+                "description": "You won't be able to view messages, and you'll need a new invite to rejoin.",
+                "confirm": "Leave"
+            },
+            "unknownUser": "Unknown User"
         }
     },
     "search": {
-        "placeholder": "Search...",
+        "placeholder": "Search by room name or place",
         "recent": "Recent Searches",
         "clearAll": "Clear All",
         "places": "Places",
-        "chat": "Chat"
+        "chat": "Chat",
+        "noResults": "No results found.",
+        "noHistory": "No search history."
     },
     "workspace": {
         "list": {
@@ -421,7 +445,17 @@
         "copyLink": "Copy Link",
         "addFriend": "Add Friend",
         "qrCode": "QR Code",
-        "searchPlaceholder": "Search friends"
+        "searchPlaceholder": "Search friends",
+        "invite": "Invite",
+        "noSearchResults": "No results found.",
+        "linkCopied": "Link copied to clipboard.",
+        "shareFailed": "Failed to share.",
+        "shareTitle": "Join my chat",
+        "shareMessage": "Click this link to join the chat!",
+        "permissionDenied": {
+            "title": "Contacts access is turned off",
+            "description": "To quickly find friends and start chatting, contacts permission is required. Your contact information is only used for friend recommendations and invitations, and is kept secure."
+        }
     },
     "addFriend": {
         "title": "Add Friend",
@@ -430,6 +464,9 @@
         "nameLabel": "Name",
         "namePlaceholder": "Enter friend's name",
         "nameHint": "Please enter up to 20 characters.",
+        "phoneLabel": "Phone Number",
+        "phonePlaceholder": "Enter phone number",
+        "phoneHint": "Please enter up to 20 characters.",
         "share": "Share"
     },
     "inviteCode": {

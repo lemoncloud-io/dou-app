@@ -10,9 +10,9 @@ import { useMyChannels } from '../hooks/useMyChannels';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 
 const ChannelSkeleton = () => (
-    <div className="flex items-center gap-3 rounded-lg px-1 py-3.5">
-        <Skeleton className="h-12 w-12 rounded-full" />
-        <div className="flex flex-1 flex-col gap-2">
+    <div className="flex items-start gap-2 rounded-[6px] px-[2px] py-2">
+        <Skeleton className="h-10 w-10 rounded-full" />
+        <div className="flex flex-1 flex-col gap-1">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-3 w-48" />
         </div>
@@ -38,53 +38,54 @@ const ChannelItem = ({ channel }: { channel: ChannelView }) => {
 
     return (
         <button
-            key={channel.id}
             onClick={() => navigate(`/chats/${channel.id}/room`)}
-            className="flex w-full items-center gap-3 rounded-lg px-1 py-3.5 text-left transition-colors active:bg-muted"
+            className="flex w-full items-start gap-2 rounded-[6px] px-[2px] py-2 text-left transition-colors active:bg-muted"
         >
             {/* Avatar */}
             <div className="relative flex-shrink-0">
-                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-muted">
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                     {isSelf ? (
-                        <span className="text-lg text-muted-foreground">👤</span>
+                        <span className="text-base text-muted-foreground">👤</span>
                     ) : (
-                        <span className="text-lg text-muted-foreground">👥</span>
+                        <span className="text-base text-muted-foreground">👥</span>
                     )}
                 </div>
-                {channel.memberNo && (
-                    <span className="absolute -left-1 -top-1 flex h-4 w-7 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-accent-foreground">
+                {channel.memberNo && channel.memberNo > 1 && (
+                    <span className="absolute -left-[2px] -top-[2px] flex h-[17px] min-w-[17px] items-center justify-center rounded-full border border-[#90C304] bg-background/75 px-[5px] text-[11px] font-medium tracking-[-0.025em] text-muted-foreground shadow-sm backdrop-blur-sm">
                         {channel.memberNo}
                     </span>
                 )}
             </div>
 
             {/* Content */}
-            <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                    {isSelf && (
-                        <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
-                            MY
+            <div className="flex min-w-0 flex-1 gap-2">
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-[6px]">
+                        {isSelf && (
+                            <span className="rounded-[3px] bg-[#102346] px-[5px] py-[3px] text-[11px] font-medium leading-none text-white">
+                                MY
+                            </span>
+                        )}
+                        <span className="truncate text-[15px] font-semibold tracking-[-0.025em] text-foreground">
+                            {channel.name || t('channelList.unnamedChannel')}
+                        </span>
+                    </div>
+                    <p className="mt-1 truncate text-[13.5px] leading-[1.2] tracking-[-0.025em] text-muted-foreground">
+                        {channel.lastChat$?.content || channel.desc || t('channelList.noDescription')}
+                    </p>
+                </div>
+
+                {/* Time + Unread */}
+                <div className="flex h-[45px] flex-shrink-0 flex-col items-end gap-1">
+                    <span className="text-[12px] leading-[20px] tracking-[-0.015em] text-muted-foreground">
+                        {formatTime(channel.lastChat$?.createdAt ?? channel.updatedAt)}
+                    </span>
+                    {unreadCount > 0 && (
+                        <span className="flex h-[17px] min-w-[17px] items-center justify-center rounded-[8.5px] bg-[#F41F52] px-[5px] text-[11px] font-semibold leading-[10px] tracking-[0.005em] text-[#FEFEFE]">
+                            {unreadCount > 999 ? '+999' : unreadCount}
                         </span>
                     )}
-                    <span className="truncate text-[15px] font-semibold text-foreground">
-                        {channel.name || t('channelList.unnamedChannel')}
-                    </span>
                 </div>
-                <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                    {channel.lastChat$?.content || channel.desc || t('channelList.noDescription')}
-                </p>
-            </div>
-
-            {/* Time + Unread */}
-            <div className="flex flex-shrink-0 flex-col items-end gap-1">
-                <span className="text-[11px] text-muted-foreground">
-                    {formatTime(channel.lastChat$?.createdAt ?? channel.updatedAt)}
-                </span>
-                {unreadCount > 0 && (
-                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-badge-unread px-1.5 text-[11px] font-bold text-badge-unread-foreground">
-                        {unreadCount}
-                    </span>
-                )}
             </div>
         </button>
     );
@@ -125,7 +126,7 @@ export const ChannelList = ({ workspaceId: _workspaceId }: ChannelListProps) => 
     }
 
     return (
-        <div className="space-y-0">
+        <div className="flex flex-col gap-[18px] px-1">
             {channels.map(channel => (
                 <ChannelItem key={channel.id} channel={channel} />
             ))}

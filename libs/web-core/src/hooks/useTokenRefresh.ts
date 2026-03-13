@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { postMessage } from '@chatic/app-messages';
 
@@ -7,6 +7,8 @@ import { useWebCoreStore } from '../stores';
 import { classifyError } from '../utils';
 
 import type { ErrorClassification } from '../utils';
+
+type InitializationStatus = 'pending' | 'success' | 'failed';
 
 const REFRESH_INTERVAL = 1000 * 60; // 1분
 const MIN_REFRESH_GAP = 5000; // 5초 간격 제한
@@ -18,6 +20,8 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
     const isRefreshingRef = useRef(false);
     const lastRefreshTime = useRef(0);
     const isInitializedRef = useRef(false);
+    const hasFailedRef = useRef(false);
+    const [initStatus, setInitStatus] = useState<InitializationStatus>('pending');
 
     const refreshToken = useCallback(async (): Promise<boolean> => {
         const now = Date.now();
@@ -71,7 +75,8 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
     }, []);
 
     const initialize = useCallback(async () => {
-        if (!isAuthenticated || !webCoreReady || isInitializedRef.current) {
+        // Prevent re-initialization if already initialized or failed
+        if (!isAuthenticated || !webCoreReady || isInitializedRef.current || hasFailedRef.current) {
             return;
         }
 
@@ -79,6 +84,8 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
         try {
             const refreshSuccess = await refreshToken();
             if (!refreshSuccess) {
+                hasFailedRef.current = true;
+                setInitStatus('failed');
                 return;
             }
 
@@ -86,31 +93,44 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             setProfile(profile);
 
             isInitializedRef.current = true;
+            setInitStatus('success');
         } catch (error: unknown) {
             console.error('❌ Profile fetch failed:', error);
 
-            const errorObj = error as { status?: number; response?: { status?: number }; message?: string };
-            const is403 =
-                errorObj?.status === 403 ||
-                errorObj?.response?.status === 403 ||
-                (errorObj?.message && errorObj.message.includes('403'));
+            const errorClassification: ErrorClassification = classifyError(error);
 
-            if (is403) {
-                console.log('🔄 Profile fetch got 403, refreshing token once more...');
+            if (errorClassification.shouldLogout) {
+                console.log('🔄 Profile fetch got auth error, refreshing token once more...');
                 const refreshSuccess = await refreshToken();
                 if (refreshSuccess) {
                     try {
                         const profile = await fetchProfile();
                         setProfile(profile);
                         isInitializedRef.current = true;
+                        setInitStatus('success');
                         console.log('✅ Initialization succeeded after additional token refresh');
+                        return;
                     } catch (retryError) {
                         console.error('❌ Profile fetch failed even after token refresh: ', retryError);
+                        const retryErrorClassification: ErrorClassification = classifyError(retryError);
+                        if (retryErrorClassification.shouldLogout) {
+                            console.log('🚪 Profile fetch still failing with auth error - logging out...');
+                            hasFailedRef.current = true;
+                            setInitStatus('failed');
+                            await logout();
+                            return;
+                        }
                     }
                 }
             }
+
+            // For non-auth errors (network, server), mark as failed but don't logout
+            // This prevents infinite loop when network is temporarily unavailable
+            hasFailedRef.current = true;
+            setInitStatus('failed');
+            console.log('⚠️ Initialization failed due to non-auth error');
         }
-    }, [isAuthenticated, refreshToken, webCoreReady, setProfile]);
+    }, [isAuthenticated, refreshToken, webCoreReady, setProfile, logout]);
 
     useEffect(() => {
         if (isAuthenticated && webCoreReady) {
@@ -122,14 +142,21 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
         } else {
             stopInterval();
             isInitializedRef.current = false;
+            hasFailedRef.current = false;
+            setInitStatus('pending');
         }
 
         return stopInterval;
     }, [isAuthenticated, initialize, startInterval, stopInterval, webCoreReady]);
 
+    // isInitialized should be true only when initialization succeeded
+    // or when initialization failed (to prevent infinite loading)
+    const isInitialized = initStatus === 'success' || initStatus === 'failed';
+
     return {
         refreshToken,
         isRefreshing: isRefreshingRef.current,
-        isInitialized: isInitializedRef.current,
+        isInitialized,
+        initStatus,
     };
 };
