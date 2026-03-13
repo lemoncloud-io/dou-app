@@ -43,41 +43,28 @@ export const useSearch = (query: string) => {
                 // Filter channels by name (case-insensitive)
                 const matchedChannels = channels.filter(ch => ch.name?.toLowerCase().includes(lowerQuery));
 
-                // Search messages across all channels
+                // Search messages across all channels (parallel loading)
+                const validChannels = channels.filter((ch): ch is ChannelView & { id: string } => !!ch.id);
+                const allMessages = await Promise.all(
+                    validChannels.map(ch => IndexedDBStorageAdapter.load(userId, ch.id))
+                );
+
+                // Build chat results from message matches
                 const chatResults: ChatSearchResult[] = [];
+                validChannels.forEach((channel, index) => {
+                    const messages = allMessages[index];
+                    const matchCount = messages.filter(m => m.content?.toLowerCase().includes(lowerQuery)).length;
 
-                for (const channel of channels) {
-                    if (!channel.id) continue;
-
-                    const messages = await IndexedDBStorageAdapter.load(userId, channel.id);
-                    const matchedMessages = messages.filter(m => m.content?.toLowerCase().includes(lowerQuery));
-
-                    if (matchedMessages.length > 0) {
-                        // Check if this channel is already in places results
-                        const isAlreadyInPlaces = matchedChannels.some(ch => ch.id === channel.id);
-                        if (!isAlreadyInPlaces) {
-                            chatResults.push({
-                                channel,
-                                matchCount: matchedMessages.length,
-                            });
-                        } else {
-                            // Still add to chats but with match count
-                            chatResults.push({
-                                channel,
-                                matchCount: matchedMessages.length,
-                            });
-                        }
+                    if (matchCount > 0) {
+                        chatResults.push({ channel, matchCount });
                     }
-                }
+                });
 
                 // Add channels that matched by name but not by messages
                 for (const channel of matchedChannels) {
                     const existsInChats = chatResults.some(cr => cr.channel.id === channel.id);
                     if (!existsInChats) {
-                        chatResults.push({
-                            channel,
-                            matchCount: 0,
-                        });
+                        chatResults.push({ channel, matchCount: 0 });
                     }
                 }
 
