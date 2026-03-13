@@ -294,7 +294,8 @@
         "recent": "최근 검색",
         "clearAll": "전체 삭제",
         "places": "플레이스",
-        "chat": "Chat"
+        "chat": "채팅",
+        "noResults": "검색 결과가 없어요"
     },
     "workspace": {
         "list": {

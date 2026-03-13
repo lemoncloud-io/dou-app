@@ -294,7 +294,8 @@
         "recent": "Recent Searches",
         "clearAll": "Clear All",
         "places": "Places",
-        "chat": "Chat"
+        "chat": "Chats",
+        "noResults": "No results found"
     },
     "workspace": {
         "list": {
