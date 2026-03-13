@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Bell, ChevronRight, Globe, LogOut, Moon, Settings } from 'lucide-react';
+import { Bell, ChevronRight, Globe, LogOut, Moon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useTheme } from '@chatic/theme';
@@ -34,7 +34,6 @@ export const MyPage = () => {
 
     const menuItems: MenuItem[] = [
         { icon: Bell, label: t('mypage.notifications'), path: '/notifications' },
-        { icon: Settings, label: t('mypage.workspaceSettings'), path: '/workspace-list' },
         { icon: Moon, label: t('mypage.darkMode'), toggle: true },
         { icon: Globe, label: t('mypage.languageSettings'), detail: currentLanguageLabel },
     ];
