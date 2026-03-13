@@ -1,5 +1,63 @@
 # Changelog
 
+## [2026-03-13] - No version updates
+
+### Features
+
+- (profile) add local profile overrides and image upload
+
+## [2026-03-13] - root@0.18.0, @chatic/web@0.15.0
+
+### Features
+
+- update mypage
+- (mypage) move settings from AccountInfoPage to MyPage
+- update version info and device info
+
+### Refactor
+
+- rename onboarding images
+- (mypage) update layout and styling for mypage features
+- (mypage) replace AlertDialog with custom dialog implementation
+
+## [2026-03-13] - No version updates
+
+### Features
+
+- (auth) add invite acceptance feature
+- (chats) implement invite friends functionality
+- (chats) add deeplink to invite friends share message
+
+### Refactor
+
+- (auth) update login and env storage logic
+
+## [2026-03-13] - root@0.17.0, @chatic/web@0.14.0, @chatic/admin@0.4.0
+
+### Features
+
+- update home UI
+- (home) remove channel description and sort channels by latest activity
+- (chats) add empty state and invite friends feature
+- implement search page
+- update search
+- improve invitation logic
+- update room settings
+- (chats) add unknown user label and improve member list item
+
+### Bug Fixes
+
+- (home) enhance CreateChannelDialog validation
+
+### Refactor
+
+- (search) parallelize message loading
+- improve invite login failure handling and dialog components
+
+### Chores
+
+- (chats) update color scheme and typography
+
 ## [2026-03-13] - root@0.16.0, @chatic/web@0.13.0
 
 ### Features

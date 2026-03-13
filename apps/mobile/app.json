@@ -1,7 +1,7 @@
 {
-  "name": "Chatic",
-  "displayName": "Chatic",
-  "experiments": {
-"reactCanary": true
-}
+    "name": "Chatic",
+    "displayName": "Chatic",
+    "experiments": {
+        "reactCanary": true
+    }
 }

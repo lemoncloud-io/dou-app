@@ -1,7 +1,6 @@
-import { ArrowLeftRight, ChevronDown, Plus, Search, User } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown, Plus, Search, Settings, SlidersHorizontal, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 
 import {
     DropdownMenu,
@@ -10,31 +9,36 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useDynamicProfile, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
+import { useLocalProfileStore, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { SettingsDialog } from '../../../components/SettingsDialog';
 import { OnboardingModal } from '../../onboarding';
+import { SearchModal } from '../../search';
 import { ChannelList } from '../components/ChannelList';
+import { CloudSessionSheet } from '../components/CloudSessionSheet';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
 import { CreatePlaceDialog } from '../components/CreatePlaceDialog';
-import { CloudSessionSheet } from '../components/CloudSessionSheet';
 import { PlaceList } from '../components/PlaceList';
 
 export const HomePage = () => {
-    const navigate = useNavigate();
     const { t } = useTranslation();
-    const profile = useDynamicProfile();
-    const { logout, isGuest } = useWebCoreStore();
-    const { isCloudsError } = useCloudSession();
+    const { logout, isGuest, profile } = useWebCoreStore();
+    const localProfile = useLocalProfileStore();
     const { canCreate } = useCanCreateChannel();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
+    const { isCloudsError } = useCloudSession();
+
+    const displayName = localProfile.name ?? profile?.$user?.nick ?? profile?.$user?.name ?? '-';
+    const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [isCreatePlaceOpen, setIsCreatePlaceOpen] = useState(false);
+    const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isCloudSessionOpen, setIsCloudSessionOpen] = useState(false);
+    const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     const handleLogout = () => {
         logout();
@@ -47,8 +51,6 @@ export const HomePage = () => {
         toast({ title: t('homePage.roomCreated') });
     };
 
-    const showCloudError = !isGuest && isCloudsError;
-
     return (
         <div className="flex min-h-screen flex-col bg-background pb-[98px] pt-4">
             {/* Header */}
@@ -58,18 +60,23 @@ export const HomePage = () => {
                 ) : (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <button className="flex items-center gap-3">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-                                    <User size={20} className="text-primary-foreground" />
+                            <button className="flex items-center gap-[9px]">
+                                <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                                    {displayImageUrl ? (
+                                        <img
+                                            src={displayImageUrl}
+                                            alt="Profile"
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <User size={20} className="text-muted-foreground" />
+                                    )}
                                 </div>
-                                <div className="flex flex-col items-start">
-                                    <div className="flex items-center gap-1">
-                                        <h1 className="max-w-[120px] truncate text-lg font-bold text-foreground">
-                                            {profile?.$user?.name || '-'}
-                                        </h1>
-                                        <ChevronDown size={18} className="text-muted-foreground" />
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">{profile?.$user?.loginId || '-'}</p>
+                                <div className="flex items-center gap-1">
+                                    <span className="max-w-[160px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
+                                        {displayName}
+                                    </span>
+                                    <ChevronDown size={18} className="text-muted-foreground" />
                                 </div>
                             </button>
                         </DropdownMenuTrigger>
@@ -83,73 +90,80 @@ export const HomePage = () => {
                         </DropdownMenuContent>
                     </DropdownMenu>
                 )}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-4">
                     {!isGuest && (
-                        <button onClick={() => setIsCloudSessionOpen(true)} className="p-2">
+                        <button onClick={() => setIsCloudSessionOpen(true)} className="p-1">
                             <ArrowLeftRight size={22} className="text-foreground" />
                         </button>
                     )}
-                    <button onClick={() => navigate('/search')} className="p-2">
+                    <button onClick={() => setIsSearchOpen(true)} className="p-1">
                         <Search size={22} className="text-foreground" />
+                    </button>
+                    <button onClick={() => setIsSettingsOpen(true)} className="p-1">
+                        <Settings size={22} className="text-foreground" />
                     </button>
                 </div>
             </header>
 
-            {showCloudError ? (
-                <div className="flex flex-1 flex-col items-center justify-center gap-2 px-5 text-center">
-                    <p className="text-sm text-muted-foreground">{t('homePage.noCloudsError')}</p>
-                    <button
-                        onClick={() => setIsCloudSessionOpen(true)}
-                        className="text-sm font-medium text-foreground underline"
-                    >
-                        {t('homePage.selectCloud')}
-                    </button>
-                </div>
-            ) : (
-                <>
-                    {/* Place List */}
-                    {!isGuest && (
-                        <section className="px-5 py-4">
-                            <div className="mb-3 flex items-center justify-between">
-                                <h2 className="text-xl font-bold text-foreground">Place</h2>
-                                {canCreate && (
-                                    <button
-                                        onClick={() => setIsCreatePlaceOpen(true)}
-                                        className="flex h-8 w-8 items-center justify-center rounded-full border border-border"
-                                    >
-                                        <Plus size={18} className="text-foreground" />
-                                    </button>
-                                )}
-                            </div>
-                            <PlaceList />
-                        </section>
-                    )}
-
-                    <div className="mx-5 h-px bg-border" />
-
-                    {/* Chat List */}
-                    <section className="flex-1 px-5 pt-4">
-                        <div className="mb-3 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-foreground">Chat</h2>
-                            {canCreate && (
-                                <button
-                                    onClick={() => setIsDialogOpen(true)}
-                                    className="flex h-8 w-8 items-center justify-center rounded-full border border-border"
-                                >
-                                    <Plus size={18} className="text-foreground" />
-                                </button>
-                            )}
-                        </div>
-                        <ChannelList workspaceId={''} />
-                    </section>
-                </>
+            {/* Cloud Error Banner */}
+            {!isGuest && isCloudsError && (
+                <button
+                    onClick={() => setIsCloudSessionOpen(true)}
+                    className="mx-5 mb-2 rounded-lg bg-destructive/10 px-4 py-2.5 text-left text-sm text-destructive"
+                >
+                    {t('homePage.noCloudsError')}
+                </button>
             )}
 
+            {/* Place List */}
+            {!isGuest && (
+                <section className="pb-4 pt-2">
+                    <div className="mb-[18px] flex items-center justify-between px-4">
+                        <div className="flex items-center gap-[6px]">
+                            <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
+                                {t('homePage.places')}
+                            </span>
+                            <button className="flex items-center justify-center rounded-[6px] border border-border p-[2px]">
+                                <SlidersHorizontal size={20} className="text-foreground" />
+                            </button>
+                        </div>
+                        <button
+                            onClick={() => setIsPlaceDialogOpen(true)}
+                            className="flex items-center justify-center rounded-[8px]"
+                        >
+                            <Plus size={24} className="text-foreground" />
+                        </button>
+                    </div>
+                    <PlaceList onPlaceSelected={setSelectedPlaceId} />
+                </section>
+            )}
+
+            {!isGuest && <div className="mx-4 h-[3px] bg-border" />}
+
+            {/* Chat List */}
+            <section className="flex-1 px-4 pt-[18px]">
+                <div className="mb-[18px] flex items-center justify-between">
+                    <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
+                        Chat
+                    </span>
+                    {canCreate && (
+                        <button
+                            onClick={() => setIsDialogOpen(true)}
+                            className="flex h-[24px] w-[24px] items-center justify-center"
+                        >
+                            <Plus size={24} className="text-foreground" />
+                        </button>
+                    )}
+                </div>
+                <ChannelList workspaceId={selectedPlaceId ?? ''} />
+            </section>
+
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
-            <CreatePlaceDialog open={isCreatePlaceOpen} onOpenChange={setIsCreatePlaceOpen} />
+            <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
             <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
             <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
             <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
+            <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
             <BottomNavigation />
         </div>
     );

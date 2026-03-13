@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { RefreshCw, Users } from 'lucide-react';
+import { Check, RefreshCw, Users } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
@@ -32,25 +32,28 @@ const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemPr
             disabled={disabled}
             className={cn('flex flex-col items-center gap-[5px]', disabled && 'cursor-not-allowed')}
         >
-            <div className="relative">
+            <div className="relative h-[47px] w-[47px]">
                 <div
                     className={cn(
-                        'flex h-[47px] w-[47px] items-center justify-center rounded-full',
-                        isSelected ? 'outline outline-[1.5px] outline-[#C139E3] outline-offset-1' : '',
-                        isSelected ? 'bg-[#102346]' : 'bg-[#F4F5F5]'
+                        'absolute left-[3px] top-[3px] flex h-[41px] w-[41px] items-center justify-center rounded-full',
+                        isSelected ? 'bg-[#102346]' : 'bg-muted'
                     )}
                 >
-                    <Users size={20} className="text-white" />
+                    <Users size={20} className={isSelected ? 'text-white' : 'text-muted-foreground'} />
                 </div>
+                {isSelected && <div className="absolute inset-0 rounded-full border-[1.5px] border-[#C139E3]" />}
             </div>
-            <span
-                className={cn(
-                    'w-[80px] truncate text-center text-[14px] leading-[1.19]',
-                    isSelected ? 'font-medium text-foreground' : 'font-normal text-[#9FA2A7]'
-                )}
-            >
-                {place.name}
-            </span>
+            <div className="flex items-center justify-center gap-[2px]">
+                <span
+                    className={cn(
+                        'max-w-[70px] truncate text-center text-[14px] tracking-[-0.018em]',
+                        isSelected ? 'font-medium text-foreground' : 'font-normal text-muted-foreground'
+                    )}
+                >
+                    {place.name}
+                </span>
+                {isSelected && <Check size={14} className="flex-shrink-0 text-[#90C304]" />}
+            </div>
         </button>
     );
 };
@@ -82,30 +85,15 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
         void handleSelectPlace(firstSelectable.id);
     }, [places]);
 
-    if (isGuest) {
-        return (
-            <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-2">
-                <div className="flex flex-col items-center gap-[5px]">
-                    <div className="relative">
-                        <div className="flex h-[47px] w-[47px] items-center justify-center rounded-full bg-[#102346] outline outline-[1.5px] outline-[#C139E3] outline-offset-1">
-                            <Users size={20} className="text-white" />
-                        </div>
-                    </div>
-                    <span className="w-[80px] truncate text-center text-[14px] font-medium leading-[1.19] text-foreground">
-                        {t('placeList.defaultPlace')}
-                    </span>
-                </div>
-            </div>
-        );
-    }
+    if (isGuest) return null;
 
     if (isLoading) {
         return (
             <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 py-2">
                 {Array.from({ length: 3 }).map((_, i) => (
                     <div key={i} className="flex flex-col items-center gap-[5px]">
-                        <div className="h-[47px] w-[47px] animate-pulse rounded-full bg-[#F4F5F5]" />
-                        <div className="h-3 w-[50px] animate-pulse rounded bg-[#F4F5F5]" />
+                        <div className="h-[47px] w-[47px] animate-pulse rounded-full bg-muted" />
+                        <div className="h-3 w-[50px] animate-pulse rounded bg-muted" />
                     </div>
                 ))}
             </div>
@@ -114,7 +102,7 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
 
     if (isError) {
         return (
-            <div className="flex items-center gap-2 px-4 py-2 text-sm text-[#9FA2A7]">
+            <div className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
                 <span>{t('placeList.errorLoading')}</span>
                 <button onClick={retry} className="flex items-center gap-1 text-foreground">
                     <RefreshCw size={14} />
@@ -125,7 +113,7 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
     }
 
     if (places.length === 0) {
-        return <p className="px-4 py-2 text-sm text-[#9FA2A7]">{t('placeList.empty')}</p>;
+        return <p className="px-4 py-2 text-sm text-muted-foreground">{t('placeList.empty')}</p>;
     }
 
     return (

@@ -2,6 +2,8 @@ import { create } from 'zustand';
 
 import type { DeviceInfo, Env, PageLanguage, Platform, VersionInfo } from '@chatic/app-messages';
 
+declare const __APP_VERSION__: string;
+
 declare global {
     interface Window {
         CHATIC_APP_PLATFORM?: string;
@@ -38,6 +40,9 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
         const shouldUpdate = window.CHATIC_APP_SHOULD_UPDATE === 'true';
         const appLang = window.CHATIC_APP_CURRENT_LANGUAGE as PageLanguage | undefined;
 
+        const webVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
+        const appVersion = currentVersion || webVersion;
+
         const deviceInfo: DeviceInfo = {
             stage,
             application,
@@ -47,7 +52,13 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
             platform,
             lang: appLang,
         };
-        const versionInfo: VersionInfo = { currentVersion, latestVersion, shouldUpdate };
+        const versionInfo: VersionInfo = {
+            currentVersion,
+            latestVersion,
+            shouldUpdate,
+            appVersion,
+            webVersion,
+        };
 
         set({ deviceInfo, versionInfo });
     },

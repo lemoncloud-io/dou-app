@@ -26,11 +26,11 @@ declare global {
  * - _backend → CHATIC_OAUTH_ENDPOINT, CHATIC_DOU_ENDPOINT
  * - _wss → CHATIC_WS_ENDPOINT
  *
- * Mobile WebView does NOT use query params (injects directly to localStorage),
+ * Mobile WebView does NOT use query params (injects directly to sessionStorage),
  * so this only runs for web browser flow.
  */
 const initEnvFromQueryParams = (): void => {
-    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') {
         return;
     }
 
@@ -40,16 +40,16 @@ const initEnvFromQueryParams = (): void => {
         const wss = params.get('_wss');
 
         // Only set if query params exist (web browser flow from landing page)
-        // Mobile WebView doesn't have these params - it injects directly to localStorage
+        // Mobile WebView doesn't have these params - it injects directly to sessionStorage
         if (backend) {
-            localStorage.setItem('CHATIC_OAUTH_ENDPOINT', backend);
-            localStorage.setItem('CHATIC_DOU_ENDPOINT', backend);
+            sessionStorage.setItem('CHATIC_OAUTH_ENDPOINT', backend);
+            sessionStorage.setItem('CHATIC_DOU_ENDPOINT', backend);
         }
         if (wss) {
-            localStorage.setItem('CHATIC_WS_ENDPOINT', wss);
+            sessionStorage.setItem('CHATIC_WS_ENDPOINT', wss);
         }
     } catch {
-        // Ignore errors (e.g., localStorage disabled)
+        // Ignore errors (e.g., sessionStorage disabled)
     }
 };
 
@@ -63,10 +63,11 @@ if (isReactNativeWebView()) {
     setStorageAdapter(localStorage);
 }
 
-// localStorage takes priority (injected by mobile WebView for deeplink)
-const getLocalStorageItem = (key: string): string | null => {
+// Get endpoint from storage (mobile: localStorage, web: sessionStorage)
+const getEndpointStorageItem = (key: string): string | null => {
     try {
-        return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+        const storage = isReactNativeWebView() ? localStorage : sessionStorage;
+        return storage.getItem(key);
     } catch {
         return null;
     }
@@ -82,7 +83,7 @@ export const ENV = (window.ENV || import.meta.env.VITE_ENV || '').toLowerCase();
 export const PROJECT = (window.PROJECT || import.meta.env.VITE_PROJECT || '').toLowerCase();
 export const REGION = (window.REGION || import.meta.env.VITE_REGION || 'ap-northeast-2').toLowerCase();
 export const OAUTH_ENDPOINT = (
-    getLocalStorageItem('CHATIC_OAUTH_ENDPOINT') ||
+    getEndpointStorageItem('CHATIC_OAUTH_ENDPOINT') ||
     window.OAUTH_ENDPOINT ||
     import.meta.env.VITE_OAUTH_ENDPOINT ||
     ''
@@ -94,9 +95,9 @@ export const SOCIAL_OAUTH_ENDPOINT = (
     ''
 ).toLowerCase();
 export const DOU_ENDPOINT =
-    getLocalStorageItem('CHATIC_DOU_ENDPOINT') || window.DOU_ENDPOINT || import.meta.env.VITE_DOU_ENDPOINT || '';
+    getEndpointStorageItem('CHATIC_DOU_ENDPOINT') || window.DOU_ENDPOINT || import.meta.env.VITE_DOU_ENDPOINT || '';
 export const WS_ENDPOINT =
-    getLocalStorageItem('CHATIC_WS_ENDPOINT') || window.WS_ENDPOINT || import.meta.env.VITE_WS_ENDPOINT || '';
+    getEndpointStorageItem('CHATIC_WS_ENDPOINT') || window.WS_ENDPOINT || import.meta.env.VITE_WS_ENDPOINT || '';
 
 /**
  * Key for storing language preference

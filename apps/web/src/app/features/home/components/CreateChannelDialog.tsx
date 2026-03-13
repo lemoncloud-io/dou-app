@@ -8,7 +8,6 @@ import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useCreateChannel } from '../hooks/useCreateChannel';
-import type { ChannelBody } from '@lemoncloud/chatic-socials-api';
 
 interface CreateChannelDialogProps {
     open: boolean;
@@ -23,12 +22,16 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
         register,
         handleSubmit,
         reset,
+        watch,
         formState: { errors },
-    } = useForm<{ name: string; desc?: string }>({});
+    } = useForm<{ name: string }>();
 
-    const onSubmit = async (data: ChannelBody) => {
+    const nameValue = watch('name', '');
+    const isButtonDisabled = isLoading || !nameValue?.trim();
+
+    const onSubmit = async (data: { name: string }) => {
         try {
-            await createChannel({ stereo: 'private', name: data.name, desc: data.desc });
+            await createChannel({ stereo: 'private', name: data.name });
             reset();
             onOpenChange(false);
             onComplete?.();
@@ -97,20 +100,6 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                                 </div>
                             </div>
 
-                            {/* Room Description Input */}
-                            <div className="flex flex-col justify-center items-center gap-1.5 px-4 rounded-lg">
-                                <div className="flex flex-col gap-1.5 w-full">
-                                    <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-[#9FA2A7]">
-                                        {t('createChannel.descLabel')}
-                                    </Label>
-                                    <Input
-                                        {...register('desc')}
-                                        placeholder={t('createChannel.descPlaceholder')}
-                                        className="h-11 px-3.5 bg-white border border-[#EAEAEC] rounded-[10px] text-[15px] font-medium leading-[1.45] tracking-[0.005em] placeholder:text-[#84888F]"
-                                    />
-                                </div>
-                            </div>
-
                             {/* Room Image Section */}
                             {/* <div className="flex flex-col gap-1.5 px-[18px]">
                                 <Label className="text-[14px] font-semibold leading-[1.571] tracking-[0.005em] text-[#9FA2A7]">
@@ -140,7 +129,7 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                         <div className="flex flex-col gap-4 px-4 pt-5 pb-4">
                             <Button
                                 type="submit"
-                                disabled={isLoading}
+                                disabled={isButtonDisabled}
                                 className="flex items-center justify-center gap-1.5 h-[50px] px-6 py-3 bg-[#B0EA10] rounded-full text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-[#EAEAEC] disabled:text-[#BABCC0]"
                             >
                                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : t('createChannel.done')}

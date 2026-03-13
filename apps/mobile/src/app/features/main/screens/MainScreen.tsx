@@ -71,7 +71,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
             // Build injection script
             let script = '';
 
-            // Store envs in localStorage (persists across navigations and app restarts)
+            // Store envs in localStorage (persists across app restarts)
             // backend replaces all API endpoints (OAUTH, DOU)
             if (pendingEnvs?.backend) {
                 const safeBackend = encodeURI(pendingEnvs.backend).replace(/'/g, '%27');
