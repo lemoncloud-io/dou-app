@@ -4,7 +4,7 @@ const ONBOARDING_COMPLETED_KEY = 'chatic-onboarding-completed';
 
 const getInitialCompleted = (): boolean => {
     if (typeof window === 'undefined') return false;
-    return sessionStorage.getItem(ONBOARDING_COMPLETED_KEY) === 'true';
+    return localStorage.getItem(ONBOARDING_COMPLETED_KEY) === 'true';
 };
 
 interface OnboardingState {
@@ -18,7 +18,7 @@ interface OnboardingStore extends OnboardingState {
 
 /**
  * Zustand store for managing onboarding state
- * Uses sessionStorage to persist completion status
+ * Uses localStorage to persist completion status
  */
 export const useOnboardingStore = create<OnboardingStore>()(set => ({
     isCompleted: getInitialCompleted(),
@@ -27,7 +27,7 @@ export const useOnboardingStore = create<OnboardingStore>()(set => ({
      * Mark onboarding as completed and persist to sessionStorage
      */
     completeOnboarding: () => {
-        sessionStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+        localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
         set({ isCompleted: true });
     },
 
@@ -35,7 +35,7 @@ export const useOnboardingStore = create<OnboardingStore>()(set => ({
      * Reset onboarding state for "replay" functionality
      */
     resetOnboarding: () => {
-        sessionStorage.removeItem(ONBOARDING_COMPLETED_KEY);
+        localStorage.removeItem(ONBOARDING_COMPLETED_KEY);
         set({ isCompleted: false });
     },
 }));

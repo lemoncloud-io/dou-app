@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ChevronDown, ChevronRight, User } from 'lucide-react';
+import { ChevronRight, ChevronDown, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useDeviceInfo } from '@chatic/device-utils';

@@ -6,11 +6,11 @@ import { useListenMessage } from '../features/chats/hooks/useListenMessage';
 import { useMyChannels } from '../features/home/hooks/useMyChannels';
 import { useDynamicDeviceId } from '../shared/hooks/useDynamicDeviceId';
 import { useCloudTokenRefresh } from '../shared/hooks/useCloudTokenRefresh';
-import { usePlaceSession } from '../shared/hooks/usePlaceSession';
+import { useCloudSession } from '../shared/hooks/useCloudSession';
 
 export const WebSocketV2Connection = () => {
     const { deviceId } = useDynamicDeviceId();
-    const { isPending } = usePlaceSession();
+    const { isPending } = useCloudSession();
 
     const { isGuest } = useWebCoreStore();
     const wss = cloudCore.getWss();

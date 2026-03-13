@@ -1,4 +1,4 @@
-import { ChevronDown, Plus, Search, Settings, SlidersHorizontal, User } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown, Plus, Search, Settings, SlidersHorizontal, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -12,11 +12,13 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useLocalProfileStore, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
+import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { SettingsDialog } from '../../../components/SettingsDialog';
 import { OnboardingModal } from '../../onboarding';
 import { SearchModal } from '../../search';
 import { ChannelList } from '../components/ChannelList';
+import { CloudSessionSheet } from '../components/CloudSessionSheet';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
 import { CreatePlaceDialog } from '../components/CreatePlaceDialog';
 import { PlaceList } from '../components/PlaceList';
@@ -27,13 +29,14 @@ export const HomePage = () => {
     const localProfile = useLocalProfileStore();
     const { canCreate } = useCanCreateChannel();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
+    const { isCloudsError } = useCloudSession();
 
-    // Merge local overrides with server profile
     const displayName = localProfile.name ?? profile?.$user?.nick ?? profile?.$user?.name ?? '-';
     const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isCloudSessionOpen, setIsCloudSessionOpen] = useState(false);
     const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
 
@@ -88,6 +91,11 @@ export const HomePage = () => {
                     </DropdownMenu>
                 )}
                 <div className="flex items-center gap-4">
+                    {!isGuest && (
+                        <button onClick={() => setIsCloudSessionOpen(true)} className="p-1">
+                            <ArrowLeftRight size={22} className="text-foreground" />
+                        </button>
+                    )}
                     <button onClick={() => setIsSearchOpen(true)} className="p-1">
                         <Search size={22} className="text-foreground" />
                     </button>
@@ -97,28 +105,40 @@ export const HomePage = () => {
                 </div>
             </header>
 
+            {/* Cloud Error Banner */}
+            {!isGuest && isCloudsError && (
+                <button
+                    onClick={() => setIsCloudSessionOpen(true)}
+                    className="mx-5 mb-2 rounded-lg bg-destructive/10 px-4 py-2.5 text-left text-sm text-destructive"
+                >
+                    {t('homePage.noCloudsError')}
+                </button>
+            )}
+
             {/* Place List */}
-            <section className="pb-4 pt-2">
-                <div className="mb-[18px] flex items-center justify-between px-4">
-                    <div className="flex items-center gap-[6px]">
-                        <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
-                            {t('homePage.places')}
-                        </span>
-                        <button className="flex items-center justify-center rounded-[6px] border border-border p-[2px]">
-                            <SlidersHorizontal size={20} className="text-foreground" />
+            {!isGuest && (
+                <section className="pb-4 pt-2">
+                    <div className="mb-[18px] flex items-center justify-between px-4">
+                        <div className="flex items-center gap-[6px]">
+                            <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
+                                {t('homePage.places')}
+                            </span>
+                            <button className="flex items-center justify-center rounded-[6px] border border-border p-[2px]">
+                                <SlidersHorizontal size={20} className="text-foreground" />
+                            </button>
+                        </div>
+                        <button
+                            onClick={() => setIsPlaceDialogOpen(true)}
+                            className="flex items-center justify-center rounded-[8px]"
+                        >
+                            <Plus size={24} className="text-foreground" />
                         </button>
                     </div>
-                    <button
-                        onClick={() => setIsPlaceDialogOpen(true)}
-                        className="flex items-center justify-center rounded-[8px]"
-                    >
-                        <Plus size={24} className="text-foreground" />
-                    </button>
-                </div>
-                <PlaceList onPlaceSelected={setSelectedPlaceId} />
-            </section>
+                    <PlaceList onPlaceSelected={setSelectedPlaceId} />
+                </section>
+            )}
 
-            <div className="mx-4 h-[3px] bg-border" />
+            {!isGuest && <div className="mx-4 h-[3px] bg-border" />}
 
             {/* Chat List */}
             <section className="flex-1 px-4 pt-[18px]">
@@ -135,13 +155,13 @@ export const HomePage = () => {
                         </button>
                     )}
                 </div>
-
                 <ChannelList workspaceId={selectedPlaceId ?? ''} />
             </section>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
             <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
             <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+            <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
             <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
             <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
             <BottomNavigation />
