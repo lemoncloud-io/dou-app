@@ -256,7 +256,12 @@
                 "friday": "금요일",
                 "saturday": "토요일"
             },
-            "dateFormat": "{{year}}년 {{month}}월 {{day}}일 {{weekday}}"
+            "dateFormat": "{{year}}년 {{month}}월 {{day}}일 {{weekday}}",
+            "emptyState": {
+                "line1": "친구를 초대하여",
+                "line2": "채팅을 시작해 보세요.",
+                "inviteButton": "친구초대하기"
+            }
         },
         "settings": {
             "title": "방 설정",

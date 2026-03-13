@@ -1,4 +1,4 @@
-import { ArrowUp, ChevronLeft, MoreHorizontal, Settings } from 'lucide-react';
+import { ArrowUp, ChevronLeft, MoreHorizontal, Plus, Settings } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -17,6 +17,7 @@ import { useMyChannel } from '../hooks/useMyChannel';
 import { useReadMessage } from '../hooks/useReadMessage';
 import { useChatMessages } from '../hooks/useChatMessages';
 import { useMyChannels } from '../../home/hooks/useMyChannels';
+import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 
 export const ChatRoomPage = () => {
     const navigate = useNavigate();
@@ -24,6 +25,7 @@ export const ChatRoomPage = () => {
     const { channelId } = useParams<{ channelId: string }>();
     const [content, setContent] = useState('');
     const [isComposing, setIsComposing] = useState(false);
+    const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { emit } = useWebSocketV2();
     const { sendMessage, isPending } = useSendMessage();
@@ -243,91 +245,122 @@ export const ChatRoomPage = () => {
 
             {/* Messages */}
             <div ref={messagesEndRef} className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 pt-2">
-                {Object.entries(groupedMessages).map(([dateKey, dateMessages]) => (
-                    <div key={dateKey} className="flex flex-col gap-3">
-                        {/* Date Separator */}
-                        <div className="mb-4 text-center">
-                            <span className="text-xs text-muted-foreground">
-                                {formatDateSeparator(dateMessages[0].timestamp)}
+                {messages.length === 0 ? (
+                    <div className="relative flex flex-1 flex-col items-center justify-center">
+                        {/* Date */}
+                        <div className="absolute left-0 right-0 top-2 text-center">
+                            <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
+                                {formatDateSeparator(new Date())}
                             </span>
                         </div>
 
-                        {/* Messages for this date */}
-                        {dateMessages
-                            .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-                            .map(message => {
-                                const isMine = message.ownerId === dynamicProfile?.uid;
+                        {/* Empty state */}
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
+                                <p>{t('chat.room.emptyState.line1')}</p>
+                                <p>{t('chat.room.emptyState.line2')}</p>
+                            </div>
+                            <button
+                                onClick={() => setInviteDialogOpen(true)}
+                                className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
+                            >
+                                <Plus size={20} />
+                                <span className="text-[16px] font-semibold">
+                                    {t('chat.room.emptyState.inviteButton')}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    Object.entries(groupedMessages).map(([dateKey, dateMessages]) => (
+                        <div key={dateKey} className="flex flex-col gap-3">
+                            {/* Date Separator */}
+                            <div className="mb-4 text-center">
+                                <span className="text-xs text-muted-foreground">
+                                    {formatDateSeparator(dateMessages[0].timestamp)}
+                                </span>
+                            </div>
 
-                                if (message.isSystem) {
-                                    const systemMatch = message.content.match(/^(.+?)(님이.+)$/);
+                            {/* Messages for this date */}
+                            {dateMessages
+                                .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+                                .map(message => {
+                                    const isMine = message.ownerId === dynamicProfile?.uid;
+
+                                    if (message.isSystem) {
+                                        const systemMatch = message.content.match(/^(.+?)(님이.+)$/);
+                                        return (
+                                            <div key={message.id} className="flex justify-center py-1">
+                                                <span className="my-3 rounded-full bg-muted px-4 py-1.5 text-[13px] font-medium text-muted-foreground">
+                                                    {systemMatch ? (
+                                                        <>
+                                                            <strong>{systemMatch[1]}</strong>
+                                                            {systemMatch[2]}
+                                                        </>
+                                                    ) : (
+                                                        message.content
+                                                    )}
+                                                </span>
+                                            </div>
+                                        );
+                                    }
+
                                     return (
-                                        <div key={message.id} className="flex justify-center py-1">
-                                            <span className="my-3 rounded-full bg-muted px-4 py-1.5 text-[13px] font-medium text-muted-foreground">
-                                                {systemMatch ? (
-                                                    <>
-                                                        <strong>{systemMatch[1]}</strong>
-                                                        {systemMatch[2]}
-                                                    </>
-                                                ) : (
-                                                    message.content
-                                                )}
-                                            </span>
-                                        </div>
-                                    );
-                                }
-
-                                return (
-                                    <div
-                                        key={message.id}
-                                        className={`flex gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}
-                                    >
-                                        {!isMine && (
-                                            <img
-                                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${message.ownerId}`}
-                                                alt=""
-                                                className="mt-1 h-9 w-9 flex-shrink-0 rounded-full object-cover"
-                                            />
-                                        )}
                                         <div
-                                            className={`flex max-w-[75%] flex-col ${isMine ? 'items-end' : 'items-start'}`}
+                                            key={message.id}
+                                            className={`flex gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}
                                         >
                                             {!isMine && (
-                                                <span className="mb-1 text-xs text-muted-foreground">
-                                                    {message.ownerName}
-                                                </span>
+                                                <img
+                                                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${message.ownerId}`}
+                                                    alt=""
+                                                    className="mt-1 h-9 w-9 flex-shrink-0 rounded-full object-cover"
+                                                />
                                             )}
                                             <div
-                                                className={`whitespace-pre-wrap rounded-[20px] px-4 py-3 text-[14px] leading-relaxed ${
-                                                    isMine
-                                                        ? 'rounded-br-md bg-bubble-mine text-bubble-mine-foreground'
-                                                        : 'rounded-bl-md bg-bubble-other text-bubble-other-foreground'
-                                                }`}
+                                                className={`flex max-w-[75%] flex-col ${isMine ? 'items-end' : 'items-start'}`}
                                             >
-                                                {message.content}
-                                            </div>
-                                            <div
-                                                className={`mt-1 flex items-center gap-1.5 ${isMine ? 'flex-row-reverse' : ''}`}
-                                            >
-                                                <span className="text-[11px] text-muted-foreground">
-                                                    {formatTime(message.timestamp)}
-                                                </span>
-                                                {(() => {
-                                                    const unread =
-                                                        (channel?.memberNo ?? 0) - (message.readBy?.length ?? 0);
-                                                    return unread > 0 ? (
-                                                        <span className="text-[10px] font-medium text-primary">
-                                                            {unread}
-                                                        </span>
-                                                    ) : null;
-                                                })()}
+                                                {!isMine && (
+                                                    <span className="mb-1 text-xs text-muted-foreground">
+                                                        {message.ownerName}
+                                                    </span>
+                                                )}
+                                                <div
+                                                    className={`whitespace-pre-wrap rounded-[20px] px-4 py-3 text-[14px] leading-relaxed ${
+                                                        isMine
+                                                            ? 'rounded-br-md bg-bubble-mine text-bubble-mine-foreground'
+                                                            : 'rounded-bl-md bg-bubble-other text-bubble-other-foreground'
+                                                    }`}
+                                                >
+                                                    {message.content}
+                                                </div>
+                                                <div
+                                                    className={`mt-1 flex items-center gap-1.5 ${isMine ? 'flex-row-reverse' : ''}`}
+                                                >
+                                                    <span className="text-[11px] text-muted-foreground">
+                                                        {formatTime(message.timestamp)}
+                                                    </span>
+                                                    {(() => {
+                                                        const unread =
+                                                            (channel?.memberNo ?? 0) - (message.readBy?.length ?? 0);
+                                                        return unread > 0 ? (
+                                                            <span className="text-[10px] font-medium text-primary">
+                                                                {unread}
+                                                            </span>
+                                                        ) : null;
+                                                    })()}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
-                    </div>
-                ))}
+                                    );
+                                })}
+                        </div>
+                    ))
+                )}
             </div>
+
+            {/* Invite Friends Dialog */}
+            <InviteFriendsDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} channelId={channelId} />
 
             {/* Input */}
             <div

@@ -256,7 +256,12 @@
                 "friday": "Friday",
                 "saturday": "Saturday"
             },
-            "dateFormat": "{{month}}/{{day}}/{{year}} {{weekday}}"
+            "dateFormat": "{{month}}/{{day}}/{{year}} {{weekday}}",
+            "emptyState": {
+                "line1": "Invite friends to",
+                "line2": "start chatting.",
+                "inviteButton": "Invite Friends"
+            }
         },
         "settings": {
             "title": "Room Settings",
