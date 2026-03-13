@@ -1,25 +1,16 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Bell, ChevronRight, Globe, LogOut, Moon, Settings } from 'lucide-react';
+import { ChevronDown, ChevronRight, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import { useDeviceInfo } from '@chatic/device-utils';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 import { useWebCoreStore } from '@chatic/web-core';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
-import { LanguageSelectSheet } from '../components';
-
-import type { LucideIcon } from 'lucide-react';
-
-interface MenuItem {
-    icon: LucideIcon;
-    label: string;
-    path?: string;
-    toggle?: boolean;
-    detail?: string;
-}
+import { LanguageSelectSheet, LogoutDialog } from '../components';
 
 export const MyPage = () => {
     const navigate = useNavigate();
@@ -28,114 +19,150 @@ export const MyPage = () => {
     const profile = useWebCoreStore(s => s.profile);
     const logout = useWebCoreStore(s => s.logout);
     const { setTheme, isDarkTheme } = useTheme();
+    const { deviceInfo, versionInfo } = useDeviceInfo();
+    const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
 
     const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
-
-    const menuItems: MenuItem[] = [
-        { icon: Bell, label: t('mypage.notifications'), path: '/notifications' },
-        { icon: Settings, label: t('mypage.workspaceSettings'), path: '/workspace-list' },
-        { icon: Moon, label: t('mypage.darkMode'), toggle: true },
-        { icon: Globe, label: t('mypage.languageSettings'), detail: currentLanguageLabel },
-    ];
-
-    const handleThemeToggle = () => {
-        setTheme(isDarkTheme ? 'light' : 'dark');
-    };
 
     const handleLogout = () => {
         logout();
         window.location.href = '/auth/login';
     };
 
-    const handleMenuClick = (item: MenuItem) => {
-        if (item.toggle) {
-            handleThemeToggle();
-        } else if (item.icon === Globe) {
-            setIsLanguageSheetOpen(true);
-        } else if (item.path) {
-            navigate(item.path);
-        }
+    const handleProfileClick = () => {
+        // Profile dropdown - for now, just navigate to edit
+        navigate('/mypage/edit');
+    };
+
+    const handleThemeToggle = () => {
+        setTheme(isDarkTheme ? 'light' : 'dark');
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background py-safe-top">
-            <header className="px-5 ">
-                <h1 className="text-2xl font-extrabold text-foreground">{t('mypage.title')}</h1>
-            </header>
-
-            {/* Profile */}
-            <div className="px-5 py-6">
+        <div className="flex min-h-screen flex-col bg-background pb-32 pt-safe-top">
+            {/* Profile Section */}
+            <div className="px-5 py-3">
                 {isGuest ? (
                     <button onClick={() => navigate('/mypage/login')} className="flex flex-col gap-1.5 text-left">
                         <div className="flex items-center gap-1">
-                            <span className="text-[22px] font-semibold ">{t('mypage.loginPrompt')}</span>
+                            <span className="text-[17px] font-semibold tracking-[-0.025em] text-foreground">
+                                {t('mypage.loginPrompt')}
+                            </span>
                             <ChevronRight size={18} className="text-foreground" />
                         </div>
-                        <p className="text-[14.5px] font-medium text-muted-foreground">
-                            {t('mypage.loginDescription')}
-                        </p>
+                        <p className="text-[14px] text-muted-foreground">{t('mypage.loginDescription')}</p>
                     </button>
                 ) : (
-                    <div className="flex items-center gap-4">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-2xl">
-                            <span role="img" aria-label="user">
-                                👤
+                    <button onClick={handleProfileClick} className="flex items-center gap-[9px]">
+                        <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                            {profile?.$user?.imageUrl ? (
+                                <img
+                                    src={profile.$user.imageUrl}
+                                    alt="Profile"
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                <User size={20} className="text-muted-foreground" />
+                            )}
+                        </div>
+                        <div className="flex flex-col items-start gap-0.5">
+                            <div className="flex items-center gap-1">
+                                <h2 className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
+                                    {profile?.$user?.name}
+                                </h2>
+                                <ChevronDown size={18} className="text-muted-foreground" />
+                            </div>
+                            <p className="text-[14px] text-muted-foreground">{profile?.$user?.email}</p>
+                        </div>
+                    </button>
+                )}
+            </div>
+
+            {/* Menu Cards Container */}
+            <div className="flex flex-col gap-[18px] px-4 pt-4">
+                {/* My Info Card - Logged in only */}
+                {!isGuest && (
+                    <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
+                        <button
+                            onClick={() => navigate('/mypage/account')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <span className="text-[15px] font-medium text-foreground">
+                                {t('mypage.accountInfo.title')}
+                            </span>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                    </div>
+                )}
+
+                {/* Settings Card - For all users (including guests) */}
+                <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
+                    <div className="flex items-center justify-between py-3 pl-4 pr-3">
+                        <span className="text-[15px] font-medium text-foreground">{t('mypage.darkMode')}</span>
+                        <Switch checked={isDarkTheme} onCheckedChange={handleThemeToggle} />
+                    </div>
+                    <button
+                        onClick={() => setIsLanguageSheetOpen(true)}
+                        className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                    >
+                        <span className="text-[15px] font-medium text-foreground">{t('mypage.languageSettings')}</span>
+                        <div className="flex items-center gap-1">
+                            <span className="text-[14px] text-muted-foreground">{currentLanguageLabel}</span>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </div>
+                    </button>
+                </div>
+
+                {/* Policy and Version Card */}
+                <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
+                    <button
+                        onClick={() => navigate('/mypage/policy')}
+                        className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                    >
+                        <span className="text-[15px] font-medium text-foreground">{t('mypage.policy.title')}</span>
+                        <ChevronRight size={18} className="text-muted-foreground" />
+                    </button>
+                    <div className="flex items-center justify-between py-3 pl-4 pr-3">
+                        <div className="flex items-center gap-1">
+                            <span className="text-[15px] font-medium text-foreground">{t('mypage.appVersion')}</span>
+                            <span className="text-[15px] font-medium text-foreground">
+                                {deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android'
+                                    ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
+                                    : `v${versionInfo?.webVersion}`}
                             </span>
                         </div>
-                        <div className="flex-1">
-                            <h2 className="text-lg font-bold text-foreground">{profile?.$user?.name}</h2>
-                            <p className="text-sm text-muted-foreground">{profile?.$user?.email}</p>
-                        </div>
+                        {versionInfo?.shouldUpdate && (
+                            <div className="flex items-center">
+                                <span className="text-[14px] text-muted-foreground">{t('mypage.updateRequired')}</span>
+                                <ChevronRight size={18} className="text-muted-foreground" />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Logout Card - Logged in only */}
+                {!isGuest && (
+                    <div className="rounded-[18px] bg-card px-0.5 py-1.5 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
-                            onClick={() => navigate('/profile/edit')}
-                            className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors active:bg-muted"
+                            onClick={() => setIsLogoutDialogOpen(true)}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
-                            {t('mypage.edit')}
+                            <span className="text-[15px] font-medium text-foreground">{t('mypage.logout')}</span>
+                            <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                     </div>
                 )}
             </div>
 
-            <div className="mx-5 h-px bg-border" />
-
-            {/* Menu */}
-            <div className="px-5 py-2">
-                {menuItems.map((item, i) => (
-                    <button
-                        key={i}
-                        onClick={() => handleMenuClick(item)}
-                        className="flex w-full items-center gap-3.5 rounded-lg px-1 py-4 transition-colors active:bg-muted"
-                    >
-                        <item.icon size={20} className="text-muted-foreground" />
-                        <span className="flex-1 text-left text-[15px] text-foreground">{item.label}</span>
-                        {item.detail && <span className="text-sm text-muted-foreground">{item.detail}</span>}
-                        {item.toggle ? (
-                            <Switch checked={isDarkTheme} />
-                        ) : (
-                            <ChevronRight size={18} className="text-muted-foreground" />
-                        )}
-                    </button>
-                ))}
-            </div>
-
-            <div className="mx-5 h-px bg-border" />
-
-            {/* Logout */}
-            {!isGuest && (
-                <div className="px-5 py-2">
-                    <button onClick={handleLogout} className="flex w-full items-center gap-3.5 px-1 py-4">
-                        <LogOut size={20} className="text-destructive" />
-                        <span className="text-[15px] text-destructive">{t('mypage.logout')}</span>
-                    </button>
-                </div>
-            )}
-
-            {/* App version */}
-            <div className="mt-auto px-5 pb-4">
-                <p className="text-center text-xs text-muted-foreground">DoU v1.0.0</p>
-            </div>
             <BottomNavigation />
+
+            {/* Logout Dialog */}
+            <LogoutDialog
+                isOpen={isLogoutDialogOpen}
+                onClose={() => setIsLogoutDialogOpen(false)}
+                onConfirm={handleLogout}
+            />
 
             {/* Language Select Sheet */}
             <LanguageSelectSheet isOpen={isLanguageSheetOpen} onClose={() => setIsLanguageSheetOpen(false)} />

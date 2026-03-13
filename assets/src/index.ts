@@ -11,10 +11,10 @@ export const Images = {
     thumb: new URL('./images/thumb.png', import.meta.url).href,
     dou1: new URL('./images/dou1.png', import.meta.url).href,
     dou2: new URL('./images/dou2.png', import.meta.url).href,
-    onboardingStep1: new URL('./images/onboarding_step1.png', import.meta.url).href,
-    onboardingStep2: new URL('./images/onboarding_step2.png', import.meta.url).href,
-    onboardingStep3: new URL('./images/onboarding_step3.png', import.meta.url).href,
-    onboardingStep4: new URL('./images/onboarding_step4.png', import.meta.url).href,
+    onboardingStep1: new URL('./images/step1.png', import.meta.url).href,
+    onboardingStep2: new URL('./images/step2.png', import.meta.url).href,
+    onboardingStep3: new URL('./images/step3.png', import.meta.url).href,
+    onboardingStep4: new URL('./images/step4.png', import.meta.url).href,
 } as const;
 
 export const Logo = {
