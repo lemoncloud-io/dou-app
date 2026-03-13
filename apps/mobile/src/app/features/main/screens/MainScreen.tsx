@@ -24,7 +24,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 
 // const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
-const webviewUrl = 'http://localhost:5004';
+const webviewUrl = 'http://localhost:5003';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);

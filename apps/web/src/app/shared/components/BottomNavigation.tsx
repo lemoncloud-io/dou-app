@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@chatic/lib/utils';
 
@@ -26,11 +27,12 @@ const IconMy = ({ color }: { color: string }) => (
 );
 
 const NAV_ITEMS = [
-    { path: '/', label: '채팅', Icon: IconChat },
-    { path: '/mypage', label: 'MY', Icon: IconMy },
+    { path: '/', labelKey: 'bottomNav.chat', Icon: IconChat },
+    { path: '/mypage', labelKey: 'bottomNav.my', Icon: IconMy },
 ] as const;
 
 export const BottomNavigation = () => {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const { pathname } = useLocation();
 
@@ -44,7 +46,7 @@ export const BottomNavigation = () => {
                 style={{ backdropFilter: 'blur(20px)', background: 'rgba(243, 243, 243, 0.9)', pointerEvents: 'auto' }}
             >
                 <div className="relative flex flex-row items-center justify-center gap-[18px] z-10">
-                    {NAV_ITEMS.map(({ path, label, Icon }) => {
+                    {NAV_ITEMS.map(({ path, labelKey, Icon }) => {
                         const isActive =
                             path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(path + '/');
                         const iconColor = isActive ? '#FFFFFF' : '#53555B';
@@ -64,7 +66,7 @@ export const BottomNavigation = () => {
                                         isActive ? 'font-semibold text-white' : 'font-medium text-[#53555B]'
                                     )}
                                 >
-                                    {label}
+                                    {t(labelKey)}
                                 </span>
                             </button>
                         );

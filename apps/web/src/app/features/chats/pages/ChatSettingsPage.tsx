@@ -1,5 +1,6 @@
 import { Bell, ChevronLeft, Crown, Lock, LogOut, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -34,6 +35,7 @@ const mockMembers = [
 
 export const ChatSettingsPage = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
     const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
@@ -49,14 +51,14 @@ export const ChatSettingsPage = () => {
     const inviteCode = 'ABC123'; // TODO: Get from channel data
 
     const handleLeaveRoomClick = () => {
-        if (confirm('정말로 채팅방을 나가시겠습니까?')) {
+        if (confirm(t('chat.settings.leaveConfirm'))) {
             handleLeaveRoom();
         }
     };
 
     const handleDeleteRoomClick = () => {
         if (isDeletePending) return;
-        if (confirm('정말로 채팅방을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+        if (confirm(t('chat.settings.deleteConfirm'))) {
             handleDeleteRoom();
         }
     };
@@ -67,11 +69,11 @@ export const ChatSettingsPage = () => {
         try {
             await leaveRoom(channelId, profile?.uid);
             await clearMessages();
-            toast({ title: '채팅방을 나갔습니다' });
+            toast({ title: t('chat.settings.leftRoom') });
             navigate('/');
         } catch (error) {
             console.error('Failed to leave room:', error);
-            toast({ title: '방 나가기에 실패했습니다', variant: 'destructive' });
+            toast({ title: t('chat.settings.leaveFailed'), variant: 'destructive' });
         }
     };
 
@@ -80,11 +82,11 @@ export const ChatSettingsPage = () => {
 
         try {
             await deleteChannel(channelId);
-            toast({ title: '채팅방이 삭제되었습니다' });
+            toast({ title: t('chat.settings.deletedRoom') });
             navigate('/', { replace: true });
         } catch (error) {
             console.error('Failed to delete room:', error);
-            toast({ title: '방 삭제에 실패했습니다', variant: 'destructive' });
+            toast({ title: t('chat.settings.deleteFailed'), variant: 'destructive' });
         }
     };
 
@@ -92,7 +94,7 @@ export const ChatSettingsPage = () => {
         return (
             <div className="flex h-screen items-center justify-center bg-background">
                 <div className="text-center">
-                    <div className="text-sm text-muted-foreground">채널 정보를 불러오는 중...</div>
+                    <div className="text-sm text-muted-foreground">{t('chat.settings.loading')}</div>
                 </div>
             </div>
         );
@@ -102,9 +104,9 @@ export const ChatSettingsPage = () => {
         return (
             <div className="flex h-screen items-center justify-center bg-background">
                 <div className="text-center">
-                    <div className="text-sm text-destructive">채널 정보를 불러올 수 없습니다</div>
+                    <div className="text-sm text-destructive">{t('chat.settings.error')}</div>
                     <button onClick={() => navigate(-1)} className="mt-2 text-sm text-primary underline">
-                        뒤로 가기
+                        {t('chat.settings.goBack')}
                     </button>
                 </div>
             </div>
@@ -118,7 +120,7 @@ export const ChatSettingsPage = () => {
                 <button onClick={() => navigate(-1)} className="p-1">
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>
-                <h1 className="text-[17px] font-semibold text-foreground">방 설정</h1>
+                <h1 className="text-[17px] font-semibold text-foreground">{t('chat.settings.title')}</h1>
                 <div className="w-8" />
             </header>
 
@@ -128,27 +130,29 @@ export const ChatSettingsPage = () => {
                     <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted text-2xl">💬</div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h2 className="text-lg font-bold text-foreground">{channel?.name || '방 이름'}</h2>
+                            <h2 className="text-lg font-bold text-foreground">
+                                {channel?.name || t('chat.settings.roomName')}
+                            </h2>
                             {isOwner && (
                                 <button
                                     onClick={() => setIsUpdateDialogOpen(true)}
                                     className="text-xs font-medium text-primary"
                                 >
-                                    편집
+                                    {t('chat.settings.edit')}
                                 </button>
                             )}
                         </div>
                         <div className="mt-0.5 flex items-center gap-1.5">
                             <Lock size={12} className="text-muted-foreground" />
                             <span className="text-xs text-muted-foreground">
-                                {channel?.stereo === 'public' ? '공개' : '비공개'}
+                                {channel?.stereo === 'public' ? t('chat.settings.public') : t('chat.settings.private')}
                             </span>
                         </div>
                     </div>
                 </div>
 
                 {/* Invite Code */}
-                <InviteCodeCard code={inviteCode} label="채팅방 초대 코드" />
+                <InviteCodeCard code={inviteCode} label={t('chat.settings.inviteCode')} />
 
                 {/* Actions */}
                 <div className="space-y-0">
@@ -157,11 +161,11 @@ export const ChatSettingsPage = () => {
                         className="flex w-full items-center gap-3.5 rounded-lg px-1 py-4 transition-colors active:bg-muted"
                     >
                         <UserPlus size={20} className="text-muted-foreground" />
-                        <span className="text-[15px] text-foreground">친구 초대</span>
+                        <span className="text-[15px] text-foreground">{t('chat.settings.inviteFriends')}</span>
                     </button>
                     <button className="flex w-full items-center gap-3.5 rounded-lg px-1 py-4 transition-colors active:bg-muted">
                         <Bell size={20} className="text-muted-foreground" />
-                        <span className="text-[15px] text-foreground">알림</span>
+                        <span className="text-[15px] text-foreground">{t('chat.settings.notifications')}</span>
                     </button>
                     {isOwner ? (
                         <button
@@ -174,7 +178,7 @@ export const ChatSettingsPage = () => {
                             ) : (
                                 <Trash2 size={20} className="text-destructive" />
                             )}
-                            <span className="text-[15px] text-destructive">방 삭제</span>
+                            <span className="text-[15px] text-destructive">{t('chat.settings.deleteRoom')}</span>
                         </button>
                     ) : (
                         <button
@@ -187,7 +191,7 @@ export const ChatSettingsPage = () => {
                             ) : (
                                 <LogOut size={20} className="text-destructive" />
                             )}
-                            <span className="text-[15px] text-destructive">방 나가기</span>
+                            <span className="text-[15px] text-destructive">{t('chat.settings.leaveRoom')}</span>
                         </button>
                     )}
                 </div>
@@ -197,7 +201,8 @@ export const ChatSettingsPage = () => {
                 {/* Members */}
                 <div>
                     <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                        방 친구 <span className="text-muted-foreground">{channel?.memberNo ?? mockMembers.length}</span>
+                        {t('chat.settings.roomMembers')}{' '}
+                        <span className="text-muted-foreground">{channel?.memberNo ?? mockMembers.length}</span>
                     </h3>
                     <div className="space-y-0">
                         {mockMembers.map(m => (
@@ -212,7 +217,7 @@ export const ChatSettingsPage = () => {
                                 <span className="flex-1 text-[15px] font-medium text-foreground">{m.name}</span>
                                 {m.role === 'host' && (
                                     <span className="flex items-center gap-1 rounded-full bg-accent/20 px-2 py-1 text-xs text-accent-foreground">
-                                        <Crown size={12} /> 호스트
+                                        <Crown size={12} /> {t('chat.settings.host')}
                                     </span>
                                 )}
                                 {m.isMe && (

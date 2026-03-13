@@ -182,10 +182,11 @@
         "loginDescription": "Sign in to safely manage your conversations.",
         "edit": "Edit",
         "notifications": "Notifications",
+        "workspaceSettings": "Workspace Settings",
         "darkMode": "Dark Mode",
         "languageSettings": "Language",
         "logout": "Logout",
-        "version": "ENCL v{{version}}",
+        "version": "DoU v{{version}}",
         "language": {
             "ko": "한국어",
             "en": "English",
@@ -196,5 +197,342 @@
         "title": "Notifications",
         "markAllRead": "Mark all read",
         "empty": "No notifications"
+    },
+    "homePage": {
+        "places": "Places",
+        "roomCreated": "Chat room created"
+    },
+    "placeList": {
+        "defaultPlace": "Default Place",
+        "errorLoading": "Failed to load places",
+        "retry": "Retry",
+        "empty": "No places"
+    },
+    "channelList": {
+        "noDescription": "No description",
+        "errorLoading": "Unable to load channels",
+        "retry": "Retry",
+        "empty": "No channels yet. Create a new chat room!",
+        "unnamedChannel": "Unnamed Channel"
+    },
+    "bottomNav": {
+        "chat": "Chat",
+        "my": "MY"
+    },
+    "explore": {
+        "title": "Explore",
+        "searchPlaceholder": "Search chat rooms or places",
+        "tabs": {
+            "rooms": "Chat Rooms",
+            "workspaces": "Places"
+        },
+        "categories": {
+            "all": "All",
+            "study": "Study",
+            "development": "Development",
+            "design": "Design",
+            "reading": "Reading",
+            "exercise": "Exercise",
+            "music": "Music"
+        },
+        "members": "{{count}} members"
+    },
+    "chat": {
+        "room": {
+            "title": "Chat Room",
+            "loading": "Loading channel info...",
+            "error": "Unable to load channel info",
+            "goBack": "Go Back",
+            "inputPlaceholder": "Enter a message",
+            "unknown": "Unknown",
+            "am": "AM",
+            "pm": "PM",
+            "weekdays": {
+                "sunday": "Sunday",
+                "monday": "Monday",
+                "tuesday": "Tuesday",
+                "wednesday": "Wednesday",
+                "thursday": "Thursday",
+                "friday": "Friday",
+                "saturday": "Saturday"
+            },
+            "dateFormat": "{{month}}/{{day}}/{{year}} {{weekday}}"
+        },
+        "settings": {
+            "title": "Room Settings",
+            "loading": "Loading channel info...",
+            "error": "Unable to load channel info",
+            "goBack": "Go Back",
+            "edit": "Edit",
+            "public": "Public",
+            "private": "Private",
+            "inviteCode": "Chat room invite code",
+            "inviteFriends": "Invite Friends",
+            "notifications": "Notifications",
+            "deleteRoom": "Delete Room",
+            "leaveRoom": "Leave Room",
+            "roomMembers": "Room Members",
+            "host": "Host",
+            "leaveConfirm": "Are you sure you want to leave this room?",
+            "deleteConfirm": "Are you sure you want to delete this room? This action cannot be undone.",
+            "leftRoom": "Left the room",
+            "leaveFailed": "Failed to leave the room",
+            "deletedRoom": "Room deleted",
+            "deleteFailed": "Failed to delete the room",
+            "roomName": "Room Name"
+        }
+    },
+    "search": {
+        "placeholder": "Search...",
+        "recent": "Recent Searches",
+        "clearAll": "Clear All",
+        "places": "Places",
+        "chat": "Chat"
+    },
+    "workspace": {
+        "list": {
+            "title": "Workspace List",
+            "mine": "My Workspaces",
+            "friends": "Friend's Workspaces",
+            "settings": "Settings",
+            "delete": "Delete"
+        },
+        "detail": {
+            "private": "Private",
+            "public": "Public",
+            "members": "{{count}} members",
+            "chatRooms": "Chat Rooms"
+        },
+        "settings": {
+            "title": "Workspace Settings",
+            "private": "Private workspace",
+            "inviteCode": "Workspace invite code",
+            "notifications": "Notification Settings",
+            "edit": "Edit Workspace",
+            "leave": "Leave Workspace",
+            "members": "Members",
+            "host": "Host"
+        },
+        "create": {
+            "title": "Create Workspace",
+            "successTitle": "Workspace Created",
+            "subtitle": "Set up your personal workspace",
+            "hint": "About your workspace...",
+            "nameLabel": "Workspace Name",
+            "namePlaceholder": "e.g., My Space",
+            "nameHint": "Please enter up to 20 characters.",
+            "photoLabel": "Workspace Photo",
+            "photoOptional": "[Optional]",
+            "visibilityLabel": "Visibility Settings",
+            "visibilityPublic": "Public workspace",
+            "visibilityPrivate": "Private workspace",
+            "publicHint": "Anyone can find and join from Explore.",
+            "privateHint": "Can only join via invite code.",
+            "done": "Done",
+            "confirm": "Confirm",
+            "created": "Created!",
+            "shareCode": "Share the invite code to invite members"
+        }
+    },
+    "join": {
+        "title": "Join by Invite Code",
+        "subtitle": "Enter the invite code",
+        "description": "Enter the workspace or chat room invite code",
+        "codeLabel": "Invite Code",
+        "codePlaceholder": "e.g., ABC123",
+        "confirm": "Confirm",
+        "workspace": "Workspace",
+        "chatRoom": "Chat Room",
+        "memberCount": "{{count}} members",
+        "joinButton": "Join",
+        "invalidCode": "Invalid invite code. Please check and try again."
+    },
+    "createRoom": {
+        "title": "New Chat",
+        "successTitle": "Chat Room Created",
+        "subtitle": "Set up a room to chat with friends",
+        "nameLabel": "Room Name",
+        "namePlaceholder": "e.g., Study Room",
+        "nameHint": "Please enter up to 20 characters.",
+        "photoLabel": "Room Photo",
+        "photoOptional": "[Optional]",
+        "visibilityLabel": "Visibility Settings",
+        "visibilityPublic": "Public chat room",
+        "visibilityPrivate": "Private chat room",
+        "publicHint": "Anyone can find and join from Explore.",
+        "privateHint": "Can only join via invite code.",
+        "done": "Done",
+        "creating": "Creating...",
+        "confirm": "Confirm",
+        "created": "Created!",
+        "shareCode": "Share the invite code to invite friends",
+        "inviteCode": "Chat room invite code",
+        "successMessage": "Chat room created",
+        "errorMessage": "Failed to create chat room"
+    },
+    "profileEdit": {
+        "title": "Edit Profile",
+        "nameLabel": "Name",
+        "save": "Save"
+    },
+    "mypageLogin": {
+        "title": "Sign In",
+        "emailLabel": "Email",
+        "emailPlaceholder": "Enter your email",
+        "passwordLabel": "Password",
+        "passwordPlaceholder": "Enter your password",
+        "submit": "Sign In",
+        "loading": "Signing in...",
+        "error": "Sign in failed",
+        "errorDescription": "Please check your email or password."
+    },
+    "createPlace": {
+        "title": "Create Place",
+        "subtitle1": "Set up your personal",
+        "subtitle2": "place",
+        "hint": "About your place...",
+        "nameLabel": "Place Name",
+        "namePlaceholder": "e.g., My Space, Book Club",
+        "nameHint": "Please enter up to 20 characters.",
+        "photoLabel": "Place Photo",
+        "photoOptional": "[Optional]",
+        "done": "Done"
+    },
+    "createChannel": {
+        "title": "New Chat",
+        "subtitle1": "Set up a room to",
+        "subtitle2": "chat with friends",
+        "nameLabel": "Room Name",
+        "namePlaceholder": "e.g., UIUX Study Room",
+        "nameRequired": "Please enter a room name",
+        "nameMinLength": "Please enter at least 2 characters",
+        "nameMaxLength": "Maximum 20 characters allowed",
+        "descLabel": "Room Description",
+        "descPlaceholder": "e.g., A room for UIUX study",
+        "imageLabel": "Room Image [Optional]",
+        "done": "Done"
+    },
+    "visibility": {
+        "public": "Public",
+        "private": "Private"
+    },
+    "inviteFriends": {
+        "title": "Invite Friends",
+        "copyLink": "Copy Link",
+        "addFriend": "Add Friend",
+        "qrCode": "QR Code",
+        "searchPlaceholder": "Search friends"
+    },
+    "addFriend": {
+        "title": "Add Friend",
+        "subtitle1": "Enter the name of",
+        "subtitle2": "the friend to invite",
+        "nameLabel": "Name",
+        "namePlaceholder": "Enter friend's name",
+        "nameHint": "Please enter up to 20 characters.",
+        "share": "Share"
+    },
+    "inviteCode": {
+        "label": "Invite Code",
+        "copied": "Copied",
+        "copy": "Copy"
+    },
+    "updateChannel": {
+        "title": "Edit Room",
+        "subtitle1": "Edit room",
+        "subtitle2": "information",
+        "nameLabel": "Room Name",
+        "namePlaceholder": "e.g., UIUX Study Room",
+        "nameRequired": "Please enter a room name",
+        "nameMinLength": "Please enter at least 2 characters",
+        "nameMaxLength": "Maximum 20 characters allowed",
+        "descLabel": "Room Description",
+        "descPlaceholder": "e.g., A room for UIUX study",
+        "imageLabel": "Room Image [Optional]",
+        "updating": "Updating...",
+        "done": "Done",
+        "success": "Channel updated successfully",
+        "error": "Failed to update channel"
+    },
+    "onboarding": {
+        "prev": "Previous",
+        "next": "Next",
+        "done": "Done"
+    },
+    "settingsDialog": {
+        "title": "Settings",
+        "wsStatus": "WebSocket Status",
+        "viewLastMessage": "View last message",
+        "noToken": "No token",
+        "newTokenPlaceholder": "Enter new token",
+        "change": "Change",
+        "onboarding": "Onboarding",
+        "resetOnboarding": "View Onboarding Again"
+    },
+    "tokenLogin": {
+        "title": "Token Login",
+        "subtitle": "Please enter your Identity Token",
+        "tokenRequired": "Please enter a token",
+        "tokenPlaceholder": "Enter token",
+        "invalidToken": "Invalid token format",
+        "decodedInfo": "Decoded Information",
+        "name": "Name",
+        "nickname": "Nickname",
+        "next": "Next",
+        "inviteTokenReceived": "Invite token received. Please press Next.",
+        "inviteLoginFailed": "Invite login failed",
+        "inviteLoading": "Invite login in progress...",
+        "loginSuccess": "Login successful"
+    },
+    "auth": {
+        "inviteLoading": "Invite login in progress...",
+        "deviceRegistering": "Registering device...",
+        "appPreparing": "Preparing app...",
+        "invalidAccess": "Invalid access",
+        "goToLogin": "Go to Login",
+        "loggingIn": "Logging in...",
+        "loginSuccess": "Logged in successfully",
+        "loginFailed": "Login failed"
+    },
+    "error": {
+        "network": {
+            "title": "Connection Error",
+            "description": "Unable to connect to server. Please check your internet connection.",
+            "retry": "Retry",
+            "refresh": "Refresh"
+        },
+        "auth": {
+            "title": "Authentication Error",
+            "description": "Your session has expired. Please log in again.",
+            "login": "Login",
+            "home": "Home"
+        },
+        "server": {
+            "title": "Server Error",
+            "description": "A server error occurred. Please try again later.",
+            "retry": "Retry",
+            "home": "Home"
+        },
+        "client": {
+            "title": "Request Error",
+            "description": "There was a problem with your request. Please try again.",
+            "retry": "Retry",
+            "home": "Home"
+        },
+        "unknown": {
+            "title": "Error Occurred",
+            "description": "An unexpected error occurred.",
+            "retry": "Retry",
+            "home": "Home"
+        },
+        "notFound": {
+            "title": "Page Not Found",
+            "description": "The page you requested does not exist or has been moved.",
+            "home": "Home",
+            "back": "Go Back"
+        },
+        "goHome": "Home",
+        "retrying": "Retrying...",
+        "unknownError": "An unknown error occurred"
     }
 }

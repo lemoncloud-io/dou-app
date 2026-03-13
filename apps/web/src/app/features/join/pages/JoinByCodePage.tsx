@@ -1,9 +1,11 @@
 import { AlertCircle, CheckCircle2, ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 export const JoinByCodePage = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [code, setCode] = useState('');
     const [status, setStatus] = useState<'idle' | 'found' | 'notfound'>('idle');
 
@@ -29,21 +31,17 @@ export const JoinByCodePage = () => {
                 <button onClick={() => navigate(-1)} className="p-1">
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>
-                <h1 className="text-[17px] font-semibold text-foreground">초대 코드 참여</h1>
+                <h1 className="text-[17px] font-semibold text-foreground">{t('join.title')}</h1>
                 <div className="w-8" />
             </header>
 
             <div className="flex-1 px-5 pt-8">
-                <h2 className="text-2xl font-extrabold leading-tight text-foreground">
-                    초대 코드를
-                    <br />
-                    입력해 주세요
-                </h2>
-                <p className="mt-2 text-sm text-muted-foreground">워크스페이스 또는 채팅방 초대 코드를 입력하세요</p>
+                <h2 className="text-2xl font-extrabold leading-tight text-foreground">{t('join.subtitle')}</h2>
+                <p className="mt-2 text-sm text-muted-foreground">{t('join.description')}</p>
 
                 {/* Code Input */}
                 <div className="mt-8">
-                    <label className="text-sm font-semibold text-foreground">초대 코드</label>
+                    <label className="text-sm font-semibold text-foreground">{t('join.codeLabel')}</label>
                     <div className="mt-2 flex gap-2">
                         <input
                             type="text"
@@ -52,7 +50,7 @@ export const JoinByCodePage = () => {
                                 setCode(e.target.value.toUpperCase());
                                 setStatus('idle');
                             }}
-                            placeholder="예: ABC123"
+                            placeholder={t('join.codePlaceholder')}
                             maxLength={10}
                             className="flex-1 rounded-xl border border-border px-4 py-3.5 font-mono text-[15px] uppercase tracking-widest text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground"
                         />
@@ -61,7 +59,7 @@ export const JoinByCodePage = () => {
                             disabled={code.length < 4}
                             className="rounded-xl bg-muted px-5 py-3.5 text-sm font-semibold text-muted-foreground transition-all disabled:opacity-50 enabled:bg-foreground enabled:text-background active:scale-[0.97]"
                         >
-                            확인
+                            {t('join.confirm')}
                         </button>
                     </div>
                 </div>
@@ -80,10 +78,12 @@ export const JoinByCodePage = () => {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-xs font-medium text-muted-foreground">
-                                        {mockResult.type === 'workspace' ? '워크스페이스' : '채팅방'}
+                                        {mockResult.type === 'workspace' ? t('join.workspace') : t('join.chatRoom')}
                                     </p>
                                     <h3 className="text-lg font-bold text-foreground">{mockResult.name}</h3>
-                                    <p className="mt-0.5 text-xs text-muted-foreground">멤버 {mockResult.members}명</p>
+                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                        {t('join.memberCount', { count: mockResult.members })}
+                                    </p>
                                 </div>
                             </div>
 
@@ -92,7 +92,7 @@ export const JoinByCodePage = () => {
                                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-semibold text-accent-foreground transition-transform active:scale-[0.98]"
                             >
                                 <CheckCircle2 size={18} />
-                                참여하기
+                                {t('join.joinButton')}
                             </button>
                         </div>
                     </div>
@@ -101,11 +101,7 @@ export const JoinByCodePage = () => {
                 {status === 'notfound' && (
                     <div className="mt-8 flex animate-fade-in flex-col items-center gap-2 py-8">
                         <AlertCircle size={40} className="text-muted-foreground" />
-                        <p className="text-center text-sm text-muted-foreground">
-                            유효하지 않은 초대 코드입니다.
-                            <br />
-                            코드를 다시 확인해 주세요.
-                        </p>
+                        <p className="text-center text-sm text-muted-foreground">{t('join.invalidCode')}</p>
                     </div>
                 )}
             </div>

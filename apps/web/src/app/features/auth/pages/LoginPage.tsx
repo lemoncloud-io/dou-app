@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -29,6 +30,7 @@ const decodeJWT = (token: string) => {
 };
 
 export const LoginPage = (): JSX.Element => {
+    const { t } = useTranslation();
     const location = useLocation();
     const { setIsAuthenticated, setProfile } = useWebCoreStore();
     const { toast } = useToast();
@@ -58,7 +60,7 @@ export const LoginPage = (): JSX.Element => {
                     setIsAuthenticated(true);
                 } catch (error) {
                     console.error('[LoginPage] Invite login failed:', error);
-                    toast({ title: '초대 로그인 실패', variant: 'destructive' });
+                    toast({ title: t('tokenLogin.inviteLoginFailed'), variant: 'destructive' });
                     setIsInviteLogin(false);
                 }
             };
@@ -75,7 +77,7 @@ export const LoginPage = (): JSX.Element => {
                     setIsAuthenticated(true);
                 } catch (error) {
                     console.error('[LoginPage] Invite login failed:', error);
-                    toast({ title: '로그인 실패', variant: 'destructive' });
+                    toast({ title: t('auth.loginFailed'), variant: 'destructive' });
                 }
             };
             handleDeviceRegistration();
@@ -83,20 +85,20 @@ export const LoginPage = (): JSX.Element => {
     }, [location.search, toast, deviceId, isReady]);
 
     if (isInviteLogin) {
-        return <LoadingFallback message="초대 로그인 중..." />;
+        return <LoadingFallback message={t('auth.inviteLoading')} />;
     }
 
     if (isRegisteringDevice) {
         return (
             <div className="flex flex-col items-center justify-center h-screen gap-2">
-                <LoadingFallback message="디바이스 등록 중..." />
+                <LoadingFallback message={t('auth.deviceRegistering')} />
             </div>
         );
     }
 
     return (
         <div className="flex flex-col items-center justify-center h-screen gap-2">
-            <LoadingFallback message="앱 준비중..." />
+            <LoadingFallback message={t('auth.appPreparing')} />
             <p className="text-xs text-gray-400">deviceId: {deviceId ?? 'null'}</p>
         </div>
     );

@@ -1,5 +1,6 @@
 import { ChevronLeft, Home, MoreHorizontal, Pin } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 interface WorkspaceItem {
@@ -17,6 +18,8 @@ interface WorkspaceListItemProps {
     onMenuClose: () => void;
     onNavigateToSettings: () => void;
     onDelete: () => void;
+    settingsLabel: string;
+    deleteLabel: string;
 }
 
 const WorkspaceListItem = ({
@@ -26,6 +29,8 @@ const WorkspaceListItem = ({
     onMenuClose,
     onNavigateToSettings,
     onDelete,
+    settingsLabel,
+    deleteLabel,
 }: WorkspaceListItemProps) => {
     return (
         <div className="relative">
@@ -88,7 +93,7 @@ const WorkspaceListItem = ({
                             }}
                             className="w-full px-4 py-3 text-left text-[15px] text-foreground transition-colors active:bg-muted"
                         >
-                            설정
+                            {settingsLabel}
                         </button>
                         <button
                             onClick={() => {
@@ -97,7 +102,7 @@ const WorkspaceListItem = ({
                             }}
                             className="w-full px-4 py-3 text-left text-[15px] text-destructive transition-colors active:bg-muted"
                         >
-                            삭제
+                            {deleteLabel}
                         </button>
                     </div>
                 </>
@@ -134,6 +139,7 @@ const mockWorkspaces = {
 
 export const WorkspaceListPage = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState<'mine' | 'friends'>('mine');
     const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
@@ -146,7 +152,7 @@ export const WorkspaceListPage = () => {
                 <button onClick={() => navigate(-1)} className="p-1">
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>
-                <h1 className="text-[17px] font-semibold text-foreground">워크스페이스 목록</h1>
+                <h1 className="text-[17px] font-semibold text-foreground">{t('workspace.list.title')}</h1>
                 <div className="w-8" />
             </header>
 
@@ -158,7 +164,7 @@ export const WorkspaceListPage = () => {
                         activeTab === 'mine' ? 'text-foreground' : 'text-muted-foreground'
                     }`}
                 >
-                    내 워크스페이스
+                    {t('workspace.list.mine')}
                 </button>
                 <button
                     onClick={() => setActiveTab('friends')}
@@ -166,7 +172,7 @@ export const WorkspaceListPage = () => {
                         activeTab === 'friends' ? 'text-foreground' : 'text-muted-foreground'
                     }`}
                 >
-                    친구 워크스페이스
+                    {t('workspace.list.friends')}
                 </button>
             </div>
 
@@ -183,6 +189,8 @@ export const WorkspaceListPage = () => {
                         onDelete={() => {
                             // TODO: Implement delete functionality
                         }}
+                        settingsLabel={t('workspace.list.settings')}
+                        deleteLabel={t('workspace.list.delete')}
                     />
                 ))}
             </div>

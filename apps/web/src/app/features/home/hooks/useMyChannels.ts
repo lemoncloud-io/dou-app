@@ -5,20 +5,48 @@ import { useDynamicProfile } from '@chatic/web-core';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
+import { IndexedDBChannelAdapter } from '../../chats/storages/IndexedDBChannelAdapter';
+import { CHANNELS_BROADCAST_CHANNEL_NAME } from '../../chats/storages/IndexedDBStorageAdapter';
+
+const isReactNativeWebView = (): boolean => !!(window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView;
+
 // 싱글톤 상태
 let globalChannels: ChannelView[] = [];
 let globalIsLoading = true;
 let globalIsError = false;
 const listeners: Set<() => void> = new Set();
 let isBootstrapped = false;
+let isCacheLoaded = false;
 
 const notifyListeners = () => listeners.forEach(l => l());
 
-const setGlobalState = (channels: ChannelView[], isLoading: boolean, isError: boolean) => {
+const setGlobalState = (channels: ChannelView[], isLoading: boolean, isError: boolean, saveToDb = false) => {
     globalChannels = channels;
     globalIsLoading = isLoading;
     globalIsError = isError;
     notifyListeners();
+
+    // Save to IndexedDB if not in React Native WebView and saveToDb is true
+    if (saveToDb && globalProfileId && !isReactNativeWebView()) {
+        IndexedDBChannelAdapter.saveAll(globalProfileId, channels).catch(console.error);
+    }
+};
+
+// Load cached channels from IndexedDB
+const loadCachedChannels = async (userId: string) => {
+    if (isCacheLoaded || isReactNativeWebView()) return;
+    isCacheLoaded = true;
+
+    try {
+        const cachedChannels = await IndexedDBChannelAdapter.loadAll(userId);
+        if (cachedChannels.length > 0 && globalIsLoading) {
+            // Only set cached channels if we're still loading (socket hasn't responded yet)
+            globalChannels = cachedChannels;
+            notifyListeners();
+        }
+    } catch (error) {
+        console.error('Failed to load cached channels:', error);
+    }
 };
 
 // 훅 외부에서 싱글톤으로 소켓 메시지 처리
@@ -26,6 +54,10 @@ const bootstrap = (emitAuthenticated: (msg: object) => void, profileId: string) 
     if (isBootstrapped) return;
     isBootstrapped = true;
 
+    // Load cached channels first for instant UI (offline-first)
+    loadCachedChannels(profileId);
+
+    // Ensure loading state is set (in case of reconnect with existing channels)
     setGlobalState(globalChannels, true, false);
     emitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
 
@@ -50,8 +82,13 @@ const bootstrap = (emitAuthenticated: (msg: object) => void, profileId: string) 
                     setGlobalState(
                         globalChannels.filter(ch => ch.id !== channelId),
                         false,
-                        false
+                        false,
+                        true
                     );
+                    // Also remove from IndexedDB directly
+                    if (!isReactNativeWebView()) {
+                        IndexedDBChannelAdapter.remove(profileId, channelId).catch(console.error);
+                    }
                 }
                 return;
             }
@@ -66,8 +103,13 @@ const bootstrap = (emitAuthenticated: (msg: object) => void, profileId: string) 
                     setGlobalState(
                         globalChannels.filter(ch => ch.id !== channelId),
                         false,
-                        false
+                        false,
+                        true
                     );
+                    // Also remove from IndexedDB directly
+                    if (profileId && !isReactNativeWebView()) {
+                        IndexedDBChannelAdapter.remove(profileId, channelId).catch(console.error);
+                    }
                 }
                 return;
             }
@@ -92,7 +134,7 @@ const bootstrap = (emitAuthenticated: (msg: object) => void, profileId: string) 
                 clearTimeout(timeoutId);
                 timeoutId = null;
             }
-            setGlobalState(envelope.payload?.list ?? [], false, false);
+            setGlobalState(envelope.payload?.list ?? [], false, false, true);
         }
     );
 };
@@ -117,9 +159,42 @@ useWebSocketV2Store.subscribe(
 useWebSocketV2Store.subscribe(
     s => s.isConnected,
     isConnected => {
-        if (!isConnected) isBootstrapped = false;
+        if (!isConnected) {
+            isBootstrapped = false;
+            isCacheLoaded = false;
+        }
     }
 );
+
+// BroadcastChannel listener for cross-tab sync
+// NOTE: Module-level listener intentionally not closed - singleton pattern for app lifetime
+if (typeof BroadcastChannel !== 'undefined' && !isReactNativeWebView()) {
+    const bc = new BroadcastChannel(CHANNELS_BROADCAST_CHANNEL_NAME);
+    bc.onmessage = event => {
+        const { type, userId, channels, channel, channelId } = event.data;
+        if (userId !== globalProfileId) return;
+
+        switch (type) {
+            case 'channels-updated':
+                globalChannels = channels;
+                globalIsLoading = false;
+                globalIsError = false;
+                notifyListeners();
+                break;
+            case 'channel-saved':
+                globalChannels = globalChannels.map(ch => (ch.id === channel.id ? channel : ch));
+                if (!globalChannels.find(ch => ch.id === channel.id)) {
+                    globalChannels = [...globalChannels, channel];
+                }
+                notifyListeners();
+                break;
+            case 'channel-removed':
+                globalChannels = globalChannels.filter(ch => ch.id !== channelId);
+                notifyListeners();
+                break;
+        }
+    };
+}
 
 const retryMine = () => {
     if (!globalEmitAuthenticated) return;

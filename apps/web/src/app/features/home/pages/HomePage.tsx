@@ -1,5 +1,6 @@
 import { ChevronDown, Plus, Search, User } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import {
@@ -21,6 +22,7 @@ import { PlaceList } from '../components/PlaceList';
 
 export const HomePage = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const profile = useDynamicProfile();
     const { logout, isGuest } = useWebCoreStore();
     const { canCreate } = useCanCreateChannel();
@@ -37,7 +39,7 @@ export const HomePage = () => {
     const { toast } = useToast();
 
     const handleComplete = () => {
-        toast({ title: '채팅방이 생성되었습니다' });
+        toast({ title: t('homePage.roomCreated') });
     };
 
     return (
@@ -66,10 +68,10 @@ export const HomePage = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-48">
                             <DropdownMenuItem onClick={() => setIsSettingsOpen(true)} className="cursor-pointer">
-                                <span>설정</span>
+                                <span>{t('home.settings')}</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                                <span>로그아웃</span>
+                                <span>{t('home.logout')}</span>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -86,7 +88,7 @@ export const HomePage = () => {
 
             {/* Place List */}
             <section className="pb-4 pt-2">
-                <p className="mb-3 px-4 text-[18px] font-semibold">플레이스</p>
+                <p className="mb-3 px-4 text-[18px] font-semibold">{t('homePage.places')}</p>
                 <PlaceList selectedId={selectedPlaceId} onSelect={setSelectedPlaceId} />
             </section>
 

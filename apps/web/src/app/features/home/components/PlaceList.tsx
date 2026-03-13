@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { RefreshCw, Users } from 'lucide-react';
 
@@ -59,6 +60,7 @@ interface PlaceListProps {
 }
 
 export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
+    const { t } = useTranslation();
     const { isGuest } = useWebCoreStore();
     const { selectPlace, isPending } = usePlaceSession();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
@@ -92,7 +94,7 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
                         </div>
                     </div>
                     <span className="w-[80px] truncate text-center text-[14px] font-medium leading-[1.19] text-foreground">
-                        기본 플레이스
+                        {t('placeList.defaultPlace')}
                     </span>
                 </div>
             </div>
@@ -115,10 +117,10 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
     if (isError) {
         return (
             <div className="flex items-center gap-2 px-4 py-2 text-sm text-[#9FA2A7]">
-                <span>플레이스를 불러오지 못했어요</span>
+                <span>{t('placeList.errorLoading')}</span>
                 <button onClick={() => refetch()} className="flex items-center gap-1 text-foreground">
                     <RefreshCw size={14} />
-                    <span>재시도</span>
+                    <span>{t('placeList.retry')}</span>
                 </button>
             </div>
         );
@@ -127,7 +129,7 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
     const places = data?.list ?? [];
 
     if (places.length === 0) {
-        return <p className="px-4 py-2 text-sm text-[#9FA2A7]">플레이스가 없어요</p>;
+        return <p className="px-4 py-2 text-sm text-[#9FA2A7]">{t('placeList.empty')}</p>;
     }
 
     return (

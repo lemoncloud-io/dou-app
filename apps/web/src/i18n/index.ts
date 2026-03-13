@@ -25,6 +25,7 @@ i18n.use(ChainedBackend)
     .use(new LanguageDetector(null, { lookupLocalStorage: `@${PROJECT}_${ENV}.${LANGUAGE_KEY}` }))
     .use(initReactI18next)
     .init({
+        lng: 'en',
         fallbackLng: 'en',
         supportedLngs: ['ko', 'en'],
         interpolation: {
