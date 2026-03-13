@@ -531,6 +531,13 @@
         "loginSuccess": "로그인 되었습니다",
         "loginFailed": "로그인 실패"
     },
+    "inviteAccept": {
+        "title": "채팅에 초대되었습니다",
+        "description": "초대를 수락하고 채팅을 시작해 보세요.",
+        "accept": "수락하기",
+        "accepting": "수락 중...",
+        "failed": "초대 수락에 실패했습니다"
+    },
     "error": {
         "network": {
             "title": "연결 오류",

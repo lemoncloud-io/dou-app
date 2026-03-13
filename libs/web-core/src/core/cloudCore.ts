@@ -64,6 +64,14 @@ export const cloudCore: CloudCore = {
         coreStorage.remove(CLOUD_DELEGATION_TOKEN_KEY);
         coreStorage.remove(CLOUD_TOKEN_KEY);
         coreStorage.remove(CLOUD_SELECTED_PLACE_KEY);
+
+        // Clear endpoint overrides from both storages (web uses sessionStorage, mobile uses localStorage)
+        sessionStorage.removeItem('CHATIC_OAUTH_ENDPOINT');
+        sessionStorage.removeItem('CHATIC_DOU_ENDPOINT');
+        sessionStorage.removeItem('CHATIC_WS_ENDPOINT');
+        localStorage.removeItem('CHATIC_OAUTH_ENDPOINT');
+        localStorage.removeItem('CHATIC_DOU_ENDPOINT');
+        localStorage.removeItem('CHATIC_WS_ENDPOINT');
     },
 
     getBackend: (): string | null => {

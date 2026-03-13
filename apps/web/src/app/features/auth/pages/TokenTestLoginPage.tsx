@@ -142,8 +142,8 @@ export const TokenTestLoginPage = (): JSX.Element => {
                     <div className="text-gray-500">DOU: {DOU_ENDPOINT || '(not set)'}</div>
                     <div className="text-gray-500">WS: {WS_ENDPOINT || '(not set)'}</div>
                     <div className="text-gray-400 text-[10px]">
-                        ls: {localStorage.getItem('CHATIC_OAUTH_ENDPOINT') || '-'} |{' '}
-                        {localStorage.getItem('CHATIC_DOU_ENDPOINT') || '-'}
+                        ss: {sessionStorage.getItem('CHATIC_OAUTH_ENDPOINT') || '-'} |{' '}
+                        {sessionStorage.getItem('CHATIC_DOU_ENDPOINT') || '-'}
                     </div>
                 </div>
             )}

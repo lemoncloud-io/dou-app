@@ -25,11 +25,9 @@ interface ActionButtonProps {
 }
 
 const ActionButton = ({ icon: Icon, label, onClick, variant = 'default' }: ActionButtonProps) => (
-    <button onClick={onClick} className="flex flex-col items-center">
-        <div className="flex size-[38px] items-center justify-center rounded-[23px] bg-muted p-[9px]">
-            <Icon size={20} className={variant === 'danger' ? 'text-destructive' : 'text-muted-foreground'} />
-        </div>
-        <span className="text-[15px] font-medium leading-[1.3] text-muted-foreground">{label}</span>
+    <button onClick={onClick} className="flex flex-col items-center gap-2">
+        <Icon size={24} className={variant === 'danger' ? 'text-destructive' : 'text-muted-foreground'} />
+        <span className="text-[13px] font-medium leading-[1.3] text-muted-foreground">{label}</span>
     </button>
 );
 
@@ -147,14 +145,15 @@ export const ChatSettingsPage = () => {
                             <h2 className="text-[17px] font-semibold leading-[22px] tracking-[-0.34px] text-foreground">
                                 {channel?.name || t('chat.settings.roomName')}
                             </h2>
-                            {isOwner && (
+                            {/* TODO: Enable when edit feature is ready */}
+                            {/* {isOwner && (
                                 <button
                                     onClick={() => openDialog('update')}
                                     className="text-[13px] font-medium leading-[1.3] text-primary underline"
                                 >
                                     {t('chat.settings.edit')}
                                 </button>
-                            )}
+                            )} */}
                         </div>
                     </div>
 
