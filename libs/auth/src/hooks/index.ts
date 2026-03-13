@@ -9,6 +9,7 @@ import type {
     LoginUserBody,
     RegisterUserV2Body,
     UserBody,
+    UserProfile$,
     UserTokenView,
     UserView,
 } from '@lemoncloud/chatic-backend-api';
@@ -42,7 +43,7 @@ export const useLogin = () => {
     return useCustomMutation<UserTokenView, string, LoginUserBody>(login, {
         onSuccess: data => {
             const { Token, ...rest } = data;
-            setProfile(rest);
+            setProfile(rest as unknown as UserProfile$);
             setIsAuthenticated(true);
             console.log('Login successful');
         },
