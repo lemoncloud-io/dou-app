@@ -4,20 +4,26 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import { useVersionCheck } from '@chatic/shared';
+import { useTheme } from '@chatic/theme';
+import { Switch } from '@chatic/ui-kit/components/ui/switch';
 import { useWebCoreStore } from '@chatic/web-core';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
-import { LogoutDialog } from '../components';
-
-const APP_VERSION = '00.00.0';
+import { LanguageSelectSheet, LogoutDialog } from '../components';
 
 export const MyPage = () => {
     const navigate = useNavigate();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const isGuest = useWebCoreStore(s => s.isGuest);
     const profile = useWebCoreStore(s => s.profile);
     const logout = useWebCoreStore(s => s.logout);
+    const { setTheme, isDarkTheme } = useTheme();
+    const { currentVersion, hasUpdate } = useVersionCheck({ enabled: false });
     const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
+    const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
+
+    const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
 
     const handleLogout = () => {
         logout();
@@ -27,6 +33,10 @@ export const MyPage = () => {
     const handleProfileClick = () => {
         // Profile dropdown - for now, just navigate to edit
         navigate('/mypage/edit');
+    };
+
+    const handleThemeToggle = () => {
+        setTheme(isDarkTheme ? 'light' : 'dark');
     };
 
     return (
@@ -86,6 +96,24 @@ export const MyPage = () => {
                     </div>
                 )}
 
+                {/* Settings Card - For all users (including guests) */}
+                <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
+                    <div className="flex items-center justify-between py-3 pl-4 pr-3">
+                        <span className="text-[15px] font-medium text-foreground">{t('mypage.darkMode')}</span>
+                        <Switch checked={isDarkTheme} onCheckedChange={handleThemeToggle} />
+                    </div>
+                    <button
+                        onClick={() => setIsLanguageSheetOpen(true)}
+                        className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                    >
+                        <span className="text-[15px] font-medium text-foreground">{t('mypage.languageSettings')}</span>
+                        <div className="flex items-center gap-1">
+                            <span className="text-[14px] text-muted-foreground">{currentLanguageLabel}</span>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </div>
+                    </button>
+                </div>
+
                 {/* Policy and Version Card */}
                 <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                     <button
@@ -98,12 +126,14 @@ export const MyPage = () => {
                     <div className="flex items-center justify-between py-3 pl-4 pr-3">
                         <div className="flex items-center gap-1">
                             <span className="text-[15px] font-medium text-foreground">{t('mypage.appVersion')}</span>
-                            <span className="text-[15px] font-medium text-foreground">{APP_VERSION}</span>
+                            <span className="text-[15px] font-medium text-foreground">{currentVersion}</span>
                         </div>
-                        <div className="flex items-center">
-                            <span className="text-[14px] text-muted-foreground">{t('mypage.updateRequired')}</span>
-                            <ChevronRight size={18} className="text-muted-foreground" />
-                        </div>
+                        {hasUpdate && (
+                            <div className="flex items-center">
+                                <span className="text-[14px] text-muted-foreground">{t('mypage.updateRequired')}</span>
+                                <ChevronRight size={18} className="text-muted-foreground" />
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -129,6 +159,9 @@ export const MyPage = () => {
                 onClose={() => setIsLogoutDialogOpen(false)}
                 onConfirm={handleLogout}
             />
+
+            {/* Language Select Sheet */}
+            <LanguageSelectSheet isOpen={isLanguageSheetOpen} onClose={() => setIsLanguageSheetOpen(false)} />
         </div>
     );
 };
