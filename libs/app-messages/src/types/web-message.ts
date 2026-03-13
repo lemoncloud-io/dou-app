@@ -1,9 +1,12 @@
 import type {
-    AppPermissionType, DeleteAllCacheDataPayload, DeleteCacheDataPayload,
+    AppPermissionType,
+    DeleteAllCacheDataPayload,
+    DeleteCacheDataPayload,
     FetchAllCacheDataPayload,
     FetchCacheDataPayload,
     OAuthLoginProvider,
-    SaveAllCacheDataPayload, SaveCacheDataPayload
+    SaveAllCacheDataPayload,
+    SaveCacheDataPayload,
 } from './model';
 
 /**

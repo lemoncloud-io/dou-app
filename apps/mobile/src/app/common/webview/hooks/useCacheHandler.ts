@@ -17,7 +17,6 @@ import type {
 } from '@chatic/app-messages';
 
 export const useCacheHandler = (bridge: WebViewBridge) => {
-
     const handleFetchAllCacheData = useCallback(
         async (message: FetchAllCacheData) => {
             try {
