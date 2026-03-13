@@ -1,4 +1,4 @@
-import { Camera, X } from 'lucide-react';
+import { Camera, User, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -36,9 +36,9 @@ export const ProfileEditPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
             {/* Header */}
-            <header className="relative flex items-center justify-center px-4 pb-3 pt-3">
+            <header className="relative flex items-center justify-center px-4 py-3">
                 <h1 className="text-[17px] font-semibold text-foreground">{t('profileEdit.title')}</h1>
                 <button onClick={handleClose} className="absolute right-4 p-1" aria-label="Close">
                     <X size={24} className="text-foreground" />
@@ -59,7 +59,7 @@ export const ProfileEditPage = () => {
 
                 {/* Name Input */}
                 <div className="mb-6">
-                    <label className="mb-2 block text-sm font-semibold text-foreground">
+                    <label className="mb-2 block text-[14px] font-semibold text-foreground">
                         {t('profileEdit.nameLabel')}
                     </label>
                     <div className="relative">
@@ -69,27 +69,25 @@ export const ProfileEditPage = () => {
                             onChange={e => setName(e.target.value.slice(0, 20))}
                             className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-[15px] text-foreground outline-none transition-colors focus:border-foreground"
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[14px] text-muted-foreground">
                             {name.length}/20
                         </span>
                     </div>
-                    <p className="mt-2 text-sm text-muted-foreground">{t('profileEdit.nameHint')}</p>
+                    <p className="mt-2 text-[14px] text-muted-foreground">{t('profileEdit.nameHint')}</p>
                 </div>
 
                 {/* Profile Photo */}
                 <div>
-                    <label className="mb-2 block text-sm font-semibold text-foreground">
+                    <label className="mb-2 block text-[14px] font-semibold text-foreground">
                         {t('profileEdit.photoLabel')}{' '}
                         <span className="font-normal text-muted-foreground">{t('profileEdit.photoOptional')}</span>
                     </label>
                     <div className="relative inline-block">
-                        <div className="flex h-[82px] w-[82px] items-center justify-center overflow-hidden rounded-full bg-muted">
+                        <div className="flex h-[82px] w-[82px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                             {imageUrl ? (
                                 <img src={imageUrl} alt="Profile" className="h-full w-full object-cover" />
                             ) : (
-                                <span role="img" aria-label="user" className="text-4xl text-muted-foreground">
-                                    👤
-                                </span>
+                                <User size={36} className="text-muted-foreground" />
                             )}
                         </div>
                         <button

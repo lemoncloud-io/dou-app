@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useWebCoreStore } from '@chatic/web-core';
@@ -30,20 +30,22 @@ export const MyPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pt-safe-top pb-32">
+        <div className="flex min-h-screen flex-col bg-background pb-32 pt-safe-top">
             {/* Profile Section */}
-            <div className="px-[18px] py-3">
+            <div className="px-5 py-3">
                 {isGuest ? (
                     <button onClick={() => navigate('/mypage/login')} className="flex flex-col gap-1.5 text-left">
                         <div className="flex items-center gap-1">
-                            <span className="text-[22px] font-semibold text-foreground">{t('mypage.loginPrompt')}</span>
+                            <span className="text-[17px] font-semibold tracking-[-0.025em] text-foreground">
+                                {t('mypage.loginPrompt')}
+                            </span>
                             <ChevronRight size={18} className="text-foreground" />
                         </div>
-                        <p className="text-[14px] font-medium text-muted-foreground">{t('mypage.loginDescription')}</p>
+                        <p className="text-[14px] text-muted-foreground">{t('mypage.loginDescription')}</p>
                     </button>
                 ) : (
-                    <button onClick={handleProfileClick} className="flex items-center gap-3">
-                        <div className="flex h-[62px] w-[62px] items-center justify-center overflow-hidden rounded-full border border-[#f4f5f5] bg-[rgba(0,43,126,0.04)]">
+                    <button onClick={handleProfileClick} className="flex items-center gap-[9px]">
+                        <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                             {profile?.$user?.imageUrl ? (
                                 <img
                                     src={profile.$user.imageUrl}
@@ -51,17 +53,17 @@ export const MyPage = () => {
                                     className="h-full w-full object-cover"
                                 />
                             ) : (
-                                <span role="img" aria-label="user" className="text-2xl text-muted-foreground">
-                                    👤
-                                </span>
+                                <User size={20} className="text-muted-foreground" />
                             )}
                         </div>
                         <div className="flex flex-col items-start gap-0.5">
                             <div className="flex items-center gap-1">
-                                <h2 className="text-[18px] font-semibold text-[#3a3c40]">{profile?.$user?.name}</h2>
-                                <ChevronDown size={18} className="text-[#3a3c40]" />
+                                <h2 className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
+                                    {profile?.$user?.name}
+                                </h2>
+                                <ChevronDown size={18} className="text-muted-foreground" />
                             </div>
-                            <p className="text-[14px] text-[#9fa2a7]">{profile?.$user?.email}</p>
+                            <p className="text-[14px] text-muted-foreground">{profile?.$user?.email}</p>
                         </div>
                     </button>
                 )}
@@ -71,49 +73,49 @@ export const MyPage = () => {
             <div className="flex flex-col gap-[18px] px-4 pt-4">
                 {/* My Info Card - Logged in only */}
                 {!isGuest && (
-                    <div className="rounded-[18px] bg-white px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)]">
+                    <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => navigate('/mypage/account')}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
-                            <span className="text-[17px] font-medium text-[#222325]">
+                            <span className="text-[15px] font-medium text-foreground">
                                 {t('mypage.accountInfo.title')}
                             </span>
-                            <ChevronRight size={18} className="text-[#84888f]" />
+                            <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                     </div>
                 )}
 
                 {/* Policy and Version Card */}
-                <div className="rounded-[18px] bg-white px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)]">
+                <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                     <button
                         onClick={() => navigate('/mypage/policy')}
                         className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                     >
-                        <span className="text-[17px] font-medium text-[#222325]">{t('mypage.policy.title')}</span>
-                        <ChevronRight size={18} className="text-[#84888f]" />
+                        <span className="text-[15px] font-medium text-foreground">{t('mypage.policy.title')}</span>
+                        <ChevronRight size={18} className="text-muted-foreground" />
                     </button>
                     <div className="flex items-center justify-between py-3 pl-4 pr-3">
-                        <div className="flex items-center gap-[3px]">
-                            <span className="text-[17px] font-medium text-[#222325]">{t('mypage.appVersion')}</span>
-                            <span className="text-[17px] font-medium text-[#222325]">{APP_VERSION}</span>
+                        <div className="flex items-center gap-1">
+                            <span className="text-[15px] font-medium text-foreground">{t('mypage.appVersion')}</span>
+                            <span className="text-[15px] font-medium text-foreground">{APP_VERSION}</span>
                         </div>
                         <div className="flex items-center">
-                            <span className="text-[16px] text-[#9fa2a7]">{t('mypage.updateRequired')}</span>
-                            <ChevronRight size={18} className="text-[#84888f]" />
+                            <span className="text-[14px] text-muted-foreground">{t('mypage.updateRequired')}</span>
+                            <ChevronRight size={18} className="text-muted-foreground" />
                         </div>
                     </div>
                 </div>
 
                 {/* Logout Card - Logged in only */}
                 {!isGuest && (
-                    <div className="rounded-[18px] bg-white px-0.5 py-1.5 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)]">
+                    <div className="rounded-[18px] bg-card px-0.5 py-1.5 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => setIsLogoutDialogOpen(true)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
-                            <span className="text-[17px] font-medium text-[#222325]">{t('mypage.logout')}</span>
-                            <ChevronRight size={18} className="text-[#84888f]" />
+                            <span className="text-[15px] font-medium text-foreground">{t('mypage.logout')}</span>
+                            <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                     </div>
                 )}

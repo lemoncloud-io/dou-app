@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { User, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -33,9 +33,9 @@ export const WithdrawalPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
             {/* Header */}
-            <header className="relative flex items-center justify-center px-4 pb-3 pt-3">
+            <header className="relative flex items-center justify-center px-4 py-3">
                 <h1 className="text-[17px] font-semibold text-foreground">{t('mypage.withdrawal.title')}</h1>
                 <button onClick={handleClose} className="absolute right-4 p-1" aria-label="Close">
                     <X size={24} className="text-foreground" />
@@ -45,28 +45,26 @@ export const WithdrawalPage = () => {
             {/* Content */}
             <div className="flex flex-1 flex-col items-center justify-center px-5">
                 {/* Avatar */}
-                <div className="mb-4 flex h-[82px] w-[82px] items-center justify-center overflow-hidden rounded-full bg-muted">
+                <div className="mb-4 flex h-[82px] w-[82px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                     {userImageUrl ? (
                         <img src={userImageUrl} alt="Profile" className="h-full w-full object-cover" />
                     ) : (
-                        <span role="img" aria-label="user" className="text-4xl text-muted-foreground">
-                            👤
-                        </span>
+                        <User size={36} className="text-muted-foreground" />
                     )}
                 </div>
 
                 {/* User Name */}
-                <p className="mb-1 text-lg font-semibold text-foreground">
+                <p className="mb-1 text-[17px] font-semibold text-foreground">
                     {t('mypage.withdrawal.heading', { name: userName })}
                 </p>
 
                 {/* Question */}
-                <p className="mb-6 text-lg font-semibold text-foreground">{t('mypage.withdrawal.question')}</p>
+                <p className="mb-6 text-[17px] font-semibold text-foreground">{t('mypage.withdrawal.question')}</p>
 
                 {/* Warning Text */}
                 <div className="text-center">
-                    <p className="text-sm text-muted-foreground">{t('mypage.withdrawal.warning1')}</p>
-                    <p className="text-sm text-muted-foreground">{t('mypage.withdrawal.warning2')}</p>
+                    <p className="text-[14px] text-muted-foreground">{t('mypage.withdrawal.warning1')}</p>
+                    <p className="text-[14px] text-muted-foreground">{t('mypage.withdrawal.warning2')}</p>
                 </div>
             </div>
 

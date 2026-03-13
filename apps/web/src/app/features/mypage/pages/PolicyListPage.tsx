@@ -17,25 +17,24 @@ export const PolicyListPage = () => {
                 <h1 className="text-[17px] font-semibold text-foreground">{t('mypage.policy.title')}</h1>
             </header>
 
-            {/* Menu Items */}
-            <div className="flex flex-col">
-                {/* Terms of Service */}
-                <button
-                    onClick={() => navigate('/mypage/policy/terms')}
-                    className="flex items-center justify-between border-b border-border px-5 py-4"
-                >
-                    <span className="text-[15px] text-foreground">{t('mypage.policy.terms')}</span>
-                    <ChevronRight size={20} className="text-muted-foreground" />
-                </button>
-
-                {/* Privacy Policy */}
-                <button
-                    onClick={() => navigate('/mypage/policy/privacy')}
-                    className="flex items-center justify-between px-5 py-4"
-                >
-                    <span className="text-[15px] text-foreground">{t('mypage.policy.privacy')}</span>
-                    <ChevronRight size={20} className="text-muted-foreground" />
-                </button>
+            {/* Menu Cards */}
+            <div className="flex flex-col gap-[18px] px-4 pt-4">
+                <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
+                    <button
+                        onClick={() => navigate('/mypage/policy/terms')}
+                        className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                    >
+                        <span className="text-[15px] font-medium text-foreground">{t('mypage.policy.terms')}</span>
+                        <ChevronRight size={18} className="text-muted-foreground" />
+                    </button>
+                    <button
+                        onClick={() => navigate('/mypage/policy/privacy')}
+                        className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                    >
+                        <span className="text-[15px] font-medium text-foreground">{t('mypage.policy.privacy')}</span>
+                        <ChevronRight size={18} className="text-muted-foreground" />
+                    </button>
+                </div>
             </div>
         </div>
     );
