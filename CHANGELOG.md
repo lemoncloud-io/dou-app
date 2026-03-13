@@ -1,5 +1,31 @@
 # Changelog
 
+## [2026-03-13] - root@0.17.0, @chatic/web@0.14.0, @chatic/admin@0.4.0
+
+### Features
+
+- update home UI
+- (home) remove channel description and sort channels by latest activity
+- (chats) add empty state and invite friends feature
+- implement search page
+- update search
+- improve invitation logic
+- update room settings
+- (chats) add unknown user label and improve member list item
+
+### Bug Fixes
+
+- (home) enhance CreateChannelDialog validation
+
+### Refactor
+
+- (search) parallelize message loading
+- improve invite login failure handling and dialog components
+
+### Chores
+
+- (chats) update color scheme and typography
+
 ## [2026-03-13] - root@0.16.0, @chatic/web@0.13.0
 
 ### Features
