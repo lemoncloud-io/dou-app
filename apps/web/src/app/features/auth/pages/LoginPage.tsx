@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { loginWithInviteCode, webCore, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, loginWithInviteCode, webCore, useWebCoreStore } from '@chatic/web-core';
 import { LoadingFallback } from '@chatic/shared';
+
+import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 import { useRegisterDevice } from '@chatic/auth';
 
@@ -25,14 +27,15 @@ export const LoginPage = (): JSX.Element => {
     const { mutateAsync: registerDevice, isPending: isRegisteringDevice } = useRegisterDevice();
     const { deviceId, isReady } = useDynamicDeviceId();
 
+    const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+
     useEffect(() => {
         if (!isReady) return;
         if (loginCalled.current) return;
         loginCalled.current = true;
 
-        const params = new URLSearchParams(location.search);
-        const code = params.get('code');
-        const provider = params.get('provider');
+        const code = urlParams.get('code');
+        const provider = urlParams.get('provider');
 
         if (code && provider === 'invite') {
             setIsInviteLogin(true);
@@ -71,16 +74,37 @@ export const LoginPage = (): JSX.Element => {
             };
             handleDeviceRegistration();
         }
-    }, [location.search, toast, deviceId, isReady, t, registerDevice, setProfile, setIsAuthenticated]);
+    }, [urlParams, toast, deviceId, isReady, t, registerDevice, setProfile, setIsAuthenticated]);
 
     const handleAccept = async () => {
         if (!inviteData || isAccepting) return;
 
+        const identityToken = inviteData.Token?.identityToken;
+        if (!identityToken) {
+            toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
+            return;
+        }
+
         setIsAccepting(true);
         try {
-            await webCore.buildCredentialsByToken(inviteData.Token);
-            setProfile({ id: inviteData.id, name: inviteData.name } as Parameters<typeof setProfile>[0]);
+            // Get backend and wss from URL params
+            const backend = urlParams.get('_backend');
+            const wss = urlParams.get('_wss');
+
+            // Save delegation token (backend, wss)
+            if (backend && wss) {
+                cloudCore.saveDelegationToken({ backend, wss } as CloudDelegationTokenView);
+            }
+
+            // Save cloud token (inviteData as UserTokenView)
+            cloudCore.saveCloudToken(inviteData as unknown as UserTokenView);
+
+            // Set profile from inviteData (exclude Token)
+            const { Token: _Token, ...profile } = inviteData;
+            setProfile(profile as Parameters<typeof setProfile>[0]);
+
             setIsAuthenticated(true);
+            toast({ title: t('auth.loginSuccess') });
         } catch (error) {
             console.error('[LoginPage] Accept invite failed:', error);
             toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
