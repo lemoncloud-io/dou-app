@@ -53,9 +53,9 @@ export const MemberListItem = ({
 
                 {/* MY Badge */}
                 {isMe && (
-                    <div className="rounded bg-primary px-[5px] py-[3px]">
-                        <span className="text-[11px] font-medium leading-none text-primary-foreground">MY</span>
-                    </div>
+                    <span className="rounded-[3px] bg-[#102346] px-1.5 py-[3px] text-[10px] font-semibold leading-none text-white">
+                        MY
+                    </span>
                 )}
             </div>
         </div>

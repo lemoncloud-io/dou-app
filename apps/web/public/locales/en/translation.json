@@ -300,7 +300,8 @@
                 "title": "Leave this chat room?",
                 "description": "You won't be able to view messages, and you'll need a new invite to rejoin.",
                 "confirm": "Leave"
-            }
+            },
+            "unknownUser": "Unknown User"
         }
     },
     "search": {

@@ -2,11 +2,16 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 
-import type { JoinView } from '@lemoncloud/chatic-socials-api';
+import type { JoinView, UserView } from '@lemoncloud/chatic-socials-api';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
+/** Extended UserView with embedded $join info */
+interface ChannelMemberView extends UserView {
+    $join?: JoinView;
+}
+
 interface ChannelMembersResponse {
-    list: JoinView[];
+    list: ChannelMemberView[];
     total?: number;
 }
 
@@ -18,7 +23,7 @@ interface UseChannelMembersOptions {
 
 export const useChannelMembers = (channelId: string | null, options: UseChannelMembersOptions = {}) => {
     const { emitAuthenticated } = useWebSocketV2();
-    const [members, setMembers] = useState<JoinView[]>([]);
+    const [members, setMembers] = useState<ChannelMemberView[]>([]);
     const [total, setTotal] = useState<number>(0);
     const [isLoading, setIsLoading] = useState(false);
     const [isError, setIsError] = useState(false);

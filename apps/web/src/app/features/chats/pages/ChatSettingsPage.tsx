@@ -201,19 +201,25 @@ export const ChatSettingsPage = () => {
                                 {t('chat.settings.loading')}
                             </div>
                         ) : members.length > 0 ? (
-                            members.map(member => (
-                                <MemberListItem
-                                    key={member.id}
-                                    member={{
-                                        id: member.userId ?? member.id ?? '',
-                                        name: member.nick ?? member.userId ?? '',
-                                        avatar: null,
-                                    }}
-                                    isMe={member.userId === profile?.uid}
-                                    isOwner={member.userId === channel?.ownerId}
-                                    isPendingInvite={member.joined === 0}
-                                />
-                            ))
+                            members.map(member => {
+                                const memberId = member.id ?? '';
+                                const memberName =
+                                    member.$join?.nick || member.nick || memberId || t('chat.settings.unknownUser');
+
+                                return (
+                                    <MemberListItem
+                                        key={memberId}
+                                        member={{
+                                            id: memberId,
+                                            name: memberName,
+                                            avatar: null,
+                                        }}
+                                        isMe={memberId === profile?.uid}
+                                        isOwner={memberId === channel?.ownerId}
+                                        isPendingInvite={member.$join?.joined === 0}
+                                    />
+                                );
+                            })
                         ) : (
                             <div className="py-4 text-center text-sm text-muted-foreground">
                                 {t('chat.settings.noMembers', '멤버가 없습니다')}
