@@ -21,8 +21,12 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
         register,
         handleSubmit,
         reset,
+        watch,
         formState: { errors, isSubmitting },
-    } = useForm<{ name: string }>();
+    } = useForm<{ name: string }>({ mode: 'onChange' });
+
+    const nameValue = watch('name', '');
+    const isValidName = nameValue.trim().length >= 2 && nameValue.trim().length <= 20;
 
     const { createPlace } = useCreatePlace();
 
@@ -96,7 +100,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                         <div className="flex flex-col gap-4 px-4 pb-4 pt-5">
                             <Button
                                 type="submit"
-                                disabled={isSubmitting}
+                                disabled={!isValidName || isSubmitting}
                                 className="flex h-[50px] items-center justify-center gap-1.5 rounded-full bg-[#B0EA10] px-6 py-3 text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-[#EAEAEC] disabled:text-[#BABCC0]"
                             >
                                 {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : t('createPlace.done')}
