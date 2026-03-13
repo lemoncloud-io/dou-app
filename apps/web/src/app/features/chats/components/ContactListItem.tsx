@@ -20,7 +20,13 @@ export const ContactListItem = ({ contact, onInvite, isLoading }: ContactListIte
             {/* Avatar */}
             <div className="size-10 rounded-full border border-[#F4F5F5] bg-[rgba(0,43,126,0.04)] flex items-center justify-center overflow-hidden shrink-0">
                 {contact.hasThumbnail && contact.thumbnailPath ? (
-                    <img src={contact.thumbnailPath} alt={displayName} className="size-full object-cover" />
+                    <img
+                        src={contact.thumbnailPath}
+                        alt={displayName}
+                        loading="lazy"
+                        decoding="async"
+                        className="size-full object-cover"
+                    />
                 ) : (
                     <User className="size-3.5 text-[#3A3C40]" />
                 )}

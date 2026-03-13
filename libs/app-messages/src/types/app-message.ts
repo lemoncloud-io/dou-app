@@ -27,6 +27,7 @@ export const AppMessageTypes = {
     OnSuccessSyncCredential: 'OnSuccessSyncCredential',
     OnUpdateDeviceInfo: 'OnUpdateDeviceInfo',
     OnCloseModal: 'OnCloseModal',
+    OnBackPressed: 'OnBackPressed',
     OnOpenShareSheet: 'OnOpenShareSheet',
     OnOpenDocument: 'OnOpenDocument',
     OnGetContacts: 'OnGetContacts',
@@ -172,6 +173,7 @@ export interface AppMessageMap {
      * Control Device Event
      */
     OnCloseModal: DefaultMessage<'OnCloseModal'>;
+    OnBackPressed: DefaultMessage<'OnBackPressed'>;
     OnOpenShareSheet: OnOpenShareSheet;
     OnOpenDocument: OnOpenDocument;
     OnGetContacts: OnGetContacts;

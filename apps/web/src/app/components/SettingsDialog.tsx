@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { webCore, useOnboardingStore } from '@chatic/web-core';
 import { useWebSocketV2 } from '@chatic/socket';
@@ -60,16 +60,19 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent hideClose variant="slide-up" className="max-w-full w-full m-0 rounded-none bg-white">
+            <DialogContent hideClose variant="slide-up" className="max-w-full w-full m-0 rounded-none bg-background">
+                <DialogDescription className="sr-only">App settings and configuration</DialogDescription>
                 <div className="flex flex-col h-full">
                     {/* Header */}
-                    <div className="px-6 py-4 border-b flex items-center justify-between">
-                        <h2 className="text-xl font-semibold text-black">{t('settingsDialog.title')}</h2>
+                    <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+                        <DialogTitle className="text-xl font-semibold text-foreground">
+                            {t('settingsDialog.title')}
+                        </DialogTitle>
                         <button
                             onClick={() => onOpenChange?.(false)}
-                            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100"
+                            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-muted"
                         >
-                            <X className="w-5 h-5 text-[#3A3C40]" />
+                            <X className="w-5 h-5 text-foreground" />
                         </button>
                     </div>
 
@@ -77,17 +80,17 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
                     <div className="flex-1 overflow-auto px-6 py-6 space-y-6">
                         {/* WebSocket Status */}
                         <div className="flex flex-col gap-3">
-                            <h3 className="text-base font-semibold text-gray-900">{t('settingsDialog.wsStatus')}</h3>
-                            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                            <h3 className="text-base font-semibold text-foreground">{t('settingsDialog.wsStatus')}</h3>
+                            <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
                                 <div className={`w-4 h-4 rounded-full ${getStatusColor()}`} />
-                                <span className="text-sm font-medium text-gray-700">{connectionStatus}</span>
+                                <span className="text-sm font-medium text-foreground">{connectionStatus}</span>
                             </div>
                             {lastMessage && (
                                 <details className="group">
-                                    <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-900">
+                                    <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
                                         {t('settingsDialog.viewLastMessage')}
                                     </summary>
-                                    <div className="mt-2 text-xs text-gray-500 break-all max-h-60 overflow-auto p-3 bg-gray-50 rounded border">
+                                    <div className="mt-2 text-xs text-muted-foreground break-all max-h-60 overflow-auto p-3 bg-muted rounded border border-border">
                                         <pre className="whitespace-pre-wrap">
                                             {JSON.stringify(lastMessage, null, 2)}
                                         </pre>
@@ -98,9 +101,9 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
 
                         {/* Token Editor */}
                         <div className="flex flex-col gap-3">
-                            <h3 className="text-base font-semibold text-gray-900">Identity Token</h3>
-                            <div className="p-3 bg-gray-50 rounded-lg border">
-                                <p className="text-xs text-gray-500 break-all font-mono">
+                            <h3 className="text-base font-semibold text-foreground">Identity Token</h3>
+                            <div className="p-3 bg-muted rounded-lg border border-border">
+                                <p className="text-xs text-muted-foreground break-all font-mono">
                                     {currentToken || t('settingsDialog.noToken')}
                                 </p>
                             </div>
@@ -123,14 +126,16 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
 
                         {/* Onboarding */}
                         <div className="flex flex-col gap-3">
-                            <h3 className="text-base font-semibold text-gray-900">{t('settingsDialog.onboarding')}</h3>
+                            <h3 className="text-base font-semibold text-foreground">
+                                {t('settingsDialog.onboarding')}
+                            </h3>
                             <Button
                                 onClick={() => {
                                     resetOnboarding();
                                     onOpenChange?.(false);
                                 }}
                                 variant="outline"
-                                className="h-11 border-[#DFE0E2] text-[#3A3C40]"
+                                className="h-11 border-border text-foreground"
                             >
                                 {t('settingsDialog.resetOnboarding')}
                             </Button>

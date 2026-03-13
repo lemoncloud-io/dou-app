@@ -30,7 +30,7 @@ export const SearchInput = ({ value, onChange, onSubmit, onClose }: SearchInputP
                     onKeyDown={handleKeyDown}
                     placeholder={t('search.placeholder')}
                     autoFocus
-                    className="min-w-0 flex-1 bg-transparent text-[16px] tracking-[-0.015em] text-foreground outline-none placeholder:text-[#84888F]"
+                    className="min-w-0 flex-1 bg-transparent text-[16px] tracking-[-0.015em] text-foreground outline-none placeholder:text-muted-foreground"
                 />
                 {value && (
                     <button
