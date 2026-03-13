@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next';
 
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
 import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+
+import { useCreateInvite } from '../hooks/useCreateInvite';
 
 import { AddFriendSheet } from './AddFriendSheet';
 import { ContactListItem } from './ContactListItem';
@@ -25,14 +28,17 @@ const QUICK_ACTIONS = [
 
 export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFriendsDialogProps) => {
     const { t } = useTranslation();
+    const { toast } = useToast();
     const [search, setSearch] = useState('');
     const [addFriendOpen, setAddFriendOpen] = useState(false);
     const [contacts, setContacts] = useState<ContactInfo[]>([]);
     const [permissionDenied, setPermissionDenied] = useState(false);
     const [hasRequestedContacts, setHasRequestedContacts] = useState(false);
+    const [invitingContactId, setInvitingContactId] = useState<string | null>(null);
 
     const { isOnMobileApp } = getMobileAppInfo();
     const [isWaitingForContacts, setIsWaitingForContacts] = useState(false);
+    const { createInvite } = useCreateInvite();
 
     // Listen for contact response from native app
     useHandleAppMessage('OnGetContacts', message => {
@@ -96,9 +102,52 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
         });
     }, [contacts, search]);
 
-    const handleInvite = (contact: ContactInfo) => {
-        // TODO: Implement invite API call
-        console.log('Invite contact:', contact);
+    const handleInvite = async (contact: ContactInfo) => {
+        if (!channelId || invitingContactId) return;
+
+        // Extract first phone number and filter to digits only
+        const phoneNumber = contact.phoneNumbers?.[0]?.number;
+        if (!phoneNumber) {
+            toast({ title: t('inviteFriends.shareFailed'), variant: 'destructive' });
+            return;
+        }
+        const phone = phoneNumber.replace(/\D/g, '');
+
+        // Determine name (displayName > givenName familyName > Unknown)
+        const name =
+            contact.displayName || `${contact.givenName || ''} ${contact.familyName || ''}`.trim() || 'Unknown';
+
+        setInvitingContactId(contact.recordID);
+
+        try {
+            const { deeplinkUrl } = await createInvite({
+                channelId,
+                name,
+                phone,
+            });
+
+            if (isOnMobileApp) {
+                // Mobile app: Use native share sheet (clipboard not reliable in WebView)
+                postMessage({
+                    type: 'OpenShareSheet',
+                    data: {
+                        title: t('inviteFriends.shareTitle'),
+                        message: t('inviteFriends.shareMessage'),
+                        url: deeplinkUrl,
+                    },
+                });
+            } else {
+                // Browser: Copy to clipboard only
+                await navigator.clipboard.writeText(deeplinkUrl);
+                toast({ title: t('inviteFriends.linkCopied') });
+            }
+        } catch (error) {
+            console.error('Failed to invite contact:', error);
+            const message = error instanceof Error ? error.message : t('inviteFriends.shareFailed');
+            toast({ title: message, variant: 'destructive' });
+        } finally {
+            setInvitingContactId(null);
+        }
     };
 
     const showContactList = isOnMobileApp && contacts.length > 0;
@@ -185,6 +234,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                                             key={contact.recordID}
                                             contact={contact}
                                             onInvite={handleInvite}
+                                            isLoading={invitingContactId === contact.recordID}
                                         />
                                     ))
                                 )}
