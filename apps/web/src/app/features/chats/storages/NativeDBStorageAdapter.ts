@@ -6,6 +6,7 @@ import type { AppMessageType, AppMessage } from '@chatic/app-messages';
 import { toChatView, toClientChatView } from '@chatic/chats';
 import type { ChatView, JoinView } from '@lemoncloud/chatic-socials-api';
 
+const defaultCloudId = 'default';
 const generateNonce = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
 const waitForAppMessage = <T extends AppMessageType>(
@@ -21,15 +22,15 @@ const waitForAppMessage = <T extends AppMessageType>(
         useAppMessageStore.getState().addHandler(type, handler);
     });
 
-/**
- * TODO: migration 예정
- * @deprecated
- */
 export const NativeDBStorageAdapter: ChatStorageAdapter = {
     save: async (userId, channelId, message) => {
         const chatView = toChatView(message);
         const nonce = generateNonce();
-        postMessage({ type: 'SaveCacheData', data: { type: 'chat', id: message.id, item: chatView }, nonce: nonce });
+        postMessage({
+            type: 'SaveCacheData',
+            data: { type: 'chat', id: message.id, item: chatView, cid: defaultCloudId },
+            nonce: nonce,
+        });
         await waitForAppMessage('OnSaveCacheData', m => m.nonce === nonce);
 
         const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
@@ -39,13 +40,17 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
 
     load: async channelId => {
         const nonce = generateNonce();
-        postMessage({ type: 'FetchAllCacheData', data: { type: 'chat', query: { channelId } }, nonce: nonce });
+        postMessage({
+            type: 'FetchAllCacheData',
+            data: { type: 'chat', query: { channelId: channelId, cid: defaultCloudId } },
+            nonce: nonce,
+        });
         const response = await waitForAppMessage('OnFetchAllCacheData', m => m.nonce === nonce);
         return (response.data.items as ChatView[]).map(toClientChatView);
     },
 
     /**
-     * TODO: `save`로 통일 예정
+     * TODO: `save`로 통일 필요
      * @deprecated
      */
     update: async () => {
@@ -72,13 +77,17 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
         let nonce: string;
 
         nonce = generateNonce();
-        postMessage({ type: 'FetchCacheData', data: { type: 'join', id: joinId }, nonce: nonce });
+        postMessage({ type: 'FetchCacheData', data: { type: 'join', id: joinId, cid: defaultCloudId }, nonce: nonce });
         const joinResponse = await waitForAppMessage('OnFetchCacheData', m => m.nonce === nonce);
         const lastReadChatNo = (joinResponse.data.item as JoinView)?.chatNo ?? 0;
 
         // channelId에 대한 모든 메시지 정보 불러오기
         nonce = generateNonce();
-        postMessage({ type: 'FetchAllCacheData', data: { type: 'chat', query: { channelId } }, nonce: nonce });
+        postMessage({
+            type: 'FetchAllCacheData',
+            data: { type: 'chat', query: { channelId: channelId, cid: defaultCloudId } },
+            nonce: nonce,
+        });
         const chatResponse = await waitForAppMessage('OnFetchAllCacheData', m => m.nonce === nonce);
 
         // lastReadChatNo 보다 높은 번호들 측정해서 저장
