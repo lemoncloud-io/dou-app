@@ -108,19 +108,23 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-full w-full m-0 rounded-none" hideClose variant="slide-up">
-                    <div className="flex flex-col h-full bg-white">
+                <DialogContent
+                    className="max-w-full w-full m-0 rounded-none bg-background"
+                    hideClose
+                    variant="slide-up"
+                >
+                    <div className="flex flex-col h-full bg-background">
                         {/* Top Bar */}
                         <div className="flex items-center justify-between px-1.5 py-3">
                             <div className="w-11 h-11" />
-                            <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#222325]">
+                            <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-foreground">
                                 {t('inviteFriends.title')}
                             </h1>
                             <button
                                 onClick={() => onOpenChange?.(false)}
                                 className="w-11 h-11 flex items-center justify-center"
                             >
-                                <X className="w-6 h-6 text-[#3A3C40]" />
+                                <X className="w-6 h-6 text-foreground" />
                             </button>
                         </div>
 
@@ -129,23 +133,21 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
 
                         {/* Quick Actions */}
                         <div className="px-4 pt-5">
-                            <div
-                                className="flex items-center justify-center gap-[42px] rounded-[20px] py-4 px-[18px]"
-                                style={{ boxShadow: '0px 1px 8px 0px rgba(0,0,0,0.08)' }}
-                            >
+                            <div className="flex items-center justify-center gap-[42px] rounded-[20px] py-4 px-[18px] bg-card shadow-sm border border-border">
                                 {QUICK_ACTIONS.map(({ labelKey, icon, actionKey }) => (
                                     <button
                                         key={actionKey}
                                         className="flex flex-col items-center gap-2"
                                         onClick={() => actionKey === 'addFriend' && setAddFriendOpen(true)}
                                     >
-                                        <div
-                                            className="w-[42px] h-[42px] rounded-[28px] flex items-center justify-center"
-                                            style={{ background: 'rgba(0,43,126,0.06)' }}
-                                        >
-                                            <img src={icon} alt={t(labelKey)} className="w-[42px] h-[42px]" />
+                                        <div className="w-[42px] h-[42px] rounded-[28px] flex items-center justify-center bg-muted">
+                                            <img
+                                                src={icon}
+                                                alt={t(labelKey)}
+                                                className="w-[42px] h-[42px] dark:invert dark:brightness-200"
+                                            />
                                         </div>
-                                        <span className="text-[15px] font-medium text-black w-16 text-center leading-[1.19] tracking-[-0.02em]">
+                                        <span className="text-[15px] font-medium text-foreground w-16 text-center leading-[1.19] tracking-[-0.02em]">
                                             {t(labelKey)}
                                         </span>
                                     </button>
@@ -156,19 +158,13 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                         {/* Search - Only show when contacts are loaded */}
                         {showContactList && (
                             <div className="px-4 py-[10px]">
-                                <div
-                                    className="flex items-center gap-[9px] rounded-full px-[14px] py-3"
-                                    style={{
-                                        background: 'rgba(0,43,126,0.03)',
-                                        border: '1px solid rgba(0,43,126,0.01)',
-                                    }}
-                                >
-                                    <Search size={18} className="text-[#3A3C40] shrink-0" />
+                                <div className="flex items-center gap-[9px] rounded-full px-[14px] py-3 bg-muted border border-border">
+                                    <Search size={18} className="text-foreground shrink-0" />
                                     <input
                                         value={search}
                                         onChange={e => setSearch(e.target.value)}
                                         placeholder={t('inviteFriends.searchPlaceholder')}
-                                        className="flex-1 bg-transparent text-[16px] text-[#222325] placeholder:text-[#84888F] outline-none leading-[1.19] tracking-[-0.015em]"
+                                        className="flex-1 bg-transparent text-[16px] text-foreground placeholder:text-muted-foreground outline-none leading-[1.19] tracking-[-0.015em]"
                                     />
                                 </div>
                             </div>
@@ -179,7 +175,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                             <div className="flex-1 overflow-y-auto px-4 flex flex-col gap-3 pt-2">
                                 {showNoResults ? (
                                     <div className="flex-1 flex items-center justify-center">
-                                        <p className="text-[16px] font-normal leading-[1.45] tracking-[-0.16px] text-[#84888F] text-center">
+                                        <p className="text-[16px] font-normal leading-[1.45] tracking-[-0.16px] text-muted-foreground text-center">
                                             {t('inviteFriends.noSearchResults')}
                                         </p>
                                     </div>

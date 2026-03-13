@@ -25,16 +25,18 @@ interface InputFieldProps {
 
 const InputField = ({ label, value, onChange, placeholder, maxLength, type = 'text' }: InputFieldProps) => (
     <div className="flex flex-col gap-2">
-        <label className="text-[14px] font-semibold leading-[1.286] tracking-[0.005em] text-[#53555B]">{label}</label>
-        <div className="flex items-center rounded-[10px] border border-[#EAEAEC] bg-white px-3 py-3">
+        <label className="text-[14px] font-semibold leading-[1.286] tracking-[0.005em] text-muted-foreground">
+            {label}
+        </label>
+        <div className="flex items-center rounded-[10px] border border-border bg-background px-3 py-3">
             <input
                 value={value}
                 onChange={e => onChange(e.target.value.slice(0, maxLength))}
                 placeholder={placeholder}
                 type={type}
-                className="flex-1 text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-[#222325] placeholder:text-[#BABCC0] outline-none bg-transparent"
+                className="flex-1 text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-foreground placeholder:text-muted-foreground outline-none bg-transparent"
             />
-            <span className="text-[13px] font-medium tracking-[0.019em] text-[#53555B] opacity-74 shrink-0">
+            <span className="text-[13px] font-medium tracking-[0.019em] text-muted-foreground opacity-74 shrink-0">
                 {value.length}/{maxLength}
             </span>
         </div>
@@ -121,25 +123,25 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="bottom" className="rounded-t-[20px] p-0 border-0" hideClose>
+            <SheetContent side="bottom" className="rounded-t-[20px] p-0 border-0 bg-background" hideClose>
                 <div className="flex items-center justify-between px-4 py-[14px]">
-                    <span className="text-[16px] font-medium leading-[1.5] tracking-[-0.02em] text-black">
+                    <span className="text-[16px] font-medium leading-[1.5] tracking-[-0.02em] text-foreground">
                         {t('addFriend.title')}
                     </span>
                     <button
                         onClick={resetAndClose}
-                        className="w-6 h-6 flex items-center justify-center rounded-full bg-[#EAEAEC]"
+                        className="w-6 h-6 flex items-center justify-center rounded-full bg-muted"
                     >
-                        <X className="w-[14px] h-[14px] text-black" />
+                        <X className="w-[14px] h-[14px] text-foreground" />
                     </button>
                 </div>
 
                 <div className="flex flex-col gap-[26px] px-4">
                     <div className="flex flex-col gap-[2px]">
-                        <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-black">
+                        <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
                             {t('addFriend.subtitle1')}
                         </span>
-                        <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-black">
+                        <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
                             {t('addFriend.subtitle2')}
                         </span>
                     </div>
@@ -153,18 +155,18 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                     />
 
                     <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold leading-[1.286] tracking-[0.005em] text-[#53555B]">
+                        <label className="text-[14px] font-semibold leading-[1.286] tracking-[0.005em] text-muted-foreground">
                             {t('addFriend.phoneLabel')}
                         </label>
-                        <div className="flex items-center rounded-[10px] border border-[#EAEAEC] bg-white px-3 py-3">
+                        <div className="flex items-center rounded-[10px] border border-border bg-background px-3 py-3">
                             <input
                                 value={formatPhoneNumber(phoneDigits)}
                                 onChange={e => handlePhoneChange(e.target.value)}
                                 placeholder={t('addFriend.phonePlaceholder')}
                                 type="tel"
-                                className="flex-1 text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-[#222325] placeholder:text-[#BABCC0] outline-none bg-transparent"
+                                className="flex-1 text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-foreground placeholder:text-muted-foreground outline-none bg-transparent"
                             />
-                            <span className="text-[13px] font-medium tracking-[0.019em] text-[#53555B] opacity-74 shrink-0">
+                            <span className="text-[13px] font-medium tracking-[0.019em] text-muted-foreground opacity-74 shrink-0">
                                 {phoneDigits.length}/{PHONE_DIGITS_MAX}
                             </span>
                         </div>
@@ -176,7 +178,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                         onClick={handleShare}
                         disabled={isDisabled}
                         className="w-full rounded-full py-3 text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-center transition-colors
-                            disabled:bg-[#EAEAEC] disabled:text-[#BABCC0]
+                            disabled:bg-muted disabled:text-muted-foreground
                             enabled:bg-[#B0EA10] enabled:text-[#222325]"
                     >
                         {isPending ? '...' : t('addFriend.share')}

@@ -23,14 +23,14 @@ export const MemberListItem = ({
         <div className="flex items-center gap-2">
             {/* Avatar */}
             <div
-                className={`relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border ${
-                    isPendingInvite ? 'border-dashed border-[#CFD0D3]' : 'border-solid border-[#F4F5F5]'
-                } bg-[rgba(0,43,126,0.04)]`}
+                className={`relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted ${
+                    isPendingInvite ? 'border-dashed border-muted-foreground/50' : 'border-solid border-border'
+                }`}
             >
                 {member.avatar ? (
                     <img src={member.avatar} alt={member.name} className="size-full object-cover" />
                 ) : (
-                    <User className={`size-3.5 ${isPendingInvite ? 'text-[#9FA2A7]' : 'text-[#3A3C40]'}`} />
+                    <User className={`size-3.5 ${isPendingInvite ? 'text-muted-foreground' : 'text-foreground'}`} />
                 )}
             </div>
 
@@ -38,7 +38,7 @@ export const MemberListItem = ({
             <div className="flex flex-1 items-center gap-1">
                 <span
                     className={`text-[16px] font-medium leading-[22px] tracking-[0.08px] ${
-                        isPendingInvite ? 'text-[#9FA2A7]' : 'text-[#222325]'
+                        isPendingInvite ? 'text-muted-foreground' : 'text-foreground'
                     }`}
                 >
                     {member.name}
@@ -53,8 +53,8 @@ export const MemberListItem = ({
 
                 {/* MY Badge */}
                 {isMe && (
-                    <div className="rounded bg-[#102346] px-[5px] py-[3px]">
-                        <span className="text-[11px] font-medium leading-none text-white">MY</span>
+                    <div className="rounded bg-primary px-[5px] py-[3px]">
+                        <span className="text-[11px] font-medium leading-none text-primary-foreground">MY</span>
                     </div>
                 )}
             </div>

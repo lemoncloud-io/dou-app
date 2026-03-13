@@ -26,19 +26,19 @@ interface ActionButtonProps {
 
 const ActionButton = ({ icon: Icon, label, onClick, variant = 'default' }: ActionButtonProps) => (
     <button onClick={onClick} className="flex flex-col items-center">
-        <div className="flex size-[38px] items-center justify-center rounded-[23px] bg-white p-[9px]">
-            <Icon size={20} className={variant === 'danger' ? 'text-[#FF6B35]' : 'text-[#84888F]'} />
+        <div className="flex size-[38px] items-center justify-center rounded-[23px] bg-muted p-[9px]">
+            <Icon size={20} className={variant === 'danger' ? 'text-destructive' : 'text-muted-foreground'} />
         </div>
-        <span className="text-[15px] font-medium leading-[1.3] text-[#84888F]">{label}</span>
+        <span className="text-[15px] font-medium leading-[1.3] text-muted-foreground">{label}</span>
     </button>
 );
 
 const ChatProfileIcon = () => (
-    <div className="flex size-14 items-center justify-center rounded-full bg-[rgba(0,43,126,0.04)]">
+    <div className="flex size-14 items-center justify-center rounded-full bg-muted">
         <svg width="32" height="32" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
                 d="M28 8C16.954 8 8 16.954 8 28C8 32.944 9.712 37.486 12.586 41.04L10.5 46L16.5 44.5C20.054 46.988 24.328 48 28 48C39.046 48 48 39.046 48 28C48 16.954 39.046 8 28 8Z"
-                stroke="#3A3C40"
+                className="stroke-foreground"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -124,13 +124,13 @@ export const ChatSettingsPage = () => {
     }
 
     return (
-        <div className="flex min-h-screen flex-col bg-white">
+        <div className="flex min-h-screen flex-col bg-background">
             {/* Header */}
-            <header className="flex h-[45px] items-center justify-between bg-white px-1.5">
+            <header className="flex h-[45px] items-center justify-between bg-background px-1.5">
                 <button onClick={() => navigate(-1)} className="flex size-11 items-center justify-center rounded-full">
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>
-                <h1 className="flex-1 text-center text-[16px] font-semibold leading-[26px] tracking-[0.08px] text-[#222325]">
+                <h1 className="flex-1 text-center text-[16px] font-semibold leading-[26px] tracking-[0.08px] text-foreground">
                     {t('chat.settings.title')}
                 </h1>
                 <div className="size-11" />
@@ -144,13 +144,13 @@ export const ChatSettingsPage = () => {
                     <div className="flex flex-col items-center gap-2">
                         <ChatProfileIcon />
                         <div className="flex flex-col items-center gap-1">
-                            <h2 className="text-[17px] font-semibold leading-[22px] tracking-[-0.34px] text-[#3A3C40]">
+                            <h2 className="text-[17px] font-semibold leading-[22px] tracking-[-0.34px] text-foreground">
                                 {channel?.name || t('chat.settings.roomName')}
                             </h2>
                             {isOwner && (
                                 <button
                                     onClick={() => openDialog('update')}
-                                    className="text-[13px] font-medium leading-[1.3] text-[#2A7EF4] underline"
+                                    className="text-[13px] font-medium leading-[1.3] text-primary underline"
                                 >
                                     {t('chat.settings.edit')}
                                 </button>
@@ -188,10 +188,12 @@ export const ChatSettingsPage = () => {
                 {/* Members List */}
                 <div className="flex w-full flex-col gap-[18px]">
                     <div className="flex items-center gap-1 px-[18px]">
-                        <span className="text-[16px] font-semibold leading-[1.5] tracking-[-0.32px] text-[#3A3C40]">
+                        <span className="text-[16px] font-semibold leading-[1.5] tracking-[-0.32px] text-foreground">
                             {t('chat.settings.roomMembers')}
                         </span>
-                        <span className="text-[16px] font-semibold leading-[1.5] text-[#84888F]">{memberCount}</span>
+                        <span className="text-[16px] font-semibold leading-[1.5] text-muted-foreground">
+                            {memberCount}
+                        </span>
                     </div>
                     <div className="flex flex-col gap-[14px] px-4">
                         {isMembersLoading ? (
