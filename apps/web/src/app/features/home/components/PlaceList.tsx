@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Check, RefreshCw, Users } from 'lucide-react';
+import { Check, Home, RefreshCw, Users } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore } from '@chatic/web-core';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 import { getCloudSession, useCloudSession } from '../../../shared/hooks/useCloudSession';
@@ -20,6 +20,7 @@ interface PlaceItemProps {
 const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemProps) => {
     const isSelectable = place.stereo === 'place';
     const disabled = !isSelectable || isDisabled || isSelected;
+    const isDefaultPlace = place.id === 'default';
 
     const handleClick = () => {
         if (disabled) return;
@@ -39,7 +40,11 @@ const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemPr
                         isSelected ? 'bg-[#102346]' : 'bg-muted'
                     )}
                 >
-                    <Users size={20} className={isSelected ? 'text-white' : 'text-muted-foreground'} />
+                    {isDefaultPlace ? (
+                        <Home size={20} className={isSelected ? 'text-white' : 'text-muted-foreground'} />
+                    ) : (
+                        <Users size={20} className={isSelected ? 'text-white' : 'text-muted-foreground'} />
+                    )}
                 </div>
                 {isSelected && <div className="absolute inset-0 rounded-full border-[1.5px] border-[#C139E3]" />}
             </div>
@@ -64,7 +69,6 @@ interface PlaceListProps {
 
 export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
     const { t } = useTranslation();
-    const { isGuest } = useWebCoreStore();
     const { selectPlace, isPending } = useCloudSession();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
     const { places, isLoading, isError, retry } = useMyPlaces();
@@ -84,8 +88,6 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
         if (getCloudSession()) return;
         void handleSelectPlace(firstSelectable.id);
     }, [places]);
-
-    if (isGuest) return null;
 
     if (isLoading) {
         return (
@@ -112,17 +114,22 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
         );
     }
 
-    if (places.length === 0) {
-        return <p className="px-4 py-2 text-sm text-muted-foreground">{t('placeList.empty')}</p>;
-    }
+    const defaultPlace: MySiteView = {
+        id: 'default',
+        name: t('placeList.defaultPlace'),
+        stereo: 'place',
+    } as MySiteView;
+
+    const displayPlaces = places.length === 0 ? [defaultPlace] : places;
+    const effectiveSelectedId = places.length === 0 ? 'default' : selectedId;
 
     return (
         <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
-            {places.map(place => (
+            {displayPlaces.map(place => (
                 <PlaceItem
                     key={place.id}
                     place={place}
-                    isSelected={selectedId === place.id}
+                    isSelected={effectiveSelectedId === place.id}
                     isDisabled={isPending}
                     onSelectPlace={handleSelectPlace}
                 />

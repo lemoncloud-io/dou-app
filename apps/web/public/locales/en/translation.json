@@ -247,6 +247,12 @@
         "retry": "Retry",
         "empty": "No places"
     },
+    "placeOrder": {
+        "title": "Place List",
+        "settings": "Settings",
+        "delete": "Delete",
+        "leave": "Leave"
+    },
     "channelList": {
         "noDescription": "No description",
         "errorLoading": "Unable to load channels",

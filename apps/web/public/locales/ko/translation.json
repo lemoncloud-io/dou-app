@@ -247,6 +247,12 @@
         "retry": "재시도",
         "empty": "플레이스가 없어요"
     },
+    "placeOrder": {
+        "title": "플레이스 목록",
+        "settings": "설정",
+        "delete": "삭제",
+        "leave": "나가기"
+    },
     "channelList": {
         "noDescription": "채널 설명 없음",
         "errorLoading": "채널을 불러올 수 없습니다",
