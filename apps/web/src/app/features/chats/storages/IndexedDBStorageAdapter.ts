@@ -1,4 +1,5 @@
-import type { ChatStorageAdapter, Message } from './ChatStorageAdapter';
+import type { ChatStorageAdapter } from './ChatStorageAdapter';
+import type { ClientChatView } from '@chatic/chats';
 
 export const DB_NAME = 'ChatDB';
 export const DB_VERSION = 3;
@@ -7,7 +8,7 @@ export const CHANNELS_STORE_NAME = 'channels';
 export const BROADCAST_CHANNEL_NAME = 'chat-messages-update';
 export const CHANNELS_BROADCAST_CHANNEL_NAME = 'channel-update';
 
-interface StoredMessage extends Omit<Message, 'timestamp'> {
+interface StoredMessage extends Omit<ClientChatView, 'timestamp'> {
     timestamp: string;
     chatKey: string;
     compositeKey: string;
