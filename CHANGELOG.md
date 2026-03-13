@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-03-13] - No version updates
+
+### Features
+
+- (profile) add local profile overrides and image upload
+
 ## [2026-03-13] - root@0.18.0, @chatic/web@0.15.0
 
 ### Features
