@@ -20,7 +20,8 @@ import { useChatMessages } from '../hooks/useChatMessages';
 import { useMyChannels } from '../../home/hooks/useMyChannels';
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { MessageBubble } from '../components/MessageBubble';
-import { ReadStatus } from '../components/ReadStatus';
+// TODO: Enable when read status feature is ready
+// import { ReadStatus } from '../components/ReadStatus';
 
 export const ChatRoomPage = () => {
     const navigate = useNavigate();
@@ -339,10 +340,11 @@ export const ChatRoomPage = () => {
                                                     <span className="text-muted-foreground">
                                                         {formatTime(message.timestamp)}
                                                     </span>
-                                                    <ReadStatus
+                                                    {/* TODO: Enable when read status feature is ready */}
+                                                    {/* <ReadStatus
                                                         memberNo={channel?.memberNo ?? 0}
                                                         readCount={message.readBy?.length ?? 0}
-                                                    />
+                                                    /> */}
                                                 </div>
                                             </div>
                                         </div>

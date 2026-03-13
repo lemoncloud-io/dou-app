@@ -1,4 +1,4 @@
-import { User } from 'lucide-react';
+import { Loader2, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { ContactInfo } from '@chatic/app-messages';
@@ -6,9 +6,10 @@ import type { ContactInfo } from '@chatic/app-messages';
 interface ContactListItemProps {
     contact: ContactInfo;
     onInvite: (contact: ContactInfo) => void;
+    isLoading?: boolean;
 }
 
-export const ContactListItem = ({ contact, onInvite }: ContactListItemProps) => {
+export const ContactListItem = ({ contact, onInvite, isLoading }: ContactListItemProps) => {
     const { t } = useTranslation();
 
     const displayName =
@@ -32,9 +33,10 @@ export const ContactListItem = ({ contact, onInvite }: ContactListItemProps) => 
                 </span>
                 <button
                     onClick={() => onInvite(contact)}
-                    className="text-[14px] font-semibold leading-[22px] tracking-[0.07px] text-[#102346] underline"
+                    disabled={isLoading}
+                    className="text-[14px] font-semibold leading-[22px] tracking-[0.07px] text-[#102346] underline disabled:opacity-50"
                 >
-                    {t('inviteFriends.invite')}
+                    {isLoading ? <Loader2 className="size-4 animate-spin" /> : t('inviteFriends.invite')}
                 </button>
             </div>
         </div>
