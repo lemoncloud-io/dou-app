@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useLocalProfileStore, useWebCoreStore } from '@chatic/web-core';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { LanguageSelectSheet, LogoutDialog } from '../components';
@@ -20,6 +20,11 @@ export const MyPage = () => {
     const logout = useWebCoreStore(s => s.logout);
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();
+    const localProfile = useLocalProfileStore();
+
+    // Merge local overrides with server profile (local > nick > name)
+    const displayName = localProfile.name ?? profile?.$user?.nick ?? profile?.$user?.name;
+    const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
     const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
 
@@ -56,12 +61,8 @@ export const MyPage = () => {
                 ) : (
                     <button onClick={handleProfileClick} className="flex items-center gap-[9px]">
                         <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                            {profile?.$user?.imageUrl ? (
-                                <img
-                                    src={profile.$user.imageUrl}
-                                    alt="Profile"
-                                    className="h-full w-full object-cover"
-                                />
+                            {displayImageUrl ? (
+                                <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
                             ) : (
                                 <User size={20} className="text-muted-foreground" />
                             )}
@@ -69,7 +70,7 @@ export const MyPage = () => {
                         <div className="flex flex-col items-start gap-0.5">
                             <div className="flex items-center gap-1">
                                 <h2 className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
-                                    {profile?.$user?.name}
+                                    {displayName}
                                 </h2>
                                 <ChevronDown size={18} className="text-muted-foreground" />
                             </div>
