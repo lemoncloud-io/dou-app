@@ -434,7 +434,8 @@
         "nameHint": "Please enter up to 20 characters.",
         "photoLabel": "Profile Photo",
         "photoOptional": "[Optional]",
-        "save": "Done"
+        "save": "Done",
+        "imageSizeError": "Image must be less than 2MB"
     },
     "mypageLogin": {
         "title": "Sign In",

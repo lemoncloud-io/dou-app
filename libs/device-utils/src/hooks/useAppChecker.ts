@@ -9,7 +9,7 @@ export const useAppChecker = () => {
 
     const isOnMobileApp = useMemo(() => deviceInfo?.application?.toLowerCase() === 'chatic', [deviceInfo]);
     const isIOS = useMemo(() => deviceInfo?.platform === 'ios', [deviceInfo]);
-    const isAOS = useMemo(() => deviceInfo?.platform === 'aos', [deviceInfo]);
+    const isAOS = useMemo(() => deviceInfo?.platform === 'android', [deviceInfo]);
 
     return {
         appLang,

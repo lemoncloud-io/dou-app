@@ -9,7 +9,7 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
+import { useLocalProfileStore, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
@@ -24,8 +24,13 @@ import { PlaceList } from '../components/PlaceList';
 export const HomePage = () => {
     const { t } = useTranslation();
     const { logout, isGuest, profile } = useWebCoreStore();
+    const localProfile = useLocalProfileStore();
     const { canCreate } = useCanCreateChannel();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
+
+    // Merge local overrides with server profile
+    const displayName = localProfile.name ?? profile?.$user?.nick ?? profile?.$user?.name ?? '-';
+    const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
@@ -53,12 +58,20 @@ export const HomePage = () => {
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <button className="flex items-center gap-[9px]">
-                                <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full border border-border bg-muted">
-                                    <User size={20} className="text-muted-foreground" />
+                                <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                                    {displayImageUrl ? (
+                                        <img
+                                            src={displayImageUrl}
+                                            alt="Profile"
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <User size={20} className="text-muted-foreground" />
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <span className="max-w-[160px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
-                                        {profile?.$user?.nick || profile?.$user?.name || '-'}
+                                        {displayName}
                                     </span>
                                     <ChevronDown size={18} className="text-muted-foreground" />
                                 </div>
