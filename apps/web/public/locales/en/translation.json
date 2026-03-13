@@ -288,11 +288,13 @@
         }
     },
     "search": {
-        "placeholder": "Search...",
+        "placeholder": "Search by room name or place",
         "recent": "Recent Searches",
         "clearAll": "Clear All",
         "places": "Places",
-        "chat": "Chat"
+        "chat": "Chat",
+        "noResults": "No results found.",
+        "noHistory": "No search history."
     },
     "workspace": {
         "list": {

@@ -25,7 +25,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange }: InviteFriendsDialogP
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-full w-full m-0 rounded-none" hideClose variant="fullscreen">
+                <DialogContent className="max-w-full w-full m-0 rounded-none" hideClose variant="slide-up">
                     <div className="flex flex-col h-full bg-white">
                         {/* Top Bar */}
                         <div className="flex items-center justify-between px-1.5 py-3">

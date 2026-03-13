@@ -60,7 +60,7 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent hideClose variant="fullscreen" className="max-w-full w-full m-0 rounded-none bg-white">
+            <DialogContent hideClose variant="slide-up" className="max-w-full w-full m-0 rounded-none bg-white">
                 <div className="flex flex-col h-full">
                     {/* Header */}
                     <div className="px-6 py-4 border-b flex items-center justify-between">
