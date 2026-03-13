@@ -39,8 +39,8 @@ const queryClient = new QueryClient({
 export function App() {
     const isWebCoreReady = useInitWebCore();
     const { isAuthenticated, profile } = useWebCoreStore();
-    const { isInitialized: isTokenInitialized } = useTokenRefresh(isWebCoreReady);
-    const canRenderApp = isWebCoreReady && (!isAuthenticated || isTokenInitialized);
+    const { isInitialized: isTokenInitialized, initStatus } = useTokenRefresh(isWebCoreReady);
+    const canRenderApp = isWebCoreReady && (!isAuthenticated || (isTokenInitialized && (!!profile || initStatus === 'failed')));
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
     useEffect(() => {

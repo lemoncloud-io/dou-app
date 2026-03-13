@@ -232,7 +232,14 @@
     },
     "homePage": {
         "places": "플레이스",
-        "roomCreated": "채팅방이 생성되었습니다"
+        "roomCreated": "채팅방이 생성되었습니다",
+        "noCloudsError": "설정할 수 있는 클라우드가 없어요",
+        "selectCloud": "클라우드 선택하기"
+    },
+    "cloudSessionSheet": {
+        "title": "클라우드 선택",
+        "errorLoading": "클라우드를 불러오지 못했어요",
+        "retry": "재시도"
     },
     "placeList": {
         "defaultPlace": "기본 플레이스",

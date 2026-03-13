@@ -12,5 +12,9 @@ export const useDynamicProfile = (): UserProfile$ | null => {
     if (!cloudToken) return profile;
 
     const { Token, ...cloudProfile } = cloudToken;
-    return { ...cloudProfile, uid: cloudProfile.uid ?? cloudProfile.id } as unknown as UserProfile$;
+    return {
+        ...cloudProfile,
+        uid: cloudProfile.uid ?? cloudProfile.id,
+        $user: cloudProfile.$user ?? profile?.$user,
+    } as unknown as UserProfile$;
 };
