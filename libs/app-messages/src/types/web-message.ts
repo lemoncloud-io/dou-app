@@ -1,12 +1,9 @@
 import type {
-    AppPermissionType,
-    DeleteAllCacheDataPayload,
-    DeleteCacheDataPayload,
+    AppPermissionType, DeleteAllCacheDataPayload, DeleteCacheDataPayload,
     FetchAllCacheDataPayload,
     FetchCacheDataPayload,
     OAuthLoginProvider,
-    SaveAllCacheDataPayload,
-    SaveCacheDataPayload,
+    SaveAllCacheDataPayload, SaveCacheDataPayload
 } from './model';
 
 /**
@@ -42,6 +39,9 @@ export const WebMessageTypes = {
     SaveAllCacheData: 'SaveAllCacheData',
     DeleteCacheData: 'DeleteCacheData',
     DeleteAllCacheData: 'DeleteAllCacheData',
+    FetchPreference: 'FetchPreference',
+    SavePreference: 'SavePreference',
+    DeletePreference: 'DeletePreference',
     OAuthLogin: 'OAuthLogin',
     OAuthLogout: 'OAuthLogout',
 } as const;
@@ -247,6 +247,28 @@ export interface DeleteAllCacheData extends WebDefaultMessage<'DeleteAllCacheDat
     data: DeleteAllCacheDataPayload;
 }
 
+/** Preference 조회 */
+export interface FetchPreference extends WebDefaultMessage<'FetchPreference'> {
+    data: {
+        key: string;
+    };
+}
+
+/** Preference 저장 */
+export interface SavePreference extends WebDefaultMessage<'SavePreference'> {
+    data: {
+        key: string;
+        value: any;
+    };
+}
+
+/** Preference 삭제 */
+export interface DeletePreference extends WebDefaultMessage<'DeletePreference'> {
+    data: {
+        key: string;
+    };
+}
+
 interface WebMessageMap {
     /**
      * TODO: Not Implement
@@ -300,6 +322,13 @@ interface WebMessageMap {
     SaveAllCacheData: SaveAllCacheData;
     DeleteCacheData: DeleteCacheData;
     DeleteAllCacheData: DeleteAllCacheData;
+
+    /**
+     * Preference Event
+     */
+    FetchPreference: FetchPreference;
+    SavePreference: SavePreference;
+    DeletePreference: DeletePreference;
 
     /**
      * OAuth Event

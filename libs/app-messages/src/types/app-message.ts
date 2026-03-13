@@ -56,6 +56,9 @@ export const AppMessageTypes = {
     OnSetWsEndpoint: 'OnSetWsEndpoint',
     OnOAuthLogin: 'OnOAuthLogin',
     OnOAuthLogout: 'OnOAuthLogout',
+    OnFetchPreference: 'OnFetchPreference',
+    OnSavePreference: 'OnSavePreference',
+    OnDeletePreference: 'OnDeletePreference',
 } as const;
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
 
@@ -181,6 +184,31 @@ export interface OnDeleteAllCacheData extends AppDefaultMessage<'OnDeleteAllCach
     data: OnDeleteAllCacheDataPayload;
 }
 
+// ----------------------------------------------------------------------
+// Preference Messages
+// ----------------------------------------------------------------------
+
+export interface OnFetchPreference extends AppDefaultMessage<'OnFetchPreference'> {
+    data: {
+        key: string;
+        value: any;
+    };
+}
+
+export interface OnSavePreference extends AppDefaultMessage<'OnSavePreference'> {
+    data: {
+        key: string;
+        success: boolean;
+    };
+}
+
+export interface OnDeletePreference extends AppDefaultMessage<'OnDeletePreference'> {
+    data: {
+        key: string;
+        success: boolean;
+    };
+}
+
 export interface AppMessageMap {
     /**
      * TODO: Not Implement
@@ -235,6 +263,13 @@ export interface AppMessageMap {
     OnDeleteCacheData: OnDeleteCacheData;
     OnDeleteAllCacheData: OnDeleteAllCacheData;
     OnSetWsEndpoint: OnSetWsEndpoint;
+
+    /**
+     * Preference Event
+     */
+    OnFetchPreference: OnFetchPreference;
+    OnSavePreference: OnSavePreference;
+    OnDeletePreference: OnDeletePreference;
 
     /**
      * OAuth Event

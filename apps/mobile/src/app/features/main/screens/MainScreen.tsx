@@ -19,8 +19,9 @@ import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
 import type { MainScreenProps } from '../navigation';
 import { useIsFocused } from '@react-navigation/native';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import Config from 'react-native-config';
 
-const webviewUrl = 'http://192.168.1.129:5003';
+const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
@@ -45,6 +46,9 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         handleSaveAllCacheData,
         handleDeleteCacheData,
         handleDeleteAllCacheData,
+        handleFetchPreference,
+        handleSavePreference,
+        handleDeletePreference,
     } = useCacheHandler(bridge);
     const {
         handleOpenSettings,
@@ -184,6 +188,18 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                         void handleDeleteAllCacheData(message);
                         break;
                     }
+                    case 'FetchPreference': {
+                        void handleFetchPreference(message);
+                        break;
+                    }
+                    case 'SavePreference': {
+                        void handleSavePreference(message);
+                        break;
+                    }
+                    case 'DeletePreference': {
+                        void handleDeletePreference(message);
+                        break;
+                    }
                     case 'OpenSettings': {
                         void handleOpenSettings();
                         break;
@@ -252,6 +268,9 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         handleSaveAllCacheData,
         handleDeleteCacheData,
         handleDeleteAllCacheData,
+        handleFetchPreference,
+        handleSavePreference,
+        handleDeletePreference,
         handleOpenSettings,
         handleOpenShareSheet,
         handleOpenDocument,

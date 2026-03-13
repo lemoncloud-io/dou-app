@@ -31,7 +31,6 @@ const Keys = {
     join: (id: string, cid: string) => `${PREFIX.JOIN}:${cid}:${id}`,
     site: (id: string, cid: string) => `${PREFIX.SITE}:${cid}:${id}`,
     usertoken: (id: string, cid: string) => `${PREFIX.USERTOKEN}:${cid}:${id}`,
-    // Preference는 전역 설정으로 관리 (cid 무관)
     preference: (key: string) => `${PREFIX.PREF}:${key}`,
 } as const;
 
