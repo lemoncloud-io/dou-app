@@ -32,12 +32,15 @@ This library was generated with [Nx](https://nx.dev).
 | `FetchCurrentPurchases` | -                                                                                     | 현재 사용자가 보유 중인 구독 내역을 요청합니다.              | `OnFetchPurchases`                                           |
 | `RestorePurchase`       | -                                                                                     | 미완료된 결제 건을 복구하거나, 구매 내역을 최신화합니다.     | `OnSuccessPurchase`                                          |
 | `PurchaseSubscription`  | `{ sku: string }`                                                                     | 특정 상품(`sku`)의 구독 결제 프로세스를 시작합니다.          | 성공 시: `OnSuccessPurchase`<br/>실패 시: `OnAppLog` (Error) |
-| `FetchAllCacheData`     | `{ type: 'channel'\|'chat'\|'user'\|'join' }`                                         | 로컬 캐시(MMKV/SQLite)의 특정 도메인 전체 목록을 요청합니다. | `OnFetchAllCacheData`                                        |
+| `FetchAllCacheData`     | `{ type: 'channel'\|'chat'\|'user'\|'join'; query?: {...} }`                          | 로컬 캐시(MMKV/SQLite)의 특정 도메인 전체 목록을 요청합니다. | `OnFetchAllCacheData`                                        |
 | `FetchCacheData`        | `{ type: ...; id: string }`                                                           | 로컬 캐시의 특정 데이터를 요청합니다.                        | `OnFetchCacheData`                                           |
 | `SaveCacheData`         | `{ type: ...; id: string; value: object }`                                            | 데이터를 로컬 캐시에 저장(Upsert)합니다.                     | `OnSaveCacheData`                                            |
 | `SaveAllCacheData`      | `{ type: ...; items: object[] }`                                                      | 다수의 데이터를 로컬 캐시에 일괄 저장(Upsert)합니다.         | `OnSaveAllCacheData`                                         |
 | `DeleteCacheData`       | `{ type: ...; id: string }`                                                           | 로컬 캐시의 특정 데이터를 삭제합니다.                        | `OnDeleteCacheData`                                          |
 | `DeleteAllCacheData`    | `{ type: ...; ids?: string[] }`                                                       | 로컬 캐시의 데이터들을 일괄 삭제합니다.                      | `OnDeleteAllCacheData`                                       |
+| `FetchPreference`       | `{ key: string }`                                                                     | 앱 설정(Preference) 값을 요청합니다.                         | `OnFetchPreference`                                          |
+| `SavePreference`        | `{ key: string; value: any }`                                                         | 앱 설정(Preference) 값을 저장합니다.                         | `OnSavePreference`                                           |
+| `DeletePreference`      | `{ key: string }`                                                                     | 앱 설정(Preference) 값을 삭제합니다.                         | `OnDeletePreference`                                         |
 | `OAuthLogin`            | `{ provider: 'google'\|'apple' }`                                                     | 소셜 로그인(OAuth)을 요청합니다.                             | `OnOAuthLogin`                                               |
 | `OAuthLogout`           | `{ provider: 'google'\|'apple' }`                                                     | 소셜 로그아웃을 요청합니다.                                  | `OnOAuthLogout`                                              |
 
@@ -91,6 +94,14 @@ This library was generated with [Nx](https://nx.dev).
 | `OnSaveAllCacheData`   | 다수 캐시 데이터 저장 완료 전달            | `{ type: "chat", ids: ["msg_1", "msg_2"] }`           |
 | `OnDeleteCacheData`    | 단건 캐시 데이터 삭제 완료 전달            | `{ type: "user", id: "user_1" }`                      |
 | `OnDeleteAllCacheData` | 다수 캐시 데이터 삭제 완료 전달            | `{ type: "channel", ids: ["ch_1", "ch_2"] }`          |
+
+### Preference
+
+| Message Type         | Description                 | Data Structure (Example)               |
+| :------------------- | :-------------------------- | :------------------------------------- |
+| `OnFetchPreference`  | 요청된 설정 값 전달         | `{ key: "theme", value: "dark" }`      |
+| `OnSavePreference`   | 설정 값 저장 성공 여부 전달 | `{ key: "theme", success: true }`      |
+| `OnDeletePreference` | 설정 값 삭제 성공 여부 전달 | `{ key: "isFirstRun", success: true }` |
 
 ### OAuth
 
