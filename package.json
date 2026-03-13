@@ -59,6 +59,7 @@
     },
     "private": true,
     "dependencies": {
+        "@aws-crypto/sha256-js": "^5.2.0",
         "@hookform/resolvers": "^3.9.1",
         "@lemoncloud/chatic-backend-api": "^0.26.128",
         "@lemoncloud/chatic-socials-api": "^0.26.127",
@@ -77,6 +78,8 @@
         "@radix-ui/react-separator": "^1.1.2",
         "@radix-ui/react-slot": "^1.1.2",
         "@radix-ui/react-switch": "^1.1.2",
+        "@smithy/protocol-http": "^5.3.11",
+        "@smithy/signature-v4": "^5.3.11",
         "@radix-ui/react-tabs": "^1.1.13",
         "@radix-ui/react-toast": "^1.2.14",
         "@radix-ui/react-tooltip": "^1.1.6",

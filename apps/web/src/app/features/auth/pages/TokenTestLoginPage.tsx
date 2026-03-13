@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -45,6 +46,7 @@ const decodeJWT = (token: string) => {
 };
 
 export const TokenTestLoginPage = (): JSX.Element => {
+    const { t } = useTranslation();
     const location = useLocation();
     const { setIsAuthenticated, setProfile } = useWebCoreStore();
     const { toast } = useToast();
@@ -85,13 +87,13 @@ export const TokenTestLoginPage = (): JSX.Element => {
                         // Set token in form for user to see
                         setValue('token', identityToken);
                         setIsInviteLogin(false);
-                        toast({ title: '초대 토큰을 가져왔습니다. 다음 버튼을 눌러주세요.' });
+                        toast({ title: t('tokenLogin.inviteTokenReceived') });
                     } else {
                         throw new Error('No identityToken in response');
                     }
                 } catch (error) {
                     console.error('[LoginPage] Invite login failed:', error);
-                    toast({ title: '초대 로그인 실패', variant: 'destructive' });
+                    toast({ title: t('tokenLogin.inviteLoginFailed'), variant: 'destructive' });
                     setIsInviteLogin(false);
                 }
             };
@@ -107,7 +109,7 @@ export const TokenTestLoginPage = (): JSX.Element => {
 
     // Show loading while processing invite login
     if (isInviteLogin) {
-        return <LoadingFallback message="초대 로그인 중..." />;
+        return <LoadingFallback message={t('tokenLogin.inviteLoading')} />;
     }
 
     const onSubmit = async (data: LoginFormData) => {
@@ -124,7 +126,7 @@ export const TokenTestLoginPage = (): JSX.Element => {
 
             await webCore.getTokenStorage().saveOAuthToken({ identityToken: data.token.trim() } as never);
             setIsAuthenticated(true);
-            toast({ title: '로그인 성공' });
+            toast({ title: t('tokenLogin.loginSuccess') });
         }
     };
 
@@ -149,10 +151,10 @@ export const TokenTestLoginPage = (): JSX.Element => {
             <div className="flex-1 flex flex-col px-7 pt-28">
                 <div className="flex flex-col items-center gap-2 mb-24">
                     <h1 className="text-2xl font-bold text-center leading-[1.35] tracking-[0.005em] text-black">
-                        토큰 로그인
+                        {t('tokenLogin.title')}
                     </h1>
                     <p className="text-sm text-[#53555B] text-center leading-[1.45] tracking-[0.005em]">
-                        Identity Token을 입력해 주세요
+                        {t('tokenLogin.subtitle')}
                     </p>
                 </div>
 
@@ -167,22 +169,30 @@ export const TokenTestLoginPage = (): JSX.Element => {
                         <Input
                             id="token"
                             type="text"
-                            {...register('token', { required: '토큰을 입력해 주세요' })}
-                            placeholder="토큰 입력"
+                            {...register('token', { required: t('tokenLogin.tokenRequired') })}
+                            placeholder={t('tokenLogin.tokenPlaceholder')}
                             className="h-11 px-3 text-base border-[#EAEAEC] rounded-[10px] bg-[#FEFEFE] leading-[1.45em] tracking-[-0.015em]"
                         />
                         {errors.token && <p className="text-xs text-destructive px-0.5">{errors.token.message}</p>}
                         {showInvalidMessage && (
-                            <p className="text-xs text-destructive px-0.5">올바른 형식의 토큰이 아닙니다</p>
+                            <p className="text-xs text-destructive px-0.5">{t('tokenLogin.invalidToken')}</p>
                         )}
                     </div>
 
                     {decodedToken && (
                         <div className="flex flex-col gap-2 p-3 bg-[#F4F5F5] rounded-lg">
-                            <p className="text-xs font-medium text-[#9FA2A7]">디코딩된 정보</p>
+                            <p className="text-xs font-medium text-[#9FA2A7]">{t('tokenLogin.decodedInfo')}</p>
                             <div className="flex flex-col gap-1 text-xs text-[#53555B]">
-                                {decodedToken.User?.name && <p>이름: {decodedToken.User.name}</p>}
-                                {decodedToken.User?.nick && <p>닉네임: {decodedToken.User.nick}</p>}
+                                {decodedToken.User?.name && (
+                                    <p>
+                                        {t('tokenLogin.name')}: {decodedToken.User.name}
+                                    </p>
+                                )}
+                                {decodedToken.User?.nick && (
+                                    <p>
+                                        {t('tokenLogin.nickname')}: {decodedToken.User.nick}
+                                    </p>
+                                )}
                                 {decodedToken.uid && <p>UID: {decodedToken.uid}</p>}
                                 {decodedToken.sid && <p>SID: {decodedToken.sid}</p>}
                             </div>
@@ -197,7 +207,7 @@ export const TokenTestLoginPage = (): JSX.Element => {
                     disabled={!isValidToken}
                     className="w-full h-[50px] bg-[#B0EA10] hover:bg-[#9DD00E] text-[#222325] font-semibold text-base rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    다음
+                    {t('tokenLogin.next')}
                 </Button>
             </div>
         </div>

@@ -1,9 +1,11 @@
 import type { ChatStorageAdapter, Message } from './ChatStorageAdapter';
 
-const DB_NAME = 'ChatDB';
-const DB_VERSION = 2;
+export const DB_NAME = 'ChatDB';
+export const DB_VERSION = 3;
 const STORE_NAME = 'messages';
+export const CHANNELS_STORE_NAME = 'channels';
 export const BROADCAST_CHANNEL_NAME = 'chat-messages-update';
+export const CHANNELS_BROADCAST_CHANNEL_NAME = 'channel-update';
 
 interface StoredMessage extends Omit<Message, 'timestamp'> {
     timestamp: string;
@@ -11,7 +13,7 @@ interface StoredMessage extends Omit<Message, 'timestamp'> {
     compositeKey: string;
 }
 
-const openDB = (): Promise<IDBDatabase> =>
+export const openDB = (): Promise<IDBDatabase> =>
     new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         request.onerror = () => reject(request.error);
@@ -22,6 +24,12 @@ const openDB = (): Promise<IDBDatabase> =>
                 if (db.objectStoreNames.contains(STORE_NAME)) db.deleteObjectStore(STORE_NAME);
                 const store = db.createObjectStore(STORE_NAME, { keyPath: 'compositeKey' });
                 store.createIndex('chatKey', 'chatKey', { unique: false });
+            }
+            if (event.oldVersion < 3) {
+                if (!db.objectStoreNames.contains(CHANNELS_STORE_NAME)) {
+                    const channelsStore = db.createObjectStore(CHANNELS_STORE_NAME, { keyPath: 'compositeKey' });
+                    channelsStore.createIndex('userKey', 'userKey', { unique: false });
+                }
             }
         };
     });

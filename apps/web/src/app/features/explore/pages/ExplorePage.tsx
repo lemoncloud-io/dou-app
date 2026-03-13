@@ -1,7 +1,8 @@
 import { Search, Users } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-const categories = ['전체', '스터디', '개발', '디자인', '독서', '운동', '음악'];
+const categoryKeys = ['all', 'study', 'development', 'design', 'reading', 'exercise', 'music'] as const;
 
 const mockRooms = [
     {
@@ -55,16 +56,40 @@ const mockRooms = [
 ];
 
 export const ExplorePage = () => {
-    const [activeCategory, setActiveCategory] = useState('전체');
+    const { t } = useTranslation();
+    const [activeCategory, setActiveCategory] = useState('all');
     const [activeTab, setActiveTab] = useState<'rooms' | 'workspaces'>('rooms');
 
-    const filtered = activeCategory === '전체' ? mockRooms : mockRooms.filter(r => r.category === activeCategory);
+    const categoryMap: Record<string, string> = {
+        all: t('explore.categories.all'),
+        study: t('explore.categories.study'),
+        development: t('explore.categories.development'),
+        design: t('explore.categories.design'),
+        reading: t('explore.categories.reading'),
+        exercise: t('explore.categories.exercise'),
+        music: t('explore.categories.music'),
+    };
+
+    const filtered =
+        activeCategory === 'all'
+            ? mockRooms
+            : mockRooms.filter(r => {
+                  const categoryKeyMap: Record<string, string> = {
+                      스터디: 'study',
+                      개발: 'development',
+                      디자인: 'design',
+                      독서: 'reading',
+                      운동: 'exercise',
+                      음악: 'music',
+                  };
+                  return categoryKeyMap[r.category] === activeCategory;
+              });
 
     return (
         <div className="flex min-h-screen flex-col bg-background pb-20">
             {/* Header */}
             <header className="px-5 pb-3 pt-3">
-                <h1 className="text-2xl font-extrabold text-foreground">탐색</h1>
+                <h1 className="text-2xl font-extrabold text-foreground">{t('explore.title')}</h1>
             </header>
 
             {/* Search */}
@@ -73,7 +98,7 @@ export const ExplorePage = () => {
                     <Search size={18} className="text-muted-foreground" />
                     <input
                         type="text"
-                        placeholder="채팅방 또는 플레이스 검색"
+                        placeholder={t('explore.searchPlaceholder')}
                         className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
                     />
                 </div>
@@ -91,7 +116,7 @@ export const ExplorePage = () => {
                                 : 'border-transparent text-muted-foreground'
                         }`}
                     >
-                        {tab === 'rooms' ? '채팅방' : '플레이스'}
+                        {tab === 'rooms' ? t('explore.tabs.rooms') : t('explore.tabs.workspaces')}
                     </button>
                 ))}
             </div>
@@ -99,17 +124,17 @@ export const ExplorePage = () => {
             {/* Categories */}
             <div className="mb-4 px-5">
                 <div className="scrollbar-hide flex gap-2 overflow-x-auto">
-                    {categories.map(cat => (
+                    {categoryKeys.map(key => (
                         <button
-                            key={cat}
-                            onClick={() => setActiveCategory(cat)}
+                            key={key}
+                            onClick={() => setActiveCategory(key)}
                             className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                                activeCategory === cat
+                                activeCategory === key
                                     ? 'bg-foreground text-background'
                                     : 'bg-muted text-muted-foreground'
                             }`}
                         >
-                            {cat}
+                            {categoryMap[key]}
                         </button>
                     ))}
                 </div>
@@ -130,7 +155,9 @@ export const ExplorePage = () => {
                             <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{room.workspace}</p>
                             <div className="mt-2 flex items-center gap-1">
                                 <Users size={12} className="text-muted-foreground" />
-                                <span className="text-[11px] text-muted-foreground">{room.members}명</span>
+                                <span className="text-[11px] text-muted-foreground">
+                                    {t('explore.members', { count: room.members })}
+                                </span>
                             </div>
                         </div>
                     </div>

@@ -1,11 +1,13 @@
 import { ChevronLeft, Search, X } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 const recentSearches = ['개발 모임', '스터디', '디자인', 'React'];
 
 export const SearchPage = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [query, setQuery] = useState('');
 
     return (
@@ -21,7 +23,7 @@ export const SearchPage = () => {
                         type="text"
                         value={query}
                         onChange={e => setQuery(e.target.value)}
-                        placeholder="검색..."
+                        placeholder={t('search.placeholder')}
                         autoFocus
                         className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
                     />
@@ -37,8 +39,8 @@ export const SearchPage = () => {
             {!query && (
                 <div className="px-5 pt-4">
                     <div className="mb-3 flex items-center justify-between">
-                        <h2 className="text-sm font-semibold text-foreground">최근 검색</h2>
-                        <button className="text-xs text-muted-foreground">전체 삭제</button>
+                        <h2 className="text-sm font-semibold text-foreground">{t('search.recent')}</h2>
+                        <button className="text-xs text-muted-foreground">{t('search.clearAll')}</button>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {recentSearches.map(tag => (
@@ -59,7 +61,7 @@ export const SearchPage = () => {
             {query && (
                 <div className="space-y-6 px-5 pt-4">
                     <div>
-                        <h3 className="mb-3 text-sm font-semibold text-muted-foreground">플레이스</h3>
+                        <h3 className="mb-3 text-sm font-semibold text-muted-foreground">{t('search.places')}</h3>
                         <div className="space-y-0">
                             {['개발자 모임', '디자인 스터디'].map(ws => (
                                 <button
@@ -78,7 +80,7 @@ export const SearchPage = () => {
                     </div>
 
                     <div>
-                        <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Chat</h3>
+                        <h3 className="mb-3 text-sm font-semibold text-muted-foreground">{t('search.chat')}</h3>
                         <div className="space-y-0">
                             {['개발 모임방', 'React 스터디'].map(room => (
                                 <button
