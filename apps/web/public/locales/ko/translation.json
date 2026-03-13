@@ -187,7 +187,7 @@
         "languageSettings": "언어 설정",
         "logout": "로그아웃",
         "version": "DoU v{{version}}",
-        "appVersion": "앱 버전",
+        "appVersion": "버전",
         "updateRequired": "업데이트 필요",
         "language": {
             "ko": "한국어",

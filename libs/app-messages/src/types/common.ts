@@ -13,9 +13,14 @@ export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error';
  * 앱 버전 정보
  */
 export interface VersionInfo {
+    /** @deprecated Use appVersion instead */
     currentVersion: string;
     latestVersion: string;
     shouldUpdate: boolean;
+    /** 네이티브 앱 버전 (iOS/Android) */
+    appVersion: string;
+    /** 웹 버전 (__APP_VERSION__) */
+    webVersion: string;
 }
 
 /**
