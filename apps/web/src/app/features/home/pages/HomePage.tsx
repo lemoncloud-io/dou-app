@@ -13,6 +13,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useDynamicProfile, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
+import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { SettingsDialog } from '../../../components/SettingsDialog';
 import { OnboardingModal } from '../../onboarding';
@@ -27,6 +28,7 @@ export const HomePage = () => {
     const { t } = useTranslation();
     const profile = useDynamicProfile();
     const { logout, isGuest } = useWebCoreStore();
+    const { isCloudsError } = useCloudSession();
     const { canCreate } = useCanCreateChannel();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -45,6 +47,8 @@ export const HomePage = () => {
         toast({ title: t('homePage.roomCreated') });
     };
 
+    const showCloudError = !isGuest && isCloudsError;
+
     return (
         <div className="flex min-h-screen flex-col bg-background pb-[98px] pt-4">
             {/* Header */}
@@ -61,11 +65,11 @@ export const HomePage = () => {
                                 <div className="flex flex-col items-start">
                                     <div className="flex items-center gap-1">
                                         <h1 className="max-w-[120px] truncate text-lg font-bold text-foreground">
-                                            {profile?.name || '-'}
+                                            {profile?.$user?.name || '-'}
                                         </h1>
                                         <ChevronDown size={18} className="text-muted-foreground" />
                                     </div>
-                                    <p className="text-xs text-muted-foreground">{profile?.email || '-'}</p>
+                                    <p className="text-xs text-muted-foreground">{profile?.$user?.loginId || '-'}</p>
                                 </div>
                             </button>
                         </DropdownMenuTrigger>
@@ -91,43 +95,55 @@ export const HomePage = () => {
                 </div>
             </header>
 
-            {/* Place List */}
-            {!isGuest && (
-                <section className="px-5 py-4">
-                    <div className="mb-3 flex items-center justify-between">
-                        <h2 className="text-xl font-bold text-foreground">Place</h2>
-                        {canCreate && (
-                            <button
-                                onClick={() => setIsCreatePlaceOpen(true)}
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-border"
-                            >
-                                <Plus size={18} className="text-foreground" />
-                            </button>
-                        )}
-                    </div>
-
-                    <PlaceList />
-                </section>
-            )}
-
-            <div className="mx-5 h-px bg-border" />
-
-            {/* Chat List */}
-            <section className="flex-1 px-5 pt-4">
-                <div className="mb-3 flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-foreground">Chat</h2>
-                    {canCreate && (
-                        <button
-                            onClick={() => setIsDialogOpen(true)}
-                            className="flex h-8 w-8 items-center justify-center rounded-full border border-border"
-                        >
-                            <Plus size={18} className="text-foreground" />
-                        </button>
-                    )}
+            {showCloudError ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-2 px-5 text-center">
+                    <p className="text-sm text-muted-foreground">{t('homePage.noCloudsError')}</p>
+                    <button
+                        onClick={() => setIsCloudSessionOpen(true)}
+                        className="text-sm font-medium text-foreground underline"
+                    >
+                        {t('homePage.selectCloud')}
+                    </button>
                 </div>
+            ) : (
+                <>
+                    {/* Place List */}
+                    {!isGuest && (
+                        <section className="px-5 py-4">
+                            <div className="mb-3 flex items-center justify-between">
+                                <h2 className="text-xl font-bold text-foreground">Place</h2>
+                                {canCreate && (
+                                    <button
+                                        onClick={() => setIsCreatePlaceOpen(true)}
+                                        className="flex h-8 w-8 items-center justify-center rounded-full border border-border"
+                                    >
+                                        <Plus size={18} className="text-foreground" />
+                                    </button>
+                                )}
+                            </div>
+                            <PlaceList />
+                        </section>
+                    )}
 
-                <ChannelList workspaceId={''} />
-            </section>
+                    <div className="mx-5 h-px bg-border" />
+
+                    {/* Chat List */}
+                    <section className="flex-1 px-5 pt-4">
+                        <div className="mb-3 flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-foreground">Chat</h2>
+                            {canCreate && (
+                                <button
+                                    onClick={() => setIsDialogOpen(true)}
+                                    className="flex h-8 w-8 items-center justify-center rounded-full border border-border"
+                                >
+                                    <Plus size={18} className="text-foreground" />
+                                </button>
+                            )}
+                        </div>
+                        <ChannelList workspaceId={''} />
+                    </section>
+                </>
+            )}
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
             <CreatePlaceDialog open={isCreatePlaceOpen} onOpenChange={setIsCreatePlaceOpen} />
