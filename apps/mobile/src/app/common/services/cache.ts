@@ -11,179 +11,132 @@ import type { ChannelView, ChatView, JoinView, UserView } from '@lemoncloud/chat
 import type { SiteView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 const PREFIX = {
-    CHANNEL: 'channel:',
-    CHAT: 'chat:',
-    USER: 'user:',
-    JOIN: 'join:',
-    SITE: 'site:',
-    USERTOKEN: 'usertoken:',
+    CHANNEL: 'channel',
+    CHAT: 'chat',
+    USER: 'user',
+    JOIN: 'join',
+    SITE: 'site',
+    USERTOKEN: 'usertoken',
+    PREF: 'pref',
 } as const;
 
 /**
  * 도메인별 관리 키 정보 생성기
+ * cid(Cloud ID)는 필수입니다.
  */
 const Keys = {
-    channel: (channelId: string) => `${PREFIX.CHANNEL}${channelId}`,
-    chat: (channelId: string) => `${PREFIX.CHAT}${channelId}`,
-    user: (userId: string) => `${PREFIX.USER}${userId}`,
-    join: (joinId: string) => `${PREFIX.JOIN}${joinId}`,
-    site: (siteId: string) => `${PREFIX.SITE}${siteId}`,
-    usertoken: (userId: string) => `${PREFIX.USERTOKEN}${userId}`,
+    channel: (id: string, cid: string) => `${PREFIX.CHANNEL}:${cid}:${id}`,
+    chat: (id: string, cid: string) => `${PREFIX.CHAT}:${cid}:${id}`,
+    user: (id: string, cid: string) => `${PREFIX.USER}:${cid}:${id}`,
+    join: (id: string, cid: string) => `${PREFIX.JOIN}:${cid}:${id}`,
+    site: (id: string, cid: string) => `${PREFIX.SITE}:${cid}:${id}`,
+    usertoken: (id: string, cid: string) => `${PREFIX.USERTOKEN}:${cid}:${id}`,
+    // Preference는 전역 설정으로 관리 (cid 무관)
+    preference: (key: string) => `${PREFIX.PREF}:${key}`,
 } as const;
 
+// 내부 헬퍼 함수: 특정 도메인의 모든 데이터 가져오기 (CID 필터링 옵션)
+const getAllData = async <T>(prefixType: string, cid?: string): Promise<T[]> => {
+    // cid가 있으면 "PREFIX:CID:"로 검색, 없으면 "PREFIX:"로 검색(전체)
+    const prefix = cid ? `${prefixType}:${cid}:` : `${prefixType}:`;
+    const keys = StorageService.getAllKeys().filter(k => k.startsWith(prefix));
+    const results = await Promise.all(keys.map(k => StorageService.get<T>(k)));
+    return results.filter(item => item !== null) as T[];
+};
+
 export const CacheRepository = {
-    // Channel Repository
-    saveChannel: async (id: string, data: ChannelView) => StorageService.set(Keys.channel(id), data),
-    getChannel: async (id: string) => StorageService.get<ChannelView>(Keys.channel(id)),
-    removeChannel: async (id: string) => StorageService.remove(Keys.channel(id)),
-    getAllChannels: async () => {
-        const keys = StorageService.getAllKeys().filter(k => k.startsWith(PREFIX.CHANNEL));
-        const results = await Promise.all(keys.map(k => StorageService.get<ChannelView>(k)));
-        return results.filter((item): item is ChannelView => item !== null);
+    getPreference: async <T = any>(key: string): Promise<T | null> => {
+        return StorageService.get<T>(Keys.preference(key));
+    },
+    savePreference: async <T = any>(key: string, value: T): Promise<void> => {
+        return StorageService.set(Keys.preference(key), value);
+    },
+    removePreference: async (key: string): Promise<void> => {
+        return StorageService.remove(Keys.preference(key));
     },
 
-    // Chat Repository
-    saveChat: async (id: string, data: ChatView) => StorageService.set(Keys.chat(id), data),
-    getChat: async (id: string) => StorageService.get<ChatView>(Keys.chat(id)),
-    removeChat: async (chatId: string) => StorageService.remove(Keys.chat(chatId)),
-    getAllChats: async () => {
-        const keys = StorageService.getAllKeys().filter(k => k.startsWith(PREFIX.CHAT));
-        const results = await Promise.all(keys.map(k => StorageService.get<ChatView>(k)));
-        return results.filter((item): item is ChatView => item !== null);
-    },
-    getChatsByChannel: async (channelId: string) => {
-        const allChats = await CacheRepository.getAllChats();
-        return allChats.filter(
-            chat => (chat as any).channelId === channelId || (chat as any).channel?.id === channelId
-        );
-    },
-
-    // User Repository
-    saveUser: async (id: string, data: UserView) => StorageService.set(Keys.user(id), data),
-    getUser: async (id: string) => StorageService.get<UserView>(Keys.user(id)),
-    removeUser: async (id: string) => StorageService.remove(Keys.user(id)),
-    getAllUsers: async () => {
-        const keys = StorageService.getAllKeys().filter(k => k.startsWith(PREFIX.USER));
-        const results = await Promise.all(keys.map(k => StorageService.get<UserView>(k)));
-        return results.filter((item): item is UserView => item !== null);
-    },
-
-    // Join Repository
-    saveJoin: async (id: string, data: JoinView) => StorageService.set(Keys.join(id), data),
-    getJoin: async (id: string) => StorageService.get<JoinView>(Keys.join(id)),
-    removeJoin: async (id: string) => StorageService.remove(Keys.join(id)),
-    getAllJoins: async () => {
-        const keys = StorageService.getAllKeys().filter(k => k.startsWith(PREFIX.JOIN));
-        const results = await Promise.all(keys.map(k => StorageService.get<JoinView>(k)));
-        return results.filter((item): item is JoinView => item !== null);
-    },
-
-    // Site Repository
-    saveSite: async (id: string, data: SiteView) => StorageService.set(Keys.site(id), data),
-    getSite: async (id: string) => StorageService.get<SiteView>(Keys.site(id)),
-    removeSite: async (id: string) => StorageService.remove(Keys.site(id)),
-    getAllSites: async () => {
-        const keys = StorageService.getAllKeys().filter(k => k.startsWith(PREFIX.SITE));
-        const results = await Promise.all(keys.map(k => StorageService.get<SiteView>(k)));
-        return results.filter((item): item is SiteView => item !== null);
-    },
-
-    // UserToken Repository
-    saveUserToken: async (id: string, data: UserTokenView) => StorageService.set(Keys.usertoken(id), data),
-    getUserToken: async (id: string) => StorageService.get<UserTokenView>(Keys.usertoken(id)),
-    removeUserToken: async (id: string) => StorageService.remove(Keys.usertoken(id)),
-    getAllUserTokens: async () => {
-        const keys = StorageService.getAllKeys().filter(k => k.startsWith(PREFIX.USERTOKEN));
-        const results = await Promise.all(keys.map(k => StorageService.get<UserTokenView>(k)));
-        return results.filter((item): item is UserTokenView => item !== null);
-    },
-
+    // Fetch 단일 (CID 필수)
     fetch: async (payload: FetchCacheDataPayload) => {
+        const { id, cid } = payload;
         switch (payload.type) {
             case 'channel':
-                return await CacheRepository.getChannel(payload.id);
+                return await StorageService.get<ChannelView>(Keys.channel(id, cid));
             case 'chat':
-                return await CacheRepository.getChat(payload.id);
+                return await StorageService.get<ChatView>(Keys.chat(id, cid));
             case 'user':
-                return await CacheRepository.getUser(payload.id);
+                return await StorageService.get<UserView>(Keys.user(id, cid));
             case 'join':
-                return await CacheRepository.getJoin(payload.id);
+                return await StorageService.get<JoinView>(Keys.join(id, cid));
             case 'site':
-                return await CacheRepository.getSite(payload.id);
+                return await StorageService.get<SiteView>(Keys.site(id, cid));
             case 'usertoken':
-                return await CacheRepository.getUserToken(payload.id);
+                return await StorageService.get<UserTokenView>(Keys.usertoken(id, cid));
         }
     },
 
+    // Fetch 다수 (CID 없으면 전체 조회)
     fetchAll: async (payload: FetchAllCacheDataPayload) => {
-        switch (payload.type) {
-            case 'channel': {
-                return await CacheRepository.getAllChannels();
-            }
-            case 'chat': {
-                const { channelId } = payload.query || {};
-                return channelId
-                    ? await CacheRepository.getChatsByChannel(channelId)
-                    : await CacheRepository.getAllChats();
-            }
-            case 'user': {
-                return await CacheRepository.getAllUsers();
-            }
-            case 'join': {
-                const joins = await CacheRepository.getAllJoins();
-                const { channelId } = payload.query || {};
+        const { cid } = payload.query || {};
 
-                let filteredJoins = joins;
-                if (channelId) {
-                    filteredJoins = filteredJoins.filter(j => j.channelId === channelId);
-                }
-                return filteredJoins;
-            }
-            case 'site': {
-                const sites = await CacheRepository.getAllSites();
-                const { ownerId } = payload.query || {};
-                return ownerId ? sites.filter(s => s.ownerId === ownerId) : sites;
-            }
-            case 'usertoken': {
-                const tokens = await CacheRepository.getAllUserTokens();
-                const { role } = payload.query || {};
-                return role ? tokens.filter(t => t.role === role) : tokens;
-            }
-        }
-    },
-
-    save: async (payload: SaveCacheDataPayload): Promise<string> => {
         switch (payload.type) {
             case 'channel':
-                await CacheRepository.saveChannel(payload.id, payload.item);
-                break;
+                return await getAllData<ChannelView>(PREFIX.CHANNEL, cid);
             case 'chat': {
-                await CacheRepository.saveChat(payload.id, payload.item);
-                break;
+                const chats = await getAllData<ChatView>(PREFIX.CHAT, cid);
+                return chats.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
             }
             case 'user':
-                await CacheRepository.saveUser(payload.id, payload.item);
+                return await getAllData<UserView>(PREFIX.USER, cid);
+            case 'join':
+                return await getAllData<JoinView>(PREFIX.JOIN, cid);
+            case 'site':
+                return await getAllData<SiteView>(PREFIX.SITE, cid);
+            case 'usertoken':
+                return await getAllData<UserTokenView>(PREFIX.USERTOKEN, cid);
+        }
+    },
+
+    // Save 단일 (CID 필수)
+    save: async (payload: SaveCacheDataPayload): Promise<string> => {
+        const { id, item, cid } = payload;
+        switch (payload.type) {
+            case 'channel':
+                await StorageService.set(Keys.channel(id, cid), item);
+                break;
+            case 'chat':
+                await StorageService.set(Keys.chat(id, cid), item);
+                break;
+            case 'user':
+                await StorageService.set(Keys.user(id, cid), item);
                 break;
             case 'join':
-                await CacheRepository.saveJoin(payload.id, payload.item);
+                await StorageService.set(Keys.join(id, cid), item);
                 break;
             case 'site':
-                await CacheRepository.saveSite(payload.id, payload.item);
+                await StorageService.set(Keys.site(id, cid), item);
                 break;
             case 'usertoken':
-                await CacheRepository.saveUserToken(payload.id, payload.item);
+                await StorageService.set(Keys.usertoken(id, cid), item);
                 break;
         }
         return payload.id;
     },
 
+    // Save 다수 (CID 필수)
     saveAll: async (payload: SaveAllCacheDataPayload): Promise<string[]> => {
+        const { items, cid } = payload;
         const ids: string[] = [];
+
         await Promise.all(
-            payload.items.map(async (item: any) => {
+            items.map(async (item: any) => {
                 const id = item.id;
                 if (id) {
-                    await CacheRepository.save({ type: payload.type, id, item } as any);
+                    await CacheRepository.save({
+                        type: payload.type,
+                        id,
+                        item,
+                        cid: cid,
+                    } as any);
                     ids.push(id);
                 }
             })
@@ -191,34 +144,46 @@ export const CacheRepository = {
         return ids;
     },
 
+    // Delete 단일 (CID 필수)
     delete: async (payload: DeleteCacheDataPayload): Promise<string> => {
+        const { id, cid } = payload;
         switch (payload.type) {
             case 'channel':
-                await CacheRepository.removeChannel(payload.id);
+                await StorageService.remove(Keys.channel(id, cid));
                 break;
             case 'chat':
-                await CacheRepository.removeChat(payload.id);
+                await StorageService.remove(Keys.chat(id, cid));
                 break;
             case 'user':
-                await CacheRepository.removeUser(payload.id);
+                await StorageService.remove(Keys.user(id, cid));
                 break;
             case 'join':
-                await CacheRepository.removeJoin(payload.id);
+                await StorageService.remove(Keys.join(id, cid));
                 break;
             case 'site':
-                await CacheRepository.removeSite(payload.id);
+                await StorageService.remove(Keys.site(id, cid));
                 break;
             case 'usertoken':
-                await CacheRepository.removeUserToken(payload.id);
+                await StorageService.remove(Keys.usertoken(id, cid));
                 break;
         }
         return payload.id;
     },
 
+    // Delete 다수 (CID 필수)
     deleteAll: async (payload: DeleteAllCacheDataPayload): Promise<string[]> => {
-        if (!payload.ids || payload.ids.length === 0) return [];
+        const { ids, cid } = payload;
+        if (!ids || ids.length === 0) return [];
 
-        await Promise.all(payload.ids.map(id => CacheRepository.delete({ type: payload.type, id } as any)));
+        await Promise.all(
+            ids.map(id =>
+                CacheRepository.delete({
+                    type: payload.type,
+                    id,
+                    cid: cid,
+                } as any)
+            )
+        );
         return payload.ids;
     },
 };

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { Logger } from '../../services';
-import { CacheRepository } from '../../services/cache';
+import { CacheRepository } from '../../services';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type {
