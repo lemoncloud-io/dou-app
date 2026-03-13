@@ -5,7 +5,7 @@ export const EmptyState = () => {
 
     return (
         <div className="flex flex-1 items-center justify-center px-4 py-[10px]">
-            <p className="text-center text-[16px] leading-[1.45] tracking-[-0.01em] text-[#84888F]">
+            <p className="text-center text-[16px] leading-[1.45] tracking-[-0.01em] text-muted-foreground">
                 {t('search.noResults')}
             </p>
         </div>

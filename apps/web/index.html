@@ -16,7 +16,81 @@
         <link rel="stylesheet" href="/src/styles.css" />
     </head>
     <body>
-        <div id="root"></div>
+        <div id="root">
+            <!-- Initial splash screen (shown before React loads) -->
+            <div
+                id="initial-splash"
+                style="
+                    position: fixed;
+                    inset: 0;
+                    z-index: 9999;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    background-color: #0a0a0f;
+                "
+            >
+                <img
+                    src="/logo.png"
+                    alt="DoU"
+                    style="width: 96px; height: 96px; object-fit: contain; animation: pulse 2s ease-in-out infinite"
+                />
+                <div style="margin-top: 32px; display: flex; align-items: center; gap: 4px">
+                    <div
+                        style="
+                            width: 8px;
+                            height: 8px;
+                            border-radius: 50%;
+                            background-color: #b0ea10;
+                            animation: bounce 1s ease-in-out infinite;
+                            animation-delay: -0.3s;
+                        "
+                    ></div>
+                    <div
+                        style="
+                            width: 8px;
+                            height: 8px;
+                            border-radius: 50%;
+                            background-color: #b0ea10;
+                            animation: bounce 1s ease-in-out infinite;
+                            animation-delay: -0.15s;
+                        "
+                    ></div>
+                    <div
+                        style="
+                            width: 8px;
+                            height: 8px;
+                            border-radius: 50%;
+                            background-color: #b0ea10;
+                            animation: bounce 1s ease-in-out infinite;
+                        "
+                    ></div>
+                </div>
+            </div>
+            <style>
+                @keyframes pulse {
+                    0%,
+                    100% {
+                        opacity: 1;
+                        transform: scale(1);
+                    }
+                    50% {
+                        opacity: 0.8;
+                        transform: scale(0.95);
+                    }
+                }
+                @keyframes bounce {
+                    0%,
+                    100% {
+                        transform: translateY(0);
+                    }
+                    50% {
+                        transform: translateY(-6px);
+                    }
+                }
+            </style>
+        </div>
         <script type="module" src="/src/main.tsx"></script>
     </body>
 </html>

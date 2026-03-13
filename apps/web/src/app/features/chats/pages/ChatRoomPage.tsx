@@ -313,6 +313,8 @@ export const ChatRoomPage = () => {
                                                 <img
                                                     src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${message.ownerId}`}
                                                     alt=""
+                                                    loading="lazy"
+                                                    decoding="async"
                                                     className="size-[39px] flex-shrink-0 rounded-full bg-muted object-cover"
                                                 />
                                             )}

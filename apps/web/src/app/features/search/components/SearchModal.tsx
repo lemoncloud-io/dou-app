@@ -58,7 +58,7 @@ export const SearchModal = ({ open, onClose }: SearchModalProps) => {
 
     return (
         <Dialog open={open} onOpenChange={isOpen => !isOpen && handleClose()}>
-            <DialogContent variant="slide-up" hideClose className="flex flex-col gap-0 bg-[#FBFCFD]">
+            <DialogContent variant="slide-up" hideClose className="flex flex-col gap-0 bg-background">
                 <DialogTitle className="sr-only">Search</DialogTitle>
                 <DialogDescription className="sr-only">Search for places and chats</DialogDescription>
                 <SearchInput value={query} onChange={handleQueryChange} onSubmit={handleSubmit} onClose={handleClose} />

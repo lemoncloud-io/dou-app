@@ -28,7 +28,13 @@ export const MemberListItem = ({
                 }`}
             >
                 {member.avatar ? (
-                    <img src={member.avatar} alt={member.name} className="size-full object-cover" />
+                    <img
+                        src={member.avatar}
+                        alt={member.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="size-full object-cover"
+                    />
                 ) : (
                     <User className={`size-3.5 ${isPendingInvite ? 'text-muted-foreground' : 'text-foreground'}`} />
                 )}

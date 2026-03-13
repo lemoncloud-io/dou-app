@@ -358,7 +358,12 @@
         "owner": "Place Owner",
         "confirm": "Confirm",
         "unnamed": "Unnamed Place",
-        "unknownOwner": "Unknown"
+        "unknownOwner": "Unknown",
+        "notFound": "Place not found",
+        "myPlace": "My Place",
+        "visibility": "Visibility",
+        "public": "Public",
+        "private": "Private"
     },
     "workspace": {
         "list": {
