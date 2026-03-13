@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { RefreshCw, Users } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
-import { usePlaces } from '@chatic/places';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
@@ -56,11 +56,11 @@ interface CloudSessionSheetProps {
 }
 
 export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps) => {
-    const { isGuest } = useWebCoreStore();
-    const { selectPlace, isPending } = useCloudSession();
+    const { t } = useTranslation();
+    const { selectPlace, isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
 
-    const { data, isError, isFetching, isRefetching, refetch } = usePlaces({ stereo: 'place' }, !isGuest);
+    const { isGuest } = useWebCoreStore();
     const autoSelectedRef = useRef(false);
 
     const handleSelectPlace = async (placeId: string) => {
@@ -71,24 +71,23 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
 
     useEffect(() => {
         if (autoSelectedRef.current) return;
-        const places = data?.list ?? [];
-        const firstSelectable = places.find(p => p.stereo === 'place');
+        const firstSelectable = clouds.find(p => p.stereo === 'place');
         if (!firstSelectable) return;
         autoSelectedRef.current = true;
         if (getCloudSession()) return;
         void handleSelectPlace(firstSelectable.id);
-    }, [data]);
+    }, [clouds]);
 
-    const places = data?.list ?? [];
+    const isLoading = isFetchingClouds && clouds.length === 0;
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="bottom" className="rounded-t-2xl px-4 pb-safe-bottom pt-4">
+            <SheetContent side="bottom" className="rounded-t-2xl px-4 pb-safe-bottom pt-4" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}>
                 <SheetHeader className="mb-4">
-                    <SheetTitle>클라우드 선택</SheetTitle>
+                    <SheetTitle>{t('cloudSessionSheet.title')}</SheetTitle>
                 </SheetHeader>
 
-                {isFetching && !isRefetching ? (
+                {isLoading ? (
                     <div className="flex gap-[14px] py-2">
                         {Array.from({ length: 3 }).map((_, i) => (
                             <div key={i} className="flex flex-col items-center gap-[5px]">
@@ -97,19 +96,17 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                             </div>
                         ))}
                     </div>
-                ) : isError ? (
+                ) : isCloudsError ? (
                     <div className="flex items-center gap-2 py-2 text-sm text-[#9FA2A7]">
-                        <span>플레이스를 불러오지 못했어요</span>
-                        <button onClick={() => refetch()} className="flex items-center gap-1 text-foreground">
+                        <span>{t('cloudSessionSheet.errorLoading')}</span>
+                        <button onClick={() => refetchClouds()} className="flex items-center gap-1 text-foreground">
                             <RefreshCw size={14} />
-                            <span>재시도</span>
+                            <span>{t('cloudSessionSheet.retry')}</span>
                         </button>
                     </div>
-                ) : places.length === 0 ? (
-                    <p className="py-2 text-sm text-[#9FA2A7]">플레이스가 없어요</p>
                 ) : (
                     <div className="scrollbar-hide flex gap-[14px] overflow-x-auto pb-2">
-                        {places.map(place => (
+                        {clouds.map(place => (
                             <PlaceItem
                                 key={place.id}
                                 place={place}
