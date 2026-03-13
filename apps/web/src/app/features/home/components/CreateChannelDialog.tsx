@@ -22,8 +22,12 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
         register,
         handleSubmit,
         reset,
+        watch,
         formState: { errors },
     } = useForm<{ name: string }>();
+
+    const nameValue = watch('name', '');
+    const isButtonDisabled = isLoading || !nameValue?.trim();
 
     const onSubmit = async (data: { name: string }) => {
         try {
@@ -125,7 +129,7 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                         <div className="flex flex-col gap-4 px-4 pt-5 pb-4">
                             <Button
                                 type="submit"
-                                disabled={isLoading}
+                                disabled={isButtonDisabled}
                                 className="flex items-center justify-center gap-1.5 h-[50px] px-6 py-3 bg-[#B0EA10] rounded-full text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-[#EAEAEC] disabled:text-[#BABCC0]"
                             >
                                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : t('createChannel.done')}
