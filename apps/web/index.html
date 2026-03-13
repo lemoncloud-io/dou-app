@@ -6,7 +6,30 @@
         <base href="/" />
 
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-        <meta name="theme-color" content="#0a0a0f" />
+        <meta name="theme-color" id="theme-color-meta" content="#ffffff" />
+        <!-- Theme detection script - must run before any content renders -->
+        <script>
+            (function () {
+                var storageKey = 'vite-ui-theme';
+                var theme = localStorage.getItem(storageKey);
+                // Match ThemeProvider logic: default to 'light' when no theme is stored
+                var isDark =
+                    theme === 'dark' ||
+                    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+                // Set CSS custom property for splash background
+                var bgColor = isDark ? '#121212' : '#ffffff';
+                document.documentElement.style.setProperty('--splash-bg', bgColor);
+
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                    document.getElementById('theme-color-meta').content = '#121212';
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    document.getElementById('theme-color-meta').content = '#ffffff';
+                }
+            })();
+        </script>
         <!-- Favicon -->
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -28,7 +51,7 @@
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    background-color: #0a0a0f;
+                    background-color: var(--splash-bg, #ffffff);
                 "
             >
                 <img
