@@ -152,6 +152,19 @@ const setChannels = (updater: ChannelView[] | ((prev: ChannelView[]) => ChannelV
     setGlobalState(next, globalIsLoading, globalIsError);
 };
 
+const removeChannel = (channelId: string) => {
+    setGlobalState(
+        globalChannels.filter(ch => ch.id !== channelId),
+        false,
+        false,
+        true
+    );
+    // Also remove from IndexedDB directly
+    if (globalProfileId && !isReactNativeWebView()) {
+        IndexedDBChannelAdapter.remove(globalProfileId, channelId).catch(console.error);
+    }
+};
+
 let globalEmitAuthenticated: ((msg: object) => void) | null = null;
 let globalProfileId = '';
 
@@ -238,6 +251,7 @@ export const useMyChannels = () => {
         isLoading: globalIsLoading,
         isError: globalIsError,
         setChannels,
+        removeChannel,
         retry: retryMine,
     };
 };

@@ -84,14 +84,16 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
             const { deeplinkUrl } = await createInvite({
                 channelId,
                 name: name.trim(),
-                type: 'phone',
-                alias: phoneDigits,
+                phone: phoneDigits,
             });
 
             const { isOnMobileApp } = getMobileAppInfo();
 
+            // Copy to clipboard first
+            await copyToClipboard(deeplinkUrl);
+
+            // Mobile app: also open native share sheet
             if (isOnMobileApp) {
-                // Mobile app: use native share sheet
                 postMessage({
                     type: 'OpenShareSheet',
                     data: {
@@ -100,21 +102,6 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                         url: deeplinkUrl,
                     },
                 });
-            } else {
-                // Web browser: copy to clipboard first, then show share if available
-                await copyToClipboard(deeplinkUrl);
-
-                if (navigator.share) {
-                    try {
-                        await navigator.share({
-                            title: t('inviteFriends.shareTitle'),
-                            text: t('inviteFriends.shareMessage'),
-                            url: deeplinkUrl,
-                        });
-                    } catch {
-                        // User cancelled share - already copied, so ignore
-                    }
-                }
             }
 
             resetAndClose();

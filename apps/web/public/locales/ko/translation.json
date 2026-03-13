@@ -290,7 +290,17 @@
             "leaveFailed": "방 나가기에 실패했습니다",
             "deletedRoom": "채팅방이 삭제되었습니다",
             "deleteFailed": "방 삭제에 실패했습니다",
-            "roomName": "방 이름"
+            "roomName": "방 이름",
+            "deleteDialog": {
+                "title": "채팅방을 삭제하시겠습니까?",
+                "description": "삭제하면 모든 참여자가 더 이상 이 채팅방에 접근할 수 없으며, 대화 내용과 관련 데이터가 모두 삭제됩니다.",
+                "confirm": "삭제"
+            },
+            "leaveDialog": {
+                "title": "채팅방을 나가시겠습니까?",
+                "description": "채팅방의 메시지를 확인할 수 없으며, 다시 초대를 받아야 참여할 수 있습니다.",
+                "confirm": "나가기"
+            }
         }
     },
     "search": {

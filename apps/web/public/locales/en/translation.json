@@ -290,7 +290,17 @@
             "leaveFailed": "Failed to leave the room",
             "deletedRoom": "Room deleted",
             "deleteFailed": "Failed to delete the room",
-            "roomName": "Room Name"
+            "roomName": "Room Name",
+            "deleteDialog": {
+                "title": "Delete this chat room?",
+                "description": "Once deleted, all participants will no longer have access to this room, and all messages and data will be permanently removed.",
+                "confirm": "Delete"
+            },
+            "leaveDialog": {
+                "title": "Leave this chat room?",
+                "description": "You won't be able to view messages, and you'll need a new invite to rejoin.",
+                "confirm": "Leave"
+            }
         }
     },
     "search": {
