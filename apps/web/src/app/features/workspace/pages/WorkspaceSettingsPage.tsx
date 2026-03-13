@@ -95,7 +95,7 @@ export const WorkspaceSettingsPage = () => {
                                     </span>
                                 )}
                                 {m.isMe && (
-                                    <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
+                                    <span className="rounded-[3px] bg-[#102346] px-[5px] py-[3px] text-[11px] font-medium leading-none text-white">
                                         MY
                                     </span>
                                 )}

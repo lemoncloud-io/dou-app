@@ -44,7 +44,11 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent hideClose className="h-screen max-w-full w-full m-0 p-0 rounded-none flex flex-col">
+            <DialogContent
+                hideClose
+                variant="slide-up"
+                className="max-w-full w-full m-0 p-0 rounded-none flex flex-col"
+            >
                 {/* Top Bar */}
                 <div className="flex items-center justify-between px-1.5 py-3 bg-white">
                     <div className="w-11 h-11" />

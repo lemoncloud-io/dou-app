@@ -256,7 +256,18 @@
                 "friday": "금요일",
                 "saturday": "토요일"
             },
-            "dateFormat": "{{year}}년 {{month}}월 {{day}}일 {{weekday}}"
+            "dateFormat": "{{year}}년 {{month}}월 {{day}}일 {{weekday}}",
+            "emptyState": {
+                "line1": "친구를 초대하여",
+                "line2": "채팅을 시작해 보세요.",
+                "inviteButton": "친구초대하기"
+            },
+            "read": "읽음",
+            "unread": "안읽음",
+            "readCount": "읽음 {{count}}",
+            "unreadCount": "안읽음 {{count}}",
+            "viewAll": "전체보기",
+            "messageDetail": "메시지 전체보기"
         },
         "settings": {
             "title": "방 설정",
@@ -279,15 +290,28 @@
             "leaveFailed": "방 나가기에 실패했습니다",
             "deletedRoom": "채팅방이 삭제되었습니다",
             "deleteFailed": "방 삭제에 실패했습니다",
-            "roomName": "방 이름"
+            "roomName": "방 이름",
+            "deleteDialog": {
+                "title": "채팅방을 삭제하시겠습니까?",
+                "description": "삭제하면 모든 참여자가 더 이상 이 채팅방에 접근할 수 없으며, 대화 내용과 관련 데이터가 모두 삭제됩니다.",
+                "confirm": "삭제"
+            },
+            "leaveDialog": {
+                "title": "채팅방을 나가시겠습니까?",
+                "description": "채팅방의 메시지를 확인할 수 없으며, 다시 초대를 받아야 참여할 수 있습니다.",
+                "confirm": "나가기"
+            },
+            "unknownUser": "알 수 없는 사용자"
         }
     },
     "search": {
-        "placeholder": "검색...",
+        "placeholder": "방 이름, 플레이스명으로 검색",
         "recent": "최근 검색",
         "clearAll": "전체 삭제",
         "places": "플레이스",
-        "chat": "Chat"
+        "chat": "Chat",
+        "noResults": "검색 결과가 없습니다.",
+        "noHistory": "검색 내역이 없습니다."
     },
     "workspace": {
         "list": {
@@ -421,7 +445,17 @@
         "copyLink": "링크 복사",
         "addFriend": "친구 추가",
         "qrCode": "QR 코드",
-        "searchPlaceholder": "친구 검색"
+        "searchPlaceholder": "친구 검색",
+        "invite": "초대하기",
+        "noSearchResults": "검색 결과가 없습니다.",
+        "linkCopied": "링크 복사가 완료되었습니다.",
+        "shareFailed": "공유에 실패했습니다.",
+        "shareTitle": "채팅에 초대합니다",
+        "shareMessage": "이 링크를 통해 채팅에 참여하세요!",
+        "permissionDenied": {
+            "title": "연락처 접근 허용이 꺼져 있어요",
+            "description": "친구를 빠르게 찾고 대화를 시작하려면 연락처 접근 권한이 필요합니다. 연락처 정보는 친구 추천 및 초대에만 사용되며 안전하게 보호됩니다."
+        }
     },
     "addFriend": {
         "title": "친구 추가",
@@ -430,6 +464,9 @@
         "nameLabel": "이름",
         "namePlaceholder": "친구 이름을 입력해 주세요",
         "nameHint": "20글자 이내로 입력해 주세요.",
+        "phoneLabel": "전화번호",
+        "phonePlaceholder": "전화번호를 입력해 주세요",
+        "phoneHint": "20글자 이내로 입력해 주세요.",
         "share": "공유하기"
     },
     "inviteCode": {
