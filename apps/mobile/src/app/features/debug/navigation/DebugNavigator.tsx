@@ -10,6 +10,7 @@ import {
     IapTestScreen,
     SocketTestScreen,
     OAuthTestScreen,
+    StorageTestScreen,
 } from '../screens';
 
 import type { DebugStackParamList } from '../../../navigation';
@@ -90,6 +91,14 @@ export const DebugNavigator = () => {
                 component={OAuthTestScreen}
                 options={{
                     title: 'OAuth 테스트',
+                    headerBackButtonDisplayMode: 'minimal',
+                }}
+            />
+            <DebugStack.Screen
+                name="StorageTest"
+                component={StorageTestScreen}
+                options={{
+                    title: '스토리지 테스트',
                     headerBackButtonDisplayMode: 'minimal',
                 }}
             />

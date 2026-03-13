@@ -2,7 +2,7 @@ import React from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { HomeScreenProps } from '../navigation';
+import type { HomeScreenProps } from '../navigation/DebugNavigator';
 
 export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
     const renderMenuItem = (title: string, onPress: () => void) => (
@@ -40,6 +40,9 @@ export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
                     })}
                     {renderMenuItem('OAuth 테스트', () => {
                         navigation.navigate('OAuthTest');
+                    })}
+                    {renderMenuItem('스토리지 테스트', () => {
+                        navigation.navigate('StorageTest');
                     })}
                 </View>
             </ScrollView>
