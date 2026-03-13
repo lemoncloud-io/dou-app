@@ -2,18 +2,135 @@ import { X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
 import { Sheet, SheetContent } from '@chatic/ui-kit/components/ui/sheet';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+
+import { useCreateInvite } from '../hooks/useCreateInvite';
 
 interface AddFriendSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    channelId?: string;
 }
 
-const MAX = 20;
+interface InputFieldProps {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: string;
+    maxLength: number;
+    type?: 'text' | 'tel';
+}
 
-export const AddFriendSheet = ({ open, onOpenChange }: AddFriendSheetProps) => {
+const InputField = ({ label, value, onChange, placeholder, maxLength, type = 'text' }: InputFieldProps) => (
+    <div className="flex flex-col gap-2">
+        <label className="text-[14px] font-semibold leading-[1.286] tracking-[0.005em] text-[#53555B]">{label}</label>
+        <div className="flex items-center rounded-[10px] border border-[#EAEAEC] bg-white px-3 py-3">
+            <input
+                value={value}
+                onChange={e => onChange(e.target.value.slice(0, maxLength))}
+                placeholder={placeholder}
+                type={type}
+                className="flex-1 text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-[#222325] placeholder:text-[#BABCC0] outline-none bg-transparent"
+            />
+            <span className="text-[13px] font-medium tracking-[0.019em] text-[#53555B] opacity-74 shrink-0">
+                {value.length}/{maxLength}
+            </span>
+        </div>
+    </div>
+);
+
+const NAME_MAX = 20;
+const PHONE_DIGITS_MAX = 11;
+
+const formatPhoneNumber = (digits: string): string => {
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+};
+
+export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheetProps) => {
     const { t } = useTranslation();
+    const { toast } = useToast();
     const [name, setName] = useState('');
+    const [phoneDigits, setPhoneDigits] = useState('');
+    const { createInvite, isPending } = useCreateInvite();
+
+    const handlePhoneChange = (value: string) => {
+        const digits = value.replace(/\D/g, '').slice(0, PHONE_DIGITS_MAX);
+        setPhoneDigits(digits);
+    };
+
+    const resetAndClose = () => {
+        setName('');
+        setPhoneDigits('');
+        onOpenChange(false);
+    };
+
+    const copyToClipboard = async (url: string) => {
+        try {
+            await navigator.clipboard.writeText(url);
+            toast({ title: t('inviteFriends.linkCopied') });
+        } catch {
+            toast({ title: t('inviteFriends.shareFailed'), variant: 'destructive' });
+        }
+    };
+
+    const handleShare = async () => {
+        if (!channelId || !name.trim() || !phoneDigits) return;
+
+        try {
+            const { deeplinkUrl } = await createInvite({
+                channelId,
+                name: name.trim(),
+                type: 'phone',
+                alias: phoneDigits,
+            });
+
+            const { isOnMobileApp } = getMobileAppInfo();
+
+            if (isOnMobileApp) {
+                // Mobile app: use native share sheet
+                postMessage({
+                    type: 'OpenShareSheet',
+                    data: {
+                        title: t('inviteFriends.shareTitle'),
+                        message: t('inviteFriends.shareMessage'),
+                        url: deeplinkUrl,
+                    },
+                });
+            } else {
+                // Web browser: copy to clipboard first, then show share if available
+                await copyToClipboard(deeplinkUrl);
+
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: t('inviteFriends.shareTitle'),
+                            text: t('inviteFriends.shareMessage'),
+                            url: deeplinkUrl,
+                        });
+                    } catch {
+                        // User cancelled share - already copied, so ignore
+                    }
+                }
+            }
+
+            resetAndClose();
+        } catch (error) {
+            console.error('Failed to create invite:', error);
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : typeof error === 'object' && error !== null && 'message' in error
+                      ? String(error.message)
+                      : t('inviteFriends.shareFailed');
+            toast({ title: message, variant: 'destructive' });
+        }
+    };
+
+    const isDisabled = !name.trim() || !phoneDigits || !channelId || isPending;
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -23,7 +140,7 @@ export const AddFriendSheet = ({ open, onOpenChange }: AddFriendSheetProps) => {
                         {t('addFriend.title')}
                     </span>
                     <button
-                        onClick={() => onOpenChange(false)}
+                        onClick={resetAndClose}
                         className="w-6 h-6 flex items-center justify-center rounded-full bg-[#EAEAEC]"
                     >
                         <X className="w-[14px] h-[14px] text-black" />
@@ -40,35 +157,42 @@ export const AddFriendSheet = ({ open, onOpenChange }: AddFriendSheetProps) => {
                         </span>
                     </div>
 
+                    <InputField
+                        label={t('addFriend.nameLabel')}
+                        value={name}
+                        onChange={setName}
+                        placeholder={t('addFriend.namePlaceholder')}
+                        maxLength={NAME_MAX}
+                    />
+
                     <div className="flex flex-col gap-2">
                         <label className="text-[14px] font-semibold leading-[1.286] tracking-[0.005em] text-[#53555B]">
-                            {t('addFriend.nameLabel')}
+                            {t('addFriend.phoneLabel')}
                         </label>
                         <div className="flex items-center rounded-[10px] border border-[#EAEAEC] bg-white px-3 py-3">
                             <input
-                                value={name}
-                                onChange={e => setName(e.target.value.slice(0, MAX))}
-                                placeholder={t('addFriend.namePlaceholder')}
+                                value={formatPhoneNumber(phoneDigits)}
+                                onChange={e => handlePhoneChange(e.target.value)}
+                                placeholder={t('addFriend.phonePlaceholder')}
+                                type="tel"
                                 className="flex-1 text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-[#222325] placeholder:text-[#BABCC0] outline-none bg-transparent"
                             />
                             <span className="text-[13px] font-medium tracking-[0.019em] text-[#53555B] opacity-74 shrink-0">
-                                {name.length}/{MAX}
+                                {phoneDigits.length}/{PHONE_DIGITS_MAX}
                             </span>
                         </div>
-                        <span className="text-[12px] font-medium leading-[1.5] text-[#84888F] pl-0.5">
-                            {t('addFriend.nameHint')}
-                        </span>
                     </div>
                 </div>
 
                 <div className="px-4 pt-5 pb-4">
                     <button
-                        disabled={!name.trim()}
+                        onClick={handleShare}
+                        disabled={isDisabled}
                         className="w-full rounded-full py-3 text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-center transition-colors
                             disabled:bg-[#EAEAEC] disabled:text-[#BABCC0]
                             enabled:bg-[#B0EA10] enabled:text-[#222325]"
                     >
-                        {t('addFriend.share')}
+                        {isPending ? '...' : t('addFriend.share')}
                     </button>
                 </div>
             </SheetContent>

@@ -261,7 +261,13 @@
                 "line1": "Invite friends to",
                 "line2": "start chatting.",
                 "inviteButton": "Invite Friends"
-            }
+            },
+            "read": "Read",
+            "unread": "Unread",
+            "readCount": "Read {{count}}",
+            "unreadCount": "Unread {{count}}",
+            "viewAll": "View All",
+            "messageDetail": "Full Message"
         },
         "settings": {
             "title": "Room Settings",
@@ -431,6 +437,10 @@
         "searchPlaceholder": "Search friends",
         "invite": "Invite",
         "noSearchResults": "No results found.",
+        "linkCopied": "Link copied to clipboard.",
+        "shareFailed": "Failed to share.",
+        "shareTitle": "Join my chat",
+        "shareMessage": "Click this link to join the chat!",
         "permissionDenied": {
             "title": "Contacts access is turned off",
             "description": "To quickly find friends and start chatting, contacts permission is required. Your contact information is only used for friend recommendations and invitations, and is kept secure."
@@ -443,6 +453,9 @@
         "nameLabel": "Name",
         "namePlaceholder": "Enter friend's name",
         "nameHint": "Please enter up to 20 characters.",
+        "phoneLabel": "Phone Number",
+        "phonePlaceholder": "Enter phone number",
+        "phoneHint": "Please enter up to 20 characters.",
         "share": "Share"
     },
     "inviteCode": {

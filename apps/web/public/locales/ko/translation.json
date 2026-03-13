@@ -261,7 +261,13 @@
                 "line1": "친구를 초대하여",
                 "line2": "채팅을 시작해 보세요.",
                 "inviteButton": "친구초대하기"
-            }
+            },
+            "read": "읽음",
+            "unread": "안읽음",
+            "readCount": "읽음 {{count}}",
+            "unreadCount": "안읽음 {{count}}",
+            "viewAll": "전체보기",
+            "messageDetail": "메시지 전체보기"
         },
         "settings": {
             "title": "방 설정",
@@ -431,6 +437,10 @@
         "searchPlaceholder": "친구 검색",
         "invite": "초대하기",
         "noSearchResults": "검색 결과가 없습니다.",
+        "linkCopied": "링크 복사가 완료되었습니다.",
+        "shareFailed": "공유에 실패했습니다.",
+        "shareTitle": "채팅에 초대합니다",
+        "shareMessage": "이 링크를 통해 채팅에 참여하세요!",
         "permissionDenied": {
             "title": "연락처 접근 허용이 꺼져 있어요",
             "description": "친구를 빠르게 찾고 대화를 시작하려면 연락처 접근 권한이 필요합니다. 연락처 정보는 친구 추천 및 초대에만 사용되며 안전하게 보호됩니다."
@@ -443,6 +453,9 @@
         "nameLabel": "이름",
         "namePlaceholder": "친구 이름을 입력해 주세요",
         "nameHint": "20글자 이내로 입력해 주세요.",
+        "phoneLabel": "전화번호",
+        "phonePlaceholder": "전화번호를 입력해 주세요",
+        "phoneHint": "20글자 이내로 입력해 주세요.",
         "share": "공유하기"
     },
     "inviteCode": {

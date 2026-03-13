@@ -23,7 +23,7 @@ const QUICK_ACTIONS = [
     { labelKey: 'inviteFriends.qrCode', icon: '/assets/icons/icon-qr.svg', actionKey: 'qrCode' },
 ] as const;
 
-export const InviteFriendsDialog = ({ open, onOpenChange }: InviteFriendsDialogProps) => {
+export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFriendsDialogProps) => {
     const { t } = useTranslation();
     const [search, setSearch] = useState('');
     const [addFriendOpen, setAddFriendOpen] = useState(false);
@@ -198,7 +198,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange }: InviteFriendsDialogP
                 </DialogContent>
             </Dialog>
 
-            <AddFriendSheet open={addFriendOpen} onOpenChange={setAddFriendOpen} />
+            <AddFriendSheet open={addFriendOpen} onOpenChange={setAddFriendOpen} channelId={channelId} />
         </>
     );
 };
