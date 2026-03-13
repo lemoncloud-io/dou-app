@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-03-13] - root@0.20.0, @chatic/web@0.17.0
+
+### Features
+
+- update search and implement places
+- update UI
+- implement back button handling for hybrid app
+- (places) add place order feature
+- (places) add SortablePlaceItem component
+
+### Refactor
+
+- (home) enhance CreatePlaceDialog validation
+
 ## [2026-03-13] - root@0.19.0, @chatic/web@0.16.0
 
 ### Features
