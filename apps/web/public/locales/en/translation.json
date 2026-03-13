@@ -187,10 +187,42 @@
         "languageSettings": "Language",
         "logout": "Logout",
         "version": "DoU v{{version}}",
+        "appVersion": "App Version",
+        "updateRequired": "Update Required",
         "language": {
             "ko": "한국어",
             "en": "English",
             "select": "Select Language"
+        },
+        "accountInfo": {
+            "title": "My Info",
+            "profileEdit": "Edit Profile",
+            "withdrawal": "Delete Account"
+        },
+        "policy": {
+            "title": "Terms & Policies",
+            "terms": "Terms of Service",
+            "privacy": "Privacy Policy",
+            "effectiveDate": "Effective Date"
+        },
+        "logoutDialog": {
+            "title": "Are you sure you want to logout?",
+            "cancel": "Cancel",
+            "confirm": "Logout"
+        },
+        "withdrawal": {
+            "title": "Delete Account",
+            "heading": "{{name}}",
+            "question": "Are you leaving DoU? 😥",
+            "warning1": "If you delete your account, all data cannot be recovered",
+            "warning2": "and will be permanently deleted.",
+            "confirm": "Confirm"
+        },
+        "withdrawalDialog": {
+            "title": "We're sad to see you go..",
+            "description": "You're always welcome back at DoU!",
+            "cancel": "Cancel",
+            "confirm": "Delete"
         }
     },
     "notifications": {
@@ -396,8 +428,13 @@
     },
     "profileEdit": {
         "title": "Edit Profile",
+        "description1": "Set your name and photo",
+        "description2": "to use in DoU",
         "nameLabel": "Name",
-        "save": "Save"
+        "nameHint": "Please enter up to 20 characters.",
+        "photoLabel": "Profile Photo",
+        "photoOptional": "[Optional]",
+        "save": "Done"
     },
     "mypageLogin": {
         "title": "Sign In",
