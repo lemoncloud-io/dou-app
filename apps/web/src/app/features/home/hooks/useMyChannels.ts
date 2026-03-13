@@ -20,8 +20,16 @@ let isCacheLoaded = false;
 
 const notifyListeners = () => listeners.forEach(l => l());
 
+const getChannelSortTime = (channel: ChannelView): number => {
+    return channel.lastChat$?.createdAt ?? channel.updatedAt ?? channel.createdAt ?? 0;
+};
+
+const sortChannelsByLatest = (channels: ChannelView[]): ChannelView[] => {
+    return [...channels].sort((a, b) => getChannelSortTime(b) - getChannelSortTime(a));
+};
+
 const setGlobalState = (channels: ChannelView[], isLoading: boolean, isError: boolean, saveToDb = false) => {
-    globalChannels = channels;
+    globalChannels = sortChannelsByLatest(channels);
     globalIsLoading = isLoading;
     globalIsError = isError;
     notifyListeners();
@@ -41,7 +49,7 @@ const loadCachedChannels = async (userId: string) => {
         const cachedChannels = await IndexedDBChannelAdapter.loadAll(userId);
         if (cachedChannels.length > 0 && globalIsLoading) {
             // Only set cached channels if we're still loading (socket hasn't responded yet)
-            globalChannels = cachedChannels;
+            globalChannels = sortChannelsByLatest(cachedChannels);
             notifyListeners();
         }
     } catch (error) {
@@ -176,18 +184,21 @@ if (typeof BroadcastChannel !== 'undefined' && !isReactNativeWebView()) {
 
         switch (type) {
             case 'channels-updated':
-                globalChannels = channels;
+                globalChannels = sortChannelsByLatest(channels);
                 globalIsLoading = false;
                 globalIsError = false;
                 notifyListeners();
                 break;
-            case 'channel-saved':
-                globalChannels = globalChannels.map(ch => (ch.id === channel.id ? channel : ch));
+            case 'channel-saved': {
+                const updatedChannels = globalChannels.map(ch => (ch.id === channel.id ? channel : ch));
                 if (!globalChannels.find(ch => ch.id === channel.id)) {
-                    globalChannels = [...globalChannels, channel];
+                    globalChannels = sortChannelsByLatest([...updatedChannels, channel]);
+                } else {
+                    globalChannels = sortChannelsByLatest(updatedChannels);
                 }
                 notifyListeners();
                 break;
+            }
             case 'channel-removed':
                 globalChannels = globalChannels.filter(ch => ch.id !== channelId);
                 notifyListeners();
