@@ -61,7 +61,10 @@ export const LoginPage = (): JSX.Element => {
                 } catch (error) {
                     console.error('[LoginPage] Invite login failed:', error);
                     toast({ title: t('tokenLogin.inviteLoginFailed'), variant: 'destructive' });
-                    setIsInviteLogin(false);
+                    // Redirect to logout to clear any corrupted state
+                    setTimeout(() => {
+                        window.location.href = '/auth/logout';
+                    }, 1500);
                 }
             };
 
