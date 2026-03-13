@@ -200,7 +200,14 @@
     },
     "homePage": {
         "places": "Places",
-        "roomCreated": "Chat room created"
+        "roomCreated": "Chat room created",
+        "noCloudsError": "No clouds available to configure",
+        "selectCloud": "Select a cloud"
+    },
+    "cloudSessionSheet": {
+        "title": "Select Cloud",
+        "errorLoading": "Failed to load clouds",
+        "retry": "Retry"
     },
     "placeList": {
         "defaultPlace": "Default Place",
