@@ -6,11 +6,20 @@ import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 
 interface PlaceResultsProps {
     places: ChannelView[];
+    onSelect?: (channelId: string) => void;
 }
 
-export const PlaceResults = ({ places }: PlaceResultsProps) => {
+export const PlaceResults = ({ places, onSelect }: PlaceResultsProps) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+
+    const handleClick = (channelId: string) => {
+        if (onSelect) {
+            onSelect(channelId);
+        } else {
+            navigate(`/chats/${channelId}/room`);
+        }
+    };
 
     if (places.length === 0) return null;
 
@@ -27,7 +36,7 @@ export const PlaceResults = ({ places }: PlaceResultsProps) => {
                     {places.map(place => (
                         <button
                             key={place.id}
-                            onClick={() => navigate(`/chats/${place.id}/room`)}
+                            onClick={() => place.id && handleClick(place.id)}
                             className="flex shrink-0 flex-col items-center gap-[5px]"
                         >
                             <div className="relative size-[47px]">

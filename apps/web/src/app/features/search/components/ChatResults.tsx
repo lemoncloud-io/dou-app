@@ -12,11 +12,20 @@ import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 interface ChatItemProps {
     channel: ChannelView;
     matchCount: number;
+    onSelect?: (channelId: string) => void;
 }
 
-const ChatItem = ({ channel, matchCount }: ChatItemProps) => {
+const ChatItem = ({ channel, matchCount, onSelect }: ChatItemProps) => {
     const { i18n } = useTranslation();
     const navigate = useNavigate();
+
+    const handleClick = () => {
+        if (onSelect && channel.id) {
+            onSelect(channel.id);
+        } else {
+            navigate(`/chats/${channel.id}/room`);
+        }
+    };
     const profile = useDynamicProfile();
     const unreadCount = useUnreadCount(profile?.uid ?? null, channel.id ?? '');
 
@@ -32,7 +41,7 @@ const ChatItem = ({ channel, matchCount }: ChatItemProps) => {
 
     return (
         <button
-            onClick={() => navigate(`/chats/${channel.id}/room`)}
+            onClick={handleClick}
             className="flex w-full items-start gap-2 rounded-[6px] px-[2px] py-2 text-left transition-colors active:bg-muted"
         >
             {/* Avatar */}
@@ -76,9 +85,10 @@ const ChatItem = ({ channel, matchCount }: ChatItemProps) => {
 
 interface ChatResultsProps {
     chats: ChatSearchResult[];
+    onSelect?: (channelId: string) => void;
 }
 
-export const ChatResults = ({ chats }: ChatResultsProps) => {
+export const ChatResults = ({ chats, onSelect }: ChatResultsProps) => {
     const { t } = useTranslation();
 
     if (chats.length === 0) return null;
@@ -94,7 +104,7 @@ export const ChatResults = ({ chats }: ChatResultsProps) => {
                 </div>
                 <div className="mt-3 flex flex-col gap-[15px]">
                     {chats.map(({ channel, matchCount }) => (
-                        <ChatItem key={channel.id} channel={channel} matchCount={matchCount} />
+                        <ChatItem key={channel.id} channel={channel} matchCount={matchCount} onSelect={onSelect} />
                     ))}
                 </div>
             </div>

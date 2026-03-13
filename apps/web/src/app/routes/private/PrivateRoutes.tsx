@@ -5,7 +5,6 @@ import { JoinRoutes } from '../../features/join';
 import { MyPageRoutes } from '../../features/mypage';
 import { NotificationsRoutes } from '../../features/notifications';
 import { PointerTestRoutes } from '../../features/pointer-test';
-import { SearchRoutes } from '../../features/search';
 import { CreateWorkspaceRoutes, WorkspaceListRoutes, WorkspaceRoutes } from '../../features/workspace';
 import { MainLayout, SafeAreaLayout } from '../../shared/layouts';
 
@@ -29,7 +28,6 @@ export const privateRoutes = [
             { path: 'mypage/*', element: <MyPageRoutes /> },
             { path: 'chats/*', element: <ChatRoutes /> },
             { path: 'pointer-test/*', element: <PointerTestRoutes /> },
-            { path: 'search/*', element: <SearchRoutes /> },
             { path: 'workspace/*', element: <WorkspaceRoutes /> },
             { path: 'create-workspace/*', element: <CreateWorkspaceRoutes /> },
             { path: 'notifications/*', element: <NotificationsRoutes /> },

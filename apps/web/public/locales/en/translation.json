@@ -428,7 +428,13 @@
         "copyLink": "Copy Link",
         "addFriend": "Add Friend",
         "qrCode": "QR Code",
-        "searchPlaceholder": "Search friends"
+        "searchPlaceholder": "Search friends",
+        "invite": "Invite",
+        "noSearchResults": "No results found.",
+        "permissionDenied": {
+            "title": "Contacts access is turned off",
+            "description": "To quickly find friends and start chatting, contacts permission is required. Your contact information is only used for friend recommendations and invitations, and is kept secure."
+        }
     },
     "addFriend": {
         "title": "Add Friend",

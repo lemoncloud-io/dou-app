@@ -1,7 +1,6 @@
 import { ChevronDown, Plus, Search, Settings, SlidersHorizontal, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 
 import {
     DropdownMenu,
@@ -16,13 +15,13 @@ import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { SettingsDialog } from '../../../components/SettingsDialog';
 import { OnboardingModal } from '../../onboarding';
+import { SearchModal } from '../../search';
 import { ChannelList } from '../components/ChannelList';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
 import { CreatePlaceDialog } from '../components/CreatePlaceDialog';
 import { PlaceList } from '../components/PlaceList';
 
 export const HomePage = () => {
-    const navigate = useNavigate();
     const { t } = useTranslation();
     const { logout, isGuest, profile } = useWebCoreStore();
     const { canCreate } = useCanCreateChannel();
@@ -31,6 +30,7 @@ export const HomePage = () => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
     const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     const handleLogout = () => {
         logout();
@@ -75,7 +75,7 @@ export const HomePage = () => {
                     </DropdownMenu>
                 )}
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate('/search')} className="p-1">
+                    <button onClick={() => setIsSearchOpen(true)} className="p-1">
                         <Search size={22} className="text-foreground" />
                     </button>
                     <button onClick={() => setIsSettingsOpen(true)} className="p-1">
@@ -130,6 +130,7 @@ export const HomePage = () => {
             <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
             <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
             <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
+            <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
             <BottomNavigation />
         </div>
     );
