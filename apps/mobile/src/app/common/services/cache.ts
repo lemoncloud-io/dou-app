@@ -82,7 +82,16 @@ export const CacheRepository = {
                 return await getAllData<ChannelView>(PREFIX.CHANNEL, cid);
             case 'chat': {
                 const chats = await getAllData<ChatView>(PREFIX.CHAT, cid);
-                return chats.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                const { channelId } = payload.query || {};
+
+                let result: ChatView[] = chats;
+                if (channelId) {
+                    result = result.filter(
+                        chat => (chat as any).channelId === channelId || (chat as any).channel?.id === channelId
+                    );
+                }
+
+                return result;
             }
             case 'user':
                 return await getAllData<UserView>(PREFIX.USER, cid);

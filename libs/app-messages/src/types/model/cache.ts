@@ -36,13 +36,21 @@ export interface BaseQueryOptions {
     cid?: string;
 }
 
-export interface ChannelQueryOptions extends BaseQueryOptions {}
+export interface ChannelQueryOptions extends BaseQueryOptions {
+    /**
+     * - siteId 아이디로 채널 쿼리하기
+     * - 특정 사이트에 대한 채널 쿼리
+     * - TODO: Not Implement
+     */
+    siteId?: string;
+}
 
 export interface UserQueryOptions extends BaseQueryOptions {}
 
 export interface SiteQueryOptions extends BaseQueryOptions {
     /**
      * 특정 소유자의 플레이스
+     * - TODO: Not Implement
      */
     ownerId?: string;
 }
@@ -57,6 +65,7 @@ export interface ChatQueryOptions extends BaseQueryOptions {
 export interface JoinQueryOptions extends BaseQueryOptions {
     /**
      * 특정 채널에 대한 참여 정보
+     * - TODO: Not Implement
      */
     channelId?: string;
 }
@@ -64,6 +73,7 @@ export interface JoinQueryOptions extends BaseQueryOptions {
 export interface UserTokenQueryOptions extends BaseQueryOptions {
     /**
      *  권한에 따른 사용자
+     * - TODO: Not Implement
      */
     role?: 'guest';
 }
