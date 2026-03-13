@@ -247,6 +247,12 @@
         "retry": "Retry",
         "empty": "No places"
     },
+    "placeOrder": {
+        "title": "Place List",
+        "settings": "Settings",
+        "delete": "Delete",
+        "leave": "Leave"
+    },
     "channelList": {
         "noDescription": "No description",
         "errorLoading": "Unable to load channels",
@@ -351,6 +357,19 @@
         "chat": "Chat",
         "noResults": "No results found.",
         "noHistory": "No search history."
+    },
+    "placeInfo": {
+        "title": "Place Information",
+        "createdDate": "Created Date",
+        "owner": "Place Owner",
+        "confirm": "Confirm",
+        "unnamed": "Unnamed Place",
+        "unknownOwner": "Unknown",
+        "notFound": "Place not found",
+        "myPlace": "My Place",
+        "visibility": "Visibility",
+        "public": "Public",
+        "private": "Private"
     },
     "workspace": {
         "list": {

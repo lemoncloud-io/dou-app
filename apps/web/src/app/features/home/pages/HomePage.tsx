@@ -1,6 +1,7 @@
 import { ArrowLeftRight, ChevronDown, Plus, Search, Settings, SlidersHorizontal, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 import {
     DropdownMenu,
@@ -22,14 +23,18 @@ import { CloudSessionSheet } from '../components/CloudSessionSheet';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
 import { CreatePlaceDialog } from '../components/CreatePlaceDialog';
 import { PlaceList } from '../components/PlaceList';
+import { useMyPlaces } from '../hooks/useMyPlaces';
 
 export const HomePage = () => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const { logout, isGuest, profile } = useWebCoreStore();
     const localProfile = useLocalProfileStore();
     const { canCreate } = useCanCreateChannel();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const { isCloudsError } = useCloudSession();
+    const { places } = useMyPlaces();
+    const hasPlaces = places.length > 0;
 
     const displayName = localProfile.name ?? profile?.$user?.nick ?? profile?.$user?.name ?? '-';
     const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
@@ -116,29 +121,34 @@ export const HomePage = () => {
             )}
 
             {/* Place List */}
-            {!isGuest && (
-                <section className="pb-4 pt-2">
-                    <div className="mb-[18px] flex items-center justify-between px-4">
-                        <div className="flex items-center gap-[6px]">
-                            <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
-                                {t('homePage.places')}
-                            </span>
-                            <button className="flex items-center justify-center rounded-[6px] border border-border p-[2px]">
+            <section className="pb-4 pt-2">
+                <div className="mb-[18px] flex items-center justify-between px-4">
+                    <div className="flex items-center gap-[6px]">
+                        <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
+                            {t('homePage.places')}
+                        </span>
+                        {hasPlaces && (
+                            <button
+                                onClick={() => navigate('/places/order')}
+                                className="flex items-center justify-center rounded-[6px] border border-border p-[2px]"
+                            >
                                 <SlidersHorizontal size={20} className="text-foreground" />
                             </button>
-                        </div>
+                        )}
+                    </div>
+                    {!isGuest && (
                         <button
                             onClick={() => setIsPlaceDialogOpen(true)}
                             className="flex items-center justify-center rounded-[8px]"
                         >
                             <Plus size={24} className="text-foreground" />
                         </button>
-                    </div>
-                    <PlaceList onPlaceSelected={setSelectedPlaceId} />
-                </section>
-            )}
+                    )}
+                </div>
+                <PlaceList onPlaceSelected={setSelectedPlaceId} />
+            </section>
 
-            {!isGuest && <div className="mx-4 h-[3px] bg-border" />}
+            <div className="mx-4 h-[3px] bg-border" />
 
             {/* Chat List */}
             <section className="flex-1 px-4 pt-[18px]">

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
-import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 
 import { ONBOARDING_STEPS } from '../consts';
 import { useOnboardingNavigation } from '../hooks';
@@ -56,6 +56,8 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
     return (
         <Dialog open={open}>
             <DialogContent variant="slide-up" hideClose className="flex flex-col gap-0 bg-background">
+                <DialogTitle className="sr-only">Onboarding</DialogTitle>
+                <DialogDescription className="sr-only">Introduction to the app features</DialogDescription>
                 <OnboardingHeader
                     currentStep={currentStep}
                     totalSteps={totalSteps}

@@ -41,7 +41,7 @@ const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemPr
             <span
                 className={cn(
                     'w-[80px] truncate text-center text-[14px] leading-[1.19]',
-                    isSelected ? 'font-medium text-foreground' : 'font-normal text-[#9FA2A7]'
+                    isSelected ? 'font-medium text-foreground' : 'font-normal text-muted-foreground'
                 )}
             >
                 {place.name}
@@ -82,7 +82,11 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="bottom" className="rounded-t-2xl px-4 pb-safe-bottom pt-4" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}>
+            <SheetContent
+                side="bottom"
+                className="rounded-t-2xl px-4 pb-safe-bottom pt-4"
+                style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}
+            >
                 <SheetHeader className="mb-4">
                     <SheetTitle>{t('cloudSessionSheet.title')}</SheetTitle>
                 </SheetHeader>
@@ -91,13 +95,13 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                     <div className="flex gap-[14px] py-2">
                         {Array.from({ length: 3 }).map((_, i) => (
                             <div key={i} className="flex flex-col items-center gap-[5px]">
-                                <div className="h-[47px] w-[47px] animate-pulse rounded-full bg-[#F4F5F5]" />
-                                <div className="h-3 w-[50px] animate-pulse rounded bg-[#F4F5F5]" />
+                                <div className="h-[47px] w-[47px] animate-pulse rounded-full bg-muted" />
+                                <div className="h-3 w-[50px] animate-pulse rounded bg-muted" />
                             </div>
                         ))}
                     </div>
                 ) : isCloudsError ? (
-                    <div className="flex items-center gap-2 py-2 text-sm text-[#9FA2A7]">
+                    <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
                         <span>{t('cloudSessionSheet.errorLoading')}</span>
                         <button onClick={() => refetchClouds()} className="flex items-center gap-1 text-foreground">
                             <RefreshCw size={14} />

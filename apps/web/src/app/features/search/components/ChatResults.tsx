@@ -95,7 +95,7 @@ export const ChatResults = ({ chats, onSelect }: ChatResultsProps) => {
 
     return (
         <div className="px-4 py-2">
-            <div className="overflow-hidden rounded-[18px] bg-white p-4 shadow-[0px_4px_12px_0px_rgba(0,0,0,0.08)]">
+            <div className="overflow-hidden rounded-[18px] bg-card p-4 shadow-[0px_4px_12px_0px_rgba(0,0,0,0.08)]">
                 <div className="flex items-center gap-2">
                     <MessageCircle size={18} className="shrink-0 text-muted-foreground" />
                     <span className="flex-1 truncate text-[16px] font-semibold tracking-[-0.02em] text-foreground">

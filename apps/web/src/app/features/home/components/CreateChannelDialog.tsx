@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, X } from 'lucide-react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useCreateChannel } from '../hooks/useCreateChannel';
@@ -43,18 +43,19 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
-                className="m-0 max-w-full w-full rounded-none flex flex-col bg-white"
+                className="m-0 max-w-full w-full rounded-none flex flex-col bg-background"
                 hideClose
                 variant="slide-up"
             >
+                <DialogDescription className="sr-only">Create a new channel</DialogDescription>
                 {/* Top Bar */}
-                <div className="flex items-center justify-between px-1.5 py-3 bg-white">
+                <div className="flex items-center justify-between px-1.5 py-3 bg-background">
                     <div className="w-11 h-11" />
-                    <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-[#171725]">
+                    <DialogTitle className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-foreground">
                         {t('createChannel.title')}
-                    </h1>
+                    </DialogTitle>
                     <button onClick={() => onOpenChange(false)} className="w-11 h-11 flex items-center justify-center">
-                        <X className="w-6 h-6 text-[#3A3C40]" />
+                        <X className="w-6 h-6 text-foreground" />
                     </button>
                 </div>
 
@@ -66,11 +67,11 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                             <div className="flex flex-col justify-center gap-2">
                                 <div className="flex flex-col">
                                     <div className="flex items-center gap-1">
-                                        <span className="text-[21px] font-semibold leading-[1.35] tracking-[-0.025em] text-black">
+                                        <span className="text-[21px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
                                             {t('createChannel.subtitle1')}
                                         </span>
                                     </div>
-                                    <span className="text-[21px] font-semibold leading-[1.35] tracking-[-0.025em] text-black">
+                                    <span className="text-[21px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
                                         {t('createChannel.subtitle2')}
                                     </span>
                                 </div>
@@ -82,7 +83,7 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                             {/* Room Name Input */}
                             <div className="flex flex-col justify-center items-center gap-1.5 px-4 rounded-lg">
                                 <div className="flex flex-col gap-1.5 w-full">
-                                    <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-[#9FA2A7]">
+                                    <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground">
                                         {t('createChannel.nameLabel')}
                                     </Label>
                                     <Input
@@ -92,10 +93,10 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                                             maxLength: { value: 20, message: t('createChannel.nameMaxLength') },
                                         })}
                                         placeholder={t('createChannel.namePlaceholder')}
-                                        className="h-11 px-3.5 bg-white border border-[#EAEAEC] rounded-[10px] text-[15px] font-medium leading-[1.45] tracking-[0.005em] placeholder:text-[#84888F]"
+                                        className="h-11 px-3.5 bg-background border border-border rounded-[10px] text-[15px] font-medium leading-[1.45] tracking-[0.005em] text-foreground placeholder:text-muted-foreground"
                                     />
                                     {errors.name && (
-                                        <span className="text-[12px] text-red-500">{errors.name.message}</span>
+                                        <span className="text-[12px] text-destructive">{errors.name.message}</span>
                                     )}
                                 </div>
                             </div>
@@ -130,7 +131,7 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                             <Button
                                 type="submit"
                                 disabled={isButtonDisabled}
-                                className="flex items-center justify-center gap-1.5 h-[50px] px-6 py-3 bg-[#B0EA10] rounded-full text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-[#EAEAEC] disabled:text-[#BABCC0]"
+                                className="flex items-center justify-center gap-1.5 h-[50px] px-6 py-3 bg-[#B0EA10] rounded-full text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-muted disabled:text-muted-foreground"
                             >
                                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : t('createChannel.done')}
                             </Button>

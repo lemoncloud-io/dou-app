@@ -10,6 +10,9 @@
     "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
     "references": [
         {
+            "path": "../../assets/tsconfig.lib.json"
+        },
+        {
             "path": "../ui-kit/tsconfig.lib.json"
         },
         {

@@ -3,7 +3,12 @@ import { Outlet } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
 
+import { useBackHandler } from '../hooks/useBackHandler';
+
 export const MainLayout = (): JSX.Element => {
+    // Handle native back button
+    useBackHandler();
+
     return (
         <div
             className={cn(

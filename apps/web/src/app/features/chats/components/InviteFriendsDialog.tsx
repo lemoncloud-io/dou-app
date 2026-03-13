@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
-import { Dialog, DialogContent } from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useCreateInvite } from '../hooks/useCreateInvite';
@@ -162,13 +162,14 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                     hideClose
                     variant="slide-up"
                 >
+                    <DialogDescription className="sr-only">Invite friends to this channel</DialogDescription>
                     <div className="flex flex-col h-full bg-background">
                         {/* Top Bar */}
                         <div className="flex items-center justify-between px-1.5 py-3">
                             <div className="w-11 h-11" />
-                            <h1 className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-foreground">
+                            <DialogTitle className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-foreground">
                                 {t('inviteFriends.title')}
-                            </h1>
+                            </DialogTitle>
                             <button
                                 onClick={() => onOpenChange?.(false)}
                                 className="w-11 h-11 flex items-center justify-center"
