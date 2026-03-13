@@ -8,26 +8,9 @@ import { LoadingFallback } from '@chatic/shared';
 
 import { useRegisterDevice } from '@chatic/auth';
 
+import type { LoginInviteResponse } from '@chatic/web-core';
 import type { JSX } from 'react';
 import { useDynamicDeviceId } from '../../../shared/hooks/useDynamicDeviceId';
-
-const decodeJWT = (token: string) => {
-    try {
-        if (!token || token.split('.').length !== 3) return null;
-        const base64Url = token.split('.')[1];
-        if (!base64Url) return null;
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-            atob(base64)
-                .split('')
-                .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                .join('')
-        );
-        return JSON.parse(jsonPayload);
-    } catch {
-        return null;
-    }
-};
 
 export const LoginPage = (): JSX.Element => {
     const { t } = useTranslation();
@@ -35,9 +18,13 @@ export const LoginPage = (): JSX.Element => {
     const { setIsAuthenticated, setProfile } = useWebCoreStore();
     const { toast } = useToast();
     const [isInviteLogin, setIsInviteLogin] = useState(false);
+    const [inviteData, setInviteData] = useState<LoginInviteResponse | null>(null);
+    const [isAccepting, setIsAccepting] = useState(false);
+    const [isFetchingInvite, setIsFetchingInvite] = useState(false);
     const loginCalled = useRef(false);
     const { mutateAsync: registerDevice, isPending: isRegisteringDevice } = useRegisterDevice();
     const { deviceId, isReady } = useDynamicDeviceId();
+
     useEffect(() => {
         if (!isReady) return;
         if (loginCalled.current) return;
@@ -49,26 +36,25 @@ export const LoginPage = (): JSX.Element => {
 
         if (code && provider === 'invite') {
             setIsInviteLogin(true);
+            setIsFetchingInvite(true);
 
-            const handleInviteLogin = async () => {
+            const fetchInviteData = async () => {
                 try {
-                    const { Token, ...rest } = await loginWithInviteCode(code);
-                    if (!Token.identityToken) throw new Error('No identityToken in response');
-
-                    await webCore.buildCredentialsByToken(Token);
-                    setProfile(rest as Parameters<typeof setProfile>[0]);
-                    setIsAuthenticated(true);
+                    const data = await loginWithInviteCode(code);
+                    if (!data.Token?.identityToken) throw new Error('No identityToken in response');
+                    setInviteData(data);
                 } catch (error) {
-                    console.error('[LoginPage] Invite login failed:', error);
-                    toast({ title: t('tokenLogin.inviteLoginFailed'), variant: 'destructive' });
-                    // Redirect to logout to clear any corrupted state
+                    console.error('[LoginPage] Fetch invite data failed:', error);
+                    toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
                     setTimeout(() => {
                         window.location.href = '/auth/logout';
                     }, 1500);
+                } finally {
+                    setIsFetchingInvite(false);
                 }
             };
 
-            void handleInviteLogin();
+            void fetchInviteData();
         } else {
             const handleDeviceRegistration = async () => {
                 try {
@@ -79,16 +65,71 @@ export const LoginPage = (): JSX.Element => {
                     setProfile(rest as Parameters<typeof setProfile>[0]);
                     setIsAuthenticated(true);
                 } catch (error) {
-                    console.error('[LoginPage] Invite login failed:', error);
+                    console.error('[LoginPage] Device registration failed:', error);
                     toast({ title: t('auth.loginFailed'), variant: 'destructive' });
                 }
             };
             handleDeviceRegistration();
         }
-    }, [location.search, toast, deviceId, isReady]);
+    }, [location.search, toast, deviceId, isReady, t, registerDevice, setProfile, setIsAuthenticated]);
 
-    if (isInviteLogin) {
+    const handleAccept = async () => {
+        if (!inviteData || isAccepting) return;
+
+        setIsAccepting(true);
+        try {
+            await webCore.buildCredentialsByToken(inviteData.Token);
+            setProfile({ id: inviteData.id, name: inviteData.name } as Parameters<typeof setProfile>[0]);
+            setIsAuthenticated(true);
+        } catch (error) {
+            console.error('[LoginPage] Accept invite failed:', error);
+            toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
+            setIsAccepting(false);
+        }
+    };
+
+    // Show loading while fetching invite data
+    if (isInviteLogin && isFetchingInvite) {
         return <LoadingFallback message={t('auth.inviteLoading')} />;
+    }
+
+    // Show invite accept UI
+    if (isInviteLogin && inviteData) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-[rgba(41,41,58,0.23)]">
+                <div className="relative mx-4 w-full max-w-[308px] rounded-[18px] bg-white/80 backdrop-blur-[4px] shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] px-[10px] pt-[26px] pb-[14px]">
+                    <div className="flex flex-col items-center pt-4 w-full">
+                        {/* Profile image */}
+                        <div className="w-[82px] h-[82px] rounded-full border border-[#f4f5f5] bg-[rgba(0,43,126,0.04)] flex items-center justify-center overflow-hidden">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-200 to-green-400 flex items-center justify-center text-2xl font-semibold text-white">
+                                {inviteData.name?.charAt(0)?.toUpperCase() || '?'}
+                            </div>
+                        </div>
+
+                        {/* Invite message */}
+                        <div className="flex flex-col items-center gap-2 px-[22px] py-2 mt-1 w-full">
+                            <div className="text-center text-[18px] font-semibold leading-[1.5] text-[#081837]">
+                                <p>{t('inviteAccept.title')}</p>
+                            </div>
+                            <p className="text-center text-[16px] font-medium leading-[1.45] tracking-[-0.16px] text-[#84888f]">
+                                {t('inviteAccept.description')}
+                            </p>
+                        </div>
+
+                        {/* Button */}
+                        <div className="flex flex-col items-center w-full px-[22px] pt-5 pb-4">
+                            <button
+                                onClick={handleAccept}
+                                disabled={isAccepting}
+                                className="w-full h-[50px] rounded-full bg-[#b0ea10] text-[16px] font-semibold leading-[22px] tracking-[0.08px] text-[#222325] disabled:opacity-50"
+                            >
+                                {isAccepting ? t('inviteAccept.accepting') : t('inviteAccept.accept')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     if (isRegisteringDevice) {
