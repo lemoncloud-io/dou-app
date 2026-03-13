@@ -1,19 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { AppWebView } from '../../../common';
-import { FullScreenLoader } from '../../../common';
-import { Logger } from '../../../common';
-import { useDeepLinkStore } from '../../../common';
+import { AppWebView, FullScreenLoader, Logger, useDeepLinkStore } from '../../../common';
 import {
     useAndroidBack,
     useAppBridge,
-    useFcmHandler,
-    useSafeAreaHandler,
-    useSubscriptionIapHandler,
     useCacheHandler,
     useDeviceHandler,
-    usePermissionHandler,
+    useFcmHandler,
     useOAuthHandler,
+    usePermissionHandler,
+    useSafeAreaHandler,
+    useSubscriptionIapHandler,
 } from '../../../common/webview/hooks';
 
 import type { AppMessageData, WebMessageData, WebMessageType } from '@chatic/app-messages';
@@ -42,7 +39,14 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const { fetchProducts, fetchCurrentPurchases, restorePurchase, purchaseSubscription, isIapLoading } =
         useSubscriptionIapHandler(bridge);
 
-    const { handleFetchAllCacheData, handleFetchCacheData, handleSaveCacheData } = useCacheHandler(bridge);
+    const {
+        handleFetchAllCacheData,
+        handleFetchCacheData,
+        handleSaveCacheData,
+        handleSaveAllCacheData,
+        handleDeleteCacheData,
+        handleDeleteAllCacheData,
+    } = useCacheHandler(bridge);
     const {
         handleOpenSettings,
         handleOpenShareSheet,
@@ -158,15 +162,27 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                     }
 
                     case 'FetchCacheData': {
-                        void handleFetchCacheData(message.data);
+                        void handleFetchCacheData(message);
                         break;
                     }
                     case 'FetchAllCacheData': {
-                        void handleFetchAllCacheData(message.data);
+                        void handleFetchAllCacheData(message);
                         break;
                     }
                     case 'SaveCacheData': {
-                        void handleSaveCacheData(message.data);
+                        void handleSaveCacheData(message);
+                        break;
+                    }
+                    case 'SaveAllCacheData': {
+                        void handleSaveAllCacheData(message);
+                        break;
+                    }
+                    case 'DeleteCacheData': {
+                        void handleDeleteCacheData(message);
+                        break;
+                    }
+                    case 'DeleteAllCacheData': {
+                        void handleDeleteAllCacheData(message);
                         break;
                     }
                     case 'OpenSettings': {
@@ -234,6 +250,9 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         handleFetchAllCacheData,
         handleFetchCacheData,
         handleSaveCacheData,
+        handleSaveAllCacheData,
+        handleDeleteCacheData,
+        handleDeleteAllCacheData,
         handleOpenSettings,
         handleOpenShareSheet,
         handleOpenDocument,
