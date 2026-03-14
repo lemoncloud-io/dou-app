@@ -1,5 +1,5 @@
 import { useIssueCloudToken } from '@chatic/auth';
-import { usePlaces } from '@chatic/places';
+import { useClouds } from '@chatic/places';
 import { useGlobalLoader } from '@chatic/shared';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
@@ -20,7 +20,7 @@ export const useCloudSession = () => {
     const { mutateAsync: issueCloudToken, isPending } = useIssueCloudToken();
     const { setProfile, isGuest } = useWebCoreStore();
     const { setIsLoading } = useGlobalLoader();
-    const { data, isError: isFetchError, isFetching, refetch } = usePlaces({ stereo: 'place' }, !isGuest);
+    const { data, isError: isFetchError, isFetching, refetch } = useClouds({ stereo: 'place' }, !isGuest);
 
     const clouds = data?.list ?? [];
     const isCloudsError = !isFetching && (isFetchError || clouds.length === 0);
