@@ -25,7 +25,7 @@ export const useCreatePlace = () => {
         return new Promise((resolve, reject) => {
             const unsub = useWebSocketV2Store.subscribe(
                 s => s.lastMessage,
-                (envelope: WSSEnvelope<MySiteView> | null) => {
+                (envelope: WSSEnvelope<{ site$?: MySiteView }> | null) => {
                     if (envelope?.type !== 'user') return;
                     if (envelope.action === 'error') {
                         unsub();
@@ -36,7 +36,7 @@ export const useCreatePlace = () => {
                     }
                     if (envelope.action !== 'make-site') return;
                     unsub();
-                    const newPlace = envelope.payload as MySiteView;
+                    const newPlace = envelope.payload?.site$ as MySiteView;
                     setPlace(newPlace);
                     setIsLoading(false);
                     setPlaces(prev => [...prev, newPlace]);

@@ -58,7 +58,7 @@ interface CloudSessionSheetProps {
 export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps) => {
     const { t } = useTranslation();
     const { selectPlace, isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
-    const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
+    const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedCloudId());
 
     const { isGuest } = useWebCoreStore();
     const autoSelectedRef = useRef(false);

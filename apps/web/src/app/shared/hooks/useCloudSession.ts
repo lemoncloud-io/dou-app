@@ -1,8 +1,9 @@
 import { useIssueCloudToken } from '@chatic/auth';
-import { usePlaces } from '@chatic/places';
+import { useClouds } from '@chatic/places';
 import { useGlobalLoader } from '@chatic/shared';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
+import { useTranslation } from 'react-i18next';
 
 export const getCloudSession = () => {
     const wss = cloudCore.getWss();
@@ -17,22 +18,23 @@ export const clearCloudSession = (): void => {
 };
 
 export const useCloudSession = () => {
+    const { t } = useTranslation();
     const { mutateAsync: issueCloudToken, isPending } = useIssueCloudToken();
     const { setProfile, isGuest } = useWebCoreStore();
     const { setIsLoading } = useGlobalLoader();
-    const { data, isError: isFetchError, isFetching, refetch } = usePlaces({ stereo: 'place' }, !isGuest);
+    const { data, isError: isFetchError, isFetching, refetch } = useClouds({ stereo: 'place' }, !isGuest);
 
     const clouds = data?.list ?? [];
     const isCloudsError = !isFetching && (isFetchError || clouds.length === 0);
 
     const selectPlace = async (placeId: string) => {
-        setIsLoading(true);
+        setIsLoading(true, t('globalLoader.switchingCloud'));
         try {
             const { cloudDelegationToken, userToken } = await issueCloudToken(placeId);
 
             cloudCore.saveDelegationToken(cloudDelegationToken);
             cloudCore.saveCloudToken(userToken);
-            cloudCore.saveSelectedPlaceId(placeId);
+            cloudCore.saveSelectedCloudId(placeId);
 
             const currentProfile = useWebCoreStore.getState().profile;
             const { Token, ...cloudProfile } = userToken;

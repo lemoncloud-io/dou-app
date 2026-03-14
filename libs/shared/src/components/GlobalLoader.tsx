@@ -6,7 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { useGlobalLoader } from '../hooks';
 
 export const GlobalLoader: React.FC = () => {
-    const { isLoading } = useGlobalLoader();
+    const { isLoading, message } = useGlobalLoader();
 
     useEffect(() => {
         if (isLoading) {
@@ -25,17 +25,10 @@ export const GlobalLoader: React.FC = () => {
     }
 
     return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/20 dark:bg-black/40 backdrop-blur-sm">
-            <div className="glass-strong p-8 rounded-2xl border-0">
-                <div className="flex flex-col items-center space-y-4">
-                    <div className="relative">
-                        <Loader2 className="h-12 w-12 animate-spin text-orange-500 dark:text-orange-400" />
-                        <div className="absolute inset-0 h-12 w-12 animate-ping text-orange-500/30 dark:text-orange-400/30">
-                            <Loader2 className="h-12 w-12" />
-                        </div>
-                    </div>
-                    <div className="text-primary-content font-medium">Loading...</div>
-                </div>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-10 w-10 animate-spin text-white" />
+                {message && <p className="text-sm font-medium text-white/80">{message}</p>}
             </div>
         </div>,
         document.body

@@ -1,14 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Check, Home, RefreshCw, Users } from 'lucide-react';
 
+import { getSocketSend, useWebSocketV2Store } from '@chatic/socket';
 import { cn } from '@chatic/lib/utils';
-import { cloudCore } from '@chatic/web-core';
-import type { MySiteView } from '@lemoncloud/chatic-backend-api';
+import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { useLoaderStore } from '@chatic/shared';
+import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
-import { getCloudSession, useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { useMyPlaces } from '../hooks/useMyPlaces';
+
+const DEFAULT_PLACE: MySiteView = { id: 'default', name: 'defaultPlace', stereo: 'work' } as MySiteView;
 
 interface PlaceItemProps {
     place: MySiteView;
@@ -18,18 +21,16 @@ interface PlaceItemProps {
 }
 
 const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemProps) => {
-    const isSelectable = place.stereo === 'place';
-    const disabled = !isSelectable || isDisabled || isSelected;
+    const { t } = useTranslation();
+    const isSelectable = place.stereo === 'work';
     const isDefaultPlace = place.id === 'default';
-
-    const handleClick = () => {
-        if (disabled) return;
-        onSelectPlace(place.id);
-    };
+    const disabled = !isSelectable || isDisabled || isSelected || isDefaultPlace;
+    const selected = isSelected || isDefaultPlace;
+    const displayName = isDefaultPlace ? t('placeList.defaultPlace') : place.name;
 
     return (
         <button
-            onClick={handleClick}
+            onClick={() => !disabled && onSelectPlace(place.id)}
             disabled={disabled}
             className={cn('flex flex-col items-center gap-[5px]', disabled && 'cursor-not-allowed')}
         >
@@ -37,27 +38,27 @@ const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemPr
                 <div
                     className={cn(
                         'absolute left-[3px] top-[3px] flex h-[41px] w-[41px] items-center justify-center rounded-full',
-                        isSelected ? 'bg-[#102346]' : 'bg-muted'
+                        selected ? 'bg-[#102346]' : 'bg-muted'
                     )}
                 >
                     {isDefaultPlace ? (
-                        <Home size={20} className={isSelected ? 'text-white' : 'text-muted-foreground'} />
+                        <Home size={20} className={selected ? 'text-white' : 'text-muted-foreground'} />
                     ) : (
-                        <Users size={20} className={isSelected ? 'text-white' : 'text-muted-foreground'} />
+                        <Users size={20} className={selected ? 'text-white' : 'text-muted-foreground'} />
                     )}
                 </div>
-                {isSelected && <div className="absolute inset-0 rounded-full border-[1.5px] border-[#C139E3]" />}
+                {selected && <div className="absolute inset-0 rounded-full border-[1.5px] border-[#C139E3]" />}
             </div>
             <div className="flex items-center justify-center gap-[2px]">
                 <span
                     className={cn(
                         'max-w-[70px] truncate text-center text-[14px] tracking-[-0.018em]',
-                        isSelected ? 'font-medium text-foreground' : 'font-normal text-muted-foreground'
+                        selected ? 'font-medium text-foreground' : 'font-normal text-muted-foreground'
                     )}
                 >
-                    {place.name}
+                    {displayName}
                 </span>
-                {isSelected && <Check size={14} className="flex-shrink-0 text-[#90C304]" />}
+                {selected && <Check size={14} className="flex-shrink-0 text-[#90C304]" />}
             </div>
         </button>
     );
@@ -69,27 +70,53 @@ interface PlaceListProps {
 
 export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
     const { t } = useTranslation();
-    const { selectPlace, isPending } = useCloudSession();
+    const { isGuest } = useWebCoreStore();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
+    const [isPending, setIsPending] = useState(false);
     const { places, isLoading, isError, retry } = useMyPlaces();
-    const autoSelectedRef = useRef(false);
+    const setGlobalLoading = useLoaderStore(s => s.setIsLoading);
 
-    const handleSelectPlace = async (placeId: string) => {
-        await selectPlace(placeId);
-        setSelectedId(placeId);
-        onPlaceSelected?.(placeId);
-    };
+    const displayPlaces = isGuest ? [DEFAULT_PLACE] : places;
 
     useEffect(() => {
-        if (autoSelectedRef.current) return;
-        const firstSelectable = places.find(p => p.stereo === 'place');
-        if (!firstSelectable) return;
-        autoSelectedRef.current = true;
-        if (getCloudSession()) return;
-        void handleSelectPlace(firstSelectable.id);
-    }, [places]);
+        const hasSelected = !!cloudCore.getSelectedPlaceId();
+        if (isGuest || hasSelected || displayPlaces.length === 0) return;
+        handleSelectPlace(displayPlaces[0].id);
+    }, [displayPlaces]);
 
-    if (isLoading) {
+    const handleSelectPlace = async (placeId: string) => {
+        const cloudToken = cloudCore.getCloudToken();
+        const uid = cloudToken?.id;
+        if (!uid) return;
+
+        setIsPending(true);
+        setGlobalLoading(true, t('globalLoader.switchingPlace'));
+        try {
+            const target = `${uid}@${placeId}`;
+            const refreshed = await cloudCore.refreshToken(target);
+            cloudCore.saveSelectedSiteId(placeId);
+
+            const currentProfile = useWebCoreStore.getState().profile;
+            const { Token, ...cloudProfile } = refreshed;
+            useWebCoreStore.getState().setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
+
+            useWebSocketV2Store.getState().setIsVerified(false);
+            const newToken = cloudCore.getIdentityToken();
+            if (newToken) {
+                getSocketSend()?.({ type: 'auth', action: 'update', payload: { token: newToken } });
+            }
+
+            setSelectedId(placeId);
+            onPlaceSelected?.(placeId);
+        } catch (e) {
+            console.error('Failed to select place:', e);
+        } finally {
+            setIsPending(false);
+            setGlobalLoading(false);
+        }
+    };
+
+    if (!isGuest && isLoading) {
         return (
             <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 py-2">
                 {Array.from({ length: 3 }).map((_, i) => (
@@ -102,7 +129,7 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
         );
     }
 
-    if (isError) {
+    if (!isGuest && isError) {
         return (
             <div className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
                 <span>{t('placeList.errorLoading')}</span>
@@ -114,14 +141,9 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
         );
     }
 
-    const defaultPlace: MySiteView = {
-        id: 'default',
-        name: t('placeList.defaultPlace'),
-        stereo: 'place',
-    } as MySiteView;
-
-    const displayPlaces = places.length === 0 ? [defaultPlace] : places;
-    const effectiveSelectedId = places.length === 0 ? 'default' : selectedId;
+    if (!isGuest && displayPlaces.length === 0) {
+        return <p className="px-4 py-2 text-sm text-muted-foreground">{t('placeList.empty')}</p>;
+    }
 
     return (
         <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
@@ -129,7 +151,7 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
                 <PlaceItem
                     key={place.id}
                     place={place}
-                    isSelected={effectiveSelectedId === place.id}
+                    isSelected={selectedId === place.id}
                     isDisabled={isPending}
                     onSelectPlace={handleSelectPlace}
                 />

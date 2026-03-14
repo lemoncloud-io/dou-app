@@ -230,6 +230,10 @@
         "markAllRead": "Mark all read",
         "empty": "No notifications"
     },
+    "globalLoader": {
+        "switchingCloud": "Switching cloud...",
+        "switchingPlace": "Switching place..."
+    },
     "homePage": {
         "places": "Places",
         "roomCreated": "Chat room created",
@@ -242,7 +246,7 @@
         "retry": "Retry"
     },
     "placeList": {
-        "defaultPlace": "Default Place",
+        "defaultPlace": "Default",
         "errorLoading": "Failed to load places",
         "retry": "Retry",
         "empty": "No places"
@@ -258,7 +262,8 @@
         "errorLoading": "Unable to load channels",
         "retry": "Retry",
         "empty": "No channels yet. Create a new chat room!",
-        "unnamedChannel": "Unnamed Channel"
+        "unnamedChannel": "Unnamed Channel",
+        "selectPlaceFirst": "Please select a place above first"
     },
     "bottomNav": {
         "chat": "Chat",
