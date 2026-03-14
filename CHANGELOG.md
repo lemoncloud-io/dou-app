@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-03-14] - root@0.21.0, @chatic/web@0.18.0
+
+### Features
+
+- add global loader with message for cloud/place switching
+- add saveSelectedCloudId/saveSelectedSiteId, getSocketSend, refreshToken target param
+- skip selectedPlaceId check for guest users in channel bootstrap
+- place session and cloud session sheet updates
+
+### Bug Fixes
+
+- fix make-site response payload type to use site$ field
+- fix type error for $user access in useDynamicProfile
+
+### Refactor
+
+- (places) add useClouds hook, replace usePlaces in useCloudSession
+
 ## [2026-03-13] - root@0.20.0, @chatic/web@0.17.0
 
 ### Features
