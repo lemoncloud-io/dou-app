@@ -17,6 +17,8 @@ let globalSendFn: ((data: unknown) => void) | null = null;
 let globalEmitFn: ((data: unknown) => void) | null = null;
 let globalEmitAuthenticatedFn: ((data: unknown) => void) | null = null;
 
+export const getSocketSend = () => globalSendFn;
+
 export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
     const store = useWebSocketV2Store();
     const isConnected = useWebSocketV2Store(s => s.isConnected);

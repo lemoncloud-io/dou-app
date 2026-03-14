@@ -9,6 +9,7 @@ import { coreStorage } from './coreStorage';
 
 export const CLOUD_DELEGATION_TOKEN_KEY = 'chatic-cloud-delegation-token';
 export const CLOUD_TOKEN_KEY = 'chatic-cloud-token';
+export const CLOUD_SELECTED_CLOUD_KEY = 'chatic-selected-cloud-id';
 export const CLOUD_SELECTED_PLACE_KEY = 'chatic-selected-place-id';
 
 interface RequestBuilder {
@@ -22,7 +23,9 @@ interface CloudCore {
     getDelegationToken: () => CloudDelegationTokenView | null;
     saveCloudToken: (token: UserTokenView) => void;
     getCloudToken: () => UserTokenView | null;
-    saveSelectedPlaceId: (placeId: string) => void;
+    saveSelectedCloudId: (cloudId: string) => void;
+    getSelectedCloudId: () => string | null;
+    saveSelectedSiteId: (siteId: string) => void;
     getSelectedPlaceId: () => string | null;
     clearSession: () => void;
     getBackend: () => string | null;
@@ -30,7 +33,7 @@ interface CloudCore {
     getIdentityToken: () => string | null;
     getCredential: () => AWSCredentials | null;
     buildRequest: (config: AxiosRequestConfig) => RequestBuilder;
-    refreshToken: () => Promise<UserTokenView>;
+    refreshToken: (target?: string) => Promise<UserTokenView>;
 }
 
 export const cloudCore: CloudCore = {
@@ -52,8 +55,16 @@ export const cloudCore: CloudCore = {
         return raw ? (JSON.parse(raw) as UserTokenView) : null;
     },
 
-    saveSelectedPlaceId: (placeId: string): void => {
-        coreStorage.set(CLOUD_SELECTED_PLACE_KEY, placeId);
+    saveSelectedCloudId: (cloudId: string): void => {
+        coreStorage.set(CLOUD_SELECTED_CLOUD_KEY, cloudId);
+    },
+
+    getSelectedCloudId: (): string | null => {
+        return coreStorage.get(CLOUD_SELECTED_CLOUD_KEY);
+    },
+
+    saveSelectedSiteId: (siteId: string): void => {
+        coreStorage.set(CLOUD_SELECTED_PLACE_KEY, siteId);
     },
 
     getSelectedPlaceId: (): string | null => {
@@ -63,6 +74,7 @@ export const cloudCore: CloudCore = {
     clearSession: (): void => {
         coreStorage.remove(CLOUD_DELEGATION_TOKEN_KEY);
         coreStorage.remove(CLOUD_TOKEN_KEY);
+        coreStorage.remove(CLOUD_SELECTED_CLOUD_KEY);
         coreStorage.remove(CLOUD_SELECTED_PLACE_KEY);
 
         // Clear endpoint overrides from both storages (web uses sessionStorage, mobile uses localStorage)
@@ -91,7 +103,7 @@ export const cloudCore: CloudCore = {
         return (token?.Token?.credential as AWSCredentials) ?? null;
     },
 
-    refreshToken: async (): Promise<UserTokenView> => {
+    refreshToken: async (target?: string): Promise<UserTokenView> => {
         const token = cloudCore.getCloudToken();
         if (!token?.Token) throw new Error('No cloud token found');
 
@@ -110,7 +122,7 @@ export const cloudCore: CloudCore = {
                 baseURL: `${backend}/oauth/${authId}/refresh`,
             })
             .setParams({ token: 1 })
-            .setBody({ current, signature })
+            .setBody({ current, signature, ...(target && { target }) })
             .execute<UserTokenView>();
 
         cloudCore.saveCloudToken(refreshed);
