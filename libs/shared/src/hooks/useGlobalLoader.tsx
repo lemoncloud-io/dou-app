@@ -2,17 +2,20 @@ import { create } from 'zustand';
 
 interface LoaderState {
     isLoading: boolean;
-    setIsLoading: (isLoading: boolean) => void;
+    message?: string;
+    setIsLoading: (isLoading: boolean, message?: string) => void;
 }
 
 export const useLoaderStore = create<LoaderState>(set => ({
     isLoading: false,
-    setIsLoading: (isLoading: boolean) => set({ isLoading }),
+    message: undefined,
+    setIsLoading: (isLoading: boolean, message?: string) => set({ isLoading, message }),
 }));
 
 export const useGlobalLoader = () => {
     const isLoading = useLoaderStore(state => state.isLoading);
+    const message = useLoaderStore(state => state.message);
     const setIsLoading = useLoaderStore(state => state.setIsLoading);
 
-    return { isLoading, setIsLoading };
+    return { isLoading, message, setIsLoading };
 };
