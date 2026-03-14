@@ -26,7 +26,7 @@ export const usePlaceSession = () => {
 
             cloudCore.saveDelegationToken(cloudDelegationToken);
             cloudCore.saveCloudToken(userToken);
-            cloudCore.saveSelectedPlaceId(placeId);
+            cloudCore.saveSelectedCloudId(placeId);
 
             const { Token, ...profile } = userToken;
             setProfile(profile);

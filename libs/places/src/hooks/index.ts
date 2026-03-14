@@ -17,3 +17,11 @@ export const usePlaces = (params: Params = {}, enabled = true) =>
         refetchOnWindowFocus: false,
         enabled,
     });
+
+export const useClouds = (params: Params = {}, enabled = true) =>
+    useQuery<ListResult<MySiteView>>({
+        queryKey: placesKeys.list(params),
+        queryFn: () => fetchPlaces(params),
+        refetchOnWindowFocus: false,
+        enabled,
+    });

@@ -230,6 +230,10 @@
         "markAllRead": "모두 읽음",
         "empty": "알림이 없습니다"
     },
+    "globalLoader": {
+        "switchingCloud": "클라우드 전환 중...",
+        "switchingPlace": "플레이스 전환 중..."
+    },
     "homePage": {
         "places": "플레이스",
         "roomCreated": "채팅방이 생성되었습니다",
@@ -242,7 +246,7 @@
         "retry": "재시도"
     },
     "placeList": {
-        "defaultPlace": "기본 플레이스",
+        "defaultPlace": "기본",
         "errorLoading": "플레이스를 불러오지 못했어요",
         "retry": "재시도",
         "empty": "플레이스가 없어요"
@@ -258,7 +262,8 @@
         "errorLoading": "채널을 불러올 수 없습니다",
         "retry": "다시 시도",
         "empty": "채널이 없습니다. 새 채팅방을 만들어보세요!",
-        "unnamedChannel": "이름 없는 채널"
+        "unnamedChannel": "이름 없는 채널",
+        "selectPlaceFirst": "위에서 플레이스를 먼저 선택해주세요"
     },
     "bottomNav": {
         "chat": "채팅",

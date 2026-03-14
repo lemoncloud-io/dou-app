@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
-import { useDynamicProfile } from '@chatic/web-core';
+import { cloudCore, useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
 
 import { useUnreadCount } from '../../chats/hooks/useUnreadCount';
 import { useMyChannels } from '../hooks/useMyChannels';
@@ -99,6 +99,16 @@ export const ChannelList = ({ workspaceId: _workspaceId }: ChannelListProps) => 
     const { t } = useTranslation();
     // TODO: Filter channels by workspaceId when API is ready
     const { channels, isLoading, isError, retry } = useMyChannels();
+    const { isGuest } = useWebCoreStore();
+    const hasSelectedPlace = isGuest || !!cloudCore.getSelectedPlaceId();
+
+    if (!hasSelectedPlace) {
+        return (
+            <div className="flex flex-col items-center gap-2 py-10">
+                <p className="text-sm text-muted-foreground">{t('channelList.selectPlaceFirst')}</p>
+            </div>
+        );
+    }
 
     if (isLoading) {
         return (

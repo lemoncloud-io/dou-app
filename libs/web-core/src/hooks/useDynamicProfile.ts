@@ -15,6 +15,6 @@ export const useDynamicProfile = (): UserProfile$ | null => {
     return {
         ...cloudProfile,
         uid: cloudProfile.uid ?? cloudProfile.id,
-        $user: cloudProfile.$user ?? profile?.$user,
+        $user: (cloudProfile as unknown as UserProfile$).$user ?? profile?.$user,
     } as unknown as UserProfile$;
 };
