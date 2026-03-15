@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-03-15] - root@0.22.0, @chatic/web@0.19.0
+
+### Features
+
+- hide invite UI and fix memberNo zero display for guest users
+- add 500ms delay before fetching channel list
+
 ## [2026-03-14] - root@0.21.0, @chatic/web@0.18.0
 
 ### Features
