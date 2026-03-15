@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { useDynamicProfile } from '@chatic/web-core';
+import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import {
@@ -38,6 +38,7 @@ export const ChatRoomPage = () => {
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
 
     const dynamicProfile = useDynamicProfile();
+    const { isGuest } = useWebCoreStore();
     const { setChannels } = useMyChannels();
     const {
         messages,
@@ -255,19 +256,23 @@ export const ChatRoomPage = () => {
 
                         {/* Empty state */}
                         <div className="flex flex-col items-center gap-4">
-                            <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
-                                <p>{t('chat.room.emptyState.line1')}</p>
-                                <p>{t('chat.room.emptyState.line2')}</p>
-                            </div>
-                            <button
-                                onClick={() => setInviteDialogOpen(true)}
-                                className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
-                            >
-                                <Plus size={20} />
-                                <span className="text-[16px] font-semibold">
-                                    {t('chat.room.emptyState.inviteButton')}
-                                </span>
-                            </button>
+                            {!isGuest && (
+                                <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
+                                    <p>{t('chat.room.emptyState.line1')}</p>
+                                    <p>{t('chat.room.emptyState.line2')}</p>
+                                </div>
+                            )}
+                            {!isGuest && (
+                                <button
+                                    onClick={() => setInviteDialogOpen(true)}
+                                    className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
+                                >
+                                    <Plus size={20} />
+                                    <span className="text-[16px] font-semibold">
+                                        {t('chat.room.emptyState.inviteButton')}
+                                    </span>
+                                </button>
+                            )}
                         </div>
                     </div>
                 ) : (
@@ -357,8 +362,9 @@ export const ChatRoomPage = () => {
                 )}
             </div>
 
-            {/* Invite Friends Dialog */}
-            <InviteFriendsDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} channelId={channelId} />
+            {!isGuest && (
+                <InviteFriendsDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} channelId={channelId} />
+            )}
 
             {/* Input */}
             <div

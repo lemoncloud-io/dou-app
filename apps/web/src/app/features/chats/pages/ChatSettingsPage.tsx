@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useDynamicProfile } from '@chatic/web-core';
+import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
 
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
@@ -59,6 +59,7 @@ export const ChatSettingsPage = () => {
     const { toast } = useToast();
 
     const profile = useDynamicProfile();
+    const { isGuest } = useWebCoreStore();
     const { clearMessages } = useChatMessages(profile?.uid ?? null, channelId ?? null);
 
     const isOwner = channel?.ownerId === profile?.uid;
@@ -159,7 +160,7 @@ export const ChatSettingsPage = () => {
 
                     {/* Action Buttons */}
                     <div className="flex items-start justify-center gap-6">
-                        {isOwner && (
+                        {isOwner && !isGuest && (
                             <ActionButton
                                 icon={UserPlus}
                                 label={t('chat.settings.inviteFriends')}
@@ -229,11 +230,13 @@ export const ChatSettingsPage = () => {
             </div>
 
             {/* Dialogs */}
-            <InviteFriendsDialog
-                open={activeDialog === 'invite'}
-                onOpenChange={open => (open ? openDialog('invite') : closeDialog())}
-                channelId={channelId}
-            />
+            {!isGuest && (
+                <InviteFriendsDialog
+                    open={activeDialog === 'invite'}
+                    onOpenChange={open => (open ? openDialog('invite') : closeDialog())}
+                    channelId={channelId}
+                />
+            )}
             <UpdateChannelDialog
                 open={activeDialog === 'update'}
                 onOpenChange={open => (open ? openDialog('update') : closeDialog())}
