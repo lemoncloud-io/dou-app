@@ -50,7 +50,7 @@ const ChannelItem = ({ channel }: { channel: ChannelView }) => {
                         <span className="text-base text-muted-foreground">👥</span>
                     )}
                 </div>
-                {channel.memberNo && channel.memberNo > 1 && (
+                {(channel.memberNo ?? 0) > 1 && (
                     <span className="absolute -left-[2px] -top-[2px] flex h-[17px] min-w-[17px] items-center justify-center rounded-full border border-[#90C304] bg-background/75 px-[5px] text-[11px] font-medium tracking-[-0.025em] text-muted-foreground shadow-sm backdrop-blur-sm">
                         {channel.memberNo}
                     </span>
