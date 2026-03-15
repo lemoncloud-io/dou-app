@@ -1,4 +1,4 @@
-import { DOU_ENDPOINT, ENV, OAUTH_ENDPOINT, webCore } from '../core';
+import { ENV, getDynamicDOUEndpoint, OAUTH_ENDPOINT, webCore } from '../core';
 import { MAX_RETRIES, validateTokenResponse, withRetry } from '../utils';
 
 import type { UserProfile$ as UserProfile } from '@lemoncloud/chatic-backend-api';
@@ -144,14 +144,18 @@ export interface LoginInviteResponse {
  * - Code format: invt:<id>:<code>
  * - Returns response with Token.identityToken for JWT-based auth
  *
+ * NOTE: Uses getDynamicDOUEndpoint() instead of static DOU_ENDPOINT
+ * to support deeplink flows where _backend param is set after module load.
+ *
  * @param code - Invite code (format: invt:<id>:<code>)
  * @returns Promise resolving to login response with identityToken
  */
 export const loginWithInviteCode = async (code: string): Promise<LoginInviteResponse> => {
+    const endpoint = getDynamicDOUEndpoint();
     const { data } = await webCore
         .buildSignedRequest({
             method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/oauth/login-invite`,
+            baseURL: `${endpoint}/oauth/login-invite`,
         })
         .setBody({ code })
         .execute<LoginInviteResponse>();
