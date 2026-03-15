@@ -65,34 +65,35 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
 
     // Handle pending deep link URL
     useEffect(() => {
+        console.log('[DEEPLINK] effect triggered - pendingUrl:', pendingUrl, 'isWebViewLoaded:', isWebViewLoaded);
         if (pendingUrl && isWebViewLoaded && webViewRef.current) {
             Logger.info('DEEPLINK', `Loading deep link URL: ${pendingUrl}`, pendingEnvs);
+            console.log('[DEEPLINK] pendingEnvs:', JSON.stringify(pendingEnvs));
 
-            // Build injection script
-            let script = '';
-
-            // Store envs in localStorage (persists across app restarts)
-            // backend replaces all API endpoints (OAUTH, DOU)
-            if (pendingEnvs?.backend) {
-                const safeBackend = encodeURI(pendingEnvs.backend).replace(/'/g, '%27');
-                script += `localStorage.setItem('CHATIC_OAUTH_ENDPOINT', '${safeBackend}');\n`;
-                script += `localStorage.setItem('CHATIC_DOU_ENDPOINT', '${safeBackend}');\n`;
+            // Navigate to URL - append _backend, _wss as query params for web layer
+            let targetUrl = pendingUrl;
+            if (pendingEnvs?.backend || pendingEnvs?.wss) {
+                const urlObj = new URL(pendingUrl);
+                if (pendingEnvs?.backend) urlObj.searchParams.set('_backend', pendingEnvs.backend);
+                if (pendingEnvs?.wss) urlObj.searchParams.set('_wss', pendingEnvs.wss);
+                targetUrl = urlObj.toString();
             }
-            if (pendingEnvs?.wss) {
-                const message: AppMessageData<'OnSetWsEndpoint'> = {
-                    type: 'OnSetWsEndpoint',
-                    data: { wss: pendingEnvs.wss },
-                };
-                bridge.post(message);
-            }
+            const script = `window.location.href = '${targetUrl.replace(/'/g, '%27')}';
+true;`;
+            console.log('[DEEPLINK] injecting script:', script);
 
-            // Navigate to URL
-            const safeUrl = encodeURI(pendingUrl).replace(/'/g, '%27');
-            script += `window.location.href = '${safeUrl}';\n`;
-            script += 'true;';
-
-            webViewRef.current.injectJavaScript(script);
+            const result = webViewRef.current.injectJavaScript(script);
+            console.log('[DEEPLINK] injectJavaScript result:', result);
             clearPendingUrl();
+        } else {
+            console.log(
+                '[DEEPLINK] skipped - pendingUrl:',
+                !!pendingUrl,
+                'isWebViewLoaded:',
+                isWebViewLoaded,
+                'webViewRef:',
+                !!webViewRef.current
+            );
         }
     }, [pendingUrl, pendingEnvs, isWebViewLoaded, clearPendingUrl]);
 
@@ -258,6 +259,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                     onMessage={handleMessage}
                     onLoad={handleWebViewLoad}
                     onNavigationStateChange={navState => {
+                        console.log('[WEBVIEW] navState url:', navState.url, 'loading:', navState.loading);
                         setCanGoBack(navState.canGoBack);
                     }}
                 />
