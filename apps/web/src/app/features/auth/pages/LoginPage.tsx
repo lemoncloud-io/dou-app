@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudCore, loginWithInviteCode, webCore, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, loginWithInviteCode, webCore, useWebCoreStore, setIsInvitedSession } from '@chatic/web-core';
 import { LoadingFallback } from '@chatic/shared';
 
-import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type { CloudDelegationTokenView, UserProfile$, UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 import { useRegisterDevice } from '@chatic/auth';
 
@@ -43,8 +43,7 @@ export const LoginPage = (): JSX.Element => {
 
             const fetchInviteData = async () => {
                 try {
-                    const data = await loginWithInviteCode(code);
-                    if (!data.Token?.identityToken) throw new Error('No identityToken in response');
+                    const data = await loginWithInviteCode(code, urlParams.get('_backend') ?? undefined);
                     setInviteData(data);
                 } catch (error) {
                     console.error('[LoginPage] Fetch invite data failed:', error);
@@ -67,6 +66,7 @@ export const LoginPage = (): JSX.Element => {
                     await webCore.buildCredentialsByToken(Token);
                     setProfile(rest as Parameters<typeof setProfile>[0]);
                     setIsAuthenticated(true);
+                    window.location.href = '/';
                 } catch (error) {
                     console.error('[LoginPage] Device registration failed:', error);
                     toast({ title: t('auth.loginFailed'), variant: 'destructive' });
@@ -87,24 +87,28 @@ export const LoginPage = (): JSX.Element => {
 
         setIsAccepting(true);
         try {
-            // Get backend and wss from URL params
+            // 1. Register device → webCore 임시 중계서버 계정
+            const { Token, ...rest } = await registerDevice(deviceId);
+            await webCore.buildCredentialsByToken(Token);
+
+            // 2. Save delegation token (backend, wss)
             const backend = urlParams.get('_backend');
             const wss = urlParams.get('_wss');
-
-            // Save delegation token (backend, wss)
             if (backend && wss) {
                 cloudCore.saveDelegationToken({ backend, wss } as CloudDelegationTokenView);
             }
 
-            // Save cloud token (inviteData as UserTokenView)
+            // 3. Save cloud token (inviteData)
             cloudCore.saveCloudToken(inviteData as unknown as UserTokenView);
 
-            // Set profile from inviteData (exclude Token)
-            const { Token: _Token, ...profile } = inviteData;
-            setProfile(profile as Parameters<typeof setProfile>[0]);
+            // 4. Mark as invited
+            setIsInvitedSession(true);
 
+            // 5. Set webCore profile & authenticate
+            setProfile(rest as unknown as UserProfile$);
             setIsAuthenticated(true);
             toast({ title: t('auth.loginSuccess') });
+            window.location.href = '/';
         } catch (error) {
             console.error('[LoginPage] Accept invite failed:', error);
             toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
