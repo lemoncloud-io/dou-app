@@ -67,7 +67,10 @@ const bootstrap = (emitAuthenticated: (msg: object) => void, profileId: string) 
 
     // Ensure loading state is set (in case of reconnect with existing channels)
     setGlobalState(globalChannels, true, false);
-    emitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
+
+    setTimeout(() => {
+        emitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
+    }, 500);
 
     let timeoutId: ReturnType<typeof setTimeout> | null = setTimeout(() => {
         if (globalIsLoading) setGlobalState([], false, true);
