@@ -100,6 +100,22 @@ export const WS_ENDPOINT =
     getEndpointStorageItem('CHATIC_WS_ENDPOINT') || window.WS_ENDPOINT || import.meta.env.VITE_WS_ENDPOINT || '';
 
 /**
+ * Get DOU_ENDPOINT dynamically at call time
+ *
+ * Unlike the static DOU_ENDPOINT constant (resolved at module load),
+ * this function resolves the endpoint each time it's called.
+ *
+ * Use this for deeplink flows where _backend param may be set after module initialization.
+ *
+ * Priority: sessionStorage/localStorage > window global > env variable
+ */
+export const getDynamicDOUEndpoint = (): string => {
+    return (
+        getEndpointStorageItem('CHATIC_DOU_ENDPOINT') || window.DOU_ENDPOINT || import.meta.env.VITE_DOU_ENDPOINT || ''
+    );
+};
+
+/**
  * Key for storing language preference
  */
 export const LANGUAGE_KEY = 'i18nextLng';
