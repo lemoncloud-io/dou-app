@@ -12,6 +12,7 @@ import { useAppVersionCheck, useDeepLinkStore, useThemeStore } from './common';
 import { FloatingMenu } from './common';
 import type { RootStackParamList } from './navigation';
 import { RootNavigator } from './navigation';
+import { SplashScreen } from './features/main';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
@@ -29,6 +30,7 @@ export const App = () => {
 
     const deepLinkManagerRef = useRef(getDeepLinkManager());
 
+    const [isSplashVisible, setIsSplashVisible] = useState(true);
     // Check for app updates on mount
     const { hasUpdate, showUpdateAlert } = useAppVersionCheck(true);
 
@@ -63,6 +65,10 @@ export const App = () => {
         };
     }, []);
 
+    const handleSplashFinish = () => {
+        setIsSplashVisible(false);
+    };
+
     // Show update alert when update is available
     useEffect(() => {
         if (hasUpdate) {
@@ -72,13 +78,21 @@ export const App = () => {
 
     return (
         <SafeAreaProvider>
-            <StatusBar backgroundColor="transparent" translucent={true} />
-            <NavigationContainer ref={navigationRef}>
-                <View style={{ flex: 1 }}>
-                    <RootNavigator />
-                    {showDebugMenu && <FloatingMenu onNavigate={handleNavigate} />}
-                </View>
-            </NavigationContainer>
+            <StatusBar
+                barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+                backgroundColor="transparent"
+                translucent={true}
+            />
+            {isSplashVisible ? (
+                <SplashScreen onFinish={handleSplashFinish} />
+            ) : (
+                <NavigationContainer ref={navigationRef}>
+                    <View style={{ flex: 1 }}>
+                        <RootNavigator />
+                        {showDebugMenu && <FloatingMenu onNavigate={handleNavigate} />}
+                    </View>
+                </NavigationContainer>
+            )}
         </SafeAreaProvider>
     );
 };
