@@ -1,8 +1,11 @@
 import { Bell, ChevronLeft, LogOut, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
+import { useNavigateWithTransition } from '@chatic/page-transition';
+
+import { LoadingFallback } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
 
@@ -47,7 +50,7 @@ const ChatProfileIcon = () => (
 );
 
 export const ChatSettingsPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [activeDialog, setActiveDialog] = useState<DialogType>(null);
@@ -100,13 +103,7 @@ export const ChatSettingsPage = () => {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center bg-background">
-                <div className="text-center">
-                    <div className="text-sm text-muted-foreground">{t('chat.settings.loading')}</div>
-                </div>
-            </div>
-        );
+        return <LoadingFallback message={t('chat.settings.loading')} />;
     }
 
     if (isError) {
@@ -123,7 +120,7 @@ export const ChatSettingsPage = () => {
     }
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
+        <div className="flex min-h-screen flex-col bg-background">
             {/* Header */}
             <header className="flex items-center justify-center px-4 py-3">
                 <button onClick={() => navigate(-1)} className="absolute left-4 p-2">

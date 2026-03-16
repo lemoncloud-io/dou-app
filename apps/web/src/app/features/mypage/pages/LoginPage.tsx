@@ -1,15 +1,16 @@
+import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 
 import { useLogin } from '@chatic/auth';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { webCore } from '@chatic/web-core';
-import { ChevronLeft } from 'lucide-react';
+
+import { useNavigateWithTransition } from '@chatic/page-transition';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 
 export const LoginPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { toast } = useToast();
     const { mutateAsync: login, isPending } = useLogin();

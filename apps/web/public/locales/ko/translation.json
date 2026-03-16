@@ -1,4 +1,12 @@
 {
+    "app": {
+        "exitDialog": {
+            "title": "앱 종료",
+            "message": "앱을 종료하시겠습니까?",
+            "cancel": "취소",
+            "confirm": "종료"
+        }
+    },
     "common": {
         "signout": "로그아웃",
         "cancel": "취소",

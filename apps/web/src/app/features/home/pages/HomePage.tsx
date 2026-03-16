@@ -1,7 +1,8 @@
 import { ArrowLeftRight, ChevronDown, Plus, Search, Settings, SlidersHorizontal, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import {
     DropdownMenu,
@@ -29,7 +30,7 @@ import { useMyPlaces } from '../hooks/useMyPlaces';
 
 export const HomePage = () => {
     const { t } = useTranslation();
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { logout, isGuest, profile } = useWebCoreStore();
     const localProfile = useLocalProfileStore();
     const {

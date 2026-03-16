@@ -1,8 +1,9 @@
 import { MessageCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 
 import { useDynamicProfile } from '@chatic/web-core';
+
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { useUnreadCount } from '../../chats/hooks/useUnreadCount';
 
@@ -17,7 +18,7 @@ interface ChatItemProps {
 
 const ChatItem = ({ channel, matchCount, onSelect }: ChatItemProps) => {
     const { i18n } = useTranslation();
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
 
     const handleClick = () => {
         if (onSelect && channel.id) {

@@ -1,6 +1,8 @@
 import { ChevronLeft, Globe, Lock, Plus, Settings, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 interface RoomListItemProps {
     room: {
@@ -95,7 +97,7 @@ const mockRooms = [
 ];
 
 export const WorkspaceDetailPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     // TODO: wsId will be used when fetching real workspace data from API
     const { wsId } = useParams();

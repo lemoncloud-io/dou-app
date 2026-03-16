@@ -1,8 +1,11 @@
 import { ArrowUp, ChevronLeft, MoreHorizontal, Plus, Settings, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
+import { useNavigateWithTransition } from '@chatic/page-transition';
+
+import { LoadingFallback } from '@chatic/shared';
 import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
@@ -24,7 +27,7 @@ import { MessageBubble } from '../components/MessageBubble';
 // import { ReadStatus } from '../components/ReadStatus';
 
 export const ChatRoomPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [content, setContent] = useState('');
@@ -190,13 +193,7 @@ export const ChatRoomPage = () => {
     );
 
     if (isLoading) {
-        return (
-            <div className="flex h-full items-center justify-center bg-background">
-                <div className="text-center">
-                    <div className="text-sm text-muted-foreground">{t('chat.room.loading')}</div>
-                </div>
-            </div>
-        );
+        return <LoadingFallback message={t('chat.room.loading')} />;
     }
 
     if (isError) {
@@ -215,7 +212,7 @@ export const ChatRoomPage = () => {
     return (
         <div className="flex h-screen flex-col bg-background pb-safe-bottom">
             {/* Header */}
-            <header className="z-10 flex items-center justify-between border-b border-border  px-4 py-4">
+            <header className="z-10 flex items-center justify-between border-b border-border px-4 py-4">
                 <button onClick={() => navigate(-1)} className="p-1">
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>

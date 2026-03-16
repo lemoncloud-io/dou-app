@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
-import { BackHandler, Platform } from 'react-native';
+import { Alert, BackHandler, Platform } from 'react-native';
 
+import { t } from '../../i18n';
 import { postAppMessage } from '../core/bridge';
 
 import type React from 'react';
 import type { WebView } from 'react-native-webview';
 
-export const useAndroidBack = (webViewRef: React.RefObject<WebView | null>, canGoBack: boolean) => {
+export const useAndroidBack = (webViewRef: React.RefObject<WebView | null>, canGoBack: boolean, language: string) => {
     useEffect(() => {
         if (Platform.OS !== 'android') return;
 
@@ -21,10 +22,23 @@ export const useAndroidBack = (webViewRef: React.RefObject<WebView | null>, canG
                     return true;
                 }
             }
-            return false;
+
+            // At root - show exit confirmation with synced language from web
+            Alert.alert(
+                t('app.exitDialog.title', language),
+                t('app.exitDialog.message', language),
+                [
+                    { text: t('app.exitDialog.cancel', language), style: 'cancel' },
+                    { text: t('app.exitDialog.confirm', language), onPress: () => BackHandler.exitApp() },
+                ],
+                { cancelable: true }
+            );
+
+            // Consume event to prevent immediate exit
+            return true;
         };
 
         const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
         return () => subscription.remove();
-    }, [canGoBack, webViewRef]);
+    }, [canGoBack, language, webViewRef]);
 };

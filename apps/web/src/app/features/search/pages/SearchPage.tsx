@@ -1,13 +1,14 @@
 import { ChevronLeft, Search, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { useMyChannels } from '../../home/hooks/useMyChannels';
 import { useMyPlaces } from '../../home/hooks/useMyPlaces';
 
 export const SearchPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const [query, setQuery] = useState('');
 
