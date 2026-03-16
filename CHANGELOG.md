@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-03-16] - root@0.25.1, @chatic/web@0.22.1
+
+### Bug Fixes
+
+- fix error for ios share sheet case
+
+### Documentation
+
+- update app-messages README.md
+
+### Refactor
+
+- append invite link to message field
+
 ## [2026-03-16] - root@0.25.0, @chatic/web@0.22.0
 
 ### Features
