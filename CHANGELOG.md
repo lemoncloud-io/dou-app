@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-03-16] - root@0.27.0, @chatic/web@0.24.0
+
+### Features
+
+- update version update banner component
+- add update checker and remove unused code
+- add OpenURL message
+- add phone number validation for Korean format
+- (places) add delete and leave place dialogs
+- (theme) add theme management
+- add onboarding steps with i18n support
+
+### Refactor
+
+- (ui) introduce PageHeader component
+- (main) update webview url and page layout
+
 ## [2026-03-16] - root@0.26.1, @chatic/web@0.23.1
 
 ### Bug Fixes
