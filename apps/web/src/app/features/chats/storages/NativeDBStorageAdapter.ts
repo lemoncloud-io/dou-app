@@ -4,14 +4,15 @@ import { BROADCAST_CHANNEL_NAME } from './IndexedDBStorageAdapter';
 import type { ChatStorageAdapter } from './ChatStorageAdapter';
 import type { AppMessageType, AppMessage } from '@chatic/app-messages';
 import { toChatView, toClientChatView } from '@chatic/chats';
-import type { ChatView, JoinView } from '@lemoncloud/chatic-socials-api';
+import type { ChatView } from '@lemoncloud/chatic-socials-api';
 
 const defaultCloudId = 'default';
 const generateNonce = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
 const waitForAppMessage = <T extends AppMessageType>(
     type: T,
-    predicate: (msg: Extract<AppMessage, { type: T }>) => boolean
+    predicate: (msg: Extract<AppMessage, { type: T }>) => boolean,
+    send: () => void
 ): Promise<Extract<AppMessage, { type: T }>> =>
     new Promise(resolve => {
         const handler = (msg: Extract<AppMessage, { type: T }>) => {
@@ -20,41 +21,80 @@ const waitForAppMessage = <T extends AppMessageType>(
             resolve(msg);
         };
         useAppMessageStore.getState().addHandler(type, handler);
+        send();
     });
 
 export const NativeDBStorageAdapter: ChatStorageAdapter = {
     save: async (userId, channelId, message) => {
-        const chatView = toChatView(message);
+        const chatView = { ...toChatView(message), channelId };
         const nonce = generateNonce();
-        postMessage({
-            type: 'SaveCacheData',
-            data: { type: 'chat', id: message.id, item: chatView, cid: defaultCloudId },
-            nonce: nonce,
-        });
-        await waitForAppMessage('OnSaveCacheData', m => m.nonce === nonce);
+        await waitForAppMessage(
+            'OnSaveCacheData',
+            m => m.nonce === nonce,
+            () =>
+                postMessage({
+                    type: 'SaveCacheData',
+                    data: { type: 'chat', id: message.id, item: chatView, cid: defaultCloudId },
+                    nonce,
+                })
+        );
 
         const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
         bc.postMessage({ type: 'message-added', userId, channelId, message });
         bc.close();
     },
 
-    load: async channelId => {
+    load: async (_userId, channelId) => {
         const nonce = generateNonce();
-        postMessage({
-            type: 'FetchAllCacheData',
-            data: { type: 'chat', query: { channelId: channelId, cid: defaultCloudId } },
-            nonce: nonce,
-        });
-        const response = await waitForAppMessage('OnFetchAllCacheData', m => m.nonce === nonce);
+        const response = await waitForAppMessage(
+            'OnFetchAllCacheData',
+            m => m.nonce === nonce,
+            () =>
+                postMessage({
+                    type: 'FetchAllCacheData',
+                    data: { type: 'chat', query: { channelId, cid: defaultCloudId } },
+                    nonce,
+                })
+        );
         return (response.data.items as ChatView[]).map(toClientChatView);
     },
 
-    /**
-     * TODO: `save`로 통일 필요
-     * @deprecated
-     */
-    update: async () => {
-        return Promise.resolve();
+    update: async (_userId, channelId, chatNo, readerUserId) => {
+        const nonce = generateNonce();
+        const response = await waitForAppMessage(
+            'OnFetchAllCacheData',
+            m => m.nonce === nonce,
+            () =>
+                postMessage({
+                    type: 'FetchAllCacheData',
+                    data: { type: 'chat', query: { channelId, cid: defaultCloudId } },
+                    nonce,
+                })
+        );
+        const chats = response.data.items as ChatView[];
+        await Promise.all(
+            chats
+                .filter(chat => (chat as any).chatNo <= chatNo && !(chat as any).readBy?.includes(readerUserId))
+                .map(chat => {
+                    const saveNonce = generateNonce();
+                    const updatedReadBy = [...((chat as any).readBy ?? []), readerUserId];
+                    return waitForAppMessage(
+                        'OnSaveCacheData',
+                        m => m.nonce === saveNonce,
+                        () =>
+                            postMessage({
+                                type: 'SaveCacheData',
+                                data: {
+                                    type: 'chat',
+                                    id: chat.id!,
+                                    item: { ...chat, readBy: updatedReadBy },
+                                    cid: defaultCloudId,
+                                },
+                                nonce: saveNonce,
+                            })
+                    );
+                })
+        );
     },
 
     /**
@@ -71,34 +111,59 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
      * @param userId join 정보를 찾기 위한 userId
      * @param channelId join 정보 찾기 및 메시지 정보를 조회하기 위해 사용
      */
-    countUnread: async (userId, channelId) => {
-        // joinId 구성; joinId는 해당 형식으로 구성되어있음
-        const joinId = `${channelId}@${userId}`;
-        let nonce: string;
-
-        nonce = generateNonce();
-        postMessage({ type: 'FetchCacheData', data: { type: 'join', id: joinId, cid: defaultCloudId }, nonce: nonce });
-        const joinResponse = await waitForAppMessage('OnFetchCacheData', m => m.nonce === nonce);
-        const lastReadChatNo = (joinResponse.data.item as JoinView)?.chatNo ?? 0;
-
-        // channelId에 대한 모든 메시지 정보 불러오기
-        nonce = generateNonce();
-        postMessage({
-            type: 'FetchAllCacheData',
-            data: { type: 'chat', query: { channelId: channelId, cid: defaultCloudId } },
-            nonce: nonce,
-        });
-        const chatResponse = await waitForAppMessage('OnFetchAllCacheData', m => m.nonce === nonce);
-
-        // lastReadChatNo 보다 높은 번호들 측정해서 저장
-        return (chatResponse.data.items as ChatView[]).filter(m => (m.chatNo ?? 0) > lastReadChatNo).length;
+    countUnread: async (_userId, channelId) => {
+        const nonce = generateNonce();
+        const response = await waitForAppMessage(
+            'OnFetchAllCacheData',
+            m => m.nonce === nonce,
+            () =>
+                postMessage({
+                    type: 'FetchAllCacheData',
+                    data: { type: 'chat', query: { channelId, cid: defaultCloudId } },
+                    nonce,
+                })
+        );
+        return (response.data.items as ChatView[]).filter(chat => !(chat as any).isRead).length;
     },
 
-    /**
-     * TODO: isRead 여부는 Join 정보를 바탕으로 읽은 위치를 추적하도록 변경필요
-     * @deprecated
-     */
-    markAllRead: async () => {
-        return Promise.resolve();
+    markAllRead: async (userId, channelId) => {
+        const nonce = generateNonce();
+        const response = await waitForAppMessage(
+            'OnFetchAllCacheData',
+            m => m.nonce === nonce,
+            () =>
+                postMessage({
+                    type: 'FetchAllCacheData',
+                    data: { type: 'chat', query: { channelId, cid: defaultCloudId } },
+                    nonce,
+                })
+        );
+        const chats = response.data.items as ChatView[];
+        await Promise.all(
+            chats
+                .filter(chat => !(chat as any).isRead)
+                .map(chat => {
+                    const saveNonce = generateNonce();
+                    return waitForAppMessage(
+                        'OnSaveCacheData',
+                        m => m.nonce === saveNonce,
+                        () =>
+                            postMessage({
+                                type: 'SaveCacheData',
+                                data: {
+                                    type: 'chat',
+                                    id: chat.id!,
+                                    item: { ...chat, isRead: true },
+                                    cid: defaultCloudId,
+                                },
+                                nonce: saveNonce,
+                            })
+                    );
+                })
+        );
+
+        const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+        bc.postMessage({ type: 'read-all', userId, channelId });
+        bc.close();
     },
 };

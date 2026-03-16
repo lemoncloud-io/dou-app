@@ -46,7 +46,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 };
 
                 window.ChaticMessageHandler = bridge;
-                window.webkit.messageHandlers.ChaticMessageHandler = bridge;
+                if (window.webkit && window.webkit.messageHandlers) {
+                    window.webkit.messageHandlers.ChaticMessageHandler = bridge;
+                }
             `;
 
             const injectionScript = `
