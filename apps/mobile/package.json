@@ -77,7 +77,11 @@
         "@react-native-google-signin/google-signin": "*",
         "@invertase/react-native-apple-authentication": "*",
         "@lemoncloud/chatic-backend-api": "*",
-        "lottie-react-native": "*"
+        "lottie-react-native": "*",
+        "@aws-crypto/sha256-js": "*",
+        "@smithy/protocol-http": "*",
+        "@smithy/signature-v4": "*",
+        "crypto-js": "*"
     },
     "devDependencies": {}
 }
