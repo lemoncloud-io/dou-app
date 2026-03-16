@@ -39,8 +39,15 @@ export const useBackHandler = () => {
      * <DialogContent data-prevent-back-close>
      */
     const handleNativeBack = useCallback(() => {
-        // Radix UI dialogs use data-state="open" when visible
-        const openDialogs = document.querySelectorAll('[data-state="open"][role="dialog"]');
+        // Radix UI components use data-state="open" when visible
+        // Include all overlay-type components:
+        // - role="dialog": Dialog, Sheet, Popover
+        // - role="alertdialog": AlertDialog
+        // - role="menu": DropdownMenu
+        // - role="listbox": Select
+        const openDialogs = document.querySelectorAll(
+            '[data-state="open"][role="dialog"], [data-state="open"][role="alertdialog"], [data-state="open"][role="menu"], [data-state="open"][role="listbox"]'
+        );
 
         if (openDialogs.length > 0) {
             // Get the topmost dialog (last in DOM order, highest z-index)
@@ -53,7 +60,10 @@ export const useBackHandler = () => {
             }
 
             // Trigger Escape key to close dialog (Radix handles this natively)
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            // Dispatch on the dialog element itself so the event bubbles up through capture phase
+            topmostDialog.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+            );
             return;
         }
 
