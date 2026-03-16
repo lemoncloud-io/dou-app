@@ -1,3 +1,4 @@
+import { User, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -45,9 +46,9 @@ const ChannelItem = ({ channel }: { channel: ChannelView }) => {
             <div className="relative flex-shrink-0">
                 <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                     {isSelf ? (
-                        <span className="text-base text-muted-foreground">👤</span>
+                        <User size={20} className="text-muted-foreground" />
                     ) : (
-                        <span className="text-base text-muted-foreground">👥</span>
+                        <Users size={20} className="text-muted-foreground" />
                     )}
                 </div>
                 {(channel.memberNo ?? 0) > 1 && (
