@@ -358,10 +358,7 @@ export const ChatRoomPage = () => {
             )}
 
             {/* Input */}
-            <div
-                className="border-t border-border bg-background px-4 py-3 mb-safe-bottom"
-                style={{ paddingBottom: 'calc(12px + var(--safe-bottom, 0px))' }}
-            >
+            <div className={`border-t border-border bg-background px-4 py-3 mb-safe-bottom`}>
                 <div className="flex items-end gap-1.5 rounded-2xl bg-muted px-3 py-1.5">
                     <textarea
                         ref={inputRef}
