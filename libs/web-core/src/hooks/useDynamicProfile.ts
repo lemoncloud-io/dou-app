@@ -4,12 +4,12 @@ import { useWebCoreStore } from '../stores/useWebCoreStore';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 export const useDynamicProfile = (): UserProfile$ | null => {
-    const { isGuest, profile } = useWebCoreStore();
-
-    if (isGuest) return profile;
+    const { isGuest, isInvited, profile } = useWebCoreStore();
 
     const cloudToken = cloudCore.getCloudToken();
-    if (!cloudToken) return profile;
+
+    const isCloudProfile = isInvited || !isGuest;
+    if (!isCloudProfile || !cloudToken) return profile;
 
     const { Token, ...cloudProfile } = cloudToken;
     return {

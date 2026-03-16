@@ -70,17 +70,18 @@ interface PlaceListProps {
 
 export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
     const { t } = useTranslation();
-    const { isGuest } = useWebCoreStore();
+    const { isGuest, isInvited } = useWebCoreStore();
+    const isCloudUser = !isGuest || isInvited;
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
     const [isPending, setIsPending] = useState(false);
     const { places, isLoading, isError, retry } = useMyPlaces();
     const setGlobalLoading = useLoaderStore(s => s.setIsLoading);
 
-    const displayPlaces = isGuest ? [DEFAULT_PLACE] : places;
+    const displayPlaces = isCloudUser ? places : [DEFAULT_PLACE];
 
     useEffect(() => {
         const hasSelected = !!cloudCore.getSelectedPlaceId();
-        if (isGuest || hasSelected || displayPlaces.length === 0) return;
+        if (!isCloudUser || hasSelected || displayPlaces.length === 0) return;
         handleSelectPlace(displayPlaces[0].id);
     }, [displayPlaces]);
 
@@ -116,7 +117,7 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
         }
     };
 
-    if (!isGuest && isLoading) {
+    if (isCloudUser && isLoading) {
         return (
             <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 py-2">
                 {Array.from({ length: 3 }).map((_, i) => (
@@ -129,7 +130,7 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
         );
     }
 
-    if (!isGuest && isError) {
+    if (isCloudUser && isError) {
         return (
             <div className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
                 <span>{t('placeList.errorLoading')}</span>
@@ -141,7 +142,7 @@ export const PlaceList = ({ onPlaceSelected }: PlaceListProps) => {
         );
     }
 
-    if (!isGuest && displayPlaces.length === 0) {
+    if (isCloudUser && displayPlaces.length === 0) {
         return <p className="px-4 py-2 text-sm text-muted-foreground">{t('placeList.empty')}</p>;
     }
 

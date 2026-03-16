@@ -150,8 +150,8 @@ export interface LoginInviteResponse {
  * @param code - Invite code (format: invt:<id>:<code>)
  * @returns Promise resolving to login response with identityToken
  */
-export const loginWithInviteCode = async (code: string): Promise<LoginInviteResponse> => {
-    const endpoint = getDynamicDOUEndpoint();
+export const loginWithInviteCode = async (code: string, backend?: string): Promise<LoginInviteResponse> => {
+    const endpoint = backend ?? getDynamicDOUEndpoint();
     const { data } = await webCore
         .buildSignedRequest({
             method: 'POST',
