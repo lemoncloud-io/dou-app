@@ -5,6 +5,7 @@ import { useParams } from 'react-router-dom';
 
 import { useNavigateWithTransition } from '../../../shared/hooks';
 
+import { LoadingFallback } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
 
@@ -102,13 +103,7 @@ export const ChatSettingsPage = () => {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center bg-background">
-                <div className="text-center">
-                    <div className="text-sm text-muted-foreground">{t('chat.settings.loading')}</div>
-                </div>
-            </div>
-        );
+        return <LoadingFallback message={t('chat.settings.loading')} />;
     }
 
     if (isError) {
