@@ -1,5 +1,26 @@
 # Changelog
 
+## [2026-03-16] - root@0.23.0, @chatic/web@0.20.0
+
+### Features
+
+- (web) migrate dialogs to Radix UI with back button prevention support
+
+### Bug Fixes
+
+- improve android back button handling
+
+### Refactor
+
+- (ui) replace X icon with ChevronLeft in multiple pages
+- (ui) unify page headers
+- (ui) update search input and add can go back functionality
+
+### Chores
+
+- add pt-safe-top to multiple page components
+- (ui) adjust page layouts and header styling
+
 ## [2026-03-15] - root@0.22.0, @chatic/web@0.19.0
 
 ### Features
