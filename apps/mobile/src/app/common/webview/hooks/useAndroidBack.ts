@@ -12,12 +12,12 @@ export const useAndroidBack = (webViewRef: React.RefObject<WebView | null>, canG
 
         const onBackPress = () => {
             if (webViewRef.current) {
-                // Send back pressed message to web for handling modals/dialogs
+                // Send back pressed message to web for handling modals/dialogs and navigation
+                // Web handles: 1) Close dialog if open, 2) Otherwise navigate(-1)
                 postAppMessage(webViewRef, { type: 'OnBackPressed' });
 
-                // If web can handle navigation, let it decide
+                // Consume event if web can handle navigation (prevent app exit)
                 if (canGoBack) {
-                    webViewRef.current.goBack();
                     return true;
                 }
             }
