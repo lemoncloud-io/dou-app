@@ -1,4 +1,4 @@
-import { Camera, HelpCircle, Image, X } from 'lucide-react';
+import { Camera, ChevronLeft, HelpCircle, Image } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -25,11 +25,11 @@ const CreateWorkspaceSuccess = ({
     return (
         <div className="flex min-h-screen flex-col bg-background">
             <header className="flex items-center justify-between px-5 pb-3 pt-3">
-                <div className="w-8" />
-                <h1 className="text-[17px] font-semibold text-foreground">{t('workspace.create.successTitle')}</h1>
                 <button onClick={onClose} className="p-1">
-                    <X size={22} className="text-foreground" />
+                    <ChevronLeft size={22} className="text-foreground" />
                 </button>
+                <h1 className="text-[17px] font-semibold text-foreground">{t('workspace.create.successTitle')}</h1>
+                <div className="w-8" />
             </header>
 
             <div className="flex-1 space-y-6 px-5 pt-8">
@@ -94,11 +94,11 @@ export const CreateWorkspacePage = () => {
     return (
         <div className="flex min-h-screen flex-col bg-background">
             <header className="flex items-center justify-between px-5 pb-3 pt-3">
-                <div className="w-8" />
-                <h1 className="text-[17px] font-semibold text-foreground">{t('workspace.create.title')}</h1>
                 <button onClick={() => navigate(-1)} className="p-1">
-                    <X size={22} className="text-foreground" />
+                    <ChevronLeft size={22} className="text-foreground" />
                 </button>
+                <h1 className="text-[17px] font-semibold text-foreground">{t('workspace.create.title')}</h1>
+                <div className="w-8" />
             </header>
 
             <div className="flex-1 px-5 pt-4">

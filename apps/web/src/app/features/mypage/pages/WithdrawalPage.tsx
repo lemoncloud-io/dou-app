@@ -1,4 +1,4 @@
-import { User, X } from 'lucide-react';
+import { ChevronLeft, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -36,10 +36,10 @@ export const WithdrawalPage = () => {
         <div className="flex min-h-screen flex-col bg-background pt-safe-top">
             {/* Header */}
             <header className="relative flex items-center justify-center px-4 py-3">
-                <h1 className="text-[17px] font-semibold text-foreground">{t('mypage.withdrawal.title')}</h1>
-                <button onClick={handleClose} className="absolute right-4 p-1" aria-label="Close">
-                    <X size={24} className="text-foreground" />
+                <button onClick={handleClose} className="absolute left-4 p-1" aria-label="Back">
+                    <ChevronLeft size={24} className="text-foreground" />
                 </button>
+                <h1 className="text-[17px] font-semibold text-foreground">{t('mypage.withdrawal.title')}</h1>
             </header>
 
             {/* Content */}
