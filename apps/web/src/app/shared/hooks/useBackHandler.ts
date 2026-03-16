@@ -42,8 +42,6 @@ export const useBackHandler = () => {
             // Only report dialog state - native app tracks navigation history separately
             const hasOpenDialogs = document.querySelector(OPEN_DIALOG_SELECTOR) !== null;
 
-            console.log('[useBackHandler] checkCanGoBack:', { hasOpenDialogs });
-
             postMessage({
                 type: 'SetCanGoBack',
                 data: { canGoBack: hasOpenDialogs },

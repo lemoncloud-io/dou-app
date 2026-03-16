@@ -32,11 +32,6 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const [navCanGoBack, setNavCanGoBack] = useState(false); // WebView has navigation history
     const canGoBack = webCanGoBack || navCanGoBack; // Either can handle back button
     const [language, setLanguage] = useState(getAppLanguage());
-
-    // Debug: log canGoBack state changes
-    useEffect(() => {
-        console.log('[MainScreen] canGoBack:', { webCanGoBack, navCanGoBack, combined: canGoBack });
-    }, [webCanGoBack, navCanGoBack, canGoBack]);
     const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
 
     // Deep Link Store
@@ -134,7 +129,6 @@ true;`;
                         break;
                     }
                     case 'SetCanGoBack': {
-                        console.log('[MainScreen] SetCanGoBack:', message.data.canGoBack);
                         setWebCanGoBack(message.data.canGoBack);
                         break;
                     }
