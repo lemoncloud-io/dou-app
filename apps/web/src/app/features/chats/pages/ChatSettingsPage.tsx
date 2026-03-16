@@ -123,7 +123,7 @@ export const ChatSettingsPage = () => {
     }
 
     return (
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
             {/* Header */}
             <header className="flex items-center justify-center px-4 py-3">
                 <button onClick={() => navigate(-1)} className="absolute left-4 p-2">

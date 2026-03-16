@@ -35,11 +35,11 @@ export const NotificationsPage = () => {
     const { t } = useTranslation();
 
     return (
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
             {/* Header */}
-            <header className="flex items-center justify-between border-b border-border px-4 pb-3 pt-3">
-                <button onClick={() => navigate(-1)} className="p-1">
-                    <ChevronLeft size={24} className="text-foreground" />
+            <header className="flex items-center justify-center px-4 py-3">
+                <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
+                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
                 </button>
                 <h1 className="text-[17px] font-semibold text-foreground">{t('notifications.title')}</h1>
                 <button className="px-1 text-sm font-medium text-muted-foreground">

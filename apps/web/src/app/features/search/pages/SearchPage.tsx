@@ -20,7 +20,7 @@ export const SearchPage = () => {
     const hasResults = filteredPlaces.length > 0 || filteredChannels.length > 0;
 
     return (
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
             <header className="flex items-center gap-2 px-4 py-3">
                 <button onClick={() => navigate(-1)} className="p-2">
                     <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />

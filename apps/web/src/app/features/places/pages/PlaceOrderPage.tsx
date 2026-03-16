@@ -84,7 +84,7 @@ export const PlaceOrderPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
             <Header title={t('placeOrder.title')} onBack={handleBack} />
 
             {/* Place List */}

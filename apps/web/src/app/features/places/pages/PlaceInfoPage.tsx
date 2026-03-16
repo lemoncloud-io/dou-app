@@ -75,7 +75,7 @@ export const PlaceInfoPage = () => {
 
     if (!place) {
         return (
-            <div className="flex min-h-screen flex-col bg-background">
+            <div className="flex min-h-screen flex-col bg-background pt-safe-top">
                 <Header title={title} onBack={handleBack} />
                 <div className="flex flex-1 items-center justify-center">
                     <span className="text-muted-foreground">
@@ -87,7 +87,7 @@ export const PlaceInfoPage = () => {
     }
 
     return (
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
             <Header title={title} onBack={handleBack} />
 
             {/* Content */}

@@ -88,7 +88,7 @@ export const ExplorePage = () => {
     return (
         <div className="flex min-h-screen flex-col bg-background pb-20">
             {/* Header */}
-            <header className="px-5 pb-3 pt-3">
+            <header className="px-5 pb-3 pt-safe-top">
                 <h1 className="text-2xl font-extrabold text-foreground">{t('explore.title')}</h1>
             </header>
 

@@ -23,7 +23,7 @@ const CreateWorkspaceSuccess = ({
     t,
 }: CreateWorkspaceSuccessProps) => {
     return (
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
             <header className="flex items-center justify-center px-4 py-3">
                 <button onClick={onClose} className="absolute left-4 p-2">
                     <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
@@ -91,7 +91,7 @@ export const CreateWorkspacePage = () => {
     }
 
     return (
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
             <header className="flex items-center justify-center px-4 py-3">
                 <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
                     <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
