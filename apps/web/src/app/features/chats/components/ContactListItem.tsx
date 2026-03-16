@@ -18,7 +18,7 @@ export const ContactListItem = ({ contact, onInvite, isLoading }: ContactListIte
     return (
         <div className="flex items-center gap-2">
             {/* Avatar */}
-            <div className="size-10 rounded-full border border-[#F4F5F5] bg-[rgba(0,43,126,0.04)] flex items-center justify-center overflow-hidden shrink-0">
+            <div className="size-10 rounded-full border border-border bg-muted flex items-center justify-center overflow-hidden shrink-0">
                 {contact.hasThumbnail && contact.thumbnailPath ? (
                     <img
                         src={contact.thumbnailPath}
@@ -28,19 +28,19 @@ export const ContactListItem = ({ contact, onInvite, isLoading }: ContactListIte
                         className="size-full object-cover"
                     />
                 ) : (
-                    <User className="size-3.5 text-[#3A3C40]" />
+                    <User className="size-3.5 text-muted-foreground" />
                 )}
             </div>
 
             {/* Name & Invite */}
             <div className="flex flex-1 items-center">
-                <span className="flex-1 text-[16px] font-medium leading-[22px] tracking-[0.08px] text-[#222325]">
+                <span className="flex-1 text-[16px] font-medium leading-[22px] tracking-[0.08px] text-foreground">
                     {displayName}
                 </span>
                 <button
                     onClick={() => onInvite(contact)}
                     disabled={isLoading}
-                    className="text-[14px] font-semibold leading-[22px] tracking-[0.07px] text-[#102346] underline disabled:opacity-50"
+                    className="text-[14px] font-semibold leading-[22px] tracking-[0.07px] text-primary underline disabled:opacity-50"
                 >
                     {isLoading ? <Loader2 className="size-4 animate-spin" /> : t('inviteFriends.invite')}
                 </button>

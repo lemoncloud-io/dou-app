@@ -27,6 +27,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             const platform = Platform.OS.toLowerCase();
             const stage = Config.VITE_ENV || 'PROD';
 
+            // Android WebView already handles navigation bar, so no additional bottom padding needed
+            const safeBottom = Platform.OS === 'android' ? 0 : insets.bottom;
+
             const deviceInfoScript = `
                 window.CHATIC_APP_PLATFORM = '${platform}';
                 window.CHATIC_APP_APPLICATION = '${applicationName}';
@@ -55,7 +58,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 (function() {
                     const root = document.documentElement;
                     root.style.setProperty('--safe-top', '${insets.top}px');
-                    root.style.setProperty('--safe-bottom', '${insets.bottom}px');
+                    root.style.setProperty('--safe-bottom', '${safeBottom}px');
                     root.style.setProperty('--safe-left', '${insets.left}px');
                     root.style.setProperty('--safe-right', '${insets.right}px');
                     ${deviceInfoScript}
@@ -84,11 +87,14 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         const target = (ref as React.RefObject<WebView>)?.current ?? webViewRef.current;
         if (!target || !initData) return;
 
+        // Android WebView already handles navigation bar, so no additional bottom padding needed
+        const safeBottom = Platform.OS === 'android' ? 0 : insets.bottom;
+
         const safeAreaScript = `
             (function() {
                 const root = document.documentElement;
                 root.style.setProperty('--safe-top', '${insets.top}px');
-                root.style.setProperty('--safe-bottom', '${insets.bottom}px');
+                root.style.setProperty('--safe-bottom', '${safeBottom}px');
                 root.style.setProperty('--safe-left', '${insets.left}px');
                 root.style.setProperty('--safe-right', '${insets.right}px');
             })();

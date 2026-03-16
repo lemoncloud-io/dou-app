@@ -11,7 +11,7 @@ export const PrivacyPage = () => {
     );
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('mypage.policy.privacy')} />
 
             {/* Content */}

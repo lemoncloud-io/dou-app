@@ -70,10 +70,16 @@ export const DeviceService = {
      */
     getContacts: async (): Promise<Contact[]> => {
         if (Platform.OS === 'android') {
-            const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_CONTACTS);
-            if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-                Logger.error('DEVICE', 'Read contacts permission denied');
-                return [];
+            // 1. 먼저 현재 권한 상태 확인
+            const hasPermission = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_CONTACTS);
+
+            // 2. 권한 없으면 요청
+            if (!hasPermission) {
+                const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_CONTACTS);
+                if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+                    Logger.error('DEVICE', 'Read contacts permission denied');
+                    return [];
+                }
             }
         }
 
