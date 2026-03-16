@@ -1,8 +1,6 @@
-import { BellOff, ChevronRight, X } from 'lucide-react';
+import { BellOff, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
-import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
@@ -10,15 +8,10 @@ import { PageHeader } from '../../../shared/components';
 
 export const RoomNotificationSettingsPage = () => {
     const { t } = useTranslation();
-    const navigate = useNavigateWithTransition();
 
     // TODO: Replace with actual notification permission check and API state
     const [isAppNotificationEnabled] = useState(true);
     const [isMessageNotificationEnabled, setIsMessageNotificationEnabled] = useState(true);
-
-    const handleClose = () => {
-        navigate(-1);
-    };
 
     const handleToggleMessageNotification = (checked: boolean) => {
         setIsMessageNotificationEnabled(checked);
@@ -32,14 +25,7 @@ export const RoomNotificationSettingsPage = () => {
 
     return (
         <div className="flex min-h-screen flex-col bg-background">
-            <PageHeader
-                title={t('chat.settings.notificationSettings.title')}
-                rightAction={
-                    <button onClick={handleClose} className="p-2" aria-label={t('common.close')}>
-                        <X size={24} className="text-foreground" />
-                    </button>
-                }
-            />
+            <PageHeader title={t('chat.settings.notificationSettings.title')} />
 
             <div className="flex flex-col gap-7 px-4 pt-5">
                 {/* App Notification Off Banner */}
