@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-03-16] - root@0.26.1, @chatic/web@0.23.1
+
+### Bug Fixes
+
+- fix native chat message load not working
+- improve read status handling and unread count refresh
+- update ReadStatus and HomePage display
+- improve display name and logout handling for invited users
+- show ReadStatus on all messages, hide when memberNo <= 1
+
 ## [2026-03-16] - root@0.26.0, @chatic/web@0.23.0
 
 ### Features
