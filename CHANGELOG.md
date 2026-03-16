@@ -1,5 +1,30 @@
 # Changelog
 
+## [2026-03-16] - root@0.28.0, @chatic/web@0.25.0
+
+### Features
+
+- add profile dropdown and improve message handling
+- (chats) add notification settings page
+- add report and block member functionality
+
+### Refactor
+
+- update webview url configuration
+- (chats) simplify invite friends dialog and notification settings
+- (mypage) remove MyPage route
+- (device) improve contact permission handling
+
+### Chores
+
+- update page layout classes
+- update ContactListItem component styling
+- replace user image with icon
+
+### Other
+
+- build: (theme) update tsconfig lib references
+
 ## [2026-03-16] - root@0.27.0, @chatic/web@0.24.0
 
 ### Features
