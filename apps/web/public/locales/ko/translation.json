@@ -185,6 +185,7 @@
         "workspaceSettings": "워크스페이스 설정",
         "darkMode": "다크 모드",
         "languageSettings": "언어 설정",
+        "viewOnboarding": "온보딩 다시보기",
         "logout": "로그아웃",
         "version": "DoU v{{version}}",
         "appVersion": "버전",
