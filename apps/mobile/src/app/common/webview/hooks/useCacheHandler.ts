@@ -153,9 +153,6 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    // ----------------------------------------------------------------------
-    // Preference Handlers
-    // ----------------------------------------------------------------------
     const handleFetchPreference = useCallback(
         async (message: FetchPreference) => {
             try {

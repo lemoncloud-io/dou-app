@@ -3,14 +3,6 @@
  * message from App to Web
  */
 import type {
-    OnDeleteAllCacheDataPayload,
-    OnDeleteCacheDataPayload,
-    OnFetchAllCacheDataPayload,
-    OnFetchCacheDataPayload,
-    OnSaveAllCacheDataPayload,
-    OnSaveCacheDataPayload,
-} from './model';
-import type {
     AppLogInfo,
     AppPermissionType,
     ContactInfo,
@@ -20,7 +12,14 @@ import type {
     MediaAsset,
     NotificationInfo,
     OAuthTokenResult,
+    OnDeleteAllCacheDataPayload,
+    OnDeleteCacheDataPayload,
+    OnFetchAllCacheDataPayload,
+    OnFetchCacheDataPayload,
+    OnSaveAllCacheDataPayload,
+    OnSaveCacheDataPayload,
     PermissionStatus,
+    PreferenceKey,
     ProductSubscriptionInfo,
     PurchaseInfo,
     SafeAreaInfo,
@@ -32,7 +31,6 @@ export const AppMessageTypes = {
     OnSuccessSyncCredential: 'OnSuccessSyncCredential',
     OnUpdateDeviceInfo: 'OnUpdateDeviceInfo',
     OnCloseModal: 'OnCloseModal',
-    OnBackPressed: 'OnBackPressed',
     OnOpenShareSheet: 'OnOpenShareSheet',
     OnOpenDocument: 'OnOpenDocument',
     OnGetContacts: 'OnGetContacts',
@@ -190,21 +188,21 @@ export interface OnDeleteAllCacheData extends AppDefaultMessage<'OnDeleteAllCach
 
 export interface OnFetchPreference extends AppDefaultMessage<'OnFetchPreference'> {
     data: {
-        key: string;
+        key: PreferenceKey;
         value: any;
     };
 }
 
 export interface OnSavePreference extends AppDefaultMessage<'OnSavePreference'> {
     data: {
-        key: string;
+        key: PreferenceKey;
         success: boolean;
     };
 }
 
 export interface OnDeletePreference extends AppDefaultMessage<'OnDeletePreference'> {
     data: {
-        key: string;
+        key: PreferenceKey;
         success: boolean;
     };
 }
@@ -221,7 +219,6 @@ export interface AppMessageMap {
      * Control Device Event
      */
     OnCloseModal: AppDefaultMessage<'OnCloseModal'>;
-    OnBackPressed: AppDefaultMessage<'OnBackPressed'>;
     OnOpenShareSheet: OnOpenShareSheet;
     OnOpenDocument: OnOpenDocument;
     OnGetContacts: OnGetContacts;

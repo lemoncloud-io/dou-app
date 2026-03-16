@@ -7,6 +7,13 @@ import type { SiteView, UserTokenView } from '@lemoncloud/chatic-backend-api';
  */
 export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'usertoken';
 
+/**
+ * 관리 가능한 Preference Key 목록
+ * - isFirstRun: 최초 실행 여부
+ * - theme: 앱 테마
+ */
+export type PreferenceKey = 'isFirstRun' | 'theme';
+
 interface CacheModelMap {
     channel: ChannelView;
     chat: ChatView;

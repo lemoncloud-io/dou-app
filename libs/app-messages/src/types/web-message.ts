@@ -5,6 +5,7 @@ import type {
     FetchAllCacheDataPayload,
     FetchCacheDataPayload,
     OAuthLoginProvider,
+    PreferenceKey,
     SaveAllCacheDataPayload,
     SaveCacheDataPayload,
 } from './model';
@@ -253,14 +254,14 @@ export interface DeleteAllCacheData extends WebDefaultMessage<'DeleteAllCacheDat
 /** Preference 조회 */
 export interface FetchPreference extends WebDefaultMessage<'FetchPreference'> {
     data: {
-        key: string;
+        key: PreferenceKey;
     };
 }
 
 /** Preference 저장 */
 export interface SavePreference extends WebDefaultMessage<'SavePreference'> {
     data: {
-        key: string;
+        key: PreferenceKey;
         value: any;
     };
 }
@@ -268,7 +269,7 @@ export interface SavePreference extends WebDefaultMessage<'SavePreference'> {
 /** Preference 삭제 */
 export interface DeletePreference extends WebDefaultMessage<'DeletePreference'> {
     data: {
-        key: string;
+        key: PreferenceKey;
     };
 }
 
