@@ -84,6 +84,7 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
             );
 
             await storage.update(userId, channelId, chatNo, readerUserId).catch(console.error);
+            window.dispatchEvent(new CustomEvent('unread-refreshed', { detail: { channelId } }));
         },
         [userId, channelId, storage]
     );

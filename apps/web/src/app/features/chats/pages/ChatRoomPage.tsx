@@ -23,8 +23,7 @@ import { useChatMessages } from '../hooks/useChatMessages';
 import { useMyChannels } from '../../home/hooks/useMyChannels';
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { MessageBubble } from '../components/MessageBubble';
-// TODO: Enable when read status feature is ready
-// import { ReadStatus } from '../components/ReadStatus';
+import { ReadStatus } from '../components/ReadStatus';
 
 export const ChatRoomPage = () => {
     const navigate = useNavigateWithTransition();
@@ -124,7 +123,7 @@ export const ChatRoomPage = () => {
             const ownerName = newMessage.owner$?.name || t('chat.room.unknown');
             const chatNo = newMessage?.chatNo;
 
-            addMessage({ id, content: content.trim(), timestamp, ownerId, ownerName, chatNo }, channelId);
+            addMessage({ id, content: content.trim(), timestamp, ownerId, ownerName, chatNo, isRead: true }, channelId);
 
             if (chatNo && dynamicProfile?.uid) {
                 emit({ type: 'chat', action: 'read', payload: { channelId, chatNo } });
@@ -344,11 +343,10 @@ export const ChatRoomPage = () => {
                                                     <span className="text-muted-foreground">
                                                         {formatTime(message.timestamp)}
                                                     </span>
-                                                    {/* TODO: Enable when read status feature is ready */}
-                                                    {/* <ReadStatus
+                                                    <ReadStatus
                                                         memberNo={channel?.memberNo ?? 0}
-                                                        readCount={message.readBy?.length ?? 0}
-                                                    /> */}
+                                                        readCount={(message.readBy?.length ?? 1) - 1}
+                                                    />
                                                 </div>
                                             </div>
                                         </div>

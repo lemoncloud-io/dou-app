@@ -81,17 +81,28 @@ export const CacheRepository = {
             case 'channel':
                 return await getAllData<ChannelView>(PREFIX.CHANNEL, cid);
             case 'chat': {
-                const chats = await getAllData<ChatView>(PREFIX.CHAT, cid);
                 const { channelId } = payload.query || {};
+                const prefix = cid ? `${PREFIX.CHAT}:${cid}:` : `${PREFIX.CHAT}:`;
 
-                let result: ChatView[] = chats;
+                let keys = StorageService.getAllKeys().filter(k => k.startsWith(prefix));
                 if (channelId) {
-                    result = result.filter(
-                        chat => (chat as any).channelId === channelId || (chat as any).channel?.id === channelId
-                    );
+                    // 키 구조: chat:{cid}:{channelId}:{chatNo}
+                    keys = keys.filter(k => {
+                        const idPart = k.slice(prefix.length);
+                        const lastColon = idPart.lastIndexOf(':');
+                        const keyChannelId = lastColon !== -1 ? idPart.slice(0, lastColon) : idPart;
+                        // U:1000109 === 1000109 케이스 대응
+                        return (
+                            keyChannelId === channelId ||
+                            keyChannelId.endsWith(`:${channelId}`) ||
+                            keyChannelId.endsWith(channelId)
+                        );
+                    });
                 }
 
-                return result;
+                const results = await Promise.all(keys.map(k => StorageService.get<ChatView>(k)));
+                const items = results.filter(item => item !== null) as ChatView[];
+                return items.sort((a, b) => (a.chatNo ?? 0) - (b.chatNo ?? 0));
             }
             case 'user':
                 return await getAllData<UserView>(PREFIX.USER, cid);
