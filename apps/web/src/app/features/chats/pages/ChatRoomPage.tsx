@@ -1,4 +1,4 @@
-import { ArrowUp, ChevronLeft, MoreHorizontal, Plus, Settings } from 'lucide-react';
+import { ArrowUp, ChevronLeft, MoreHorizontal, Plus, Settings, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -410,13 +410,13 @@ export const ChatRoomPage = () => {
                     <DialogDescription className="sr-only">View full message content</DialogDescription>
                     {/* Modal Header */}
                     <header className="flex items-center justify-between border-b border-border px-4 py-4">
-                        <button onClick={() => setExpandedMessage(null)} className="p-1">
-                            <ChevronLeft size={24} className="text-foreground" />
-                        </button>
+                        <div className="w-8" />
                         <DialogTitle className="text-[17px] font-bold text-foreground">
                             {t('chat.room.messageDetail')}
                         </DialogTitle>
-                        <div className="w-8" />
+                        <button onClick={() => setExpandedMessage(null)} className="p-1">
+                            <X size={24} className="text-foreground" />
+                        </button>
                     </header>
 
                     {/* Modal Content */}
