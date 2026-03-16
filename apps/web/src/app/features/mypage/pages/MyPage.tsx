@@ -123,7 +123,7 @@ export const MyPage = () => {
                     <button
                         onClick={() => {
                             resetOnboarding();
-                            navigate('/', { replace: true, transition: false });
+                            navigate('/', { replace: true });
                         }}
                         className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                     >

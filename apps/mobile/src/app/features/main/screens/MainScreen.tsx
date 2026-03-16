@@ -27,9 +27,9 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
     const isFocused = useIsFocused();
     const isModalOpened = useRef(false);
-    const [webCanGoBack, setWebCanGoBack] = useState(false);
-    const [navCanGoBack, setNavCanGoBack] = useState(false);
-    const canGoBack = webCanGoBack || navCanGoBack;
+    const [webCanGoBack, setWebCanGoBack] = useState(false); // Web has dialogs to close
+    const [navCanGoBack, setNavCanGoBack] = useState(false); // WebView has navigation history
+    const canGoBack = webCanGoBack || navCanGoBack; // Either can handle back button
     const [language, setLanguage] = useState(getAppLanguage());
     const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
 

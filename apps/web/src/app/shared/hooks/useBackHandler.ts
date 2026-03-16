@@ -6,6 +6,10 @@ import { postMessage, getMobileAppInfo, useHandleAppMessage } from '@chatic/app-
 
 import { useNavigateWithTransition } from '@chatic/page-transition';
 
+/** Selector for Radix UI overlay components that can be closed with back button */
+const OPEN_DIALOG_SELECTOR =
+    '[data-state="open"][role="dialog"], [data-state="open"][role="alertdialog"], [data-state="open"][role="menu"], [data-state="open"][role="listbox"]';
+
 /**
  * Hook to handle back button in hybrid app environment.
  * - Syncs navigation state with native app
@@ -35,10 +39,7 @@ export const useBackHandler = () => {
         if (!isOnMobileApp) return;
 
         const checkCanGoBack = () => {
-            // Check for open dialogs first
-            const hasOpenDialogs = document.querySelector(
-                '[data-state="open"][role="dialog"], [data-state="open"][role="alertdialog"], [data-state="open"][role="menu"], [data-state="open"][role="listbox"]'
-            );
+            const hasOpenDialogs = document.querySelector(OPEN_DIALOG_SELECTOR);
 
             // Can go back if: there's history OR there are open dialogs to close
             const canGoBack = hasOpenDialogs !== null || (location.key !== 'default' && window.history.length > 1);
@@ -77,15 +78,7 @@ export const useBackHandler = () => {
      * <DialogContent data-prevent-back-close>
      */
     const handleNativeBack = useCallback(() => {
-        // Radix UI components use data-state="open" when visible
-        // Include all overlay-type components:
-        // - role="dialog": Dialog, Sheet, Popover
-        // - role="alertdialog": AlertDialog
-        // - role="menu": DropdownMenu
-        // - role="listbox": Select
-        const openDialogs = document.querySelectorAll(
-            '[data-state="open"][role="dialog"], [data-state="open"][role="alertdialog"], [data-state="open"][role="menu"], [data-state="open"][role="listbox"]'
-        );
+        const openDialogs = document.querySelectorAll(OPEN_DIALOG_SELECTOR);
 
         if (openDialogs.length > 0) {
             // Get the topmost dialog (last in DOM order, highest z-index)

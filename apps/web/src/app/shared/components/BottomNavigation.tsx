@@ -56,7 +56,7 @@ export const BottomNavigation = () => {
                         return (
                             <button
                                 key={path}
-                                onClick={() => navigate(path, { transition: false })}
+                                onClick={() => navigate(path, { replace: true })}
                                 className={cn(
                                     'flex flex-col items-center justify-center gap-[2px] w-12 h-12 rounded-2xl',
                                     isActive ? 'bg-[rgba(3,13,35,0.7)]' : 'bg-transparent'
