@@ -6,14 +6,16 @@ import { cloudCore, useWebCoreStore, webCore } from '@chatic/web-core';
 const REFRESH_INTERVAL_MS = 60_000;
 
 export const useCloudTokenRefresh = () => {
-    const { isGuest, isAuthenticated } = useWebCoreStore();
+    const { isGuest, isInvited, isAuthenticated } = useWebCoreStore();
     const { emit, isConnected } = useWebSocketV2();
 
     useEffect(() => {
-        if (!isConnected || (!isGuest && !isAuthenticated)) return;
+        if (!isConnected || !isAuthenticated) return;
+
+        const isCloudUser = !isGuest || isInvited;
 
         const refresh = async () => {
-            if (isGuest) {
+            if (!isCloudUser) {
                 const token = (await webCore.getTokenSignature()).originToken?.identityToken;
                 if (token) emit({ type: 'auth', action: 'update', payload: { token } });
                 return;
@@ -31,9 +33,7 @@ export const useCloudTokenRefresh = () => {
 
         void refresh();
 
-        if (isGuest) return;
-
         const id = setInterval(refresh, REFRESH_INTERVAL_MS);
         return () => clearInterval(id);
-    }, [isGuest, isAuthenticated, isConnected, emit]);
+    }, [isGuest, isInvited, isAuthenticated, isConnected, emit]);
 };

@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { getMobileAppInfo, initializeMessageListener, useAppMessageStore } from '@chatic/app-messages';
 
 import { updateProfile } from '../api';
-import { LANGUAGE_KEY, cloudCore, webCore } from '../core';
+import { LANGUAGE_KEY, cloudCore, webCore, coreStorage } from '../core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 export type UserView = Partial<UserProfile$>;
@@ -13,11 +13,23 @@ interface UserViewExtended {
     userStatus?: string;
 }
 
+const INVITED_SESSION_KEY = 'chatic-is-invited';
+
+export const getIsInvited = (): boolean => coreStorage.get(INVITED_SESSION_KEY) === 'true';
+export const setIsInvitedSession = (value: boolean): void => {
+    if (value) {
+        coreStorage.set(INVITED_SESSION_KEY, 'true');
+    } else {
+        coreStorage.remove(INVITED_SESSION_KEY);
+    }
+};
+
 export interface WebCoreState {
     isInitialized: boolean;
     isAuthenticated: boolean;
     isOnMobileApp: boolean;
     isGuest: boolean;
+    isInvited: boolean;
     error: Error | null;
     profile: UserProfile$ | null;
     userName: string;
@@ -46,6 +58,7 @@ const initialState: Pick<WebCoreStore, keyof WebCoreState> = {
     isAuthenticated: false,
     isOnMobileApp: false,
     isGuest: false,
+    isInvited: false,
     error: null,
     profile: null,
     userName: '',
@@ -103,8 +116,9 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
 
         await webCore.logout();
         cloudCore.clearSession();
-        set({ isAuthenticated: false, profile: null, userName: '', isGuest: false });
-        window.location.href = '/';
+        setIsInvitedSession(false);
+        set({ isAuthenticated: false, profile: null, userName: '', isGuest: false, isInvited: false });
+        window.location.href = '/auth/login';
     },
 
     /**
@@ -121,6 +135,7 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         set({
             profile,
             isGuest: (profile.$user as UserViewExtended)?.userRole === 'guest',
+            isInvited: getIsInvited(),
             userName: profile['$user']?.name || 'Unknown',
         }),
 

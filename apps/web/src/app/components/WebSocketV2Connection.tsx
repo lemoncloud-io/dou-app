@@ -1,6 +1,5 @@
-import { useHandleAppMessage } from '@chatic/app-messages';
 import { useWebSocketV2 } from '@chatic/socket';
-import { cloudCore, coreStorage, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 
 import { useListenMessage } from '../features/chats/hooks/useListenMessage';
 import { useMyChannels } from '../features/home/hooks/useMyChannels';
@@ -12,13 +11,10 @@ export const WebSocketV2Connection = () => {
     const { deviceId } = useDynamicDeviceId();
     const { isPending } = useCloudSession();
 
-    const { isGuest } = useWebCoreStore();
+    const { isGuest, isInvited } = useWebCoreStore();
     const wss = cloudCore.getWss();
-    const endpoint = isGuest ? import.meta.env.VITE_WS_ENDPOINT : wss;
-
-    useHandleAppMessage('OnSetWsEndpoint', ({ data }) => {
-        coreStorage.set('chatic-ws-endpoint', data.wss);
-    });
+    const isCloudUser = !isGuest || isInvited;
+    const endpoint = isCloudUser ? wss : import.meta.env.VITE_WS_ENDPOINT;
 
     useWebSocketV2({
         endpoint,

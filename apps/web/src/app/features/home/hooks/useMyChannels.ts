@@ -175,8 +175,9 @@ useWebSocketV2Store.subscribe(
     s => s.isVerified,
     isVerified => {
         if (!isVerified || !globalEmitAuthenticated) return;
-        const isGuest = useWebCoreStore.getState().isGuest;
-        if (!isGuest && !cloudCore.getSelectedPlaceId()) return;
+        const { isGuest, isInvited } = useWebCoreStore.getState();
+        const isCloudUser = !isGuest || isInvited;
+        if (!isCloudUser && !cloudCore.getSelectedPlaceId()) return;
         isBootstrapped = false;
         bootstrap(globalEmitAuthenticated, globalProfileId);
     }
@@ -243,8 +244,9 @@ export const useMyChannels = () => {
     useEffect(() => {
         const listener = () => forceUpdate({});
         listeners.add(listener);
-        const isGuest = useWebCoreStore.getState().isGuest;
-        const hasPlace = isGuest || !!cloudCore.getSelectedPlaceId();
+        const { isGuest, isInvited } = useWebCoreStore.getState();
+        const isCloudUser = !isGuest || isInvited;
+        const hasPlace = isGuest || (isCloudUser && !!cloudCore.getSelectedPlaceId()) || isInvited;
         if (isVerified && globalEmitAuthenticated && !isBootstrapped && hasPlace) {
             bootstrap(globalEmitAuthenticated, globalProfileId);
         }
