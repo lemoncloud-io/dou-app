@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { useDeviceInfo } from '@chatic/device-utils';
+import { getStoreUrl } from '@chatic/shared';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 import { useLocalProfileStore, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
@@ -43,6 +44,13 @@ export const MyPage = () => {
 
     const handleThemeToggle = () => {
         setTheme(isDarkTheme ? 'light' : 'dark');
+    };
+
+    const handleUpdateClick = () => {
+        const storeUrl = getStoreUrl(deviceInfo?.platform);
+        if (storeUrl) {
+            window.open(storeUrl, '_blank');
+        }
     };
 
     return (
@@ -141,22 +149,41 @@ export const MyPage = () => {
                         <span className="text-[15px] font-medium text-foreground">{t('mypage.policy.title')}</span>
                         <ChevronRight size={18} className="text-muted-foreground" />
                     </button>
-                    <div className="flex items-center justify-between py-3 pl-4 pr-3">
-                        <div className="flex items-center gap-1">
-                            <span className="text-[15px] font-medium text-foreground">{t('mypage.appVersion')}</span>
-                            <span className="text-[15px] font-medium text-foreground">
-                                {deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android'
-                                    ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
-                                    : `v${versionInfo?.webVersion}`}
-                            </span>
-                        </div>
-                        {versionInfo?.shouldUpdate && (
-                            <div className="flex items-center">
-                                <span className="text-[14px] text-muted-foreground">{t('mypage.updateRequired')}</span>
-                                <ChevronRight size={18} className="text-muted-foreground" />
+                    {versionInfo?.shouldUpdate &&
+                    (deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android') ? (
+                        <button
+                            onClick={handleUpdateClick}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <div className="flex flex-col items-start gap-0.5">
+                                <span className="text-[15px] font-medium text-foreground">
+                                    {t('mypage.appVersion')}
+                                </span>
+                                <span className="text-[13px] text-muted-foreground">
+                                    {`v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`}
+                                </span>
                             </div>
-                        )}
-                    </div>
+                            <div className="flex items-center gap-1">
+                                <span className="text-[14px] font-medium text-primary">
+                                    {t('mypage.updateAvailable')}
+                                </span>
+                                <ChevronRight size={18} className="text-primary" />
+                            </div>
+                        </button>
+                    ) : (
+                        <div className="flex items-center justify-between py-3 pl-4 pr-3">
+                            <div className="flex flex-col items-start gap-0.5">
+                                <span className="text-[15px] font-medium text-foreground">
+                                    {t('mypage.appVersion')}
+                                </span>
+                                <span className="text-[13px] text-muted-foreground">
+                                    {deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android'
+                                        ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
+                                        : `v${versionInfo?.webVersion}`}
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Logout Card - Logged in only */}

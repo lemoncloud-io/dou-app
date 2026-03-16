@@ -8,7 +8,7 @@ import { createNavigationContainerRef, NavigationContainer } from '@react-naviga
 import type { DeepLinkSource, ServiceEndpoints } from '@chatic/deeplinks';
 import { getDeepLinkManager } from '@chatic/deeplinks';
 
-import { useDeepLinkStore } from './common';
+import { useAppVersionCheck, useDeepLinkStore } from './common';
 import { FloatingMenu } from './common';
 import type { RootStackParamList } from './navigation';
 import { RootNavigator } from './navigation';
@@ -18,6 +18,9 @@ const navigationRef = createNavigationContainerRef<RootStackParamList>();
 function App() {
     const isDarkMode = false;
     const deepLinkManagerRef = useRef(getDeepLinkManager());
+
+    // Check for app updates on mount
+    const { hasUpdate, showUpdateAlert } = useAppVersionCheck(true);
 
     // Deep link state is managed via Zustand store
     // MainScreen will handle pendingUrl when WebView is ready
@@ -49,6 +52,13 @@ function App() {
             manager.cleanup();
         };
     }, []);
+
+    // Show update alert when update is available
+    useEffect(() => {
+        if (hasUpdate) {
+            showUpdateAlert();
+        }
+    }, [hasUpdate, showUpdateAlert]);
 
     return (
         <SafeAreaProvider>

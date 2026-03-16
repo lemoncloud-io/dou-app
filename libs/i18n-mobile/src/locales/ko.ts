@@ -10,5 +10,11 @@ export const ko = {
             cancel: '취소',
             confirm: '종료',
         },
+        updateDialog: {
+            title: '업데이트 안내',
+            message: '새로운 버전이 출시되었습니다. 최신 기능을 사용하려면 업데이트해 주세요.',
+            update: '업데이트',
+            later: '나중에',
+        },
     },
 } as const;

@@ -199,6 +199,8 @@
         "version": "DoU v{{version}}",
         "appVersion": "버전",
         "updateRequired": "업데이트 필요",
+        "updateAvailable": "업데이트 가능",
+        "goToStore": "스토어로 이동",
         "language": {
             "ko": "한국어",
             "en": "English",
