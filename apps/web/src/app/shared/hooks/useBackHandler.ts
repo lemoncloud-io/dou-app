@@ -39,14 +39,14 @@ export const useBackHandler = () => {
         if (!isOnMobileApp) return;
 
         const checkCanGoBack = () => {
-            const hasOpenDialogs = document.querySelector(OPEN_DIALOG_SELECTOR);
+            // Only report dialog state - native app tracks navigation history separately
+            const hasOpenDialogs = document.querySelector(OPEN_DIALOG_SELECTOR) !== null;
 
-            // Can go back if: there's history OR there are open dialogs to close
-            const canGoBack = hasOpenDialogs !== null || (location.key !== 'default' && window.history.length > 1);
+            console.log('[useBackHandler] checkCanGoBack:', { hasOpenDialogs });
 
             postMessage({
                 type: 'SetCanGoBack',
-                data: { canGoBack },
+                data: { canGoBack: hasOpenDialogs },
             });
         };
 
