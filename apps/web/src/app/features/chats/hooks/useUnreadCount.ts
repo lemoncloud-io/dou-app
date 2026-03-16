@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 
-import { IndexedDBStorageAdapter, BROADCAST_CHANNEL_NAME } from '../storages/IndexedDBStorageAdapter';
+import { BROADCAST_CHANNEL_NAME } from '../storages/IndexedDBStorageAdapter';
+import { useDynamicStorage } from './useDynamicStorage';
 
 export const useUnreadCount = (userId: string | null, channelId: string) => {
     const [unreadCount, setUnreadCount] = useState(0);
+    const storage = useDynamicStorage();
 
     useEffect(() => {
         if (!userId) return;
 
         const refresh = () => {
-            IndexedDBStorageAdapter.countUnread(userId, channelId).then(setUnreadCount).catch(console.error);
+            storage.countUnread(userId, channelId).then(setUnreadCount).catch(console.error);
         };
 
         refresh();
@@ -22,8 +24,19 @@ export const useUnreadCount = (userId: string | null, channelId: string) => {
             }
         };
 
-        return () => bc.close();
-    }, [userId, channelId]);
+        const handleUnreadRefreshed = (e: Event) => {
+            const detail = (e as CustomEvent<{ channelId: string }>).detail;
+            if (detail.channelId === channelId) {
+                refresh();
+            }
+        };
+        window.addEventListener('unread-refreshed', handleUnreadRefreshed);
+
+        return () => {
+            bc.close();
+            window.removeEventListener('unread-refreshed', handleUnreadRefreshed);
+        };
+    }, [userId, channelId, storage]);
 
     return unreadCount;
 };

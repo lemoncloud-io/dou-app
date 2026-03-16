@@ -4,8 +4,8 @@ import { useWebSocketV2 } from '@chatic/socket';
 import { useDynamicProfile } from '@chatic/web-core';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chats/model';
-import { IndexedDBStorageAdapter } from '../storages/IndexedDBStorageAdapter';
 import { useMyChannel } from './useMyChannel';
+import { useDynamicStorage } from './useDynamicStorage';
 
 export const useReadMessage = (
     channelId: string | undefined,
@@ -15,6 +15,7 @@ export const useReadMessage = (
     const { emit, lastMessage } = useWebSocketV2();
     const profile = useDynamicProfile();
     const { channel } = useMyChannel(channelId ?? null);
+    const storage = useDynamicStorage();
 
     // 마운트 시: channel의 lastChat$.chatNo 기준으로 무조건 read emit
     useEffect(() => {
@@ -23,7 +24,7 @@ export const useReadMessage = (
         if (!chatNo) return;
         emit({ type: 'chat', action: 'read', payload: { channelId, chatNo } });
         applyReadEvent?.(chatNo, profile.uid);
-        IndexedDBStorageAdapter.markAllRead(profile.uid, channelId).catch(console.error);
+        storage.markAllRead(profile.uid, channelId).catch(console.error);
     }, [channelId]);
 
     // type:chat action:read 또는 type:model action:update sourceType:join 수신 시 applyReadEvent
