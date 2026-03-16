@@ -1,5 +1,27 @@
 # Changelog
 
+## [2026-03-16] - root@0.26.0, @chatic/web@0.23.0
+
+### Features
+
+- add page transition
+- add Android-specific view transitions
+- add alert to exit
+
+### Bug Fixes
+
+- improve back button handling
+- add debug logging and update canGoBack logic
+
+### Refactor
+
+- (chats, places) remove pt-safe-top class
+- use LoadingFallback for loading states
+- implement page-transition lib
+- improve dialog handling
+- (navigation) simplify back button handling
+- remove console logs
+
 ## [2026-03-16] - root@0.25.1, @chatic/web@0.22.1
 
 ### Bug Fixes
