@@ -267,7 +267,17 @@
         "title": "Place List",
         "settings": "Settings",
         "delete": "Delete",
-        "leave": "Leave"
+        "leave": "Leave",
+        "deleteDialog": {
+            "title": "Delete Place",
+            "description": "Are you sure you want to delete '{{name}}'? This action cannot be undone.",
+            "confirm": "Delete"
+        },
+        "leaveDialog": {
+            "title": "Leave Place",
+            "description": "Are you sure you want to leave '{{name}}'? You will no longer be able to participate in chats in this place.",
+            "confirm": "Leave"
+        }
     },
     "channelList": {
         "noDescription": "No description",

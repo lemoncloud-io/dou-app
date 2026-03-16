@@ -267,7 +267,17 @@
         "title": "플레이스 목록",
         "settings": "설정",
         "delete": "삭제",
-        "leave": "나가기"
+        "leave": "나가기",
+        "deleteDialog": {
+            "title": "플레이스 삭제",
+            "description": "'{{name}}'을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+            "confirm": "삭제"
+        },
+        "leaveDialog": {
+            "title": "플레이스 나가기",
+            "description": "'{{name}}'에서 나가시겠습니까? 더 이상 이 플레이스의 채팅에 참여할 수 없습니다.",
+            "confirm": "나가기"
+        }
     },
     "channelList": {
         "noDescription": "채널 설명 없음",

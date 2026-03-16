@@ -61,7 +61,6 @@ export const SortablePlaceItem = ({ place, onSettings, onDelete, onLeave }: Sort
                     <Users size={14} className={isOwner ? 'text-primary-foreground' : 'text-muted-foreground'} />
                 </div>
                 <div className="flex items-center gap-[4px]">
-                    {!isOwner && <Users size={20} className="text-muted-foreground" />}
                     <span className="text-[16px] font-medium tracking-[-0.32px] text-foreground">{place.name}</span>
                 </div>
             </div>

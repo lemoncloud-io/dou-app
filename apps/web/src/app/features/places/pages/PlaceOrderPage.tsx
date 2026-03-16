@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/page-transition';
@@ -15,6 +16,7 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { ChevronLeft } from 'lucide-react';
 
+import { ConfirmDialog } from '../../chats/components/ConfirmDialog';
 import { useMyPlaces } from '../../home/hooks/useMyPlaces';
 import { SortablePlaceItem } from '../components';
 
@@ -39,6 +41,8 @@ export const PlaceOrderPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { places, setPlaces } = useMyPlaces();
+    const [deleteTarget, setDeleteTarget] = useState<MySiteView | null>(null);
+    const [leaveTarget, setLeaveTarget] = useState<MySiteView | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -75,13 +79,23 @@ export const PlaceOrderPage = () => {
     };
 
     const handleDelete = (place: MySiteView) => {
-        // TODO: Implement delete functionality with API
-        console.log('Delete:', place.name);
+        setDeleteTarget(place);
+    };
+
+    const handleDeleteConfirm = () => {
+        if (!deleteTarget) return;
+        // TODO: Implement delete API call
+        setDeleteTarget(null);
     };
 
     const handleLeave = (place: MySiteView) => {
-        // TODO: Implement leave functionality with API
-        console.log('Leave:', place.name);
+        setLeaveTarget(place);
+    };
+
+    const handleLeaveConfirm = () => {
+        if (!leaveTarget) return;
+        // TODO: Implement leave API call
+        setLeaveTarget(null);
     };
 
     return (
@@ -111,6 +125,28 @@ export const PlaceOrderPage = () => {
                     </SortableContext>
                 </DndContext>
             </div>
+
+            {/* Delete Place Dialog */}
+            <ConfirmDialog
+                open={deleteTarget !== null}
+                onOpenChange={open => !open && setDeleteTarget(null)}
+                title={t('placeOrder.deleteDialog.title')}
+                description={t('placeOrder.deleteDialog.description', { name: deleteTarget?.name })}
+                confirmLabel={t('placeOrder.deleteDialog.confirm')}
+                onConfirm={handleDeleteConfirm}
+                variant="danger"
+            />
+
+            {/* Leave Place Dialog */}
+            <ConfirmDialog
+                open={leaveTarget !== null}
+                onOpenChange={open => !open && setLeaveTarget(null)}
+                title={t('placeOrder.leaveDialog.title')}
+                description={t('placeOrder.leaveDialog.description', { name: leaveTarget?.name })}
+                confirmLabel={t('placeOrder.leaveDialog.confirm')}
+                onConfirm={handleLeaveConfirm}
+                variant="danger"
+            />
         </div>
     );
 };
