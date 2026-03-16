@@ -1,7 +1,9 @@
 import { ArrowUp, ChevronLeft, MoreHorizontal, Plus, Settings, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '../../../shared/hooks';
 
 import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
@@ -24,7 +26,7 @@ import { MessageBubble } from '../components/MessageBubble';
 // import { ReadStatus } from '../components/ReadStatus';
 
 export const ChatRoomPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [content, setContent] = useState('');

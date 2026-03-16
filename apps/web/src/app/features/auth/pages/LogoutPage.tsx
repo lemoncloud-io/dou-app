@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '../../../shared/hooks';
 
 import { toast } from 'sonner';
 
@@ -10,7 +11,7 @@ import { useWebCoreStore } from '@chatic/web-core';
 export const LogoutPage = () => {
     const { t } = useTranslation();
     const logout = useWebCoreStore(state => state.logout);
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
 
     useEffect(() => {
         const handleLogout = async () => {

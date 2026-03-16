@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '../../../shared/hooks';
 
 import { useWebSocketV2 } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -32,7 +34,7 @@ const decodeJWT = (token: string) => {
 export const TokenLoginPage = () => {
     const { t } = useTranslation();
     const { token } = useParams<{ token: string }>();
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { send } = useWebSocketV2();
     const { setProfile, setIsAuthenticated } = useWebCoreStore();
     const { toast } = useToast();

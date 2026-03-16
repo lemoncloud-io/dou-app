@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '../../../shared/hooks';
 
 import { toast } from 'sonner';
 
@@ -11,7 +13,7 @@ export const OAuthResponsePage = () => {
     const { t } = useTranslation();
     const setIsAuthenticated = useWebCoreStore(state => state.setIsAuthenticated);
     const location = useLocation();
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const checkLoginResultCalled = useRef(false);
 
     useEffect(() => {

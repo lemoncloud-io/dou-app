@@ -1,8 +1,8 @@
+import { ChevronRight, ChevronDown, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ChevronRight, ChevronDown, User } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigateWithTransition } from '../../../shared/hooks';
 
 import { useDeviceInfo } from '@chatic/device-utils';
 import { useTheme } from '@chatic/theme';
@@ -13,7 +13,7 @@ import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { LanguageSelectSheet, LogoutDialog } from '../components';
 
 export const MyPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
     const isGuest = useWebCoreStore(s => s.isGuest);
     const profile = useWebCoreStore(s => s.profile);

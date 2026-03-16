@@ -1,7 +1,8 @@
-import { useTranslation } from 'react-i18next';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-
 import { Globe, Home, KeyRound, LogOut, Moon, MousePointer, Sun } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { NavLink, useLocation } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '../hooks';
 import { toast } from 'sonner';
 
 import { useTheme } from '@chatic/theme';
@@ -32,7 +33,7 @@ const NAV_ITEMS: NavItem[] = [
 export const Sidebar = (): JSX.Element => {
     const { t, i18n } = useTranslation();
     const location = useLocation();
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { theme, setTheme } = useTheme();
 
     const { mutate: logout, isPending: isLoggingOut } = useLogout(

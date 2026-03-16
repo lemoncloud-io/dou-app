@@ -1,7 +1,9 @@
 import { Bell, ChevronLeft, LogOut, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '../../../shared/hooks';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
@@ -47,7 +49,7 @@ const ChatProfileIcon = () => (
 );
 
 export const ChatSettingsPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [activeDialog, setActiveDialog] = useState<DialogType>(null);

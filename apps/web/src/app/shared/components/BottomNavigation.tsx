@@ -1,6 +1,9 @@
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
+
 import { cn } from '@chatic/lib/utils';
+
+import { useNavigateWithTransition } from '../hooks';
 
 const IconChat = ({ color }: { color: string }) => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -33,7 +36,7 @@ const NAV_ITEMS = [
 
 export const BottomNavigation = () => {
     const { t } = useTranslation();
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { pathname } = useLocation();
 
     return (
@@ -53,7 +56,7 @@ export const BottomNavigation = () => {
                         return (
                             <button
                                 key={path}
-                                onClick={() => navigate(path)}
+                                onClick={() => navigate(path, { transition: false })}
                                 className={cn(
                                     'flex flex-col items-center justify-center gap-[2px] w-12 h-12 rounded-2xl',
                                     isActive ? 'bg-[rgba(3,13,35,0.7)]' : 'bg-transparent'

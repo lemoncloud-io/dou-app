@@ -1,11 +1,12 @@
 import { ChevronLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '../../../shared/hooks';
 
 import { TERMS_OF_SERVICE_CONTENT } from '../constants';
 
 export const TermsPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
 
     const currentVersion = TERMS_OF_SERVICE_CONTENT.versions.find(

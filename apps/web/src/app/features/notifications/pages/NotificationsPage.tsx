@@ -1,6 +1,7 @@
 import { Bell, ChevronLeft, Megaphone, MessageSquare, UserPlus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '../../../shared/hooks';
 
 import type { LucideIcon } from 'lucide-react';
 
@@ -31,7 +32,7 @@ const typeColor: Record<NotifType, string> = {
 };
 
 export const NotificationsPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
 
     return (

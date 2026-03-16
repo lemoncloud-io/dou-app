@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '../../../shared/hooks';
 
 import {
     closestCenter,
@@ -36,7 +37,7 @@ const Header = ({ title, onBack }: HeaderProps) => (
 
 export const PlaceOrderPage = () => {
     const { t } = useTranslation();
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { places, setPlaces } = useMyPlaces();
 
     const sensors = useSensors(

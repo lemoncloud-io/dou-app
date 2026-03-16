@@ -1,7 +1,9 @@
 import { useEffect, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 import { postMessage, getMobileAppInfo, useHandleAppMessage } from '@chatic/app-messages';
+
+import { useNavigateWithTransition } from './useNavigateWithTransition';
 
 /**
  * Hook to handle back button in hybrid app environment.
@@ -11,7 +13,7 @@ import { postMessage, getMobileAppInfo, useHandleAppMessage } from '@chatic/app-
  */
 export const useBackHandler = () => {
     const location = useLocation();
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { isOnMobileApp } = getMobileAppInfo();
 
     // Notify native app about navigation state changes

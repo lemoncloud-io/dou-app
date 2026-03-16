@@ -1,8 +1,8 @@
+import { Camera, ChevronLeft, User } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 
-import { Camera, ChevronLeft, User } from 'lucide-react';
+import { useNavigateWithTransition } from '../../../shared/hooks';
 
 import { cn } from '@chatic/lib/utils';
 import { useLocalProfileStore, useWebCoreStore } from '@chatic/web-core';
@@ -10,7 +10,7 @@ import { useLocalProfileStore, useWebCoreStore } from '@chatic/web-core';
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 
 export const ProfileEditPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const profile = useWebCoreStore(s => s.profile);
     const localProfile = useLocalProfileStore();

@@ -1,6 +1,7 @@
 import { Bell, ChevronLeft, Crown, Lock, LogOut, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '../../../shared/hooks';
 
 import { InviteCodeCard } from '../components';
 
@@ -24,7 +25,7 @@ const mockMembers = [
 ];
 
 export const WorkspaceSettingsPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
 
     return (

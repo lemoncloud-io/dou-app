@@ -1,14 +1,15 @@
 import { ChevronLeft, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '../../../shared/hooks';
 
 import { useWebCoreStore } from '@chatic/web-core';
 
 import { WithdrawalDialog } from '../components/WithdrawalDialog';
 
 export const WithdrawalPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const profile = useWebCoreStore(s => s.profile);
     const logout = useWebCoreStore(s => s.logout);

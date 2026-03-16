@@ -127,3 +127,91 @@
         padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 }
+
+/* ============================================
+   View Transition Animations (iOS-style slide)
+   ============================================ */
+
+/* Keyframes for forward animations */
+@keyframes slide-in-from-right {
+    from {
+        transform: translateX(100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+@keyframes slide-out-to-left {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(-30%);
+        opacity: 0.8;
+    }
+}
+
+/* Keyframes for back animations */
+@keyframes slide-in-from-left {
+    from {
+        transform: translateX(-30%);
+        opacity: 0.8;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slide-out-to-right {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(100%);
+    }
+}
+
+/* Base view transition settings - disable default crossfade */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 350ms;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+    animation-fill-mode: both;
+    /* Prevent flickering */
+    mix-blend-mode: normal;
+    isolation: isolate;
+}
+
+/* Forward navigation (default) - new page slides in from right */
+::view-transition-old(root) {
+    animation-name: slide-out-to-left;
+    z-index: 1;
+}
+
+::view-transition-new(root) {
+    animation-name: slide-in-from-right;
+    z-index: 2;
+}
+
+/* Back navigation - old page slides out to right */
+.back-navigation::view-transition-old(root) {
+    animation-name: slide-out-to-right;
+    z-index: 2;
+}
+
+.back-navigation::view-transition-new(root) {
+    animation-name: slide-in-from-left;
+    z-index: 1;
+}
+
+/* Reduced motion - respect user preferences */
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none !important;
+    }
+}

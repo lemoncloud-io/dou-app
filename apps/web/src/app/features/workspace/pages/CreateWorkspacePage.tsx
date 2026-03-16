@@ -1,7 +1,8 @@
 import { Camera, ChevronLeft, HelpCircle, Image } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '../../../shared/hooks';
 
 import { InviteCodeCard, VisibilityToggle } from '../components';
 
@@ -66,7 +67,7 @@ const CreateWorkspaceSuccess = ({
 };
 
 export const CreateWorkspacePage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const [name, setName] = useState('');
     const [visibility, setVisibility] = useState<'public' | 'private'>('private');
