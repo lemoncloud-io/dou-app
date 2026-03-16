@@ -15,12 +15,11 @@ export const TermsPage = () => {
     return (
         <div className="flex min-h-screen flex-col bg-background">
             {/* Header */}
-            <header className="flex items-center justify-between border-b border-border px-4 py-3">
-                <button onClick={() => navigate(-1)} className="p-1">
-                    <ChevronLeft size={24} className="text-foreground" />
+            <header className="flex items-center justify-center px-4 py-3">
+                <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
+                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
                 </button>
                 <h1 className="text-[17px] font-semibold text-foreground">{t('mypage.policy.terms')}</h1>
-                <div className="w-8" />
             </header>
 
             {/* Content */}

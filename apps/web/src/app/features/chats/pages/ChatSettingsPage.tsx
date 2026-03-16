@@ -125,14 +125,11 @@ export const ChatSettingsPage = () => {
     return (
         <div className="flex min-h-screen flex-col bg-background">
             {/* Header */}
-            <header className="flex h-[45px] items-center justify-between bg-background px-1.5">
-                <button onClick={() => navigate(-1)} className="flex size-11 items-center justify-center rounded-full">
-                    <ChevronLeft size={24} className="text-foreground" />
+            <header className="flex items-center justify-center px-4 py-3">
+                <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
+                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
                 </button>
-                <h1 className="flex-1 text-center text-[16px] font-semibold leading-[26px] tracking-[0.08px] text-foreground">
-                    {t('chat.settings.title')}
-                </h1>
-                <div className="size-11" />
+                <h1 className="text-[17px] font-semibold text-foreground">{t('chat.settings.title')}</h1>
             </header>
 
             {/* Content */}

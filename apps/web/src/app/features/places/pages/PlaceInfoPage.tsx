@@ -16,12 +16,11 @@ interface HeaderProps {
 }
 
 const Header = ({ title, onBack }: HeaderProps) => (
-    <header className="flex h-11 items-center px-1.5">
-        <button onClick={onBack} className="flex size-11 items-center justify-center">
-            <ChevronLeft size={24} className="text-foreground" />
+    <header className="flex items-center justify-center px-4 py-3">
+        <button onClick={onBack} className="absolute left-4 p-2">
+            <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
         </button>
-        <span className="flex-1 text-center text-base font-semibold text-foreground">{title}</span>
-        <div className="size-11" />
+        <h1 className="text-[17px] font-semibold text-foreground">{title}</h1>
     </header>
 );
 

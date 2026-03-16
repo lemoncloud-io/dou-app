@@ -21,9 +21,9 @@ export const SearchPage = () => {
 
     return (
         <div className="flex min-h-screen flex-col bg-background">
-            <header className="flex items-center gap-2 px-4 pb-3 pt-3">
-                <button onClick={() => navigate(-1)} className="p-1">
-                    <ChevronLeft size={24} className="text-foreground" />
+            <header className="flex items-center gap-2 px-4 py-3">
+                <button onClick={() => navigate(-1)} className="p-2">
+                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
                 </button>
                 <div className="flex flex-1 items-center gap-2 rounded-xl bg-muted px-3 py-2.5">
                     <Search size={18} className="text-muted-foreground" />
@@ -59,7 +59,9 @@ export const SearchPage = () => {
                                         className="flex w-full items-center gap-3 rounded-lg px-1 py-3 active:bg-muted"
                                     >
                                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-sm">
-                                            <span role="img" aria-label="place">🏠</span>
+                                            <span role="img" aria-label="place">
+                                                🏠
+                                            </span>
                                         </div>
                                         <span className="text-[15px] font-medium text-foreground">{place.name}</span>
                                     </button>
@@ -79,7 +81,9 @@ export const SearchPage = () => {
                                         className="flex w-full items-center gap-3 rounded-lg px-1 py-3 active:bg-muted"
                                     >
                                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-sm">
-                                            <span role="img" aria-label="chat">💬</span>
+                                            <span role="img" aria-label="chat">
+                                                💬
+                                            </span>
                                         </div>
                                         <span className="text-[15px] font-medium text-foreground">
                                             {channel.name || t('channelList.unnamedChannel')}

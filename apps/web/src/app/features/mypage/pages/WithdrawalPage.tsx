@@ -35,9 +35,9 @@ export const WithdrawalPage = () => {
     return (
         <div className="flex min-h-screen flex-col bg-background pt-safe-top">
             {/* Header */}
-            <header className="relative flex items-center justify-center px-4 py-3">
-                <button onClick={handleClose} className="absolute left-4 p-1" aria-label="Back">
-                    <ChevronLeft size={24} className="text-foreground" />
+            <header className="flex items-center justify-center px-4 py-3">
+                <button onClick={handleClose} className="absolute left-4 p-2" aria-label="Back">
+                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
                 </button>
                 <h1 className="text-[17px] font-semibold text-foreground">{t('mypage.withdrawal.title')}</h1>
             </header>
