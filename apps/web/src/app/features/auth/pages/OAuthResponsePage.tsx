@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
-import { useNavigateWithTransition } from '../../../shared/hooks';
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { toast } from 'sonner';
 

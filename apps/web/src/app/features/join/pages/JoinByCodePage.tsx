@@ -2,7 +2,7 @@ import { AlertCircle, CheckCircle2, ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useNavigateWithTransition } from '../../../shared/hooks';
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 export const JoinByCodePage = () => {
     const navigate = useNavigateWithTransition();

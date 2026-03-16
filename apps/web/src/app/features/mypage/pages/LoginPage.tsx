@@ -6,7 +6,7 @@ import { useLogin } from '@chatic/auth';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { webCore } from '@chatic/web-core';
 
-import { useNavigateWithTransition } from '../../../shared/hooks';
+import { useNavigateWithTransition } from '@chatic/page-transition';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 
 export const LoginPage = () => {

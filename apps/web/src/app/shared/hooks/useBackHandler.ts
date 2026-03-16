@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 
 import { postMessage, getMobileAppInfo, useHandleAppMessage } from '@chatic/app-messages';
 
-import { useNavigateWithTransition } from './useNavigateWithTransition';
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 /**
  * Hook to handle back button in hybrid app environment.

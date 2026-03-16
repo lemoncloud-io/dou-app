@@ -1,7 +1,7 @@
 import { Bell, ChevronLeft, Crown, Lock, LogOut, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { useNavigateWithTransition } from '../../../shared/hooks';
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { InviteCodeCard } from '../components';
 

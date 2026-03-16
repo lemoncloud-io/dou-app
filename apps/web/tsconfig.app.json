@@ -35,6 +35,9 @@
             "path": "../../libs/chats/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/page-transition/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/auth/tsconfig.lib.json"
         },
         {

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 
-import { useNavigateWithTransition } from '../../../shared/hooks';
+import { useNavigateWithTransition } from '@chatic/page-transition';
 import { cloudCore, useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
 
 import { useUnreadCount } from '../../chats/hooks/useUnreadCount';

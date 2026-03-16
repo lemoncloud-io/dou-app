@@ -3,25 +3,10 @@ import { useNavigate } from 'react-router-dom';
 
 import { getMobileAppInfo } from '@chatic/app-messages';
 
-import type { NavigateOptions, To } from 'react-router-dom';
+import { ANDROID_PLATFORM_CLASS, BACK_NAVIGATION_CLASS } from '../constants';
 
-/** CSS class added to document element during back navigation for reverse animation */
-const BACK_NAVIGATION_CLASS = 'back-navigation';
-
-/** CSS class added to document element for Android-specific animations */
-const ANDROID_PLATFORM_CLASS = 'android';
-
-/** Options for navigation with view transitions */
-export interface TransitionNavigateOptions extends NavigateOptions {
-    /**
-     * Whether to use view transition animation.
-     * @default true
-     */
-    transition?: boolean;
-}
-
-/** Navigate function with view transition support */
-export type NavigateWithTransitionFn = (to: To | number, options?: TransitionNavigateOptions) => void;
+import type { NavigateWithTransitionFn, TransitionNavigateOptions } from '../types';
+import type { To } from 'react-router-dom';
 
 /**
  * A wrapper hook around useNavigate that adds view transition support.
@@ -100,21 +85,4 @@ export const useNavigateWithTransition = (): NavigateWithTransitionFn => {
     );
 
     return navigateWithTransition;
-};
-
-/**
- * Convenience hook for back navigation with transition.
- *
- * @example
- * ```tsx
- * const goBack = useGoBack();
- * <button onClick={goBack}>Back</button>
- * ```
- */
-export const useGoBack = () => {
-    const navigate = useNavigateWithTransition();
-
-    return useCallback(() => {
-        navigate(-1);
-    }, [navigate]);
 };

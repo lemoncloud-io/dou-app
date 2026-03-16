@@ -2,7 +2,7 @@ import { ChevronLeft, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useNavigateWithTransition } from '../../../shared/hooks';
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { useWebCoreStore } from '@chatic/web-core';
 

@@ -1,7 +1,7 @@
 import { ChevronLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { useNavigateWithTransition } from '../../../shared/hooks';
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { TERMS_OF_SERVICE_CONTENT } from '../constants';
 

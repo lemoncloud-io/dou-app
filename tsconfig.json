@@ -59,6 +59,9 @@
         },
         {
             "path": "./libs/places"
+        },
+        {
+            "path": "./libs/page-transition"
         }
     ]
 }

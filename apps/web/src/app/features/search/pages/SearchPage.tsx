@@ -2,7 +2,7 @@ import { ChevronLeft, Search, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useNavigateWithTransition } from '../../../shared/hooks';
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { useMyChannels } from '../../home/hooks/useMyChannels';
 import { useMyPlaces } from '../../home/hooks/useMyPlaces';
