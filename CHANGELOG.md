@@ -1,5 +1,27 @@
 # Changelog
 
+## [2026-03-16] - root@0.29.0, @chatic/web@0.26.0
+
+### Features
+
+- add SplashScreen
+
+### Bug Fixes
+
+- fix build error
+
+### Refactor
+
+- change keyboard padding strategy (delegate from Native to Web)
+
+### Chores
+
+- add dependencies lottie-react-native
+- add splash lottie file
+- add import
+- bump mobile version 0.8.0
+- update package.json
+
 ## [2026-03-16] - root@0.28.0, @chatic/web@0.25.0
 
 ### Features
