@@ -1,11 +1,12 @@
 import { ChevronLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { PRIVACY_POLICY_CONTENT } from '../constants';
 
 export const PrivacyPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
 
     const currentVersion = PRIVACY_POLICY_CONTENT.versions.find(

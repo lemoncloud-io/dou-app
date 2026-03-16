@@ -1,7 +1,8 @@
 import { ChevronLeft, Home, MoreHorizontal, Pin } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 interface WorkspaceItem {
     id: string;
@@ -138,7 +139,7 @@ const mockWorkspaces = {
 };
 
 export const WorkspaceListPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState<'mine' | 'friends'>('mine');
     const [menuOpen, setMenuOpen] = useState<string | null>(null);

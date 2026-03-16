@@ -1,4 +1,12 @@
 {
+    "app": {
+        "exitDialog": {
+            "title": "앱 종료",
+            "message": "앱을 종료하시겠습니까?",
+            "cancel": "취소",
+            "confirm": "종료"
+        }
+    },
     "common": {
         "signout": "로그아웃",
         "cancel": "취소",
@@ -186,6 +194,7 @@
         "workspaceSettings": "워크스페이스 설정",
         "darkMode": "다크 모드",
         "languageSettings": "언어 설정",
+        "viewOnboarding": "온보딩 다시보기",
         "logout": "로그아웃",
         "version": "DoU v{{version}}",
         "appVersion": "버전",
@@ -607,6 +616,13 @@
         "accept": "수락하기",
         "accepting": "수락 중...",
         "failed": "초대 수락에 실패했습니다"
+    },
+    "limitExceeded": {
+        "placeTitle": "플레이스를 더 만들 수 없어요",
+        "placeDescription": "플레이스는 최대 {{max}}개까지만 만들 수 있어요.",
+        "channelTitle": "채팅방을 더 만들 수 없어요",
+        "channelDescription": "채팅방은 최대 {{max}}개까지만 만들 수 있어요.",
+        "confirm": "확인"
     },
     "error": {
         "network": {

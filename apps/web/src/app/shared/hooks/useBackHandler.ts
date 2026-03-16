@@ -1,30 +1,69 @@
 import { useEffect, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
 import { postMessage, getMobileAppInfo, useHandleAppMessage } from '@chatic/app-messages';
+
+import { useNavigateWithTransition } from '@chatic/page-transition';
+
+/** Selector for Radix UI overlay components that can be closed with back button */
+const OPEN_DIALOG_SELECTOR =
+    '[data-state="open"][role="dialog"], [data-state="open"][role="alertdialog"], [data-state="open"][role="menu"], [data-state="open"][role="listbox"]';
 
 /**
  * Hook to handle back button in hybrid app environment.
  * - Syncs navigation state with native app
+ * - Syncs language setting with native app
  * - Handles native back button events
  * - Supports `data-prevent-back-close` attribute to prevent back button from closing dialogs
  */
 export const useBackHandler = () => {
     const location = useLocation();
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
+    const { i18n } = useTranslation();
     const { isOnMobileApp } = getMobileAppInfo();
 
-    // Notify native app about navigation state changes
+    // Sync language with native app
     useEffect(() => {
         if (!isOnMobileApp) return;
 
-        // Check if we can go back (not on root path)
-        const canGoBack = location.key !== 'default' && window.history.length > 1;
-
         postMessage({
-            type: 'SetCanGoBack',
-            data: { canGoBack },
+            type: 'SetLanguage',
+            data: { language: i18n.language },
         });
+    }, [i18n.language, isOnMobileApp]);
+
+    // Notify native app about navigation state changes
+    // Also watch for dialog state changes using MutationObserver
+    useEffect(() => {
+        if (!isOnMobileApp) return;
+
+        const checkCanGoBack = () => {
+            // Only report dialog state - native app tracks navigation history separately
+            const hasOpenDialogs = document.querySelector(OPEN_DIALOG_SELECTOR) !== null;
+
+            postMessage({
+                type: 'SetCanGoBack',
+                data: { canGoBack: hasOpenDialogs },
+            });
+        };
+
+        // Initial check
+        checkCanGoBack();
+
+        // Watch for dialog state changes (both attribute changes and DOM additions/removals)
+        const observer = new MutationObserver(() => {
+            checkCanGoBack();
+        });
+
+        observer.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['data-state'],
+            childList: true,
+            subtree: true,
+        });
+
+        return () => observer.disconnect();
     }, [location, isOnMobileApp]);
 
     /**
@@ -37,8 +76,7 @@ export const useBackHandler = () => {
      * <DialogContent data-prevent-back-close>
      */
     const handleNativeBack = useCallback(() => {
-        // Radix UI dialogs use data-state="open" when visible
-        const openDialogs = document.querySelectorAll('[data-state="open"][role="dialog"]');
+        const openDialogs = document.querySelectorAll(OPEN_DIALOG_SELECTOR);
 
         if (openDialogs.length > 0) {
             // Get the topmost dialog (last in DOM order, highest z-index)
@@ -50,13 +88,28 @@ export const useBackHandler = () => {
                 return;
             }
 
-            // Trigger Escape key to close dialog (Radix handles this natively)
+            // AlertDialog does NOT close on Escape by design (requires explicit user action)
+            // So we need to click a button inside the dialog to close it
+            if (topmostDialog.getAttribute('role') === 'alertdialog') {
+                // Find and click the first button (usually OK/Cancel)
+                const button = topmostDialog.querySelector('button');
+                if (button instanceof HTMLElement) {
+                    button.click();
+                }
+                return;
+            }
+
+            // For regular dialogs, dispatch Escape key on document (Radix listens on document level)
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
             return;
         }
 
-        navigate(-1);
-    }, [navigate]);
+        // Only navigate back if there's history to go back to
+        const canGoBack = location.key !== 'default' && window.history.length > 1;
+        if (canGoBack) {
+            navigate(-1);
+        }
+    }, [navigate, location.key]);
 
     // Listen for native back button message
     useHandleAppMessage('OnBackPressed', handleNativeBack);

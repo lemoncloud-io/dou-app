@@ -1,5 +1,65 @@
 # Changelog
 
+## [2026-03-16] - root@0.26.0, @chatic/web@0.23.0
+
+### Features
+
+- add page transition
+- add Android-specific view transitions
+- add alert to exit
+
+### Bug Fixes
+
+- improve back button handling
+- add debug logging and update canGoBack logic
+
+### Refactor
+
+- (chats, places) remove pt-safe-top class
+- use LoadingFallback for loading states
+- implement page-transition lib
+- improve dialog handling
+- (navigation) simplify back button handling
+- remove console logs
+
+## [2026-03-16] - root@0.25.1, @chatic/web@0.22.1
+
+### Bug Fixes
+
+- fix error for ios share sheet case
+
+### Documentation
+
+- update app-messages README.md
+
+### Refactor
+
+- append invite link to message field
+
+## [2026-03-16] - root@0.25.0, @chatic/web@0.22.0
+
+### Features
+
+- (mypage) add view onboarding again feature
+- add limit exceeded dialog and place creation limit
+
+### Chores
+
+- (ui) replace emojis with icons in ChannelList
+
+## [2026-03-16] - root@0.24.0, @chatic/web@0.21.0
+
+### Features
+
+- (web) move auth routes to commonRoutes for auth-independent access
+- (auth) redirect to / after login, /auth/login after logout, fix isInvited storage
+- (web) apply isCloudUser logic using isInvited flag across components
+
+### Refactor
+
+- (web-core) remove dynamic endpoint override from static constants
+- (mobile) restore webviewUrl to Config, remove dev localhost override
+
 ## [2026-03-16] - root@0.23.1, @chatic/web@0.20.1
 
 ### Refactor

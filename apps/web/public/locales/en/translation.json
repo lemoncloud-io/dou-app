@@ -1,4 +1,12 @@
 {
+    "app": {
+        "exitDialog": {
+            "title": "Exit App",
+            "message": "Do you want to exit the app?",
+            "cancel": "Cancel",
+            "confirm": "Exit"
+        }
+    },
     "common": {
         "signout": "Sign Out",
         "cancel": "Cancel",
@@ -186,6 +194,7 @@
         "workspaceSettings": "Workspace Settings",
         "darkMode": "Dark Mode",
         "languageSettings": "Language",
+        "viewOnboarding": "View Onboarding Again",
         "logout": "Logout",
         "version": "DoU v{{version}}",
         "appVersion": "Version",
@@ -607,6 +616,13 @@
         "accept": "Accept",
         "accepting": "Accepting...",
         "failed": "Failed to accept invitation"
+    },
+    "limitExceeded": {
+        "placeTitle": "Can't create more places",
+        "placeDescription": "You can create up to {{max}} places.",
+        "channelTitle": "Can't create more chat rooms",
+        "channelDescription": "You can create up to {{max}} chat rooms.",
+        "confirm": "OK"
     },
     "error": {
         "network": {
