@@ -5,7 +5,7 @@ import { JoinRoutes } from '../../features/join';
 import { MyPageRoutes } from '../../features/mypage';
 import { NotificationsRoutes } from '../../features/notifications';
 import { PlaceRoutes } from '../../features/places';
-import { CreateWorkspaceRoutes, WorkspaceListRoutes, WorkspaceRoutes } from '../../features/workspace';
+import { CreateWorkspaceRoutes, WorkspaceRoutes } from '../../features/workspace';
 import { MainLayout, SafeAreaLayout } from '../../shared/layouts';
 
 export const privateRoutes = [
@@ -17,7 +17,6 @@ export const privateRoutes = [
             { index: true, element: <HomeRoutes /> },
             { path: 'explore/*', element: <ExploreRoutes /> },
             { path: 'mypage/*', element: <MyPageRoutes /> },
-            { path: 'workspace-list/*', element: <WorkspaceListRoutes /> },
         ],
     },
     // Routes with SafeAreaLayout

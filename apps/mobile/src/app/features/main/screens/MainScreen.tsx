@@ -19,10 +19,11 @@ import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
 import type { MainScreenProps } from '../navigation';
 import { useIsFocused } from '@react-navigation/native';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import Config from 'react-native-config';
 
 // TODO: Use Config.VITE_WEBVIEW_BASE_URL when ready for production
-// const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
-const webviewUrl = 'http://localhost:5003';
+const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
+// const webviewUrl = 'http://localhost:5003';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
@@ -61,6 +62,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         handleGetContacts,
         handleOpenCamera,
         handleOpenPhotoLibrary,
+        handleOpenURL,
     } = useDeviceHandler(bridge);
     const { handleRequestPermission } = usePermissionHandler(bridge);
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler(bridge);
@@ -252,6 +254,11 @@ true;`;
                         break;
                     }
 
+                    case 'OpenURL': {
+                        void handleOpenURL(message.data);
+                        break;
+                    }
+
                     default:
                         if ((message as any).type === '__console__') {
                             const m = message as any;
@@ -293,6 +300,7 @@ true;`;
         handleRequestPermission,
         handleOAuthLogin,
         handleOAuthLogout,
+        handleOpenURL,
     ]);
 
     return (

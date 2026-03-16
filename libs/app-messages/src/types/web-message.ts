@@ -49,6 +49,7 @@ export const WebMessageTypes = {
     DeletePreference: 'DeletePreference',
     OAuthLogin: 'OAuthLogin',
     OAuthLogout: 'OAuthLogout',
+    OpenURL: 'OpenURL',
 } as const;
 export type WebMessageType = (typeof WebMessageTypes)[keyof typeof WebMessageTypes];
 
@@ -278,6 +279,17 @@ export interface DeletePreference extends WebDefaultMessage<'DeletePreference'> 
     };
 }
 
+/**
+ * 외부 URL 열기 요청
+ * Native에서 Linking.openURL()로 처리
+ */
+export interface OpenURL extends WebDefaultMessage<'OpenURL'> {
+    data: {
+        /** 열 URL */
+        url: string;
+    };
+}
+
 interface WebMessageMap {
     /**
      * 언어 설정 동기화
@@ -348,6 +360,11 @@ interface WebMessageMap {
      */
     OAuthLogin: OAuthLogin;
     OAuthLogout: OAuthLogout;
+
+    /**
+     * External URL Event
+     */
+    OpenURL: OpenURL;
 }
 
 export type WebMessageData<T extends WebMessageType> = WebMessageMap[T];

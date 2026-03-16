@@ -1,14 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 
-import { CreateWorkspacePage, WorkspaceDetailPage, WorkspaceListPage, WorkspaceSettingsPage } from '../pages';
-
-export const WorkspaceListRoutes = () => {
-    return (
-        <Routes>
-            <Route index element={<WorkspaceListPage />} />
-        </Routes>
-    );
-};
+import { CreateWorkspacePage, WorkspaceDetailPage, WorkspaceSettingsPage } from '../pages';
 
 export const WorkspaceRoutes = () => {
     return (

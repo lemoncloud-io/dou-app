@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/page-transition';
 
+import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { getStoreUrl } from '@chatic/shared';
 import { useTheme } from '@chatic/theme';
@@ -48,7 +49,12 @@ export const MyPage = () => {
 
     const handleUpdateClick = () => {
         const storeUrl = getStoreUrl(deviceInfo?.platform);
-        if (storeUrl) {
+        if (!storeUrl) return;
+
+        const { isOnMobileApp } = getMobileAppInfo();
+        if (isOnMobileApp) {
+            postMessage({ type: 'OpenURL', data: { url: storeUrl } });
+        } else {
             window.open(storeUrl, '_blank');
         }
     };
