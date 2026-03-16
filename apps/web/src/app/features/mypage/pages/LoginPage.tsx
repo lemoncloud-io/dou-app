@@ -35,7 +35,7 @@ export const LoginPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background px-4 pt-safe-top">
+        <div className="flex h-full flex-col bg-background px-4">
             <header className="flex items-center py-3">
                 <button onClick={() => navigate(-1)} className="p-2 -ml-2">
                     <ChevronLeft size={24} strokeWidth={2} />

@@ -25,7 +25,7 @@ const CreateWorkspaceSuccess = ({
     t,
 }: CreateWorkspaceSuccessProps) => {
     return (
-        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('workspace.create.successTitle')} onBack={onClose} />
 
             <div className="flex-1 space-y-6 px-5 pt-8">
@@ -88,7 +88,7 @@ export const CreateWorkspacePage = () => {
     }
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('workspace.create.title')} />
 
             <div className="flex-1 px-5 pt-4">

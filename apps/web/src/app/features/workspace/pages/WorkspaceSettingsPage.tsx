@@ -27,7 +27,7 @@ export const WorkspaceSettingsPage = () => {
     const { t } = useTranslation();
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('workspace.settings.title')} />
 
             <div className="space-y-6 px-5 pt-6">
