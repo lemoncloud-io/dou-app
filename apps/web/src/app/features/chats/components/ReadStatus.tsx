@@ -7,7 +7,10 @@ interface ReadStatusProps {
 
 export const ReadStatus = ({ memberNo, readCount }: ReadStatusProps) => {
     const { t } = useTranslation();
-    const unreadCount = memberNo - readCount;
+    const otherMemberNo = memberNo - 1; // 본인 제외
+    const unreadCount = otherMemberNo - readCount;
+
+    if (memberNo <= 1) return null;
 
     // 1:1 채팅
     if (memberNo <= 2) {
@@ -19,7 +22,7 @@ export const ReadStatus = ({ memberNo, readCount }: ReadStatusProps) => {
     }
 
     // 그룹 채팅 - 모두 읽음
-    if (unreadCount === 0) {
+    if (unreadCount <= 0) {
         return <span className="font-medium text-foreground">{t('chat.room.readCount', { count: readCount })}</span>;
     }
 

@@ -10,7 +10,7 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useLocalProfileStore, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
+import { useLocalProfileStore, useOnboardingStore, useWebCoreStore, useDynamicProfile } from '@chatic/web-core';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
@@ -28,7 +28,7 @@ import { useMyPlaces } from '../hooks/useMyPlaces';
 export const HomePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const { logout, isGuest, profile } = useWebCoreStore();
+    const { logout, isGuest, isInvited, profile } = useWebCoreStore();
     const localProfile = useLocalProfileStore();
     const { canCreate } = useCanCreateChannel();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
@@ -36,7 +36,8 @@ export const HomePage = () => {
     const { places } = useMyPlaces();
     const hasPlaces = places.length > 0;
 
-    const displayName = localProfile.name ?? profile?.$user?.nick ?? profile?.$user?.name ?? '-';
+    const dynamicProfile = useDynamicProfile();
+    const displayName = dynamicProfile?.$user?.nick ?? dynamicProfile?.$user?.name ?? localProfile.name ?? '-';
     const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
@@ -60,7 +61,7 @@ export const HomePage = () => {
         <div className="flex min-h-screen flex-col bg-background pb-[98px] pt-4">
             {/* Header */}
             <header className="flex items-center justify-between px-5 pb-3 pt-safe-top">
-                {isGuest ? (
+                {isGuest && !isInvited ? (
                     <img src="/logo-chatic.svg" alt="chatic" className="h-6" />
                 ) : (
                     <DropdownMenu>
