@@ -1,14 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { RefreshCw, Users } from 'lucide-react';
+import { RefreshCw, Users, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
-import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 import { getCloudSession, useCloudSession } from '../../../shared/hooks/useCloudSession';
+
+import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 interface PlaceItemProps {
     place: MySiteView;
@@ -63,10 +64,12 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const { isGuest } = useWebCoreStore();
     const autoSelectedRef = useRef(false);
 
+    const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
+
     const handleSelectPlace = async (placeId: string) => {
         await selectPlace(placeId);
         setSelectedId(placeId);
-        onOpenChange(false);
+        handleClose();
     };
 
     useEffect(() => {
@@ -81,46 +84,50 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const isLoading = isFetchingClouds && clouds.length === 0;
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent
-                side="bottom"
-                className="rounded-t-2xl px-4 pb-safe-bottom pt-4"
-                style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}
-            >
-                <SheetHeader className="mb-4">
-                    <SheetTitle>{t('cloudSessionSheet.title')}</SheetTitle>
-                </SheetHeader>
+        <Sheet open={open} onOpenChange={open => !open && handleClose()}>
+            <SheetContent side="bottom" className="rounded-t-2xl p-0 pb-safe-bottom" hideClose>
+                <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                    <SheetTitle className="text-lg font-semibold text-foreground">
+                        {t('cloudSessionSheet.title')}
+                    </SheetTitle>
+                    <button onClick={handleClose} className="p-1">
+                        <X size={24} className="text-muted-foreground" />
+                    </button>
+                </div>
+                <SheetDescription className="sr-only">{t('cloudSessionSheet.title')}</SheetDescription>
 
-                {isLoading ? (
-                    <div className="flex gap-[14px] py-2">
-                        {Array.from({ length: 3 }).map((_, i) => (
-                            <div key={i} className="flex flex-col items-center gap-[5px]">
-                                <div className="h-[47px] w-[47px] animate-pulse rounded-full bg-muted" />
-                                <div className="h-3 w-[50px] animate-pulse rounded bg-muted" />
-                            </div>
-                        ))}
-                    </div>
-                ) : isCloudsError ? (
-                    <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
-                        <span>{t('cloudSessionSheet.errorLoading')}</span>
-                        <button onClick={() => refetchClouds()} className="flex items-center gap-1 text-foreground">
-                            <RefreshCw size={14} />
-                            <span>{t('cloudSessionSheet.retry')}</span>
-                        </button>
-                    </div>
-                ) : (
-                    <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-1 pb-2 pt-1">
-                        {clouds.map(place => (
-                            <PlaceItem
-                                key={place.id}
-                                place={place}
-                                isSelected={selectedId === place.id}
-                                isDisabled={isPending}
-                                onSelectPlace={handleSelectPlace}
-                            />
-                        ))}
-                    </div>
-                )}
+                <div className="px-5 py-4">
+                    {isLoading ? (
+                        <div className="flex gap-[14px]">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className="flex flex-col items-center gap-[5px]">
+                                    <div className="h-[47px] w-[47px] animate-pulse rounded-full bg-muted" />
+                                    <div className="h-3 w-[50px] animate-pulse rounded bg-muted" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : isCloudsError ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span>{t('cloudSessionSheet.errorLoading')}</span>
+                            <button onClick={() => refetchClouds()} className="flex items-center gap-1 text-foreground">
+                                <RefreshCw size={14} />
+                                <span>{t('cloudSessionSheet.retry')}</span>
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="scrollbar-hide flex gap-[14px] overflow-x-auto">
+                            {clouds.map(place => (
+                                <PlaceItem
+                                    key={place.id}
+                                    place={place}
+                                    isSelected={selectedId === place.id}
+                                    isDisabled={isPending}
+                                    onSelectPlace={handleSelectPlace}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
             </SheetContent>
         </Sheet>
     );

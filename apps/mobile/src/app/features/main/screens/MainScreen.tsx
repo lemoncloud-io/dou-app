@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { AppWebView, FullScreenLoader, Logger, useDeepLinkStore } from '../../../common';
+import { AppWebView, FullScreenLoader, getAppLanguage, Logger, useDeepLinkStore } from '../../../common';
 import {
     useAndroidBack,
     useAppBridge,
@@ -19,15 +19,16 @@ import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
 import type { MainScreenProps } from '../navigation';
 import { useIsFocused } from '@react-navigation/native';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
-import Config from 'react-native-config';
 
-const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
+// TODO: Use Config.VITE_WEBVIEW_BASE_URL when ready for production
+const webviewUrl = 'http://localhost:5003';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
     const isFocused = useIsFocused();
     const isModalOpened = useRef(false);
     const [canGoBack, setCanGoBack] = useState(false);
+    const [language, setLanguage] = useState(getAppLanguage());
     const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
 
     // Deep Link Store
@@ -61,7 +62,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const { handleRequestPermission } = usePermissionHandler(bridge);
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler(bridge);
 
-    useAndroidBack(webViewRef, canGoBack);
+    useAndroidBack(webViewRef, canGoBack, language);
 
     // Handle WebView load complete
     const handleWebViewLoad = useCallback(() => {
@@ -120,6 +121,10 @@ true;`;
         return bridge.receive(
             (message: WebMessageData<WebMessageType>) => {
                 switch (message.type) {
+                    case 'SetLanguage': {
+                        setLanguage(message.data.language);
+                        break;
+                    }
                     case 'SetCanGoBack': {
                         setCanGoBack(message.data.canGoBack);
                         break;

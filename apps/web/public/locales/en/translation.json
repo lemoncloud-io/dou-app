@@ -1,4 +1,12 @@
 {
+    "app": {
+        "exitDialog": {
+            "title": "Exit App",
+            "message": "Do you want to exit the app?",
+            "cancel": "Cancel",
+            "confirm": "Exit"
+        }
+    },
     "common": {
         "signout": "Sign Out",
         "cancel": "Cancel",

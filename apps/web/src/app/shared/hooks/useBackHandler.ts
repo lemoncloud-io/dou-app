@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { postMessage, getMobileAppInfo, useHandleAppMessage } from '@chatic/app-messages';
@@ -8,13 +9,25 @@ import { useNavigateWithTransition } from '@chatic/page-transition';
 /**
  * Hook to handle back button in hybrid app environment.
  * - Syncs navigation state with native app
+ * - Syncs language setting with native app
  * - Handles native back button events
  * - Supports `data-prevent-back-close` attribute to prevent back button from closing dialogs
  */
 export const useBackHandler = () => {
     const location = useLocation();
     const navigate = useNavigateWithTransition();
+    const { i18n } = useTranslation();
     const { isOnMobileApp } = getMobileAppInfo();
+
+    // Sync language with native app
+    useEffect(() => {
+        if (!isOnMobileApp) return;
+
+        postMessage({
+            type: 'SetLanguage',
+            data: { language: i18n.language },
+        });
+    }, [i18n.language, isOnMobileApp]);
 
     // Notify native app about navigation state changes
     useEffect(() => {
@@ -59,11 +72,8 @@ export const useBackHandler = () => {
                 return;
             }
 
-            // Trigger Escape key to close dialog (Radix handles this natively)
-            // Dispatch on the dialog element itself so the event bubbles up through capture phase
-            topmostDialog.dispatchEvent(
-                new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
-            );
+            // Dispatch Escape key on document to close dialog (Radix listens on document level)
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
             return;
         }
 
