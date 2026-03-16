@@ -2,6 +2,7 @@ import { Check, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@chatic/ui-kit/components/ui/sheet';
 
 interface LanguageSelectSheetProps {
     isOpen: boolean;
@@ -22,20 +23,18 @@ export const LanguageSelectSheet = ({ isOpen, onClose }: LanguageSelectSheetProp
         onClose();
     };
 
-    if (!isOpen) return null;
-
     return (
-        <>
-            {/* Backdrop */}
-            <div className="fixed inset-0 z-40 bg-black/50" onClick={onClose} />
-            {/* Sheet */}
-            <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl bg-background pb-safe-bottom">
+        <Sheet open={isOpen} onOpenChange={open => !open && onClose()}>
+            <SheetContent side="bottom" className="rounded-t-2xl p-0 pb-safe-bottom" hideClose>
                 <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                    <h2 className="text-lg font-semibold text-foreground">{t('mypage.language.select')}</h2>
+                    <SheetTitle className="text-lg font-semibold text-foreground">
+                        {t('mypage.language.select')}
+                    </SheetTitle>
                     <button onClick={onClose} className="p-1">
                         <X size={24} className="text-muted-foreground" />
                     </button>
                 </div>
+                <SheetDescription className="sr-only">{t('mypage.language.select')}</SheetDescription>
                 <div className="px-5 py-2">
                     {languages.map(lang => (
                         <button
@@ -51,7 +50,7 @@ export const LanguageSelectSheet = ({ isOpen, onClose }: LanguageSelectSheetProp
                         </button>
                     ))}
                 </div>
-            </div>
-        </>
+            </SheetContent>
+        </Sheet>
     );
 };

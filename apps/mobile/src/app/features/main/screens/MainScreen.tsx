@@ -119,6 +119,10 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         return bridge.receive(
             (message: WebMessageData<WebMessageType>) => {
                 switch (message.type) {
+                    case 'SetCanGoBack': {
+                        setCanGoBack(message.data.canGoBack);
+                        break;
+                    }
                     case 'FetchFcmToken': {
                         void fetchFcmToken();
                         break;
