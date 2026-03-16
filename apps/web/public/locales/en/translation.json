@@ -382,6 +382,21 @@
                 "appNotificationOffDesc": "Enable device settings to receive push notifications",
                 "messageNotification": "Message Notifications",
                 "messageNotificationDesc": "Receive notifications for messages from friends"
+            },
+            "report": "Report",
+            "block": "Block",
+            "reportSuccess": "Report submitted",
+            "blockSuccess": "Blocked",
+            "reportDialog": {
+                "title": "Report Member",
+                "description": "False reports may result in restrictions.",
+                "reasonPlaceholder": "Please enter the reason for reporting",
+                "confirm": "Report"
+            },
+            "blockDialog": {
+                "title": "Block this member?",
+                "description": "You will no longer receive messages from this member.",
+                "confirm": "Block"
             }
         }
     },

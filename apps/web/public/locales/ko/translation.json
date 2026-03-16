@@ -382,6 +382,21 @@
                 "appNotificationOffDesc": "알림을 푸시로 확인하려면 기기 설정을 해주세요",
                 "messageNotification": "메시지 알림",
                 "messageNotificationDesc": "친구가 보낸 채팅 메시지 알림을 받을 수 있어요"
+            },
+            "report": "신고하기",
+            "block": "차단하기",
+            "reportSuccess": "신고가 접수되었습니다",
+            "blockSuccess": "차단되었습니다",
+            "reportDialog": {
+                "title": "멤버 신고",
+                "description": "허위 신고는 이용 제한을 받을 수 있습니다.",
+                "reasonPlaceholder": "신고 사유를 입력해 주세요",
+                "confirm": "신고"
+            },
+            "blockDialog": {
+                "title": "멤버를 차단하시겠습니까?",
+                "description": "차단하면 이 멤버의 메시지를 더 이상 받지 않습니다.",
+                "confirm": "차단"
             }
         }
     },

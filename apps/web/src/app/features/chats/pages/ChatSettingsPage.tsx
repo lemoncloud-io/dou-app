@@ -13,13 +13,19 @@ import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { MemberListItem } from '../components/MemberListItem';
+import { ReportMemberDialog } from '../components/ReportMemberDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
 import { useMyChannels } from '../../home/hooks';
 import { useChannelMembers, useChatMessages, useDeleteChannel, useLeaveRoom, useMyChannel } from '../hooks';
 
 import type { LucideIcon } from 'lucide-react';
 
-type DialogType = 'invite' | 'update' | 'delete' | 'leave' | null;
+type DialogType = 'invite' | 'update' | 'delete' | 'leave' | 'report' | 'block' | null;
+
+interface SelectedMember {
+    id: string;
+    name: string;
+}
 
 interface ActionButtonProps {
     icon: LucideIcon;
@@ -55,6 +61,7 @@ export const ChatSettingsPage = () => {
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [activeDialog, setActiveDialog] = useState<DialogType>(null);
+    const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
     const { members, total: membersTotal, isLoading: isMembersLoading } = useChannelMembers(channelId ?? null);
     const { leaveRoom, isPending: isLeavePending } = useLeaveRoom();
@@ -70,7 +77,15 @@ export const ChatSettingsPage = () => {
     const memberCount = membersTotal || channel?.memberNo || 0;
 
     const openDialog = (type: DialogType) => setActiveDialog(type);
-    const closeDialog = () => setActiveDialog(null);
+    const closeDialog = () => {
+        setActiveDialog(null);
+        setSelectedMember(null);
+    };
+
+    const openMemberDialog = (type: 'report' | 'block', member: SelectedMember) => {
+        setSelectedMember(member);
+        setActiveDialog(type);
+    };
 
     const handleLeaveRoom = async () => {
         if (!channelId) return;
@@ -101,6 +116,26 @@ export const ChatSettingsPage = () => {
             console.error('Failed to delete room:', error);
             toast({ title: t('chat.settings.deleteFailed'), variant: 'destructive' });
         }
+    };
+
+    const handleReportMember = async (reason: string) => {
+        if (!selectedMember) return;
+
+        // TODO: Implement report member API call
+        // Example: await reportMember(channelId, selectedMember.id, reason);
+        console.log('Report member:', selectedMember, 'Reason:', reason);
+        closeDialog();
+        toast({ title: t('chat.settings.reportSuccess') });
+    };
+
+    const handleBlockMember = async () => {
+        if (!selectedMember) return;
+
+        // TODO: Implement block member API call
+        // Example: await blockMember(selectedMember.id);
+        console.log('Block member:', selectedMember);
+        closeDialog();
+        toast({ title: t('chat.settings.blockSuccess') });
     };
 
     if (isLoading) {
@@ -199,6 +234,8 @@ export const ChatSettingsPage = () => {
                                 const memberName =
                                     member.$join?.nick || member.nick || memberId || t('chat.settings.unknownUser');
 
+                                const isMember = memberId === profile?.uid;
+
                                 return (
                                     <MemberListItem
                                         key={memberId}
@@ -207,9 +244,12 @@ export const ChatSettingsPage = () => {
                                             name: memberName,
                                             avatar: null,
                                         }}
-                                        isMe={memberId === profile?.uid}
+                                        isMe={isMember}
                                         isOwner={memberId === channel?.ownerId}
                                         isPendingInvite={member.$join?.joined === 0}
+                                        showActions={!isMember}
+                                        onReport={() => openMemberDialog('report', { id: memberId, name: memberName })}
+                                        onBlock={() => openMemberDialog('block', { id: memberId, name: memberName })}
                                     />
                                 );
                             })
@@ -254,6 +294,21 @@ export const ChatSettingsPage = () => {
                 onConfirm={handleLeaveRoom}
                 isPending={isLeavePending}
                 variant="warning"
+            />
+            <ReportMemberDialog
+                open={activeDialog === 'report'}
+                onOpenChange={open => (open ? openDialog('report') : closeDialog())}
+                memberName={selectedMember?.name ?? ''}
+                onConfirm={handleReportMember}
+            />
+            <ConfirmDialog
+                open={activeDialog === 'block'}
+                onOpenChange={open => (open ? openDialog('block') : closeDialog())}
+                title={t('chat.settings.blockDialog.title')}
+                description={t('chat.settings.blockDialog.description')}
+                confirmLabel={t('chat.settings.blockDialog.confirm')}
+                onConfirm={handleBlockMember}
+                variant="danger"
             />
         </div>
     );
