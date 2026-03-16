@@ -608,6 +608,13 @@
         "accepting": "수락 중...",
         "failed": "초대 수락에 실패했습니다"
     },
+    "limitExceeded": {
+        "placeTitle": "플레이스를 더 만들 수 없어요",
+        "placeDescription": "플레이스는 최대 {{max}}개까지만 만들 수 있어요.",
+        "channelTitle": "채팅방을 더 만들 수 없어요",
+        "channelDescription": "채팅방은 최대 {{max}}개까지만 만들 수 있어요.",
+        "confirm": "확인"
+    },
     "error": {
         "network": {
             "title": "연결 오류",

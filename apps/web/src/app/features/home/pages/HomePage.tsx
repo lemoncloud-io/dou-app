@@ -13,8 +13,10 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useLocalProfileStore, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
+import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
+import { LimitExceededDialog } from '../../../shared/components/LimitExceededDialog';
 import { SettingsDialog } from '../../../components/SettingsDialog';
 import { OnboardingModal } from '../../onboarding';
 import { SearchModal } from '../../search';
@@ -30,7 +32,17 @@ export const HomePage = () => {
     const navigate = useNavigate();
     const { logout, isGuest, profile } = useWebCoreStore();
     const localProfile = useLocalProfileStore();
-    const { canCreate } = useCanCreateChannel();
+    const {
+        canCreate: canCreateChannel,
+        isLimitReached: isChannelLimitReached,
+        isLoading: isChannelsLoading,
+        maxCount: maxChannels,
+    } = useCanCreateChannel();
+    const {
+        isLimitReached: isPlaceLimitReached,
+        isLoading: isPlacesLoading,
+        maxCount: maxPlaces,
+    } = useCanCreatePlace();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const { isCloudsError } = useCloudSession();
     const { places } = useMyPlaces();
@@ -44,6 +56,7 @@ export const HomePage = () => {
     const [isCloudSessionOpen, setIsCloudSessionOpen] = useState(false);
     const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [limitDialogType, setLimitDialogType] = useState<'place' | 'channel' | null>(null);
 
     const handleLogout = () => {
         logout();
@@ -54,6 +67,22 @@ export const HomePage = () => {
 
     const handleComplete = () => {
         toast({ title: t('homePage.roomCreated') });
+    };
+
+    const handleCreatePlace = () => {
+        if (isPlaceLimitReached) {
+            setLimitDialogType('place');
+        } else {
+            setIsPlaceDialogOpen(true);
+        }
+    };
+
+    const handleCreateChannel = () => {
+        if (isChannelLimitReached) {
+            setLimitDialogType('channel');
+        } else {
+            setIsDialogOpen(true);
+        }
     };
 
     return (
@@ -136,11 +165,8 @@ export const HomePage = () => {
                             </button>
                         )}
                     </div>
-                    {!isGuest && (
-                        <button
-                            onClick={() => setIsPlaceDialogOpen(true)}
-                            className="flex items-center justify-center rounded-[8px]"
-                        >
+                    {!isGuest && !isPlacesLoading && (
+                        <button onClick={handleCreatePlace} className="flex items-center justify-center rounded-[8px]">
                             <Plus size={24} className="text-foreground" />
                         </button>
                     )}
@@ -156,9 +182,9 @@ export const HomePage = () => {
                     <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
                         Chat
                     </span>
-                    {canCreate && (
+                    {canCreateChannel && !isChannelsLoading && (
                         <button
-                            onClick={() => setIsDialogOpen(true)}
+                            onClick={handleCreateChannel}
                             className="flex h-[24px] w-[24px] items-center justify-center"
                         >
                             <Plus size={24} className="text-foreground" />
@@ -174,6 +200,12 @@ export const HomePage = () => {
             <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
             <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
             <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+            <LimitExceededDialog
+                open={limitDialogType !== null}
+                onOpenChange={open => !open && setLimitDialogType(null)}
+                type={limitDialogType ?? 'place'}
+                maxCount={limitDialogType === 'channel' ? maxChannels : maxPlaces}
+            />
             <BottomNavigation />
         </div>
     );

@@ -608,6 +608,13 @@
         "accepting": "Accepting...",
         "failed": "Failed to accept invitation"
     },
+    "limitExceeded": {
+        "placeTitle": "Can't create more places",
+        "placeDescription": "You can create up to {{max}} places.",
+        "channelTitle": "Can't create more chat rooms",
+        "channelDescription": "You can create up to {{max}} chat rooms.",
+        "confirm": "OK"
+    },
     "error": {
         "network": {
             "title": "Connection Error",
