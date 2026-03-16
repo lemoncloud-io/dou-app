@@ -5,7 +5,6 @@
 import type {
     AppLogInfo,
     AppPermissionType,
-    CacheType,
     ContactInfo,
     DeviceInfo,
     DocumentInfo,
@@ -13,21 +12,25 @@ import type {
     MediaAsset,
     NotificationInfo,
     OAuthTokenResult,
+    OnDeleteAllCacheDataPayload,
+    OnDeleteCacheDataPayload,
+    OnFetchAllCacheDataPayload,
+    OnFetchCacheDataPayload,
+    OnSaveAllCacheDataPayload,
+    OnSaveCacheDataPayload,
     PermissionStatus,
+    PreferenceKey,
     ProductSubscriptionInfo,
     PurchaseInfo,
     SafeAreaInfo,
     ShareInfo,
     VersionInfo,
-} from './common';
-import type { ClientMessage } from './client-message';
-import type { ChannelView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
+} from './model';
 
 export const AppMessageTypes = {
     OnSuccessSyncCredential: 'OnSuccessSyncCredential',
     OnUpdateDeviceInfo: 'OnUpdateDeviceInfo',
     OnCloseModal: 'OnCloseModal',
-    OnBackPressed: 'OnBackPressed',
     OnOpenShareSheet: 'OnOpenShareSheet',
     OnOpenDocument: 'OnOpenDocument',
     OnGetContacts: 'OnGetContacts',
@@ -44,119 +47,162 @@ export const AppMessageTypes = {
     OnFetchAllCacheData: 'OnFetchAllCacheData',
     OnFetchCacheData: 'OnFetchCacheData',
     OnSaveCacheData: 'OnSaveCacheData',
+    OnSaveAllCacheData: 'OnSaveAllCacheData',
+    OnDeleteCacheData: 'OnDeleteCacheData',
+    OnDeleteAllCacheData: 'OnDeleteAllCacheData',
     OnRequestPermission: 'OnRequestPermission',
     OnSetWsEndpoint: 'OnSetWsEndpoint',
     OnOAuthLogin: 'OnOAuthLogin',
     OnOAuthLogout: 'OnOAuthLogout',
+    OnFetchPreference: 'OnFetchPreference',
+    OnSavePreference: 'OnSavePreference',
+    OnDeletePreference: 'OnDeletePreference',
 } as const;
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
 
-interface DefaultMessage<T extends AppMessageType> {
+export interface AppDefaultMessage<T extends AppMessageType> {
     type: T;
+    /**
+     * - 요청과 응답을 매칭하기 위한 고유 ID
+     * - Web에서 요청 시 생성하여 보낸 nonce를 그대로 반환
+     */
+    nonce?: string;
 }
 
-export interface OnUpdateDeviceInfo extends DefaultMessage<'OnUpdateDeviceInfo'> {
+export interface OnUpdateDeviceInfo extends AppDefaultMessage<'OnUpdateDeviceInfo'> {
     data: DeviceInfo & VersionInfo;
 }
 
-export interface OnOpenShareSheet extends DefaultMessage<'OnOpenShareSheet'> {
+export interface OnOpenShareSheet extends AppDefaultMessage<'OnOpenShareSheet'> {
     data: ShareInfo;
 }
 
-export interface OnOpenDocument extends DefaultMessage<'OnOpenDocument'> {
+export interface OnOpenDocument extends AppDefaultMessage<'OnOpenDocument'> {
     data: {
         documents: DocumentInfo[];
     };
 }
 
-export interface OnGetContacts extends DefaultMessage<'OnGetContacts'> {
+export interface OnGetContacts extends AppDefaultMessage<'OnGetContacts'> {
     data: {
         contacts: ContactInfo[];
     };
 }
 
-export interface OnOpenCamera extends DefaultMessage<'OnOpenCamera'> {
+export interface OnOpenCamera extends AppDefaultMessage<'OnOpenCamera'> {
     data: {
         assets: MediaAsset[];
     };
 }
 
-export interface OnOpenPhotoLibrary extends DefaultMessage<'OnOpenPhotoLibrary'> {
+export interface OnOpenPhotoLibrary extends AppDefaultMessage<'OnOpenPhotoLibrary'> {
     data: {
         assets: MediaAsset[];
     };
 }
 
-export interface OnFetchSafeArea extends DefaultMessage<'OnFetchSafeArea'> {
+export interface OnFetchSafeArea extends AppDefaultMessage<'OnFetchSafeArea'> {
     data: SafeAreaInfo;
 }
 
-export interface OnFetchFcmToken extends DefaultMessage<'OnFetchFcmToken'> {
+export interface OnFetchFcmToken extends AppDefaultMessage<'OnFetchFcmToken'> {
     data: FcmTokenInfo;
 }
 
-export interface OnAppLog extends DefaultMessage<'OnAppLog'> {
+export interface OnAppLog extends AppDefaultMessage<'OnAppLog'> {
     data: AppLogInfo;
 }
 
-export interface OnReceiveNotification extends DefaultMessage<'OnReceiveNotification'> {
+export interface OnReceiveNotification extends AppDefaultMessage<'OnReceiveNotification'> {
     data: NotificationInfo;
 }
 
-export interface OnOpenNotification extends DefaultMessage<'OnOpenNotification'> {
+export interface OnOpenNotification extends AppDefaultMessage<'OnOpenNotification'> {
     data: NotificationInfo;
 }
 
-export interface OnFetchProductSubscriptions extends DefaultMessage<'OnFetchProductSubscriptions'> {
+export interface OnFetchProductSubscriptions extends AppDefaultMessage<'OnFetchProductSubscriptions'> {
     data: ProductSubscriptionInfo;
 }
 
-export interface OnFetchPurchases extends DefaultMessage<'OnFetchPurchases'> {
+export interface OnFetchPurchases extends AppDefaultMessage<'OnFetchPurchases'> {
     data: PurchaseInfo;
 }
 
-export interface OnFetchAllCacheData extends DefaultMessage<'OnFetchAllCacheData'> {
-    data: {
-        type: CacheType;
-        channelId?: string;
-        items: (ChannelView | ClientMessage | UserView | JoinView)[];
-    };
-}
-
-export interface OnFetchCacheData extends DefaultMessage<'OnFetchCacheData'> {
-    data: {
-        type: CacheType;
-        id: string;
-        item: ChannelView | ClientMessage | UserView | JoinView | null;
-    };
-}
-
-export interface OnSaveCacheData extends DefaultMessage<'OnSaveCacheData'> {
-    data: {
-        type: CacheType;
-        id: string;
-    };
-}
-
-export interface OnSetWsEndpoint extends DefaultMessage<'OnSetWsEndpoint'> {
+export interface OnSetWsEndpoint extends AppDefaultMessage<'OnSetWsEndpoint'> {
     data: { wss: string };
 }
 
-export interface OnRequestPermission extends DefaultMessage<'OnRequestPermission'> {
+export interface OnRequestPermission extends AppDefaultMessage<'OnRequestPermission'> {
     data: {
         permission: AppPermissionType;
         status: PermissionStatus;
     };
 }
 
-export interface OnOAuthLogin extends DefaultMessage<'OnOAuthLogin'> {
+export interface OnOAuthLogin extends AppDefaultMessage<'OnOAuthLogin'> {
     data: {
         result: OAuthTokenResult | null;
     };
 }
 
-export interface OnOAuthLogout extends DefaultMessage<'OnOAuthLogout'> {
+export interface OnOAuthLogout extends AppDefaultMessage<'OnOAuthLogout'> {
     data: {
+        success: boolean;
+    };
+}
+
+/** 다수 캐시 데이터 반환 */
+export interface OnFetchAllCacheData extends AppDefaultMessage<'OnFetchAllCacheData'> {
+    data: OnFetchAllCacheDataPayload;
+}
+
+/** 단일 캐시 데이터 반환 */
+export interface OnFetchCacheData extends AppDefaultMessage<'OnFetchCacheData'> {
+    data: OnFetchCacheDataPayload;
+}
+
+/** 단일 캐시 데이터 저장 완료 (실패 시 null) */
+export interface OnSaveCacheData extends AppDefaultMessage<'OnSaveCacheData'> {
+    data: OnSaveCacheDataPayload;
+}
+
+/**  다수 캐시 데이터 저장 완료 (성공한 ids 반환) */
+export interface OnSaveAllCacheData extends AppDefaultMessage<'OnSaveAllCacheData'> {
+    data: OnSaveAllCacheDataPayload;
+}
+
+/**  단일 캐시 데이터 삭제 완료 (실패 시 null) */
+export interface OnDeleteCacheData extends AppDefaultMessage<'OnDeleteCacheData'> {
+    data: OnDeleteCacheDataPayload;
+}
+
+/** 다수 캐시 데이터 삭제 완료 (성공한 ids 반환) */
+export interface OnDeleteAllCacheData extends AppDefaultMessage<'OnDeleteAllCacheData'> {
+    data: OnDeleteAllCacheDataPayload;
+}
+
+// ----------------------------------------------------------------------
+// Preference Messages
+// ----------------------------------------------------------------------
+
+export interface OnFetchPreference extends AppDefaultMessage<'OnFetchPreference'> {
+    data: {
+        key: PreferenceKey;
+        value: any;
+    };
+}
+
+export interface OnSavePreference extends AppDefaultMessage<'OnSavePreference'> {
+    data: {
+        key: PreferenceKey;
+        success: boolean;
+    };
+}
+
+export interface OnDeletePreference extends AppDefaultMessage<'OnDeletePreference'> {
+    data: {
+        key: PreferenceKey;
         success: boolean;
     };
 }
@@ -166,14 +212,13 @@ export interface AppMessageMap {
      * TODO: Not Implement
      * @author raine@lemoncloud.io
      */
-    OnSuccessSyncCredential: DefaultMessage<'OnSuccessSyncCredential'>;
+    OnSuccessSyncCredential: AppDefaultMessage<'OnSuccessSyncCredential'>;
     OnUpdateDeviceInfo: OnUpdateDeviceInfo;
 
     /**
      * Control Device Event
      */
-    OnCloseModal: DefaultMessage<'OnCloseModal'>;
-    OnBackPressed: DefaultMessage<'OnBackPressed'>;
+    OnCloseModal: AppDefaultMessage<'OnCloseModal'>;
     OnOpenShareSheet: OnOpenShareSheet;
     OnOpenDocument: OnOpenDocument;
     OnGetContacts: OnGetContacts;
@@ -203,7 +248,7 @@ export interface AppMessageMap {
      */
     OnFetchProductSubscriptions: OnFetchProductSubscriptions;
     OnFetchPurchases: OnFetchPurchases;
-    OnSuccessPurchase: DefaultMessage<'OnSuccessPurchase'>;
+    OnSuccessPurchase: AppDefaultMessage<'OnSuccessPurchase'>;
 
     /**
      * Cache Event
@@ -211,7 +256,17 @@ export interface AppMessageMap {
     OnFetchAllCacheData: OnFetchAllCacheData;
     OnFetchCacheData: OnFetchCacheData;
     OnSaveCacheData: OnSaveCacheData;
+    OnSaveAllCacheData: OnSaveAllCacheData;
+    OnDeleteCacheData: OnDeleteCacheData;
+    OnDeleteAllCacheData: OnDeleteAllCacheData;
     OnSetWsEndpoint: OnSetWsEndpoint;
+
+    /**
+     * Preference Event
+     */
+    OnFetchPreference: OnFetchPreference;
+    OnSavePreference: OnSavePreference;
+    OnDeletePreference: OnDeletePreference;
 
     /**
      * OAuth Event

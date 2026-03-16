@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { Message } from '../storages/ChatStorageAdapter';
-import { BROADCAST_CHANNEL_NAME } from '../storages/IndexedDBStorageAdapter';
+import { BROADCAST_CHANNEL_NAME } from '../storages';
 import { useDynamicStorage } from './useDynamicStorage';
-
-export type { Message };
+import type { ClientChatView } from '@chatic/chats';
 
 export const useChatMessages = (userId: string | null, channelId: string | null) => {
     const storage = useDynamicStorage();
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [messages, setMessages] = useState<ClientChatView[]>([]);
 
     useEffect(() => {
         if (!userId || !channelId) return;
@@ -33,7 +31,7 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
     }, [userId, channelId]);
 
     const addMessage = useCallback(
-        async (message: Message, targetChannelId?: string) => {
+        async (message: ClientChatView, targetChannelId?: string) => {
             const effectiveChannelId = targetChannelId ?? channelId;
             if (!effectiveChannelId) return;
 
@@ -59,7 +57,7 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
 
     const reloadMessages = useCallback(async () => {
         if (!userId || !channelId) return;
-        const saved = await storage.load(userId, channelId).catch(() => [] as Message[]);
+        const saved = await storage.load(userId, channelId).catch(() => [] as ClientChatView[]);
         setMessages(saved);
     }, [userId, channelId, storage]);
 
