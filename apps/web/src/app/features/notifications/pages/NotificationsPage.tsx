@@ -42,7 +42,7 @@ export const NotificationsPage = () => {
                     <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
                 </button>
                 <h1 className="text-[17px] font-semibold text-foreground">{t('notifications.title')}</h1>
-                <button className="px-1 text-sm font-medium text-muted-foreground">
+                <button className="absolute right-4 px-1 text-sm font-medium text-muted-foreground">
                     {t('notifications.markAllRead')}
                 </button>
             </header>
