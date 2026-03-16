@@ -1,8 +1,10 @@
-import { ChevronLeft, Globe, Lock, Plus, Settings, Users } from 'lucide-react';
+import { Globe, Lock, Plus, Settings, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
 import { useNavigateWithTransition } from '@chatic/page-transition';
+
+import { PageHeader } from '../../../shared/components';
 
 interface RoomListItemProps {
     room: {
@@ -104,16 +106,14 @@ export const WorkspaceDetailPage = () => {
 
     return (
         <div className="flex min-h-screen flex-col bg-background pt-safe-top">
-            {/* Header */}
-            <header className="flex items-center justify-center px-4 py-3">
-                <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
-                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-                </button>
-                <h1 className="text-[17px] font-semibold text-foreground">{mockWorkspaceDetail.name}</h1>
-                <button onClick={() => navigate(`/workspace/${wsId}/settings`)} className="absolute right-4 p-2">
-                    <Settings size={20} className="text-foreground" />
-                </button>
-            </header>
+            <PageHeader
+                title={mockWorkspaceDetail.name}
+                rightAction={
+                    <button onClick={() => navigate(`/workspace/${wsId}/settings`)} className="p-2">
+                        <Settings size={20} className="text-foreground" />
+                    </button>
+                }
+            />
 
             {/* Workspace Info Card */}
             <div className="px-5 pb-4 pt-5">

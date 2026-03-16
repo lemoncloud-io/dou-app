@@ -10,5 +10,11 @@ export const en = {
             cancel: 'Cancel',
             confirm: 'Exit',
         },
+        updateDialog: {
+            title: 'Update Available',
+            message: 'A new version is available. Please update to continue using the app with the latest features.',
+            update: 'Update',
+            later: 'Later',
+        },
     },
 } as const;

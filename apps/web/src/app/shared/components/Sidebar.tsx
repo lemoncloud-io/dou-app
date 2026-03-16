@@ -1,4 +1,4 @@
-import { Globe, Home, KeyRound, LogOut, Moon, MousePointer, Sun } from 'lucide-react';
+import { Globe, Home, LogOut, Moon, Sun } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, useLocation } from 'react-router-dom';
 
@@ -18,11 +18,7 @@ interface NavItem {
     icon: ReactNode;
 }
 
-const NAV_ITEMS: NavItem[] = [
-    { path: '/', labelKey: 'nav.home', icon: <Home className="h-4 w-4" /> },
-    { path: '/auth-test', labelKey: 'nav.authTest', icon: <KeyRound className="h-4 w-4" /> },
-    { path: '/pointer-test', labelKey: 'nav.pointerTest', icon: <MousePointer className="h-4 w-4" /> },
-];
+const NAV_ITEMS: NavItem[] = [{ path: '/', labelKey: 'nav.home', icon: <Home className="h-4 w-4" /> }];
 
 /**
  * Sidebar navigation component

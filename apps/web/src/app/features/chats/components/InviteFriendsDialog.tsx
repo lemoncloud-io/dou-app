@@ -14,6 +14,14 @@ import { PermissionDeniedBanner } from './PermissionDeniedBanner';
 
 import type { ContactInfo } from '@chatic/app-messages';
 
+// Valid Korean mobile prefixes: 010, 011, 016, 017, 018, 019
+const KOREAN_MOBILE_PREFIXES = ['010', '011', '016', '017', '018', '019'];
+
+const isValidKoreanPhone = (digits: string): boolean => {
+    if (digits.length < 10 || digits.length > 11) return false;
+    return KOREAN_MOBILE_PREFIXES.some(prefix => digits.startsWith(prefix));
+};
+
 interface InviteFriendsDialogProps {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
@@ -112,6 +120,12 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
             return;
         }
         const phone = phoneNumber.replace(/\D/g, '');
+
+        // Validate Korean phone number
+        if (!isValidKoreanPhone(phone)) {
+            toast({ title: t('addFriend.phoneInvalidFormat'), variant: 'destructive' });
+            return;
+        }
 
         // Determine name (displayName > givenName familyName > Unknown)
         const name =

@@ -4,27 +4,14 @@ import { useParams } from 'react-router-dom';
 
 import { useNavigateWithTransition } from '@chatic/page-transition';
 
-import { Calendar, ChevronLeft, Globe, Home, Lock, UserCheck, Users } from 'lucide-react';
+import { Calendar, Globe, Home, Lock, UserCheck, Users } from 'lucide-react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
+import { PageHeader } from '../../../shared/components';
 import { useMyPlaces } from '../../home/hooks/useMyPlaces';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
-
-interface HeaderProps {
-    title: string;
-    onBack: () => void;
-}
-
-const Header = ({ title, onBack }: HeaderProps) => (
-    <header className="flex items-center justify-center px-4 py-3">
-        <button onClick={onBack} className="absolute left-4 p-2">
-            <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-        </button>
-        <h1 className="text-[17px] font-semibold text-foreground">{title}</h1>
-    </header>
-);
 
 export const PlaceInfoPage = () => {
     const { t, i18n } = useTranslation();
@@ -77,8 +64,8 @@ export const PlaceInfoPage = () => {
 
     if (!place) {
         return (
-            <div className="flex min-h-screen flex-col bg-background pt-safe-top">
-                <Header title={title} onBack={handleBack} />
+            <div className="flex min-h-screen flex-col bg-background">
+                <PageHeader title={title} />
                 <div className="flex flex-1 items-center justify-center">
                     <span className="text-muted-foreground">
                         {t('placeInfo.notFound', '플레이스를 찾을 수 없습니다')}
@@ -89,8 +76,8 @@ export const PlaceInfoPage = () => {
     }
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
-            <Header title={title} onBack={handleBack} />
+        <div className="flex min-h-screen flex-col bg-background">
+            <PageHeader title={title} />
 
             {/* Content */}
             <div className="flex flex-1 flex-col items-center px-6 pb-4 pt-6">

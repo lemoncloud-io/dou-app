@@ -19,9 +19,10 @@
         "pointerTest": "포인터 테스트"
     },
     "version": {
-        "updateAvailable": "새 버전이 있습니다",
+        "updateAvailable": "웹 업데이트",
         "newVersionReleased": "새 버전({{latestVersion}})이 출시되었습니다. 현재 버전: {{currentVersion}}",
-        "refresh": "새로고침",
+        "currentVersion": "현재 버전: v{{version}}",
+        "refresh": "업데이트",
         "later": "나중에",
         "unknown": "알 수 없음"
     },
@@ -199,6 +200,8 @@
         "version": "DoU v{{version}}",
         "appVersion": "버전",
         "updateRequired": "업데이트 필요",
+        "updateAvailable": "업데이트 가능",
+        "goToStore": "스토어로 이동",
         "language": {
             "ko": "한국어",
             "en": "English",
@@ -265,7 +268,17 @@
         "title": "플레이스 목록",
         "settings": "설정",
         "delete": "삭제",
-        "leave": "나가기"
+        "leave": "나가기",
+        "deleteDialog": {
+            "title": "플레이스 삭제",
+            "description": "'{{name}}'을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+            "confirm": "삭제"
+        },
+        "leaveDialog": {
+            "title": "플레이스 나가기",
+            "description": "'{{name}}'에서 나가시겠습니까? 더 이상 이 플레이스의 채팅에 참여할 수 없습니다.",
+            "confirm": "나가기"
+        }
     },
     "channelList": {
         "noDescription": "채널 설명 없음",
@@ -546,6 +559,7 @@
         "phoneLabel": "전화번호",
         "phonePlaceholder": "전화번호를 입력해 주세요",
         "phoneHint": "20글자 이내로 입력해 주세요.",
+        "phoneInvalidFormat": "올바르지 않은 전화번호 형식입니다",
         "share": "공유하기"
     },
     "inviteCode": {
