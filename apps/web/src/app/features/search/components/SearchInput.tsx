@@ -1,4 +1,4 @@
-import { ChevronLeft, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface SearchInputProps {
@@ -19,9 +19,6 @@ export const SearchInput = ({ value, onChange, onSubmit, onClose }: SearchInputP
 
     return (
         <div className="flex items-center gap-2 px-4 py-3">
-            <button onClick={onClose} className="shrink-0 p-2">
-                <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-            </button>
             <div className="flex flex-1 items-center gap-[9px] rounded-[30px] border border-[rgba(0,43,126,0.01)] bg-[rgba(0,43,126,0.03)] px-[14px] py-[10px]">
                 <button onClick={onSubmit} className="shrink-0">
                     <Search size={18} className="text-muted-foreground" />
@@ -44,6 +41,9 @@ export const SearchInput = ({ value, onChange, onSubmit, onClose }: SearchInputP
                     </button>
                 )}
             </div>
+            <button onClick={onClose} className="shrink-0 p-2">
+                <X size={24} strokeWidth={2} className="text-foreground" />
+            </button>
         </div>
     );
 };
