@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-03-16] - root@0.23.1, @chatic/web@0.20.1
+
+### Refactor
+
+- update message detail header layout
+
 ## [2026-03-16] - root@0.23.0, @chatic/web@0.20.0
 
 ### Features
