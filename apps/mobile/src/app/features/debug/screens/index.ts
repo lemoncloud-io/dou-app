@@ -6,3 +6,4 @@ export * from './DeeplinkTestScreen';
 export * from './DeviceTestScreen';
 export * from './BridgeTestScreen';
 export * from './OAuthTestScreen';
+export * from './StorageTestScreen';

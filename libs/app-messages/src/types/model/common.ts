@@ -201,13 +201,6 @@ export interface DocumentInfo {
 }
 
 /**
- * 캐시 데이터 타입
- * TODO: (주의) 업데이트 될 수 있음
- * @author dev@example.com
- */
-export type CacheType = 'channel' | 'chat' | 'user' | 'join';
-
-/**
  * 앱 권한 타입
  */
 export type AppPermissionType = 'CONTACTS' | 'NOTIFICATIONS' | 'CAMERA' | 'PHOTO_LIBRARY';

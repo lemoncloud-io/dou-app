@@ -1,6 +1,14 @@
-import type { AppPermissionType, CacheType, OAuthLoginProvider } from './common';
-import type { ClientMessage } from './client-message';
-import type { ChannelView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
+import type {
+    AppPermissionType,
+    DeleteAllCacheDataPayload,
+    DeleteCacheDataPayload,
+    FetchAllCacheDataPayload,
+    FetchCacheDataPayload,
+    OAuthLoginProvider,
+    PreferenceKey,
+    SaveAllCacheDataPayload,
+    SaveCacheDataPayload,
+} from './model';
 
 /**
  * Web Message:
@@ -32,20 +40,30 @@ export const WebMessageTypes = {
     FetchAllCacheData: 'FetchAllCacheData',
     FetchCacheData: 'FetchCacheData',
     SaveCacheData: 'SaveCacheData',
+    SaveAllCacheData: 'SaveAllCacheData',
+    DeleteCacheData: 'DeleteCacheData',
+    DeleteAllCacheData: 'DeleteAllCacheData',
+    FetchPreference: 'FetchPreference',
+    SavePreference: 'SavePreference',
+    DeletePreference: 'DeletePreference',
     OAuthLogin: 'OAuthLogin',
     OAuthLogout: 'OAuthLogout',
 } as const;
 export type WebMessageType = (typeof WebMessageTypes)[keyof typeof WebMessageTypes];
 
-interface DefaultMessage<T extends WebMessageType> {
+export interface WebDefaultMessage<T extends WebMessageType> {
     type: T;
+    /**
+     * - 요청과 응답을 매칭하기 위한 고유 ID (UUID 등)
+     */
+    nonce?: string;
 }
 
-export interface SetCanGoBackData extends DefaultMessage<'SetCanGoBack'> {
+export interface SetCanGoBackData extends WebDefaultMessage<'SetCanGoBack'> {
     data: { canGoBack: boolean };
 }
 
-export interface OnScrollData extends DefaultMessage<'OnScroll'> {
+export interface OnScrollData extends WebDefaultMessage<'OnScroll'> {
     data: {
         url: string;
         scrollPercentage: number;
@@ -55,7 +73,7 @@ export interface OnScrollData extends DefaultMessage<'OnScroll'> {
 /**
  * 구독 상품 구매 요청
  */
-export interface PurchaseSubscription extends DefaultMessage<'PurchaseSubscription'> {
+export interface PurchaseSubscription extends WebDefaultMessage<'PurchaseSubscription'> {
     data: {
         /** 상품 ID (SKU) */
         sku: string;
@@ -65,7 +83,7 @@ export interface PurchaseSubscription extends DefaultMessage<'PurchaseSubscripti
 /**
  * 모달 열기 요청
  */
-export interface OpenModal extends DefaultMessage<'OpenModal'> {
+export interface OpenModal extends WebDefaultMessage<'OpenModal'> {
     data: {
         /**
          * - 웹뷰 url 주소
@@ -96,12 +114,12 @@ export interface OpenModal extends DefaultMessage<'OpenModal'> {
 /**
  * 앱 설정 화면 열기 요청
  */
-export interface OpenSettings extends DefaultMessage<'OpenSettings'> {}
+export interface OpenSettings extends WebDefaultMessage<'OpenSettings'> {}
 
 /**
  * 공유 시트 열기 요청 데이터
  */
-export interface OpenShareSheet extends DefaultMessage<'OpenShareSheet'> {
+export interface OpenShareSheet extends WebDefaultMessage<'OpenShareSheet'> {
     data: {
         /** 공유할 제목 */
         title?: string;
@@ -119,7 +137,7 @@ export interface OpenShareSheet extends DefaultMessage<'OpenShareSheet'> {
 /**
  * 문서 선택기 열기 요청 데이터
  */
-export interface OpenDocument extends DefaultMessage<'OpenDocument'> {
+export interface OpenDocument extends WebDefaultMessage<'OpenDocument'> {
     data: {
         /** 다중 선택 허용 여부 */
         allowMultiSelection?: boolean;
@@ -133,12 +151,12 @@ export interface OpenDocument extends DefaultMessage<'OpenDocument'> {
 /**
  * 연락처 가져오기 요청
  */
-export interface GetContacts extends DefaultMessage<'GetContacts'> {}
+export interface GetContacts extends WebDefaultMessage<'GetContacts'> {}
 
 /**
  * 카메라 열기 요청 데이터
  */
-export interface OpenCamera extends DefaultMessage<'OpenCamera'> {
+export interface OpenCamera extends WebDefaultMessage<'OpenCamera'> {
     data: {
         /** 미디어 타입 (사진, 비디오, 혼합) */
         mediaType?: 'photo' | 'video' | 'mixed';
@@ -158,7 +176,7 @@ export interface OpenCamera extends DefaultMessage<'OpenCamera'> {
 /**
  * 사진 라이브러리 열기 요청 데이터
  */
-export interface OpenPhotoLibrary extends DefaultMessage<'OpenPhotoLibrary'> {
+export interface OpenPhotoLibrary extends WebDefaultMessage<'OpenPhotoLibrary'> {
     data: {
         /** 선택 가능한 최대 개수 */
         selectionLimit?: number;
@@ -176,40 +194,9 @@ export interface OpenPhotoLibrary extends DefaultMessage<'OpenPhotoLibrary'> {
 }
 
 /**
- * 모든 캐시 데이터 요청 데이터
- */
-export interface FetchAllCacheData extends DefaultMessage<'FetchAllCacheData'> {
-    data: {
-        type: CacheType;
-        channelId?: string;
-    };
-}
-
-/**
- * 특정 캐시 데이터 요청 데이터
- */
-export interface FetchCacheData extends DefaultMessage<'FetchCacheData'> {
-    data: {
-        type: CacheType;
-        id: string;
-    };
-}
-
-/**
- * 캐시 데이터 저장 요청 데이터
- */
-export interface SaveCacheData extends DefaultMessage<'SaveCacheData'> {
-    data: {
-        type: CacheType;
-        id: string;
-        value: ChannelView | ClientMessage | UserView | JoinView;
-    };
-}
-
-/**
  * 권한 요청 데이터
  */
-export interface RequestPermission extends DefaultMessage<'RequestPermission'> {
+export interface RequestPermission extends WebDefaultMessage<'RequestPermission'> {
     data: {
         /** 요청할 권한 타입 */
         permission: AppPermissionType;
@@ -219,7 +206,7 @@ export interface RequestPermission extends DefaultMessage<'RequestPermission'> {
 /**
  * 로그인 요청 데이터
  */
-export interface OAuthLogin extends DefaultMessage<'OAuthLogin'> {
+export interface OAuthLogin extends WebDefaultMessage<'OAuthLogin'> {
     data: {
         provider: OAuthLoginProvider;
     };
@@ -228,9 +215,61 @@ export interface OAuthLogin extends DefaultMessage<'OAuthLogin'> {
 /**
  * 로그아웃 요청 데이터
  */
-export interface OAuthLogout extends DefaultMessage<'OAuthLogout'> {
+export interface OAuthLogout extends WebDefaultMessage<'OAuthLogout'> {
     data: {
         provider: OAuthLoginProvider;
+    };
+}
+
+/** 다수 캐시 데이터 조회 */
+export interface FetchAllCacheData extends WebDefaultMessage<'FetchAllCacheData'> {
+    data: FetchAllCacheDataPayload;
+}
+
+/** 단일 캐시 데이터 조회 */
+export interface FetchCacheData extends WebDefaultMessage<'FetchCacheData'> {
+    data: FetchCacheDataPayload;
+}
+
+/** 단일 캐시 데이터 저장 (Upsert) */
+export interface SaveCacheData extends WebDefaultMessage<'SaveCacheData'> {
+    data: SaveCacheDataPayload;
+}
+
+/** 다수 캐시 데이터 저장 (Upsert) */
+export interface SaveAllCacheData extends WebDefaultMessage<'SaveAllCacheData'> {
+    data: SaveAllCacheDataPayload;
+}
+
+/** 단일 캐시 데이터 삭제 */
+export interface DeleteCacheData extends WebDefaultMessage<'DeleteCacheData'> {
+    data: DeleteCacheDataPayload;
+}
+
+/** 다수 캐시 데이터 삭제 */
+export interface DeleteAllCacheData extends WebDefaultMessage<'DeleteAllCacheData'> {
+    data: DeleteAllCacheDataPayload;
+}
+
+/** Preference 조회 */
+export interface FetchPreference extends WebDefaultMessage<'FetchPreference'> {
+    data: {
+        key: PreferenceKey;
+    };
+}
+
+/** Preference 저장 */
+export interface SavePreference extends WebDefaultMessage<'SavePreference'> {
+    data: {
+        key: PreferenceKey;
+        value: any;
+    };
+}
+
+/** Preference 삭제 */
+export interface DeletePreference extends WebDefaultMessage<'DeletePreference'> {
+    data: {
+        key: PreferenceKey;
     };
 }
 
@@ -240,18 +279,18 @@ interface WebMessageMap {
      * @author dev@example.com
      */
     SetCanGoBack: SetCanGoBackData;
-    ShowLoader: DefaultMessage<'ShowLoader'>;
-    HideLoader: DefaultMessage<'HideLoader'>;
-    SyncCredential: DefaultMessage<'SyncCredential'>;
-    PopWebView: DefaultMessage<'PopWebView'>;
+    ShowLoader: WebDefaultMessage<'ShowLoader'>;
+    HideLoader: WebDefaultMessage<'HideLoader'>;
+    SyncCredential: WebDefaultMessage<'SyncCredential'>;
+    PopWebView: WebDefaultMessage<'PopWebView'>;
     OnScroll: OnScrollData;
-    FetchDeviceInfo: DefaultMessage<'FetchDeviceInfo'>;
+    FetchDeviceInfo: WebDefaultMessage<'FetchDeviceInfo'>;
 
     /**
      * Control Device Event
      */
     OpenModal: OpenModal;
-    CloseModal: DefaultMessage<'CloseModal'>;
+    CloseModal: WebDefaultMessage<'CloseModal'>;
     OpenSettings: OpenSettings;
     OpenShareSheet: OpenShareSheet;
     OpenDocument: OpenDocument;
@@ -263,20 +302,20 @@ interface WebMessageMap {
     /**
      * Device Info Event
      */
-    FetchSafeArea: DefaultMessage<'FetchSafeArea'>;
+    FetchSafeArea: WebDefaultMessage<'FetchSafeArea'>;
 
     /**
      * FCM Event
      */
-    FetchFcmToken: DefaultMessage<'FetchFcmToken'>;
+    FetchFcmToken: WebDefaultMessage<'FetchFcmToken'>;
 
     /**
      * IAP Event
      */
     PurchaseSubscription: PurchaseSubscription;
-    RestorePurchase: DefaultMessage<'RestorePurchase'>;
-    FetchProducts: DefaultMessage<'FetchProducts'>;
-    FetchCurrentPurchases: DefaultMessage<'FetchCurrentPurchases'>;
+    RestorePurchase: WebDefaultMessage<'RestorePurchase'>;
+    FetchProducts: WebDefaultMessage<'FetchProducts'>;
+    FetchCurrentPurchases: WebDefaultMessage<'FetchCurrentPurchases'>;
 
     /**
      * Cache Event
@@ -284,6 +323,16 @@ interface WebMessageMap {
     FetchAllCacheData: FetchAllCacheData;
     FetchCacheData: FetchCacheData;
     SaveCacheData: SaveCacheData;
+    SaveAllCacheData: SaveAllCacheData;
+    DeleteCacheData: DeleteCacheData;
+    DeleteAllCacheData: DeleteAllCacheData;
+
+    /**
+     * Preference Event
+     */
+    FetchPreference: FetchPreference;
+    SavePreference: SavePreference;
+    DeletePreference: DeletePreference;
 
     /**
      * OAuth Event
