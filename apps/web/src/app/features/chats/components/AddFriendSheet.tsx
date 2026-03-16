@@ -101,7 +101,6 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                     data: {
                         title: t('inviteFriends.shareTitle'),
                         message: t('inviteFriends.shareMessage'),
-                        url: deeplinkUrl,
                     },
                 });
             }
