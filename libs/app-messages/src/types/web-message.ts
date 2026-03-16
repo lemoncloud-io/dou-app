@@ -16,6 +16,7 @@ import type {
  */
 export const WebMessageTypes = {
     SetLanguage: 'SetLanguage',
+    SetTheme: 'SetTheme',
     SetCanGoBack: 'SetCanGoBack',
     ShowLoader: 'ShowLoader',
     HideLoader: 'HideLoader',
@@ -49,6 +50,7 @@ export const WebMessageTypes = {
     DeletePreference: 'DeletePreference',
     OAuthLogin: 'OAuthLogin',
     OAuthLogout: 'OAuthLogout',
+    OpenURL: 'OpenURL',
 } as const;
 export type WebMessageType = (typeof WebMessageTypes)[keyof typeof WebMessageTypes];
 
@@ -62,6 +64,10 @@ export interface WebDefaultMessage<T extends WebMessageType> {
 
 export interface SetLanguageData extends WebDefaultMessage<'SetLanguage'> {
     data: { language: string };
+}
+
+export interface SetThemeData extends WebDefaultMessage<'SetTheme'> {
+    data: { theme: 'dark' | 'light' | 'system' };
 }
 
 export interface SetCanGoBackData extends WebDefaultMessage<'SetCanGoBack'> {
@@ -278,11 +284,26 @@ export interface DeletePreference extends WebDefaultMessage<'DeletePreference'> 
     };
 }
 
+/**
+ * 외부 URL 열기 요청
+ * Native에서 Linking.openURL()로 처리
+ */
+export interface OpenURL extends WebDefaultMessage<'OpenURL'> {
+    data: {
+        /** 열 URL */
+        url: string;
+    };
+}
+
 interface WebMessageMap {
     /**
      * 언어 설정 동기화
      */
     SetLanguage: SetLanguageData;
+    /**
+     * 테마 설정 동기화
+     */
+    SetTheme: SetThemeData;
     /**
      * TODO: Not Implement
      * @author dev@example.com
@@ -348,6 +369,11 @@ interface WebMessageMap {
      */
     OAuthLogin: OAuthLogin;
     OAuthLogout: OAuthLogout;
+
+    /**
+     * External URL Event
+     */
+    OpenURL: OpenURL;
 }
 
 export type WebMessageData<T extends WebMessageType> = WebMessageMap[T];

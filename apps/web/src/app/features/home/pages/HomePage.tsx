@@ -1,4 +1,4 @@
-import { ArrowLeftRight, ChevronDown, Plus, Search, Settings, SlidersHorizontal, User } from 'lucide-react';
+import { ArrowLeftRight, Bell, ChevronDown, Plus, Search, SlidersHorizontal, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -138,8 +138,8 @@ export const HomePage = () => {
                     <button onClick={() => setIsSearchOpen(true)} className="p-1">
                         <Search size={22} className="text-foreground" />
                     </button>
-                    <button onClick={() => setIsSettingsOpen(true)} className="p-1">
-                        <Settings size={22} className="text-foreground" />
+                    <button onClick={() => navigate('/notifications')} className="p-1">
+                        <Bell size={22} className="text-foreground" />
                     </button>
                 </div>
             </header>

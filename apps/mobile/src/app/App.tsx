@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { StatusBar, View } from 'react-native';
+import { StatusBar, useColorScheme, View } from 'react-native';
 import Config from 'react-native-config';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -8,16 +8,29 @@ import { createNavigationContainerRef, NavigationContainer } from '@react-naviga
 import type { DeepLinkSource, ServiceEndpoints } from '@chatic/deeplinks';
 import { getDeepLinkManager } from '@chatic/deeplinks';
 
-import { useDeepLinkStore } from './common';
+import { useAppVersionCheck, useDeepLinkStore, useThemeStore } from './common';
 import { FloatingMenu } from './common';
 import type { RootStackParamList } from './navigation';
 import { RootNavigator } from './navigation';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
-function App() {
-    const isDarkMode = false;
+export const App = () => {
+    const systemColorScheme = useColorScheme();
+    const theme = useThemeStore(state => state.theme);
+
+    // Compute isDarkMode based on theme setting
+    const isDarkMode = theme === 'dark' || (theme === 'system' && systemColorScheme === 'dark');
+
+    // Update StatusBar dynamically when theme changes
+    useEffect(() => {
+        StatusBar.setBarStyle(isDarkMode ? 'light-content' : 'dark-content', true);
+    }, [isDarkMode]);
+
     const deepLinkManagerRef = useRef(getDeepLinkManager());
+
+    // Check for app updates on mount
+    const { hasUpdate, showUpdateAlert } = useAppVersionCheck(true);
 
     // Deep link state is managed via Zustand store
     // MainScreen will handle pendingUrl when WebView is ready
@@ -50,13 +63,16 @@ function App() {
         };
     }, []);
 
+    // Show update alert when update is available
+    useEffect(() => {
+        if (hasUpdate) {
+            showUpdateAlert();
+        }
+    }, [hasUpdate, showUpdateAlert]);
+
     return (
         <SafeAreaProvider>
-            <StatusBar
-                barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-                backgroundColor="transparent"
-                translucent={true}
-            />
+            <StatusBar backgroundColor="transparent" translucent={true} />
             <NavigationContainer ref={navigationRef}>
                 <View style={{ flex: 1 }}>
                     <RootNavigator />
@@ -65,6 +81,4 @@ function App() {
             </NavigationContainer>
         </SafeAreaProvider>
     );
-}
-
-export default App;
+};

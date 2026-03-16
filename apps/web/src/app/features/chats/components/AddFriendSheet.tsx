@@ -46,6 +46,14 @@ const InputField = ({ label, value, onChange, placeholder, maxLength, type = 'te
 const NAME_MAX = 20;
 const PHONE_DIGITS_MAX = 11;
 
+// Valid Korean mobile prefixes: 010, 011, 016, 017, 018, 019
+const KOREAN_MOBILE_PREFIXES = ['010', '011', '016', '017', '018', '019'];
+
+const isValidKoreanPhone = (digits: string): boolean => {
+    if (digits.length < 10 || digits.length > 11) return false;
+    return KOREAN_MOBILE_PREFIXES.some(prefix => digits.startsWith(prefix));
+};
+
 const formatPhoneNumber = (digits: string): string => {
     if (digits.length <= 3) return digits;
     if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
@@ -57,16 +65,29 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
     const { toast } = useToast();
     const [name, setName] = useState('');
     const [phoneDigits, setPhoneDigits] = useState('');
+    const [phoneError, setPhoneError] = useState('');
     const { createInvite, isPending } = useCreateInvite();
 
     const handlePhoneChange = (value: string) => {
         const digits = value.replace(/\D/g, '').slice(0, PHONE_DIGITS_MAX);
         setPhoneDigits(digits);
+        // Clear error when user starts typing again
+        if (phoneError) setPhoneError('');
+    };
+
+    const validatePhone = (): boolean => {
+        if (!phoneDigits) return false;
+        if (!isValidKoreanPhone(phoneDigits)) {
+            setPhoneError(t('addFriend.phoneInvalidFormat'));
+            return false;
+        }
+        return true;
     };
 
     const resetAndClose = () => {
         setName('');
         setPhoneDigits('');
+        setPhoneError('');
         onOpenChange(false);
     };
 
@@ -81,6 +102,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
 
     const handleShare = async () => {
         if (!channelId || !name.trim() || !phoneDigits) return;
+        if (!validatePhone()) return;
 
         try {
             const { deeplinkUrl } = await createInvite({
@@ -118,7 +140,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
         }
     };
 
-    const isDisabled = !name.trim() || !phoneDigits || !channelId || isPending;
+    const isDisabled = !name.trim() || !phoneDigits || !channelId || isPending || !!phoneError;
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -157,7 +179,9 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                         <label className="text-[14px] font-semibold leading-[1.286] tracking-[0.005em] text-muted-foreground">
                             {t('addFriend.phoneLabel')}
                         </label>
-                        <div className="flex items-center rounded-[10px] border border-border bg-background px-3 py-3">
+                        <div
+                            className={`flex items-center rounded-[10px] border bg-background px-3 py-3 ${phoneError ? 'border-destructive' : 'border-border'}`}
+                        >
                             <input
                                 value={formatPhoneNumber(phoneDigits)}
                                 onChange={e => handlePhoneChange(e.target.value)}
@@ -169,6 +193,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                                 {phoneDigits.length}/{PHONE_DIGITS_MAX}
                             </span>
                         </div>
+                        {phoneError && <span className="text-[12px] text-destructive">{phoneError}</span>}
                     </div>
                 </div>
 

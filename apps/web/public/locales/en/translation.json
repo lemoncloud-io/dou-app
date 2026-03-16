@@ -19,9 +19,10 @@
         "pointerTest": "Pointer Test"
     },
     "version": {
-        "updateAvailable": "A new version is available",
+        "updateAvailable": "Web Update",
         "newVersionReleased": "Version {{latestVersion}} has been released. Current version: {{currentVersion}}",
-        "refresh": "Refresh",
+        "currentVersion": "Current: v{{version}}",
+        "refresh": "Update",
         "later": "Later",
         "unknown": "Unknown"
     },
@@ -199,6 +200,8 @@
         "version": "DoU v{{version}}",
         "appVersion": "Version",
         "updateRequired": "Update Required",
+        "updateAvailable": "Update Available",
+        "goToStore": "Go to Store",
         "language": {
             "ko": "한국어",
             "en": "English",
@@ -265,7 +268,17 @@
         "title": "Place List",
         "settings": "Settings",
         "delete": "Delete",
-        "leave": "Leave"
+        "leave": "Leave",
+        "deleteDialog": {
+            "title": "Delete Place",
+            "description": "Are you sure you want to delete '{{name}}'? This action cannot be undone.",
+            "confirm": "Delete"
+        },
+        "leaveDialog": {
+            "title": "Leave Place",
+            "description": "Are you sure you want to leave '{{name}}'? You will no longer be able to participate in chats in this place.",
+            "confirm": "Leave"
+        }
     },
     "channelList": {
         "noDescription": "No description",
@@ -546,6 +559,7 @@
         "phoneLabel": "Phone Number",
         "phonePlaceholder": "Enter phone number",
         "phoneHint": "Please enter up to 20 characters.",
+        "phoneInvalidFormat": "Invalid phone number format",
         "share": "Share"
     },
     "inviteCode": {

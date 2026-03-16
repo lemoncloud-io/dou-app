@@ -1,5 +1,7 @@
 import { createContext, useEffect, useState } from 'react';
 
+import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
+
 export type Theme = 'dark' | 'light' | 'system';
 
 type ThemeProviderProps = {
@@ -41,6 +43,17 @@ export function ThemeProvider({
         }
 
         root.classList.add(theme);
+    }, [theme]);
+
+    // Sync theme with native app (following SetLanguage pattern)
+    useEffect(() => {
+        const { isOnMobileApp } = getMobileAppInfo();
+        if (!isOnMobileApp) return;
+
+        postMessage({
+            type: 'SetTheme',
+            data: { theme },
+        });
     }, [theme]);
 
     const value = {
