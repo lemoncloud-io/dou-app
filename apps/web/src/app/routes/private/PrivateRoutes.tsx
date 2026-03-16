@@ -16,7 +16,6 @@ export const privateRoutes = [
         children: [
             { index: true, element: <HomeRoutes /> },
             { path: 'explore/*', element: <ExploreRoutes /> },
-            { path: 'mypage/*', element: <MyPageRoutes /> },
         ],
     },
     // Routes with SafeAreaLayout

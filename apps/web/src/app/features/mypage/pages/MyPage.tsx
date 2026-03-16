@@ -62,7 +62,7 @@ export const MyPage = () => {
     return (
         <div className="flex min-h-screen flex-col bg-background pb-32 pt-4">
             {/* Profile Section */}
-            <div className="px-5 pb-3 pt-safe-top">
+            <div className="px-5 pb-3">
                 {isGuest ? (
                     <button onClick={() => navigate('/mypage/login')} className="flex flex-col gap-1.5 text-left">
                         <div className="flex items-center gap-1">
