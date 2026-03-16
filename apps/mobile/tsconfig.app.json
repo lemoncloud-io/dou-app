@@ -38,6 +38,9 @@
             "path": "../../libs/i18n-mobile/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/shared/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/deeplinks/tsconfig.lib.json"
         }
     ]

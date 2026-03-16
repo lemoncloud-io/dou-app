@@ -548,6 +548,7 @@
         "phoneLabel": "전화번호",
         "phonePlaceholder": "전화번호를 입력해 주세요",
         "phoneHint": "20글자 이내로 입력해 주세요.",
+        "phoneInvalidFormat": "올바르지 않은 전화번호 형식입니다",
         "share": "공유하기"
     },
     "inviteCode": {

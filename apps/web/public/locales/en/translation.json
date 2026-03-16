@@ -548,6 +548,7 @@
         "phoneLabel": "Phone Number",
         "phonePlaceholder": "Enter phone number",
         "phoneHint": "Please enter up to 20 characters.",
+        "phoneInvalidFormat": "Invalid phone number format",
         "share": "Share"
     },
     "inviteCode": {
