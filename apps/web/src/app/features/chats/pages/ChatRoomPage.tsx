@@ -346,12 +346,10 @@ export const ChatRoomPage = () => {
                                                     <span className="text-muted-foreground">
                                                         {formatTime(message.timestamp)}
                                                     </span>
-                                                    {isMine && (
-                                                        <ReadStatus
-                                                            memberNo={channel?.memberNo ?? 0}
-                                                            readCount={(message.readBy?.length ?? 1) - 1}
-                                                        />
-                                                    )}
+                                                    <ReadStatus
+                                                        memberNo={channel?.memberNo ?? 0}
+                                                        readCount={(message.readBy?.length ?? 1) - 1}
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
