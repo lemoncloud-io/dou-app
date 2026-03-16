@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StatusBar, useColorScheme, View } from 'react-native';
 import Config from 'react-native-config';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
