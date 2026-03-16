@@ -1,10 +1,11 @@
 import { AlertCircle, CheckCircle2, ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 export const JoinByCodePage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const [code, setCode] = useState('');
     const [status, setStatus] = useState<'idle' | 'found' | 'notfound'>('idle');

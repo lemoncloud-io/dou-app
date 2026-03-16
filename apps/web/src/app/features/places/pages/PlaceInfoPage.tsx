@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { Calendar, ChevronLeft, Globe, Home, Lock, UserCheck, Users } from 'lucide-react';
 
@@ -26,7 +28,7 @@ const Header = ({ title, onBack }: HeaderProps) => (
 
 export const PlaceInfoPage = () => {
     const { t, i18n } = useTranslation();
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { placeId } = useParams<{ placeId: string }>();
     const { places } = useMyPlaces();
     const [place, setPlace] = useState<MySiteView | null>(null);

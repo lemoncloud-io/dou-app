@@ -15,6 +15,7 @@ import type {
  * message from Web to App
  */
 export const WebMessageTypes = {
+    SetLanguage: 'SetLanguage',
     SetCanGoBack: 'SetCanGoBack',
     ShowLoader: 'ShowLoader',
     HideLoader: 'HideLoader',
@@ -57,6 +58,10 @@ export interface WebDefaultMessage<T extends WebMessageType> {
      * - 요청과 응답을 매칭하기 위한 고유 ID (UUID 등)
      */
     nonce?: string;
+}
+
+export interface SetLanguageData extends WebDefaultMessage<'SetLanguage'> {
+    data: { language: string };
 }
 
 export interface SetCanGoBackData extends WebDefaultMessage<'SetCanGoBack'> {
@@ -274,6 +279,10 @@ export interface DeletePreference extends WebDefaultMessage<'DeletePreference'> 
 }
 
 interface WebMessageMap {
+    /**
+     * 언어 설정 동기화
+     */
+    SetLanguage: SetLanguageData;
     /**
      * TODO: Not Implement
      * @author dev@example.com

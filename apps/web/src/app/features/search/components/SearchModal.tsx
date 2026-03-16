@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { useRecentSearches, useSearch } from '../hooks';
 import { ChatResults } from './ChatResults';
@@ -18,7 +19,7 @@ interface SearchModalProps {
 }
 
 export const SearchModal = ({ open, onClose }: SearchModalProps) => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const [query, setQuery] = useState('');
     const { searches, addSearch, removeSearch, clearAll } = useRecentSearches();
     const { results, isSearching, hasResults } = useSearch(query);

@@ -54,7 +54,7 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
     }, [dragOffset, isFirstStep, isLastStep, handleNext, handlePrev]);
 
     return (
-        <Dialog open={open}>
+        <Dialog open={open} onOpenChange={isOpen => !isOpen && onComplete()}>
             <DialogContent variant="slide-up" hideClose className="flex flex-col gap-0 bg-background">
                 <DialogTitle className="sr-only">Onboarding</DialogTitle>
                 <DialogDescription className="sr-only">Introduction to the app features</DialogDescription>

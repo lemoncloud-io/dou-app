@@ -1,7 +1,8 @@
 import { Camera, ChevronLeft, Image } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -63,7 +64,7 @@ const CreateRoomSuccess = ({ name, visibility, inviteCode, onClose, onConfirm, t
 };
 
 export const CreateRoomPage = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { toast } = useToast();
     const { createChannel, isLoading } = useCreateChannel();
