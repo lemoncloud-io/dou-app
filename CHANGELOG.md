@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-03-16] - root@0.24.0, @chatic/web@0.21.0
+
+### Features
+
+- (web) move auth routes to commonRoutes for auth-independent access
+- (auth) redirect to / after login, /auth/login after logout, fix isInvited storage
+- (web) apply isCloudUser logic using isInvited flag across components
+
+### Refactor
+
+- (web-core) remove dynamic endpoint override from static constants
+- (mobile) restore webviewUrl to Config, remove dev localhost override
+
 ## [2026-03-16] - root@0.23.1, @chatic/web@0.20.1
 
 ### Refactor
