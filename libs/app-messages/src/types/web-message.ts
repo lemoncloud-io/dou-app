@@ -16,6 +16,7 @@ import type {
  */
 export const WebMessageTypes = {
     SetLanguage: 'SetLanguage',
+    SetTheme: 'SetTheme',
     SetCanGoBack: 'SetCanGoBack',
     ShowLoader: 'ShowLoader',
     HideLoader: 'HideLoader',
@@ -63,6 +64,10 @@ export interface WebDefaultMessage<T extends WebMessageType> {
 
 export interface SetLanguageData extends WebDefaultMessage<'SetLanguage'> {
     data: { language: string };
+}
+
+export interface SetThemeData extends WebDefaultMessage<'SetTheme'> {
+    data: { theme: 'dark' | 'light' | 'system' };
 }
 
 export interface SetCanGoBackData extends WebDefaultMessage<'SetCanGoBack'> {
@@ -295,6 +300,10 @@ interface WebMessageMap {
      * 언어 설정 동기화
      */
     SetLanguage: SetLanguageData;
+    /**
+     * 테마 설정 동기화
+     */
+    SetTheme: SetThemeData;
     /**
      * TODO: Not Implement
      * @author raine@lemoncloud.io

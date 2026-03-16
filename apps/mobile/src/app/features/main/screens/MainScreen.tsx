@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { AppWebView, FullScreenLoader, getAppLanguage, Logger, useDeepLinkStore } from '../../../common';
+import { AppWebView, FullScreenLoader, getAppLanguage, Logger, useDeepLinkStore, useThemeStore } from '../../../common';
 import {
     useAndroidBack,
     useAppBridge,
@@ -34,6 +34,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const canGoBack = webCanGoBack || navCanGoBack; // Either can handle back button
     const [language, setLanguage] = useState(getAppLanguage());
     const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
+    const setTheme = useThemeStore(state => state.setTheme);
 
     // Deep Link Store
     const { pendingUrl, pendingEnvs, clearPendingUrl, setWebViewReady } = useDeepLinkStore();
@@ -128,6 +129,10 @@ true;`;
                 switch (message.type) {
                     case 'SetLanguage': {
                         setLanguage(message.data.language);
+                        break;
+                    }
+                    case 'SetTheme': {
+                        setTheme(message.data.theme);
                         break;
                     }
                     case 'SetCanGoBack': {
@@ -301,6 +306,7 @@ true;`;
         handleOAuthLogin,
         handleOAuthLogout,
         handleOpenURL,
+        setTheme,
     ]);
 
     return (
