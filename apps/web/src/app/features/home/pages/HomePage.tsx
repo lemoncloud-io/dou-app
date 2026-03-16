@@ -37,7 +37,9 @@ export const HomePage = () => {
     const hasPlaces = places.length > 0;
 
     const dynamicProfile = useDynamicProfile();
-    const displayName = dynamicProfile?.$user?.nick ?? dynamicProfile?.$user?.name ?? localProfile.name ?? '-';
+    const displayName = !isGuest
+        ? (dynamicProfile?.$user?.nick ?? dynamicProfile?.$user?.name ?? '-')
+        : (dynamicProfile?.name ?? localProfile.name ?? '-');
     const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
@@ -91,7 +93,7 @@ export const HomePage = () => {
                                 <span>{t('home.settings')}</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                                <span>{t('home.logout')}</span>
+                                <span>{isInvited ? t('home.logoutInvited') : t('home.logout')}</span>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

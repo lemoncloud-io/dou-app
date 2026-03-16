@@ -59,6 +59,7 @@
         "toLight": "라이트",
         "language": "언어",
         "logout": "로그아웃",
+        "logoutInvited": "초대 계정 로그아웃",
         "logoutDesc": "계정에서 로그아웃",
         "loggingOut": "로그아웃 중...",
         "logoutSuccess": "로그아웃 성공",

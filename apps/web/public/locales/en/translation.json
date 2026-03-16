@@ -59,6 +59,7 @@
         "toLight": "Light",
         "language": "Language",
         "logout": "Logout",
+        "logoutInvited": "Logout Invited Account",
         "logoutDesc": "Sign out of your account",
         "loggingOut": "Logging out...",
         "logoutSuccess": "Logged out successfully",
