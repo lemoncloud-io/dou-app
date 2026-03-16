@@ -27,7 +27,9 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
     const isFocused = useIsFocused();
     const isModalOpened = useRef(false);
-    const [canGoBack, setCanGoBack] = useState(false);
+    const [webCanGoBack, setWebCanGoBack] = useState(false);
+    const [navCanGoBack, setNavCanGoBack] = useState(false);
+    const canGoBack = webCanGoBack || navCanGoBack;
     const [language, setLanguage] = useState(getAppLanguage());
     const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
 
@@ -126,7 +128,7 @@ true;`;
                         break;
                     }
                     case 'SetCanGoBack': {
-                        setCanGoBack(message.data.canGoBack);
+                        setWebCanGoBack(message.data.canGoBack);
                         break;
                     }
                     case 'FetchFcmToken': {
@@ -306,7 +308,7 @@ true;`;
                     onLoad={handleWebViewLoad}
                     onNavigationStateChange={navState => {
                         console.log('[WEBVIEW] navState url:', navState.url, 'loading:', navState.loading);
-                        setCanGoBack(navState.canGoBack);
+                        setNavCanGoBack(navState.canGoBack);
                     }}
                 />
             </KeyboardAvoidingView>

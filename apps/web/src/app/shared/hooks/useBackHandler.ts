@@ -30,16 +30,41 @@ export const useBackHandler = () => {
     }, [i18n.language, isOnMobileApp]);
 
     // Notify native app about navigation state changes
+    // Also watch for dialog state changes using MutationObserver
     useEffect(() => {
         if (!isOnMobileApp) return;
 
-        // Check if we can go back (not on root path)
-        const canGoBack = location.key !== 'default' && window.history.length > 1;
+        const checkCanGoBack = () => {
+            // Check for open dialogs first
+            const hasOpenDialogs = document.querySelector(
+                '[data-state="open"][role="dialog"], [data-state="open"][role="alertdialog"], [data-state="open"][role="menu"], [data-state="open"][role="listbox"]'
+            );
 
-        postMessage({
-            type: 'SetCanGoBack',
-            data: { canGoBack },
+            // Can go back if: there's history OR there are open dialogs to close
+            const canGoBack = hasOpenDialogs !== null || (location.key !== 'default' && window.history.length > 1);
+
+            postMessage({
+                type: 'SetCanGoBack',
+                data: { canGoBack },
+            });
+        };
+
+        // Initial check
+        checkCanGoBack();
+
+        // Watch for dialog state changes (both attribute changes and DOM additions/removals)
+        const observer = new MutationObserver(() => {
+            checkCanGoBack();
         });
+
+        observer.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['data-state'],
+            childList: true,
+            subtree: true,
+        });
+
+        return () => observer.disconnect();
     }, [location, isOnMobileApp]);
 
     /**
@@ -72,13 +97,28 @@ export const useBackHandler = () => {
                 return;
             }
 
-            // Dispatch Escape key on document to close dialog (Radix listens on document level)
+            // AlertDialog does NOT close on Escape by design (requires explicit user action)
+            // So we need to click a button inside the dialog to close it
+            if (topmostDialog.getAttribute('role') === 'alertdialog') {
+                // Find and click the first button (usually OK/Cancel)
+                const button = topmostDialog.querySelector('button');
+                if (button instanceof HTMLElement) {
+                    button.click();
+                }
+                return;
+            }
+
+            // For regular dialogs, dispatch Escape key on document (Radix listens on document level)
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
             return;
         }
 
-        navigate(-1);
-    }, [navigate]);
+        // Only navigate back if there's history to go back to
+        const canGoBack = location.key !== 'default' && window.history.length > 1;
+        if (canGoBack) {
+            navigate(-1);
+        }
+    }, [navigate, location.key]);
 
     // Listen for native back button message
     useHandleAppMessage('OnBackPressed', handleNativeBack);

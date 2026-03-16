@@ -29,10 +29,13 @@
     "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],
     "references": [
         {
+            "path": "../../libs/device-utils/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/app-messages/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/device-utils/tsconfig.lib.json"
+            "path": "../../libs/i18n-mobile/tsconfig.lib.json"
         },
         {
             "path": "../../libs/deeplinks/tsconfig.lib.json"
