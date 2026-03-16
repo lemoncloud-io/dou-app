@@ -133,7 +133,6 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                     data: {
                         title: t('inviteFriends.shareTitle'),
                         message: `${t('inviteFriends.shareMessage')}\n${deeplinkUrl}`,
-                        url: deeplinkUrl,
                     },
                 });
             } else {
