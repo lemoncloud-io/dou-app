@@ -14,28 +14,14 @@ import {
 } from '@dnd-kit/core';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { ChevronLeft } from 'lucide-react';
 
+import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../../chats/components/ConfirmDialog';
 import { useMyPlaces } from '../../home/hooks/useMyPlaces';
 import { SortablePlaceItem } from '../components';
 
 import type { DragEndEvent } from '@dnd-kit/core';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
-
-interface HeaderProps {
-    title: string;
-    onBack: () => void;
-}
-
-const Header = ({ title, onBack }: HeaderProps) => (
-    <header className="flex items-center justify-center px-4 py-3">
-        <button onClick={onBack} className="absolute left-4 p-2">
-            <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-        </button>
-        <h1 className="text-[17px] font-semibold text-foreground">{title}</h1>
-    </header>
-);
 
 export const PlaceOrderPage = () => {
     const { t } = useTranslation();
@@ -70,10 +56,6 @@ export const PlaceOrderPage = () => {
         }
     };
 
-    const handleBack = () => {
-        navigate(-1);
-    };
-
     const handleSettings = (place: MySiteView) => {
         navigate(`/places/${place.id}`);
     };
@@ -100,7 +82,7 @@ export const PlaceOrderPage = () => {
 
     return (
         <div className="flex min-h-screen flex-col bg-background">
-            <Header title={t('placeOrder.title')} onBack={handleBack} />
+            <PageHeader title={t('placeOrder.title')} />
 
             {/* Place List */}
             <div className="flex-1 overflow-y-auto pt-[14px]">

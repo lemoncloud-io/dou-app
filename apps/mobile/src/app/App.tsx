@@ -15,7 +15,7 @@ import { RootNavigator } from './navigation';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
-function App() {
+export const App = () => {
     const systemColorScheme = useColorScheme();
     const theme = useThemeStore(state => state.theme);
 
@@ -72,11 +72,7 @@ function App() {
 
     return (
         <SafeAreaProvider>
-            <StatusBar
-                barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-                backgroundColor="transparent"
-                translucent={true}
-            />
+            <StatusBar backgroundColor="transparent" translucent={true} />
             <NavigationContainer ref={navigationRef}>
                 <View style={{ flex: 1 }}>
                     <RootNavigator />
@@ -85,6 +81,4 @@ function App() {
             </NavigationContainer>
         </SafeAreaProvider>
     );
-}
-
-export default App;
+};

@@ -1,4 +1,4 @@
-import { Bell, ChevronLeft, LogOut, Trash2, UserPlus } from 'lucide-react';
+import { Bell, LogOut, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -9,6 +9,7 @@ import { LoadingFallback } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
 
+import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { MemberListItem } from '../components/MemberListItem';
@@ -121,13 +122,7 @@ export const ChatSettingsPage = () => {
 
     return (
         <div className="flex min-h-screen flex-col bg-background">
-            {/* Header */}
-            <header className="flex items-center justify-center px-4 py-3">
-                <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
-                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-                </button>
-                <h1 className="text-[17px] font-semibold text-foreground">{t('chat.settings.title')}</h1>
-            </header>
+            <PageHeader title={t('chat.settings.title')} />
 
             {/* Content */}
             <div className="flex flex-col items-center gap-[25px] px-4 py-2.5">

@@ -1,7 +1,9 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/page-transition';
+
+import { PageHeader } from '../../../shared/components';
 
 export const AccountInfoPage = () => {
     const navigate = useNavigateWithTransition();
@@ -9,13 +11,7 @@ export const AccountInfoPage = () => {
 
     return (
         <div className="flex min-h-screen flex-col bg-background pt-safe-top">
-            {/* Header */}
-            <header className="flex items-center justify-center px-4 py-3">
-                <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
-                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-                </button>
-                <h1 className="text-[17px] font-semibold text-foreground">{t('mypage.accountInfo.title')}</h1>
-            </header>
+            <PageHeader title={t('mypage.accountInfo.title')} />
 
             {/* Menu Cards */}
             <div className="flex flex-col gap-[18px] px-4 pt-4">

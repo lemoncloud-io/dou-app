@@ -1,4 +1,4 @@
-import { Camera, ChevronLeft, Image } from 'lucide-react';
+import { Camera, Image } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -6,6 +6,7 @@ import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import { PageHeader } from '../../../shared/components';
 import { InviteCodeCard, VisibilityToggle } from '../../workspace/components';
 import { useCreateChannel } from '../hooks/useCreateChannel';
 
@@ -22,12 +23,7 @@ interface CreateRoomSuccessProps {
 const CreateRoomSuccess = ({ name, visibility, inviteCode, onClose, onConfirm, t }: CreateRoomSuccessProps) => {
     return (
         <div className="flex min-h-screen flex-col bg-background pt-safe-top">
-            <header className="flex items-center justify-center px-4 py-3">
-                <button onClick={onClose} className="absolute left-4 p-2">
-                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-                </button>
-                <h1 className="text-[17px] font-semibold text-foreground">{t('createRoom.successTitle')}</h1>
-            </header>
+            <PageHeader title={t('createRoom.successTitle')} onBack={onClose} />
 
             <div className="flex-1 space-y-6 px-5 pt-8">
                 <div className="text-center">
@@ -112,12 +108,7 @@ export const CreateRoomPage = () => {
 
     return (
         <div className="flex min-h-screen flex-col bg-background pt-safe-top">
-            <header className="flex items-center justify-center px-4 py-3">
-                <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
-                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-                </button>
-                <h1 className="text-[17px] font-semibold text-foreground">{t('createRoom.title')}</h1>
-            </header>
+            <PageHeader title={t('createRoom.title')} />
 
             <div className="flex-1 px-5 pt-4">
                 <h2 className="text-2xl font-extrabold leading-tight text-foreground">{t('createRoom.subtitle')}</h2>
