@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-03-16] - root@0.25.0, @chatic/web@0.22.0
+
+### Features
+
+- (mypage) add view onboarding again feature
+- add limit exceeded dialog and place creation limit
+
+### Chores
+
+- (ui) replace emojis with icons in ChannelList
+
 ## [2026-03-16] - root@0.24.0, @chatic/web@0.21.0
 
 ### Features
