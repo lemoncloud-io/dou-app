@@ -156,7 +156,11 @@ export const ChatSettingsPage = () => {
                                 onClick={() => openDialog('invite')}
                             />
                         )}
-                        <ActionButton icon={Bell} label={t('chat.settings.notifications')} />
+                        <ActionButton
+                            icon={Bell}
+                            label={t('chat.settings.notifications')}
+                            onClick={() => navigate(`/chats/${channelId}/settings/notifications`)}
+                        />
                         {isOwner ? (
                             <ActionButton
                                 icon={Trash2}

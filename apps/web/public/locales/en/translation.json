@@ -10,6 +10,7 @@
     "common": {
         "signout": "Sign Out",
         "cancel": "Cancel",
+        "close": "Close",
         "save": "Save Changes",
         "saving": "Saving..."
     },
@@ -374,7 +375,14 @@
                 "description": "You won't be able to view messages, and you'll need a new invite to rejoin.",
                 "confirm": "Leave"
             },
-            "unknownUser": "Unknown User"
+            "unknownUser": "Unknown User",
+            "notificationSettings": {
+                "title": "Notification Settings",
+                "appNotificationOff": "App notifications are turned off",
+                "appNotificationOffDesc": "Enable device settings to receive push notifications",
+                "messageNotification": "Message Notifications",
+                "messageNotificationDesc": "Receive notifications for messages from friends"
+            }
         }
     },
     "search": {
