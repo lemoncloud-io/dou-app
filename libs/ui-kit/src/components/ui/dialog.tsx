@@ -34,7 +34,7 @@ const dialogVariants = {
     fullscreen:
         'inset-0 pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]',
     'slide-up':
-        'inset-0 pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:slide-out-to-bottom-full data-[state=open]:slide-in-from-bottom-full duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] [--tw-enter-duration:5000ms] [--tw-exit-duration:5000ms]',
+        'inset-0 pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:slide-out-to-bottom-full data-[state=open]:slide-in-from-bottom-full duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] [--tw-enter-duration:5000ms] [--tw-exit-duration:5000ms]',
 };
 
 const DialogContent = React.forwardRef<

@@ -164,7 +164,13 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
             };
             bridge.post(response);
         } catch (e) {
-            Logger.error('DEVICE', 'PickContact error', e);
+            Logger.error('DEVICE', 'GetContacts error', e);
+            // 에러 시에도 빈 배열로 응답 전송 (Web이 무한 대기하지 않도록)
+            const response: AppMessageData<'OnGetContacts'> = {
+                type: 'OnGetContacts',
+                data: { contacts: [] },
+            };
+            bridge.post(response);
         }
     }, [bridge]);
 

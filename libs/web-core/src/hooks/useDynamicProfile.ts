@@ -7,7 +7,6 @@ export const useDynamicProfile = (): UserProfile$ | null => {
     const { isGuest, isInvited, profile } = useWebCoreStore();
 
     const cloudToken = cloudCore.getCloudToken();
-    console.log('[useDynamicProfile] cloudToken:', cloudToken);
 
     const isCloudProfile = isInvited || !isGuest;
     if (!isCloudProfile || !cloudToken) return profile;

@@ -1,4 +1,13 @@
-import { Check, User } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+
+import { Check, MoreHorizontal, User } from 'lucide-react';
+
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@chatic/ui-kit/components/ui/dropdown-menu';
 
 interface Member {
     id: string;
@@ -11,6 +20,9 @@ interface MemberListItemProps {
     isMe?: boolean;
     isOwner?: boolean;
     isPendingInvite?: boolean;
+    showActions?: boolean;
+    onReport?: () => void;
+    onBlock?: () => void;
 }
 
 export const MemberListItem = ({
@@ -18,7 +30,12 @@ export const MemberListItem = ({
     isMe = false,
     isOwner = false,
     isPendingInvite = false,
+    showActions = false,
+    onReport,
+    onBlock,
 }: MemberListItemProps) => {
+    const { t } = useTranslation();
+
     return (
         <div className="flex items-center gap-2">
             {/* Avatar */}
@@ -64,6 +81,31 @@ export const MemberListItem = ({
                     </span>
                 )}
             </div>
+
+            {/* More Menu */}
+            {showActions && !isMe && (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className="flex items-center justify-center p-1">
+                            <MoreHorizontal size={20} className="text-muted-foreground" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                        align="end"
+                        className="w-[160px] rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.13)]"
+                    >
+                        <DropdownMenuItem onClick={onReport} className="cursor-pointer px-[16px] py-[11px]">
+                            <span className="text-[16px]">{t('chat.settings.report')}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onClick={onBlock}
+                            className="cursor-pointer px-[16px] py-[11px] text-destructive focus:text-destructive"
+                        >
+                            <span className="text-[16px]">{t('chat.settings.block')}</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )}
         </div>
     );
 };
