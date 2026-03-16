@@ -3,13 +3,20 @@ import { useNavigate } from 'react-router-dom';
 
 import type { NavigateOptions, To } from 'react-router-dom';
 
-interface TransitionNavigateOptions extends NavigateOptions {
+/** CSS class added to document element during back navigation for reverse animation */
+const BACK_NAVIGATION_CLASS = 'back-navigation';
+
+/** Options for navigation with view transitions */
+export interface TransitionNavigateOptions extends NavigateOptions {
     /**
      * Whether to use view transition animation.
      * @default true
      */
     transition?: boolean;
 }
+
+/** Navigate function with view transition support */
+export type NavigateWithTransitionFn = (to: To | number, options?: TransitionNavigateOptions) => void;
 
 /**
  * A wrapper hook around useNavigate that adds view transition support.
@@ -29,7 +36,7 @@ interface TransitionNavigateOptions extends NavigateOptions {
  * navigate('/explore', { transition: false });
  * ```
  */
-export const useNavigateWithTransition = () => {
+export const useNavigateWithTransition = (): NavigateWithTransitionFn => {
     const navigate = useNavigate();
 
     const navigateWithTransition = useCallback(
@@ -52,7 +59,7 @@ export const useNavigateWithTransition = () => {
 
                 // Add back-navigation class for reverse animation
                 if (isBack) {
-                    document.documentElement.classList.add('back-navigation');
+                    document.documentElement.classList.add(BACK_NAVIGATION_CLASS);
                 }
 
                 const viewTransition = document.startViewTransition(() => {
@@ -61,7 +68,7 @@ export const useNavigateWithTransition = () => {
 
                 // Remove class after transition completes
                 viewTransition.finished.finally(() => {
-                    document.documentElement.classList.remove('back-navigation');
+                    document.documentElement.classList.remove(BACK_NAVIGATION_CLASS);
                 });
             } else {
                 // For path navigation, use startViewTransition

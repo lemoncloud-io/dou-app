@@ -217,7 +217,7 @@ export const ChatRoomPage = () => {
     return (
         <div className="flex h-screen flex-col bg-background pb-safe-bottom">
             {/* Header */}
-            <header className="z-10 flex items-center justify-between border-b border-border  px-4 py-4">
+            <header className="z-10 flex items-center justify-between border-b border-border px-4 py-4">
                 <button onClick={() => navigate(-1)} className="p-1">
                     <ChevronLeft size={24} className="text-foreground" />
                 </button>
