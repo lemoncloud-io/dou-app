@@ -64,7 +64,8 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
         }
     }, [open, isOnMobileApp, hasRequestedContacts]);
 
-    // Timeout: If no response after 1 second, assume permission denied
+    // Timeout: If no response after 3 seconds, assume permission denied
+    // (Android may take longer to fetch contacts on slower devices)
     useEffect(() => {
         if (!isWaitingForContacts) return;
 
@@ -73,7 +74,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                 setIsWaitingForContacts(false);
                 setPermissionDenied(true);
             }
-        }, 1000);
+        }, 3000);
 
         return () => clearTimeout(timeoutId);
     }, [isWaitingForContacts, contacts.length]);
