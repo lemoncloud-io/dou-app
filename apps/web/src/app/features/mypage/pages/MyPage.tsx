@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
-import { useLocalProfileStore, useWebCoreStore } from '@chatic/web-core';
+import { useLocalProfileStore, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { LanguageSelectSheet, LogoutDialog } from '../components';
@@ -21,6 +21,7 @@ export const MyPage = () => {
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();
     const localProfile = useLocalProfileStore();
+    const { resetOnboarding } = useOnboardingStore();
 
     // Merge local overrides with server profile (local > nick > name)
     const displayName = localProfile.name ?? profile?.$user?.nick ?? profile?.$user?.name;
@@ -118,6 +119,16 @@ export const MyPage = () => {
                             <span className="text-[14px] text-muted-foreground">{currentLanguageLabel}</span>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </div>
+                    </button>
+                    <button
+                        onClick={() => {
+                            resetOnboarding();
+                            navigate('/');
+                        }}
+                        className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                    >
+                        <span className="text-[15px] font-medium text-foreground">{t('mypage.viewOnboarding')}</span>
+                        <ChevronRight size={18} className="text-muted-foreground" />
                     </button>
                 </div>
 
