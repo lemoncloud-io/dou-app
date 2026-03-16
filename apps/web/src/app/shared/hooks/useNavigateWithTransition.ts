@@ -1,10 +1,15 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { getMobileAppInfo } from '@chatic/app-messages';
+
 import type { NavigateOptions, To } from 'react-router-dom';
 
 /** CSS class added to document element during back navigation for reverse animation */
 const BACK_NAVIGATION_CLASS = 'back-navigation';
+
+/** CSS class added to document element for Android-specific animations */
+const ANDROID_PLATFORM_CLASS = 'android';
 
 /** Options for navigation with view transitions */
 export interface TransitionNavigateOptions extends NavigateOptions {
@@ -53,6 +58,14 @@ export const useNavigateWithTransition = (): NavigateWithTransitionFn => {
                 return;
             }
 
+            // Detect platform for platform-specific animations
+            const { isAndroid } = getMobileAppInfo();
+
+            // Add platform class for CSS-based animation selection
+            if (isAndroid) {
+                document.documentElement.classList.add(ANDROID_PLATFORM_CLASS);
+            }
+
             // Handle numeric navigation (e.g., -1 for back)
             if (typeof to === 'number') {
                 const isBack = to < 0;
@@ -66,14 +79,20 @@ export const useNavigateWithTransition = (): NavigateWithTransitionFn => {
                     navigate(to);
                 });
 
-                // Remove class after transition completes
+                // Remove classes after transition completes
                 viewTransition.finished.finally(() => {
                     document.documentElement.classList.remove(BACK_NAVIGATION_CLASS);
+                    document.documentElement.classList.remove(ANDROID_PLATFORM_CLASS);
                 });
             } else {
                 // For path navigation, use startViewTransition
-                document.startViewTransition(() => {
+                const viewTransition = document.startViewTransition(() => {
                     navigate(to, navigateOptions);
+                });
+
+                // Remove platform class after transition completes
+                viewTransition.finished.finally(() => {
+                    document.documentElement.classList.remove(ANDROID_PLATFORM_CLASS);
                 });
             }
         },
