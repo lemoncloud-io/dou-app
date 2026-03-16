@@ -18,11 +18,12 @@ import type { WebView, WebViewMessageEvent } from 'react-native-webview';
 import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
 import type { MainScreenProps } from '../navigation';
 import { useIsFocused } from '@react-navigation/native';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native';
+import Config from 'react-native-config';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // TODO: Use Config.VITE_WEBVIEW_BASE_URL when ready for production
-// const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
-const webviewUrl = 'http://localhost:5003';
+const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
@@ -66,8 +67,26 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     } = useDeviceHandler(bridge);
     const { handleRequestPermission } = usePermissionHandler(bridge);
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler(bridge);
+    const insets = useSafeAreaInsets();
 
     useAndroidBack(webViewRef, canGoBack, language);
+
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+    // 키보드 높이계산
+    useEffect(() => {
+        if (Platform.OS !== 'android') return;
+        const showSubscription = Keyboard.addListener('keyboardDidShow', e => {
+            setKeyboardHeight(e.endCoordinates.height);
+        });
+        const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+            setKeyboardHeight(0);
+        });
+        return () => {
+            showSubscription.remove();
+            hideSubscription.remove();
+        };
+    }, []);
 
     // Handle WebView load complete
     const handleWebViewLoad = useCallback(() => {
@@ -309,7 +328,14 @@ true;`;
     ]);
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
+        <View
+            style={{
+                flex: 1,
+                backgroundColor: '#ffffff',
+                paddingBottom:
+                    Platform.OS === 'android' ? (keyboardHeight > 0 ? keyboardHeight + insets.bottom : 0) : 0,
+            }}
+        >
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
                 behavior={Platform.OS.toLowerCase() === 'ios' ? 'padding' : 'height'}
