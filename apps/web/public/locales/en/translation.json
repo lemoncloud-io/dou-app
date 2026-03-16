@@ -19,9 +19,10 @@
         "pointerTest": "Pointer Test"
     },
     "version": {
-        "updateAvailable": "A new version is available",
+        "updateAvailable": "Web Update",
         "newVersionReleased": "Version {{latestVersion}} has been released. Current version: {{currentVersion}}",
-        "refresh": "Refresh",
+        "currentVersion": "Current: v{{version}}",
+        "refresh": "Update",
         "later": "Later",
         "unknown": "Unknown"
     },

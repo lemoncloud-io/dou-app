@@ -19,9 +19,10 @@
         "pointerTest": "포인터 테스트"
     },
     "version": {
-        "updateAvailable": "새 버전이 있습니다",
+        "updateAvailable": "웹 업데이트",
         "newVersionReleased": "새 버전({{latestVersion}})이 출시되었습니다. 현재 버전: {{currentVersion}}",
-        "refresh": "새로고침",
+        "currentVersion": "현재 버전: v{{version}}",
+        "refresh": "업데이트",
         "later": "나중에",
         "unknown": "알 수 없음"
     },
