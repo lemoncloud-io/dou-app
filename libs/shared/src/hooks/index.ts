@@ -9,3 +9,4 @@ export * from './useDeviceId';
 export * from './useSessionDeviceId';
 export * from './useInterval';
 export * from './useTick';
+export * from './usePageTransition';

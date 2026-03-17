@@ -10,6 +10,9 @@
     "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
     "references": [
         {
+            "path": "../app-messages/tsconfig.lib.json"
+        },
+        {
             "path": "../../assets/tsconfig.lib.json"
         },
         {

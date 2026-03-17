@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
 
-import { useNavigateWithTransition } from '@chatic/page-transition';
+import { useNavigateWithTransition } from '@chatic/shared';
 
 const IconChat = ({ color }: { color: string }) => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

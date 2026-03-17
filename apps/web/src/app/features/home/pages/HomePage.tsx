@@ -2,7 +2,7 @@ import { ArrowLeftRight, Bell, ChevronDown, Plus, Search, SlidersHorizontal, Use
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useNavigateWithTransition } from '@chatic/page-transition';
+import { useNavigateWithTransition } from '@chatic/shared';
 
 import {
     DropdownMenu,

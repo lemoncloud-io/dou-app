@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-import { useNavigateWithTransition } from '@chatic/page-transition';
+import { useNavigateWithTransition } from '@chatic/shared';
 
 import { useRecentSearches, useSearch } from '../hooks';
 import { ChatResults } from './ChatResults';

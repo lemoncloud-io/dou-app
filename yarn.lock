@@ -2896,6 +2896,11 @@
     crypto-js "^4.2.0"
     jwt-decode "^4.0.0"
 
+"@lemoncloud/react-page-transition@0.0.1":
+  version "0.0.1"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/react-page-transition/-/react-page-transition-0.0.1.tgz#df2141a843fa7891979a36d359a5c11f03bf9e86"
+  integrity sha512-Gbyw6LN6nDCVsWFpvGuvJo63rI0kF726ntiOwfq2D8l1rgKYAgtej4qwBQIiwRtQUP5wz9Dr7h7bqtPcBn7nFQ==
+
 "@microsoft/api-extractor-model@7.32.2":
   version "7.32.2"
   resolved "https://registry.yarnpkg.com/@microsoft/api-extractor-model/-/api-extractor-model-7.32.2.tgz#2b891b2bad26d6ba19d7cc21c23510c8c6f05476"

@@ -2,7 +2,7 @@ import { ChevronRight, ChevronDown, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useNavigateWithTransition } from '@chatic/page-transition';
+import { useNavigateWithTransition } from '@chatic/shared';
 
 import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
 import { useDeviceInfo } from '@chatic/device-utils';
