@@ -23,6 +23,18 @@ import Config from 'react-native-config';
 
 // TODO: Use Config.VITE_WEBVIEW_BASE_URL when ready for production
 const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
+const webviewBaseUrl = new URL(webviewUrl);
+
+const toLocalUrl = (url: string): string => {
+    try {
+        const parsed = new URL(url);
+        parsed.protocol = webviewBaseUrl.protocol;
+        parsed.host = webviewBaseUrl.host;
+        return parsed.toString();
+    } catch {
+        return url;
+    }
+};
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
@@ -82,9 +94,9 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
             console.log('[DEEPLINK] pendingEnvs:', JSON.stringify(pendingEnvs));
 
             // Navigate to URL - append _backend, _wss as query params for web layer
-            let targetUrl = pendingUrl;
+            let targetUrl = toLocalUrl(pendingUrl);
             if (pendingEnvs?.backend || pendingEnvs?.wss) {
-                const urlObj = new URL(pendingUrl);
+                const urlObj = new URL(targetUrl);
                 if (pendingEnvs?.backend) urlObj.searchParams.set('_backend', pendingEnvs.backend);
                 if (pendingEnvs?.wss) urlObj.searchParams.set('_wss', pendingEnvs.wss);
                 targetUrl = urlObj.toString();
