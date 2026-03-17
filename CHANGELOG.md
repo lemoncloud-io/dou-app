@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-03-17] - root@0.31.0, @chatic/web@0.28.0
+
+### Features
+
+- migrate @lemoncloud/react-page-transition
+
 ## [2026-03-17] - root@0.30.0, @chatic/web@0.27.0
 
 ### Features
