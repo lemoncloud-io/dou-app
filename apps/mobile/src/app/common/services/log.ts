@@ -42,13 +42,13 @@ const serializeError = (error: any) => {
 const listeners = new Set<LogListener>();
 
 /**
- * LogService (Logger)
+ * LogService (logger)
  *
  * 앱 전역에서 발생하는 로그를 중앙에서 관리하는 서비스
  * - 개발 모드(`__DEV__`)의 경우 콘솔(Console)에 로그 출력
  * - 리스너(Listener): 등록된 외부 리스너(WebView Bridge, Analytics 등)로 로그 전파
  */
-export const Logger = {
+export const logger = {
     subscribe: (listener: LogListener) => {
         listeners.add(listener);
 

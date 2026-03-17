@@ -2,7 +2,7 @@ import React from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { HomeScreenProps } from '../navigation/DebugNavigator';
+import type { HomeScreenProps } from '../navigation';
 
 export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
     const renderMenuItem = (title: string, onPress: () => void) => (

@@ -5,7 +5,7 @@ import DeviceInfo from 'react-native-device-info';
 import { STORE_URLS } from '@chatic/shared';
 
 import { t } from '../i18n';
-import { getAppLanguage } from '../utils/device';
+import { getAppLanguage } from '../utils';
 
 const IOS_BUNDLE_ID = 'io.chatic.dou';
 const APP_STORE_LOOKUP_URL = `https://itunes.apple.com/lookup?bundleId=${IOS_BUNDLE_ID}`;

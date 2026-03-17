@@ -71,7 +71,7 @@ export const useWebSocket = <
         pingPayload = defaultPingPayload,
     } = options;
 
-    const queryString = useQueryString(params);
+    const queryString = useQueryString({ params: params });
     const finalUrl = useMemo(() => {
         return queryString ? `${url}?${queryString}` : url;
     }, [url, queryString]);

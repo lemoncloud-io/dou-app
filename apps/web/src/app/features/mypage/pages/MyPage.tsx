@@ -60,7 +60,7 @@ export const MyPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pb-32 pt-4">
+        <div className="flex min-h-screen flex-col bg-background pb-32 pt-4 pt-safe-top">
             {/* Profile Section */}
             <div className="px-5 pb-3">
                 {isGuest ? (

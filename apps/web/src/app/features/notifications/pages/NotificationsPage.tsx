@@ -7,7 +7,7 @@ export const NotificationsPage = () => {
     const { t } = useTranslation();
 
     return (
-        <div className="flex h-full flex-col bg-background">
+        <div className="flex h-full flex-col bg-background pt-safe-top">
             <PageHeader title={t('notifications.title')} />
 
             {/* Empty State */}

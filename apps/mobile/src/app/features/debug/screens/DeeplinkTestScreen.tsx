@@ -7,12 +7,10 @@ import auth from '@react-native-firebase/auth';
 import {
     checkInviteLinkExists,
     createInviteLink,
+    DEEPLINK_DOMAIN,
     deleteInviteLink,
     getInviteLink,
-    DEEPLINK_DOMAIN,
 } from '@chatic/deeplinks';
-
-import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 const TEST_INVITE_CODE = 'test-invite-001';
 const TEST_USER_ID = '1000029';
@@ -52,7 +50,7 @@ export const DeeplinkTestScreen = () => {
         setResult('Creating...');
 
         try {
-            const inviteData: MyInviteView = {
+            const inviteData = {
                 id: TEST_INVITE_ID,
                 code: TEST_INVITE_CODE,
                 userId: TEST_USER_ID,
