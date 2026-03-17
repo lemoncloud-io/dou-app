@@ -12,7 +12,8 @@
         "cancel": "Cancel",
         "close": "Close",
         "save": "Save Changes",
-        "saving": "Saving..."
+        "saving": "Saving...",
+        "comingSoon": "This feature is coming soon 🛠️"
     },
     "nav": {
         "home": "Home",
@@ -263,7 +264,13 @@
         "defaultPlace": "Default",
         "errorLoading": "Failed to load places",
         "retry": "Retry",
-        "empty": "No places"
+        "empty": "No places",
+        "filterSection": "Filter",
+        "filterAll": "All",
+        "filterMine": "My Places",
+        "filterInvited": "Invited Places",
+        "sortSection": "Manage",
+        "sortOrder": "Manage Places"
     },
     "placeOrder": {
         "title": "Place List",

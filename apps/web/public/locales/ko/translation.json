@@ -12,7 +12,8 @@
         "cancel": "취소",
         "close": "닫기",
         "save": "변경사항 저장",
-        "saving": "저장 중..."
+        "saving": "저장 중...",
+        "comingSoon": "기능 준비 중이에요 🛠️"
     },
     "nav": {
         "home": "홈",
@@ -263,7 +264,13 @@
         "defaultPlace": "기본",
         "errorLoading": "플레이스를 불러오지 못했어요",
         "retry": "재시도",
-        "empty": "플레이스가 없어요"
+        "empty": "플레이스가 없어요",
+        "filterSection": "필터",
+        "filterAll": "전체",
+        "filterMine": "내 플레이스",
+        "filterInvited": "초대받은 플레이스",
+        "sortSection": "관리",
+        "sortOrder": "플레이스 관리"
     },
     "placeOrder": {
         "title": "플레이스 목록",

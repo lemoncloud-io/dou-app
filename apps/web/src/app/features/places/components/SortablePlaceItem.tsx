@@ -16,12 +16,13 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 interface SortablePlaceItemProps {
     place: MySiteView;
+    isOwner: boolean;
     onSettings: (place: MySiteView) => void;
     onDelete: (place: MySiteView) => void;
     onLeave: (place: MySiteView) => void;
 }
 
-export const SortablePlaceItem = ({ place, onSettings, onDelete, onLeave }: SortablePlaceItemProps) => {
+export const SortablePlaceItem = ({ place, isOwner, onSettings, onDelete, onLeave }: SortablePlaceItemProps) => {
     const { t } = useTranslation();
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: place.id });
 
@@ -29,8 +30,6 @@ export const SortablePlaceItem = ({ place, onSettings, onDelete, onLeave }: Sort
         transform: CSS.Transform.toString(transform),
         transition,
     };
-
-    const isOwner = place.stereo === 'place';
 
     return (
         <div
