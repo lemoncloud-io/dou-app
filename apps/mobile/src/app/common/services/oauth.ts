@@ -9,7 +9,7 @@ import { appleAuth } from '@invertase/react-native-apple-authentication';
 import type { OAuthLoginProvider, OAuthTokenResult, Platform as PlatformType } from '@chatic/app-messages';
 import Config from 'react-native-config';
 import { Platform } from 'react-native';
-import { Logger } from './log';
+import { logger } from './log';
 
 // Google 로그인 설정 초기화
 GoogleSignin.configure({
@@ -17,7 +17,7 @@ GoogleSignin.configure({
     offlineAccess: true,
 });
 
-export const OAuthService = {
+export const oAuthService = {
     /**
      * OAuth 로그인 처리
      */
@@ -29,11 +29,11 @@ export const OAuthService = {
                 case 'apple':
                     return await signInWithApple();
                 default:
-                    Logger.error('OAUTH', `Not supported type (${provider})`);
+                    logger.error('OAUTH', `Not supported type (${provider})`);
                     return null;
             }
         } catch (err) {
-            Logger.error('OAUTH', `Failed to get oauth token (${provider})`, err);
+            logger.error('OAUTH', `Failed to get oauth token (${provider})`, err);
             return null;
         }
     },
@@ -47,18 +47,18 @@ export const OAuthService = {
                 case 'google':
                     await GoogleSignin.revokeAccess();
                     await GoogleSignin.signOut();
-                    Logger.info('OAUTH', 'Google Logout Success');
+                    logger.info('OAUTH', 'Google Logout Success');
                     break;
                 case 'apple':
-                    Logger.info('OAUTH', 'Apple Logout Success (No-op)');
+                    logger.info('OAUTH', 'Apple Logout Success (No-op)');
                     break;
                 default:
-                    Logger.warn('OAUTH', `Unknown provider for logout: ${provider}`);
+                    logger.warn('OAUTH', `Unknown provider for logout: ${provider}`);
                     return false;
             }
             return true;
         } catch (error) {
-            Logger.error('OAUTH', `${provider} Logout Error`, error);
+            logger.error('OAUTH', `${provider} Logout Error`, error);
             return false;
         }
     },
@@ -79,7 +79,7 @@ const signInWithGoogle = async (): Promise<OAuthTokenResult | null> => {
         const userInfo: SignInSuccessResponse | CancelledResponse = await GoogleSignin.signIn();
 
         if (userInfo.type === 'cancelled') {
-            Logger.info('OAUTH', 'Google Sign-In cancelled by user');
+            logger.info('OAUTH', 'Google Sign-In cancelled by user');
             return null;
         }
 
@@ -88,11 +88,11 @@ const signInWithGoogle = async (): Promise<OAuthTokenResult | null> => {
             const idToken: string | null = userInfo.data.idToken;
 
             if (!idToken) {
-                Logger.error('OAUTH', 'Google Sign-In failed: No idToken found in success response', { userInfo });
+                logger.error('OAUTH', 'Google Sign-In failed: No idToken found in success response', { userInfo });
                 return null;
             }
 
-            Logger.info('OAUTH', 'Google Sign-In Success');
+            logger.info('OAUTH', 'Google Sign-In Success');
 
             return {
                 provider: 'google',
@@ -104,10 +104,10 @@ const signInWithGoogle = async (): Promise<OAuthTokenResult | null> => {
             };
         }
 
-        Logger.warn('OAUTH', 'Google Sign-In returned unknown type', { userInfo });
+        logger.warn('OAUTH', 'Google Sign-In returned unknown type', { userInfo });
         return null;
     } catch (error: any) {
-        Logger.error('OAUTH', 'Google Sign-In Error', error);
+        logger.error('OAUTH', 'Google Sign-In Error', error);
         return null;
     }
 };
@@ -127,10 +127,10 @@ const signInWithApple = async (): Promise<OAuthTokenResult | null> => {
         const credentialState: AppleCredentialState = await appleAuth.getCredentialStateForUser(response.user);
 
         if (credentialState === appleAuth.State.AUTHORIZED) {
-            Logger.info('OAUTH', 'Apple Sign-In Success');
+            logger.info('OAUTH', 'Apple Sign-In Success');
 
             if (!response.identityToken) {
-                Logger.error('OAUTH', 'Apple Sign-In failed: No identityToken found');
+                logger.error('OAUTH', 'Apple Sign-In failed: No identityToken found');
                 return null;
             }
 
@@ -145,14 +145,14 @@ const signInWithApple = async (): Promise<OAuthTokenResult | null> => {
                 authorizationCode: response.authorizationCode ?? undefined,
             };
         }
-        Logger.warn('OAUTH', 'Apple Sign-In credential state invalid', { credentialState });
+        logger.warn('OAUTH', 'Apple Sign-In credential state invalid', { credentialState });
         return null;
     } catch (error: any) {
         if (error.code === appleAuth.Error.CANCELED) {
-            Logger.info('OAUTH', 'Apple Sign-In cancelled by user');
+            logger.info('OAUTH', 'Apple Sign-In cancelled by user');
             return null;
         }
-        Logger.error('OAUTH', 'Apple Sign-In Error', error);
+        logger.error('OAUTH', 'Apple Sign-In Error', error);
         return null;
     }
 };

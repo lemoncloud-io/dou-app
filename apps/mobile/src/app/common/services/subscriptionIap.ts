@@ -11,7 +11,7 @@ import {
     requestPurchase,
 } from 'react-native-iap';
 
-import { Logger } from './log';
+import { logger } from './log';
 
 export const IOS_SKU_LIST: string[] = (Config.VITE_SUBSCRIPTION_IAP_SKUS_IOS ?? '')
     .split(',')
@@ -74,7 +74,7 @@ const getReplacementMode = (oldSku: string, newSku: string): SubscriptionReplace
  * - 인앱결제 테스트를 위해서는 사전 iOS 및 Android 내 테스트 계정 등록 필요
  * - 인앱결제 테스트는 Release 환경 내에서만 동작
  */
-export const SubscriptionIapService = {
+export const subscriptionIapService = {
     init: async (): Promise<boolean> => {
         return initConnection();
     },
@@ -108,7 +108,7 @@ export const SubscriptionIapService = {
      * @returns void; 실제 구매 완료 데이터는 리스너를 통해 수신
      */
     purchase: async (sku: string, oldSku?: string): Promise<void> => {
-        const products = await SubscriptionIapService.getSubscriptions();
+        const products = await subscriptionIapService.getSubscriptions();
         const targetProduct = products.find(p => p.id === sku);
         if (!targetProduct) {
             throw new Error('Product not found');
@@ -170,14 +170,14 @@ export const SubscriptionIapService = {
 
         for (const purchase of purchases) {
             try {
-                Logger.info('IAP', 'Syncing transaction:', purchase.productId);
+                logger.info('IAP', 'Syncing transaction:', purchase.productId);
 
-                await SubscriptionIapService.verifyPurchase(purchase);
-                await SubscriptionIapService.finish(purchase);
+                await subscriptionIapService.verifyPurchase(purchase);
+                await subscriptionIapService.finish(purchase);
 
                 restoredPurchases.push(purchase);
             } catch (e) {
-                Logger.error('IAP', `Failed to restore purchase: ${purchase.productId}`, e);
+                logger.error('IAP', `Failed to restore purchase: ${purchase.productId}`, e);
             }
         }
         return restoredPurchases;
@@ -194,9 +194,9 @@ export const SubscriptionIapService = {
         try {
             // TODO: [Server Integration]
             // 백엔드 API를 호출하여 purchase.transactionReceipt(iOS) 또는 purchase.purchaseToken(Android)을 검증필요
-            Logger.info('IAP', 'Server verification success', purchase);
+            logger.info('IAP', 'Server verification success', purchase);
         } catch (e) {
-            Logger.error('IAP', 'Server verification failed', e);
+            logger.error('IAP', 'Server verification failed', e);
             throw e;
         }
     },

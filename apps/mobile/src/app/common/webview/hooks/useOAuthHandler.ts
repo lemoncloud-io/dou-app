@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { OAuthService } from '../../services';
+import { oAuthService } from '../../services';
 import type { OAuthLoginProvider } from '@chatic/app-messages';
 import type { WebViewBridge } from './useBaseBridge';
 
@@ -9,7 +9,7 @@ export const useOAuthHandler = (bridge: WebViewBridge) => {
      */
     const handleOAuthLogin: (provider: OAuthLoginProvider) => Promise<void> = useCallback(
         async (provider: OAuthLoginProvider) => {
-            const result = await OAuthService.login(provider);
+            const result = await oAuthService.login(provider);
             bridge.post({
                 type: 'OnOAuthLogin',
                 data: { result },
@@ -24,7 +24,7 @@ export const useOAuthHandler = (bridge: WebViewBridge) => {
      */
     const handleOAuthLogout: (provider: OAuthLoginProvider) => Promise<void> = useCallback(
         async (provider: OAuthLoginProvider) => {
-            const success: boolean = await OAuthService.logout(provider);
+            const success: boolean = await oAuthService.logout(provider);
             bridge.post({
                 type: 'OnOAuthLogout',
                 data: { success },

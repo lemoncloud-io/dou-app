@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 
 import { useSubscriptionIap } from '../../hooks';
-import { Logger } from '../../services';
+import { logger } from '../../services';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type { AppMessageData } from '@chatic/app-messages';
@@ -27,7 +27,7 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
          * @param error
          */
         onPurchaseError: (error: PurchaseError) => {
-            Logger.error('IAP', 'Purchase failed:', error);
+            logger.error('IAP', 'Purchase failed:', error);
         },
     });
 

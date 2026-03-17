@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { AppWebView, FullScreenLoader, getAppLanguage, Logger, useDeepLinkStore, useThemeStore } from '../../../common';
+import { AppWebView, FullScreenLoader, getAppLanguage, logger, useDeepLinkStore, useThemeStore } from '../../../common';
 import {
     useAndroidBack,
     useAppBridge,
@@ -102,7 +102,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
 
     // Handle WebView load complete
     const handleWebViewLoad = useCallback(() => {
-        Logger.info('WEBVIEW', 'WebView loaded');
+        logger.info('WEBVIEW', 'WebView loaded');
         setIsWebViewLoaded(true);
         setWebViewReady(true);
     }, [setWebViewReady]);
@@ -111,7 +111,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     useEffect(() => {
         console.log('[DEEPLINK] effect triggered - pendingUrl:', pendingUrl, 'isWebViewLoaded:', isWebViewLoaded);
         if (pendingUrl && isWebViewLoaded && webViewRef.current) {
-            Logger.info('DEEPLINK', `Loading deep link URL: ${pendingUrl}`, pendingEnvs);
+            logger.info('DEEPLINK', `Loading deep link URL: ${pendingUrl}`, pendingEnvs);
             console.log('[DEEPLINK] pendingEnvs:', JSON.stringify(pendingEnvs));
 
             // Navigate to URL - append _backend, _wss as query params for web layer
@@ -305,7 +305,7 @@ true;`;
                 }
             },
             (error: any, nativeEvent: WebViewMessage) => {
-                Logger.error('BRIDGE', `Failed parse message error. : ${nativeEvent.data}`, error);
+                logger.error('BRIDGE', `Failed parse message error. : ${nativeEvent.data}`, error);
             }
         );
     }, [

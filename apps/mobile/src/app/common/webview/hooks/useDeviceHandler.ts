@@ -2,8 +2,8 @@ import { useCallback } from 'react';
 import { Linking } from 'react-native';
 import RNFS from 'react-native-fs';
 
-import { DeviceService } from '../../services';
-import { Logger } from '../../services';
+import { deviceService } from '../../services';
+import { logger } from '../../services';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type {
@@ -18,13 +18,13 @@ import type { Asset, CameraOptions, ImageLibraryOptions } from 'react-native-ima
 
 export const useDeviceHandler = (bridge: WebViewBridge) => {
     const handleOpenSettings = useCallback(async () => {
-        await DeviceService.openSettings();
+        await deviceService.openSettings();
     }, []);
 
     const handleOpenShareSheet = useCallback(
         async (data: OpenShareSheet['data']) => {
             try {
-                const result = await DeviceService.openShareSheet(data);
+                const result = await deviceService.openShareSheet(data);
                 const response: AppMessageData<'OnOpenShareSheet'> = {
                     type: 'OnOpenShareSheet',
                     data: {
@@ -34,7 +34,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e: any) {
-                Logger.error('DEVICE', 'OpenShareSheet error', e);
+                logger.error('DEVICE', 'OpenShareSheet error', e);
             }
         },
         [bridge]
@@ -43,7 +43,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
     const handleOpenDocument: (data: OpenDocument['data']) => Promise<void> = useCallback(
         async (data: OpenDocument['data']) => {
             try {
-                const results = await DeviceService.openDocument(data.allowMultiSelection);
+                const results = await deviceService.openDocument(data.allowMultiSelection);
 
                 const documents = await Promise.all(
                     results.map(async doc => {
@@ -52,7 +52,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                             try {
                                 base64 = await RNFS.readFile(doc.uri, 'base64');
                             } catch (readError) {
-                                Logger.warn('DEVICE', `Failed to read document base64: ${doc.name}`, readError);
+                                logger.warn('DEVICE', `Failed to read document base64: ${doc.name}`, readError);
                             }
                         }
                         return {
@@ -73,7 +73,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                Logger.error('DEVICE', 'OpenDocument error', e);
+                logger.error('DEVICE', 'OpenDocument error', e);
             }
         },
         [bridge]
@@ -82,7 +82,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
     const handleOpenCamera: (data: OpenCamera['data']) => Promise<void> = useCallback(
         async (data: OpenCamera['data']) => {
             try {
-                const assets: Asset[] = await DeviceService.openCamera(data as CameraOptions);
+                const assets: Asset[] = await deviceService.openCamera(data as CameraOptions);
                 const response: AppMessageData<'OnOpenCamera'> = {
                     type: 'OnOpenCamera',
                     data: {
@@ -99,7 +99,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                Logger.error('DEVICE', 'OpenCamera error', e);
+                logger.error('DEVICE', 'OpenCamera error', e);
             }
         },
         [bridge]
@@ -108,7 +108,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
     const handleOpenPhotoLibrary: (data: OpenPhotoLibrary['data']) => Promise<void> = useCallback(
         async (data: OpenPhotoLibrary['data']) => {
             try {
-                const assets: Asset[] = await DeviceService.openPhotoLibrary(data as ImageLibraryOptions);
+                const assets: Asset[] = await deviceService.openPhotoLibrary(data as ImageLibraryOptions);
                 const response: AppMessageData<'OnOpenPhotoLibrary'> = {
                     type: 'OnOpenPhotoLibrary',
                     data: {
@@ -125,7 +125,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                Logger.error('DEVICE', 'OpenPhotoLibrary error', e);
+                logger.error('DEVICE', 'OpenPhotoLibrary error', e);
             }
         },
         [bridge]
@@ -133,7 +133,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
 
     const handleGetContacts: () => Promise<void> = useCallback(async () => {
         try {
-            const contacts = await DeviceService.getContacts();
+            const contacts = await deviceService.getContacts();
             const response: AppMessageData<'OnGetContacts'> = {
                 type: 'OnGetContacts',
                 data: {
@@ -164,7 +164,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
             };
             bridge.post(response);
         } catch (e) {
-            Logger.error('DEVICE', 'GetContacts error', e);
+            logger.error('DEVICE', 'GetContacts error', e);
             // 에러 시에도 빈 배열로 응답 전송 (Web이 무한 대기하지 않도록)
             const response: AppMessageData<'OnGetContacts'> = {
                 type: 'OnGetContacts',
@@ -178,7 +178,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
         try {
             await Linking.openURL(data.url);
         } catch (e) {
-            Logger.error('DEVICE', 'OpenURL error', e);
+            logger.error('DEVICE', 'OpenURL error', e);
         }
     }, []);
 

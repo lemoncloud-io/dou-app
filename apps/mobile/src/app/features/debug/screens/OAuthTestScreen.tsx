@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
     ActivityIndicator,
-    Platform,
     FlatList,
     LayoutAnimation,
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { OAuthService } from '../../../common/services/oauth';
-import { Logger } from '../../../common';
-import type { OAuthTokenResult, OAuthLoginProvider } from '@chatic/app-messages';
+import { oAuthService } from '../../../common/services/oauth';
+import { logger } from '../../../common';
+import type { OAuthLoginProvider, OAuthTokenResult } from '@chatic/app-messages';
 
 type LogType = 'info' | 'error' | 'success' | 'warn';
 
@@ -33,7 +33,7 @@ export const OAuthTestScreen = () => {
     const flatListRef = useRef<FlatList>(null);
 
     useEffect(() => {
-        const unsubscribe = Logger.subscribe((level, tag, message, data, error) => {
+        const unsubscribe = logger.subscribe((level, tag, message, data, error) => {
             if (tag !== 'OAUTH') return;
 
             let type: LogType = 'info';
@@ -77,7 +77,7 @@ export const OAuthTestScreen = () => {
         setLoading(provider);
         setResult(null);
         try {
-            const tokenResult = await OAuthService.login(provider);
+            const tokenResult = await oAuthService.login(provider);
             if (tokenResult) {
                 setResult(tokenResult);
                 addLog('success', `${provider} Login Result`, tokenResult);
@@ -90,7 +90,7 @@ export const OAuthTestScreen = () => {
     const handleLogout = async (provider: OAuthLoginProvider) => {
         setLoading('logout');
         try {
-            await OAuthService.logout(provider);
+            await oAuthService.logout(provider);
             setResult(null);
         } finally {
             setLoading(null);

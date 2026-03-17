@@ -1,9 +1,10 @@
-import { StorageService } from './mmkv';
+import { storageService } from './mmkv';
 import type {
     DeleteAllCacheDataPayload,
     DeleteCacheDataPayload,
     FetchAllCacheDataPayload,
     FetchCacheDataPayload,
+    PreferenceKey,
     SaveAllCacheDataPayload,
     SaveCacheDataPayload,
 } from '@chatic/app-messages';
@@ -38,20 +39,20 @@ const Keys = {
 const getAllData = async <T>(prefixType: string, cid?: string): Promise<T[]> => {
     // cid가 있으면 "PREFIX:CID:"로 검색, 없으면 "PREFIX:"로 검색(전체)
     const prefix = cid ? `${prefixType}:${cid}:` : `${prefixType}:`;
-    const keys = StorageService.getAllKeys().filter(k => k.startsWith(prefix));
-    const results = await Promise.all(keys.map(k => StorageService.get<T>(k)));
+    const keys = storageService.getAllKeys().filter(k => k.startsWith(prefix));
+    const results = await Promise.all(keys.map(k => storageService.get<T>(k)));
     return results.filter(item => item !== null) as T[];
 };
 
-export const CacheRepository = {
-    getPreference: async <T = any>(key: string): Promise<T | null> => {
-        return StorageService.get<T>(Keys.preference(key));
+export const cacheRepository = {
+    getPreference: async <T = any>(key: PreferenceKey): Promise<T | null> => {
+        return storageService.get<T>(Keys.preference(key));
     },
-    savePreference: async <T = any>(key: string, value: T): Promise<void> => {
-        return StorageService.set(Keys.preference(key), value);
+    savePreference: async <T = any>(key: PreferenceKey, value: T): Promise<void> => {
+        return storageService.set(Keys.preference(key), value);
     },
-    removePreference: async (key: string): Promise<void> => {
-        return StorageService.remove(Keys.preference(key));
+    removePreference: async (key: PreferenceKey): Promise<void> => {
+        return storageService.remove(Keys.preference(key));
     },
 
     // Fetch 단일 (CID 필수)
@@ -59,17 +60,17 @@ export const CacheRepository = {
         const { id, cid } = payload;
         switch (payload.type) {
             case 'channel':
-                return await StorageService.get<ChannelView>(Keys.channel(id, cid));
+                return await storageService.get<ChannelView>(Keys.channel(id, cid));
             case 'chat':
-                return await StorageService.get<ChatView>(Keys.chat(id, cid));
+                return await storageService.get<ChatView>(Keys.chat(id, cid));
             case 'user':
-                return await StorageService.get<UserView>(Keys.user(id, cid));
+                return await storageService.get<UserView>(Keys.user(id, cid));
             case 'join':
-                return await StorageService.get<JoinView>(Keys.join(id, cid));
+                return await storageService.get<JoinView>(Keys.join(id, cid));
             case 'site':
-                return await StorageService.get<SiteView>(Keys.site(id, cid));
+                return await storageService.get<SiteView>(Keys.site(id, cid));
             case 'usertoken':
-                return await StorageService.get<UserTokenView>(Keys.usertoken(id, cid));
+                return await storageService.get<UserTokenView>(Keys.usertoken(id, cid));
         }
     },
 
@@ -84,7 +85,7 @@ export const CacheRepository = {
                 const { channelId } = payload.query || {};
                 const prefix = cid ? `${PREFIX.CHAT}:${cid}:` : `${PREFIX.CHAT}:`;
 
-                let keys = StorageService.getAllKeys().filter(k => k.startsWith(prefix));
+                let keys = storageService.getAllKeys().filter(k => k.startsWith(prefix));
                 if (channelId) {
                     // 키 구조: chat:{cid}:{channelId}:{chatNo}
                     keys = keys.filter(k => {
@@ -100,7 +101,7 @@ export const CacheRepository = {
                     });
                 }
 
-                const results = await Promise.all(keys.map(k => StorageService.get<ChatView>(k)));
+                const results = await Promise.all(keys.map(k => storageService.get<ChatView>(k)));
                 const items = results.filter(item => item !== null) as ChatView[];
                 return items.sort((a, b) => (a.chatNo ?? 0) - (b.chatNo ?? 0));
             }
@@ -120,22 +121,22 @@ export const CacheRepository = {
         const { id, item, cid } = payload;
         switch (payload.type) {
             case 'channel':
-                await StorageService.set(Keys.channel(id, cid), item);
+                await storageService.set(Keys.channel(id, cid), item);
                 break;
             case 'chat':
-                await StorageService.set(Keys.chat(id, cid), item);
+                await storageService.set(Keys.chat(id, cid), item);
                 break;
             case 'user':
-                await StorageService.set(Keys.user(id, cid), item);
+                await storageService.set(Keys.user(id, cid), item);
                 break;
             case 'join':
-                await StorageService.set(Keys.join(id, cid), item);
+                await storageService.set(Keys.join(id, cid), item);
                 break;
             case 'site':
-                await StorageService.set(Keys.site(id, cid), item);
+                await storageService.set(Keys.site(id, cid), item);
                 break;
             case 'usertoken':
-                await StorageService.set(Keys.usertoken(id, cid), item);
+                await storageService.set(Keys.usertoken(id, cid), item);
                 break;
         }
         return payload.id;
@@ -150,7 +151,7 @@ export const CacheRepository = {
             items.map(async (item: any) => {
                 const id = item.id;
                 if (id) {
-                    await CacheRepository.save({
+                    await cacheRepository.save({
                         type: payload.type,
                         id,
                         item,
@@ -168,22 +169,22 @@ export const CacheRepository = {
         const { id, cid } = payload;
         switch (payload.type) {
             case 'channel':
-                await StorageService.remove(Keys.channel(id, cid));
+                await storageService.remove(Keys.channel(id, cid));
                 break;
             case 'chat':
-                await StorageService.remove(Keys.chat(id, cid));
+                await storageService.remove(Keys.chat(id, cid));
                 break;
             case 'user':
-                await StorageService.remove(Keys.user(id, cid));
+                await storageService.remove(Keys.user(id, cid));
                 break;
             case 'join':
-                await StorageService.remove(Keys.join(id, cid));
+                await storageService.remove(Keys.join(id, cid));
                 break;
             case 'site':
-                await StorageService.remove(Keys.site(id, cid));
+                await storageService.remove(Keys.site(id, cid));
                 break;
             case 'usertoken':
-                await StorageService.remove(Keys.usertoken(id, cid));
+                await storageService.remove(Keys.usertoken(id, cid));
                 break;
         }
         return payload.id;
@@ -196,7 +197,7 @@ export const CacheRepository = {
 
         await Promise.all(
             ids.map(id =>
-                CacheRepository.delete({
+                cacheRepository.delete({
                     type: payload.type,
                     id,
                     cid: cid,
