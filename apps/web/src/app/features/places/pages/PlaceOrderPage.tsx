@@ -15,6 +15,8 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { ChevronLeft } from 'lucide-react';
 
+import { cloudCore } from '@chatic/web-core';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useMyPlaces } from '../../home/hooks/useMyPlaces';
 import { SortablePlaceItem } from '../components';
 
@@ -39,6 +41,8 @@ export const PlaceOrderPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { places, setPlaces } = useMyPlaces();
+    const { toast } = useToast();
+    const myId = cloudCore.getCloudToken()?.id;
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -74,14 +78,12 @@ export const PlaceOrderPage = () => {
         navigate(`/places/${place.id}`);
     };
 
-    const handleDelete = (place: MySiteView) => {
-        // TODO: Implement delete functionality with API
-        console.log('Delete:', place.name);
+    const handleDelete = (_place: MySiteView) => {
+        toast({ title: t('common.comingSoon') });
     };
 
-    const handleLeave = (place: MySiteView) => {
-        // TODO: Implement leave functionality with API
-        console.log('Leave:', place.name);
+    const handleLeave = (_place: MySiteView) => {
+        toast({ title: t('common.comingSoon') });
     };
 
     return (
@@ -102,6 +104,7 @@ export const PlaceOrderPage = () => {
                                 <SortablePlaceItem
                                     key={place.id}
                                     place={place}
+                                    isOwner={place.ownerId === myId}
                                     onSettings={handleSettings}
                                     onDelete={handleDelete}
                                     onLeave={handleLeave}

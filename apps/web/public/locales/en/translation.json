@@ -11,7 +11,8 @@
         "signout": "Sign Out",
         "cancel": "Cancel",
         "save": "Save Changes",
-        "saving": "Saving..."
+        "saving": "Saving...",
+        "comingSoon": "This feature is coming soon 🛠️"
     },
     "nav": {
         "home": "Home",
@@ -264,8 +265,8 @@
         "filterAll": "All",
         "filterMine": "My Places",
         "filterInvited": "Invited Places",
-        "sortSection": "Sort",
-        "sortOrder": "Change Order"
+        "sortSection": "Manage",
+        "sortOrder": "Manage Places"
     },
     "placeOrder": {
         "title": "Place List",

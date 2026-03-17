@@ -16,12 +16,13 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 interface SortablePlaceItemProps {
     place: MySiteView;
+    isOwner: boolean;
     onSettings: (place: MySiteView) => void;
     onDelete: (place: MySiteView) => void;
     onLeave: (place: MySiteView) => void;
 }
 
-export const SortablePlaceItem = ({ place, onSettings, onDelete, onLeave }: SortablePlaceItemProps) => {
+export const SortablePlaceItem = ({ place, isOwner, onSettings, onDelete, onLeave }: SortablePlaceItemProps) => {
     const { t } = useTranslation();
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: place.id });
 
@@ -29,8 +30,6 @@ export const SortablePlaceItem = ({ place, onSettings, onDelete, onLeave }: Sort
         transform: CSS.Transform.toString(transform),
         transition,
     };
-
-    const isOwner = place.stereo === 'place';
 
     return (
         <div
@@ -52,18 +51,10 @@ export const SortablePlaceItem = ({ place, onSettings, onDelete, onLeave }: Sort
 
             {/* Avatar & Name */}
             <div className="flex flex-1 items-center gap-[9px]">
-                <div
-                    className={cn(
-                        'flex h-[36px] w-[36px] items-center justify-center rounded-full border border-border',
-                        isOwner ? 'bg-primary' : 'bg-muted'
-                    )}
-                >
-                    <Users size={14} className={isOwner ? 'text-primary-foreground' : 'text-muted-foreground'} />
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                    <Users size={20} className="text-muted-foreground" />
                 </div>
-                <div className="flex items-center gap-[4px]">
-                    {!isOwner && <Users size={20} className="text-muted-foreground" />}
-                    <span className="text-[16px] font-medium tracking-[-0.32px] text-foreground">{place.name}</span>
-                </div>
+                <span className="text-[16px] font-medium tracking-[-0.32px] text-foreground">{place.name}</span>
             </div>
 
             {/* More Menu */}
