@@ -1,4 +1,4 @@
-import { ArrowLeftRight, ChevronDown, Plus, Search, Settings, SlidersHorizontal, User } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown, Plus, Search, Settings, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -26,7 +26,6 @@ import { CloudSessionSheet } from '../components/CloudSessionSheet';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
 import { CreatePlaceDialog } from '../components/CreatePlaceDialog';
 import { PlaceList } from '../components/PlaceList';
-import { useMyPlaces } from '../hooks/useMyPlaces';
 
 export const HomePage = () => {
     const { t } = useTranslation();
@@ -47,8 +46,6 @@ export const HomePage = () => {
     } = useCanCreatePlace();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const { isCloudsError } = useCloudSession();
-    const { places } = useMyPlaces();
-    const hasPlaces = places.length > 0;
 
     const dynamicProfile = useDynamicProfile();
     const displayName = !isGuest
@@ -156,27 +153,13 @@ export const HomePage = () => {
 
             {/* Place List */}
             <section className="pb-4 pt-2">
-                <div className="mb-[18px] flex items-center justify-between px-4">
-                    <div className="flex items-center gap-[6px]">
-                        <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
-                            {t('homePage.places')}
-                        </span>
-                        {hasPlaces && (
-                            <button
-                                onClick={() => navigate('/places/order')}
-                                className="flex items-center justify-center rounded-[6px] border border-border p-[2px]"
-                            >
-                                <SlidersHorizontal size={20} className="text-foreground" />
-                            </button>
-                        )}
-                    </div>
-                    {!isGuest && !isPlacesLoading && (
-                        <button onClick={handleCreatePlace} className="flex items-center justify-center rounded-[8px]">
-                            <Plus size={24} className="text-foreground" />
-                        </button>
-                    )}
-                </div>
-                <PlaceList onPlaceSelected={setSelectedPlaceId} />
+                <PlaceList
+                    onPlaceSelected={setSelectedPlaceId}
+                    onNavigateToOrder={() => navigate('/places/order')}
+                    onCreatePlace={handleCreatePlace}
+                    isGuest={isGuest}
+                    isPlacesLoading={isPlacesLoading}
+                />
             </section>
 
             <div className="mx-4 h-[3px] bg-border" />
