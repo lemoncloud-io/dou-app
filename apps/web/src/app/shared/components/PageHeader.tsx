@@ -1,6 +1,6 @@
 import { ChevronLeft } from 'lucide-react';
 
-import { useNavigateWithTransition } from '@chatic/page-transition';
+import { useNavigateWithTransition } from '@chatic/shared';
 
 import type { ReactNode } from 'react';
 

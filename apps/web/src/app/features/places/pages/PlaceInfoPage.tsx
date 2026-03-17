@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
-import { useNavigateWithTransition } from '@chatic/page-transition';
+import { useNavigateWithTransition } from '@chatic/shared';
 
 import { Calendar, Globe, Home, Lock, UserCheck, Users } from 'lucide-react';
 

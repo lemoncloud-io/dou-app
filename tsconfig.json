@@ -61,9 +61,6 @@
             "path": "./libs/places"
         },
         {
-            "path": "./libs/page-transition"
-        },
-        {
             "path": "./libs/i18n-mobile"
         }
     ]
