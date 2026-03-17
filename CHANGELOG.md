@@ -1,5 +1,14 @@
 # Changelog
 
+## [2026-03-17] - root@0.30.0, @chatic/web@0.27.0
+
+### Features
+
+- move PlaceList header inside component with filter dropdown
+- place management page improvements
+- add total unread badge to BottomNavigation
+- reset selectedPlaceId on invite login & switch deeplink to local
+
 ## [2026-03-16] - root@0.29.0, @chatic/web@0.26.0
 
 ### Features
