@@ -1,12 +1,9 @@
-import { ChevronLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { useNavigateWithTransition } from '@chatic/page-transition';
-
+import { PageHeader } from '../../../shared/components';
 import { TERMS_OF_SERVICE_CONTENT } from '../constants';
 
 export const TermsPage = () => {
-    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
 
     const currentVersion = TERMS_OF_SERVICE_CONTENT.versions.find(
@@ -14,14 +11,8 @@ export const TermsPage = () => {
     );
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
-            {/* Header */}
-            <header className="flex items-center justify-center px-4 py-3">
-                <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
-                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-                </button>
-                <h1 className="text-[17px] font-semibold text-foreground">{t('mypage.policy.terms')}</h1>
-            </header>
+        <div className="flex h-full flex-col bg-background">
+            <PageHeader title={t('mypage.policy.terms')} />
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto px-5 py-6">

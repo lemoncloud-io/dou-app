@@ -1,4 +1,4 @@
-import { ArrowUp, ChevronLeft, MoreHorizontal, Plus, Settings, X } from 'lucide-react';
+import { ArrowUp, ChevronLeft, MoreHorizontal, Plus, Settings, User, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -311,13 +311,9 @@ export const ChatRoomPage = () => {
                                             className={`flex gap-1.5 ${isMine ? 'justify-end' : 'justify-start'}`}
                                         >
                                             {!isMine && (
-                                                <img
-                                                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${message.ownerId}`}
-                                                    alt=""
-                                                    loading="lazy"
-                                                    decoding="async"
-                                                    className="size-[39px] flex-shrink-0 rounded-full bg-muted object-cover"
-                                                />
+                                                <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                                                    <User className="size-4 text-muted-foreground" />
+                                                </div>
                                             )}
                                             <div
                                                 className={`flex max-w-[75%] flex-col ${isMine ? 'items-end' : 'items-start'}`}
@@ -362,10 +358,7 @@ export const ChatRoomPage = () => {
             )}
 
             {/* Input */}
-            <div
-                className="border-t border-border bg-background px-4 py-3 mb-safe-bottom"
-                style={{ paddingBottom: 'calc(12px + var(--safe-bottom, 0px))' }}
-            >
+            <div className={`border-t border-border bg-background px-4 py-3 mb-safe-bottom`}>
                 <div className="flex items-end gap-1.5 rounded-2xl bg-muted px-3 py-1.5">
                     <textarea
                         ref={inputRef}

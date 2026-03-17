@@ -1,4 +1,4 @@
-import { Camera, ChevronLeft, User } from 'lucide-react';
+import { Camera, User } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -6,6 +6,8 @@ import { useNavigateWithTransition } from '@chatic/page-transition';
 
 import { cn } from '@chatic/lib/utils';
 import { useLocalProfileStore, useWebCoreStore } from '@chatic/web-core';
+
+import { PageHeader } from '../../../shared/components';
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 
@@ -28,10 +30,6 @@ export const ProfileEditPage = () => {
 
     const hasChanges = name !== initialName || imageUrl !== initialImageUrl;
     const isValid = name.trim().length > 0 && name.length <= 20;
-
-    const handleClose = () => {
-        navigate(-1);
-    };
 
     const handleSave = () => {
         if (!isValid || !hasChanges) return;
@@ -76,14 +74,8 @@ export const ProfileEditPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
-            {/* Header */}
-            <header className="flex items-center justify-center px-4 py-3">
-                <button onClick={handleClose} className="absolute left-4 p-2" aria-label="Back">
-                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-                </button>
-                <h1 className="text-[17px] font-semibold text-foreground">{t('profileEdit.title')}</h1>
-            </header>
+        <div className="flex h-full flex-col bg-background">
+            <PageHeader title={t('profileEdit.title')} />
 
             {/* Content */}
             <div className="flex-1 px-5 pt-4">

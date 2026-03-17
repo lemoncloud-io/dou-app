@@ -14,17 +14,19 @@ import { PermissionDeniedBanner } from './PermissionDeniedBanner';
 
 import type { ContactInfo } from '@chatic/app-messages';
 
+// Valid Korean mobile prefixes: 010, 011, 016, 017, 018, 019
+const KOREAN_MOBILE_PREFIXES = ['010', '011', '016', '017', '018', '019'];
+
+const isValidKoreanPhone = (digits: string): boolean => {
+    if (digits.length < 10 || digits.length > 11) return false;
+    return KOREAN_MOBILE_PREFIXES.some(prefix => digits.startsWith(prefix));
+};
+
 interface InviteFriendsDialogProps {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
     channelId?: string;
 }
-
-const QUICK_ACTIONS = [
-    { labelKey: 'inviteFriends.copyLink', icon: '/assets/icons/icon-link.svg', actionKey: 'copyLink' },
-    { labelKey: 'inviteFriends.addFriend', icon: '/assets/icons/icon-user-plus.svg', actionKey: 'addFriend' },
-    { labelKey: 'inviteFriends.qrCode', icon: '/assets/icons/icon-qr.svg', actionKey: 'qrCode' },
-] as const;
 
 export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFriendsDialogProps) => {
     const { t } = useTranslation();
@@ -62,7 +64,8 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
         }
     }, [open, isOnMobileApp, hasRequestedContacts]);
 
-    // Timeout: If no response after 1 second, assume permission denied
+    // Timeout: If no response after 3 seconds, assume permission denied
+    // (Android may take longer to fetch contacts on slower devices)
     useEffect(() => {
         if (!isWaitingForContacts) return;
 
@@ -71,7 +74,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                 setIsWaitingForContacts(false);
                 setPermissionDenied(true);
             }
-        }, 1000);
+        }, 3000);
 
         return () => clearTimeout(timeoutId);
     }, [isWaitingForContacts, contacts.length]);
@@ -112,6 +115,12 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
             return;
         }
         const phone = phoneNumber.replace(/\D/g, '');
+
+        // Validate Korean phone number
+        if (!isValidKoreanPhone(phone)) {
+            toast({ title: t('addFriend.phoneInvalidFormat'), variant: 'destructive' });
+            return;
+        }
 
         // Determine name (displayName > givenName familyName > Unknown)
         const name =
@@ -160,6 +169,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                     className="max-w-full w-full m-0 rounded-none bg-background"
                     hideClose
                     variant="slide-up"
+                    aria-describedby={undefined}
                 >
                     <DialogDescription className="sr-only">Invite friends to this channel</DialogDescription>
                     <div className="flex flex-col h-full bg-background">
@@ -180,27 +190,24 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                         {/* Permission Denied Banner */}
                         {showPermissionBanner && <PermissionDeniedBanner />}
 
-                        {/* Quick Actions */}
+                        {/* Add Friend Action */}
                         <div className="px-4 pt-5">
-                            <div className="flex items-center justify-center gap-[42px] rounded-[20px] py-4 px-[18px] bg-card shadow-sm border border-border">
-                                {QUICK_ACTIONS.map(({ labelKey, icon, actionKey }) => (
-                                    <button
-                                        key={actionKey}
-                                        className="flex flex-col items-center gap-2"
-                                        onClick={() => actionKey === 'addFriend' && setAddFriendOpen(true)}
-                                    >
-                                        <div className="w-[42px] h-[42px] rounded-[28px] flex items-center justify-center bg-muted">
-                                            <img
-                                                src={icon}
-                                                alt={t(labelKey)}
-                                                className="w-[42px] h-[42px] dark:invert dark:brightness-200"
-                                            />
-                                        </div>
-                                        <span className="text-[15px] font-medium text-foreground w-16 text-center leading-[1.19] tracking-[-0.02em]">
-                                            {t(labelKey)}
-                                        </span>
-                                    </button>
-                                ))}
+                            <div className="flex items-center justify-center rounded-[20px] py-5 px-[18px] bg-card shadow-sm border border-border">
+                                <button
+                                    className="flex flex-col items-center gap-2"
+                                    onClick={() => setAddFriendOpen(true)}
+                                >
+                                    <div className="w-[52px] h-[52px] rounded-full flex items-center justify-center bg-muted">
+                                        <img
+                                            src="/assets/icons/icon-user-plus.svg"
+                                            alt={t('inviteFriends.addFriend')}
+                                            className="w-7 h-7 dark:brightness-0 dark:invert"
+                                        />
+                                    </div>
+                                    <span className="text-[15px] font-medium text-foreground text-center leading-[1.19] tracking-[-0.02em]">
+                                        {t('inviteFriends.addFriend')}
+                                    </span>
+                                </button>
                             </div>
                         </div>
 

@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/page-transition';
 
+import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
 import { useDeviceInfo } from '@chatic/device-utils';
+import { getStoreUrl } from '@chatic/shared';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 import { useLocalProfileStore, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
@@ -45,10 +47,22 @@ export const MyPage = () => {
         setTheme(isDarkTheme ? 'light' : 'dark');
     };
 
+    const handleUpdateClick = () => {
+        const storeUrl = getStoreUrl(deviceInfo?.platform);
+        if (!storeUrl) return;
+
+        const { isOnMobileApp } = getMobileAppInfo();
+        if (isOnMobileApp) {
+            postMessage({ type: 'OpenURL', data: { url: storeUrl } });
+        } else {
+            window.open(storeUrl, '_blank');
+        }
+    };
+
     return (
         <div className="flex min-h-screen flex-col bg-background pb-32 pt-4">
             {/* Profile Section */}
-            <div className="px-5 pb-3 pt-safe-top">
+            <div className="px-5 pb-3">
                 {isGuest ? (
                     <button onClick={() => navigate('/mypage/login')} className="flex flex-col gap-1.5 text-left">
                         <div className="flex items-center gap-1">
@@ -141,22 +155,41 @@ export const MyPage = () => {
                         <span className="text-[15px] font-medium text-foreground">{t('mypage.policy.title')}</span>
                         <ChevronRight size={18} className="text-muted-foreground" />
                     </button>
-                    <div className="flex items-center justify-between py-3 pl-4 pr-3">
-                        <div className="flex items-center gap-1">
-                            <span className="text-[15px] font-medium text-foreground">{t('mypage.appVersion')}</span>
-                            <span className="text-[15px] font-medium text-foreground">
-                                {deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android'
-                                    ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
-                                    : `v${versionInfo?.webVersion}`}
-                            </span>
-                        </div>
-                        {versionInfo?.shouldUpdate && (
-                            <div className="flex items-center">
-                                <span className="text-[14px] text-muted-foreground">{t('mypage.updateRequired')}</span>
-                                <ChevronRight size={18} className="text-muted-foreground" />
+                    {versionInfo?.shouldUpdate &&
+                    (deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android') ? (
+                        <button
+                            onClick={handleUpdateClick}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <div className="flex flex-col items-start gap-0.5">
+                                <span className="text-[15px] font-medium text-foreground">
+                                    {t('mypage.appVersion')}
+                                </span>
+                                <span className="text-[13px] text-muted-foreground">
+                                    {`v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`}
+                                </span>
                             </div>
-                        )}
-                    </div>
+                            <div className="flex items-center gap-1">
+                                <span className="text-[14px] font-medium text-primary">
+                                    {t('mypage.updateAvailable')}
+                                </span>
+                                <ChevronRight size={18} className="text-primary" />
+                            </div>
+                        </button>
+                    ) : (
+                        <div className="flex items-center justify-between py-3 pl-4 pr-3">
+                            <div className="flex flex-col items-start gap-0.5">
+                                <span className="text-[15px] font-medium text-foreground">
+                                    {t('mypage.appVersion')}
+                                </span>
+                                <span className="text-[13px] text-muted-foreground">
+                                    {deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android'
+                                        ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
+                                        : `v${versionInfo?.webVersion}`}
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Logout Card - Logged in only */}

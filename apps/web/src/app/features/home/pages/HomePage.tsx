@@ -1,4 +1,5 @@
-import { ArrowLeftRight, ChevronDown, Plus, Search, Settings, User } from 'lucide-react';
+import { ArrowLeftRight, Bell, ChevronDown, Plus, Search, User } from 'lucide-react';
+
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -26,6 +27,8 @@ import { CloudSessionSheet } from '../components/CloudSessionSheet';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
 import { CreatePlaceDialog } from '../components/CreatePlaceDialog';
 import { PlaceList } from '../components/PlaceList';
+
+const IS_LOCAL = import.meta.env.VITE_ENV === 'LOCAL';
 
 export const HomePage = () => {
     const { t } = useTranslation();
@@ -93,7 +96,7 @@ export const HomePage = () => {
             <header className="flex items-center justify-between px-5 pb-3 pt-safe-top">
                 {isGuest && !isInvited ? (
                     <img src="/logo-chatic.svg" alt="chatic" className="h-6" />
-                ) : (
+                ) : IS_LOCAL ? (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <button className="flex items-center gap-[9px]">
@@ -125,6 +128,19 @@ export const HomePage = () => {
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
+                ) : (
+                    <div className="flex items-center gap-[9px]">
+                        <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                            {displayImageUrl ? (
+                                <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
+                            ) : (
+                                <User size={20} className="text-muted-foreground" />
+                            )}
+                        </div>
+                        <span className="max-w-[160px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
+                            {displayName}
+                        </span>
+                    </div>
                 )}
                 <div className="flex items-center gap-4">
                     {!isGuest && (
@@ -135,8 +151,8 @@ export const HomePage = () => {
                     <button onClick={() => setIsSearchOpen(true)} className="p-1">
                         <Search size={22} className="text-foreground" />
                     </button>
-                    <button onClick={() => setIsSettingsOpen(true)} className="p-1">
-                        <Settings size={22} className="text-foreground" />
+                    <button onClick={() => navigate('/notifications')} className="p-1">
+                        <Bell size={22} className="text-foreground" />
                     </button>
                 </div>
             </header>

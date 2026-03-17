@@ -1,8 +1,10 @@
-import { AlertCircle, CheckCircle2, ChevronLeft } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/page-transition';
+
+import { PageHeader } from '../../../shared/components';
 
 export const JoinByCodePage = () => {
     const navigate = useNavigateWithTransition();
@@ -26,14 +28,8 @@ export const JoinByCodePage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
-            {/* Header */}
-            <header className="flex items-center justify-center px-4 py-3">
-                <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
-                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-                </button>
-                <h1 className="text-[17px] font-semibold text-foreground">{t('join.title')}</h1>
-            </header>
+        <div className="flex h-full flex-col bg-background">
+            <PageHeader title={t('join.title')} />
 
             <div className="flex-1 px-5 pt-8">
                 <h2 className="text-2xl font-extrabold leading-tight text-foreground">{t('join.subtitle')}</h2>

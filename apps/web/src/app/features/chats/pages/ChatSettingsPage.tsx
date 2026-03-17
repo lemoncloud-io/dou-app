@@ -1,4 +1,4 @@
-import { Bell, ChevronLeft, LogOut, Trash2, UserPlus } from 'lucide-react';
+import { Bell, LogOut, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -9,16 +9,23 @@ import { LoadingFallback } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
 
+import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { MemberListItem } from '../components/MemberListItem';
+import { ReportMemberDialog } from '../components/ReportMemberDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
 import { useMyChannels } from '../../home/hooks';
 import { useChannelMembers, useChatMessages, useDeleteChannel, useLeaveRoom, useMyChannel } from '../hooks';
 
 import type { LucideIcon } from 'lucide-react';
 
-type DialogType = 'invite' | 'update' | 'delete' | 'leave' | null;
+type DialogType = 'invite' | 'update' | 'delete' | 'leave' | 'report' | 'block' | null;
+
+interface SelectedMember {
+    id: string;
+    name: string;
+}
 
 interface ActionButtonProps {
     icon: LucideIcon;
@@ -54,6 +61,7 @@ export const ChatSettingsPage = () => {
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [activeDialog, setActiveDialog] = useState<DialogType>(null);
+    const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
     const { members, total: membersTotal, isLoading: isMembersLoading } = useChannelMembers(channelId ?? null);
     const { leaveRoom, isPending: isLeavePending } = useLeaveRoom();
@@ -69,7 +77,15 @@ export const ChatSettingsPage = () => {
     const memberCount = membersTotal || channel?.memberNo || 0;
 
     const openDialog = (type: DialogType) => setActiveDialog(type);
-    const closeDialog = () => setActiveDialog(null);
+    const closeDialog = () => {
+        setActiveDialog(null);
+        setSelectedMember(null);
+    };
+
+    const openMemberDialog = (type: 'report' | 'block', member: SelectedMember) => {
+        setSelectedMember(member);
+        setActiveDialog(type);
+    };
 
     const handleLeaveRoom = async () => {
         if (!channelId) return;
@@ -102,6 +118,26 @@ export const ChatSettingsPage = () => {
         }
     };
 
+    const handleReportMember = async (reason: string) => {
+        if (!selectedMember) return;
+
+        // TODO: Implement report member API call
+        // Example: await reportMember(channelId, selectedMember.id, reason);
+        console.log('Report member:', selectedMember, 'Reason:', reason);
+        closeDialog();
+        toast({ title: t('chat.settings.reportSuccess') });
+    };
+
+    const handleBlockMember = async () => {
+        if (!selectedMember) return;
+
+        // TODO: Implement block member API call
+        // Example: await blockMember(selectedMember.id);
+        console.log('Block member:', selectedMember);
+        closeDialog();
+        toast({ title: t('chat.settings.blockSuccess') });
+    };
+
     if (isLoading) {
         return <LoadingFallback message={t('chat.settings.loading')} />;
     }
@@ -121,13 +157,7 @@ export const ChatSettingsPage = () => {
 
     return (
         <div className="flex min-h-screen flex-col bg-background">
-            {/* Header */}
-            <header className="flex items-center justify-center px-4 py-3">
-                <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
-                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-                </button>
-                <h1 className="text-[17px] font-semibold text-foreground">{t('chat.settings.title')}</h1>
-            </header>
+            <PageHeader title={t('chat.settings.title')} />
 
             {/* Content */}
             <div className="flex flex-col items-center gap-[25px] px-4 py-2.5">
@@ -161,7 +191,11 @@ export const ChatSettingsPage = () => {
                                 onClick={() => openDialog('invite')}
                             />
                         )}
-                        <ActionButton icon={Bell} label={t('chat.settings.notifications')} />
+                        <ActionButton
+                            icon={Bell}
+                            label={t('chat.settings.notifications')}
+                            onClick={() => navigate(`/chats/${channelId}/settings/notifications`)}
+                        />
                         {isOwner ? (
                             <ActionButton
                                 icon={Trash2}
@@ -200,6 +234,8 @@ export const ChatSettingsPage = () => {
                                 const memberName =
                                     member.$join?.nick || member.nick || memberId || t('chat.settings.unknownUser');
 
+                                const isMember = memberId === profile?.uid;
+
                                 return (
                                     <MemberListItem
                                         key={memberId}
@@ -208,9 +244,12 @@ export const ChatSettingsPage = () => {
                                             name: memberName,
                                             avatar: null,
                                         }}
-                                        isMe={memberId === profile?.uid}
+                                        isMe={isMember}
                                         isOwner={memberId === channel?.ownerId}
                                         isPendingInvite={member.$join?.joined === 0}
+                                        showActions={!isMember}
+                                        onReport={() => openMemberDialog('report', { id: memberId, name: memberName })}
+                                        onBlock={() => openMemberDialog('block', { id: memberId, name: memberName })}
                                     />
                                 );
                             })
@@ -255,6 +294,21 @@ export const ChatSettingsPage = () => {
                 onConfirm={handleLeaveRoom}
                 isPending={isLeavePending}
                 variant="warning"
+            />
+            <ReportMemberDialog
+                open={activeDialog === 'report'}
+                onOpenChange={open => (open ? openDialog('report') : closeDialog())}
+                memberName={selectedMember?.name ?? ''}
+                onConfirm={handleReportMember}
+            />
+            <ConfirmDialog
+                open={activeDialog === 'block'}
+                onOpenChange={open => (open ? openDialog('block') : closeDialog())}
+                title={t('chat.settings.blockDialog.title')}
+                description={t('chat.settings.blockDialog.description')}
+                confirmLabel={t('chat.settings.blockDialog.confirm')}
+                onConfirm={handleBlockMember}
+                variant="danger"
             />
         </div>
     );

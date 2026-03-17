@@ -1,5 +1,79 @@
 # Changelog
 
+## [2026-03-16] - root@0.29.0, @chatic/web@0.26.0
+
+### Features
+
+- add SplashScreen
+
+### Bug Fixes
+
+- fix build error
+
+### Refactor
+
+- change keyboard padding strategy (delegate from Native to Web)
+
+### Chores
+
+- add dependencies lottie-react-native
+- add splash lottie file
+- add import
+- bump mobile version 0.8.0
+- update package.json
+
+## [2026-03-16] - root@0.28.0, @chatic/web@0.25.0
+
+### Features
+
+- add profile dropdown and improve message handling
+- (chats) add notification settings page
+- add report and block member functionality
+
+### Refactor
+
+- update webview url configuration
+- (chats) simplify invite friends dialog and notification settings
+- (mypage) remove MyPage route
+- (device) improve contact permission handling
+
+### Chores
+
+- update page layout classes
+- update ContactListItem component styling
+- replace user image with icon
+
+### Other
+
+- build: (theme) update tsconfig lib references
+
+## [2026-03-16] - root@0.27.0, @chatic/web@0.24.0
+
+### Features
+
+- update version update banner component
+- add update checker and remove unused code
+- add OpenURL message
+- add phone number validation for Korean format
+- (places) add delete and leave place dialogs
+- (theme) add theme management
+- add onboarding steps with i18n support
+
+### Refactor
+
+- (ui) introduce PageHeader component
+- (main) update webview url and page layout
+
+## [2026-03-16] - root@0.26.1, @chatic/web@0.23.1
+
+### Bug Fixes
+
+- fix native chat message load not working
+- improve read status handling and unread count refresh
+- update ReadStatus and HomePage display
+- improve display name and logout handling for invited users
+- show ReadStatus on all messages, hide when memberNo <= 1
+
 ## [2026-03-16] - root@0.26.0, @chatic/web@0.23.0
 
 ### Features

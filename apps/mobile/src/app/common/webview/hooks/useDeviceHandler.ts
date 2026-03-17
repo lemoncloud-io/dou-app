@@ -1,11 +1,19 @@
 import { useCallback } from 'react';
+import { Linking } from 'react-native';
 import RNFS from 'react-native-fs';
 
 import { DeviceService } from '../../services';
 import { Logger } from '../../services';
 
 import type { WebViewBridge } from './useBaseBridge';
-import type { AppMessageData, OpenCamera, OpenPhotoLibrary, OpenShareSheet, OpenDocument } from '@chatic/app-messages';
+import type {
+    AppMessageData,
+    OpenCamera,
+    OpenPhotoLibrary,
+    OpenShareSheet,
+    OpenDocument,
+    OpenURL,
+} from '@chatic/app-messages';
 import type { Asset, CameraOptions, ImageLibraryOptions } from 'react-native-image-picker';
 
 export const useDeviceHandler = (bridge: WebViewBridge) => {
@@ -156,9 +164,23 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
             };
             bridge.post(response);
         } catch (e) {
-            Logger.error('DEVICE', 'PickContact error', e);
+            Logger.error('DEVICE', 'GetContacts error', e);
+            // 에러 시에도 빈 배열로 응답 전송 (Web이 무한 대기하지 않도록)
+            const response: AppMessageData<'OnGetContacts'> = {
+                type: 'OnGetContacts',
+                data: { contacts: [] },
+            };
+            bridge.post(response);
         }
     }, [bridge]);
+
+    const handleOpenURL = useCallback(async (data: OpenURL['data']) => {
+        try {
+            await Linking.openURL(data.url);
+        } catch (e) {
+            Logger.error('DEVICE', 'OpenURL error', e);
+        }
+    }, []);
 
     return {
         handleOpenSettings,
@@ -167,5 +189,6 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
         handleOpenCamera,
         handleOpenPhotoLibrary,
         handleGetContacts,
+        handleOpenURL,
     };
 };

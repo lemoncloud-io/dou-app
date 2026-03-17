@@ -2,8 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 
-import { ONBOARDING_STEPS } from '../consts';
-import { useOnboardingNavigation } from '../hooks';
+import { useOnboardingNavigation, useOnboardingSteps } from '../hooks';
 import { OnboardingContent } from './OnboardingContent';
 import { OnboardingFooter } from './OnboardingFooter';
 import { OnboardingHeader } from './OnboardingHeader';
@@ -16,6 +15,7 @@ interface OnboardingModalProps {
 const SWIPE_THRESHOLD = 50;
 
 export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
+    const onboardingSteps = useOnboardingSteps();
     const { currentStep, totalSteps, isFirstStep, isLastStep, handleNext, handlePrev } = useOnboardingNavigation();
     const [dragOffset, setDragOffset] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
@@ -79,7 +79,7 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
                             transition: isDragging ? 'none' : 'transform 300ms ease-out',
                         }}
                     >
-                        {ONBOARDING_STEPS.map(step => (
+                        {onboardingSteps.map(step => (
                             <div key={step.id} className="h-full w-screen flex-shrink-0">
                                 <OnboardingContent step={step} />
                             </div>

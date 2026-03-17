@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { AppWebView, FullScreenLoader, getAppLanguage, Logger, useDeepLinkStore } from '../../../common';
+import { AppWebView, FullScreenLoader, getAppLanguage, Logger, useDeepLinkStore, useThemeStore } from '../../../common';
 import {
     useAndroidBack,
     useAppBridge,
@@ -18,8 +18,9 @@ import type { WebView, WebViewMessageEvent } from 'react-native-webview';
 import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
 import type { MainScreenProps } from '../navigation';
 import { useIsFocused } from '@react-navigation/native';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native';
 import Config from 'react-native-config';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // TODO: Use Config.VITE_WEBVIEW_BASE_URL when ready for production
 const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
@@ -45,6 +46,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const canGoBack = webCanGoBack || navCanGoBack; // Either can handle back button
     const [language, setLanguage] = useState(getAppLanguage());
     const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
+    const setTheme = useThemeStore(state => state.setTheme);
 
     // Deep Link Store
     const { pendingUrl, pendingEnvs, clearPendingUrl, setWebViewReady } = useDeepLinkStore();
@@ -73,11 +75,30 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         handleGetContacts,
         handleOpenCamera,
         handleOpenPhotoLibrary,
+        handleOpenURL,
     } = useDeviceHandler(bridge);
     const { handleRequestPermission } = usePermissionHandler(bridge);
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler(bridge);
+    const insets = useSafeAreaInsets();
 
     useAndroidBack(webViewRef, canGoBack, language);
+
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+    // 키보드 높이계산
+    useEffect(() => {
+        if (Platform.OS !== 'android') return;
+        const showSubscription = Keyboard.addListener('keyboardDidShow', e => {
+            setKeyboardHeight(e.endCoordinates.height);
+        });
+        const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+            setKeyboardHeight(0);
+        });
+        return () => {
+            showSubscription.remove();
+            hideSubscription.remove();
+        };
+    }, []);
 
     // Handle WebView load complete
     const handleWebViewLoad = useCallback(() => {
@@ -138,6 +159,10 @@ true;`;
                 switch (message.type) {
                     case 'SetLanguage': {
                         setLanguage(message.data.language);
+                        break;
+                    }
+                    case 'SetTheme': {
+                        setTheme(message.data.theme);
                         break;
                     }
                     case 'SetCanGoBack': {
@@ -264,6 +289,11 @@ true;`;
                         break;
                     }
 
+                    case 'OpenURL': {
+                        void handleOpenURL(message.data);
+                        break;
+                    }
+
                     default:
                         if ((message as any).type === '__console__') {
                             const m = message as any;
@@ -305,10 +335,19 @@ true;`;
         handleRequestPermission,
         handleOAuthLogin,
         handleOAuthLogout,
+        handleOpenURL,
+        setTheme,
     ]);
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
+        <View
+            style={{
+                flex: 1,
+                backgroundColor: '#ffffff',
+                paddingBottom:
+                    Platform.OS === 'android' ? (keyboardHeight > 0 ? keyboardHeight + insets.bottom : 0) : 0,
+            }}
+        >
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
                 behavior={Platform.OS.toLowerCase() === 'ios' ? 'padding' : 'height'}

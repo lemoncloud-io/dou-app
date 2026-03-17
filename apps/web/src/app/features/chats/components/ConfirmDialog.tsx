@@ -42,7 +42,7 @@ export const ConfirmDialog = ({
     return (
         <AlertDialog open={open} onOpenChange={handleOpenChange}>
             <AlertDialogContent
-                className="mx-4 w-full max-w-[288px] gap-0 overflow-hidden rounded-xl border-0 p-0"
+                className="max-w-[288px] gap-0 overflow-hidden rounded-xl border-0 p-0"
                 data-prevent-back-close={isPending ? '' : undefined}
             >
                 <div className="flex flex-col items-center gap-[26px] pt-7">

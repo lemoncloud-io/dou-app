@@ -10,6 +10,7 @@
     "common": {
         "signout": "로그아웃",
         "cancel": "취소",
+        "close": "닫기",
         "save": "변경사항 저장",
         "saving": "저장 중...",
         "comingSoon": "기능 준비 중이에요 🛠️"
@@ -20,9 +21,10 @@
         "pointerTest": "포인터 테스트"
     },
     "version": {
-        "updateAvailable": "새 버전이 있습니다",
+        "updateAvailable": "웹 업데이트",
         "newVersionReleased": "새 버전({{latestVersion}})이 출시되었습니다. 현재 버전: {{currentVersion}}",
-        "refresh": "새로고침",
+        "currentVersion": "현재 버전: v{{version}}",
+        "refresh": "업데이트",
         "later": "나중에",
         "unknown": "알 수 없음"
     },
@@ -200,6 +202,8 @@
         "version": "DoU v{{version}}",
         "appVersion": "버전",
         "updateRequired": "업데이트 필요",
+        "updateAvailable": "업데이트 가능",
+        "goToStore": "스토어로 이동",
         "language": {
             "ko": "한국어",
             "en": "English",
@@ -272,7 +276,17 @@
         "title": "플레이스 목록",
         "settings": "설정",
         "delete": "삭제",
-        "leave": "나가기"
+        "leave": "나가기",
+        "deleteDialog": {
+            "title": "플레이스 삭제",
+            "description": "'{{name}}'을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+            "confirm": "삭제"
+        },
+        "leaveDialog": {
+            "title": "플레이스 나가기",
+            "description": "'{{name}}'에서 나가시겠습니까? 더 이상 이 플레이스의 채팅에 참여할 수 없습니다.",
+            "confirm": "나가기"
+        }
     },
     "channelList": {
         "noDescription": "채널 설명 없음",
@@ -368,7 +382,29 @@
                 "description": "채팅방의 메시지를 확인할 수 없으며, 다시 초대를 받아야 참여할 수 있습니다.",
                 "confirm": "나가기"
             },
-            "unknownUser": "알 수 없는 사용자"
+            "unknownUser": "알 수 없는 사용자",
+            "notificationSettings": {
+                "title": "알림 설정",
+                "appNotificationOff": "앱 알림이 꺼져 있어요",
+                "appNotificationOffDesc": "알림을 푸시로 확인하려면 기기 설정을 해주세요",
+                "messageNotification": "메시지 알림",
+                "messageNotificationDesc": "친구가 보낸 채팅 메시지 알림을 받을 수 있어요"
+            },
+            "report": "신고하기",
+            "block": "차단하기",
+            "reportSuccess": "신고가 접수되었습니다",
+            "blockSuccess": "차단되었습니다",
+            "reportDialog": {
+                "title": "멤버 신고",
+                "description": "허위 신고는 이용 제한을 받을 수 있습니다.",
+                "reasonPlaceholder": "신고 사유를 입력해 주세요",
+                "confirm": "신고"
+            },
+            "blockDialog": {
+                "title": "멤버를 차단하시겠습니까?",
+                "description": "차단하면 이 멤버의 메시지를 더 이상 받지 않습니다.",
+                "confirm": "차단"
+            }
         }
     },
     "search": {
@@ -553,6 +589,7 @@
         "phoneLabel": "전화번호",
         "phonePlaceholder": "전화번호를 입력해 주세요",
         "phoneHint": "20글자 이내로 입력해 주세요.",
+        "phoneInvalidFormat": "올바르지 않은 전화번호 형식입니다",
         "share": "공유하기"
     },
     "inviteCode": {

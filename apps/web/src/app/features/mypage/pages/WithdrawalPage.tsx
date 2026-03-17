@@ -1,15 +1,13 @@
-import { ChevronLeft, User } from 'lucide-react';
+import { User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useNavigateWithTransition } from '@chatic/page-transition';
-
 import { useWebCoreStore } from '@chatic/web-core';
 
+import { PageHeader } from '../../../shared/components';
 import { WithdrawalDialog } from '../components/WithdrawalDialog';
 
 export const WithdrawalPage = () => {
-    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const profile = useWebCoreStore(s => s.profile);
     const logout = useWebCoreStore(s => s.logout);
@@ -18,10 +16,6 @@ export const WithdrawalPage = () => {
 
     const userName = profile?.$user?.name || 'User';
     const userImageUrl = profile?.$user?.imageUrl;
-
-    const handleClose = () => {
-        navigate(-1);
-    };
 
     const handleConfirmClick = () => {
         setIsDialogOpen(true);
@@ -34,14 +28,8 @@ export const WithdrawalPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
-            {/* Header */}
-            <header className="flex items-center justify-center px-4 py-3">
-                <button onClick={handleClose} className="absolute left-4 p-2" aria-label="Back">
-                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-                </button>
-                <h1 className="text-[17px] font-semibold text-foreground">{t('mypage.withdrawal.title')}</h1>
-            </header>
+        <div className="flex h-full flex-col bg-background">
+            <PageHeader title={t('mypage.withdrawal.title')} />
 
             {/* Content */}
             <div className="flex flex-1 flex-col items-center justify-center px-5">

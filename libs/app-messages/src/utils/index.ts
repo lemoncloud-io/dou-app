@@ -32,10 +32,21 @@ export const initializeMessageListener = () => {
         try {
             const data = (event as CustomEvent).detail ?? (event as MessageEvent).data;
             if (!data) return;
+
+            // 문자열이 아닌 경우 무시 (브라우저 내부 메시지 등)
+            if (typeof data !== 'string') return;
+
+            // JSON 형식이 아닌 경우 무시
+            if (!data.startsWith('{') && !data.startsWith('[')) return;
+
             const message: AppMessage = JSON.parse(data);
+
+            // 유효한 AppMessage인지 검증 (type 필드 필수)
+            if (!message || typeof message !== 'object' || !message.type) return;
+
             useAppMessageStore.getState().handleMessage(message);
-        } catch (error) {
-            console.error('Error processing message:', error);
+        } catch {
+            // 웹브라우저에서 발생하는 비-앱 메시지는 무시
         }
     };
 

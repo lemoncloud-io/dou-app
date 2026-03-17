@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/page-transition';
@@ -13,36 +14,25 @@ import {
 } from '@dnd-kit/core';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { ChevronLeft } from 'lucide-react';
 
 import { cloudCore } from '@chatic/web-core';
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+
+import { PageHeader } from '../../../shared/components';
+import { ConfirmDialog } from '../../chats/components/ConfirmDialog';
 import { useMyPlaces } from '../../home/hooks/useMyPlaces';
 import { SortablePlaceItem } from '../components';
 
 import type { DragEndEvent } from '@dnd-kit/core';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
-interface HeaderProps {
-    title: string;
-    onBack: () => void;
-}
-
-const Header = ({ title, onBack }: HeaderProps) => (
-    <header className="flex items-center justify-center px-4 py-3">
-        <button onClick={onBack} className="absolute left-4 p-2">
-            <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-        </button>
-        <h1 className="text-[17px] font-semibold text-foreground">{title}</h1>
-    </header>
-);
-
 export const PlaceOrderPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { places, setPlaces } = useMyPlaces();
-    const { toast } = useToast();
+
     const myId = cloudCore.getCloudToken()?.id;
+    const [deleteTarget, setDeleteTarget] = useState<MySiteView | null>(null);
+    const [leaveTarget, setLeaveTarget] = useState<MySiteView | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -70,25 +60,33 @@ export const PlaceOrderPage = () => {
         }
     };
 
-    const handleBack = () => {
-        navigate(-1);
-    };
-
     const handleSettings = (place: MySiteView) => {
         navigate(`/places/${place.id}`);
     };
 
-    const handleDelete = (_place: MySiteView) => {
-        toast({ title: t('common.comingSoon') });
+    const handleDelete = (place: MySiteView) => {
+        setDeleteTarget(place);
     };
 
-    const handleLeave = (_place: MySiteView) => {
-        toast({ title: t('common.comingSoon') });
+    const handleDeleteConfirm = () => {
+        if (!deleteTarget) return;
+        // TODO: Implement delete API call
+        setDeleteTarget(null);
+    };
+
+    const handleLeave = (place: MySiteView) => {
+        setLeaveTarget(place);
+    };
+
+    const handleLeaveConfirm = () => {
+        if (!leaveTarget) return;
+        // TODO: Implement leave API call
+        setLeaveTarget(null);
     };
 
     return (
         <div className="flex min-h-screen flex-col bg-background">
-            <Header title={t('placeOrder.title')} onBack={handleBack} />
+            <PageHeader title={t('placeOrder.title')} />
 
             {/* Place List */}
             <div className="flex-1 overflow-y-auto pt-[14px]">
@@ -114,6 +112,28 @@ export const PlaceOrderPage = () => {
                     </SortableContext>
                 </DndContext>
             </div>
+
+            {/* Delete Place Dialog */}
+            <ConfirmDialog
+                open={deleteTarget !== null}
+                onOpenChange={open => !open && setDeleteTarget(null)}
+                title={t('placeOrder.deleteDialog.title')}
+                description={t('placeOrder.deleteDialog.description', { name: deleteTarget?.name })}
+                confirmLabel={t('placeOrder.deleteDialog.confirm')}
+                onConfirm={handleDeleteConfirm}
+                variant="danger"
+            />
+
+            {/* Leave Place Dialog */}
+            <ConfirmDialog
+                open={leaveTarget !== null}
+                onOpenChange={open => !open && setLeaveTarget(null)}
+                title={t('placeOrder.leaveDialog.title')}
+                description={t('placeOrder.leaveDialog.description', { name: leaveTarget?.name })}
+                confirmLabel={t('placeOrder.leaveDialog.confirm')}
+                onConfirm={handleLeaveConfirm}
+                variant="danger"
+            />
         </div>
     );
 };

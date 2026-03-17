@@ -5,8 +5,7 @@ import { JoinRoutes } from '../../features/join';
 import { MyPageRoutes } from '../../features/mypage';
 import { NotificationsRoutes } from '../../features/notifications';
 import { PlaceRoutes } from '../../features/places';
-import { PointerTestRoutes } from '../../features/pointer-test';
-import { CreateWorkspaceRoutes, WorkspaceListRoutes, WorkspaceRoutes } from '../../features/workspace';
+import { CreateWorkspaceRoutes, WorkspaceRoutes } from '../../features/workspace';
 import { MainLayout, SafeAreaLayout } from '../../shared/layouts';
 
 export const privateRoutes = [
@@ -17,8 +16,6 @@ export const privateRoutes = [
         children: [
             { index: true, element: <HomeRoutes /> },
             { path: 'explore/*', element: <ExploreRoutes /> },
-            { path: 'mypage/*', element: <MyPageRoutes /> },
-            { path: 'workspace-list/*', element: <WorkspaceListRoutes /> },
         ],
     },
     // Routes with SafeAreaLayout
@@ -28,7 +25,6 @@ export const privateRoutes = [
         children: [
             { path: 'mypage/*', element: <MyPageRoutes /> },
             { path: 'chats/*', element: <ChatRoutes /> },
-            { path: 'pointer-test/*', element: <PointerTestRoutes /> },
             { path: 'workspace/*', element: <WorkspaceRoutes /> },
             { path: 'create-workspace/*', element: <CreateWorkspaceRoutes /> },
             { path: 'notifications/*', element: <NotificationsRoutes /> },

@@ -10,6 +10,7 @@
     "common": {
         "signout": "Sign Out",
         "cancel": "Cancel",
+        "close": "Close",
         "save": "Save Changes",
         "saving": "Saving...",
         "comingSoon": "This feature is coming soon 🛠️"
@@ -20,9 +21,10 @@
         "pointerTest": "Pointer Test"
     },
     "version": {
-        "updateAvailable": "A new version is available",
+        "updateAvailable": "Web Update",
         "newVersionReleased": "Version {{latestVersion}} has been released. Current version: {{currentVersion}}",
-        "refresh": "Refresh",
+        "currentVersion": "Current: v{{version}}",
+        "refresh": "Update",
         "later": "Later",
         "unknown": "Unknown"
     },
@@ -200,6 +202,8 @@
         "version": "DoU v{{version}}",
         "appVersion": "Version",
         "updateRequired": "Update Required",
+        "updateAvailable": "Update Available",
+        "goToStore": "Go to Store",
         "language": {
             "ko": "한국어",
             "en": "English",
@@ -272,7 +276,17 @@
         "title": "Place List",
         "settings": "Settings",
         "delete": "Delete",
-        "leave": "Leave"
+        "leave": "Leave",
+        "deleteDialog": {
+            "title": "Delete Place",
+            "description": "Are you sure you want to delete '{{name}}'? This action cannot be undone.",
+            "confirm": "Delete"
+        },
+        "leaveDialog": {
+            "title": "Leave Place",
+            "description": "Are you sure you want to leave '{{name}}'? You will no longer be able to participate in chats in this place.",
+            "confirm": "Leave"
+        }
     },
     "channelList": {
         "noDescription": "No description",
@@ -368,7 +382,29 @@
                 "description": "You won't be able to view messages, and you'll need a new invite to rejoin.",
                 "confirm": "Leave"
             },
-            "unknownUser": "Unknown User"
+            "unknownUser": "Unknown User",
+            "notificationSettings": {
+                "title": "Notification Settings",
+                "appNotificationOff": "App notifications are turned off",
+                "appNotificationOffDesc": "Enable device settings to receive push notifications",
+                "messageNotification": "Message Notifications",
+                "messageNotificationDesc": "Receive notifications for messages from friends"
+            },
+            "report": "Report",
+            "block": "Block",
+            "reportSuccess": "Report submitted",
+            "blockSuccess": "Blocked",
+            "reportDialog": {
+                "title": "Report Member",
+                "description": "False reports may result in restrictions.",
+                "reasonPlaceholder": "Please enter the reason for reporting",
+                "confirm": "Report"
+            },
+            "blockDialog": {
+                "title": "Block this member?",
+                "description": "You will no longer receive messages from this member.",
+                "confirm": "Block"
+            }
         }
     },
     "search": {
@@ -553,6 +589,7 @@
         "phoneLabel": "Phone Number",
         "phonePlaceholder": "Enter phone number",
         "phoneHint": "Please enter up to 20 characters.",
+        "phoneInvalidFormat": "Invalid phone number format",
         "share": "Share"
     },
     "inviteCode": {

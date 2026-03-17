@@ -51,10 +51,17 @@ export const SortablePlaceItem = ({ place, isOwner, onSettings, onDelete, onLeav
 
             {/* Avatar & Name */}
             <div className="flex flex-1 items-center gap-[9px]">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                    <Users size={20} className="text-muted-foreground" />
+                <div
+                    className={cn(
+                        'flex h-[36px] w-[36px] items-center justify-center rounded-full border border-border',
+                        isOwner ? 'bg-primary' : 'bg-muted'
+                    )}
+                >
+                    <Users size={14} className={isOwner ? 'text-primary-foreground' : 'text-muted-foreground'} />
                 </div>
-                <span className="text-[16px] font-medium tracking-[-0.32px] text-foreground">{place.name}</span>
+                <div className="flex items-center gap-[4px]">
+                    <span className="text-[16px] font-medium tracking-[-0.32px] text-foreground">{place.name}</span>
+                </div>
             </div>
 
             {/* More Menu */}
