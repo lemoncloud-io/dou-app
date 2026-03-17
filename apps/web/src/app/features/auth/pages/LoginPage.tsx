@@ -104,7 +104,10 @@ export const LoginPage = (): JSX.Element => {
             // 4. Mark as invited
             setIsInvitedSession(true);
 
-            // 5. Set webCore profile & authenticate
+            // 5. Reset selected place (cloud token changed)
+            cloudCore.clearSelectedPlace();
+
+            // 6. Set webCore profile & authenticate
             setProfile(rest as unknown as UserProfile$);
             setIsAuthenticated(true);
             toast({ title: t('auth.loginSuccess') });

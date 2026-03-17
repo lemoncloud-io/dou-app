@@ -2,8 +2,9 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
-
 import { useNavigateWithTransition } from '@chatic/page-transition';
+
+import { useTotalUnreadCount } from '../../features/chats/hooks/useTotalUnreadCount';
 
 const IconChat = ({ color }: { color: string }) => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -38,6 +39,8 @@ export const BottomNavigation = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { pathname } = useLocation();
+    const totalUnread = useTotalUnreadCount();
+    const displayUnread = totalUnread > 999 ? '+999' : totalUnread > 0 ? String(totalUnread) : null;
 
     return (
         <div
@@ -58,11 +61,16 @@ export const BottomNavigation = () => {
                                 key={path}
                                 onClick={() => navigate(path, { replace: true })}
                                 className={cn(
-                                    'flex flex-col items-center justify-center gap-[2px] w-12 h-12 rounded-2xl',
+                                    'relative flex flex-col items-center justify-center gap-[2px] w-12 h-12 rounded-2xl',
                                     isActive ? 'bg-[rgba(3,13,35,0.7)]' : 'bg-transparent'
                                 )}
                             >
                                 <Icon color={iconColor} />
+                                {path === '/' && displayUnread && (
+                                    <span className="absolute -top-[3px] left-[22px] flex h-[17px] min-w-[17px] items-center justify-center rounded-[8.5px] border border-white bg-[#F41F52] px-[5px] text-[11px] font-semibold leading-[10px] tracking-[0.005em] text-[#FEFEFE]">
+                                        {displayUnread}
+                                    </span>
+                                )}
                                 <span
                                     className={cn(
                                         'text-[11px] leading-[1.09] tracking-[-0.009em] text-center w-full',
