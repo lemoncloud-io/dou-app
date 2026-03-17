@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
 
-import { FcmService, Logger } from '../../services';
+import { fcmService, logger } from '../../services';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type { AppMessageData } from '@chatic/app-messages';
@@ -13,15 +13,15 @@ import type { AppMessageData } from '@chatic/app-messages';
 export const useFcmHandler = (bridge: WebViewBridge) => {
     const fetchFcmToken = useCallback(async () => {
         try {
-            const hasPermission = await FcmService.requestPermission();
+            const hasPermission = await fcmService.requestPermission();
 
             if (hasPermission) {
                 // iOS의 경우 APNs 토큰 생성을 위해 명시적으로 기기 등록을 수행
                 if (Platform.OS === 'ios') {
-                    await FcmService.registerAPNs();
+                    await fcmService.registerAPNs();
                 }
 
-                const token = await FcmService.getToken();
+                const token = await fcmService.getToken();
 
                 if (token) {
                     const message: AppMessageData<'OnFetchFcmToken'> = {
@@ -29,19 +29,19 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
                         data: { token },
                     };
                     bridge.post(message);
-                    Logger.debug('FCM', 'Success set token.' + token);
+                    logger.debug('FCM', 'Success set token.' + token);
                 }
             } else {
-                Logger.error('FCM', 'Allow not notification permission.');
+                logger.error('FCM', 'Allow not notification permission.');
             }
         } catch (e: any) {
-            Logger.error('FCM', 'Set FCM token error.', e);
+            logger.error('FCM', 'Set FCM token error.', e);
         }
     }, [bridge]);
 
     useEffect(() => {
         // 포그라운드 알림 수신
-        const unsubscribeOnMessage = FcmService.onMessage(async remoteMessage => {
+        const unsubscribeOnMessage = fcmService.onMessage(async remoteMessage => {
             const message: AppMessageData<'OnReceiveNotification'> = {
                 type: 'OnReceiveNotification',
                 data: {
@@ -54,7 +54,7 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
         });
 
         // 앱 백그라운드 상태에서 알림 클릭
-        const unsubscribeOnOpened = FcmService.onNotificationOpenedApp(remoteMessage => {
+        const unsubscribeOnOpened = fcmService.onNotificationOpenedApp(remoteMessage => {
             const message: AppMessageData<'OnOpenNotification'> = {
                 type: 'OnOpenNotification',
                 data: remoteMessage.data || {},
@@ -63,7 +63,7 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
         });
 
         // 앱 종료 상태에서 알림 클릭 (Cold Start)
-        FcmService.getInitialNotification().then(remoteMessage => {
+        fcmService.getInitialNotification().then(remoteMessage => {
             if (remoteMessage) {
                 /**
                  * TODO: Handle initial notification when webview is ready

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { Logger } from '../../services';
-import { CacheRepository } from '../../services';
+import { logger } from '../../services';
+import { cacheRepository } from '../../services';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type {
@@ -20,7 +20,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
     const handleFetchAllCacheData = useCallback(
         async (message: FetchAllCacheData) => {
             try {
-                const items = await CacheRepository.fetchAll(message.data);
+                const items = await cacheRepository.fetchAll(message.data);
                 const response: AppMessageData<'OnFetchAllCacheData'> = {
                     type: 'OnFetchAllCacheData',
                     nonce: message.nonce,
@@ -31,7 +31,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                Logger.error('CACHE', `FetchAll error: ${message.data.type}`, e);
+                logger.error('CACHE', `FetchAll error: ${message.data.type}`, e);
             }
         },
         [bridge]
@@ -40,7 +40,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
     const handleFetchCacheData = useCallback(
         async (message: FetchCacheData) => {
             try {
-                const item = await CacheRepository.fetch(message.data);
+                const item = await cacheRepository.fetch(message.data);
                 const response: AppMessageData<'OnFetchCacheData'> = {
                     type: 'OnFetchCacheData',
                     nonce: message.nonce,
@@ -52,7 +52,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                Logger.error('CACHE', `Fetch error: ${message.data.type} ${message.data.id}`, e);
+                logger.error('CACHE', `Fetch error: ${message.data.type} ${message.data.id}`, e);
                 bridge.post({
                     type: 'OnFetchCacheData',
                     nonce: message.nonce,
@@ -66,7 +66,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
     const handleSaveCacheData = useCallback(
         async (message: SaveCacheData) => {
             try {
-                const savedId = await CacheRepository.save(message.data);
+                const savedId = await cacheRepository.save(message.data);
                 const response: AppMessageData<'OnSaveCacheData'> = {
                     type: 'OnSaveCacheData',
                     nonce: message.nonce,
@@ -77,7 +77,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                Logger.error('CACHE', `Save error: ${message.data.type} ${message.data.id}`, e);
+                logger.error('CACHE', `Save error: ${message.data.type} ${message.data.id}`, e);
                 bridge.post({
                     type: 'OnSaveCacheData',
                     nonce: message.nonce,
@@ -91,7 +91,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
     const handleSaveAllCacheData = useCallback(
         async (message: SaveAllCacheData) => {
             try {
-                const savedIds = await CacheRepository.saveAll(message.data);
+                const savedIds = await cacheRepository.saveAll(message.data);
                 const response: AppMessageData<'OnSaveAllCacheData'> = {
                     type: 'OnSaveAllCacheData',
                     nonce: message.nonce,
@@ -102,7 +102,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                Logger.error('CACHE', `SaveAll error: ${message.data.type}`, e);
+                logger.error('CACHE', `SaveAll error: ${message.data.type}`, e);
             }
         },
         [bridge]
@@ -111,7 +111,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
     const handleDeleteCacheData = useCallback(
         async (message: DeleteCacheData) => {
             try {
-                const deletedId = await CacheRepository.delete(message.data);
+                const deletedId = await cacheRepository.delete(message.data);
                 const response: AppMessageData<'OnDeleteCacheData'> = {
                     type: 'OnDeleteCacheData',
                     nonce: message.nonce,
@@ -122,7 +122,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                Logger.error('CACHE', `Delete error: ${message.data.type} ${message.data.id}`, e);
+                logger.error('CACHE', `Delete error: ${message.data.type} ${message.data.id}`, e);
                 bridge.post({
                     type: 'OnDeleteCacheData',
                     nonce: message.nonce,
@@ -136,7 +136,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
     const handleDeleteAllCacheData = useCallback(
         async (message: DeleteAllCacheData) => {
             try {
-                const deletedIds = await CacheRepository.deleteAll(message.data);
+                const deletedIds = await cacheRepository.deleteAll(message.data);
                 const response: AppMessageData<'OnDeleteAllCacheData'> = {
                     type: 'OnDeleteAllCacheData',
                     nonce: message.nonce,
@@ -147,7 +147,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                Logger.error('CACHE', `DeleteAll error: ${message.data.type}`, e);
+                logger.error('CACHE', `DeleteAll error: ${message.data.type}`, e);
             }
         },
         [bridge]
@@ -156,7 +156,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
     const handleFetchPreference = useCallback(
         async (message: FetchPreference) => {
             try {
-                const value = await CacheRepository.getPreference(message.data.key);
+                const value = await cacheRepository.getPreference(message.data.key);
                 const response: AppMessageData<'OnFetchPreference'> = {
                     type: 'OnFetchPreference',
                     nonce: message.nonce,
@@ -167,7 +167,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                Logger.error('CACHE', `FetchPreference error: ${message.data.key}`, e);
+                logger.error('CACHE', `FetchPreference error: ${message.data.key}`, e);
                 bridge.post({
                     type: 'OnFetchPreference',
                     nonce: message.nonce,
@@ -181,7 +181,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
     const handleSavePreference = useCallback(
         async (message: SavePreference) => {
             try {
-                await CacheRepository.savePreference(message.data.key, message.data.value);
+                await cacheRepository.savePreference(message.data.key, message.data.value);
                 const response: AppMessageData<'OnSavePreference'> = {
                     type: 'OnSavePreference',
                     nonce: message.nonce,
@@ -192,7 +192,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                Logger.error('CACHE', `SavePreference error: ${message.data.key}`, e);
+                logger.error('CACHE', `SavePreference error: ${message.data.key}`, e);
                 bridge.post({
                     type: 'OnSavePreference',
                     nonce: message.nonce,
@@ -206,7 +206,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
     const handleDeletePreference = useCallback(
         async (message: DeletePreference) => {
             try {
-                await CacheRepository.removePreference(message.data.key);
+                await cacheRepository.removePreference(message.data.key);
                 const response: AppMessageData<'OnDeletePreference'> = {
                     type: 'OnDeletePreference',
                     nonce: message.nonce,
@@ -217,7 +217,7 @@ export const useCacheHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                Logger.error('CACHE', `DeletePreference error: ${message.data.key}`, e);
+                logger.error('CACHE', `DeletePreference error: ${message.data.key}`, e);
                 bridge.post({
                     type: 'OnDeletePreference',
                     nonce: message.nonce,

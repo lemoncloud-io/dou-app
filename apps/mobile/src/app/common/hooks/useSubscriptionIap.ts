@@ -8,8 +8,8 @@ import {
     purchaseUpdatedListener,
 } from 'react-native-iap';
 
-import { Logger } from '../index';
-import { SubscriptionIapService } from '../services/subscriptionIap';
+import { logger } from '../index';
+import { subscriptionIapService } from '../services';
 import DeviceInfo from 'react-native-device-info';
 
 /**
@@ -38,7 +38,7 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
      * 구매내역 최신화
      */
     const refreshPurchases = useCallback(async () => {
-        const purchases = await SubscriptionIapService.getAvailablePurchases();
+        const purchases = await subscriptionIapService.getAvailablePurchases();
         setCurrentPurchases(purchases);
     }, []);
 
@@ -50,8 +50,8 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     const handleCompleteTransaction = useCallback(
         async (purchase: Purchase) => {
             try {
-                await SubscriptionIapService.verifyPurchase(purchase);
-                await SubscriptionIapService.finish(purchase);
+                await subscriptionIapService.verifyPurchase(purchase);
+                await subscriptionIapService.finish(purchase);
 
                 await refreshPurchases();
 
@@ -59,7 +59,7 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
                     await callbacks.current.onPurchaseSuccess();
                 }
             } catch (e) {
-                Logger.error('IAP', 'Failed to process transaction.', e);
+                logger.error('IAP', 'Failed to process transaction.', e);
             } finally {
                 setLoading(false);
             }
@@ -77,26 +77,26 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
             const isEmulator = await DeviceInfo.isEmulator();
 
             if (isEmulator) {
-                Logger.warn('IAP', 'Emulator environment. Skipping IAP module connection.');
+                logger.warn('IAP', 'Emulator environment. Skipping IAP module connection.');
                 return;
             }
 
             try {
-                await SubscriptionIapService.init();
+                await subscriptionIapService.init();
                 const [subscriptions, availablePurchase] = await Promise.all([
-                    SubscriptionIapService.getSubscriptions(),
-                    SubscriptionIapService.getAvailablePurchases(),
+                    subscriptionIapService.getSubscriptions(),
+                    subscriptionIapService.getAvailablePurchases(),
                 ]);
                 setProducts(subscriptions);
                 setCurrentPurchases(availablePurchase);
             } catch (e) {
-                Logger.error('IAP', 'Init error.', e);
+                logger.error('IAP', 'Init error.', e);
             }
         };
 
         const updateSubscription = purchaseUpdatedListener(async purchase => {
             if (purchase.purchaseState === 'pending') {
-                Logger.info('IAP', 'Transaction is pending. Waiting for approval.', purchase);
+                logger.info('IAP', 'Transaction is pending. Waiting for approval.', purchase);
                 return;
             }
 
@@ -104,14 +104,14 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
                 if (purchase.transactionId) {
                     await handleCompleteTransaction(purchase);
                 } else {
-                    Logger.warn('IAP', 'Purchase updated but transactionId is missing (iOS).', purchase);
+                    logger.warn('IAP', 'Purchase updated but transactionId is missing (iOS).', purchase);
                     setLoading(false);
                 }
             } else {
                 if (purchase.purchaseToken) {
                     await handleCompleteTransaction(purchase);
                 } else {
-                    Logger.warn('IAP', 'Purchase updated but purchaseToken is missing (Android).', purchase);
+                    logger.warn('IAP', 'Purchase updated but purchaseToken is missing (Android).', purchase);
                     setLoading(false);
                 }
             }
@@ -139,9 +139,9 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
         setLoading(true);
 
         try {
-            await SubscriptionIapService.purchase(sku, oldSku);
+            await subscriptionIapService.purchase(sku, oldSku);
         } catch (e: any) {
-            Logger.error('IAP', 'Purchase Request Failed', e);
+            logger.error('IAP', 'Purchase Request Failed', e);
 
             /*
              *  이미 보유 중인 경우 복구(검증) 로직 실행
@@ -159,7 +159,7 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
      * - iOS의 경우 restorePurchases()를 호출하면 이전에 구매했던 모든 상품들이 purchaseUpdatedListener를 통해 다시 전달
      */
     const restorePurchases = useCallback(async () => {
-        const restored = await SubscriptionIapService.restorePurchases();
+        const restored = await subscriptionIapService.restorePurchases();
 
         if (restored.length > 0) {
             callbacks.current.onPurchaseSuccess?.();
@@ -171,7 +171,7 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
      * 구독 관리 페이지 이동
      */
     const openSubscriptionManagement = useCallback(async () => {
-        await SubscriptionIapService.linkToManageSubscriptions();
+        await subscriptionIapService.linkToManageSubscriptions();
     }, []);
 
     return { products, currentPurchases, loading, handlePurchase, restorePurchases, openSubscriptionManagement };

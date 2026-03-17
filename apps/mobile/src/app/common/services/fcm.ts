@@ -2,9 +2,9 @@ import { PermissionsAndroid, Platform } from 'react-native';
 
 import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import messaging, { AuthorizationStatus } from '@react-native-firebase/messaging';
-import { Logger } from './log';
+import { logger } from './log';
 
-export const FcmService = {
+export const fcmService = {
     hasPermission: async (): Promise<FirebaseMessagingTypes.AuthorizationStatus> => {
         return messaging().hasPermission();
     },
@@ -25,7 +25,7 @@ export const FcmService = {
         try {
             return await messaging().getToken();
         } catch (e) {
-            Logger.error('FCM', 'Get token error.', e);
+            logger.error('FCM', 'Get token error.', e);
             return null;
         }
     },
@@ -34,7 +34,7 @@ export const FcmService = {
         try {
             await messaging().deleteToken();
         } catch (e) {
-            Logger.error('FCM', 'Delete token error.', e);
+            logger.error('FCM', 'Delete token error.', e);
         }
     },
 
@@ -42,7 +42,7 @@ export const FcmService = {
         try {
             await messaging().registerDeviceForRemoteMessages();
         } catch (e) {
-            Logger.error('FCM', 'Register APNs error.', e);
+            logger.error('FCM', 'Register APNs error.', e);
         }
     },
 

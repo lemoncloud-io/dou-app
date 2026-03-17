@@ -1,5 +1,6 @@
 import React, { forwardRef, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import type { EmitterSubscription } from 'react-native';
+import { ActivityIndicator, Keyboard, Platform, StyleSheet, View } from 'react-native';
 import { WebView, type WebViewProps } from 'react-native-webview';
 import DeviceInfo from 'react-native-device-info';
 import Config from 'react-native-config';
@@ -13,6 +14,33 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const [initData, setInitData] = useState<{ userAgent: string; script: string } | null>(null);
     const insets = useSafeAreaInsets();
     const webViewRef = useRef<WebView | null>(null);
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+    useEffect(() => {
+        let showSubscription: EmitterSubscription;
+        let hideSubscription: EmitterSubscription;
+
+        if (Platform.OS === 'ios') {
+            showSubscription = Keyboard.addListener('keyboardWillShow', e => {
+                setKeyboardHeight(e.endCoordinates.height);
+            });
+            hideSubscription = Keyboard.addListener('keyboardWillHide', () => {
+                setKeyboardHeight(0);
+            });
+        } else {
+            showSubscription = Keyboard.addListener('keyboardDidShow', e => {
+                setKeyboardHeight(e.endCoordinates.height);
+            });
+            hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+                setKeyboardHeight(0);
+            });
+        }
+
+        return () => {
+            showSubscription.remove();
+            hideSubscription.remove();
+        };
+    }, []);
 
     // 최초 1회: deviceInfo + 초기 safeArea 주입
     useEffect(() => {
@@ -26,9 +54,6 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             const appLanguage = getAppLanguage();
             const platform = Platform.OS.toLowerCase();
             const stage = Config.VITE_ENV || 'PROD';
-
-            // Android WebView already handles navigation bar, so no additional bottom padding needed
-            const safeBottom = Platform.OS === 'android' ? 0 : insets.bottom;
 
             const deviceInfoScript = `
                 window.CHATIC_APP_PLATFORM = '${platform}';
@@ -58,9 +83,10 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 (function() {
                     const root = document.documentElement;
                     root.style.setProperty('--safe-top', '${insets.top}px');
-                    root.style.setProperty('--safe-bottom', '${safeBottom}px');
+                    root.style.setProperty('--safe-bottom', '${insets.bottom}px');
                     root.style.setProperty('--safe-left', '${insets.left}px');
                     root.style.setProperty('--safe-right', '${insets.right}px');
+                    root.style.setProperty('--keyboard-height', '${keyboardHeight}px');
                     ${deviceInfoScript}
                     const _origLog = console.log.bind(console);
                     const _origError = console.error.bind(console);
@@ -87,21 +113,19 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         const target = (ref as React.RefObject<WebView>)?.current ?? webViewRef.current;
         if (!target || !initData) return;
 
-        // Android WebView already handles navigation bar, so no additional bottom padding needed
-        const safeBottom = Platform.OS === 'android' ? 0 : insets.bottom;
-
         const safeAreaScript = `
             (function() {
                 const root = document.documentElement;
                 root.style.setProperty('--safe-top', '${insets.top}px');
-                root.style.setProperty('--safe-bottom', '${safeBottom}px');
+                root.style.setProperty('--safe-bottom', '${insets.bottom}px');
                 root.style.setProperty('--safe-left', '${insets.left}px');
                 root.style.setProperty('--safe-right', '${insets.right}px');
+                root.style.setProperty('--keyboard-height', '${keyboardHeight}px');
             })();
             true;
         `;
         target.injectJavaScript(safeAreaScript);
-    }, [insets, ref, initData]);
+    }, [insets, ref, initData, keyboardHeight]);
 
     if (!initData) {
         return (

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { AppWebView, FullScreenLoader, getAppLanguage, Logger, useDeepLinkStore, useThemeStore } from '../../../common';
+import { AppWebView, FullScreenLoader, getAppLanguage, logger, useDeepLinkStore, useThemeStore } from '../../../common';
 import {
     useAndroidBack,
     useAppBridge,
@@ -79,30 +79,11 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     } = useDeviceHandler(bridge);
     const { handleRequestPermission } = usePermissionHandler(bridge);
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler(bridge);
-    const insets = useSafeAreaInsets();
-
     useAndroidBack(webViewRef, canGoBack, language);
-
-    const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-    // 키보드 높이계산
-    useEffect(() => {
-        if (Platform.OS !== 'android') return;
-        const showSubscription = Keyboard.addListener('keyboardDidShow', e => {
-            setKeyboardHeight(e.endCoordinates.height);
-        });
-        const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-            setKeyboardHeight(0);
-        });
-        return () => {
-            showSubscription.remove();
-            hideSubscription.remove();
-        };
-    }, []);
 
     // Handle WebView load complete
     const handleWebViewLoad = useCallback(() => {
-        Logger.info('WEBVIEW', 'WebView loaded');
+        logger.info('WEBVIEW', 'WebView loaded');
         setIsWebViewLoaded(true);
         setWebViewReady(true);
     }, [setWebViewReady]);
@@ -111,7 +92,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     useEffect(() => {
         console.log('[DEEPLINK] effect triggered - pendingUrl:', pendingUrl, 'isWebViewLoaded:', isWebViewLoaded);
         if (pendingUrl && isWebViewLoaded && webViewRef.current) {
-            Logger.info('DEEPLINK', `Loading deep link URL: ${pendingUrl}`, pendingEnvs);
+            logger.info('DEEPLINK', `Loading deep link URL: ${pendingUrl}`, pendingEnvs);
             console.log('[DEEPLINK] pendingEnvs:', JSON.stringify(pendingEnvs));
 
             // Navigate to URL - append _backend, _wss as query params for web layer
@@ -305,7 +286,7 @@ true;`;
                 }
             },
             (error: any, nativeEvent: WebViewMessage) => {
-                Logger.error('BRIDGE', `Failed parse message error. : ${nativeEvent.data}`, error);
+                logger.error('BRIDGE', `Failed parse message error. : ${nativeEvent.data}`, error);
             }
         );
     }, [
@@ -340,30 +321,18 @@ true;`;
     ]);
 
     return (
-        <View
-            style={{
-                flex: 1,
-                backgroundColor: '#ffffff',
-                paddingBottom:
-                    Platform.OS === 'android' ? (keyboardHeight > 0 ? keyboardHeight + insets.bottom : 0) : 0,
-            }}
-        >
-            <KeyboardAvoidingView
-                style={{ flex: 1 }}
-                behavior={Platform.OS.toLowerCase() === 'ios' ? 'padding' : 'height'}
-            >
-                <AppWebView
-                    ref={webViewRef}
-                    source={{ uri: webviewUrl }}
-                    scrollEnabled={false}
-                    onMessage={handleMessage}
-                    onLoad={handleWebViewLoad}
-                    onNavigationStateChange={navState => {
-                        console.log('[WEBVIEW] navState url:', navState.url, 'loading:', navState.loading);
-                        setNavCanGoBack(navState.canGoBack);
-                    }}
-                />
-            </KeyboardAvoidingView>
+        <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
+            <AppWebView
+                ref={webViewRef}
+                source={{ uri: webviewUrl }}
+                scrollEnabled={false}
+                onMessage={handleMessage}
+                onLoad={handleWebViewLoad}
+                onNavigationStateChange={navState => {
+                    console.log('[WEBVIEW] navState url:', navState.url, 'loading:', navState.loading);
+                    setNavCanGoBack(navState.canGoBack);
+                }}
+            />
             <FullScreenLoader visible={isIapLoading} message="결제 처리 중..." />
         </View>
     );

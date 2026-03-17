@@ -8,6 +8,7 @@ import { cn } from '@chatic/lib/utils';
 import { useLocalProfileStore, useWebCoreStore } from '@chatic/web-core';
 
 import { PageHeader } from '../../../shared/components';
+import { useAppChecker } from '@chatic/device-utils';
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 
@@ -30,6 +31,7 @@ export const ProfileEditPage = () => {
 
     const hasChanges = name !== initialName || imageUrl !== initialImageUrl;
     const isValid = name.trim().length > 0 && name.length <= 20;
+    const { isIOS } = useAppChecker();
 
     const handleSave = () => {
         if (!isValid || !hasChanges) return;
@@ -74,12 +76,12 @@ export const ProfileEditPage = () => {
     };
 
     return (
-        <div className="flex h-full flex-col bg-background">
-            <PageHeader title={t('profileEdit.title')} />
+        <div className="fixed inset-0 flex flex-col overflow-hidden bg-background pt-safe-top">
+            <div className="shrink-0">
+                <PageHeader title={t('profileEdit.title')} />
+            </div>
 
-            {/* Content */}
-            <div className="flex-1 px-5 pt-4">
-                {/* Description */}
+            <div className="flex-1 overflow-y-auto overscroll-none px-5 pt-4">
                 <div className="mb-8">
                     <p className="text-[22px] font-bold leading-tight text-foreground">
                         {t('profileEdit.description1')}
@@ -89,7 +91,6 @@ export const ProfileEditPage = () => {
                     </p>
                 </div>
 
-                {/* Name Input */}
                 <div className="mb-6">
                     <label className="mb-2 block text-[14px] font-semibold text-foreground">
                         {t('profileEdit.nameLabel')}
@@ -108,7 +109,6 @@ export const ProfileEditPage = () => {
                     <p className="mt-2 text-[14px] text-muted-foreground">{t('profileEdit.nameHint')}</p>
                 </div>
 
-                {/* Profile Photo */}
                 <div>
                     <label className="mb-2 block text-[14px] font-semibold text-foreground">
                         {t('profileEdit.photoLabel')}{' '}
@@ -149,8 +149,7 @@ export const ProfileEditPage = () => {
                 </div>
             </div>
 
-            {/* Save Button */}
-            <div className="px-5 pb-10 pt-4">
+            <div className="shrink-0 border-t border-border/50 bg-background px-5 py-4">
                 <button
                     onClick={handleSave}
                     disabled={!isValid || !hasChanges}
@@ -164,6 +163,16 @@ export const ProfileEditPage = () => {
                     {t('profileEdit.save')}
                 </button>
             </div>
+
+            <div
+                className="shrink-0 touch-none bg-background"
+                style={{
+                    height: isIOS
+                        ? `calc(max(var(--safe-bottom, 0px), var(--keyboard-height, 0px)))`
+                        : `calc(var(--safe-bottom, 0px) + var(--keyboard-height, 0px))`,
+                }}
+                onTouchMove={e => e.preventDefault()}
+            />
         </div>
     );
 };
