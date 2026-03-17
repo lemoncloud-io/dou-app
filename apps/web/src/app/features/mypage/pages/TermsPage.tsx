@@ -11,7 +11,7 @@ export const TermsPage = () => {
     );
 
     return (
-        <div className="flex h-full flex-col bg-background">
+        <div className="flex h-full flex-col bg-background pt-safe-top">
             <PageHeader title={t('mypage.policy.terms')} />
 
             {/* Content */}

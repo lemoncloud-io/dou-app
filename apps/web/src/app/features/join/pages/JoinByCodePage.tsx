@@ -28,7 +28,7 @@ export const JoinByCodePage = () => {
     };
 
     return (
-        <div className="flex h-full flex-col bg-background">
+        <div className="flex h-full flex-col bg-background pt-safe-top">
             <PageHeader title={t('join.title')} />
 
             <div className="flex-1 px-5 pt-8">

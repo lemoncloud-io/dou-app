@@ -2,8 +2,9 @@ import { Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import type { ContactInfo } from '@chatic/app-messages';
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useCreateInvite } from '../hooks/useCreateInvite';
@@ -11,8 +12,6 @@ import { useCreateInvite } from '../hooks/useCreateInvite';
 import { AddFriendSheet } from './AddFriendSheet';
 import { ContactListItem } from './ContactListItem';
 import { PermissionDeniedBanner } from './PermissionDeniedBanner';
-
-import type { ContactInfo } from '@chatic/app-messages';
 
 // Valid Korean mobile prefixes: 010, 011, 016, 017, 018, 019
 const KOREAN_MOBILE_PREFIXES = ['010', '011', '016', '017', '018', '019'];
@@ -166,72 +165,70 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent
-                    className="max-w-full w-full m-0 rounded-none bg-background"
+                    className="m-0 w-full max-w-full rounded-none bg-background"
                     hideClose
                     variant="slide-up"
                     aria-describedby={undefined}
                 >
                     <DialogDescription className="sr-only">Invite friends to this channel</DialogDescription>
-                    <div className="flex flex-col h-full bg-background">
-                        {/* Top Bar */}
-                        <div className="flex items-center justify-between px-1.5 py-3">
-                            <div className="w-11 h-11" />
-                            <DialogTitle className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-foreground">
-                                {t('inviteFriends.title')}
-                            </DialogTitle>
-                            <button
-                                onClick={() => onOpenChange?.(false)}
-                                className="w-11 h-11 flex items-center justify-center"
-                            >
-                                <X className="w-6 h-6 text-foreground" />
-                            </button>
-                        </div>
 
-                        {/* Permission Denied Banner */}
-                        {showPermissionBanner && <PermissionDeniedBanner />}
-
-                        {/* Add Friend Action */}
-                        <div className="px-4 pt-5">
-                            <div className="flex items-center justify-center rounded-[20px] py-5 px-[18px] bg-card shadow-sm border border-border">
+                    <div className="flex h-full flex-col overflow-hidden bg-background">
+                        <div className="shrink-0">
+                            <div className="flex items-center justify-between px-1.5 py-3">
+                                <div className="h-11 w-11" />
+                                <DialogTitle className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-foreground">
+                                    {t('inviteFriends.title')}
+                                </DialogTitle>
                                 <button
-                                    className="flex flex-col items-center gap-2"
-                                    onClick={() => setAddFriendOpen(true)}
+                                    onClick={() => onOpenChange?.(false)}
+                                    className="flex h-11 w-11 items-center justify-center"
                                 >
-                                    <div className="w-[52px] h-[52px] rounded-full flex items-center justify-center bg-muted">
-                                        <img
-                                            src="/assets/icons/icon-user-plus.svg"
-                                            alt={t('inviteFriends.addFriend')}
-                                            className="w-7 h-7 dark:brightness-0 dark:invert"
-                                        />
-                                    </div>
-                                    <span className="text-[15px] font-medium text-foreground text-center leading-[1.19] tracking-[-0.02em]">
-                                        {t('inviteFriends.addFriend')}
-                                    </span>
+                                    <X className="h-6 w-6 text-foreground" />
                                 </button>
                             </div>
-                        </div>
 
-                        {/* Search - Only show when contacts are loaded */}
-                        {showContactList && (
-                            <div className="px-4 py-[10px]">
-                                <div className="flex items-center gap-[9px] rounded-full px-[14px] py-3 bg-muted border border-border">
-                                    <Search size={18} className="text-foreground shrink-0" />
-                                    <input
-                                        value={search}
-                                        onChange={e => setSearch(e.target.value)}
-                                        placeholder={t('inviteFriends.searchPlaceholder')}
-                                        className="flex-1 bg-transparent text-[16px] text-foreground placeholder:text-muted-foreground outline-none leading-[1.19] tracking-[-0.015em]"
-                                    />
+                            {showPermissionBanner && <PermissionDeniedBanner />}
+
+                            <div className="px-4 pt-5">
+                                <div className="flex items-center justify-center rounded-[20px] border border-border bg-card px-[18px] py-5 shadow-sm">
+                                    <button
+                                        className="flex flex-col items-center gap-2"
+                                        onClick={() => setAddFriendOpen(true)}
+                                    >
+                                        <div className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-muted">
+                                            <img
+                                                src="/assets/icons/icon-user-plus.svg"
+                                                alt={t('inviteFriends.addFriend')}
+                                                className="h-7 w-7 dark:brightness-0 dark:invert"
+                                            />
+                                        </div>
+                                        <span className="text-center text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
+                                            {t('inviteFriends.addFriend')}
+                                        </span>
+                                    </button>
                                 </div>
                             </div>
-                        )}
 
-                        {/* Contact List */}
+                            {showContactList && (
+                                <div className="px-4 py-[10px]">
+                                    <div className="flex items-center gap-[9px] rounded-full border border-border bg-muted px-[14px] py-3">
+                                        <Search size={18} className="shrink-0 text-foreground" />
+                                        <input
+                                            value={search}
+                                            onChange={e => setSearch(e.target.value)}
+                                            placeholder={t('inviteFriends.searchPlaceholder')}
+                                            className="flex-1 bg-transparent text-[16px] leading-[1.19] tracking-[-0.015em] text-foreground placeholder:text-muted-foreground outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         {showContactList && (
-                            <div className="flex-1 overflow-y-auto px-4 flex flex-col gap-3 pt-2">
+                            <div className="flex flex-1 flex-col gap-3 overflow-y-auto overscroll-none px-4 pt-2">
                                 {showNoResults ? (
-                                    <div className="flex-1 flex items-center justify-center">
-                                        <p className="text-[16px] font-normal leading-[1.45] tracking-[-0.16px] text-muted-foreground text-center">
+                                    <div className="flex flex-1 items-center justify-center">
+                                        <p className="text-center text-[16px] font-normal leading-[1.45] tracking-[-0.16px] text-muted-foreground">
                                             {t('inviteFriends.noSearchResults')}
                                         </p>
                                     </div>
@@ -247,6 +244,14 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                                 )}
                             </div>
                         )}
+
+                        <div
+                            className="shrink-0 touch-none bg-background"
+                            style={{
+                                height: `calc( var(--keyboard-height, 0px))`,
+                            }}
+                            onTouchMove={e => e.preventDefault()}
+                        />
                     </div>
                 </DialogContent>
             </Dialog>

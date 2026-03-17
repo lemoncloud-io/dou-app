@@ -105,7 +105,7 @@ export const WorkspaceDetailPage = () => {
     const { wsId } = useParams();
 
     return (
-        <div className="flex h-full flex-col bg-background">
+        <div className="flex h-full flex-col bg-background pt-safe-top">
             <PageHeader
                 title={mockWorkspaceDetail.name}
                 rightAction={
