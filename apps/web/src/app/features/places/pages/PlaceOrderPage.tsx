@@ -15,6 +15,8 @@ import {
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
+import { cloudCore } from '@chatic/web-core';
+
 import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../../chats/components/ConfirmDialog';
 import { useMyPlaces } from '../../home/hooks/useMyPlaces';
@@ -27,6 +29,8 @@ export const PlaceOrderPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { places, setPlaces } = useMyPlaces();
+
+    const myId = cloudCore.getCloudToken()?.id;
     const [deleteTarget, setDeleteTarget] = useState<MySiteView | null>(null);
     const [leaveTarget, setLeaveTarget] = useState<MySiteView | null>(null);
 
@@ -98,6 +102,7 @@ export const PlaceOrderPage = () => {
                                 <SortablePlaceItem
                                     key={place.id}
                                     place={place}
+                                    isOwner={place.ownerId === myId}
                                     onSettings={handleSettings}
                                     onDelete={handleDelete}
                                     onLeave={handleLeave}
