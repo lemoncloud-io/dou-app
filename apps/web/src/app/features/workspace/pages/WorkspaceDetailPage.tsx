@@ -2,7 +2,7 @@ import { Globe, Lock, Plus, Settings, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
-import { useNavigateWithTransition } from '@chatic/page-transition';
+import { useNavigateWithTransition } from '@chatic/shared';
 
 import { PageHeader } from '../../../shared/components';
 

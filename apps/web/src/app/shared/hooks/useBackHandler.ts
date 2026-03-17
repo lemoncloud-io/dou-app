@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 
 import { postMessage, getMobileAppInfo, useHandleAppMessage } from '@chatic/app-messages';
 
-import { useNavigateWithTransition } from '@chatic/page-transition';
+import { useNavigateWithTransition } from '@chatic/shared';
 
 /** Selector for Radix UI overlay components that can be closed with back button */
 const OPEN_DIALOG_SELECTOR =

@@ -2,7 +2,8 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
-import { useNavigateWithTransition } from '@chatic/page-transition';
+
+import { useNavigateWithTransition } from '@chatic/shared';
 
 import { useTotalUnreadCount } from '../../features/chats/hooks/useTotalUnreadCount';
 

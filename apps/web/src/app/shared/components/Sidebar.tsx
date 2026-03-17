@@ -2,7 +2,7 @@ import { Globe, Home, LogOut, Moon, Sun } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, useLocation } from 'react-router-dom';
 
-import { useNavigateWithTransition } from '@chatic/page-transition';
+import { useNavigateWithTransition } from '@chatic/shared';
 import { toast } from 'sonner';
 
 import { useTheme } from '@chatic/theme';

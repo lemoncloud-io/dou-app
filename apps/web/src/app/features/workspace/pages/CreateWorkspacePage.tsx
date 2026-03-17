@@ -2,7 +2,7 @@ import { Camera, HelpCircle, Image } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useNavigateWithTransition } from '@chatic/page-transition';
+import { useNavigateWithTransition } from '@chatic/shared';
 
 import { PageHeader } from '../../../shared/components';
 import { InviteCodeCard, VisibilityToggle } from '../components';

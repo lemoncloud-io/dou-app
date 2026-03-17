@@ -2,7 +2,7 @@ import { ChevronLeft, Home, MoreHorizontal, Pin } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useNavigateWithTransition } from '@chatic/page-transition';
+import { useNavigateWithTransition } from '@chatic/shared';
 
 interface WorkspaceItem {
     id: string;
