@@ -11,4 +11,5 @@ export * from './useMyChannel';
 export * from './useReadMessage';
 export * from './useSendMessage';
 export * from './useUnreadCount';
+export * from './useTotalUnreadCount';
 export * from './useUpdateChannel';
