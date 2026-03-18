@@ -293,7 +293,7 @@ jobs:
                           "type": "header",
                           "text": {
                               "type": "plain_text",
-                              "text": ":dou: Chatic 수동 배포 완료",
+                              "text": ":dou: DoU 수동 배포 완료",
                               "emoji": true
                           }
                       },
@@ -448,7 +448,7 @@ jobs:
                   token: ${{ secrets.RELEASE_BOT_TOKEN }}
                   payload: |
                       channel: ${{ secrets.CHATIC_CHANNEL }}
-                      text: "Chatic 수동 배포 완료"
+                      text: "DoU 수동 배포 완료"
                       unfurl_links: false
                       unfurl_media: false
                       blocks: ${{ steps.slack-blocks.outputs.blocks }}
@@ -509,7 +509,7 @@ jobs:
                           "type": "header",
                           "text": {
                               "type": "plain_text",
-                              "text": ":x: Chatic 수동 배포 실패",
+                              "text": ":x: DoU 수동 배포 실패",
                               "emoji": true
                           }
                       },
@@ -672,7 +672,7 @@ jobs:
                   token: ${{ secrets.RELEASE_BOT_TOKEN }}
                   payload: |
                       channel: ${{ secrets.CHATIC_CHANNEL }}
-                      text: "Chatic 수동 배포 실패"
+                      text: "DoU 수동 배포 실패"
                       unfurl_links: false
                       unfurl_media: false
                       blocks: ${{ steps.failure-blocks.outputs.blocks }}

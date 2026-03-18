@@ -67,7 +67,7 @@ export const Sidebar = (): JSX.Element => {
         <aside className="w-56 border-r bg-card flex flex-col">
             {/* Logo/Brand */}
             <div className="h-14 flex items-center px-4 border-b">
-                <span className="text-lg font-semibold">Chatic</span>
+                <span className="text-lg font-semibold">DoU</span>
             </div>
 
             {/* Navigation */}
