@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-03-18] - root@0.34.0, @chatic/web@0.31.0, @chatic/landing@0.4.0
+
+### Features
+
+- add child policy page
+
+### Chores
+
+- update AndroidManifest.xml
+- bump version 0.8.2
+
 ## [2026-03-18] - root@0.33.1, @chatic/web@0.30.1, @chatic/admin@0.4.1
 
 ### Chores
