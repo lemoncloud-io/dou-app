@@ -18,9 +18,8 @@ import type { WebView, WebViewMessageEvent } from 'react-native-webview';
 import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
 import type { MainScreenProps } from '../navigation';
 import { useIsFocused } from '@react-navigation/native';
-import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { View } from 'react-native';
 import Config from 'react-native-config';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // TODO: Use Config.VITE_WEBVIEW_BASE_URL when ready for production
 const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
