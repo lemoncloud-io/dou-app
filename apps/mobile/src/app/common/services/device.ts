@@ -6,11 +6,11 @@ import {
     launchCamera,
     launchImageLibrary,
 } from 'react-native-image-picker';
-import { Logger } from './log';
+import { logger } from './log';
 import { type DocumentPickerResponse, pick, types } from '@react-native-documents/picker';
 import Contacts, { type Contact } from 'react-native-contacts';
 
-export const DeviceService = {
+export const deviceService = {
     /**
      * 앱 설정 화면으로 이동
      */
@@ -18,7 +18,7 @@ export const DeviceService = {
         try {
             await Linking.openSettings();
         } catch (error) {
-            Logger.error('DEVICE', 'Failed to open settings', error);
+            logger.error('DEVICE', 'Failed to open settings', error);
         }
     },
 
@@ -39,7 +39,7 @@ export const DeviceService = {
                 url: data.url,
             });
         } catch (error: any) {
-            Logger.error('DEVICE', 'Share error', error);
+            logger.error('DEVICE', 'Share error', error);
             throw error;
         }
     },
@@ -53,14 +53,14 @@ export const DeviceService = {
                 type: [types.allFiles],
                 allowMultiSelection,
             });
-            Logger.info('DEVICE', 'Document opened:', results);
+            logger.info('DEVICE', 'Document opened:', results);
             return results;
         } catch (error: any) {
             if (error?.code === 'DOCUMENT_PICKER_CANCELED' || error?.code === 'OPERATION_CANCELED') {
-                Logger.info('DEVICE', 'Document picker cancelled');
+                logger.info('DEVICE', 'Document picker cancelled');
                 return [];
             }
-            Logger.error('DEVICE', 'Failed to pick document', error);
+            logger.error('DEVICE', 'Failed to pick document', error);
             throw error;
         }
     },
@@ -77,7 +77,7 @@ export const DeviceService = {
             if (!hasPermission) {
                 const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_CONTACTS);
                 if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-                    Logger.error('DEVICE', 'Read contacts permission denied');
+                    logger.error('DEVICE', 'Read contacts permission denied');
                     return [];
                 }
             }
@@ -86,7 +86,7 @@ export const DeviceService = {
         try {
             return await Contacts.getAll();
         } catch (error: any) {
-            Logger.error('DEVICE', 'Failed to get contacts', error);
+            logger.error('DEVICE', 'Failed to get contacts', error);
             throw error;
         }
     },
@@ -104,10 +104,10 @@ export const DeviceService = {
                 },
                 response => {
                     if (response.didCancel) {
-                        Logger.info('DEVICE', 'Camera cancelled');
+                        logger.info('DEVICE', 'Camera cancelled');
                         resolve([]);
                     } else if (response.errorCode) {
-                        Logger.error('DEVICE', 'Camera error', response.errorMessage);
+                        logger.error('DEVICE', 'Camera error', response.errorMessage);
                         reject(new Error(response.errorMessage));
                     } else {
                         resolve(response.assets || []);
@@ -130,13 +130,13 @@ export const DeviceService = {
                 },
                 response => {
                     if (response.didCancel) {
-                        Logger.info('DEVICE', 'Photo library cancelled');
+                        logger.info('DEVICE', 'Photo library cancelled');
                         resolve([]);
                     } else if (response.errorCode === 'permission') {
-                        Logger.error('DEVICE', 'Photo library permission denied');
+                        logger.error('DEVICE', 'Photo library permission denied');
                         resolve([]);
                     } else if (response.errorCode) {
-                        Logger.error('DEVICE', 'Photo library error', response.errorMessage);
+                        logger.error('DEVICE', 'Photo library error', response.errorMessage);
                         reject(new Error(response.errorMessage));
                     } else {
                         resolve(response.assets || []);

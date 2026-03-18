@@ -76,7 +76,7 @@ export const PlaceInfoPage = () => {
     }
 
     return (
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
             <PageHeader title={title} />
 
             {/* Content */}

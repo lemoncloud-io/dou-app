@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { FlatList, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DeviceService } from '../../../common';
-import { PermissionService, type AppPermissionType } from '../../../common';
+import { deviceService } from '../../../common';
+import { permissionService, type AppPermissionType } from '../../../common';
 
 type LogType = 'info' | 'success' | 'error';
 
@@ -47,13 +47,13 @@ export const DeviceTestScreen = () => {
 
     const handleOpenSettings = async () => {
         addLog('info', 'Opening Settings...');
-        await DeviceService.openSettings();
+        await deviceService.openSettings();
     };
 
     const handleOpenShareSheet = async () => {
         try {
             addLog('info', 'Opening Share Sheet...');
-            const result = await DeviceService.openShareSheet({
+            const result = await deviceService.openShareSheet({
                 title: 'Share Test',
                 message: 'This is a test message from DeviceTestScreen',
             });
@@ -66,7 +66,7 @@ export const DeviceTestScreen = () => {
     const handleOpenDocument = async () => {
         try {
             addLog('info', 'Picking Document...');
-            const results = await DeviceService.openDocument(true); // Multi-selection allowed
+            const results = await deviceService.openDocument(true); // Multi-selection allowed
             if (results.length > 0) {
                 addLog('success', `Picked ${results.length} files`);
                 results.forEach(doc => {
@@ -87,7 +87,7 @@ export const DeviceTestScreen = () => {
     const handleGetContacts = async () => {
         try {
             addLog('info', 'Getting Contacts...');
-            const contacts = await DeviceService.getContacts();
+            const contacts = await deviceService.getContacts();
             if (contacts.length > 0) {
                 addLog('success', `Got ${contacts.length} contacts`);
                 addLog('info', JSON.stringify(contacts, null, 2));
@@ -102,7 +102,7 @@ export const DeviceTestScreen = () => {
     const handleOpenCamera = async () => {
         try {
             addLog('info', 'Opening Camera...');
-            const assets = await DeviceService.openCamera({
+            const assets = await deviceService.openCamera({
                 mediaType: 'photo',
                 saveToPhotos: true,
             });
@@ -123,7 +123,7 @@ export const DeviceTestScreen = () => {
     const handleOpenPhotoLibrary = async () => {
         try {
             addLog('info', 'Opening Photo Library...');
-            const assets = await DeviceService.openPhotoLibrary({
+            const assets = await deviceService.openPhotoLibrary({
                 mediaType: 'photo',
                 selectionLimit: 3,
             });
@@ -152,12 +152,12 @@ export const DeviceTestScreen = () => {
 
         try {
             addLog('info', `Checking ${appPermission}...`);
-            const isGranted = await PermissionService.check(appPermission);
+            const isGranted = await permissionService.check(appPermission);
             addLog('info', `Status: ${isGranted ? 'GRANTED' : 'NOT GRANTED'}`);
 
             if (!isGranted) {
                 addLog('info', `Requesting ${appPermission}...`);
-                const result = await PermissionService.request(appPermission);
+                const result = await permissionService.request(appPermission);
                 addLog(result ? 'success' : 'error', `Request Result: ${result ? 'GRANTED' : 'DENIED/BLOCKED'}`);
             } else {
                 addLog('success', 'Permission already granted.');

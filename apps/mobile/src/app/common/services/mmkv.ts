@@ -1,10 +1,10 @@
-import { Logger } from './index';
+import { logger } from './log';
 import type { MMKV } from 'react-native-mmkv';
 import { createMMKV } from 'react-native-mmkv';
 
 const mmkv: MMKV = createMMKV();
 
-export const StorageService = {
+export const storageService = {
     /**
      * 데이터 저장
      */
@@ -13,7 +13,7 @@ export const StorageService = {
             const jsonValue = JSON.stringify(value);
             mmkv.set(key, jsonValue);
         } catch (e) {
-            Logger.error('STORAGE', `Set error. : ${key}`, e);
+            logger.error('STORAGE', `Set error. : ${key}`, e);
         }
     },
 
@@ -25,7 +25,7 @@ export const StorageService = {
             const jsonValue = mmkv.getString(key);
             return jsonValue != null ? JSON.parse(jsonValue) : null;
         } catch (e) {
-            Logger.error('STORAGE', 'JSON Parsing Error', e);
+            logger.error('STORAGE', 'JSON Parsing Error', e);
             return null;
         }
     },
@@ -37,7 +37,7 @@ export const StorageService = {
         try {
             mmkv.remove(key);
         } catch (e) {
-            Logger.error('STORAGE', `Remove error. : ${key}`, e);
+            logger.error('STORAGE', `Remove error. : ${key}`, e);
         }
     },
 
@@ -48,7 +48,7 @@ export const StorageService = {
         try {
             mmkv.clearAll();
         } catch (e) {
-            Logger.error('STORAGE', `Clear all error.`, e);
+            logger.error('STORAGE', `Clear all error.`, e);
         }
     },
 
@@ -59,7 +59,7 @@ export const StorageService = {
         try {
             return mmkv.getAllKeys();
         } catch (e) {
-            Logger.error('STORAGE', 'Get all keys error.', e);
+            logger.error('STORAGE', 'Get all keys error.', e);
             return [];
         }
     },

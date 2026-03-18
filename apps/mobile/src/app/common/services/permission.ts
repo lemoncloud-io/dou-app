@@ -9,7 +9,7 @@ import {
     type Permission,
 } from 'react-native-permissions';
 
-import { Logger } from './log';
+import { logger } from './log';
 
 /**
  * 앱에서 사용하는 권한 타입 정의
@@ -46,7 +46,7 @@ const PERMISSION_MAP: Record<Exclude<AppPermissionType, 'NOTIFICATIONS'>, Permis
     }),
 };
 
-export const PermissionService = {
+export const permissionService = {
     /**
      * 권한 상태 확인
      * - GRANTED: 허용됨
@@ -58,21 +58,21 @@ export const PermissionService = {
         try {
             if (type === 'NOTIFICATIONS') {
                 const { status } = await checkNotifications();
-                Logger.info('PERMISSION', `Check ${type}: ${status}`);
+                logger.info('PERMISSION', `Check ${type}: ${status}`);
                 return status === RESULTS.GRANTED || status === RESULTS.LIMITED;
             }
 
             const permission: Permission | null = PERMISSION_MAP[type];
             if (!permission) {
-                Logger.warn('PERMISSION', `Permission not supported on this platform: ${type}`);
+                logger.warn('PERMISSION', `Permission not supported on this platform: ${type}`);
                 return true;
             }
 
             const result = await check(permission);
-            Logger.info('PERMISSION', `Check ${type}: ${result}`);
+            logger.info('PERMISSION', `Check ${type}: ${result}`);
             return result === RESULTS.GRANTED;
         } catch (error) {
-            Logger.error('PERMISSION', `Check failed: ${type}`, error);
+            logger.error('PERMISSION', `Check failed: ${type}`, error);
             return false;
         }
     },
@@ -86,10 +86,10 @@ export const PermissionService = {
         try {
             if (type === 'NOTIFICATIONS') {
                 const { status } = await requestNotifications(['alert', 'sound', 'badge']);
-                Logger.info('PERMISSION', `Request ${type}: ${status}`);
+                logger.info('PERMISSION', `Request ${type}: ${status}`);
 
                 if (status === RESULTS.BLOCKED) {
-                    Logger.warn('PERMISSION', `Request blocked: ${type}`);
+                    logger.warn('PERMISSION', `Request blocked: ${type}`);
                     return false;
                 }
                 return status === RESULTS.GRANTED || status === RESULTS.LIMITED;
@@ -97,16 +97,16 @@ export const PermissionService = {
 
             const permission: Permission | null = PERMISSION_MAP[type];
             if (!permission) {
-                Logger.warn('PERMISSION', `Permission not supported on this platform: ${type}`);
+                logger.warn('PERMISSION', `Permission not supported on this platform: ${type}`);
                 return true;
             }
 
             const result = await request(permission);
-            Logger.info('PERMISSION', `Request ${type}: ${result}`);
+            logger.info('PERMISSION', `Request ${type}: ${result}`);
 
             return result === RESULTS.GRANTED || result === RESULTS.LIMITED;
         } catch (error) {
-            Logger.error('PERMISSION', `Request failed: ${type}`, error);
+            logger.error('PERMISSION', `Request failed: ${type}`, error);
             return false;
         }
     },

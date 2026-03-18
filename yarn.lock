@@ -2907,6 +2907,13 @@
   resolved "https://registry.yarnpkg.com/@lemoncloud/react-page-transition/-/react-page-transition-0.0.1.tgz#df2141a843fa7891979a36d359a5c11f03bf9e86"
   integrity sha512-Gbyw6LN6nDCVsWFpvGuvJo63rI0kF726ntiOwfq2D8l1rgKYAgtej4qwBQIiwRtQUP5wz9Dr7h7bqtPcBn7nFQ==
 
+"@lemoncloud/react-page-transition@0.0.2":
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/react-page-transition/-/react-page-transition-0.0.2.tgz#8883524cf062bc9d5ce4ff28d9e883e639cb7793"
+  integrity sha512-tC9uvlVYOSMoVo54Mst0IajDCmGhiT36YKUciMAJ1wu6LG/RBub7N23BcTHsTwSjwPH72zRuY3Tz3UAJpvwkGQ==
+  dependencies:
+    "@lemoncloud/page-transition-core" "workspace:*"
+
 "@microsoft/api-extractor-model@7.32.2":
   version "7.32.2"
   resolved "https://registry.yarnpkg.com/@microsoft/api-extractor-model/-/api-extractor-model-7.32.2.tgz#2b891b2bad26d6ba19d7cc21c23510c8c6f05476"

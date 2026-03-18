@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { AuthorizationStatus } from '@react-native-firebase/messaging';
-import { FcmService } from '../../../common';
+import { fcmService } from '../../../common';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -74,7 +74,7 @@ export const FcmTestScreen = () => {
      */
     const checkPermission = async () => {
         try {
-            const authStatus = await FcmService.hasPermission();
+            const authStatus = await fcmService.hasPermission();
             let statusStr = '';
             switch (authStatus) {
                 case AuthorizationStatus.NOT_DETERMINED:
@@ -109,7 +109,7 @@ export const FcmTestScreen = () => {
     const handleRequestPermission = async () => {
         try {
             addLog('info', 'Requesting permission...');
-            const enabled = await FcmService.requestPermission();
+            const enabled = await fcmService.requestPermission();
             addLog(enabled ? 'success' : 'error', `Request Result: ${enabled ? 'Granted' : 'Denied'}`);
             await checkPermission();
         } catch (error: any) {
@@ -123,7 +123,7 @@ export const FcmTestScreen = () => {
     const handleGetToken = async () => {
         try {
             addLog('info', 'Fetching FCM Token...');
-            const fcmToken = await FcmService.getToken();
+            const fcmToken = await fcmService.getToken();
             if (fcmToken) {
                 setToken(fcmToken);
                 addLog('success', 'Token Received');
@@ -146,7 +146,7 @@ export const FcmTestScreen = () => {
         }
         try {
             addLog('info', 'Registering for Remote Messages (APNs)...');
-            await FcmService.registerAPNs();
+            await fcmService.registerAPNs();
             addLog('success', 'APNs Registration Call Completed');
         } catch (error: any) {
             addLog('error', `APNs Register Error: ${error.message}`);
@@ -158,7 +158,7 @@ export const FcmTestScreen = () => {
      */
     const handleDeleteToken = async () => {
         try {
-            await FcmService.deleteToken();
+            await fcmService.deleteToken();
             setToken('');
             addLog('info', 'Token Deleted. Request new token to refresh.');
         } catch (error: any) {
@@ -173,15 +173,15 @@ export const FcmTestScreen = () => {
         addLog('info', 'Initializing FCM listeners...');
         checkPermission();
 
-        const unsubscribeOnMessage = FcmService.onMessage(async remoteMessage => {
+        const unsubscribeOnMessage = fcmService.onMessage(async remoteMessage => {
             addLog('event', `[Foreground] ${JSON.stringify(remoteMessage.notification || remoteMessage.data)}`);
         });
 
-        const unsubscribeOnNotificationOpenedApp = FcmService.onNotificationOpenedApp(remoteMessage => {
+        const unsubscribeOnNotificationOpenedApp = fcmService.onNotificationOpenedApp(remoteMessage => {
             addLog('event', `[OpenedApp] ${JSON.stringify(remoteMessage.notification || remoteMessage.data)}`);
         });
 
-        const unsubscribeOnTokenRefresh = FcmService.onTokenRefresh(newToken => {
+        const unsubscribeOnTokenRefresh = fcmService.onTokenRefresh(newToken => {
             setToken(newToken);
             addLog('event', `[TokenRefresh] New Token: ${newToken.substring(0, 10)}...`);
         });

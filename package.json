@@ -1,6 +1,6 @@
 {
     "name": "@chatic/source",
-    "version": "0.31.0",
+    "version": "0.32.0",
     "license": "MIT",
     "scripts": {
         "clean:cache": "(rm -rf ./node_modules/.vite ./node_modules/.cache || true) && (rm -rf ./.nx || true)",
@@ -70,7 +70,7 @@
         "@lemoncloud/chatic-sockets-api": "^0.26.125",
         "@lemoncloud/chatic-pushes-api": "^0.26.124",
         "@lemoncloud/lemon-web-core": "^1.5.0",
-        "@lemoncloud/react-page-transition": "0.0.1",
+        "@lemoncloud/react-page-transition": "0.0.2",
         "@radix-ui/react-accordion": "^1.2.1",
         "@radix-ui/react-alert-dialog": "^1.1.2",
         "@radix-ui/react-avatar": "^1.1.1",

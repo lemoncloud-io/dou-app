@@ -11,7 +11,7 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StorageService } from '../../../common';
+import { storageService } from '../../../common';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -29,9 +29,9 @@ export const StorageTestScreen = () => {
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
     const loadAllKeys = () => {
-        const keys = StorageService.getAllKeys();
+        const keys = storageService.getAllKeys();
         const loadedItems = keys.map(key => {
-            const value = StorageService.get(key);
+            const value = storageService.get(key);
             return { key, value };
         });
         setItems(loadedItems);
@@ -49,7 +49,7 @@ export const StorageTestScreen = () => {
                 text: '삭제',
                 style: 'destructive',
                 onPress: () => {
-                    StorageService.remove(key);
+                    storageService.remove(key);
                     loadAllKeys();
                 },
             },
@@ -63,7 +63,7 @@ export const StorageTestScreen = () => {
                 text: '삭제',
                 style: 'destructive',
                 onPress: () => {
-                    StorageService.clearAll();
+                    storageService.clearAll();
                     loadAllKeys();
                 },
             },

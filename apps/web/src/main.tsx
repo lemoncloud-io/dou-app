@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 
 import * as ReactDOM from 'react-dom/client';
 
-import '@lemoncloud/react-page-transition/styles.css';
+import '@lemoncloud/page-transition-core/styles.css';
 
 import App from './app/app';
 import { initWebVitals } from './app/utils/webVitals';

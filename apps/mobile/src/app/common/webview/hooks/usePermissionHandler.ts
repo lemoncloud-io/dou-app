@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { PermissionService, Logger } from '../../services';
+import { permissionService, logger } from '../../services';
 import type { WebViewBridge } from './useBaseBridge';
 import type { AppMessageData, PermissionStatus, RequestPermission } from '@chatic/app-messages';
 
@@ -9,11 +9,11 @@ export const usePermissionHandler = (bridge: WebViewBridge) => {
             const { permission } = data;
 
             try {
-                const isGranted = await PermissionService.request(permission);
+                const isGranted = await permissionService.request(permission);
                 let status: PermissionStatus = isGranted ? 'GRANTED' : 'DENIED';
 
                 if (!isGranted) {
-                    const checkResult = await PermissionService.check(permission);
+                    const checkResult = await permissionService.check(permission);
                     status = checkResult ? 'GRANTED' : 'DENIED';
                 }
 
@@ -26,7 +26,7 @@ export const usePermissionHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (error) {
-                Logger.error('PERMISSION', 'PermissionHandler error', error);
+                logger.error('PERMISSION', 'PermissionHandler error', error);
                 const response: AppMessageData<'OnRequestPermission'> = {
                     type: 'OnRequestPermission',
                     data: {

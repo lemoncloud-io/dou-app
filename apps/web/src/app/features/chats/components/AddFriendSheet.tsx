@@ -144,7 +144,11 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="bottom" className="rounded-t-[20px] p-0 border-0 bg-background" hideClose>
+            <SheetContent
+                side="bottom"
+                className="rounded-t-[20px] p-0 border-0 bg-background pb-safe-bottom"
+                hideClose
+            >
                 <div className="flex items-center justify-between px-4 py-[14px]">
                     <span className="text-[16px] font-medium leading-[1.5] tracking-[-0.02em] text-foreground">
                         {t('addFriend.title')}

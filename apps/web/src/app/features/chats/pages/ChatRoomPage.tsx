@@ -24,6 +24,7 @@ import { useMyChannels } from '../../home/hooks/useMyChannels';
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { MessageBubble } from '../components/MessageBubble';
 import { ReadStatus } from '../components/ReadStatus';
+import { useAppChecker } from '@chatic/device-utils';
 
 export const ChatRoomPage = () => {
     const navigate = useNavigateWithTransition();
@@ -50,6 +51,7 @@ export const ChatRoomPage = () => {
     } = useChatMessages(dynamicProfile?.uid ?? null, channelId ?? null);
 
     const lastMessage = useWebSocketV2Store((s: { lastMessage: unknown }) => s.lastMessage);
+    const { isIOS } = useAppChecker();
 
     useReadMessage(channelId, messages, applyReadEvent);
 
@@ -209,7 +211,7 @@ export const ChatRoomPage = () => {
     }
 
     return (
-        <div className="flex h-screen flex-col bg-background pb-safe-bottom">
+        <div className="flex  h-screen flex-col pt-safe-top bg-background ">
             {/* Header */}
             <header className="z-10 flex items-center justify-between border-b border-border px-4 py-4">
                 <button onClick={() => navigate(-1)} className="p-1">
@@ -240,7 +242,10 @@ export const ChatRoomPage = () => {
             </header>
 
             {/* Messages */}
-            <div ref={messagesEndRef} className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 pt-2">
+            <div
+                ref={messagesEndRef}
+                className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 pt-2 overscroll-none"
+            >
                 {messages.length === 0 ? (
                     <div className="relative flex flex-1 flex-col items-center justify-center">
                         {/* Date */}
@@ -358,7 +363,14 @@ export const ChatRoomPage = () => {
             )}
 
             {/* Input */}
-            <div className={`border-t border-border bg-background px-4 py-3 mb-safe-bottom`}>
+            <div
+                className="border-t border-border bg-background px-4 py-3"
+                style={{
+                    paddingBottom: isIOS
+                        ? `calc(12px + max(var(--safe-bottom, 0px), var(--keyboard-height, 0px)))`
+                        : `calc(12px + var(--safe-bottom, 0px) + var(--keyboard-height, 0px))`,
+                }}
+            >
                 <div className="flex items-end gap-1.5 rounded-2xl bg-muted px-3 py-1.5">
                     <textarea
                         ref={inputRef}

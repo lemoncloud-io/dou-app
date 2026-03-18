@@ -1,5 +1,35 @@
 # Changelog
 
+## [2026-03-18] - No version updates
+
+### Chores
+
+- (deps) update page transition package and import
+
+## [2026-03-17] - root@0.32.0, @chatic/web@0.29.0
+
+### Features
+
+- add zustand storage adapter
+- update theme store
+
+### Bug Fixes
+
+- resolve keyboard area padding issue
+
+### Refactor
+
+- refactor App
+- update code convention
+
+### Chores
+
+- add comment to useQueryString hook
+
+### Other
+
+- style: apply safe-area
+
 ## [2026-03-17] - root@0.31.0, @chatic/web@0.28.0
 
 ### Features

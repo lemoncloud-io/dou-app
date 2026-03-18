@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { Logger } from '../../services';
+import { logger } from '../../services';
 import { useWebViewBridge } from '../index';
 
 import type { AppLogInfo, AppMessageData } from '@chatic/app-messages';
@@ -10,7 +10,7 @@ export const useAppBridge = (webViewRef: React.RefObject<WebView | null>) => {
     const bridge = useWebViewBridge(webViewRef);
 
     useEffect(() => {
-        const unsubscribe = Logger.subscribe((level, tag, message, data, error) => {
+        const unsubscribe = logger.subscribe((level, tag, message, data, error) => {
             try {
                 const logPayload: AppLogInfo = {
                     level: level,

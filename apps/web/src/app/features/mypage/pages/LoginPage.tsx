@@ -35,50 +35,56 @@ export const LoginPage = () => {
     };
 
     return (
-        <div className="flex h-full flex-col bg-background px-4">
+        <div className="flex h-full flex-col bg-background px-4 pt-safe-top">
             <header className="flex items-center py-3">
                 <button onClick={() => navigate(-1)} className="p-2 -ml-2">
                     <ChevronLeft size={24} strokeWidth={2} />
                 </button>
             </header>
 
-            <div className="mt-6 mb-8">
-                <h1 className="text-[20px] font-semibold leading-[1.35] ">{t('mypageLogin.title')}</h1>
+            <div className="flex-1 overflow-y-auto overscroll-none pb-safe-bottom">
+                <div className="mt-6 mb-8">
+                    <h1 className="text-[20px] font-semibold leading-[1.35] ">{t('mypageLogin.title')}</h1>
+                </div>
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-2">
+                        <label className="text-[14px] font-semibold text-[#53555B]">
+                            {t('mypageLogin.emailLabel')}
+                        </label>
+                        <Input
+                            type="email"
+                            value={uid}
+                            onChange={e => setUid(e.target.value)}
+                            placeholder={t('mypageLogin.emailPlaceholder')}
+                            required
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <label className="text-[14px] font-semibold text-[#53555B]">
+                            {t('mypageLogin.passwordLabel')}
+                        </label>
+                        <Input
+                            type="password"
+                            value={pwd}
+                            onChange={e => setPwd(e.target.value)}
+                            placeholder={t('mypageLogin.passwordPlaceholder')}
+                            required
+                        />
+                    </div>
+
+                    <div className="mt-4">
+                        <button
+                            type="submit"
+                            disabled={isPending}
+                            className="w-full rounded-[100px] bg-[#B0EA10] py-3 text-[16px] font-semibold text-[#222325] disabled:opacity-50"
+                        >
+                            {isPending ? t('mypageLogin.loading') : t('mypageLogin.submit')}
+                        </button>
+                    </div>
+                </form>
             </div>
-
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-                <div className="flex flex-col gap-2">
-                    <label className="text-[14px] font-semibold text-[#53555B]">{t('mypageLogin.emailLabel')}</label>
-                    <Input
-                        type="email"
-                        value={uid}
-                        onChange={e => setUid(e.target.value)}
-                        placeholder={t('mypageLogin.emailPlaceholder')}
-                        required
-                    />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                    <label className="text-[14px] font-semibold text-[#53555B]">{t('mypageLogin.passwordLabel')}</label>
-                    <Input
-                        type="password"
-                        value={pwd}
-                        onChange={e => setPwd(e.target.value)}
-                        placeholder={t('mypageLogin.passwordPlaceholder')}
-                        required
-                    />
-                </div>
-
-                <div className="mt-4">
-                    <button
-                        type="submit"
-                        disabled={isPending}
-                        className="w-full rounded-[100px] bg-[#B0EA10] py-3 text-[16px] font-semibold text-[#222325] disabled:opacity-50"
-                    >
-                        {isPending ? t('mypageLogin.loading') : t('mypageLogin.submit')}
-                    </button>
-                </div>
-            </form>
         </div>
     );
 };
