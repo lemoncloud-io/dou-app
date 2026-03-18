@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-03-18] - root@0.33.1, @chatic/web@0.30.1, @chatic/admin@0.4.1
+
+### Chores
+
+- rename Chatic to DoU in workflows and UI
+
 ## [2026-03-18] - root@0.33.0, @chatic/web@0.30.0
 
 ### Features
