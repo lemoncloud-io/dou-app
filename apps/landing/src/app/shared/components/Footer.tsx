@@ -31,6 +31,9 @@ export const Footer = (): JSX.Element => {
                     <Link to="/policy/privacy" className="hover:text-foreground transition-colors">
                         {t('footer.privacy')}
                     </Link>
+                    <Link to="/policy/child" className="hover:text-foreground transition-colors">
+                        {t('footer.child')}
+                    </Link>
                 </div>
 
                 {/* Copyright */}
