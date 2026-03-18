@@ -218,6 +218,7 @@
             "title": "Terms & Policies",
             "terms": "Terms of Service",
             "privacy": "Privacy Policy",
+            "child": "Child Policy",
             "effectiveDate": "Effective Date"
         },
         "logoutDialog": {
