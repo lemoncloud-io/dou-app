@@ -54,7 +54,7 @@ export const useDeviceTokenRegistration = () => {
                 deviceId,
                 deviceToken: newToken,
                 platform: window.CHATIC_APP_PLATFORM,
-                application: window.CHATIC_APP_APPLICATION,
+                application: 'chatic',
             });
             localStorage.setItem(DEVICE_TOKEN_STORAGE_KEY, newToken);
             hasRegistered.current = true;
