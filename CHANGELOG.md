@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-03-18] - No version updates
+
+### Chores
+
+- (deps) update page transition package and import
+
 ## [2026-03-17] - root@0.32.0, @chatic/web@0.29.0
 
 ### Features
