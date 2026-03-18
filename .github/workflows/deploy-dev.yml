@@ -290,13 +290,13 @@ jobs:
                       channel: ${{ secrets.CHATIC_CHANNEL }}
                       unfurl_links: false
                       unfurl_media: false
-                      text: "Chatic 개발 배포 알림"
+                      text: "DoU 개발 배포 알림"
                       blocks: [
                          {
                              "type": "header",
                              "text": {
                                  "type": "plain_text",
-                                 "text": ":dou: Chatic 개발 환경 배포 완료"
+                                 "text": ":dou: DoU 개발 환경 배포 완료"
                              }
                          },
                          {
@@ -387,13 +387,13 @@ jobs:
                       channel: ${{ secrets.CHATIC_CHANNEL }}
                       unfurl_links: false
                       unfurl_media: false
-                      text: "Chatic 개발 배포 실패"
+                      text: "DoU 개발 배포 실패"
                       blocks: [
                           {
                               "type": "header",
                               "text": {
                                   "type": "plain_text",
-                                  "text": ":x: Chatic 개발 환경 배포 실패"
+                                  "text": ":x: DoU 개발 환경 배포 실패"
                               }
                           },
                           {

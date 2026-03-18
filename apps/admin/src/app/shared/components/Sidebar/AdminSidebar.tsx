@@ -36,9 +36,9 @@ export const AdminSidebar = (): JSX.Element => {
                     )}
                 >
                     <div className="flex items-center gap-3">
-                        <img src={Logo.purpleSymbol} alt="Chatic" className="h-8 w-8" />
+                        <img src={Logo.purpleSymbol} alt="DoU" className="h-8 w-8" />
                         {!isEffectivelyCollapsed && (
-                            <span className="text-lg font-semibold text-foreground">Chatic Admin</span>
+                            <span className="text-lg font-semibold text-foreground">DoU Admin</span>
                         )}
                     </div>
                 </div>

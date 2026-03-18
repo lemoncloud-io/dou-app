@@ -287,7 +287,7 @@ jobs:
                   token: ${{ secrets.RELEASE_BOT_TOKEN }}
                   payload: |
                       channel: ${{ secrets.CHATIC_CHANNEL }}
-                      text: "Chatic PROD 배포 알림"
+                      text: "DoU PROD 배포 알림"
                       unfurl_links: false
                       unfurl_media: false
                       blocks: [
@@ -295,7 +295,7 @@ jobs:
                               "type": "header",
                               "text": {
                                   "type": "plain_text",
-                                  "text": ":dou: Chatic PROD 환경 배포 완료"
+                                  "text": ":dou: DoU PROD 환경 배포 완료"
                               }
                           },
                           {
@@ -394,7 +394,7 @@ jobs:
                   token: ${{ secrets.RELEASE_BOT_TOKEN }}
                   payload: |
                       channel: ${{ secrets.CHATIC_CHANNEL }}
-                      text: "Chatic PROD 배포 알림"
+                      text: "DoU PROD 배포 알림"
                       unfurl_links: false
                       unfurl_media: false
                       blocks: [
@@ -402,7 +402,7 @@ jobs:
                               "type": "header",
                               "text": {
                                   "type": "plain_text",
-                                  "text": ":x: Chatic PROD 환경 배포 실패"
+                                  "text": ":x: DoU PROD 환경 배포 실패"
                               }
                           },
                           {
