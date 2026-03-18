@@ -15,6 +15,7 @@ import { initializeMessageListener } from '@chatic/app-messages';
 
 import { WebSocketV2Connection } from './components';
 import { Router } from './routes';
+import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
 import i18n from '../i18n';
 
 import type { ErrorInfo } from 'react';
@@ -40,7 +41,8 @@ export function App() {
     const isWebCoreReady = useInitWebCore();
     const { isAuthenticated, profile } = useWebCoreStore();
     const { isInitialized: isTokenInitialized, initStatus } = useTokenRefresh(isWebCoreReady);
-    const canRenderApp = isWebCoreReady && (!isAuthenticated || (isTokenInitialized && (!!profile || initStatus === 'failed')));
+    const canRenderApp =
+        isWebCoreReady && (!isAuthenticated || (isTokenInitialized && (!!profile || initStatus === 'failed')));
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
     useEffect(() => {
@@ -76,6 +78,7 @@ export function App() {
                         <QueryClientProvider client={queryClient}>
                             <ThemeProvider>
                                 <WebSocketV2Connection />
+                                <DeviceTokenRegistration />
                                 <Router />
                                 <GlobalLoader />
                                 <SonnerToaster />
