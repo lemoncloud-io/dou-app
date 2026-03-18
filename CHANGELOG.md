@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-03-18] - root@0.33.0, @chatic/web@0.30.0
+
+### Features
+
+- register device token after authentication
+- add debug logs for device token registration
+- add registerDeviceToken api and useRegisterDeviceToken hook
+
+### Bug Fixes
+
+- hardcode application name to chatic for device token registration
+
+### Chores
+
+- update dependencies
+
 ## [2026-03-18] - No version updates
 
 ### Chores
