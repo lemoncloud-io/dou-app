@@ -28,16 +28,26 @@ export const useDeviceTokenRegistration = () => {
         if (hasRegistered.current) return;
 
         isHandlerReady.current = true;
+        console.log('[DeviceToken] isAppEnv detected, requesting FetchFcmToken...');
         postMessage({ type: 'FetchFcmToken' });
     }, [isAuthenticated]);
 
     useHandleAppMessage('OnFetchFcmToken', async message => {
-        if (!isAuthenticated) return;
+        console.log('[DeviceToken] OnFetchFcmToken received:', message.data);
+        if (!isAuthenticated) {
+            console.log('[DeviceToken] not authenticated, skip');
+            return;
+        }
         const newToken = message.data.token;
         if (!newToken) return;
 
         const storedToken = localStorage.getItem(DEVICE_TOKEN_STORAGE_KEY);
-        if (storedToken === newToken) return;
+        console.log('[DeviceToken] received token:', newToken, '/ stored:', storedToken);
+
+        if (storedToken === newToken) {
+            console.log('[DeviceToken] token unchanged, skip register');
+            return;
+        }
 
         try {
             await registerDeviceToken({
@@ -48,6 +58,7 @@ export const useDeviceTokenRegistration = () => {
             });
             localStorage.setItem(DEVICE_TOKEN_STORAGE_KEY, newToken);
             hasRegistered.current = true;
+            console.log('[DeviceToken] register success');
         } catch (error) {
             console.error('[DeviceToken] register failed:', error);
         }
