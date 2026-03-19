@@ -90,7 +90,7 @@ export const PlaceList = ({
     isPlacesLoading,
 }: PlaceListProps) => {
     const { t } = useTranslation();
-    const { isCloudUser } = useWebCoreStore();
+    const { isCloudUser, isInvited } = useWebCoreStore();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
     const [isPending, setIsPending] = useState(false);
     const [filter, setFilter] = useState<PlaceFilter>('all');
@@ -99,23 +99,6 @@ export const PlaceList = ({
 
     const profileId = cloudCore.getCloudToken()?.id;
     const selectedCloudId = cloudCore.getSelectedCloudId();
-
-    // 순수 게스트(isGuest && !isInvited)는 DEFAULT_PLACE만 표시
-    if (!isCloudUser) {
-        return (
-            <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
-                <PlaceItem place={DEFAULT_PLACE} isSelected isDisabled onSelectPlace={_id => _id} />
-            </div>
-        );
-    }
-
-    if (!selectedCloudId) {
-        return (
-            <div className="flex flex-col items-center gap-2 py-10">
-                <p className="text-sm text-muted-foreground">{t('placeList.selectCloud')}</p>
-            </div>
-        );
-    }
 
     const filteredPlaces = (() => {
         if (filter === 'mine') return places.filter(p => p.ownerId === profileId);
@@ -160,6 +143,24 @@ export const PlaceList = ({
         if (hasSelected || filteredPlaces.length === 0) return;
         handleSelectPlace(filteredPlaces[0].id);
     }, [filteredPlaces]);
+
+    // 순수 게스트(isGuest && !isInvited)는 DEFAULT_PLACE만 표시
+    if (!isCloudUser) {
+        return (
+            <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
+                <PlaceItem place={DEFAULT_PLACE} isSelected isDisabled onSelectPlace={_id => _id} />
+            </div>
+        );
+    }
+
+    // isInvited는 cloud 선택 없이도 place 목록 표시
+    if (!selectedCloudId && !isInvited) {
+        return (
+            <div className="flex flex-col items-center gap-2 py-10">
+                <p className="text-sm text-muted-foreground">{t('placeList.selectCloud')}</p>
+            </div>
+        );
+    }
 
     const filterLabels: Record<PlaceFilter, string> = {
         all: t('placeList.filterAll'),
