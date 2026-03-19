@@ -250,6 +250,9 @@
         "switchingCloud": "Switching cloud...",
         "switchingPlace": "Switching place..."
     },
+    "socket": {
+        "connecting": "Connecting to server..."
+    },
     "homePage": {
         "places": "Places",
         "roomCreated": "Chat room created",
@@ -271,7 +274,8 @@
         "filterMine": "My Places",
         "filterInvited": "Invited Places",
         "sortSection": "Manage",
-        "sortOrder": "Manage Places"
+        "sortOrder": "Manage Places",
+        "selectCloud": "Please select a cloud first"
     },
     "placeOrder": {
         "title": "Place List",
@@ -421,14 +425,19 @@
         "title": "Place Information",
         "createdDate": "Created Date",
         "owner": "Place Owner",
-        "confirm": "Confirm",
+        "confirm": "Done",
         "unnamed": "Unnamed Place",
         "unknownOwner": "Unknown",
         "notFound": "Place not found",
         "myPlace": "My Place",
         "visibility": "Visibility",
         "public": "Public",
-        "private": "Private"
+        "private": "Private",
+        "nameLabel": "Edit Name",
+        "namePlaceholder": "Enter place name",
+        "nameDescription": "Please enter up to 20 characters.",
+        "photoLabel": "Photo",
+        "photoOptional": "[Optional]"
     },
     "workspace": {
         "list": {
@@ -531,7 +540,11 @@
         "submit": "Sign In",
         "loading": "Signing in...",
         "error": "Sign in failed",
-        "errorDescription": "Please check your email or password."
+        "errorDescription": "Please check your email or password.",
+        "orContinueWith": "or",
+        "continueWithGoogle": "Continue with Google",
+        "continueWithApple": "Continue with Apple",
+        "oauthFailed": "Social login failed."
     },
     "createPlace": {
         "title": "Create Place",

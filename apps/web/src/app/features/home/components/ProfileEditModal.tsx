@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@chatic/ui-kit/components/ui/separator';
 import { useWebCoreStore } from '@chatic/web-core';
 
+import { useUpdateMyProfile } from '../hooks';
+
 interface ProfileEditModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -20,9 +22,9 @@ interface ProfileEditModalProps {
 export const ProfileEditModal = ({ isOpen, onClose }: ProfileEditModalProps) => {
     const { t } = useTranslation();
     const profile = useWebCoreStore(state => state.profile);
-    const updateProfile = useWebCoreStore(state => state.updateProfile);
+    const { updateProfile, isPending: isUpdatePending } = useUpdateMyProfile();
 
-    const [isLoading, setIsLoading] = useState(false);
+    const isLoading = isUpdatePending;
     const [formData, setFormData] = useState({
         nick: profile?.$user?.nick || '',
         gender: profile?.$user?.gender || '',
@@ -53,12 +55,10 @@ export const ProfileEditModal = ({ isOpen, onClose }: ProfileEditModalProps) => 
     const handleSave = async () => {
         if (!validateForm()) return;
 
-        setIsLoading(true);
         try {
             await updateProfile({
                 nick: formData.nick.trim(),
-                gender: formData.gender,
-                text: formData.text.trim(),
+                thumbnail: formData.text.trim() || undefined,
             });
 
             toast.success(t('profile.updateSuccess', 'Profile updated successfully'));
@@ -66,8 +66,6 @@ export const ProfileEditModal = ({ isOpen, onClose }: ProfileEditModalProps) => 
         } catch (error) {
             toast.error(t('profile.updateError', 'Failed to update profile'));
             console.error('Profile update error:', error);
-        } finally {
-            setIsLoading(false);
         }
     };
 

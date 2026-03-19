@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Bell, ChevronDown, Plus, Search, User } from 'lucide-react';
+import { ArrowLeftRight, Bell, ChevronDown, Search, User } from 'lucide-react';
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -182,20 +182,12 @@ export const HomePage = () => {
 
             {/* Chat List */}
             <section className="flex-1 px-4 pt-[18px]">
-                <div className="mb-[18px] flex items-center justify-between">
-                    <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
-                        Chat
-                    </span>
-                    {canCreateChannel && !isChannelsLoading && (
-                        <button
-                            onClick={handleCreateChannel}
-                            className="flex h-[24px] w-[24px] items-center justify-center"
-                        >
-                            <Plus size={24} className="text-foreground" />
-                        </button>
-                    )}
-                </div>
-                <ChannelList workspaceId={selectedPlaceId ?? ''} />
+                <ChannelList
+                    workspaceId={selectedPlaceId ?? ''}
+                    canCreateChannel={canCreateChannel}
+                    isChannelsLoading={isChannelsLoading}
+                    onCreateChannel={handleCreateChannel}
+                />
             </section>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />

@@ -90,8 +90,7 @@ export const PlaceList = ({
     isPlacesLoading,
 }: PlaceListProps) => {
     const { t } = useTranslation();
-    const { isInvited } = useWebCoreStore();
-    const isCloudUser = !isGuest || isInvited;
+    const { isCloudUser, isInvited } = useWebCoreStore();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
     const [isPending, setIsPending] = useState(false);
     const [filter, setFilter] = useState<PlaceFilter>('all');
@@ -99,21 +98,13 @@ export const PlaceList = ({
     const setGlobalLoading = useLoaderStore(s => s.setIsLoading);
 
     const profileId = cloudCore.getCloudToken()?.id;
+    const selectedCloudId = cloudCore.getSelectedCloudId();
 
     const filteredPlaces = (() => {
-        if (!isCloudUser) return [DEFAULT_PLACE];
         if (filter === 'mine') return places.filter(p => p.ownerId === profileId);
         if (filter === 'invited') return places.filter(p => p.ownerId !== profileId);
         return places;
     })();
-
-    const displayPlaces = isCloudUser ? filteredPlaces : [DEFAULT_PLACE];
-
-    useEffect(() => {
-        const hasSelected = !!cloudCore.getSelectedPlaceId();
-        if (!isCloudUser || hasSelected || displayPlaces.length === 0) return;
-        handleSelectPlace(displayPlaces[0].id);
-    }, [displayPlaces]);
 
     const handleSelectPlace = async (placeId: string) => {
         const cloudToken = cloudCore.getCloudToken();
@@ -128,7 +119,7 @@ export const PlaceList = ({
             cloudCore.saveSelectedSiteId(placeId);
 
             const currentProfile = useWebCoreStore.getState().profile;
-            const { Token, ...cloudProfile } = refreshed;
+            const { Token: _token, ...cloudProfile } = refreshed;
             useWebCoreStore.getState().setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
 
             useWebSocketV2Store.getState().setIsVerified(false);
@@ -147,6 +138,30 @@ export const PlaceList = ({
         }
     };
 
+    useEffect(() => {
+        const hasSelected = !!cloudCore.getSelectedPlaceId();
+        if (hasSelected || filteredPlaces.length === 0) return;
+        handleSelectPlace(filteredPlaces[0].id);
+    }, [filteredPlaces]);
+
+    // 순수 게스트(isGuest && !isInvited)는 DEFAULT_PLACE만 표시
+    if (!isCloudUser) {
+        return (
+            <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
+                <PlaceItem place={DEFAULT_PLACE} isSelected isDisabled onSelectPlace={_id => _id} />
+            </div>
+        );
+    }
+
+    // isInvited는 cloud 선택 없이도 place 목록 표시
+    if (!selectedCloudId && !isInvited) {
+        return (
+            <div className="flex flex-col items-center gap-2 py-10">
+                <p className="text-sm text-muted-foreground">{t('placeList.selectCloud')}</p>
+            </div>
+        );
+    }
+
     const filterLabels: Record<PlaceFilter, string> = {
         all: t('placeList.filterAll'),
         mine: t('placeList.filterMine'),
@@ -159,58 +174,56 @@ export const PlaceList = ({
                 <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
                     {t('homePage.places')}
                 </span>
-                {isCloudUser && (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button
-                                className={cn(
-                                    'flex items-center gap-[4px] rounded-[6px] border px-[8px] py-[3px] transition-colors',
-                                    filter === 'all'
-                                        ? 'border-border text-muted-foreground'
-                                        : 'border-[#C139E3] bg-[#C139E3]/10 text-[#C139E3]'
-                                )}
-                            >
-                                <SlidersHorizontal size={13} />
-                                <span className="text-[12px] font-medium">{filterLabels[filter]}</span>
-                                <ChevronDown size={11} />
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="min-w-[160px]">
-                            <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-                                {t('placeList.filterSection')}
-                            </DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {(['all', 'mine', 'invited'] as PlaceFilter[]).map(f => (
-                                <DropdownMenuItem
-                                    key={f}
-                                    onClick={() => setFilter(f)}
-                                    className="flex items-center justify-between"
-                                >
-                                    <span
-                                        className={cn(
-                                            filter === f ? 'font-semibold text-foreground' : 'text-muted-foreground'
-                                        )}
-                                    >
-                                        {filterLabels[f]}
-                                    </span>
-                                    {filter === f && <Check size={14} className="text-[#C139E3]" />}
-                                </DropdownMenuItem>
-                            ))}
-                            {onNavigateToOrder && (
-                                <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-                                        {t('placeList.sortSection')}
-                                    </DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={onNavigateToOrder} className="text-muted-foreground">
-                                        {t('placeList.sortOrder')}
-                                    </DropdownMenuItem>
-                                </>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button
+                            className={cn(
+                                'flex items-center gap-[4px] rounded-[6px] border px-[8px] py-[3px] transition-colors',
+                                filter === 'all'
+                                    ? 'border-border text-muted-foreground'
+                                    : 'border-[#C139E3] bg-[#C139E3]/10 text-[#C139E3]'
                             )}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )}
+                        >
+                            <SlidersHorizontal size={13} />
+                            <span className="text-[12px] font-medium">{filterLabels[filter]}</span>
+                            <ChevronDown size={11} />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-[160px]">
+                        <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                            {t('placeList.filterSection')}
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {(['all', 'mine', 'invited'] as PlaceFilter[]).map(f => (
+                            <DropdownMenuItem
+                                key={f}
+                                onClick={() => setFilter(f)}
+                                className="flex items-center justify-between"
+                            >
+                                <span
+                                    className={cn(
+                                        filter === f ? 'font-semibold text-foreground' : 'text-muted-foreground'
+                                    )}
+                                >
+                                    {filterLabels[f]}
+                                </span>
+                                {filter === f && <Check size={14} className="text-[#C139E3]" />}
+                            </DropdownMenuItem>
+                        ))}
+                        {onNavigateToOrder && (
+                            <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                                    {t('placeList.sortSection')}
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={onNavigateToOrder} className="text-muted-foreground">
+                                    {t('placeList.sortOrder')}
+                                </DropdownMenuItem>
+                            </>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
             {!isGuest && !isPlacesLoading && onCreatePlace && (
                 <button onClick={onCreatePlace} className="flex items-center justify-center rounded-[8px]">
@@ -220,7 +233,7 @@ export const PlaceList = ({
         </div>
     );
 
-    if (isCloudUser && isLoading) {
+    if (isLoading) {
         return (
             <div>
                 {header}
@@ -236,7 +249,7 @@ export const PlaceList = ({
         );
     }
 
-    if (isCloudUser && isError) {
+    if (isError) {
         return (
             <div>
                 {header}
@@ -251,7 +264,7 @@ export const PlaceList = ({
         );
     }
 
-    if (isCloudUser && displayPlaces.length === 0) {
+    if (filteredPlaces.length === 0) {
         return (
             <div>
                 {header}
@@ -264,7 +277,7 @@ export const PlaceList = ({
         <div>
             {header}
             <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
-                {displayPlaces.map(place => (
+                {filteredPlaces.map(place => (
                     <PlaceItem
                         key={place.id}
                         place={place}
