@@ -69,102 +69,73 @@ export const PlaceInfoPage = () => {
             await updatePlace({ sid: placeId, name });
             navigate(-1);
         } catch (error) {
-            toast({ title: t('common.error', '오류가 발생했습니다'), variant: 'destructive' });
+            toast({ title: t('error.unknownError'), variant: 'destructive' });
         }
     };
 
-    const title = t('placeInfo.title', '플레이스 정보');
+    const title = t('placeInfo.title');
 
     if (!place) {
         return (
-            <div className="flex min-h-screen flex-col bg-white pt-safe-top">
-                <PageHeader title={title} />
+            <div className="fixed inset-0 flex flex-col overflow-hidden bg-background pt-safe-top">
+                <div className="shrink-0">
+                    <PageHeader title={title} />
+                </div>
                 <div className="flex flex-1 items-center justify-center">
-                    <span className="text-[#84888F]">{t('placeInfo.notFound', '플레이스를 찾을 수 없습니다')}</span>
+                    <span className="text-muted-foreground">{t('placeInfo.notFound')}</span>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex min-h-screen flex-col bg-white pt-safe-top">
-            <PageHeader title={title} />
+        <div className="fixed inset-0 flex flex-col overflow-hidden bg-background pt-safe-top">
+            <div className="shrink-0">
+                <PageHeader title={title} />
+            </div>
 
-            <div className="flex flex-1 flex-col gap-[10px] pt-[14px] px-4">
-                {/* 만든 날짜 */}
-                <div className="flex items-center gap-[14px]">
-                    <div className="flex flex-1 items-center gap-3 rounded-lg px-4 py-3">
-                        <Calendar size={22} className="shrink-0 text-[#53555B]" />
-                        <div className="flex flex-col gap-1.5">
-                            <span className="text-[14px] font-semibold leading-[1.286] tracking-[0.5%] text-[#53555B]">
-                                {t('placeInfo.createdDate', '만든 날짜')}
-                            </span>
-                            <span className="text-[16px] font-medium leading-[1.45] tracking-[-1.5%] text-[#222325]">
-                                {formatDate(place.createdAt)}
-                            </span>
-                        </div>
+            <div className="flex-1 overflow-y-auto overscroll-none px-5 pt-4">
+                <div className="mb-6 flex items-center gap-3">
+                    <Calendar size={18} className="shrink-0 text-muted-foreground" />
+                    <div className="flex flex-col gap-0.5">
+                        <span className="text-[14px] font-semibold text-foreground">{t('placeInfo.createdDate')}</span>
+                        <span className="text-[14px] text-muted-foreground">{formatDate(place.createdAt)}</span>
                     </div>
                 </div>
 
-                {/* 구분선 */}
-                <div className="mx-4 h-px bg-[#F4F5F5]" />
+                <div className="mb-6 h-px bg-border" />
 
-                {/* 이름 수정 */}
-                <div className="flex flex-col gap-5">
-                    <div className="flex flex-col gap-[6px]">
-                        <span className="text-[14px] font-semibold leading-[1.286] tracking-[0.5%] text-[#53555B]">
-                            {t('placeInfo.nameLabel', '이름 수정')}
+                <div className="mb-6">
+                    <label className="mb-2 block text-[14px] font-semibold text-foreground">
+                        {t('placeInfo.nameLabel')}
+                    </label>
+                    <div className="relative">
+                        <input
+                            className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-[15px] text-foreground outline-none transition-colors focus:border-foreground placeholder:text-muted-foreground"
+                            value={name}
+                            onChange={e => setName(e.target.value.slice(0, MAX_NAME_LENGTH))}
+                            placeholder={t('placeInfo.namePlaceholder')}
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[14px] text-muted-foreground">
+                            {name.length}/{MAX_NAME_LENGTH}
                         </span>
-                        <div className="flex flex-col gap-2">
-                            <div className="flex items-center rounded-[10px] border border-[#EAEAEC] bg-white px-3 py-3">
-                                <input
-                                    className="flex-1 text-[16px] font-normal leading-[1.45] tracking-[-1.5%] text-[#222325] outline-none placeholder:text-[#BABCC0]"
-                                    value={name}
-                                    onChange={e => setName(e.target.value.slice(0, MAX_NAME_LENGTH))}
-                                    placeholder={t('placeInfo.namePlaceholder', '플레이스 이름을 입력해 주세요')}
-                                />
-                                <span
-                                    className={cn(
-                                        'text-[13px] font-medium leading-[1.385] tracking-[1.94%] text-[#53555B] opacity-74'
-                                    )}
-                                >
-                                    {name.length}/{MAX_NAME_LENGTH}
-                                </span>
-                            </div>
-                            <span className="pl-0.5 text-[12px] font-medium leading-[1.5] text-[#84888F]">
-                                {t('placeInfo.nameDescription', '20글자 이내로 입력해 주세요.')}
-                            </span>
-                        </div>
                     </div>
-
-                    {/* 사진 */}
-                    <div className="flex flex-col gap-[10px]">
-                        <div className="flex items-center gap-[3px]">
-                            <span className="text-[14px] font-semibold leading-[1.286] tracking-[0.5%] text-[#53555B]">
-                                {t('placeInfo.photoLabel', '사진')}
-                            </span>
-                            <span className="text-[13px] font-medium leading-[1.385] tracking-[0.5%] text-[#BABCC0]">
-                                {t('placeInfo.photoOptional', '[선택]')}
-                            </span>
-                        </div>
-                        <button className="flex size-[86px] items-center justify-center rounded-2xl border border-[#F4F5F5] bg-[#F7F7F7]">
-                            {/* TODO: 이미지 업로드 */}
-                        </button>
-                    </div>
+                    <p className="mt-2 text-[14px] text-muted-foreground">{t('placeInfo.nameDescription')}</p>
                 </div>
             </div>
 
-            {/* 완료 버튼 */}
-            <div className="px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-5">
+            <div className="shrink-0 border-t border-border/50 bg-background px-5 py-4">
                 <button
                     disabled={!canSubmit}
                     onClick={handleSubmit}
                     className={cn(
-                        'h-[50px] w-full rounded-full text-[16px] font-semibold leading-[22px] tracking-[0.08px]',
-                        canSubmit ? 'bg-[#b0ea10] text-[#222325]' : 'bg-[#EAEAEC] text-[#BABCC0]'
+                        'w-full rounded-2xl py-4 text-[15px] font-semibold transition-all',
+                        canSubmit
+                            ? 'bg-[#B0EA10] text-foreground active:scale-[0.98]'
+                            : 'bg-muted text-muted-foreground'
                     )}
                 >
-                    {t('placeInfo.confirm', '완료')}
+                    {t('placeInfo.confirm')}
                 </button>
             </div>
         </div>
