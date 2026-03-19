@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     FlatList,
     LayoutAnimation,
@@ -14,6 +14,7 @@ import { type ProductSubscription } from 'react-native-iap';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSubscriptionIap } from '../../../common';
+import { logger } from '../../../common';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -42,7 +43,7 @@ export const IapTestScreen = () => {
     /**
      * 로그 추가하기
      */
-    const addLog = (type: LogType, message: string) => {
+    const addLog = useCallback((type: LogType, message: string) => {
         const now = new Date();
         const timeString = now.toLocaleTimeString('ko-KR', {
             hour12: false,
@@ -63,7 +64,32 @@ export const IapTestScreen = () => {
         setTimeout(() => {
             flatListRef.current?.scrollToEnd({ animated: true });
         }, 100);
-    };
+    }, []);
+
+    // Logger 서비스 리스너 연동
+    useEffect(() => {
+        const handleAppLog = (level: string, category: string, message: string, ...args: any[]) => {
+            let type: LogType = 'info';
+            const lowerLevel = level?.toLowerCase() || 'info';
+
+            if (lowerLevel === 'error') type = 'error';
+            else if (lowerLevel === 'warn') type = 'event';
+
+            const extra = args.length > 0 ? ` ${JSON.stringify(args)}` : '';
+            addLog(type, `[${category}] ${message}${extra}`);
+        };
+
+        // logger 구현체에 리스너 등록 메서드가 있다고 가정 (메서드명에 맞게 수정 필요)
+        if (typeof logger.subscribe === 'function') {
+            logger.subscribe(handleAppLog);
+        }
+
+        return () => {
+            if (typeof logger.subscribe === 'function') {
+                logger.subscribe(handleAppLog);
+            }
+        };
+    }, [addLog]);
 
     const { products, currentPurchases, loading, handlePurchase, restorePurchases, openSubscriptionManagement } =
         useSubscriptionIap({
@@ -83,14 +109,7 @@ export const IapTestScreen = () => {
 
     const getDisplayPrice = useCallback((item: ProductSubscription) => {
         const p = item as any;
-        if (Platform.OS === 'android') {
-            const offer = p.subscriptionOffers?.[0] || p.subscriptionOfferDetails?.[0];
-            const pricingPhase = offer?.pricingPhases?.pricingPhaseList?.[0];
-            if (pricingPhase?.formattedPrice) {
-                return pricingPhase.formattedPrice;
-            }
-        }
-        return p.localizedPrice || p.price || '가격 문의';
+        return p.displayPrice || p.localizedPrice || p.price || '가격 문의';
     }, []);
 
     const handleClearLogs = () => {
@@ -154,7 +173,7 @@ export const IapTestScreen = () => {
                         </View>
                         {currentPurchases.length > 0 && (
                             <View style={styles.deviceStatusRow}>
-                                <Text style={styles.deviceStatusLabel}>Active SKUs:</Text>
+                                <Text style={styles.deviceStatusLabel}>Active Product:</Text>
                                 <Text style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}>
                                     {currentPurchases.map(p => p.productId).join(', ')}
                                 </Text>
