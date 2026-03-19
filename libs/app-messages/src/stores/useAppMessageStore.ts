@@ -4,7 +4,9 @@ import { AppMessageTypes } from '../types';
 
 import type { AppMessage, AppMessageType } from '../types';
 
-export type MessageHandler<T extends AppMessageType> = (message: Extract<AppMessage, { type: T }>) => void;
+export type MessageHandler<T extends AppMessageType> = (
+    message: Extract<AppMessage, { type: T }>
+) => void | Promise<void>;
 
 export type MessageHandlers = {
     [T in AppMessageType]: Set<MessageHandler<T>>;
