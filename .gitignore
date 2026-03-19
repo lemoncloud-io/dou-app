@@ -2,6 +2,16 @@
 /.claude
 .playwright-mcp
 
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Firebase configuration
+**/GoogleService-Info-Dev.plist
+**/GoogleService-Info-Prod.plist
+**/google-services.json
+
 # compiled output
 dist
 tmp
