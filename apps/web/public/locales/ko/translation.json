@@ -270,7 +270,8 @@
         "filterMine": "내 플레이스",
         "filterInvited": "초대받은 플레이스",
         "sortSection": "관리",
-        "sortOrder": "플레이스 관리"
+        "sortOrder": "플레이스 관리",
+        "selectCloud": "클라우드를 먼저 선택해주세요"
     },
     "placeOrder": {
         "title": "플레이스 목록",
@@ -530,7 +531,11 @@
         "submit": "로그인",
         "loading": "로그인 중...",
         "error": "로그인 실패",
-        "errorDescription": "이메일 또는 비밀번호를 확인해주세요."
+        "errorDescription": "이메일 또는 비밀번호를 확인해주세요.",
+        "orContinueWith": "또는",
+        "continueWithGoogle": "Google로 계속하기",
+        "continueWithApple": "Apple로 계속하기",
+        "oauthFailed": "소셜 로그인에 실패했습니다."
     },
     "createPlace": {
         "title": "플레이스 만들기",

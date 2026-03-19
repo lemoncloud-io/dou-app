@@ -1,4 +1,4 @@
-import { User, Users } from 'lucide-react';
+import { Plus, User, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
@@ -95,26 +95,39 @@ const ChannelItem = ({ channel }: { channel: ChannelView }) => {
 
 interface ChannelListProps {
     workspaceId?: string;
+    canCreateChannel?: boolean;
+    isChannelsLoading?: boolean;
+    onCreateChannel?: () => void;
 }
 
-export const ChannelList = ({ workspaceId: _workspaceId }: ChannelListProps) => {
+export const ChannelList = ({
+    workspaceId: _workspaceId,
+    canCreateChannel,
+    isChannelsLoading,
+    onCreateChannel,
+}: ChannelListProps) => {
     const { t } = useTranslation();
-    // TODO: Filter channels by workspaceId when API is ready
     const { channels, isLoading, isError, retry } = useMyChannels();
     const { isGuest } = useWebCoreStore();
     const hasSelectedPlace = isGuest || !!cloudCore.getSelectedPlaceId();
 
-    if (!hasSelectedPlace) {
-        return (
-            <div className="flex flex-col items-center gap-2 py-10">
-                <p className="text-sm text-muted-foreground">{t('channelList.selectPlaceFirst')}</p>
-            </div>
-        );
-    }
+    if (!hasSelectedPlace) return null;
+
+    const header = (
+        <div className="mb-[18px] flex items-center justify-between">
+            <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">Chat</span>
+            {canCreateChannel && !isChannelsLoading && (
+                <button onClick={onCreateChannel} className="flex h-[24px] w-[24px] items-center justify-center">
+                    <Plus size={24} className="text-foreground" />
+                </button>
+            )}
+        </div>
+    );
 
     if (isLoading) {
         return (
             <div className="space-y-0">
+                {header}
                 <ChannelSkeleton />
                 <ChannelSkeleton />
                 <ChannelSkeleton />
@@ -125,6 +138,7 @@ export const ChannelList = ({ workspaceId: _workspaceId }: ChannelListProps) => 
     if (isError) {
         return (
             <div className="flex flex-col items-center gap-2 py-8">
+                {header}
                 <p className="text-sm text-destructive">{t('channelList.errorLoading')}</p>
                 <button onClick={retry} className="text-sm text-primary underline">
                     {t('channelList.retry')}
@@ -134,7 +148,12 @@ export const ChannelList = ({ workspaceId: _workspaceId }: ChannelListProps) => 
     }
 
     if (!channels.length) {
-        return <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>;
+        return (
+            <div>
+                {header}
+                <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
+            </div>
+        );
     }
 
     return (

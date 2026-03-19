@@ -270,7 +270,8 @@
         "filterMine": "My Places",
         "filterInvited": "Invited Places",
         "sortSection": "Manage",
-        "sortOrder": "Manage Places"
+        "sortOrder": "Manage Places",
+        "selectCloud": "Please select a cloud first"
     },
     "placeOrder": {
         "title": "Place List",
@@ -530,7 +531,11 @@
         "submit": "Sign In",
         "loading": "Signing in...",
         "error": "Sign in failed",
-        "errorDescription": "Please check your email or password."
+        "errorDescription": "Please check your email or password.",
+        "orContinueWith": "or",
+        "continueWithGoogle": "Continue with Google",
+        "continueWithApple": "Continue with Apple",
+        "oauthFailed": "Social login failed."
     },
     "createPlace": {
         "title": "Create Place",
