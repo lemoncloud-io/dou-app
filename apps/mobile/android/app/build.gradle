@@ -113,10 +113,10 @@ android {
             keyPassword 'android'
         }
         release {
-            storeFile file('chatic-dou.keystore')
-            storePassword 'REDACTED_KEYSTORE_PASSWORD'
-            keyAlias 'chatic-dou'
-            keyPassword 'REDACTED_KEYSTORE_PASSWORD'
+            storeFile file(System.getenv('ANDROID_KEYSTORE_FILE') ?: 'chatic-dou.keystore')
+            storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: ''
+            keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: ''
+            keyPassword System.getenv('ANDROID_KEY_PASSWORD') ?: ''
         }
     }
     buildTypes {
