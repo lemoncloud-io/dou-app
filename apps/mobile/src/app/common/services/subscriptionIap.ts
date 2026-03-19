@@ -1,6 +1,6 @@
 import { Linking, Platform } from 'react-native';
 import Config from 'react-native-config';
-import type { SubscriptionReplacementModeAndroid, SubscriptionProductReplacementParamsAndroid } from 'react-native-iap';
+import type { ProductSubscriptionAndroid, SubscriptionReplacementModeAndroid } from 'react-native-iap';
 import {
     fetchProducts,
     finishTransaction,
@@ -18,8 +18,11 @@ export const IOS_SKU_LIST: string[] = (Config.VITE_SUBSCRIPTION_IAP_SKUS_IOS ?? 
     .map(sku => sku.trim())
     .filter(sku => sku.length > 0);
 
-export const ANDROID_SKU_LIST: string[] = (Config.VITE_SUBSCRIPTION_IAP_SKUS_ANDROID ?? '')
-    .split(',')
+export const ANDROID_SKU_LIST: string[] = Config.VITE_SUBSCRIPTION_IAP_SKUS_ANDROID.split(',')
+    .map(sku => sku.trim())
+    .filter(sku => sku.length > 0);
+
+export const ANDROID_PLAN_LIST = Config.VITE_SUBSCRIPTION_IAP_PLANS_ANDROID.split(',')
     .map(sku => sku.trim())
     .filter(sku => sku.length > 0);
 
@@ -46,7 +49,7 @@ export const itemSkus: string[] =
  */
 const getSkuRank = (sku: string): number => {
     if (Platform.OS !== 'android') return 0;
-    const index = ANDROID_SKU_LIST.indexOf(sku);
+    const index = ANDROID_PLAN_LIST.indexOf(sku);
     return index !== -1 ? index + 1 : 0;
 };
 /**
@@ -81,16 +84,39 @@ export const subscriptionIapService = {
 
     /**
      * - 구독 목록 불러오기
+     * - Android의 경우 구독 그룹안에있는 플랜들을 직접적으로 읽어와야함
      */
-    getSubscriptions: async (): Promise<ProductSubscription[]> => {
-        if (itemSkus.length === 0) {
-            return [];
-        }
+    getSubscriptions: async (): Promise<any[]> => {
+        if (itemSkus.length === 0) return [];
 
-        const products = await fetchProducts({
-            skus: itemSkus,
-            type: 'subs',
-        });
+        const products = await fetchProducts({ skus: itemSkus, type: 'subs' });
+        if (!products) return [];
+
+        if (Platform.OS === 'android') {
+            return (products as ProductSubscriptionAndroid[]).flatMap(product => {
+                const offers = product.subscriptionOffers ?? [];
+                const uniqueBasePlans = new Map();
+
+                offers.forEach(offer => {
+                    if (!uniqueBasePlans.has(offer.basePlanIdAndroid)) {
+                        const phases = offer.pricingPhasesAndroid?.pricingPhaseList ?? [];
+                        // 실제 정규 요금은 배열의 마지막에 배치되어있음
+                        const regularPhase = phases[phases.length - 1];
+
+                        uniqueBasePlans.set(offer.basePlanIdAndroid, {
+                            ...product,
+                            id: offer.basePlanIdAndroid, // 플랜 id
+                            productId: product.id, // 구독상품(부모) id
+                            offerToken: offer.offerTokenAndroid, // 결제 토큰
+                            displayPrice: regularPhase?.formattedPrice ?? product.displayPrice,
+                            basePlanId: offer.basePlanIdAndroid,
+                            subscriptionOffers: [offer],
+                        });
+                    }
+                });
+                return Array.from(uniqueBasePlans.values());
+            });
+        }
         return products as ProductSubscription[];
     },
 
@@ -114,22 +140,26 @@ export const subscriptionIapService = {
             throw new Error('Product not found');
         }
 
-        const offer = targetProduct.subscriptionOffers?.[0];
-        const offerToken = offer?.offerTokenAndroid ?? undefined;
+        const googleRequest =
+            Platform.OS === 'android'
+                ? {
+                      skus: [targetProduct.productId],
+                      subscriptionOffers: [
+                          {
+                              sku: targetProduct.productId,
+                              offerToken: targetProduct.offerToken,
+                          },
+                      ],
+                      subscriptionProductReplacementParams: undefined as any,
+                  }
+                : undefined;
 
-        if (Platform.OS === 'android' && !offerToken) {
-            throw new Error('Need offerToken in Android payment.');
-        }
-
-        let subscriptionProductReplacementParamsAndroid: SubscriptionProductReplacementParamsAndroid | undefined =
-            undefined;
-
-        if (Platform.OS === 'android' && oldSku) {
+        if (Platform.OS === 'android' && oldSku && googleRequest) {
             const availablePurchases = await getAvailablePurchases();
-            const oldPurchase = availablePurchases.find(p => p.productId === oldSku);
+            const oldPurchase = availablePurchases.find(p => p.productId === 'dou_pro_subscription');
 
-            if (oldPurchase?.productId) {
-                subscriptionProductReplacementParamsAndroid = {
+            if (oldPurchase) {
+                googleRequest.subscriptionProductReplacementParams = {
                     oldProductId: oldPurchase.productId,
                     replacementMode: getReplacementMode(oldSku, sku),
                 };
@@ -139,20 +169,8 @@ export const subscriptionIapService = {
         await requestPurchase({
             type: 'subs',
             request: {
-                apple: {
-                    sku: sku,
-                    andDangerouslyFinishTransactionAutomatically: false,
-                },
-                google: {
-                    skus: [sku],
-                    subscriptionOffers: [
-                        {
-                            offerToken: offerToken ?? '',
-                            sku: sku,
-                        },
-                    ],
-                    subscriptionProductReplacementParams: subscriptionProductReplacementParamsAndroid,
-                },
+                apple: { sku: sku, andDangerouslyFinishTransactionAutomatically: false },
+                google: googleRequest,
             },
         });
     },
