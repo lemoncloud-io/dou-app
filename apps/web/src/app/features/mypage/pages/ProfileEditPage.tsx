@@ -3,12 +3,14 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
+import { resizeImageToBase64 } from '@chatic/shared';
 
 import { cn } from '@chatic/lib/utils';
 import { useLocalProfileStore, useWebCoreStore } from '@chatic/web-core';
 
 import { PageHeader } from '../../../shared/components';
 import { useAppChecker } from '@chatic/device-utils';
+import { useUpdateMyProfile } from '../../home/hooks';
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 
@@ -16,7 +18,9 @@ export const ProfileEditPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const profile = useWebCoreStore(s => s.profile);
+    const { isCloudUser } = useWebCoreStore();
     const localProfile = useLocalProfileStore();
+    const { updateProfile, isPending } = useUpdateMyProfile();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Use local overrides if they exist, otherwise use server profile
@@ -33,10 +37,16 @@ export const ProfileEditPage = () => {
     const isValid = name.trim().length > 0 && name.length <= 20;
     const { isIOS } = useAppChecker();
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!isValid || !hasChanges) return;
 
-        // Save to local profile store
+        if (isCloudUser) {
+            await updateProfile({
+                nick: name.trim(),
+                thumbnail: imageUrl !== initialImageUrl ? imageUrl : undefined,
+            });
+        }
+
         if (name !== (localProfile.name ?? serverName)) {
             localProfile.setName(name);
         }
@@ -51,11 +61,10 @@ export const ProfileEditPage = () => {
         fileInputRef.current?.click();
     };
 
-    const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
-        // Validate file size
         if (file.size > MAX_IMAGE_SIZE) {
             setImageSizeError(true);
             return;
@@ -63,15 +72,13 @@ export const ProfileEditPage = () => {
 
         setImageSizeError(false);
 
-        // Convert to base64
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const base64 = reader.result as string;
+        try {
+            const base64 = await resizeImageToBase64(file, 50);
             setImageUrl(base64);
-        };
-        reader.readAsDataURL(file);
+        } catch {
+            setImageSizeError(true);
+        }
 
-        // Reset input so the same file can be selected again
         event.target.value = '';
     };
 
@@ -152,10 +159,10 @@ export const ProfileEditPage = () => {
             <div className="shrink-0 border-t border-border/50 bg-background px-5 py-4">
                 <button
                     onClick={handleSave}
-                    disabled={!isValid || !hasChanges}
+                    disabled={!isValid || !hasChanges || isPending}
                     className={cn(
                         'w-full rounded-2xl py-4 text-[15px] font-semibold transition-all',
-                        isValid && hasChanges
+                        isValid && hasChanges && !isPending
                             ? 'bg-[#B0EA10] text-foreground active:scale-[0.98]'
                             : 'bg-muted text-muted-foreground'
                     )}
