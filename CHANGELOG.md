@@ -1,5 +1,26 @@
 # Changelog
 
+## [2026-03-19] - root@0.35.0, @chatic/web@0.32.0
+
+### Features
+
+- add place info edit page with useUpdateMyPlace hook
+- add social login (Google/Apple OAuth) on mobile app webview
+- clear usertoken cache and OAuth session on logout
+- improve PlaceList/ChannelList visibility based on cloud/place selection
+- add resizeImage util and useUpdateMyProfile hook
+- update ProfileEditPage with image resize and useUpdateMyProfile
+- update PlaceInfoPage - name edit only, remove thumbnail upload
+- show global loader while socket is connecting
+
+### Bug Fixes
+
+- allow isInvited users to view places without selectedCloudId
+
+### Chores
+
+- add libs/users tsconfig ref, bump chatic-sockets-api to 0.26.126
+
 ## [2026-03-18] - root@0.34.0, @chatic/web@0.31.0, @chatic/landing@0.4.0
 
 ### Features
