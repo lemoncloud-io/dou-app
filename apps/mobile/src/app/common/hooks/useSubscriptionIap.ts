@@ -10,7 +10,6 @@ import {
 
 import { logger } from '../index';
 import { subscriptionIapService } from '../services';
-import DeviceInfo from 'react-native-device-info';
 
 /**
  * @property onPurchaseSuccess: 모든 구매 프로세스가 성공적으로 마무리 되었을때에 대한 리스너
@@ -74,13 +73,6 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
      */
     useEffect(() => {
         const init = async () => {
-            const isEmulator = await DeviceInfo.isEmulator();
-
-            if (isEmulator) {
-                logger.warn('IAP', 'Emulator environment. Skipping IAP module connection.');
-                return;
-            }
-
             try {
                 await subscriptionIapService.init();
                 const [subscriptions, availablePurchase] = await Promise.all([
