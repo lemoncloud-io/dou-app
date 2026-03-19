@@ -20,7 +20,6 @@
 <p align="center">
   <a href="#getting-started">Getting Started</a> &nbsp;&middot;&nbsp;
   <a href="#architecture">Architecture</a> &nbsp;&middot;&nbsp;
-  <a href="docs/DEEP-LINKING.md">Deep Linking Docs</a> &nbsp;&middot;&nbsp;
   <a href="#contributing">Contributing</a>
 </p>
 
@@ -51,7 +50,6 @@ DoU is an Nx monorepo powering a real-time messaging and community platform acro
 - [Environment Variables](#environment-variables)
 - [CI/CD](#cicd)
 - [Code Quality](#code-quality)
-- [Documentation](#documentation)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -435,10 +433,6 @@ yarn clean:cache            # Clear Vite/Nx caches
 ```
 
 Pre-commit hooks (via Husky) automatically run linting and formatting on staged files. Commit messages are enforced with [Conventional Commits](https://www.conventionalcommits.org/) via Commitlint.
-
-## Documentation
-
-- [Deep Linking Setup](docs/DEEP-LINKING.md) — iOS Universal Links, Android App Links, and deferred deep links
 
 ## Contributing
 
