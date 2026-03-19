@@ -218,6 +218,7 @@
             "title": "약관 및 정책",
             "terms": "서비스 이용약관",
             "privacy": "개인정보처리방침",
+            "child": "아동 보호 정책",
             "effectiveDate": "시행일"
         },
         "logoutDialog": {
