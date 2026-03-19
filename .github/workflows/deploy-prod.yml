@@ -211,6 +211,14 @@ jobs:
                   aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
             - name: Deploy to PROD
+              env:
+                  WEB_S3_BUCKET: ${{ secrets.WEB_S3_BUCKET }}
+                  WEB_CF_PROD_DISTRIBUTION_ID: ${{ secrets.WEB_CF_PROD_DISTRIBUTION_ID }}
+                  ADMIN_S3_BUCKET: ${{ secrets.ADMIN_S3_BUCKET }}
+                  ADMIN_CF_PROD_DISTRIBUTION_ID: ${{ secrets.ADMIN_CF_PROD_DISTRIBUTION_ID }}
+                  LANDING_S3_DEV_BUCKET: ${{ secrets.LANDING_S3_DEV_BUCKET }}
+                  LANDING_S3_PROD_BUCKET: ${{ secrets.LANDING_S3_PROD_BUCKET }}
+                  LANDING_CF_PROD_DISTRIBUTION_ID: ${{ secrets.LANDING_CF_PROD_DISTRIBUTION_ID }}
               run: |
                   set -e
                   chmod +x scripts/deploy-${{ matrix.project }}.sh

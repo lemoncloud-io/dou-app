@@ -5,9 +5,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 APP_NAME="admin"
-BUCKET_NAME="REDACTED_BUCKET_NAME"
-DEV_DISTRIBUTION_ID="REDACTED_CF_ID"        # TODO: Update with actual CloudFront distribution ID
-PROD_DISTRIBUTION_ID="REDACTED_CF_ID"       # TODO: Update with actual CloudFront distribution ID
+BUCKET_NAME=""
+DEV_DISTRIBUTION_ID=""
+PROD_DISTRIBUTION_ID=""
 DIST_DIR="${PROJECT_ROOT}/dist/apps/${APP_NAME}"
 CACHE_CONTROL_NO_CACHE="max-age=0,no-cache,no-store,must-revalidate"
 CACHE_CONTROL_LOCALES="max-age=0,s-maxage=0,no-cache,no-store,must-revalidate,proxy-revalidate"
@@ -56,13 +56,32 @@ validate_arguments() {
     fi
 }
 
+load_env_file() {
+    local env_file="${SCRIPT_DIR}/.env.deploy"
+    if [ -f "$env_file" ]; then
+        log_info "Loading environment from ${env_file}"
+        set -a
+        source "$env_file"
+        set +a
+    fi
+}
+
+load_deploy_config() {
+    BUCKET_NAME="${ADMIN_S3_BUCKET:?'ADMIN_S3_BUCKET environment variable is required'}"
+    DEV_DISTRIBUTION_ID="${ADMIN_CF_DEV_DISTRIBUTION_ID:-}"
+    PROD_DISTRIBUTION_ID="${ADMIN_CF_PROD_DISTRIBUTION_ID:-}"
+}
+
 setup_aws_profile() {
     if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
         log_info "Running in GitHub Actions - using default AWS credentials"
         AWS_PROFILE=""
+    elif [ -n "${AWS_DEPLOY_PROFILE:-}" ]; then
+        log_info "Using AWS profile: ${AWS_DEPLOY_PROFILE}"
+        AWS_PROFILE="--profile ${AWS_DEPLOY_PROFILE}"
     else
-        log_info "Using AWS profile: REDACTED_PROFILE"
-        AWS_PROFILE="--profile REDACTED_PROFILE"
+        log_error "AWS_DEPLOY_PROFILE is not set. Please configure scripts/.env.deploy"
+        exit 1
     fi
 }
 
@@ -336,6 +355,8 @@ main() {
     log_info "AWS S3 deployment script started"
 
     # Setup and validation
+    load_env_file
+    load_deploy_config
     setup_aws_profile
     validate_environment "$deploy_env"
     distribution_id=$(get_distribution_id "$deploy_env")
