@@ -249,6 +249,9 @@
         "switchingCloud": "Switching cloud...",
         "switchingPlace": "Switching place..."
     },
+    "socket": {
+        "connecting": "Connecting to server..."
+    },
     "homePage": {
         "places": "Places",
         "roomCreated": "Chat room created",
@@ -421,14 +424,19 @@
         "title": "Place Information",
         "createdDate": "Created Date",
         "owner": "Place Owner",
-        "confirm": "Confirm",
+        "confirm": "Done",
         "unnamed": "Unnamed Place",
         "unknownOwner": "Unknown",
         "notFound": "Place not found",
         "myPlace": "My Place",
         "visibility": "Visibility",
         "public": "Public",
-        "private": "Private"
+        "private": "Private",
+        "nameLabel": "Edit Name",
+        "namePlaceholder": "Enter place name",
+        "nameDescription": "Please enter up to 20 characters.",
+        "photoLabel": "Photo",
+        "photoOptional": "[Optional]"
     },
     "workspace": {
         "list": {
