@@ -5,3 +5,4 @@ export * from './useTabLifecycle';
 export * from './useTabVisibilityWebSocket';
 export * from './useMyPlaces';
 export * from './useUpdateMyPlace';
+export * from './useUpdateMyProfile';
