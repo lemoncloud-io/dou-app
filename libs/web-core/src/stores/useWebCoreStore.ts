@@ -30,6 +30,7 @@ export interface WebCoreState {
     isOnMobileApp: boolean;
     isGuest: boolean;
     isInvited: boolean;
+    isCloudUser: boolean;
     error: Error | null;
     profile: UserProfile$ | null;
     userName: string;
@@ -59,6 +60,7 @@ const initialState: Pick<WebCoreStore, keyof WebCoreState> = {
     isOnMobileApp: false,
     isGuest: false,
     isInvited: false,
+    isCloudUser: false,
     error: null,
     profile: null,
     userName: '',
@@ -117,6 +119,8 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         await webCore.logout();
         cloudCore.clearSession();
         setIsInvitedSession(false);
+        localStorage.removeItem('chatic-device-token');
+
         set({ isAuthenticated: false, profile: null, userName: '', isGuest: false, isInvited: false });
         window.location.href = '/auth/login';
     },
@@ -131,13 +135,17 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      * Updates user profile information
      * @param profile - User profile data
      */
-    setProfile: (profile: UserProfile$) =>
-        set({
+    setProfile: (profile: UserProfile$) => {
+        const isGuest = (profile.$user as UserViewExtended)?.userRole === 'guest';
+        const isInvited = getIsInvited();
+        return set({
             profile,
-            isGuest: (profile.$user as UserViewExtended)?.userRole === 'guest',
-            isInvited: getIsInvited(),
+            isGuest,
+            isInvited,
+            isCloudUser: !isGuest || isInvited,
             userName: profile['$user']?.name || 'Unknown',
-        }),
+        });
+    },
 
     /**
      * Updates username and related profile information
