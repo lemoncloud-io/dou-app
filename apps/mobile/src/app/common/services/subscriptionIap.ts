@@ -156,7 +156,7 @@ export const subscriptionIapService = {
 
         if (Platform.OS === 'android' && oldSku && googleRequest) {
             const availablePurchases = await getAvailablePurchases();
-            const oldPurchase = availablePurchases.find(p => p.productId === 'dou_pro_subscription');
+            const oldPurchase = availablePurchases.find(p => p.productId === ANDROID_SKU_LIST[0]);
 
             if (oldPurchase) {
                 googleRequest.subscriptionProductReplacementParams = {
