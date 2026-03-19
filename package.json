@@ -67,7 +67,7 @@
         "@hookform/resolvers": "^3.9.1",
         "@lemoncloud/chatic-backend-api": "^0.26.129",
         "@lemoncloud/chatic-socials-api": "^0.26.129",
-        "@lemoncloud/chatic-sockets-api": "^0.26.125",
+        "@lemoncloud/chatic-sockets-api": "^0.26.126",
         "@lemoncloud/chatic-pushes-api": "^0.26.124",
         "@lemoncloud/lemon-web-core": "^1.5.0",
         "@lemoncloud/react-page-transition": "0.0.2",

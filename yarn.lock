@@ -2866,10 +2866,10 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-sockets-api@^0.26.125":
-  version "0.26.125"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.125.tgz#1f4baba0a183ffb59d020e026c32c1a812cac48b"
-  integrity sha512-LZDL4Wpkyv1T8XBjMY3XRYrbNUt1pB3iqPNipo7ML2XAt3RTcJEFwe04GfskGHbAmpudO4PhWo2QvvjQ7POVHg==
+"@lemoncloud/chatic-sockets-api@^0.26.126":
+  version "0.26.126"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.126.tgz#29c550e02e1e8babab1d2625b19c974e66f76d28"
+  integrity sha512-P05/Zjujner4o9zHM9djxdkibtzQiZ0vvPCO9sF6zMUr3ktUfaR8AbLwl8MZA+dpyjkYcedb0o6cBFc+d+71Eg==
   dependencies:
     lemon-model "^1.1.1"
 
@@ -2895,19 +2895,7 @@
   resolved "https://registry.yarnpkg.com/@lemoncloud/page-transition-core/-/page-transition-core-0.0.1.tgz#7ef9513d6d47c2386b0882403a875f5768cf543b"
   integrity sha512-WGCjB2DoMRFIgzFnfv4BYvK2vREWWKFF10d3jAzdrA5rNUt/vzmvTozkM8uGdHm6X8LggEzptGTeTW/S/StA6w==
 
-"@lemoncloud/react-page-transition@*":
-  version "0.0.2"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/react-page-transition/-/react-page-transition-0.0.2.tgz#8883524cf062bc9d5ce4ff28d9e883e639cb7793"
-  integrity sha512-tC9uvlVYOSMoVo54Mst0IajDCmGhiT36YKUciMAJ1wu6LG/RBub7N23BcTHsTwSjwPH72zRuY3Tz3UAJpvwkGQ==
-  dependencies:
-    "@lemoncloud/page-transition-core" "workspace:*"
-
-"@lemoncloud/react-page-transition@0.0.1":
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/react-page-transition/-/react-page-transition-0.0.1.tgz#df2141a843fa7891979a36d359a5c11f03bf9e86"
-  integrity sha512-Gbyw6LN6nDCVsWFpvGuvJo63rI0kF726ntiOwfq2D8l1rgKYAgtej4qwBQIiwRtQUP5wz9Dr7h7bqtPcBn7nFQ==
-
-"@lemoncloud/react-page-transition@0.0.2":
+"@lemoncloud/react-page-transition@*", "@lemoncloud/react-page-transition@0.0.2":
   version "0.0.2"
   resolved "https://registry.yarnpkg.com/@lemoncloud/react-page-transition/-/react-page-transition-0.0.2.tgz#8883524cf062bc9d5ce4ff28d9e883e639cb7793"
   integrity sha512-tC9uvlVYOSMoVo54Mst0IajDCmGhiT36YKUciMAJ1wu6LG/RBub7N23BcTHsTwSjwPH72zRuY3Tz3UAJpvwkGQ==
