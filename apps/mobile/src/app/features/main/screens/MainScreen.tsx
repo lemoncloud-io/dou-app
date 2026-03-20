@@ -21,8 +21,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { View } from 'react-native';
 
 // TODO: Use Config.VITE_WEBVIEW_BASE_URL when ready for production
-// const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
-const webviewUrl = 'http://localhost:5003';
+const webviewUrl = Config.VITE_WEBVIEW_BASE_URL ?? 'http://localhost:5003';
 const webviewBaseUrl = new URL(webviewUrl);
 
 const toLocalUrl = (url: string): string => {
