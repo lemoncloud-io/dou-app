@@ -227,6 +227,8 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                     )}
                 </div>
 
+                <div className="h-6" />
+
                 {/* TODO: Add Account */}
                 {/* <AddAccountButton /> */}
             </SheetContent>
