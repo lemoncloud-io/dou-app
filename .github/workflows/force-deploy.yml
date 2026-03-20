@@ -96,10 +96,13 @@ jobs:
             matrix:
                 include:
                     - project: web
+                      prefix: WEB
                       should_run: ${{ github.event.inputs.deploy_web_dev == 'true' && 'true' || 'false' }}
                     - project: admin
+                      prefix: ADMIN
                       should_run: ${{ github.event.inputs.deploy_admin_dev == 'true' && 'true' || 'false' }}
                     - project: landing
+                      prefix: LANDING
                       should_run: ${{ github.event.inputs.deploy_landing_dev == 'true' && 'true' || 'false' }}
         steps:
             - name: Skip if not selected
@@ -148,6 +151,29 @@ jobs:
                   aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
                   aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
+            - name: Generate env file
+              if: ${{ matrix.should_run == 'true' }}
+              run: |
+                  set -e
+                  ENV_FILE="apps/${{ matrix.project }}/.env"
+                  cat > "$ENV_FILE" << 'EOF'
+                  VITE_ENV=${{ secrets[format('{0}_DEV_ENV', matrix.prefix)] }}
+                  VITE_PROJECT=${{ secrets[format('{0}_DEV_PROJECT', matrix.prefix)] }}
+                  VITE_OAUTH_ENDPOINT=${{ secrets[format('{0}_DEV_OAUTH_ENDPOINT', matrix.prefix)] }}
+                  VITE_HOST=${{ secrets[format('{0}_DEV_HOST', matrix.prefix)] }}
+                  VITE_SOCIAL_OAUTH_ENDPOINT=${{ secrets[format('{0}_DEV_SOCIAL_OAUTH_ENDPOINT', matrix.prefix)] }}
+                  VITE_IMAGE_API_ENDPOINT=${{ secrets[format('{0}_DEV_IMAGE_API_ENDPOINT', matrix.prefix)] }}
+                  VITE_BACKEND_ENDPOINT=${{ secrets[format('{0}_DEV_BACKEND_ENDPOINT', matrix.prefix)] }}
+                  VITE_WS_ENDPOINT=${{ secrets[format('{0}_DEV_WS_ENDPOINT', matrix.prefix)] }}
+                  VITE_DOU_ENDPOINT=${{ secrets[format('{0}_DEV_DOU_ENDPOINT', matrix.prefix)] }}
+                  VITE_SOC_ENDPOINT=${{ secrets[format('{0}_DEV_SOC_ENDPOINT', matrix.prefix)] }}
+                  VITE_FRONT_ENDPOINT=${{ secrets[format('{0}_DEV_FRONT_ENDPOINT', matrix.prefix)] }}
+                  EOF
+                  sed -i 's/^ *//' "$ENV_FILE"
+                  grep -v '=$' "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE"
+                  echo "Generated $ENV_FILE:"
+                  cat "$ENV_FILE"
+
             - name: Deploy to DEV
               if: ${{ matrix.should_run == 'true' }}
               env:
@@ -165,7 +191,6 @@ jobs:
                   VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_DEV_MESSAGING_SENDER_ID }}
                   VITE_FIREBASE_APP_ID: ${{ secrets.FIREBASE_DEV_APP_ID }}
                   VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.FIREBASE_DEV_MEASUREMENT_ID }}
-                  VITE_DOU_ENDPOINT: ${{ secrets.DEV_DOU_ENDPOINT }}
               run: |
                   set -e
                   chmod +x scripts/deploy-${{ matrix.project }}.sh
@@ -181,10 +206,13 @@ jobs:
             matrix:
                 include:
                     - project: web
+                      prefix: WEB
                       should_run: ${{ github.event.inputs.deploy_web_prod == 'true' && 'true' || 'false' }}
                     - project: admin
+                      prefix: ADMIN
                       should_run: ${{ github.event.inputs.deploy_admin_prod == 'true' && 'true' || 'false' }}
                     - project: landing
+                      prefix: LANDING
                       should_run: ${{ github.event.inputs.deploy_landing_prod == 'true' && 'true' || 'false' }}
         steps:
             - name: Skip if not selected
@@ -233,6 +261,29 @@ jobs:
                   aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
                   aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
+            - name: Generate env file
+              if: ${{ matrix.should_run == 'true' }}
+              run: |
+                  set -e
+                  ENV_FILE="apps/${{ matrix.project }}/.env"
+                  cat > "$ENV_FILE" << 'EOF'
+                  VITE_ENV=${{ secrets[format('{0}_PROD_ENV', matrix.prefix)] }}
+                  VITE_PROJECT=${{ secrets[format('{0}_PROD_PROJECT', matrix.prefix)] }}
+                  VITE_OAUTH_ENDPOINT=${{ secrets[format('{0}_PROD_OAUTH_ENDPOINT', matrix.prefix)] }}
+                  VITE_HOST=${{ secrets[format('{0}_PROD_HOST', matrix.prefix)] }}
+                  VITE_SOCIAL_OAUTH_ENDPOINT=${{ secrets[format('{0}_PROD_SOCIAL_OAUTH_ENDPOINT', matrix.prefix)] }}
+                  VITE_IMAGE_API_ENDPOINT=${{ secrets[format('{0}_PROD_IMAGE_API_ENDPOINT', matrix.prefix)] }}
+                  VITE_BACKEND_ENDPOINT=${{ secrets[format('{0}_PROD_BACKEND_ENDPOINT', matrix.prefix)] }}
+                  VITE_WS_ENDPOINT=${{ secrets[format('{0}_PROD_WS_ENDPOINT', matrix.prefix)] }}
+                  VITE_DOU_ENDPOINT=${{ secrets[format('{0}_PROD_DOU_ENDPOINT', matrix.prefix)] }}
+                  VITE_SOC_ENDPOINT=${{ secrets[format('{0}_PROD_SOC_ENDPOINT', matrix.prefix)] }}
+                  VITE_FRONT_ENDPOINT=${{ secrets[format('{0}_PROD_FRONT_ENDPOINT', matrix.prefix)] }}
+                  EOF
+                  sed -i 's/^ *//' "$ENV_FILE"
+                  grep -v '=$' "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE"
+                  echo "Generated $ENV_FILE:"
+                  cat "$ENV_FILE"
+
             - name: Deploy to PROD
               if: ${{ matrix.should_run == 'true' }}
               env:
@@ -250,7 +301,6 @@ jobs:
                   VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_PROD_MESSAGING_SENDER_ID }}
                   VITE_FIREBASE_APP_ID: ${{ secrets.FIREBASE_PROD_APP_ID }}
                   VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.FIREBASE_PROD_MEASUREMENT_ID }}
-                  VITE_DOU_ENDPOINT: ${{ secrets.PROD_DOU_ENDPOINT }}
               run: |
                   set -e
                   chmod +x scripts/deploy-${{ matrix.project }}.sh
