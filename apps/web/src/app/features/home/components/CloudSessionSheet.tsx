@@ -83,7 +83,7 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud }: CloudItemPr
 
     return (
         <button
-            onClick={() => !disabled && onSelectCloud(cloud.id)}
+            onClick={() => !disabled && cloud.id && onSelectCloud(cloud.id)}
             disabled={disabled}
             className={cn('flex w-full items-center gap-[5px]', disabled && !isSelected && 'cursor-not-allowed')}
         >
