@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { RefreshCw, Users, X } from 'lucide-react';
+import { AlertCircle, Check, Plus, User, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
@@ -9,47 +9,137 @@ import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 
 import { getCloudSession, useCloudSession } from '../../../shared/hooks/useCloudSession';
 
-import type { MySiteView } from '@lemoncloud/chatic-backend-api';
+import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
-interface PlaceItemProps {
-    place: MySiteView;
+// --- Profile Section (Top) ---
+
+const ProfileSection = () => {
+    const { profile } = useWebCoreStore();
+    const name = profile?.$user?.name ?? '';
+    const email = profile?.$user?.email ?? '';
+
+    return (
+        <div className="flex flex-col items-center gap-[9px] py-4">
+            <div className="flex h-[54px] w-[54px] items-center justify-center rounded-full border border-white bg-[#F4F5F5]">
+                <User size={20} className="text-[#BABCC0]" />
+            </div>
+            <div className="flex flex-col items-center gap-[2px]">
+                <span className="text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-[#3A3C40]">
+                    {name}
+                </span>
+                <span className="text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
+                    {email}
+                </span>
+            </div>
+        </div>
+    );
+};
+
+// --- Cloud List Item ---
+
+const getCloudDisplayName = (cloud: CloudView): string => {
+    return cloud.name ?? cloud.email?.split('@')[0] ?? '';
+};
+
+const CloudStatusBadge = ({ status }: { status: CloudView['status'] }) => {
+    const { t } = useTranslation();
+
+    if (status === 'active') {
+        return (
+            <div className="flex items-center gap-1 rounded-[5px] bg-[#F4F5F5] px-[6px] py-1">
+                <span className="text-[14px] font-medium leading-[1.19] text-[#2A7EF4]">
+                    {t('cloudSessionSheet.statusActive')}
+                </span>
+                <Check size={16} className="text-[#2A7EF4]" strokeWidth={1.5} />
+            </div>
+        );
+    }
+
+    if (status === 'pending') {
+        return (
+            <div className="flex items-center rounded-[5px] bg-[#F4F5F5] px-[6px] py-1">
+                <span className="text-[14px] font-medium leading-[1.19] text-[#53555B]">
+                    {t('cloudSessionSheet.statusPending')}
+                </span>
+            </div>
+        );
+    }
+
+    return null;
+};
+
+interface CloudItemProps {
+    cloud: CloudView;
     isSelected: boolean;
     isDisabled: boolean;
-    onSelectPlace: (placeId: string) => void;
+    onSelectCloud: (cloudId: string) => void;
 }
 
-const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemProps) => {
-    const isSelectable = place.stereo === 'place';
-    const disabled = !isSelectable || isDisabled || isSelected;
+const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud }: CloudItemProps) => {
+    const { t } = useTranslation();
+    const disabled = isDisabled || isSelected;
+    const displayName = getCloudDisplayName(cloud);
+    const hasName = !!displayName;
 
     return (
         <button
-            onClick={() => !disabled && onSelectPlace(place.id)}
+            onClick={() => !disabled && onSelectCloud(cloud.id)}
             disabled={disabled}
-            className={cn('flex flex-col items-center gap-[5px]', disabled && 'cursor-not-allowed')}
+            className={cn('flex w-full items-center gap-[5px]', disabled && !isSelected && 'cursor-not-allowed')}
         >
-            <div className="relative">
-                <div
-                    className={cn(
-                        'flex h-[47px] w-[47px] items-center justify-center rounded-full',
-                        isSelected ? 'outline outline-[1.5px] outline-[#C139E3] outline-offset-1' : '',
-                        isSelected ? 'bg-[#102346]' : 'bg-[#F4F5F5]'
+            {/* Check icon area */}
+            <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center">
+                {isSelected && <Check size={22} className="text-[#C139E3]" strokeWidth={1.5} />}
+            </div>
+
+            {/* Avatar + Info */}
+            <div className="flex flex-1 items-center gap-2 pr-[6px]">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-[#F4F5F5] bg-[rgba(0,43,126,0.04)]">
+                    <User size={16} className="text-[#BABCC0]" />
+                </div>
+                <div className="flex flex-col gap-1">
+                    {hasName ? (
+                        <div className="flex items-center gap-[6px]">
+                            <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-[#3A3C40]">
+                                {displayName}
+                            </span>
+                            <CloudStatusBadge status={cloud.status} />
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-[6px]">
+                            <AlertCircle size={18} className="text-white" />
+                            <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-[#3A3C40]">
+                                {t('cloudSessionSheet.setupProfile')}
+                            </span>
+                        </div>
                     )}
-                >
-                    <Users size={20} className="text-white" />
+                    <span className="text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
+                        {cloud.email ?? ''}
+                    </span>
                 </div>
             </div>
-            <span
-                className={cn(
-                    'w-[80px] truncate text-center text-[14px] leading-[1.19]',
-                    isSelected ? 'font-medium text-foreground' : 'font-normal text-muted-foreground'
-                )}
-            >
-                {place.name}
-            </span>
         </button>
     );
 };
+
+// --- Add Account Button ---
+
+const AddAccountButton = () => {
+    const { t } = useTranslation();
+
+    return (
+        <div className="px-4 pb-4 pt-5">
+            <button className="flex w-full items-center justify-center gap-[6px] rounded-full border border-[#222325] px-6 py-3">
+                <span className="text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325]">
+                    {t('cloudSessionSheet.addAccount')}
+                </span>
+                <Plus size={24} className="text-[#222325]" />
+            </button>
+        </div>
+    );
+};
+
+// --- Main Sheet ---
 
 interface CloudSessionSheetProps {
     open: boolean;
@@ -61,24 +151,23 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const { selectPlace, isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedCloudId());
 
-    const { isGuest } = useWebCoreStore();
     const autoSelectedRef = useRef(false);
 
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
 
-    const handleSelectPlace = async (placeId: string) => {
-        await selectPlace(placeId);
-        setSelectedId(placeId);
+    const handleSelectCloud = async (cloudId: string) => {
+        await selectPlace(cloudId);
+        setSelectedId(cloudId);
         handleClose();
     };
 
     useEffect(() => {
         if (autoSelectedRef.current) return;
-        const firstSelectable = clouds.find(p => p.stereo === 'place');
-        if (!firstSelectable) return;
+        const firstCloud = clouds[0];
+        if (!firstCloud) return;
         autoSelectedRef.current = true;
         if (getCloudSession()) return;
-        void handleSelectPlace(firstSelectable.id);
+        void handleSelectCloud(firstCloud.id);
     }, [clouds]);
 
     const isLoading = isFetchingClouds && clouds.length === 0;
@@ -86,7 +175,8 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     return (
         <Sheet open={open} onOpenChange={open => !open && handleClose()}>
             <SheetContent side="bottom" className="rounded-t-2xl p-0 pb-safe-bottom" hideClose>
-                <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-border px-4 py-[14px]">
                     <SheetTitle className="text-lg font-semibold text-foreground">
                         {t('cloudSessionSheet.title')}
                     </SheetTitle>
@@ -96,38 +186,49 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                 </div>
                 <SheetDescription className="sr-only">{t('cloudSessionSheet.title')}</SheetDescription>
 
-                <div className="px-5 py-4">
+                {/* Profile */}
+                <ProfileSection />
+
+                {/* Cloud List */}
+                <div className="h-[28px]" />
+                <div className="flex flex-col gap-[6px]">
                     {isLoading ? (
-                        <div className="flex gap-[14px]">
+                        <div className="flex flex-col gap-[15px] px-3">
                             {Array.from({ length: 3 }).map((_, i) => (
-                                <div key={i} className="flex flex-col items-center gap-[5px]">
-                                    <div className="h-[47px] w-[47px] animate-pulse rounded-full bg-muted" />
-                                    <div className="h-3 w-[50px] animate-pulse rounded bg-muted" />
+                                <div key={i} className="flex items-center gap-2">
+                                    <div className="h-[22px] w-[22px]" />
+                                    <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
+                                    <div className="flex flex-col gap-1">
+                                        <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                                        <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     ) : isCloudsError ? (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex items-center justify-center gap-2 px-3 py-4 text-sm text-muted-foreground">
                             <span>{t('cloudSessionSheet.errorLoading')}</span>
                             <button onClick={() => refetchClouds()} className="flex items-center gap-1 text-foreground">
-                                <RefreshCw size={14} />
                                 <span>{t('cloudSessionSheet.retry')}</span>
                             </button>
                         </div>
                     ) : (
-                        <div className="scrollbar-hide flex gap-[14px] overflow-x-auto">
-                            {clouds.map(place => (
-                                <PlaceItem
-                                    key={place.id}
-                                    place={place}
-                                    isSelected={selectedId === place.id}
+                        <div className="flex flex-col gap-[15px] px-3">
+                            {clouds.map(cloud => (
+                                <CloudItem
+                                    key={cloud.id}
+                                    cloud={cloud}
+                                    isSelected={selectedId === cloud.id}
                                     isDisabled={isPending}
-                                    onSelectPlace={handleSelectPlace}
+                                    onSelectCloud={handleSelectCloud}
                                 />
                             ))}
                         </div>
                     )}
                 </div>
+
+                {/* Add Account */}
+                <AddAccountButton />
             </SheetContent>
         </Sheet>
     );
