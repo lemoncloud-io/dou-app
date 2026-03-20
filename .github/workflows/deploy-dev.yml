@@ -236,6 +236,13 @@ jobs:
                   LANDING_S3_DEV_BUCKET: ${{ secrets.LANDING_S3_DEV_BUCKET }}
                   LANDING_S3_PROD_BUCKET: ${{ secrets.LANDING_S3_PROD_BUCKET }}
                   LANDING_CF_DEV_DISTRIBUTION_ID: ${{ secrets.LANDING_CF_DEV_DISTRIBUTION_ID }}
+                  VITE_FIREBASE_API_KEY: ${{ secrets.FIREBASE_DEV_API_KEY }}
+                  VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_DEV_AUTH_DOMAIN }}
+                  VITE_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_DEV_PROJECT_ID }}
+                  VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_DEV_STORAGE_BUCKET }}
+                  VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_DEV_MESSAGING_SENDER_ID }}
+                  VITE_FIREBASE_APP_ID: ${{ secrets.FIREBASE_DEV_APP_ID }}
+                  VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.FIREBASE_DEV_MEASUREMENT_ID }}
               run: |
                   set -e
                   chmod +x scripts/deploy-${{ matrix.project }}.sh

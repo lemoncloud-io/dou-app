@@ -255,7 +255,7 @@ export const ChatSettingsPage = () => {
                             })
                         ) : (
                             <div className="py-4 text-center text-sm text-muted-foreground">
-                                {t('chat.settings.noMembers', '멤버가 없습니다')}
+                                {t('chat.settings.noMembers', 'No members')}
                             </div>
                         )}
                     </div>

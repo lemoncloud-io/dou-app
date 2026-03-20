@@ -36,6 +36,20 @@
             "settings": "설정"
         }
     },
+    "users": {
+        "token": {
+            "issued": "토큰이 발급되었습니다",
+            "issueFailed": "토큰 발급에 실패했습니다",
+            "copied": "토큰이 복사되었습니다",
+            "copyFailed": "복사에 실패했습니다",
+            "issuing": "발급 중...",
+            "issue": "토큰 발급",
+            "issuedLabel": "토큰 발급됨",
+            "reissue": "재발급",
+            "copy": "복사",
+            "openInNewTab": "새 탭에서 열기"
+        }
+    },
     "authTest": {
         "title": "Admin Controls",
         "deviceId": "Admin 디바이스 ID",

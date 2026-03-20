@@ -17,4 +17,8 @@ export const ko = {
             later: '나중에',
         },
     },
+    loader: {
+        processing: '처리 중입니다...',
+        paymentProcessing: '결제 처리 중...',
+    },
 } as const;
