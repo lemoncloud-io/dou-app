@@ -1,6 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { AppWebView, FullScreenLoader, getAppLanguage, logger, useDeepLinkStore, useThemeStore } from '../../../common';
+import {
+    AppWebView,
+    FullScreenLoader,
+    getAppLanguage,
+    logger,
+    t,
+    useDeepLinkStore,
+    useThemeStore,
+} from '../../../common';
 import {
     useAndroidBack,
     useAppBridge,
@@ -332,7 +340,7 @@ true;`;
                     setNavCanGoBack(navState.canGoBack);
                 }}
             />
-            <FullScreenLoader visible={isIapLoading} message="결제 처리 중..." />
+            <FullScreenLoader visible={isIapLoading} message={t('loader.paymentProcessing')} />
         </View>
     );
 };

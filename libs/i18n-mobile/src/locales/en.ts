@@ -17,4 +17,8 @@ export const en = {
             later: 'Later',
         },
     },
+    loader: {
+        processing: 'Processing...',
+        paymentProcessing: 'Processing payment...',
+    },
 } as const;

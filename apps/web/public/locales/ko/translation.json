@@ -387,6 +387,7 @@
                 "description": "채팅방의 메시지를 확인할 수 없으며, 다시 초대를 받아야 참여할 수 있습니다.",
                 "confirm": "나가기"
             },
+            "noMembers": "멤버가 없습니다",
             "unknownUser": "알 수 없는 사용자",
             "notificationSettings": {
                 "title": "알림 설정",

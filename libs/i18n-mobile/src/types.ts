@@ -6,4 +6,6 @@ export type TranslationKey =
     | 'app.updateDialog.title'
     | 'app.updateDialog.message'
     | 'app.updateDialog.update'
-    | 'app.updateDialog.later';
+    | 'app.updateDialog.later'
+    | 'loader.processing'
+    | 'loader.paymentProcessing';
