@@ -262,11 +262,7 @@
     "cloudSessionSheet": {
         "title": "클라우드 선택",
         "errorLoading": "클라우드를 불러오지 못했어요",
-        "retry": "재시도",
-        "statusActive": "구독 완료",
-        "statusPending": "구독 준비 중",
-        "setupProfile": "프로필 설정을 해주세요",
-        "addAccount": "계정 추가"
+        "retry": "재시도"
     },
     "placeList": {
         "defaultPlace": "기본",

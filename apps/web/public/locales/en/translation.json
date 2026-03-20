@@ -262,11 +262,7 @@
     "cloudSessionSheet": {
         "title": "Select Cloud",
         "errorLoading": "Failed to load clouds",
-        "retry": "Retry",
-        "statusActive": "Subscribed",
-        "statusPending": "Preparing",
-        "setupProfile": "Please set up your profile",
-        "addAccount": "Add Account"
+        "retry": "Retry"
     },
     "placeList": {
         "defaultPlace": "Default",
