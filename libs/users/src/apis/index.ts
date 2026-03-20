@@ -5,6 +5,7 @@ import type {
     CloudDelegationTokenView,
     RegisterDeviceTokenBody,
     UserTokenView,
+    CloudView,
 } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { Params } from '@lemoncloud/lemon-web-core';
@@ -24,6 +25,18 @@ export const fetchUsers = async (params: Params): Promise<ListResult<UserView>> 
     return data;
 };
 
+export const fetchClouds = async (params: Params = {}): Promise<ListResult<CloudView>> => {
+    const { data } = await webCore
+        .buildSignedRequest({
+            method: 'GET',
+            baseURL: `${DOU_ENDPOINT}/clouds/0/list`,
+        })
+        .setParams({ ...params, view: 'mine' })
+        .execute<ListResult<CloudView>>();
+
+    return data;
+};
+
 export const issueCloudDelegationToken = async (target: string): Promise<CloudDelegationTokenView> => {
     const { data } = await webCore
         .buildSignedRequest({
@@ -31,6 +44,7 @@ export const issueCloudDelegationToken = async (target: string): Promise<CloudDe
             baseURL: `${DOU_ENDPOINT}/users/0/delegate-cloud`,
         })
         .setBody({ target })
+        .setParams({ legacy: false })
         .execute<CloudDelegationTokenView>();
 
     return data;
