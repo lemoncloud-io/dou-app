@@ -1,4 +1,4 @@
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -24,6 +24,7 @@ export const LoginPage = () => {
     const [isOAuthPending, setIsOAuthPending] = useState(false);
 
     const { isOnMobileApp, isIOS } = getMobileAppInfo();
+    const isBeta = true;
 
     const { mutateAsync: verifyNativeAppToken, isPending: isVerifyNativeAppTokenPending } = useVerifyNativeAppToken();
 
@@ -124,7 +125,27 @@ export const LoginPage = () => {
                     </div>
                 </form>
 
-                {isOnMobileApp && (
+                <div className="mt-6 flex items-center justify-center gap-6">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/signup')}
+                        className="flex items-center gap-0.5 text-[15px] font-medium text-[#53555B]"
+                    >
+                        {t('mypageLogin.signup')}
+                        <ChevronRight size={18} />
+                    </button>
+                    <div className="h-[14px] w-px bg-[#EAEAEC]" />
+                    <button
+                        type="button"
+                        onClick={() => navigate('/reset-password')}
+                        className="flex items-center gap-0.5 text-[15px] font-medium text-[#53555B]"
+                    >
+                        {t('mypageLogin.forgotPassword')}
+                        <ChevronRight size={18} />
+                    </button>
+                </div>
+
+                {!isBeta && isOnMobileApp && (
                     <div className="mt-6 flex flex-col gap-3">
                         <div className="flex items-center gap-3">
                             <div className="h-px flex-1 bg-[#E5E7EB]" />
