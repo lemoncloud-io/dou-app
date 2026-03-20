@@ -4,31 +4,34 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { FloatingButton } from '../components/FloatingButton';
+import { MIN_PASSWORD_LENGTH } from '../constants';
+import { FloatingButton } from './FloatingButton';
 
-export const SignupPasswordPage = () => {
+interface SetPasswordPageProps {
+    translationPrefix: string;
+    onSubmit: (password: string) => Promise<void>;
+}
+
+export const SetPasswordPage = ({ translationPrefix, onSubmit }: SetPasswordPageProps) => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const { toast } = useToast();
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [touched, setTouched] = useState(false);
-
     const [loading, setLoading] = useState(false);
 
     const passwordsMatch = password === confirmPassword;
-    const isValid = password.length > 0 && confirmPassword.length > 0 && passwordsMatch;
+    const isValid = password.length >= MIN_PASSWORD_LENGTH && confirmPassword.length > 0 && passwordsMatch;
     const showMismatch = touched && confirmPassword.length > 0 && !passwordsMatch;
 
     const handleComplete = async () => {
         setLoading(true);
-        // TODO: Call signup API
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setLoading(false);
-        toast({ title: t('signup.signupSuccess') });
-        navigate(-1);
+        try {
+            await onSubmit(password);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -42,35 +45,37 @@ export const SignupPasswordPage = () => {
             <div className="flex-1 overflow-y-auto overscroll-none px-4 pb-[120px]">
                 <div className="mb-8 mt-6">
                     <h1 className="text-[22px] font-bold leading-[1.35] tracking-[0.11px]">
-                        {t('signup.passwordTitle')}
+                        {t(`${translationPrefix}.passwordTitle`)}
                     </h1>
                     <p className="mt-[6px] text-[16px] font-medium leading-[1.45] tracking-[-0.24px] text-[#9FA2A7]">
-                        {t('signup.passwordDescription')}
+                        {t(`${translationPrefix}.passwordDescription`)}
                     </p>
                 </div>
 
                 <div className="flex flex-col gap-5">
                     <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold text-[#53555B]">{t('signup.passwordLabel')}</label>
+                        <label className="text-[14px] font-semibold text-[#53555B]">
+                            {t(`${translationPrefix}.passwordLabel`)}
+                        </label>
                         <input
                             type="password"
                             value={password}
                             onChange={e => setPassword(e.target.value)}
-                            placeholder={t('signup.passwordPlaceholder')}
+                            placeholder={t(`${translationPrefix}.passwordPlaceholder`)}
                             className="w-full rounded-[10px] border border-[#EAEAEC] bg-white p-3 px-4 text-[16px] text-black outline-none transition-colors placeholder:text-[#BABCC0] focus:border-[1.5px] focus:border-[#3A3C40] dark:border-[#3A3C40] dark:bg-background dark:text-white"
                         />
                     </div>
 
                     <div className="flex flex-col gap-2">
                         <label className="text-[14px] font-semibold text-[#53555B]">
-                            {t('signup.confirmPasswordLabel')}
+                            {t(`${translationPrefix}.confirmPasswordLabel`)}
                         </label>
                         <input
                             type="password"
                             value={confirmPassword}
                             onChange={e => setConfirmPassword(e.target.value)}
                             onBlur={() => setTouched(true)}
-                            placeholder={t('signup.confirmPasswordPlaceholder')}
+                            placeholder={t(`${translationPrefix}.confirmPasswordPlaceholder`)}
                             className={cn(
                                 'w-full rounded-[10px] border bg-white p-3 px-4 text-[16px] text-black outline-none transition-colors placeholder:text-[#BABCC0] dark:bg-background dark:text-white',
                                 showMismatch
@@ -79,14 +84,16 @@ export const SignupPasswordPage = () => {
                             )}
                         />
                         {showMismatch && (
-                            <p className="pl-[2px] text-[12px] text-[#FF4C35]">{t('signup.passwordMismatch')}</p>
+                            <p className="pl-[2px] text-[12px] text-[#FF4C35]">
+                                {t(`${translationPrefix}.passwordMismatch`)}
+                            </p>
                         )}
                     </div>
                 </div>
             </div>
 
             <FloatingButton
-                label={t('signup.complete')}
+                label={t(`${translationPrefix}.complete`)}
                 disabled={!isValid}
                 loading={loading}
                 onClick={handleComplete}

@@ -128,7 +128,7 @@ export const LoginPage = () => {
                 <div className="mt-6 flex items-center justify-center gap-6">
                     <button
                         type="button"
-                        onClick={() => navigate('/signup')}
+                        onClick={() => navigate('/account/signup')}
                         className="flex items-center gap-0.5 text-[15px] font-medium text-[#53555B]"
                     >
                         {t('mypageLogin.signup')}
@@ -137,7 +137,7 @@ export const LoginPage = () => {
                     <div className="h-[14px] w-px bg-[#EAEAEC]" />
                     <button
                         type="button"
-                        onClick={() => navigate('/reset-password')}
+                        onClick={() => navigate('/account/reset-password')}
                         className="flex items-center gap-0.5 text-[15px] font-medium text-[#53555B]"
                     >
                         {t('mypageLogin.forgotPassword')}

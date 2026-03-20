@@ -4,38 +4,40 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { DouLogo } from '../../signup/components/DouLogo';
-import { FloatingButton } from '../../signup/components/FloatingButton';
+import { DouLogo } from './DouLogo';
+import { FloatingButton } from './FloatingButton';
 
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-export const ResetPasswordEmailPage = () => {
+interface EmailInputPageProps {
+    translationPrefix: string;
+    buttonLabelKey?: string;
+    onSubmit: (email: string) => Promise<boolean>;
+}
+
+export const EmailInputPage = ({
+    translationPrefix,
+    buttonLabelKey = 'emailVerify',
+    onSubmit,
+}: EmailInputPageProps) => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const { toast } = useToast();
     const [email, setEmail] = useState('');
     const [touched, setTouched] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const hasError = touched && email.length > 0 && !isValidEmail(email);
     const isValid = isValidEmail(email);
-    const showClear = email.length > 0;
-
-    const MOCK_VALID_EMAILS = ['app@lemoncloud.io', 'developer@lemoncloud.io'];
 
     const handleVerify = async () => {
         setLoading(true);
-        // TODO: Call send reset password verification code API
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setLoading(false);
-
-        if (!MOCK_VALID_EMAILS.includes(email)) {
-            toast({ title: t('resetPassword.accountNotFound'), variant: 'destructive' });
-            return;
+        try {
+            const success = await onSubmit(email);
+            if (!success) return;
+        } finally {
+            setLoading(false);
         }
-        navigate('/reset-password/verify', { replace: true });
     };
 
     return (
@@ -53,7 +55,7 @@ export const ResetPasswordEmailPage = () => {
                     <div className="flex w-full flex-col gap-6">
                         <div className="flex flex-col gap-2">
                             <label className="text-[14px] font-semibold text-[#53555B]">
-                                {t('resetPassword.emailLabel')}
+                                {t(`${translationPrefix}.emailLabel`)}
                             </label>
                             <div className="relative">
                                 <input
@@ -61,7 +63,7 @@ export const ResetPasswordEmailPage = () => {
                                     value={email}
                                     onChange={e => setEmail(e.target.value)}
                                     onBlur={() => setTouched(true)}
-                                    placeholder={t('resetPassword.emailPlaceholder')}
+                                    placeholder={t(`${translationPrefix}.emailPlaceholder`)}
                                     className={cn(
                                         'w-full rounded-[10px] border bg-white p-3 px-4 pr-10 text-[16px] text-black outline-none transition-colors placeholder:text-[#BABCC0] dark:bg-background dark:text-white',
                                         hasError
@@ -69,7 +71,7 @@ export const ResetPasswordEmailPage = () => {
                                             : 'border-[#EAEAEC] focus:border-[1.5px] focus:border-[#3A3C40] dark:border-[#3A3C40]'
                                     )}
                                 />
-                                {showClear && (
+                                {email.length > 0 && (
                                     <button
                                         type="button"
                                         onClick={() => setEmail('')}
@@ -80,7 +82,7 @@ export const ResetPasswordEmailPage = () => {
                                 )}
                             </div>
                             <p className={cn('pl-[2px] text-[12px]', hasError ? 'text-[#FF4C35]' : 'text-[#84888F]')}>
-                                {t('resetPassword.emailDescription')}
+                                {t(`${translationPrefix}.emailDescription`)}
                             </p>
                         </div>
                     </div>
@@ -88,7 +90,7 @@ export const ResetPasswordEmailPage = () => {
             </div>
 
             <FloatingButton
-                label={t('resetPassword.sendCode')}
+                label={t(`${translationPrefix}.${buttonLabelKey}`)}
                 disabled={!isValid}
                 loading={loading}
                 onClick={handleVerify}

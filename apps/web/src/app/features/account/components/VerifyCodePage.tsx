@@ -1,14 +1,13 @@
 import { ChevronLeft, HelpCircle, Loader2, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { DouLogo } from '../../signup/components/DouLogo';
-import { FloatingButton } from '../../signup/components/FloatingButton';
-import { VerificationCodeInput } from '../../signup/components/VerificationCodeInput';
-import { VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../../signup/constants';
+import { VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../constants';
+import { DouLogo } from './DouLogo';
+import { FloatingButton } from './FloatingButton';
+import { VerificationCodeInput } from './VerificationCodeInput';
 
 const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
@@ -18,51 +17,61 @@ const formatTime = (seconds: number) => {
     return `${m}:${s}`;
 };
 
-export const ResetPasswordVerifyPage = () => {
+interface VerifyCodePageProps {
+    translationPrefix: string;
+    onVerify: (code: string) => Promise<boolean>;
+    onResend?: () => Promise<void>;
+}
+
+export const VerifyCodePage = ({ translationPrefix, onVerify, onResend }: VerifyCodePageProps) => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const { toast } = useToast();
     const [code, setCode] = useState('');
     const [timeLeft, setTimeLeft] = useState(VERIFICATION_TIMER_SECONDS);
     const [showTooltip, setShowTooltip] = useState(false);
-    const [resending, setResending] = useState(false);
-    const [verifying, setVerifying] = useState(false);
+    const [loadingState, setLoadingState] = useState<'idle' | 'verifying' | 'resending'>('idle');
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    useEffect(() => {
-        const timer = setInterval(() => {
+    const startTimer = useCallback(() => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = setInterval(() => {
             setTimeLeft(prev => {
                 if (prev <= 1) {
-                    clearInterval(timer);
+                    if (timerRef.current) clearInterval(timerRef.current);
                     return 0;
                 }
                 return prev - 1;
             });
         }, 1000);
-        return () => clearInterval(timer);
     }, []);
 
+    useEffect(() => {
+        startTimer();
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, [startTimer]);
+
     const handleResend = async () => {
-        setResending(true);
-        // TODO: Call resend verification code API
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setResending(false);
-        setTimeLeft(VERIFICATION_TIMER_SECONDS);
-        setCode('');
+        setLoadingState('resending');
+        try {
+            await onResend?.();
+            setTimeLeft(VERIFICATION_TIMER_SECONDS);
+            setCode('');
+            startTimer();
+        } finally {
+            setLoadingState('idle');
+        }
     };
 
-    const MOCK_VALID_CODE = '910202';
-
     const handleComplete = async () => {
-        setVerifying(true);
-        // TODO: Call verify code API
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setVerifying(false);
-
-        if (code !== MOCK_VALID_CODE) {
-            toast({ title: t('resetPassword.verifyFailed'), variant: 'destructive' });
-            return;
+        setLoadingState('verifying');
+        try {
+            const success = await onVerify(code);
+            if (!success) return;
+        } finally {
+            setLoadingState('idle');
         }
-        navigate('/reset-password/new-password', { replace: true });
     };
 
     const isComplete = code.length === VERIFICATION_CODE_LENGTH;
@@ -82,10 +91,10 @@ export const ResetPasswordVerifyPage = () => {
                     <div className="flex w-full flex-col gap-[22px]">
                         <div className="flex flex-col gap-[6px] px-4">
                             <h1 className="text-[22px] font-bold leading-[1.35] tracking-[0.11px]">
-                                {t('resetPassword.verificationTitle')}
+                                {t(`${translationPrefix}.verificationTitle`)}
                             </h1>
                             <p className="text-[16px] font-medium leading-[1.45] tracking-[-0.24px] text-[#9FA2A7]">
-                                {t('resetPassword.verificationDescription')}
+                                {t(`${translationPrefix}.verificationDescription`)}
                             </p>
                         </div>
 
@@ -95,7 +104,7 @@ export const ResetPasswordVerifyPage = () => {
                             <div className="flex items-center justify-between px-6">
                                 <div className="flex items-center gap-px">
                                     <div className="flex items-center gap-[2px] text-[14px] font-medium tracking-[-0.28px] text-[#53555B]">
-                                        <span>{t('resetPassword.timeRemaining')}</span>
+                                        <span>{t(`${translationPrefix}.timeRemaining`)}</span>
                                         <span className="w-[40px]">{formatTime(timeLeft)}</span>
                                     </div>
                                     <button
@@ -109,13 +118,13 @@ export const ResetPasswordVerifyPage = () => {
                                 <button
                                     type="button"
                                     onClick={handleResend}
-                                    disabled={resending}
+                                    disabled={loadingState === 'resending'}
                                     className="text-[15px] font-semibold text-[#90C304] underline disabled:opacity-50"
                                 >
-                                    {resending ? (
+                                    {loadingState === 'resending' ? (
                                         <Loader2 size={16} className="animate-spin" />
                                     ) : (
-                                        t('resetPassword.resend')
+                                        t(`${translationPrefix}.resend`)
                                     )}
                                 </button>
                             </div>
@@ -135,7 +144,7 @@ export const ResetPasswordVerifyPage = () => {
                                 <X size={16} />
                             </button>
                             <p className="whitespace-pre-line text-[13px] font-medium leading-[1.45] tracking-[-0.325px] text-[#53555B]">
-                                {t('resetPassword.tooltip')}
+                                {t(`${translationPrefix}.tooltip`)}
                             </p>
                         </div>
                     </div>
@@ -143,9 +152,9 @@ export const ResetPasswordVerifyPage = () => {
             </div>
 
             <FloatingButton
-                label={t('resetPassword.complete')}
+                label={t(`${translationPrefix}.complete`)}
                 disabled={!isComplete}
-                loading={verifying}
+                loading={loadingState === 'verifying'}
                 onClick={handleComplete}
             />
         </div>

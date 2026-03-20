@@ -1,3 +1,4 @@
+import { AccountRoutes } from '../../features/account';
 import { ChatRoutes } from '../../features/chats';
 import { ExploreRoutes } from '../../features/explore';
 import { CreateRoomRoutes, HomeRoutes } from '../../features/home';
@@ -5,8 +6,6 @@ import { JoinRoutes } from '../../features/join';
 import { MyPageRoutes } from '../../features/mypage';
 import { NotificationsRoutes } from '../../features/notifications';
 import { PlaceRoutes } from '../../features/places';
-import { ResetPasswordRoutes } from '../../features/reset-password';
-import { SignupRoutes } from '../../features/signup';
 import { CreateWorkspaceRoutes, WorkspaceRoutes } from '../../features/workspace';
 import { MainLayout, SafeAreaLayout } from '../../shared/layouts';
 
@@ -26,8 +25,7 @@ export const privateRoutes = [
         element: <SafeAreaLayout />,
         children: [
             { path: 'mypage/*', element: <MyPageRoutes /> },
-            { path: 'signup/*', element: <SignupRoutes /> },
-            { path: 'reset-password/*', element: <ResetPasswordRoutes /> },
+            { path: 'account/*', element: <AccountRoutes /> },
             { path: 'chats/*', element: <ChatRoutes /> },
             { path: 'workspace/*', element: <WorkspaceRoutes /> },
             { path: 'create-workspace/*', element: <CreateWorkspaceRoutes /> },
