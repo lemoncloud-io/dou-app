@@ -327,7 +327,7 @@
 				CODE_SIGN_ENTITLEMENTS = Chatic/Chatic.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				CURRENT_PROJECT_VERSION = 17;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = REDACTED_TEAM_ID;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
@@ -362,7 +362,7 @@
 				CODE_SIGN_ENTITLEMENTS = Chatic/Chatic.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				CURRENT_PROJECT_VERSION = 17;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = REDACTED_TEAM_ID;
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
