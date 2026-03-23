@@ -31,7 +31,7 @@ export const ResetPasswordNewPage = () => {
                 password,
             });
             toast({ title: t('resetPassword.success') });
-            navigate('/auth/login', { replace: true });
+            setTimeout(() => navigate('/auth/login', { replace: true }), 1500);
         } catch {
             toast({ title: t('resetPassword.changeFailed'), variant: 'destructive' });
         }

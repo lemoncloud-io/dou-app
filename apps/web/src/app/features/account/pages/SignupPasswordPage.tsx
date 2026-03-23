@@ -31,7 +31,7 @@ export const SignupPasswordPage = () => {
                 password,
             });
             toast({ title: t('signup.signupSuccess') });
-            navigate('/auth/login', { replace: true });
+            setTimeout(() => navigate('/auth/login', { replace: true }), 1500);
         } catch {
             toast({ title: t('signup.signupFailed'), variant: 'destructive' });
         }
