@@ -23,7 +23,7 @@ export const ResetPasswordVerifyPage = () => {
     const handleVerify = async (code: string) => {
         try {
             await verifyAlias.mutateAsync({ type: 'email', mode: 'find', step: 'check', alias: email, code });
-            navigate('/account/reset-password/new-password', { replace: true, state: { email } });
+            navigate('/account/reset-password/new-password', { replace: true, state: { email, code } });
             return true;
         } catch {
             toast({ title: t('resetPassword.verifyFailed'), variant: 'destructive' });

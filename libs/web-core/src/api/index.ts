@@ -254,8 +254,8 @@ export const updateProfile = async (body: Partial<UserProfile>) => {
                                 baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
                             })
                             .setBody(body as Record<string, unknown>)
-                            .execute<UserProfile>();
-                        return data;
+                            .execute<UserProfile & { error?: string }>();
+                        return throwIfApiError(data);
                     },
                     1,
                     'Profile update after token refresh'

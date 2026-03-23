@@ -13,7 +13,7 @@ export const ResetPasswordNewPage = () => {
     const { toast } = useToast();
     const { t } = useTranslation();
     const { state } = useLocation();
-    const email = (state as { email?: string })?.email ?? '';
+    const { email = '', code = '' } = (state as { email?: string; code?: string }) ?? {};
     const verifyAlias = useVerifyAlias();
 
     useEffect(() => {
@@ -22,7 +22,14 @@ export const ResetPasswordNewPage = () => {
 
     const handleSubmit = async (password: string) => {
         try {
-            await verifyAlias.mutateAsync({ type: 'email', mode: 'find', step: 'change', alias: email, password });
+            await verifyAlias.mutateAsync({
+                type: 'email',
+                mode: 'find',
+                step: 'change',
+                alias: email,
+                code,
+                password,
+            });
             toast({ title: t('resetPassword.success') });
             navigate('/auth/login', { replace: true });
         } catch {
