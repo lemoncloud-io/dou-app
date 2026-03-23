@@ -75,14 +75,14 @@ export const LoginPage = () => {
     };
 
     return (
-        <div className="flex h-full flex-col bg-background px-4 pt-safe-top">
-            <header className="flex items-center py-3">
-                <button onClick={() => navigate(-1)} className="p-2 -ml-2">
-                    <ChevronLeft size={24} strokeWidth={2} />
+        <div className="flex h-full flex-col bg-background pt-safe-top">
+            <header className="flex items-center px-[6px]">
+                <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
+                    <ChevronLeft size={26} strokeWidth={2} />
                 </button>
             </header>
 
-            <div className="flex-1 overflow-y-auto overscroll-none pb-safe-bottom">
+            <div className="flex-1 overflow-y-auto overscroll-none px-4 pb-safe-bottom">
                 <div className="mt-6 mb-8">
                     <h1 className="text-[20px] font-semibold leading-[1.35] ">{t('mypageLogin.title')}</h1>
                 </div>

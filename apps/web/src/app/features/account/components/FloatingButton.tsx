@@ -11,7 +11,7 @@ interface FloatingButtonProps {
 
 export const FloatingButton = ({ label, disabled = false, loading = false, onClick }: FloatingButtonProps) => {
     return (
-        <div className="px-4 pb-safe-bottom pt-3">
+        <div className="px-4 py-3">
             <button
                 type="button"
                 disabled={disabled || loading}

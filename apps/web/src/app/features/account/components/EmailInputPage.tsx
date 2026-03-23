@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
 
+import { KeyboardAwareLayout } from '../../../shared/layouts';
 import { DouLogo } from './DouLogo';
 import { FloatingButton } from './FloatingButton';
 
@@ -41,14 +42,24 @@ export const EmailInputPage = ({
     };
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
-            <header className="flex items-center px-[6px]">
-                <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
-                    <ChevronLeft size={26} strokeWidth={2} />
-                </button>
-            </header>
-
-            <div className="flex-1 overflow-y-auto overscroll-none px-4 pb-[120px]">
+        <KeyboardAwareLayout
+            header={
+                <header className="flex items-center px-[6px]">
+                    <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
+                        <ChevronLeft size={26} strokeWidth={2} />
+                    </button>
+                </header>
+            }
+            footer={
+                <FloatingButton
+                    label={t(`${translationPrefix}.${buttonLabelKey}`)}
+                    disabled={!isValid}
+                    loading={loading}
+                    onClick={handleVerify}
+                />
+            }
+        >
+            <div className="px-4">
                 <div className="mt-[24px] flex flex-col items-center gap-[46px]">
                     <DouLogo />
 
@@ -88,13 +99,6 @@ export const EmailInputPage = ({
                     </div>
                 </div>
             </div>
-
-            <FloatingButton
-                label={t(`${translationPrefix}.${buttonLabelKey}`)}
-                disabled={!isValid}
-                loading={loading}
-                onClick={handleVerify}
-            />
-        </div>
+        </KeyboardAwareLayout>
     );
 };
