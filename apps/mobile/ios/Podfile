@@ -16,7 +16,6 @@ setup_permissions([
   'Camera',
   'PhotoLibrary',
   'Contacts',
-  'Microphone',
   'Notifications',
 ])
 

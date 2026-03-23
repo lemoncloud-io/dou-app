@@ -12,8 +12,8 @@ import { logger } from '../index';
 import { subscriptionIapService } from '../services';
 
 /**
- * @property onPurchaseSuccess: 모든 구매 프로세스가 성공적으로 마무리 되었을때에 대한 리스너
- * @property onPurchaseError: 구매 절차 중 에러가 발생하였을 때에 대한 리스너
+ * @property onPurchaseSuccess: Listener for when all purchase processes are successfully completed
+ * @property onPurchaseError: Listener for when an error occurs during the purchase process
  */
 interface UseIapOptions {
     onPurchaseSuccess?: () => void;
@@ -21,7 +21,7 @@ interface UseIapOptions {
 }
 
 /**
- * 인앱 결제 훅
+ * In-app purchase hook
  */
 export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIapOptions = {}) => {
     const [products, setProducts] = useState<ProductSubscription[]>([]);
@@ -34,7 +34,7 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     }, [onPurchaseSuccess, onPurchaseError]);
 
     /**
-     * 구매내역 최신화
+     * Refresh purchase history
      */
     const refreshPurchases = useCallback(async () => {
         const purchases = await subscriptionIapService.getAvailablePurchases();
@@ -42,9 +42,9 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     }, []);
 
     /**
-     * 트랜잭션 처리 프로세스
-     * - 구매 성공 이후 서버 검증 수행
-     * - 검증 및 트랜잭션 처리 완료 이후 onPurchaseSuccess 콜백 수행
+     * Transaction processing
+     * - Performs server verification after a successful purchase
+     * - Executes the onPurchaseSuccess callback after verification and transaction processing are complete
      */
     const handleCompleteTransaction = useCallback(
         async (purchase: Purchase) => {
@@ -67,9 +67,9 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     );
 
     /**
-     * - 초기화 로직
-     * - 구매 프로세스 성공/실패 리스너 등록
-     * - 구독 목록 및 사용자의 결제내역 조회
+     * - Initialization logic
+     * - Registers listeners for purchase process success/failure
+     * - Fetches the subscription list and the user's purchase history
      */
     useEffect(() => {
         const init = async () => {
@@ -122,9 +122,9 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     }, [handleCompleteTransaction]);
 
     /**
-     * 구매 처리
-     * @param sku 상품 코드 (`Stock Keeping Unit`)
-     * @param oldSku (Optional) 업그레이드/다운그레이드 시 교체할 현재 구독중인 상품 코드
+     * Process purchase
+     * @param sku Product code (`Stock Keeping Unit`)
+     * @param oldSku (Optional) The current subscription product code to replace for upgrade/downgrade
      */
     const handlePurchase = async (sku: string, oldSku?: string) => {
         if (loading) return;
@@ -136,7 +136,7 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
             logger.error('IAP', 'Purchase Request Failed', e);
 
             /*
-             *  이미 보유 중인 경우 복구(검증) 로직 실행
+             * Execute restore (verification) logic if already owned
              */
             if (e.code === 'E_ALREADY_OWNED') {
                 await restorePurchases();
@@ -146,9 +146,9 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     };
 
     /**
-     * - 앱에서 결제는 완료하였지만, 서버 검증에 실패한 상품들 탐색 후 재시도 처리
-     * - 서버 검증 성공 시, 최종 구매 완료 트랜잭션 처리
-     * - iOS의 경우 restorePurchases()를 호출하면 이전에 구매했던 모든 상품들이 purchaseUpdatedListener를 통해 다시 전달
+     * - Scans for products that were purchased in the app but failed server verification, and retries
+     * - Processes the final purchase completion transaction upon successful server verification
+     * - For iOS, calling restorePurchases() will deliver all previously purchased products again via the purchaseUpdatedListener
      */
     const restorePurchases = useCallback(async () => {
         const restored = await subscriptionIapService.restorePurchases();
@@ -160,7 +160,7 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     }, [refreshPurchases]);
 
     /**
-     * 구독 관리 페이지 이동
+     * Navigate to subscription management page
      */
     const openSubscriptionManagement = useCallback(async () => {
         await subscriptionIapService.linkToManageSubscriptions();
