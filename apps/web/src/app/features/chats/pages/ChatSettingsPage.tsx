@@ -74,6 +74,7 @@ export const ChatSettingsPage = () => {
     const { clearMessages } = useChatMessages(profile?.uid ?? null, channelId ?? null);
 
     const isOwner = channel?.ownerId === profile?.uid;
+    const isSelfChat = channel?.stereo === 'self';
     const memberCount = membersTotal || channel?.memberNo || 0;
 
     const openDialog = (type: DialogType) => setActiveDialog(type);
@@ -196,70 +197,78 @@ export const ChatSettingsPage = () => {
                             label={t('chat.settings.notifications')}
                             onClick={() => navigate(`/chats/${channelId}/settings/notifications`)}
                         />
-                        {isOwner ? (
-                            <ActionButton
-                                icon={Trash2}
-                                label={t('chat.settings.deleteRoom')}
-                                onClick={() => openDialog('delete')}
-                                variant="danger"
-                            />
-                        ) : (
-                            <ActionButton
-                                icon={LogOut}
-                                label={t('chat.settings.leaveRoom')}
-                                onClick={() => openDialog('leave')}
-                            />
-                        )}
+                        {!isSelfChat ? (
+                            isOwner ? (
+                                <ActionButton
+                                    icon={Trash2}
+                                    label={t('chat.settings.deleteRoom')}
+                                    onClick={() => openDialog('delete')}
+                                    variant="danger"
+                                />
+                            ) : (
+                                <ActionButton
+                                    icon={LogOut}
+                                    label={t('chat.settings.leaveRoom')}
+                                    onClick={() => openDialog('leave')}
+                                />
+                            )
+                        ) : null}
                     </div>
                 </div>
 
                 {/* Members List */}
-                <div className="flex w-full flex-col gap-[18px]">
-                    <div className="flex items-center gap-1 px-[18px]">
-                        <span className="text-[16px] font-semibold leading-[1.5] tracking-[-0.32px] text-foreground">
-                            {t('chat.settings.roomMembers')}
-                        </span>
-                        <span className="text-[16px] font-semibold leading-[1.5] text-muted-foreground">
-                            {memberCount}
-                        </span>
-                    </div>
-                    <div className="flex flex-col gap-[14px] px-4">
-                        {isMembersLoading ? (
-                            <div className="py-4 text-center text-sm text-muted-foreground">
-                                {t('chat.settings.loading')}
-                            </div>
-                        ) : members.length > 0 ? (
-                            members.map(member => {
-                                const memberId = member.id ?? '';
-                                const memberName =
-                                    member.$join?.nick || member.nick || memberId || t('chat.settings.unknownUser');
+                {!isSelfChat && (
+                    <div className="flex w-full flex-col gap-[18px]">
+                        <div className="flex items-center gap-1 px-[18px]">
+                            <span className="text-[16px] font-semibold leading-[1.5] tracking-[-0.32px] text-foreground">
+                                {t('chat.settings.roomMembers')}
+                            </span>
+                            <span className="text-[16px] font-semibold leading-[1.5] text-muted-foreground">
+                                {memberCount}
+                            </span>
+                        </div>
+                        <div className="flex flex-col gap-[14px] px-4">
+                            {isMembersLoading ? (
+                                <div className="py-4 text-center text-sm text-muted-foreground">
+                                    {t('chat.settings.loading')}
+                                </div>
+                            ) : members.length > 0 ? (
+                                members.map(member => {
+                                    const memberId = member.id ?? '';
+                                    const memberName =
+                                        member.$join?.nick || member.nick || memberId || t('chat.settings.unknownUser');
 
-                                const isMember = memberId === profile?.uid;
+                                    const isMember = memberId === profile?.uid;
 
-                                return (
-                                    <MemberListItem
-                                        key={memberId}
-                                        member={{
-                                            id: memberId,
-                                            name: memberName,
-                                            avatar: null,
-                                        }}
-                                        isMe={isMember}
-                                        isOwner={memberId === channel?.ownerId}
-                                        isPendingInvite={member.$join?.joined === 0}
-                                        showActions={!isMember}
-                                        onReport={() => openMemberDialog('report', { id: memberId, name: memberName })}
-                                        onBlock={() => openMemberDialog('block', { id: memberId, name: memberName })}
-                                    />
-                                );
-                            })
-                        ) : (
-                            <div className="py-4 text-center text-sm text-muted-foreground">
-                                {t('chat.settings.noMembers', 'No members')}
-                            </div>
-                        )}
+                                    return (
+                                        <MemberListItem
+                                            key={memberId}
+                                            member={{
+                                                id: memberId,
+                                                name: memberName,
+                                                avatar: null,
+                                            }}
+                                            isMe={isMember}
+                                            isOwner={memberId === channel?.ownerId}
+                                            isPendingInvite={member.$join?.joined === 0}
+                                            showActions={!isMember}
+                                            onReport={() =>
+                                                openMemberDialog('report', { id: memberId, name: memberName })
+                                            }
+                                            onBlock={() =>
+                                                openMemberDialog('block', { id: memberId, name: memberName })
+                                            }
+                                        />
+                                    );
+                                })
+                            ) : (
+                                <div className="py-4 text-center text-sm text-muted-foreground">
+                                    {t('chat.settings.noMembers', 'No members')}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Dialogs */}
