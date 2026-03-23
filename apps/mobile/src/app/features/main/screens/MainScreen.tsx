@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 
-import { AppWebView, FullScreenLoader } from '../../../common';
+import { AppWebView, FullScreenLoader, t } from '../../../common';
 import { useAppBridge } from '../../../common/webview/hooks';
 import type { WebView } from 'react-native-webview';
 import type { MainScreenProps } from '../navigation';
