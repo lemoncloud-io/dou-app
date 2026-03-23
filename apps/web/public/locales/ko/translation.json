@@ -285,6 +285,8 @@
     },
     "placeOrder": {
         "title": "플레이스 목록",
+        "myPlaces": "내 플레이스",
+        "friendPlaces": "친구 플레이스",
         "settings": "설정",
         "delete": "삭제",
         "leave": "나가기",

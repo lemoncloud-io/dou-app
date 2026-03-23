@@ -285,6 +285,8 @@
     },
     "placeOrder": {
         "title": "Place List",
+        "myPlaces": "My Places",
+        "friendPlaces": "Friend Places",
         "settings": "Settings",
         "delete": "Delete",
         "leave": "Leave",
