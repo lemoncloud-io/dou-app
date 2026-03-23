@@ -7,6 +7,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { PageHeader } from '../../../shared/components';
+import { KeyboardAwareLayout } from '../../../shared/layouts';
 import { InviteCodeCard, VisibilityToggle } from '../../workspace/components';
 import { useCreateChannel } from '../hooks/useCreateChannel';
 
@@ -22,10 +23,20 @@ interface CreateRoomSuccessProps {
 
 const CreateRoomSuccess = ({ name, visibility, inviteCode, onClose, onConfirm, t }: CreateRoomSuccessProps) => {
     return (
-        <div className="flex h-full flex-col bg-background">
-            <PageHeader title={t('createRoom.successTitle')} onBack={onClose} />
-
-            <div className="flex-1 space-y-6 px-5 pt-8">
+        <KeyboardAwareLayout
+            header={<PageHeader title={t('createRoom.successTitle')} onBack={onClose} />}
+            footer={
+                <div className="px-5 pt-4">
+                    <button
+                        onClick={onConfirm}
+                        className="w-full rounded-2xl bg-accent py-4 text-[15px] font-semibold text-accent-foreground transition-transform active:scale-[0.98]"
+                    >
+                        {t('createRoom.confirm')}
+                    </button>
+                </div>
+            }
+        >
+            <div className="space-y-6 px-5 pt-8">
                 <div className="text-center">
                     <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent">
                         <span className="text-2xl">🎉</span>
@@ -46,16 +57,7 @@ const CreateRoomSuccess = ({ name, visibility, inviteCode, onClose, onConfirm, t
                     </span>
                 </div>
             </div>
-
-            <div className="px-5 pb-10 pt-4">
-                <button
-                    onClick={onConfirm}
-                    className="w-full rounded-2xl bg-accent py-4 text-[15px] font-semibold text-accent-foreground transition-transform active:scale-[0.98]"
-                >
-                    {t('createRoom.confirm')}
-                </button>
-            </div>
-        </div>
+        </KeyboardAwareLayout>
     );
 };
 
@@ -107,10 +109,21 @@ export const CreateRoomPage = () => {
     }
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
-            <PageHeader title={t('createRoom.title')} />
-
-            <div className="flex-1 px-5 pt-4">
+        <KeyboardAwareLayout
+            header={<PageHeader title={t('createRoom.title')} />}
+            footer={
+                <div className="px-5 pt-4">
+                    <button
+                        disabled={name.length === 0 || isLoading}
+                        onClick={handleCreate}
+                        className="w-full rounded-2xl bg-muted py-4 text-[15px] font-semibold text-muted-foreground transition-all disabled:opacity-100 enabled:bg-accent enabled:text-accent-foreground active:scale-[0.98]"
+                    >
+                        {isLoading ? t('createRoom.creating') : t('createRoom.done')}
+                    </button>
+                </div>
+            }
+        >
+            <div className="px-5 pt-4">
                 <h2 className="text-2xl font-extrabold leading-tight text-foreground">{t('createRoom.subtitle')}</h2>
 
                 <div className="mt-8">
@@ -155,16 +168,6 @@ export const CreateRoomPage = () => {
                     </p>
                 </div>
             </div>
-
-            <div className="px-5 pb-10 pt-4">
-                <button
-                    disabled={name.length === 0 || isLoading}
-                    onClick={handleCreate}
-                    className="w-full rounded-2xl bg-muted py-4 text-[15px] font-semibold text-muted-foreground transition-all disabled:opacity-100 enabled:bg-accent enabled:text-accent-foreground active:scale-[0.98]"
-                >
-                    {isLoading ? t('createRoom.creating') : t('createRoom.done')}
-                </button>
-            </div>
-        </div>
+        </KeyboardAwareLayout>
     );
 };

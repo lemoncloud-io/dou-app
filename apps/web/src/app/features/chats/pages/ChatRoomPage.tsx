@@ -213,11 +213,11 @@ export const ChatRoomPage = () => {
     return (
         <div className="flex  h-screen flex-col pt-safe-top bg-background ">
             {/* Header */}
-            <header className="z-10 flex items-center justify-between border-b border-border px-4 py-4">
-                <button onClick={() => navigate(-1)} className="p-1">
-                    <ChevronLeft size={24} className="text-foreground" />
+            <header className="z-10 flex items-center justify-between border-b border-border px-4 py-2">
+                <button onClick={() => navigate(-1)} className="p-2">
+                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
                 </button>
-                <h1 className="text-[17px] font-bold text-foreground">
+                <h1 className="text-[17px] font-semibold text-foreground">
                     {channel?.name || t('chat.room.title')}
                     {channel?.memberNo && (
                         <span className="ml-1.5 text-sm font-normal text-muted-foreground">{channel.memberNo}</span>

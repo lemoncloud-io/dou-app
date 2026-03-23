@@ -1,14 +1,14 @@
 import { useTranslation } from 'react-i18next';
 
 import { PageHeader } from '../../../shared/components';
-import { TERMS_OF_SERVICE_CONTENT } from '../constants';
+import { type SupportedLanguage, TERMS_CONTENTS } from '../constants';
 
 export const TermsPage = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
 
-    const currentVersion = TERMS_OF_SERVICE_CONTENT.versions.find(
-        v => v.version === TERMS_OF_SERVICE_CONTENT.currentVersion
-    );
+    const lang: SupportedLanguage = i18n.language === 'ko' ? 'ko' : 'en';
+    const content = TERMS_CONTENTS[lang];
+    const currentVersion = content.versions.find(v => v.version === content.currentVersion);
 
     return (
         <div className="flex h-full flex-col bg-background pt-safe-top">
@@ -25,9 +25,7 @@ export const TermsPage = () => {
                 <div className="space-y-8">
                     {currentVersion?.sections.map((section, index) => (
                         <div key={index}>
-                            <h2 className="mb-3 text-lg font-semibold text-foreground">
-                                {index + 1}. {section.title}
-                            </h2>
+                            <h2 className="mb-3 text-lg font-semibold text-foreground">{section.title}</h2>
                             <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
                                 {section.content.split('\n').map((para, i) => (
                                     <p key={i}>{para}</p>

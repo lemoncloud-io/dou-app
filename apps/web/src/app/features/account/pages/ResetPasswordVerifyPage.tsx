@@ -1,30 +1,42 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
+import { useVerifyAlias } from '@chatic/auth';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { VerifyCodePage } from '../components';
-import { MOCK_VALID_CODE } from '../constants';
 
 export const ResetPasswordVerifyPage = () => {
     const navigate = useNavigateWithTransition();
     const { toast } = useToast();
     const { t } = useTranslation();
+    const { state } = useLocation();
+    const email = (state as { email?: string })?.email ?? '';
+    const verifyAlias = useVerifyAlias();
+
+    useEffect(() => {
+        if (!email) navigate('/account/reset-password', { replace: true });
+    }, [email, navigate]);
 
     const handleVerify = async (code: string) => {
-        // TODO: Call verify code API
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        if (code !== MOCK_VALID_CODE) {
+        try {
+            await verifyAlias.mutateAsync({ type: 'email', mode: 'find', step: 'check', alias: email, code });
+            navigate('/account/reset-password/new-password', { replace: true, state: { email, code } });
+            return true;
+        } catch {
             toast({ title: t('resetPassword.verifyFailed'), variant: 'destructive' });
             return false;
         }
-        navigate('/account/reset-password/new-password', { replace: true });
-        return true;
     };
 
     const handleResend = async () => {
-        // TODO: Call resend API
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+            await verifyAlias.mutateAsync({ type: 'email', mode: 'find', step: 'resend', alias: email });
+        } catch {
+            toast({ title: t('resetPassword.resendFailed'), variant: 'destructive' });
+        }
     };
 
     return <VerifyCodePage translationPrefix="resetPassword" onVerify={handleVerify} onResend={handleResend} />;

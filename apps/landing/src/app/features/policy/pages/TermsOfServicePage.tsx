@@ -1,22 +1,28 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { PolicyPageLayout, PolicySection } from '../components';
-import { TERMS_OF_SERVICE_CONTENT } from '../constants';
+import { type SupportedLanguage, TERMS_CONTENTS } from '../constants';
 
 export const TermsOfServicePage = (): JSX.Element => {
-    const [selectedVersion, setSelectedVersion] = useState(TERMS_OF_SERVICE_CONTENT.currentVersion);
+    const { t, i18n } = useTranslation();
 
-    const currentVersionData = TERMS_OF_SERVICE_CONTENT.versions.find(v => v.version === selectedVersion);
+    const lang: SupportedLanguage = i18n.language === 'ko' ? 'ko' : 'en';
+    const content = TERMS_CONTENTS[lang];
+
+    const [selectedVersion, setSelectedVersion] = useState(content.currentVersion);
+
+    const currentVersionData = content.versions.find(v => v.version === selectedVersion);
 
     if (!currentVersionData) {
-        return <div>버전을 찾을 수 없습니다.</div>;
+        return <div>{t('policy.versionNotFound')}</div>;
     }
 
     return (
         <PolicyPageLayout
-            title={TERMS_OF_SERVICE_CONTENT.title}
-            subtitle={TERMS_OF_SERVICE_CONTENT.subtitle}
-            versions={TERMS_OF_SERVICE_CONTENT.versions}
+            title={content.title}
+            subtitle={content.subtitle}
+            versions={content.versions}
             currentVersion={selectedVersion}
             onVersionChange={setSelectedVersion}
         >
@@ -24,7 +30,7 @@ export const TermsOfServicePage = (): JSX.Element => {
                 {/* Effective Date */}
                 <div className="text-right">
                     <p className="text-[14px] sm:text-[16px] text-gray-600">
-                        시행일: {currentVersionData.effectiveDate}
+                        {t('policy.effectiveDate')}: {currentVersionData.effectiveDate}
                     </p>
                 </div>
 

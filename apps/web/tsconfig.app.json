@@ -23,10 +23,10 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../../assets/tsconfig.lib.json"
+            "path": "../../libs/users/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/users/tsconfig.lib.json"
+            "path": "../../libs/policy-content/tsconfig.lib.json"
         },
         {
             "path": "../../libs/device-utils/tsconfig.lib.json"
@@ -36,6 +36,9 @@
         },
         {
             "path": "../../libs/auth/tsconfig.lib.json"
+        },
+        {
+            "path": "../../assets/tsconfig.lib.json"
         },
         {
             "path": "../../libs/socket/tsconfig.lib.json"

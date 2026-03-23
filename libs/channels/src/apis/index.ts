@@ -1,3 +1,4 @@
+import { throwIfApiError } from '@chatic/shared';
 import { webCore } from '@chatic/web-core';
 
 import type { ListResult } from '@chatic/shared';
@@ -20,9 +21,9 @@ export const fetchPublicChannels = async (params: Params): Promise<ListResult<Ch
             baseURL: `${VITE_SOC_ENDPOINT}/hello/channel/list`,
         })
         .setParams(params)
-        .execute<ListResult<ChannelView>>();
+        .execute<ListResult<ChannelView> & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const fetchChannels = async (params: Params): Promise<ListResult<ChannelView>> => {
@@ -32,9 +33,9 @@ export const fetchChannels = async (params: Params): Promise<ListResult<ChannelV
             baseURL: `${VITE_SOC_ENDPOINT}/channels/0/mine`,
         })
         .setParams(params)
-        .execute<ListResult<ChannelView>>();
+        .execute<ListResult<ChannelView> & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const createPublicChannel = async (body: ChatStartBody): Promise<ChannelView> => {
@@ -44,8 +45,9 @@ export const createPublicChannel = async (body: ChatStartBody): Promise<ChannelV
             baseURL: `${VITE_SOC_ENDPOINT}/hello/chat-start`,
         })
         .setBody(body)
-        .execute<ChannelView>();
-    return data;
+        .execute<ChannelView & { error?: string }>();
+
+    return throwIfApiError(data);
 };
 
 export const leavePublicChannel = async (id: string, body: ChannelLeaveBody): Promise<JoinView> => {
@@ -56,9 +58,9 @@ export const leavePublicChannel = async (id: string, body: ChannelLeaveBody): Pr
         })
         .setParams({ id })
         .setBody(body)
-        .execute<JoinView>();
+        .execute<JoinView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const invitePublicChannel = async (id: string, body: ChannelInviteBody): Promise<ChannelView> => {
@@ -69,9 +71,9 @@ export const invitePublicChannel = async (id: string, body: ChannelInviteBody): 
         })
         .setParams({ id })
         .setBody(body)
-        .execute<ChannelView>();
+        .execute<ChannelView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const fetchUsersInChannel = async (id: string, params: Params): Promise<ListResult<UserView>> => {
@@ -81,7 +83,7 @@ export const fetchUsersInChannel = async (id: string, params: Params): Promise<L
             baseURL: `${VITE_SOC_ENDPOINT}/channels/${id}/users`,
         })
         .setParams(params)
-        .execute<ListResult<UserView>>();
+        .execute<ListResult<UserView> & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };

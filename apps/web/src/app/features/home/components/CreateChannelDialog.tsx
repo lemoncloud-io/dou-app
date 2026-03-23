@@ -136,6 +136,11 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : t('createChannel.done')}
                             </Button>
                         </div>
+                        <div
+                            className="shrink-0 touch-none bg-background"
+                            style={{ height: 'var(--keyboard-height, 0px)' }}
+                            onTouchMove={e => e.preventDefault()}
+                        />
                     </div>
                 </form>
             </DialogContent>

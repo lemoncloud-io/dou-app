@@ -19,3 +19,26 @@ export interface AuthSessionListResult {
     page: number;
     limit: number;
 }
+
+// find-alias
+export interface FindAliasBody {
+    type: 'email';
+    alias: string;
+}
+
+export interface FindAliasView {
+    hasUser: boolean;
+}
+
+// verify-alias
+export interface VerifyAliasBody {
+    type: 'email';
+    mode: 'find' | 'signup';
+    step: 'send' | 'resend' | 'check' | 'change' | 'confirm';
+    alias: string;
+    userId?: string;
+    code?: string;
+    password?: string;
+}
+
+export interface VerifyAliasView {}

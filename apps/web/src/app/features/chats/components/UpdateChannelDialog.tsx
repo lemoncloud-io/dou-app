@@ -121,7 +121,7 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                                     <Input
                                         {...register('desc')}
                                         placeholder="예: UIUX 스터디를 위한 방입니다"
-                                        className="h-11 px-3.5 bg-white border border-[#EAEAEC] rounded-[10px] text-[15px] font-medium leading-[1.45] tracking-[0.005em] placeholder:text-[#84888F]"
+                                        className="h-11 px-3.5 bg-surface border border-input-border rounded-[10px] text-[15px] font-medium leading-[1.45] tracking-[0.005em] placeholder:text-description"
                                     />
                                 </div>
                             </div> */}

@@ -75,7 +75,7 @@ export const BottomNavigation = () => {
                                 <span
                                     className={cn(
                                         'text-[11px] leading-[1.09] tracking-[-0.009em] text-center w-full',
-                                        isActive ? 'font-semibold text-white' : 'font-medium text-[#53555B]'
+                                        isActive ? 'font-semibold text-white' : 'font-medium text-label'
                                     )}
                                 >
                                     {t(labelKey)}

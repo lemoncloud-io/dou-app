@@ -1,2 +1,2 @@
 export { PolicyRoutes } from './routes';
-export type { PolicyContent, PolicySection, PolicyVersion } from './constants';
+export type { PolicyContent, PolicySection, PolicyVersion, SupportedLanguage } from './constants';

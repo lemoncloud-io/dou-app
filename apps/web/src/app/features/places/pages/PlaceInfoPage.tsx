@@ -8,6 +8,7 @@ import { cn } from '@chatic/ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { PageHeader } from '../../../shared/components';
+import { KeyboardAwareLayout } from '../../../shared/layouts';
 import { useMyPlaces } from '../../home/hooks/useMyPlaces';
 import { useUpdateMyPlace } from '../../home/hooks/useUpdateMyPlace';
 
@@ -77,24 +78,36 @@ export const PlaceInfoPage = () => {
 
     if (!place) {
         return (
-            <div className="fixed inset-0 flex flex-col overflow-hidden bg-background pt-safe-top">
-                <div className="shrink-0">
-                    <PageHeader title={title} />
-                </div>
-                <div className="flex flex-1 items-center justify-center">
+            <KeyboardAwareLayout className="fixed inset-0 overflow-hidden" header={<PageHeader title={title} />}>
+                <div className="flex min-h-full items-center justify-center">
                     <span className="text-muted-foreground">{t('placeInfo.notFound')}</span>
                 </div>
-            </div>
+            </KeyboardAwareLayout>
         );
     }
 
     return (
-        <div className="fixed inset-0 flex flex-col overflow-hidden bg-background pt-safe-top">
-            <div className="shrink-0">
-                <PageHeader title={title} />
-            </div>
-
-            <div className="flex-1 overflow-y-auto overscroll-none px-5 pt-4">
+        <KeyboardAwareLayout
+            className="fixed inset-0 overflow-hidden"
+            header={<PageHeader title={title} />}
+            footer={
+                <div className="border-t border-border/50 bg-background px-5 py-4">
+                    <button
+                        disabled={!canSubmit}
+                        onClick={handleSubmit}
+                        className={cn(
+                            'w-full rounded-2xl py-4 text-[15px] font-semibold transition-all',
+                            canSubmit
+                                ? 'bg-[#B0EA10] text-foreground active:scale-[0.98]'
+                                : 'bg-muted text-muted-foreground'
+                        )}
+                    >
+                        {t('placeInfo.confirm')}
+                    </button>
+                </div>
+            }
+        >
+            <div className="px-5 pt-4">
                 <div className="mb-6 flex items-center gap-3">
                     <Calendar size={18} className="shrink-0 text-muted-foreground" />
                     <div className="flex flex-col gap-0.5">
@@ -123,21 +136,6 @@ export const PlaceInfoPage = () => {
                     <p className="mt-2 text-[14px] text-muted-foreground">{t('placeInfo.nameDescription')}</p>
                 </div>
             </div>
-
-            <div className="shrink-0 border-t border-border/50 bg-background px-5 py-4">
-                <button
-                    disabled={!canSubmit}
-                    onClick={handleSubmit}
-                    className={cn(
-                        'w-full rounded-2xl py-4 text-[15px] font-semibold transition-all',
-                        canSubmit
-                            ? 'bg-[#B0EA10] text-foreground active:scale-[0.98]'
-                            : 'bg-muted text-muted-foreground'
-                    )}
-                >
-                    {t('placeInfo.confirm')}
-                </button>
-            </div>
-        </div>
+        </KeyboardAwareLayout>
     );
 };
