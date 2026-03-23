@@ -1,14 +1,23 @@
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Logo } from '@chatic/assets';
 import { useTheme } from '@chatic/theme';
 
+import { Toast } from '../../../shared/components';
 import { storeUrls } from '../constants';
 
 export const HeroSection = (): JSX.Element => {
     const { t } = useTranslation();
     const { theme } = useTheme();
     const isDark = theme === 'dark';
+    const [toastKey, setToastKey] = useState(0);
+    const [showToast, setShowToast] = useState(false);
+    const handleCloseToast = useCallback(() => setShowToast(false), []);
+    const handleShowToast = useCallback(() => {
+        setToastKey(prev => prev + 1);
+        setShowToast(true);
+    }, []);
 
     return (
         <section className="relative w-full min-h-[calc(100vh-64px)] flex flex-col items-center justify-center px-6 pt-20 pb-24 bg-background overflow-hidden">
@@ -43,22 +52,22 @@ export const HeroSection = (): JSX.Element => {
 
                 {/* CTA Buttons */}
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up animate-delay-200">
-                    <a
-                        href={storeUrls.ios}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <button
+                        type="button"
+                        onClick={handleShowToast}
                         className="group btn-shimmer inline-flex items-center justify-center gap-3
                                    bg-foreground text-background
                                    px-8 py-4 rounded-xl text-base font-semibold
                                    w-full sm:w-auto sm:min-w-[200px]
                                    transition-all duration-300
                                    hover:shadow-lg hover:shadow-foreground/20
-                                   hover:-translate-y-0.5 active:translate-y-0"
+                                   hover:-translate-y-0.5 active:translate-y-0
+                                   cursor-pointer"
                     >
                         <AppleIcon />
                         {t('hero.appStore')}
                         <ArrowIcon />
-                    </a>
+                    </button>
 
                     <a
                         href={storeUrls.android}
@@ -77,6 +86,8 @@ export const HeroSection = (): JSX.Element => {
                     </a>
                 </div>
             </div>
+
+            <Toast key={toastKey} message={t('common.comingSoon')} visible={showToast} onClose={handleCloseToast} />
 
             {/* Scroll indicator */}
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-fade-in animate-delay-500">

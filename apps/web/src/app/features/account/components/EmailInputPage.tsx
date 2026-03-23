@@ -65,7 +65,7 @@ export const EmailInputPage = ({
 
                     <div className="flex w-full flex-col gap-6">
                         <div className="flex flex-col gap-2">
-                            <label className="text-[14px] font-semibold text-[#53555B]">
+                            <label className="text-[14px] font-semibold text-[#53555B] dark:text-muted-foreground">
                                 {t(`${translationPrefix}.emailLabel`)}
                             </label>
                             <div className="relative">

@@ -89,7 +89,7 @@ export const LoginPage = () => {
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-5">
                     <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold text-[#53555B]">
+                        <label className="text-[14px] font-semibold text-[#53555B] dark:text-muted-foreground">
                             {t('mypageLogin.emailLabel')}
                         </label>
                         <Input
@@ -102,7 +102,7 @@ export const LoginPage = () => {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold text-[#53555B]">
+                        <label className="text-[14px] font-semibold text-[#53555B] dark:text-muted-foreground">
                             {t('mypageLogin.passwordLabel')}
                         </label>
                         <Input
@@ -129,16 +129,16 @@ export const LoginPage = () => {
                     <button
                         type="button"
                         onClick={() => navigate('/account/signup')}
-                        className="flex items-center gap-0.5 text-[15px] font-medium text-[#53555B]"
+                        className="flex items-center gap-0.5 text-[15px] font-medium text-[#53555B] dark:text-muted-foreground"
                     >
                         {t('mypageLogin.signup')}
                         <ChevronRight size={18} />
                     </button>
-                    <div className="h-[14px] w-px bg-[#EAEAEC]" />
+                    <div className="h-[14px] w-px bg-[#EAEAEC] dark:bg-[#3A3C40]" />
                     <button
                         type="button"
                         onClick={() => navigate('/account/reset-password')}
-                        className="flex items-center gap-0.5 text-[15px] font-medium text-[#53555B]"
+                        className="flex items-center gap-0.5 text-[15px] font-medium text-[#53555B] dark:text-muted-foreground"
                     >
                         {t('mypageLogin.forgotPassword')}
                         <ChevronRight size={18} />

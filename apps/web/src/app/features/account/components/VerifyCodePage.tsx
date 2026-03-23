@@ -113,7 +113,7 @@ export const VerifyCodePage = ({ translationPrefix, onVerify, onResend }: Verify
 
                         <div className="flex items-center justify-between px-6">
                             <div className="flex items-center gap-px">
-                                <div className="flex items-center gap-[2px] text-[14px] font-medium tracking-[-0.28px] text-[#53555B]">
+                                <div className="flex items-center gap-[2px] text-[14px] font-medium tracking-[-0.28px] text-[#53555B] dark:text-muted-foreground">
                                     <span>{t(`${translationPrefix}.timeRemaining`)}</span>
                                     <span className="w-[40px]">{formatTime(timeLeft)}</span>
                                 </div>
@@ -153,7 +153,7 @@ export const VerifyCodePage = ({ translationPrefix, onVerify, onResend }: Verify
                         >
                             <X size={16} />
                         </button>
-                        <p className="whitespace-pre-line text-[13px] font-medium leading-[1.45] tracking-[-0.325px] text-[#53555B]">
+                        <p className="whitespace-pre-line text-[13px] font-medium leading-[1.45] tracking-[-0.325px] text-[#53555B] dark:text-muted-foreground">
                             {t(`${translationPrefix}.tooltip`)}
                         </p>
                     </div>

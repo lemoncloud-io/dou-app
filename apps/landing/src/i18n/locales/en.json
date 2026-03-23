@@ -76,6 +76,9 @@
         "appStore": "Download on App Store",
         "googlePlay": "Get it on Google Play"
     },
+    "common": {
+        "comingSoon": "Coming soon"
+    },
     "footer": {
         "ceo": "CEO",
         "ceoName": "Donghyuk Kim",

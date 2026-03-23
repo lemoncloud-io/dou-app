@@ -19,7 +19,7 @@ export const FloatingButton = ({ label, disabled = false, loading = false, onCli
                 className={cn(
                     'flex h-[50px] w-full items-center justify-center rounded-[100px] text-[16px] font-semibold transition-colors',
                     disabled || loading
-                        ? 'bg-[#EAEAEC] text-[#BABCC0] dark:bg-[#3A3C40] dark:text-[#53555B]'
+                        ? 'bg-[#EAEAEC] text-[#BABCC0] dark:bg-[#3A3C40] dark:text-[#6B6D72]'
                         : 'bg-[#B0EA10] text-[#222325]'
                 )}
             >

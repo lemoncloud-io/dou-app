@@ -65,7 +65,7 @@ export const SetPasswordPage = ({ translationPrefix, onSubmit }: SetPasswordPage
 
                 <div className="flex flex-col gap-5">
                     <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold text-[#53555B]">
+                        <label className="text-[14px] font-semibold text-[#53555B] dark:text-muted-foreground">
                             {t(`${translationPrefix}.passwordLabel`)}
                         </label>
                         <input
@@ -78,7 +78,7 @@ export const SetPasswordPage = ({ translationPrefix, onSubmit }: SetPasswordPage
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold text-[#53555B]">
+                        <label className="text-[14px] font-semibold text-[#53555B] dark:text-muted-foreground">
                             {t(`${translationPrefix}.confirmPasswordLabel`)}
                         </label>
                         <input

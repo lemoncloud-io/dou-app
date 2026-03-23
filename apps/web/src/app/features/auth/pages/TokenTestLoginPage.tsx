@@ -150,10 +150,10 @@ export const TokenTestLoginPage = (): JSX.Element => {
 
             <div className="flex-1 flex flex-col px-7 pt-28">
                 <div className="flex flex-col items-center gap-2 mb-24">
-                    <h1 className="text-2xl font-bold text-center leading-[1.35] tracking-[0.005em] text-black">
+                    <h1 className="text-2xl font-bold text-center leading-[1.35] tracking-[0.005em] text-foreground">
                         {t('tokenLogin.title')}
                     </h1>
-                    <p className="text-sm text-[#53555B] text-center leading-[1.45] tracking-[0.005em]">
+                    <p className="text-sm text-[#53555B] dark:text-muted-foreground text-center leading-[1.45] tracking-[0.005em]">
                         {t('tokenLogin.subtitle')}
                     </p>
                 </div>
@@ -171,7 +171,7 @@ export const TokenTestLoginPage = (): JSX.Element => {
                             type="text"
                             {...register('token', { required: t('tokenLogin.tokenRequired') })}
                             placeholder={t('tokenLogin.tokenPlaceholder')}
-                            className="h-11 px-3 text-base border-[#EAEAEC] rounded-[10px] bg-[#FEFEFE] leading-[1.45em] tracking-[-0.015em]"
+                            className="h-11 px-3 text-base border-[#EAEAEC] rounded-[10px] bg-[#FEFEFE] dark:bg-background dark:border-[#3A3C40] leading-[1.45em] tracking-[-0.015em]"
                         />
                         {errors.token && <p className="text-xs text-destructive px-0.5">{errors.token.message}</p>}
                         {showInvalidMessage && (
@@ -180,9 +180,9 @@ export const TokenTestLoginPage = (): JSX.Element => {
                     </div>
 
                     {decodedToken && (
-                        <div className="flex flex-col gap-2 p-3 bg-[#F4F5F5] rounded-lg">
+                        <div className="flex flex-col gap-2 p-3 bg-[#F4F5F5] dark:bg-[#2A2A2C] rounded-lg">
                             <p className="text-xs font-medium text-[#9FA2A7]">{t('tokenLogin.decodedInfo')}</p>
-                            <div className="flex flex-col gap-1 text-xs text-[#53555B]">
+                            <div className="flex flex-col gap-1 text-xs text-[#53555B] dark:text-muted-foreground">
                                 {decodedToken.User?.name && (
                                     <p>
                                         {t('tokenLogin.name')}: {decodedToken.User.name}
