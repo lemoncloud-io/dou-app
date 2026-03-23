@@ -279,7 +279,9 @@
         "filterInvited": "초대받은 플레이스",
         "sortSection": "관리",
         "sortOrder": "플레이스 관리",
-        "selectCloud": "클라우드를 먼저 선택해주세요"
+        "selectCloud": "클라우드를 먼저 선택해주세요",
+        "settings": "설정",
+        "addPlace": "플레이스 추가"
     },
     "placeOrder": {
         "title": "플레이스 목록",

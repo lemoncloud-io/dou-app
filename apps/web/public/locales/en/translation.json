@@ -279,7 +279,9 @@
         "filterInvited": "Invited Places",
         "sortSection": "Manage",
         "sortOrder": "Manage Places",
-        "selectCloud": "Please select a cloud first"
+        "selectCloud": "Please select a cloud first",
+        "settings": "Settings",
+        "addPlace": "Add Place"
     },
     "placeOrder": {
         "title": "Place List",
