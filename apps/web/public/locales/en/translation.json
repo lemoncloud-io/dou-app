@@ -442,7 +442,9 @@
         "namePlaceholder": "Enter place name",
         "nameDescription": "Please enter up to 20 characters.",
         "photoLabel": "Photo",
-        "photoOptional": "[Optional]"
+        "photoOptional": "[Optional]",
+        "imageSizeError": "Image size exceeds 2MB",
+        "changeImage": "Change photo"
     },
     "workspace": {
         "list": {

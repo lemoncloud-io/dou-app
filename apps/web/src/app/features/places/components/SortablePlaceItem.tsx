@@ -53,11 +53,15 @@ export const SortablePlaceItem = ({ place, isOwner, onSettings, onDelete, onLeav
             <div className="flex flex-1 items-center gap-[9px]">
                 <div
                     className={cn(
-                        'flex h-[36px] w-[36px] items-center justify-center rounded-full border border-border',
+                        'flex h-[36px] w-[36px] items-center justify-center overflow-hidden rounded-full border border-border',
                         isOwner ? 'bg-primary' : 'bg-muted'
                     )}
                 >
-                    <Users size={14} className={isOwner ? 'text-primary-foreground' : 'text-muted-foreground'} />
+                    {place.thumbnail ? (
+                        <img src={place.thumbnail} alt={place.name} className="h-full w-full object-cover" />
+                    ) : (
+                        <Users size={14} className={isOwner ? 'text-primary-foreground' : 'text-muted-foreground'} />
+                    )}
                 </div>
                 <div className="flex items-center gap-[4px]">
                     <span className="text-[16px] font-medium tracking-[-0.32px] text-foreground">{place.name}</span>

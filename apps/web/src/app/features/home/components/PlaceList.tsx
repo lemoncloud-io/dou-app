@@ -45,11 +45,13 @@ const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemPr
             <div className="relative h-[47px] w-[47px]">
                 <div
                     className={cn(
-                        'absolute left-[3px] top-[3px] flex h-[41px] w-[41px] items-center justify-center rounded-full',
+                        'absolute left-[3px] top-[3px] flex h-[41px] w-[41px] items-center justify-center overflow-hidden rounded-full',
                         selected ? 'bg-[#102346]' : 'bg-muted'
                     )}
                 >
-                    {isDefaultPlace ? (
+                    {place.thumbnail ? (
+                        <img src={place.thumbnail} alt={displayName} className="h-full w-full object-cover" />
+                    ) : isDefaultPlace ? (
                         <Home size={20} className={selected ? 'text-white' : 'text-muted-foreground'} />
                     ) : (
                         <Users size={20} className={selected ? 'text-white' : 'text-muted-foreground'} />
