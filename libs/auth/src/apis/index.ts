@@ -8,6 +8,8 @@ import type {
     UserTokenView,
     UserView,
 } from '@lemoncloud/chatic-backend-api';
+
+import type { FindAliasBody, FindAliasView, VerifyAliasBody, VerifyAliasView } from '../types';
 import type { OAuthRefreshBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
 const DOU_ENDPOINT = import.meta.env.VITE_DOU_ENDPOINT;
@@ -84,6 +86,30 @@ export const refreshCloudToken = async (authId: string, body: OAuthRefreshBody):
         .setParams({ token: 1 })
         .setBody({ ...body })
         .execute<UserTokenView>();
+
+    return data;
+};
+
+export const findAlias = async (body: FindAliasBody): Promise<FindAliasView> => {
+    const { data } = await webCore
+        .buildRequest({
+            method: 'POST',
+            baseURL: `${DOU_ENDPOINT}/oauth/find-alias`,
+        })
+        .setBody(body)
+        .execute<FindAliasView>();
+
+    return data;
+};
+
+export const verifyAlias = async (body: VerifyAliasBody): Promise<VerifyAliasView> => {
+    const { data } = await webCore
+        .buildRequest({
+            method: 'POST',
+            baseURL: `${DOU_ENDPOINT}/oauth/verify-alias`,
+        })
+        .setBody(body)
+        .execute<VerifyAliasView>();
 
     return data;
 };

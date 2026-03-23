@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 
-import { issueCloudToken, login, registerDevice, registerUser, registerUserV2 } from '../apis';
+import { findAlias, issueCloudToken, login, registerDevice, registerUser, registerUserV2, verifyAlias } from '../apis';
 
 import type {
     CloudDelegationTokenView,
@@ -13,6 +13,9 @@ import type {
     UserTokenView,
     UserView,
 } from '@lemoncloud/chatic-backend-api';
+import type { AxiosError } from 'axios';
+
+import type { FindAliasBody, FindAliasView, VerifyAliasBody, VerifyAliasView } from '../types';
 
 import { issueCloudDelegationToken } from '@chatic/users';
 
@@ -81,3 +84,7 @@ export const useRefreshCloudToken = () => {
         mutationFn: () => cloudCore.refreshToken(),
     });
 };
+
+export const useFindAlias = () => useCustomMutation<FindAliasView, AxiosError, FindAliasBody>(findAlias);
+
+export const useVerifyAlias = () => useCustomMutation<VerifyAliasView, AxiosError, VerifyAliasBody>(verifyAlias);

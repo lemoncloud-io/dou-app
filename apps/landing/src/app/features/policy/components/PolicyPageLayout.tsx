@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 import { VersionSelector } from './VersionSelector';
 
-import type { PolicyVersion } from '../constants/policyTypes';
+import type { PolicyVersion } from '../constants';
 
 interface PolicyPageLayoutProps {
     children: React.ReactNode;

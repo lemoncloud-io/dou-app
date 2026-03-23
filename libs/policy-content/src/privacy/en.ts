@@ -1,4 +1,4 @@
-import type { PolicyContent } from './policyTypes';
+import type { PolicyContent } from '../types';
 
 export const PRIVACY_POLICY_CONTENT_EN: PolicyContent = {
     title: 'Privacy Policy',

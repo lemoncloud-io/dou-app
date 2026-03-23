@@ -106,10 +106,10 @@
         --input-border: 0 0% 23%; /* #3A3C40 */
         --focus-border: 216 3% 64%; /* #9FA2A7 */
 
-        /* Toast (stays dark in both modes) */
-        --toast: 222 75% 12%; /* #081837 */
-        --toast-foreground: 210 6% 96%; /* #F4F5F5 */
-        --toast-muted: 220 3% 81%; /* #CFD0D3 */
+        /* Toast (light card on dark bg) */
+        --toast: 210 6% 96%; /* #F4F5F5 - light card */
+        --toast-foreground: 220 7% 14%; /* #222325 - dark text */
+        --toast-muted: 220 4% 35%; /* #53555B - muted dark text */
 
         /* Dialog */
         --dialog-subtitle: 216 3% 64%; /* #9FA2A7 */

@@ -1,4 +1,4 @@
-import type { PolicyContent } from './policyTypes';
+import type { PolicyContent } from '../types';
 
 export const PRIVACY_POLICY_CONTENT: PolicyContent = {
     title: '개인정보 처리방침',
@@ -42,4 +42,4 @@ export const PRIVACY_POLICY_CONTENT: PolicyContent = {
             ],
         },
     ],
-} as const;
+};

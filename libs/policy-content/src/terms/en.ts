@@ -1,4 +1,4 @@
-import type { PolicyContent } from './policyTypes';
+import type { PolicyContent } from '../types';
 
 export const TERMS_OF_SERVICE_CONTENT_EN: PolicyContent = {
     title: 'Terms of Service',

@@ -144,8 +144,8 @@ export const VerifyCodePage = ({ translationPrefix, onVerify, onResend }: Verify
 
             {showTooltip && (
                 <div className="mx-6 mt-4">
-                    <div className="relative rounded-[8px] bg-white px-[10px] py-[10px] pr-[16px] shadow-[0px_0px_3px_0px_rgba(0,0,0,0.18)] dark:bg-[#1C1C1E]">
-                        <div className="absolute -top-[7px] left-1/2 h-0 w-0 -translate-x-1/2 border-x-[8px] border-b-[8px] border-x-transparent border-b-white dark:border-b-[#1C1C1E]" />
+                    <div className="relative rounded-[8px] bg-card px-[10px] py-[10px] pr-[16px] shadow-[0px_0px_3px_0px_rgba(0,0,0,0.18)]">
+                        <div className="absolute -top-[7px] left-1/2 h-0 w-0 -translate-x-1/2 border-x-[8px] border-b-[8px] border-x-transparent border-b-card" />
                         <button
                             type="button"
                             onClick={() => setShowTooltip(false)}

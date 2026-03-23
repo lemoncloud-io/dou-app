@@ -79,6 +79,11 @@
     "common": {
         "comingSoon": "Coming soon"
     },
+    "policy": {
+        "effectiveDate": "Effective Date",
+        "versionNotFound": "Version not found.",
+        "current": "Current"
+    },
     "footer": {
         "ceo": "CEO",
         "ceoName": "Donghyuk Kim",

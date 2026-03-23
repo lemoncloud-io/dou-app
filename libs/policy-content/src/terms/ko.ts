@@ -1,4 +1,4 @@
-import type { PolicyContent } from './policyTypes';
+import type { PolicyContent } from '../types';
 
 export const TERMS_OF_SERVICE_CONTENT: PolicyContent = {
     title: '이용약관',
@@ -86,4 +86,4 @@ export const TERMS_OF_SERVICE_CONTENT: PolicyContent = {
             ],
         },
     ],
-} as const;
+};

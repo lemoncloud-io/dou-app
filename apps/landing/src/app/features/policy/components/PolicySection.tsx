@@ -1,4 +1,4 @@
-import type { PolicySection as PolicySectionType } from '../constants/policyTypes';
+import type { PolicySection as PolicySectionType } from '../constants';
 
 interface PolicySectionProps {
     section: PolicySectionType;

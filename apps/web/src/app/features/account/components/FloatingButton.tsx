@@ -11,7 +11,7 @@ interface FloatingButtonProps {
 
 export const FloatingButton = ({ label, disabled = false, loading = false, onClick }: FloatingButtonProps) => {
     return (
-        <div className="rounded-t-[16px] px-4 pb-4 pt-5 shadow-[0px_-10px_40px_0px_rgba(0,0,0,0.12)]">
+        <div className="rounded-t-[16px] px-4 pb-4 pt-5">
             <button
                 type="button"
                 disabled={disabled || loading}

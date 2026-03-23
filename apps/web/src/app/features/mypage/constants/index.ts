@@ -1,6 +1,2 @@
-export * from './policyTypes';
-export * from './termsContent';
-export * from './termsContent.en';
-export * from './privacyContent';
-export * from './privacyContent.en';
-export * from './policyContents';
+export type { PolicyContent, PolicySection, PolicyVersion, SupportedLanguage } from '@chatic/policy-content';
+export { TERMS_CONTENTS, PRIVACY_CONTENTS } from '@chatic/policy-content';

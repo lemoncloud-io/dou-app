@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import type { PolicyVersion } from '../constants/policyTypes';
+import type { PolicyVersion } from '../constants';
 
 interface VersionSelectorProps {
     versions: readonly PolicyVersion[];
@@ -9,6 +10,7 @@ interface VersionSelectorProps {
 }
 
 export const VersionSelector = ({ versions, currentVersion, onVersionChange }: VersionSelectorProps): JSX.Element => {
+    const { t } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
 
     const selectedVersionData = versions.find(v => v.version === currentVersion);
@@ -55,7 +57,7 @@ export const VersionSelector = ({ versions, currentVersion, onVersionChange }: V
                                 </div>
                                 {version.version === currentVersion && (
                                     <span className="px-2 py-0.5 bg-[#c4ff00] text-[#222325] text-[11px] font-semibold rounded">
-                                        현재
+                                        {t('policy.current')}
                                     </span>
                                 )}
                             </button>

@@ -1,12 +1,13 @@
 import { useTranslation } from 'react-i18next';
 
 import { PageHeader } from '../../../shared/components';
-import { PRIVACY_CONTENTS } from '../constants';
+import { type SupportedLanguage, PRIVACY_CONTENTS } from '../constants';
 
 export const PrivacyPage = () => {
     const { t, i18n } = useTranslation();
 
-    const content = PRIVACY_CONTENTS[i18n.language] ?? PRIVACY_CONTENTS['en'];
+    const lang: SupportedLanguage = i18n.language === 'ko' ? 'ko' : 'en';
+    const content = PRIVACY_CONTENTS[lang];
     const currentVersion = content.versions.find(v => v.version === content.currentVersion);
 
     return (
@@ -24,9 +25,7 @@ export const PrivacyPage = () => {
                 <div className="space-y-8">
                     {currentVersion?.sections.map((section, index) => (
                         <div key={index}>
-                            <h2 className="mb-3 text-lg font-semibold text-foreground">
-                                {index + 1}. {section.title}
-                            </h2>
+                            <h2 className="mb-3 text-lg font-semibold text-foreground">{section.title}</h2>
                             <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
                                 {section.content.split('\n').map((para, i) => (
                                     <p key={i}>{para}</p>
