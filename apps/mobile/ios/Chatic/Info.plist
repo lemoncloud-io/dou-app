@@ -75,8 +75,9 @@
 			</dict>
 		</dict>
 	</dict>
-	<key>NSCameraUsageDescription</key>
-	<string>사진 및 동영상 촬영을 위해 카메라 접근 권한이 필요합니다.</string>
+	<string>프로필 사진 업로드를 위해 사용됩니다.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+    <string>프로필 사진 설정 및 이미지 전송을 위해 사진첩 접근 권한이 필요합니다.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>친구 추가 및 초대를 위해 연락처 목록 접근 권한이 필요합니다.</string>
 	<key>RCTNewArchEnabled</key>
