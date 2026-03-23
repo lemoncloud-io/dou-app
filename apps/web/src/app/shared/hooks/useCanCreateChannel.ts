@@ -4,8 +4,18 @@ import { useMyChannels } from '../../features/home/hooks/useMyChannels';
 import { GUEST_MAX_CHANNELS, MAX_CHANNELS_PER_PLACE } from '../consts/limits';
 
 export const useCanCreateChannel = () => {
-    const { isGuest } = useWebCoreStore();
+    const { isGuest, isInvited } = useWebCoreStore();
     const { channels, isLoading } = useMyChannels();
+
+    if (isInvited) {
+        return {
+            canCreate: false,
+            isLimitReached: true,
+            isLoading,
+            currentCount: channels.length,
+            maxCount: 0,
+        };
+    }
 
     const currentCount = channels.length;
     const maxCount = isGuest ? GUEST_MAX_CHANNELS : MAX_CHANNELS_PER_PLACE;
