@@ -1,14 +1,13 @@
 import { useTranslation } from 'react-i18next';
 
 import { PageHeader } from '../../../shared/components';
-import { PRIVACY_POLICY_CONTENT } from '../constants';
+import { PRIVACY_CONTENTS } from '../constants';
 
 export const PrivacyPage = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
 
-    const currentVersion = PRIVACY_POLICY_CONTENT.versions.find(
-        v => v.version === PRIVACY_POLICY_CONTENT.currentVersion
-    );
+    const content = PRIVACY_CONTENTS[i18n.language] ?? PRIVACY_CONTENTS['en'];
+    const currentVersion = content.versions.find(v => v.version === content.currentVersion);
 
     return (
         <div className="flex h-full flex-col bg-background pt-safe-top">

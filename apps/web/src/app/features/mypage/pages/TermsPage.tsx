@@ -1,14 +1,13 @@
 import { useTranslation } from 'react-i18next';
 
 import { PageHeader } from '../../../shared/components';
-import { TERMS_OF_SERVICE_CONTENT } from '../constants';
+import { TERMS_CONTENTS } from '../constants';
 
 export const TermsPage = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
 
-    const currentVersion = TERMS_OF_SERVICE_CONTENT.versions.find(
-        v => v.version === TERMS_OF_SERVICE_CONTENT.currentVersion
-    );
+    const content = TERMS_CONTENTS[i18n.language] ?? TERMS_CONTENTS['en'];
+    const currentVersion = content.versions.find(v => v.version === content.currentVersion);
 
     return (
         <div className="flex h-full flex-col bg-background pt-safe-top">

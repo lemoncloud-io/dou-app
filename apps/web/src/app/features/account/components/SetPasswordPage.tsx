@@ -65,7 +65,7 @@ export const SetPasswordPage = ({ translationPrefix, onSubmit }: SetPasswordPage
 
                 <div className="flex flex-col gap-5">
                     <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold text-[#53555B] dark:text-muted-foreground">
+                        <label className="text-[14px] font-semibold text-label">
                             {t(`${translationPrefix}.passwordLabel`)}
                         </label>
                         <input
@@ -73,12 +73,12 @@ export const SetPasswordPage = ({ translationPrefix, onSubmit }: SetPasswordPage
                             value={password}
                             onChange={e => setPassword(e.target.value)}
                             placeholder={t(`${translationPrefix}.passwordPlaceholder`)}
-                            className="w-full rounded-[10px] border border-[#EAEAEC] bg-white p-3 px-4 text-[16px] text-black outline-none transition-colors placeholder:text-[#BABCC0] focus:border-[1.5px] focus:border-[#3A3C40] dark:border-[#3A3C40] dark:bg-background dark:text-white"
+                            className="w-full rounded-[10px] border border-input-border bg-surface p-3 px-4 text-[16px] text-foreground outline-none transition-colors placeholder:text-placeholder focus:border-[1.5px] focus:border-focus-border"
                         />
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold text-[#53555B] dark:text-muted-foreground">
+                        <label className="text-[14px] font-semibold text-label">
                             {t(`${translationPrefix}.confirmPasswordLabel`)}
                         </label>
                         <input
@@ -88,10 +88,10 @@ export const SetPasswordPage = ({ translationPrefix, onSubmit }: SetPasswordPage
                             onBlur={() => setTouched(true)}
                             placeholder={t(`${translationPrefix}.confirmPasswordPlaceholder`)}
                             className={cn(
-                                'w-full rounded-[10px] border bg-white p-3 px-4 text-[16px] text-black outline-none transition-colors placeholder:text-[#BABCC0] dark:bg-background dark:text-white',
+                                'w-full rounded-[10px] border bg-surface p-3 px-4 text-[16px] text-foreground outline-none transition-colors placeholder:text-placeholder',
                                 showMismatch
-                                    ? 'border-[1.5px] border-[#FF4C35]'
-                                    : 'border-[#EAEAEC] focus:border-[1.5px] focus:border-[#3A3C40] dark:border-[#3A3C40]'
+                                    ? 'border-[1.5px] border-destructive'
+                                    : 'border-input-border focus:border-[1.5px] focus:border-focus-border'
                             )}
                         />
                         {showMismatch && (

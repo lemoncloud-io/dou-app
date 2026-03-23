@@ -20,11 +20,11 @@ const ProfileSection = () => {
 
     return (
         <div className="flex flex-col items-center gap-[9px] py-4">
-            <div className="flex h-[54px] w-[54px] items-center justify-center rounded-full border border-white bg-[#F4F5F5] dark:border-[#3A3C40] dark:bg-[#2A2A2C]">
-                <User size={20} className="text-[#BABCC0]" />
+            <div className="flex h-[54px] w-[54px] items-center justify-center rounded-full border border-background bg-secondary">
+                <User size={20} className="text-placeholder" />
             </div>
             <div className="flex flex-col items-center gap-[2px]">
-                <span className="text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-[#3A3C40] dark:text-foreground">
+                <span className="text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-foreground">
                     {name}
                 </span>
                 <span className="text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
@@ -46,7 +46,7 @@ const CloudStatusBadge = ({ status }: { status: CloudView['status'] }) => {
 
     if (status === 'active') {
         return (
-            <div className="flex items-center gap-1 rounded-[5px] bg-[#F4F5F5] dark:bg-[#2A2A2C] px-[6px] py-1">
+            <div className="flex items-center gap-1 rounded-[5px] bg-secondary px-[6px] py-1">
                 <span className="text-[14px] font-medium leading-[1.19] text-[#2A7EF4]">
                     {t('cloudSessionSheet.statusActive')}
                 </span>
@@ -57,8 +57,8 @@ const CloudStatusBadge = ({ status }: { status: CloudView['status'] }) => {
 
     if (status === 'pending') {
         return (
-            <div className="flex items-center rounded-[5px] bg-[#F4F5F5] dark:bg-[#2A2A2C] px-[6px] py-1">
-                <span className="text-[14px] font-medium leading-[1.19] text-[#53555B] dark:text-muted-foreground">
+            <div className="flex items-center rounded-[5px] bg-secondary px-[6px] py-1">
+                <span className="text-[14px] font-medium leading-[1.19] text-label">
                     {t('cloudSessionSheet.statusPending')}
                 </span>
             </div>
@@ -95,12 +95,12 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud }: CloudItemPr
             {/* Avatar + Info */}
             <div className="flex flex-1 items-center gap-2 pr-[6px]">
                 <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-[#F4F5F5] bg-[rgba(0,43,126,0.04)]">
-                    <User size={16} className="text-[#BABCC0]" />
+                    <User size={16} className="text-placeholder" />
                 </div>
                 <div className="flex flex-col gap-1">
                     {hasName ? (
                         <div className="flex items-center gap-[6px]">
-                            <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-[#3A3C40] dark:text-foreground">
+                            <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
                                 {displayName}
                             </span>
                             <CloudStatusBadge status={cloud.status} />
@@ -108,7 +108,7 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud }: CloudItemPr
                     ) : (
                         <div className="flex items-center gap-[6px]">
                             <AlertCircle size={18} className="text-white" />
-                            <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-[#3A3C40] dark:text-foreground">
+                            <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
                                 {t('cloudSessionSheet.setupProfile')}
                             </span>
                         </div>
@@ -129,11 +129,11 @@ const AddAccountButton = () => {
 
     return (
         <div className="px-4 pb-4 pt-5">
-            <button className="flex w-full items-center justify-center gap-[6px] rounded-full border border-[#222325] dark:border-foreground px-6 py-3">
-                <span className="text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] dark:text-foreground">
+            <button className="flex w-full items-center justify-center gap-[6px] rounded-full border border-foreground px-6 py-3">
+                <span className="text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-foreground">
                     {t('cloudSessionSheet.addAccount')}
                 </span>
-                <Plus size={24} className="text-[#222325] dark:text-foreground" />
+                <Plus size={24} className="text-foreground" />
             </button>
         </div>
     );

@@ -37,6 +37,23 @@
 
         --radius: 0.75rem;
 
+        /* Figma design system gray scale */
+        --label: 220 4% 35%; /* #53555B - input labels, secondary text */
+        --placeholder: 223 4% 74%; /* #BABCC0 - input placeholders */
+        --description: 218 4% 54%; /* #84888F - descriptions, sub text */
+        --surface: 0 0% 100%; /* #FFFFFF - input backgrounds */
+        --main-accent: 76 93% 39%; /* #90C304 - focus ring, verification accent */
+        --input-border: 240 4% 92%; /* #EAEAEC - input/card borders */
+        --focus-border: 210 5% 24%; /* #3A3C40 - focused input border */
+
+        /* Toast (always dark surface) */
+        --toast: 222 75% 12%; /* #081837 */
+        --toast-foreground: 210 6% 96%; /* #F4F5F5 */
+        --toast-muted: 220 3% 81%; /* #CFD0D3 */
+
+        /* Dialog */
+        --dialog-subtitle: 218 4% 54%; /* #84888F */
+
         /* Chatic custom tokens */
         --bubble-mine: 220 30% 18%;
         --bubble-mine-foreground: 0 0% 100%;
@@ -79,6 +96,23 @@
         --border: 0 0% 18%;
         --input: 0 0% 18%;
         --ring: 0 0% 83%;
+
+        /* Figma design system gray scale (dark) */
+        --label: 216 3% 64%; /* #9FA2A7 - lighter for dark bg */
+        --placeholder: 216 3% 42%; /* #6B6D72 - muted on dark bg */
+        --description: 216 3% 64%; /* #9FA2A7 */
+        --surface: 0 0% 7%; /* same as bg */
+        --main-accent: 76 93% 39%; /* #90C304 - same */
+        --input-border: 0 0% 23%; /* #3A3C40 */
+        --focus-border: 216 3% 64%; /* #9FA2A7 */
+
+        /* Toast (stays dark in both modes) */
+        --toast: 222 75% 12%; /* #081837 */
+        --toast-foreground: 210 6% 96%; /* #F4F5F5 */
+        --toast-muted: 220 3% 81%; /* #CFD0D3 */
+
+        /* Dialog */
+        --dialog-subtitle: 216 3% 64%; /* #9FA2A7 */
 
         /* Chatic custom tokens (dark) */
         --bubble-mine: 220 30% 25%;

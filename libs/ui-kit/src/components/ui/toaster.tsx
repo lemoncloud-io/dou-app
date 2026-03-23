@@ -1,4 +1,4 @@
-import { Toast, ToastClose, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from './toast';
+import { Toast, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from './toast';
 import { useToast } from './use-toast';
 
 export const Toaster = () => {
@@ -9,12 +9,11 @@ export const Toaster = () => {
             {toasts.map(({ id, title, description, action, ...props }) => {
                 return (
                     <Toast key={id} {...props}>
-                        <div className="grid gap-1">
+                        <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
                             {title && <ToastTitle>{title}</ToastTitle>}
                             {description && <ToastDescription>{description}</ToastDescription>}
                         </div>
                         {action}
-                        <ToastClose />
                     </Toast>
                 );
             })}

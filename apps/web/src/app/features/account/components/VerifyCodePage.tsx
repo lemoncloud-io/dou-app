@@ -113,14 +113,14 @@ export const VerifyCodePage = ({ translationPrefix, onVerify, onResend }: Verify
 
                         <div className="flex items-center justify-between px-6">
                             <div className="flex items-center gap-px">
-                                <div className="flex items-center gap-[2px] text-[14px] font-medium tracking-[-0.28px] text-[#53555B] dark:text-muted-foreground">
+                                <div className="flex items-center gap-[2px] text-[14px] font-medium tracking-[-0.28px] text-label">
                                     <span>{t(`${translationPrefix}.timeRemaining`)}</span>
                                     <span className="w-[40px]">{formatTime(timeLeft)}</span>
                                 </div>
                                 <button
                                     type="button"
                                     onClick={() => setShowTooltip(prev => !prev)}
-                                    className="text-[#84888F]"
+                                    className="text-description"
                                 >
                                     <HelpCircle size={18} />
                                 </button>
@@ -153,7 +153,7 @@ export const VerifyCodePage = ({ translationPrefix, onVerify, onResend }: Verify
                         >
                             <X size={16} />
                         </button>
-                        <p className="whitespace-pre-line text-[13px] font-medium leading-[1.45] tracking-[-0.325px] text-[#53555B] dark:text-muted-foreground">
+                        <p className="whitespace-pre-line text-[13px] font-medium leading-[1.45] tracking-[-0.325px] text-label">
                             {t(`${translationPrefix}.tooltip`)}
                         </p>
                     </div>

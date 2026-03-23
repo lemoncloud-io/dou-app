@@ -53,6 +53,20 @@ module.exports = {
                     DEFAULT: 'hsl(var(--card))',
                     foreground: 'hsl(var(--card-foreground))',
                 },
+                // Figma design system tokens
+                label: 'hsl(var(--label))',
+                placeholder: 'hsl(var(--placeholder))',
+                description: 'hsl(var(--description))',
+                surface: 'hsl(var(--surface))',
+                'main-accent': 'hsl(var(--main-accent))',
+                'input-border': 'hsl(var(--input-border))',
+                'focus-border': 'hsl(var(--focus-border))',
+                toast: {
+                    DEFAULT: 'hsl(var(--toast))',
+                    foreground: 'hsl(var(--toast-foreground))',
+                    muted: 'hsl(var(--toast-muted))',
+                },
+                'dialog-subtitle': 'hsl(var(--dialog-subtitle))',
                 // Chatic custom colors
                 'bubble-mine': {
                     DEFAULT: 'hsl(var(--bubble-mine))',
