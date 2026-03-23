@@ -279,10 +279,15 @@
         "filterInvited": "Invited Places",
         "sortSection": "Manage",
         "sortOrder": "Manage Places",
-        "selectCloud": "Please select a cloud first"
+        "selectCloud": "Please select a cloud first",
+        "settings": "Settings",
+        "addPlace": "Add Place"
     },
     "placeOrder": {
         "title": "Place List",
+        "myPlaces": "My Places",
+        "friendPlaces": "Friend Places",
+        "empty": "No places",
         "settings": "Settings",
         "delete": "Delete",
         "leave": "Leave",
@@ -442,7 +447,9 @@
         "namePlaceholder": "Enter place name",
         "nameDescription": "Please enter up to 20 characters.",
         "photoLabel": "Photo",
-        "photoOptional": "[Optional]"
+        "photoOptional": "[Optional]",
+        "imageSizeError": "Image size exceeds 2MB",
+        "changeImage": "Change photo"
     },
     "workspace": {
         "list": {
@@ -772,5 +779,10 @@
         "goHome": "Home",
         "retrying": "Retrying...",
         "unknownError": "An unknown error occurred"
+    },
+    "serviceUnavailable": {
+        "title": "Service Unavailable",
+        "description": "The server is currently under maintenance. Please try again later.",
+        "retry": "Reload"
     }
 }

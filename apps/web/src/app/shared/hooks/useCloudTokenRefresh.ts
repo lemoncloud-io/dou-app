@@ -1,13 +1,19 @@
 import { useEffect } from 'react';
 
 import { useWebSocketV2 } from '@chatic/socket';
-import { cloudCore, useWebCoreStore, webCore } from '@chatic/web-core';
+import { cloudCore, useServiceStatusStore, useWebCoreStore, webCore } from '@chatic/web-core';
 
 const REFRESH_INTERVAL_MS = 60_000;
+
+const isServerError = (error: unknown): boolean => {
+    const status = (error as any)?.status || (error as any)?.response?.status || (error as any)?.statusCode;
+    return status >= 500 && status < 600;
+};
 
 export const useCloudTokenRefresh = () => {
     const { isGuest, isInvited, isAuthenticated } = useWebCoreStore();
     const { emit, isConnected } = useWebSocketV2();
+    const { setServiceUnavailable } = useServiceStatusStore();
 
     useEffect(() => {
         if (!isConnected || !isAuthenticated) return;
@@ -23,8 +29,13 @@ export const useCloudTokenRefresh = () => {
 
             try {
                 await cloudCore.refreshToken();
+                setServiceUnavailable(false);
             } catch (e) {
                 console.error('[useCloudTokenRefresh] refreshToken failed', e);
+                if (isServerError(e)) {
+                    setServiceUnavailable(true);
+                    return;
+                }
             }
 
             const token = cloudCore.getIdentityToken();
@@ -35,5 +46,5 @@ export const useCloudTokenRefresh = () => {
 
         const id = setInterval(refresh, REFRESH_INTERVAL_MS);
         return () => clearInterval(id);
-    }, [isGuest, isInvited, isAuthenticated, isConnected, emit]);
+    }, [isGuest, isInvited, isAuthenticated, isConnected, emit, setServiceUnavailable]);
 };

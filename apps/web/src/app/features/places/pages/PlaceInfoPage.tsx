@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
-import { useNavigateWithTransition } from '@chatic/shared';
-import { Calendar } from 'lucide-react';
+import { Calendar, Camera, Users } from 'lucide-react';
+
+import { useNavigateWithTransition, resizeImageToBase64 } from '@chatic/shared';
 import { cn } from '@chatic/ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -15,6 +16,7 @@ import { useUpdateMyPlace } from '../../home/hooks/useUpdateMyPlace';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 const MAX_NAME_LENGTH = 20;
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 
 export const PlaceInfoPage = () => {
     const { t, i18n } = useTranslation();
@@ -23,14 +25,22 @@ export const PlaceInfoPage = () => {
     const { placeId } = useParams<{ placeId: string }>();
     const { places } = useMyPlaces();
     const { updatePlace, isPending } = useUpdateMyPlace();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const [place, setPlace] = useState<MySiteView | null>(null);
     const [name, setName] = useState('');
+    const [imageUrl, setImageUrl] = useState('');
+    const [imageSizeError, setImageSizeError] = useState(false);
+
+    const initialName = place?.name ?? '';
+    const initialThumbnail = place?.thumbnail ?? '';
 
     useEffect(() => {
         if (placeId && places.length > 0) {
             const found = places.find(p => p.id === placeId);
             setPlace(found ?? null);
             setName(found?.name ?? '');
+            setImageUrl(found?.thumbnail ?? '');
         }
     }, [placeId, places]);
 
@@ -60,14 +70,45 @@ export const PlaceInfoPage = () => {
         [i18n.language]
     );
 
-    const isDirty = name !== (place?.name ?? '');
+    const isNameDirty = name !== initialName;
+    const isImageDirty = imageUrl !== initialThumbnail;
+    const isDirty = isNameDirty || isImageDirty;
     const isNameValid = name.length > 0 && name.length <= MAX_NAME_LENGTH;
     const canSubmit = isDirty && isNameValid && !isPending;
+
+    const handleImageClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > MAX_IMAGE_SIZE) {
+            setImageSizeError(true);
+            return;
+        }
+
+        setImageSizeError(false);
+
+        try {
+            const base64 = await resizeImageToBase64(file, 50);
+            setImageUrl(base64);
+        } catch {
+            setImageSizeError(true);
+        }
+
+        event.target.value = '';
+    };
 
     const handleSubmit = async () => {
         if (!canSubmit || !placeId) return;
         try {
-            await updatePlace({ sid: placeId, name });
+            await updatePlace({
+                sid: placeId,
+                name,
+                ...(isImageDirty && { thumbnail: imageUrl }),
+            });
             navigate(-1);
         } catch (error) {
             toast({ title: t('error.unknownError'), variant: 'destructive' });
@@ -118,6 +159,7 @@ export const PlaceInfoPage = () => {
 
                 <div className="mb-6 h-px bg-border" />
 
+                {/* Name */}
                 <div className="mb-6">
                     <label className="mb-2 block text-[14px] font-semibold text-foreground">
                         {t('placeInfo.nameLabel')}
@@ -134,6 +176,46 @@ export const PlaceInfoPage = () => {
                         </span>
                     </div>
                     <p className="mt-2 text-[14px] text-muted-foreground">{t('placeInfo.nameDescription')}</p>
+                </div>
+
+                {/* Image */}
+                <div className="mb-6">
+                    <label className="mb-2 block text-[14px] font-semibold text-foreground">
+                        {t('placeInfo.photoLabel')}{' '}
+                        <span className="font-normal text-muted-foreground">{t('placeInfo.photoOptional')}</span>
+                    </label>
+                    <div className="relative inline-block">
+                        <div className="flex h-[82px] w-[82px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                            {imageUrl ? (
+                                <img
+                                    src={imageUrl}
+                                    alt="Place"
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                <Users size={36} className="text-muted-foreground" />
+                            )}
+                        </div>
+                        <button
+                            onClick={handleImageClick}
+                            className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-[#B0EA10] shadow-md"
+                            aria-label={t('placeInfo.changeImage')}
+                        >
+                            <Camera size={16} className="text-foreground" />
+                        </button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={handleImageChange}
+                            className="hidden"
+                        />
+                    </div>
+                    {imageSizeError && (
+                        <p className="mt-2 text-[14px] text-destructive">{t('placeInfo.imageSizeError')}</p>
+                    )}
                 </div>
             </div>
         </KeyboardAwareLayout>

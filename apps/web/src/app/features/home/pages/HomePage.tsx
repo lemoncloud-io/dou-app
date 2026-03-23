@@ -184,9 +184,10 @@ export const HomePage = () => {
             <section className="flex-1 px-4 pt-[18px]">
                 <ChannelList
                     workspaceId={selectedPlaceId ?? ''}
-                    canCreateChannel={canCreateChannel}
+                    showCreateButton={!isGuest && !isInvited && !isChannelsLoading}
                     isChannelsLoading={isChannelsLoading}
                     onCreateChannel={handleCreateChannel}
+                    channelLimit={maxChannels}
                 />
             </section>
 

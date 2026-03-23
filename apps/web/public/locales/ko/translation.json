@@ -279,10 +279,15 @@
         "filterInvited": "초대받은 플레이스",
         "sortSection": "관리",
         "sortOrder": "플레이스 관리",
-        "selectCloud": "클라우드를 먼저 선택해주세요"
+        "selectCloud": "클라우드를 먼저 선택해주세요",
+        "settings": "설정",
+        "addPlace": "플레이스 추가"
     },
     "placeOrder": {
         "title": "플레이스 목록",
+        "myPlaces": "내 플레이스",
+        "friendPlaces": "친구 플레이스",
+        "empty": "플레이스가 없어요",
         "settings": "설정",
         "delete": "삭제",
         "leave": "나가기",
@@ -442,7 +447,9 @@
         "namePlaceholder": "플레이스 이름을 입력해 주세요",
         "nameDescription": "20글자 이내로 입력해 주세요.",
         "photoLabel": "사진",
-        "photoOptional": "[선택]"
+        "photoOptional": "[선택]",
+        "imageSizeError": "이미지 크기가 2MB를 초과합니다",
+        "changeImage": "사진 변경"
     },
     "workspace": {
         "list": {
@@ -772,5 +779,10 @@
         "goHome": "홈으로",
         "retrying": "재시도 중...",
         "unknownError": "알 수 없는 오류가 발생했습니다"
+    },
+    "serviceUnavailable": {
+        "title": "서비스 점검 중",
+        "description": "현재 서버 점검 중입니다. 잠시 후 다시 시도해주세요.",
+        "retry": "새로고침"
     }
 }

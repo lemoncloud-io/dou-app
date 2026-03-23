@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Check, ChevronDown, Home, Plus, RefreshCw, SlidersHorizontal, Users } from 'lucide-react';
+import { Check, ChevronDown, Home, RefreshCw, SlidersHorizontal, Users } from 'lucide-react';
 
 import { getSocketSend, useWebSocketV2Store } from '@chatic/socket';
 import { cn } from '@chatic/lib/utils';
@@ -45,11 +45,13 @@ const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemPr
             <div className="relative h-[47px] w-[47px]">
                 <div
                     className={cn(
-                        'absolute left-[3px] top-[3px] flex h-[41px] w-[41px] items-center justify-center rounded-full',
+                        'absolute left-[3px] top-[3px] flex h-[41px] w-[41px] items-center justify-center overflow-hidden rounded-full',
                         selected ? 'bg-[#102346]' : 'bg-muted'
                     )}
                 >
-                    {isDefaultPlace ? (
+                    {place.thumbnail ? (
+                        <img src={place.thumbnail} alt={displayName} className="h-full w-full object-cover" />
+                    ) : isDefaultPlace ? (
                         <Home size={20} className={selected ? 'text-white' : 'text-muted-foreground'} />
                     ) : (
                         <Users size={20} className={selected ? 'text-white' : 'text-muted-foreground'} />
@@ -210,24 +212,23 @@ export const PlaceList = ({
                                 {filter === f && <Check size={14} className="text-[#C139E3]" />}
                             </DropdownMenuItem>
                         ))}
-                        {onNavigateToOrder && (
-                            <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-                                    {t('placeList.sortSection')}
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={onNavigateToOrder} className="text-muted-foreground">
-                                    {t('placeList.sortOrder')}
-                                </DropdownMenuItem>
-                            </>
-                        )}
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
-            {!isGuest && !isPlacesLoading && onCreatePlace && (
-                <button onClick={onCreatePlace} className="flex items-center justify-center rounded-[8px]">
-                    <Plus size={24} className="text-foreground" />
+            {!isGuest && !isPlacesLoading && onNavigateToOrder && (
+                <button onClick={onNavigateToOrder} className="flex items-center rounded-[8px] text-muted-foreground">
+                    <span className="text-[14px] font-medium leading-[1.19] tracking-[-0.01em]">
+                        {t('placeList.settings')}
+                    </span>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path
+                            d="M6 12L10 8L6 4"
+                            stroke="currentColor"
+                            strokeWidth="1.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </svg>
                 </button>
             )}
         </div>
@@ -286,6 +287,40 @@ export const PlaceList = ({
                         onSelectPlace={handleSelectPlace}
                     />
                 ))}
+                {!isGuest && onCreatePlace && (
+                    <button
+                        onClick={onCreatePlace}
+                        className="flex flex-col items-center gap-[5px] text-muted-foreground"
+                    >
+                        <div className="relative h-[47px] w-[47px]">
+                            <svg
+                                className="absolute left-[3px] top-[3px]"
+                                width="41"
+                                height="41"
+                                viewBox="0 0 41 41"
+                                fill="none"
+                            >
+                                <circle
+                                    cx="20.5"
+                                    cy="20.5"
+                                    r="19.75"
+                                    className="fill-background stroke-border"
+                                    strokeWidth="1.5"
+                                />
+                                <path
+                                    d="M20.5 14V27M14 20.5H27"
+                                    stroke="currentColor"
+                                    strokeWidth="1.2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                />
+                            </svg>
+                        </div>
+                        <span className="max-w-[70px] truncate text-center text-[14px] font-normal leading-[1.19] tracking-[-0.018em]">
+                            {t('placeList.addPlace')}
+                        </span>
+                    </button>
+                )}
             </div>
         </div>
     );
