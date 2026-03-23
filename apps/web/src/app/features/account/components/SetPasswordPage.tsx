@@ -1,4 +1,4 @@
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -21,6 +21,8 @@ export const SetPasswordPage = ({ translationPrefix, onSubmit }: SetPasswordPage
     const [confirmPassword, setConfirmPassword] = useState('');
     const [touched, setTouched] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const passwordsMatch = password === confirmPassword;
     const isValid = password.length >= MIN_PASSWORD_LENGTH && confirmPassword.length > 0 && passwordsMatch;
@@ -68,32 +70,52 @@ export const SetPasswordPage = ({ translationPrefix, onSubmit }: SetPasswordPage
                         <label className="text-[14px] font-semibold text-label">
                             {t(`${translationPrefix}.passwordLabel`)}
                         </label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                            placeholder={t(`${translationPrefix}.passwordPlaceholder`)}
-                            className="w-full rounded-[10px] border border-input-border bg-surface p-3 px-4 text-[16px] text-foreground outline-none transition-colors placeholder:text-placeholder focus:border-[1.5px] focus:border-focus-border"
-                        />
+                        <div className="relative">
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                                placeholder={t(`${translationPrefix}.passwordPlaceholder`)}
+                                className="w-full rounded-[10px] border border-input-border bg-surface p-3 px-4 pr-11 text-[16px] text-foreground outline-none transition-colors placeholder:text-placeholder focus:border-[1.5px] focus:border-focus-border"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(prev => !prev)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-placeholder"
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            >
+                                {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex flex-col gap-2">
                         <label className="text-[14px] font-semibold text-label">
                             {t(`${translationPrefix}.confirmPasswordLabel`)}
                         </label>
-                        <input
-                            type="password"
-                            value={confirmPassword}
-                            onChange={e => setConfirmPassword(e.target.value)}
-                            onBlur={() => setTouched(true)}
-                            placeholder={t(`${translationPrefix}.confirmPasswordPlaceholder`)}
-                            className={cn(
-                                'w-full rounded-[10px] border bg-surface p-3 px-4 text-[16px] text-foreground outline-none transition-colors placeholder:text-placeholder',
-                                showMismatch
-                                    ? 'border-[1.5px] border-destructive'
-                                    : 'border-input-border focus:border-[1.5px] focus:border-focus-border'
-                            )}
-                        />
+                        <div className="relative">
+                            <input
+                                type={showConfirmPassword ? 'text' : 'password'}
+                                value={confirmPassword}
+                                onChange={e => setConfirmPassword(e.target.value)}
+                                onBlur={() => setTouched(true)}
+                                placeholder={t(`${translationPrefix}.confirmPasswordPlaceholder`)}
+                                className={cn(
+                                    'w-full rounded-[10px] border bg-surface p-3 px-4 pr-11 text-[16px] text-foreground outline-none transition-colors placeholder:text-placeholder',
+                                    showMismatch
+                                        ? 'border-[1.5px] border-destructive'
+                                        : 'border-input-border focus:border-[1.5px] focus:border-focus-border'
+                                )}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowConfirmPassword(prev => !prev)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-placeholder"
+                                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                            >
+                                {showConfirmPassword ? <Eye size={20} /> : <EyeOff size={20} />}
+                            </button>
+                        </div>
                         {showMismatch && (
                             <p className="pl-[2px] text-[12px] text-[#FF4C35]">
                                 {t(`${translationPrefix}.passwordMismatch`)}

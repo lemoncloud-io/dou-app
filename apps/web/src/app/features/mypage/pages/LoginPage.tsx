@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -21,6 +21,7 @@ export const LoginPage = () => {
 
     const [uid, setUid] = useState('');
     const [pwd, setPwd] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [isOAuthPending, setIsOAuthPending] = useState(false);
 
     const { isOnMobileApp, isIOS } = getMobileAppInfo();
@@ -101,13 +102,24 @@ export const LoginPage = () => {
 
                     <div className="flex flex-col gap-2">
                         <label className="text-[14px] font-semibold text-label">{t('mypageLogin.passwordLabel')}</label>
-                        <Input
-                            type="password"
-                            value={pwd}
-                            onChange={e => setPwd(e.target.value)}
-                            placeholder={t('mypageLogin.passwordPlaceholder')}
-                            required
-                        />
+                        <div className="relative">
+                            <Input
+                                type={showPassword ? 'text' : 'password'}
+                                value={pwd}
+                                onChange={e => setPwd(e.target.value)}
+                                placeholder={t('mypageLogin.passwordPlaceholder')}
+                                className="pr-11"
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(prev => !prev)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-placeholder"
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            >
+                                {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="mt-4">
