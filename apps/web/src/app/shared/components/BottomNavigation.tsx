@@ -49,33 +49,35 @@ export const BottomNavigation = () => {
             style={{ paddingBottom: 'calc(var(--safe-bottom, 0px) + 18px)', pointerEvents: 'none' }}
         >
             <div
-                className="relative flex items-center justify-center w-[166px] h-[62px] rounded-[300px] overflow-hidden"
-                style={{ backdropFilter: 'blur(20px)', background: 'rgba(243, 243, 243, 0.9)', pointerEvents: 'auto' }}
+                className="relative flex items-center justify-center w-[166px] h-[62px] rounded-[300px] overflow-hidden bg-[rgba(243,243,243,0.9)] dark:bg-[rgba(40,40,40,0.9)]"
+                style={{ backdropFilter: 'blur(20px)', pointerEvents: 'auto' }}
             >
                 <div className="relative flex flex-row items-center justify-center gap-[18px] z-10">
                     {NAV_ITEMS.map(({ path, labelKey, Icon }) => {
                         const isActive =
                             path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(path + '/');
-                        const iconColor = isActive ? '#FFFFFF' : '#53555B';
+                        const iconColor = isActive ? '#FFFFFF' : undefined;
                         return (
                             <button
                                 key={path}
                                 onClick={() => navigate(path, { replace: true })}
                                 className={cn(
                                     'relative flex flex-col items-center justify-center gap-[2px] w-12 h-12 rounded-2xl',
-                                    isActive ? 'bg-[rgba(3,13,35,0.7)]' : 'bg-transparent'
+                                    isActive
+                                        ? 'bg-[rgba(3,13,35,0.7)] dark:bg-[rgba(255,255,255,0.2)]'
+                                        : 'bg-transparent text-muted-foreground'
                                 )}
                             >
-                                <Icon color={iconColor} />
+                                <Icon color={iconColor ?? 'currentColor'} />
                                 {path === '/' && displayUnread && (
-                                    <span className="absolute -top-[3px] left-[22px] flex h-[17px] min-w-[17px] items-center justify-center rounded-[8.5px] border border-white bg-[#F41F52] px-[5px] text-[11px] font-semibold leading-[10px] tracking-[0.005em] text-[#FEFEFE]">
+                                    <span className="absolute -top-[3px] left-[22px] flex h-[17px] min-w-[17px] items-center justify-center rounded-[8.5px] border border-background bg-[#F41F52] px-[5px] text-[11px] font-semibold leading-[10px] tracking-[0.005em] text-[#FEFEFE]">
                                         {displayUnread}
                                     </span>
                                 )}
                                 <span
                                     className={cn(
                                         'text-[11px] leading-[1.09] tracking-[-0.009em] text-center w-full',
-                                        isActive ? 'font-semibold text-white' : 'font-medium text-[#53555B]'
+                                        isActive ? 'font-semibold text-white' : 'font-medium text-muted-foreground'
                                     )}
                                 >
                                     {t(labelKey)}
