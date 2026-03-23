@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
 
+import { KeyboardAwareLayout } from '../../../shared/layouts';
 import { DouLogo } from './DouLogo';
 import { FloatingButton } from './FloatingButton';
 
@@ -41,20 +42,30 @@ export const EmailInputPage = ({
     };
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
-            <header className="flex items-center px-[6px]">
-                <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
-                    <ChevronLeft size={26} strokeWidth={2} />
-                </button>
-            </header>
-
-            <div className="flex-1 overflow-y-auto overscroll-none px-4 pb-[120px]">
+        <KeyboardAwareLayout
+            header={
+                <header className="flex items-center px-[6px]">
+                    <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
+                        <ChevronLeft size={26} strokeWidth={2} />
+                    </button>
+                </header>
+            }
+            footer={
+                <FloatingButton
+                    label={t(`${translationPrefix}.${buttonLabelKey}`)}
+                    disabled={!isValid}
+                    loading={loading}
+                    onClick={handleVerify}
+                />
+            }
+        >
+            <div className="px-4">
                 <div className="mt-[24px] flex flex-col items-center gap-[46px]">
                     <DouLogo />
 
                     <div className="flex w-full flex-col gap-6">
                         <div className="flex flex-col gap-2">
-                            <label className="text-[14px] font-semibold text-[#53555B]">
+                            <label className="text-[14px] font-semibold text-label">
                                 {t(`${translationPrefix}.emailLabel`)}
                             </label>
                             <div className="relative">
@@ -65,36 +76,34 @@ export const EmailInputPage = ({
                                     onBlur={() => setTouched(true)}
                                     placeholder={t(`${translationPrefix}.emailPlaceholder`)}
                                     className={cn(
-                                        'w-full rounded-[10px] border bg-white p-3 px-4 pr-10 text-[16px] text-black outline-none transition-colors placeholder:text-[#BABCC0] dark:bg-background dark:text-white',
+                                        'w-full rounded-[10px] border bg-surface p-3 px-4 pr-10 text-[16px] text-foreground outline-none transition-colors placeholder:text-placeholder',
                                         hasError
-                                            ? 'border-[1.5px] border-[#FF4C35]'
-                                            : 'border-[#EAEAEC] focus:border-[1.5px] focus:border-[#3A3C40] dark:border-[#3A3C40]'
+                                            ? 'border-[1.5px] border-destructive'
+                                            : 'border-input-border focus:border-[1.5px] focus:border-focus-border'
                                     )}
                                 />
                                 {email.length > 0 && (
                                     <button
                                         type="button"
                                         onClick={() => setEmail('')}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#BABCC0]"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-placeholder"
                                     >
                                         <XCircle size={20} fill="currentColor" stroke="white" />
                                     </button>
                                 )}
                             </div>
-                            <p className={cn('pl-[2px] text-[12px]', hasError ? 'text-[#FF4C35]' : 'text-[#84888F]')}>
+                            <p
+                                className={cn(
+                                    'pl-[2px] text-[12px]',
+                                    hasError ? 'text-destructive' : 'text-description'
+                                )}
+                            >
                                 {t(`${translationPrefix}.emailDescription`)}
                             </p>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <FloatingButton
-                label={t(`${translationPrefix}.${buttonLabelKey}`)}
-                disabled={!isValid}
-                loading={loading}
-                onClick={handleVerify}
-            />
-        </div>
+        </KeyboardAwareLayout>
     );
 };

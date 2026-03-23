@@ -93,7 +93,7 @@ export const TokenLoginPage = () => {
     return (
         <div className="flex h-full items-center justify-center">
             <div className="text-center">
-                <p className="text-[16px] text-[#84888F]">{t('auth.loggingIn')}</p>
+                <p className="text-[16px] text-description">{t('auth.loggingIn')}</p>
             </div>
         </div>
     );

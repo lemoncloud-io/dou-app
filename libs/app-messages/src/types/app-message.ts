@@ -32,6 +32,7 @@ export const AppMessageTypes = {
     OnUpdateDeviceInfo: 'OnUpdateDeviceInfo',
     OnCloseModal: 'OnCloseModal',
     OnOpenShareSheet: 'OnOpenShareSheet',
+    OnBackPressed: 'OnBackPressed',
     OnOpenDocument: 'OnOpenDocument',
     OnGetContacts: 'OnGetContacts',
     OnOpenCamera: 'OnOpenCamera',
@@ -76,6 +77,8 @@ export interface OnUpdateDeviceInfo extends AppDefaultMessage<'OnUpdateDeviceInf
 export interface OnOpenShareSheet extends AppDefaultMessage<'OnOpenShareSheet'> {
     data: ShareInfo;
 }
+
+export interface OnBackPressed extends AppDefaultMessage<'OnBackPressed'> {}
 
 export interface OnOpenDocument extends AppDefaultMessage<'OnOpenDocument'> {
     data: {
@@ -220,6 +223,7 @@ export interface AppMessageMap {
      */
     OnCloseModal: AppDefaultMessage<'OnCloseModal'>;
     OnOpenShareSheet: OnOpenShareSheet;
+    OnBackPressed: OnBackPressed;
     OnOpenDocument: OnOpenDocument;
     OnGetContacts: OnGetContacts;
     OnOpenCamera: OnOpenCamera;

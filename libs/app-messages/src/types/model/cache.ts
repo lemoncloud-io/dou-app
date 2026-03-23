@@ -12,7 +12,7 @@ export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'usertok
  * - isFirstRun: 최초 실행 여부
  * - theme: 앱 테마
  */
-export type PreferenceKey = 'isFirstRun' | 'theme';
+export type PreferenceKey = 'isFirstRun' | 'theme' | 'language';
 
 interface CacheModelMap {
     channel: ChannelView;

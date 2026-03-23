@@ -46,15 +46,15 @@ export const ReportMemberDialog = ({
     return (
         <AlertDialog open={open} onOpenChange={handleOpenChange}>
             <AlertDialogContent
-                className="max-w-[288px] gap-0 overflow-hidden rounded-xl border-0 p-0"
+                className="max-w-[288px] gap-0 overflow-hidden rounded-[12px] border-0 p-0 shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)]"
                 data-prevent-back-close={isPending ? '' : undefined}
             >
-                <div className="flex flex-col gap-4 px-[18px] pt-7 pb-4">
+                <div className="flex flex-col gap-4 px-[22px] pt-[22px] pb-4">
                     <div className="flex flex-col items-center gap-2 text-center">
-                        <AlertDialogTitle className="text-base font-semibold leading-[1.5] text-foreground">
+                        <AlertDialogTitle className="text-[18px] font-semibold leading-[1.5] text-foreground">
                             {t('chat.settings.reportDialog.title')}
                         </AlertDialogTitle>
-                        <AlertDialogDescription className="text-sm font-medium leading-[1.5] text-muted-foreground">
+                        <AlertDialogDescription className="text-[16px] font-medium leading-[1.45] tracking-[-0.16px] text-dialog-subtitle">
                             {t('chat.settings.reportDialog.description', { name: memberName })}
                         </AlertDialogDescription>
                     </div>
@@ -71,7 +71,7 @@ export const ReportMemberDialog = ({
                 <div className="flex w-full">
                     <AlertDialogCancel
                         disabled={isPending}
-                        className="mt-0 flex h-[52px] flex-1 items-center justify-center rounded-none border-0 border-r border-t border-border bg-transparent text-[15px] font-medium text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                        className="mt-0 flex h-[52px] flex-1 items-center justify-center rounded-none border-0 border-r border-t border-border bg-transparent text-[16px] font-medium text-dialog-subtitle transition-colors hover:bg-muted disabled:opacity-50"
                     >
                         {t('common.cancel')}
                     </AlertDialogCancel>
@@ -79,7 +79,7 @@ export const ReportMemberDialog = ({
                         onClick={handleConfirm}
                         disabled={isPending || !reason.trim()}
                         className={cn(
-                            'flex h-[52px] flex-1 items-center justify-center rounded-none border-0 border-t border-border bg-transparent text-[15px] font-semibold transition-colors hover:bg-muted disabled:opacity-50',
+                            'flex h-[52px] flex-1 items-center justify-center rounded-none border-0 border-t border-border bg-transparent text-[16px] font-semibold transition-colors hover:bg-muted disabled:opacity-50',
                             'text-destructive'
                         )}
                     >

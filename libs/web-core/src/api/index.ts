@@ -1,6 +1,11 @@
 import { ENV, getDynamicDOUEndpoint, OAUTH_ENDPOINT, webCore } from '../core';
 import { MAX_RETRIES, validateTokenResponse, withRetry } from '../utils';
 
+const throwIfApiError = <T>(data: T & { error?: string }): T => {
+    if (data.error) throw new Error(data.error);
+    return data;
+};
+
 import type { UserProfile$ as UserProfile } from '@lemoncloud/chatic-backend-api';
 import type { LemonRefreshTokenResult, VerifyNativeTokenBody } from '../types';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
@@ -87,7 +92,9 @@ export const snsTestLogin = async (tokenBody: VerifyNativeTokenBody) => {
         .buildSignedRequest({ method: 'POST', baseURL: `${OAUTH_ENDPOINT}/oauth/0/verify-native-token` })
         .setParams({ token: 1 })
         .setBody(tokenBody)
-        .execute<LemonRefreshTokenResult>();
+        .execute<LemonRefreshTokenResult & { error?: string }>();
+
+    throwIfApiError(data);
 
     const refreshToken: LemonOAuthToken = {
         ...data.Token,
@@ -115,7 +122,9 @@ export const createCredentialsByProvider = async (provider = 'google', code: str
             baseURL: `${OAUTH_ENDPOINT}/oauth/${provider}/token`,
         })
         .setBody({ code })
-        .execute<{ Token: LemonOAuthToken }>();
+        .execute<{ Token: LemonOAuthToken } & { error?: string }>();
+
+    throwIfApiError(data);
 
     return await webCore.buildCredentialsByToken(data.Token);
 };
@@ -158,9 +167,9 @@ export const loginWithInviteCode = async (code: string, backend?: string): Promi
             baseURL: `${endpoint}/oauth/login-invite`,
         })
         .setBody({ code })
-        .execute<LoginInviteResponse>();
+        .execute<LoginInviteResponse & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const refreshAuthToken = async () => {
@@ -178,7 +187,9 @@ export const refreshAuthToken = async () => {
                 })
                 .setParams({ token: 1 })
                 .setBody({ current, signature })
-                .execute<LemonOAuthToken>();
+                .execute<LemonOAuthToken & { error?: string }>();
+
+            throwIfApiError(response.data);
 
             const tokenData = {
                 identityPoolId: originToken.identityPoolId,
@@ -200,8 +211,8 @@ export const fetchProfile = async () => {
                     method: 'GET',
                     baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
                 })
-                .execute<UserProfile>();
-            return data;
+                .execute<UserProfile & { error?: string }>();
+            return throwIfApiError(data);
         },
         MAX_RETRIES,
         'Profile fetch'
@@ -218,8 +229,8 @@ export const updateProfile = async (body: Partial<UserProfile>) => {
                         baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
                     })
                     .setBody(body as Record<string, unknown>)
-                    .execute<UserProfile>();
-                return data;
+                    .execute<UserProfile & { error?: string }>();
+                return throwIfApiError(data);
             },
             MAX_RETRIES,
             'Profile update'
@@ -243,8 +254,8 @@ export const updateProfile = async (body: Partial<UserProfile>) => {
                                 baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
                             })
                             .setBody(body as Record<string, unknown>)
-                            .execute<UserProfile>();
-                        return data;
+                            .execute<UserProfile & { error?: string }>();
+                        return throwIfApiError(data);
                     },
                     1,
                     'Profile update after token refresh'

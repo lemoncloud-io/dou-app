@@ -39,7 +39,7 @@ export const VerificationCodeInput = ({ value, onChange }: VerificationCodeInput
     };
 
     return (
-        <div className="flex items-center justify-between px-[22px]">
+        <div className="flex items-center justify-center gap-[10px]">
             {digits.map((digit, index) => {
                 const isFilled = digit !== '';
                 const isFocusTarget = index === value.length;
@@ -60,8 +60,8 @@ export const VerificationCodeInput = ({ value, onChange }: VerificationCodeInput
                         className={cn(
                             'flex h-[50px] w-[46px] items-center justify-center rounded-[10px] text-center text-[24px] font-bold outline-none transition-all',
                             isFilled
-                                ? 'border-0 bg-[#F4F5F5] text-[#90C304]'
-                                : 'border border-[#EAEAEC] bg-white focus:border-[1.5px] focus:border-[#90C304] dark:border-[#3A3C40] dark:bg-background'
+                                ? 'border-0 bg-secondary text-main-accent'
+                                : 'border border-input-border bg-surface focus:border-[1.5px] focus:border-main-accent'
                         )}
                     />
                 );

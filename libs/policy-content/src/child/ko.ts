@@ -1,4 +1,4 @@
-import type { PolicyContent } from './policyTypes';
+import type { PolicyContent } from '../types';
 
 export const CHILD_POLICY_CONTENT: PolicyContent = {
     title: '운영정책 및 아동 보호 표준',
@@ -37,4 +37,4 @@ export const CHILD_POLICY_CONTENT: PolicyContent = {
             ],
         },
     ],
-} as const;
+};

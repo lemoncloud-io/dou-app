@@ -9,7 +9,7 @@ import { cn } from '@chatic/lib/utils';
 import { useLocalProfileStore, useWebCoreStore } from '@chatic/web-core';
 
 import { PageHeader } from '../../../shared/components';
-import { useAppChecker } from '@chatic/device-utils';
+import { KeyboardAwareLayout } from '../../../shared/layouts';
 import { useUpdateMyProfile } from '../../home/hooks';
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
@@ -35,7 +35,6 @@ export const ProfileEditPage = () => {
 
     const hasChanges = name !== initialName || imageUrl !== initialImageUrl;
     const isValid = name.trim().length > 0 && name.length <= 20;
-    const { isIOS } = useAppChecker();
 
     const handleSave = async () => {
         if (!isValid || !hasChanges) return;
@@ -83,12 +82,27 @@ export const ProfileEditPage = () => {
     };
 
     return (
-        <div className="fixed inset-0 flex flex-col overflow-hidden bg-background pt-safe-top">
-            <div className="shrink-0">
-                <PageHeader title={t('profileEdit.title')} />
-            </div>
-
-            <div className="flex-1 overflow-y-auto overscroll-none px-5 pt-4">
+        <KeyboardAwareLayout
+            className="fixed inset-0 overflow-hidden"
+            header={<PageHeader title={t('profileEdit.title')} />}
+            footer={
+                <div className="border-t border-border/50 bg-background px-5 py-4">
+                    <button
+                        onClick={handleSave}
+                        disabled={!isValid || !hasChanges || isPending}
+                        className={cn(
+                            'w-full rounded-2xl py-4 text-[15px] font-semibold transition-all',
+                            isValid && hasChanges && !isPending
+                                ? 'bg-[#B0EA10] text-foreground active:scale-[0.98]'
+                                : 'bg-muted text-muted-foreground'
+                        )}
+                    >
+                        {t('profileEdit.save')}
+                    </button>
+                </div>
+            }
+        >
+            <div className="px-5 pt-4">
                 <div className="mb-8">
                     <p className="text-[22px] font-bold leading-tight text-foreground">
                         {t('profileEdit.description1')}
@@ -155,31 +169,6 @@ export const ProfileEditPage = () => {
                     )}
                 </div>
             </div>
-
-            <div className="shrink-0 border-t border-border/50 bg-background px-5 py-4">
-                <button
-                    onClick={handleSave}
-                    disabled={!isValid || !hasChanges || isPending}
-                    className={cn(
-                        'w-full rounded-2xl py-4 text-[15px] font-semibold transition-all',
-                        isValid && hasChanges && !isPending
-                            ? 'bg-[#B0EA10] text-foreground active:scale-[0.98]'
-                            : 'bg-muted text-muted-foreground'
-                    )}
-                >
-                    {t('profileEdit.save')}
-                </button>
-            </div>
-
-            <div
-                className="shrink-0 touch-none bg-background"
-                style={{
-                    height: isIOS
-                        ? `calc(max(var(--safe-bottom, 0px), var(--keyboard-height, 0px)))`
-                        : `calc(var(--safe-bottom, 0px) + var(--keyboard-height, 0px))`,
-                }}
-                onTouchMove={e => e.preventDefault()}
-            />
-        </div>
+        </KeyboardAwareLayout>
     );
 };

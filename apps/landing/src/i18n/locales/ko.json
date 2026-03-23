@@ -76,6 +76,14 @@
         "appStore": "App Store에서 다운로드",
         "googlePlay": "Google Play에서 다운로드"
     },
+    "common": {
+        "comingSoon": "현재 준비중입니다"
+    },
+    "policy": {
+        "effectiveDate": "시행일",
+        "versionNotFound": "버전을 찾을 수 없습니다.",
+        "current": "현재"
+    },
     "footer": {
         "ceo": "대표자",
         "ceoName": "김동혁",

@@ -33,6 +33,7 @@
             "@chatic/i18n-mobile": ["libs/i18n-mobile/src/index.ts"],
             "@chatic/lib/utils": ["libs/ui-kit/src/utils/index.ts"],
             "@chatic/places": ["libs/places/src/index.ts"],
+            "@chatic/policy-content": ["libs/policy-content/src/index.ts"],
             "@chatic/pouches": ["libs/pouches/src/index.ts"],
             "@chatic/shared": ["libs/shared/src/index.ts"],
             "@chatic/socket": ["libs/socket/src/index.ts"],

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -21,6 +21,7 @@ export const LoginPage = () => {
 
     const [uid, setUid] = useState('');
     const [pwd, setPwd] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [isOAuthPending, setIsOAuthPending] = useState(false);
 
     const { isOnMobileApp, isIOS } = getMobileAppInfo();
@@ -75,23 +76,21 @@ export const LoginPage = () => {
     };
 
     return (
-        <div className="flex h-full flex-col bg-background px-4 pt-safe-top">
-            <header className="flex items-center py-3">
-                <button onClick={() => navigate(-1)} className="p-2 -ml-2">
-                    <ChevronLeft size={24} strokeWidth={2} />
+        <div className="flex h-full flex-col bg-background pt-safe-top">
+            <header className="flex items-center px-[6px]">
+                <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
+                    <ChevronLeft size={26} strokeWidth={2} />
                 </button>
             </header>
 
-            <div className="flex-1 overflow-y-auto overscroll-none pb-safe-bottom">
+            <div className="flex-1 overflow-y-auto overscroll-none px-4 pb-safe-bottom">
                 <div className="mt-6 mb-8">
                     <h1 className="text-[20px] font-semibold leading-[1.35] ">{t('mypageLogin.title')}</h1>
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-5">
                     <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold text-[#53555B]">
-                            {t('mypageLogin.emailLabel')}
-                        </label>
+                        <label className="text-[14px] font-semibold text-label">{t('mypageLogin.emailLabel')}</label>
                         <Input
                             type="email"
                             value={uid}
@@ -102,16 +101,25 @@ export const LoginPage = () => {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold text-[#53555B]">
-                            {t('mypageLogin.passwordLabel')}
-                        </label>
-                        <Input
-                            type="password"
-                            value={pwd}
-                            onChange={e => setPwd(e.target.value)}
-                            placeholder={t('mypageLogin.passwordPlaceholder')}
-                            required
-                        />
+                        <label className="text-[14px] font-semibold text-label">{t('mypageLogin.passwordLabel')}</label>
+                        <div className="relative">
+                            <Input
+                                type={showPassword ? 'text' : 'password'}
+                                value={pwd}
+                                onChange={e => setPwd(e.target.value)}
+                                placeholder={t('mypageLogin.passwordPlaceholder')}
+                                className="pr-11"
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(prev => !prev)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-placeholder"
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            >
+                                {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="mt-4">
@@ -129,16 +137,16 @@ export const LoginPage = () => {
                     <button
                         type="button"
                         onClick={() => navigate('/account/signup')}
-                        className="flex items-center gap-0.5 text-[15px] font-medium text-[#53555B]"
+                        className="flex items-center gap-0.5 text-[15px] font-medium text-label"
                     >
                         {t('mypageLogin.signup')}
                         <ChevronRight size={18} />
                     </button>
-                    <div className="h-[14px] w-px bg-[#EAEAEC]" />
+                    <div className="h-[14px] w-px bg-input-border" />
                     <button
                         type="button"
                         onClick={() => navigate('/account/reset-password')}
-                        className="flex items-center gap-0.5 text-[15px] font-medium text-[#53555B]"
+                        className="flex items-center gap-0.5 text-[15px] font-medium text-label"
                     >
                         {t('mypageLogin.forgotPassword')}
                         <ChevronRight size={18} />

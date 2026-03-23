@@ -1,3 +1,4 @@
+import { throwIfApiError } from '@chatic/shared';
 import { webCore } from '@chatic/web-core';
 
 import type {
@@ -20,9 +21,9 @@ export const fetchUsers = async (params: Params): Promise<ListResult<UserView>> 
             baseURL: `${DOU_ENDPOINT}/hello/user/list`,
         })
         .setParams({ ...params })
-        .execute<ListResult<UserView>>();
+        .execute<ListResult<UserView> & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const fetchClouds = async (params: Params = {}): Promise<ListResult<CloudView>> => {
@@ -32,9 +33,9 @@ export const fetchClouds = async (params: Params = {}): Promise<ListResult<Cloud
             baseURL: `${DOU_ENDPOINT}/clouds/0/list`,
         })
         .setParams({ ...params, view: 'mine' })
-        .execute<ListResult<CloudView>>();
+        .execute<ListResult<CloudView> & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const issueCloudDelegationToken = async (target: string): Promise<CloudDelegationTokenView> => {
@@ -45,9 +46,9 @@ export const issueCloudDelegationToken = async (target: string): Promise<CloudDe
         })
         .setBody({ target })
         .setParams({ legacy: false })
-        .execute<CloudDelegationTokenView>();
+        .execute<CloudDelegationTokenView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const registerDeviceToken = async (body: RegisterDeviceTokenBody): Promise<RegisterDeviceResult> => {
@@ -57,9 +58,9 @@ export const registerDeviceToken = async (body: RegisterDeviceTokenBody): Promis
             baseURL: `${DOU_ENDPOINT}/users/0/reg-dev`,
         })
         .setBody(body)
-        .execute<RegisterDeviceResult>();
+        .execute<RegisterDeviceResult & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const verifyNativeAppToken = async (body: VerifyNativeTokenBody): Promise<UserTokenView> => {
@@ -70,7 +71,7 @@ export const verifyNativeAppToken = async (body: VerifyNativeTokenBody): Promise
         })
         .setParams({ token: 1 })
         .setBody(body)
-        .execute<UserTokenView>();
+        .execute<UserTokenView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };

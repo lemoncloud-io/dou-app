@@ -1,9 +1,18 @@
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Toast } from '../../../shared/components';
 import { storeUrls } from '../constants';
 
 export const DownloadSection = (): JSX.Element => {
     const { t } = useTranslation();
+    const [toastKey, setToastKey] = useState(0);
+    const [showToast, setShowToast] = useState(false);
+    const handleCloseToast = useCallback(() => setShowToast(false), []);
+    const handleShowToast = useCallback(() => {
+        setToastKey(prev => prev + 1);
+        setShowToast(true);
+    }, []);
 
     return (
         <section className="relative w-full py-20 sm:py-28 px-6 bg-background overflow-hidden">
@@ -19,21 +28,21 @@ export const DownloadSection = (): JSX.Element => {
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up animate-delay-200">
-                    <a
-                        href={storeUrls.ios}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <button
+                        type="button"
+                        onClick={handleShowToast}
                         className="group btn-shimmer inline-flex items-center justify-center gap-3
                                    bg-foreground text-background
                                    px-8 py-4 rounded-xl text-base font-semibold
                                    w-full sm:w-auto sm:min-w-[240px]
                                    transition-all duration-300
                                    hover:shadow-lg hover:shadow-foreground/20
-                                   hover:-translate-y-0.5 active:translate-y-0"
+                                   hover:-translate-y-0.5 active:translate-y-0
+                                   cursor-pointer"
                     >
                         <AppleIcon />
                         {t('download.appStore')}
-                    </a>
+                    </button>
 
                     <a
                         href={storeUrls.android}
@@ -51,6 +60,8 @@ export const DownloadSection = (): JSX.Element => {
                         {t('download.googlePlay')}
                     </a>
                 </div>
+
+                <Toast key={toastKey} message={t('common.comingSoon')} visible={showToast} onClose={handleCloseToast} />
             </div>
         </section>
     );

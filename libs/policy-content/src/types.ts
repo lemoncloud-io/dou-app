@@ -16,3 +16,5 @@ export interface PolicyContent {
     currentVersion: string;
     versions: PolicyVersion[];
 }
+
+export type SupportedLanguage = 'ko' | 'en';

@@ -12,6 +12,7 @@ import type {
     OpenPhotoLibrary,
     OpenShareSheet,
     OpenDocument,
+    GetContacts,
     OpenURL,
 } from '@chatic/app-messages';
 import type { Asset, CameraOptions, ImageLibraryOptions } from 'react-native-image-picker';
@@ -22,11 +23,12 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
     }, []);
 
     const handleOpenShareSheet = useCallback(
-        async (data: OpenShareSheet['data']) => {
+        async (message: OpenShareSheet) => {
             try {
-                const result = await deviceService.openShareSheet(data);
+                const result = await deviceService.openShareSheet(message.data);
                 const response: AppMessageData<'OnOpenShareSheet'> = {
                     type: 'OnOpenShareSheet',
+                    nonce: message.nonce,
                     data: {
                         action: result.action,
                         activityType: result.activityType ?? null,
@@ -40,15 +42,15 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleOpenDocument: (data: OpenDocument['data']) => Promise<void> = useCallback(
-        async (data: OpenDocument['data']) => {
+    const handleOpenDocument = useCallback(
+        async (message: OpenDocument) => {
             try {
-                const results = await deviceService.openDocument(data.allowMultiSelection);
+                const results = await deviceService.openDocument(message.data.allowMultiSelection);
 
                 const documents = await Promise.all(
                     results.map(async doc => {
                         let base64: string | undefined;
-                        if (data.includeBase64 && doc.uri) {
+                        if (message.data.includeBase64 && doc.uri) {
                             try {
                                 base64 = await RNFS.readFile(doc.uri, 'base64');
                             } catch (readError) {
@@ -67,6 +69,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
 
                 const response: AppMessageData<'OnOpenDocument'> = {
                     type: 'OnOpenDocument',
+                    nonce: message.nonce,
                     data: {
                         documents,
                     },
@@ -79,12 +82,13 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleOpenCamera: (data: OpenCamera['data']) => Promise<void> = useCallback(
-        async (data: OpenCamera['data']) => {
+    const handleOpenCamera = useCallback(
+        async (message: OpenCamera) => {
             try {
-                const assets: Asset[] = await deviceService.openCamera(data as CameraOptions);
+                const assets: Asset[] = await deviceService.openCamera(message.data as CameraOptions);
                 const response: AppMessageData<'OnOpenCamera'> = {
                     type: 'OnOpenCamera',
+                    nonce: message.nonce,
                     data: {
                         assets: assets.map(asset => ({
                             uri: asset.uri,
@@ -105,12 +109,13 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleOpenPhotoLibrary: (data: OpenPhotoLibrary['data']) => Promise<void> = useCallback(
-        async (data: OpenPhotoLibrary['data']) => {
+    const handleOpenPhotoLibrary = useCallback(
+        async (message: OpenPhotoLibrary) => {
             try {
-                const assets: Asset[] = await deviceService.openPhotoLibrary(data as ImageLibraryOptions);
+                const assets: Asset[] = await deviceService.openPhotoLibrary(message.data as ImageLibraryOptions);
                 const response: AppMessageData<'OnOpenPhotoLibrary'> = {
                     type: 'OnOpenPhotoLibrary',
+                    nonce: message.nonce,
                     data: {
                         assets: assets.map(asset => ({
                             uri: asset.uri,
@@ -131,52 +136,57 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleGetContacts: () => Promise<void> = useCallback(async () => {
-        try {
-            const contacts = await deviceService.getContacts();
-            const response: AppMessageData<'OnGetContacts'> = {
-                type: 'OnGetContacts',
-                data: {
-                    contacts: contacts.map(contact => ({
-                        recordID: contact.recordID,
-                        backTitle: contact.backTitle || '',
-                        company: contact.company || '',
-                        emailAddresses: contact.emailAddresses,
-                        displayName: contact.displayName || '',
-                        familyName: contact.familyName,
-                        givenName: contact.givenName || '',
-                        middleName: contact.middleName || '',
-                        jobTitle: contact.jobTitle || '',
-                        phoneNumbers: contact.phoneNumbers,
-                        hasThumbnail: contact.hasThumbnail,
-                        thumbnailPath: contact.thumbnailPath || '',
-                        isStarred: contact.isStarred,
-                        postalAddresses: contact.postalAddresses,
-                        prefix: contact.prefix || '',
-                        suffix: contact.suffix || '',
-                        department: contact.department || '',
-                        birthday: (contact.birthday || undefined) as any,
-                        imAddresses: contact.imAddresses,
-                        urlAddresses: contact.urlAddresses,
-                        note: contact.note || '',
-                    })),
-                },
-            };
-            bridge.post(response);
-        } catch (e) {
-            logger.error('DEVICE', 'GetContacts error', e);
-            // 에러 시에도 빈 배열로 응답 전송 (Web이 무한 대기하지 않도록)
-            const response: AppMessageData<'OnGetContacts'> = {
-                type: 'OnGetContacts',
-                data: { contacts: [] },
-            };
-            bridge.post(response);
-        }
-    }, [bridge]);
+    const handleGetContacts = useCallback(
+        async (message: GetContacts) => {
+            try {
+                const contacts = await deviceService.getContacts();
+                const response: AppMessageData<'OnGetContacts'> = {
+                    type: 'OnGetContacts',
+                    nonce: message.nonce,
+                    data: {
+                        contacts: contacts.map(contact => ({
+                            recordID: contact.recordID,
+                            backTitle: contact.backTitle || '',
+                            company: contact.company || '',
+                            emailAddresses: contact.emailAddresses,
+                            displayName: contact.displayName || '',
+                            familyName: contact.familyName,
+                            givenName: contact.givenName || '',
+                            middleName: contact.middleName || '',
+                            jobTitle: contact.jobTitle || '',
+                            phoneNumbers: contact.phoneNumbers,
+                            hasThumbnail: contact.hasThumbnail,
+                            thumbnailPath: contact.thumbnailPath || '',
+                            isStarred: contact.isStarred,
+                            postalAddresses: contact.postalAddresses,
+                            prefix: contact.prefix || '',
+                            suffix: contact.suffix || '',
+                            department: contact.department || '',
+                            birthday: (contact.birthday || undefined) as any,
+                            imAddresses: contact.imAddresses,
+                            urlAddresses: contact.urlAddresses,
+                            note: contact.note || '',
+                        })),
+                    },
+                };
+                bridge.post(response);
+            } catch (e) {
+                logger.error('DEVICE', 'GetContacts error', e);
+                // 에러 시에도 빈 배열로 응답 전송 (Web이 무한 대기하지 않도록)
+                const response: AppMessageData<'OnGetContacts'> = {
+                    type: 'OnGetContacts',
+                    nonce: message.nonce,
+                    data: { contacts: [] },
+                };
+                bridge.post(response);
+            }
+        },
+        [bridge]
+    );
 
-    const handleOpenURL = useCallback(async (data: OpenURL['data']) => {
+    const handleOpenURL = useCallback(async (message: OpenURL) => {
         try {
-            await Linking.openURL(data.url);
+            await Linking.openURL(message.data.url);
         } catch (e) {
             logger.error('DEVICE', 'OpenURL error', e);
         }

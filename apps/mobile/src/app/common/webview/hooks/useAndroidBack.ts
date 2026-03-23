@@ -1,13 +1,15 @@
+import type React from 'react';
 import { useEffect } from 'react';
 import { Alert, BackHandler, Platform } from 'react-native';
 
 import { t } from '../../i18n';
-import { postAppMessage } from '../core/bridge';
-
-import type React from 'react';
+import { postAppMessage } from '../core';
+import { useLanguageStore } from '../../stores';
 import type { WebView } from 'react-native-webview';
 
-export const useAndroidBack = (webViewRef: React.RefObject<WebView | null>, canGoBack: boolean, language: string) => {
+export const useAndroidBack = (webViewRef: React.RefObject<WebView | null>, canGoBack: boolean) => {
+    const language = useLanguageStore(state => state.language);
+
     useEffect(() => {
         if (Platform.OS !== 'android') return;
 
