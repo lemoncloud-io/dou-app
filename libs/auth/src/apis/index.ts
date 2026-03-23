@@ -1,3 +1,4 @@
+import { throwIfApiError } from '@chatic/shared';
 import { webCore, cloudCore } from '@chatic/web-core';
 
 import type {
@@ -21,9 +22,9 @@ export const registerDevice = async (deviceId: string): Promise<UserTokenView> =
             baseURL: `${DOU_ENDPOINT}/oauth/register-device`,
         })
         .setBody({ deviceId })
-        .execute<UserTokenView>();
+        .execute<UserTokenView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const registerUser = async (body: UserBody): Promise<UserView> => {
@@ -33,9 +34,9 @@ export const registerUser = async (body: UserBody): Promise<UserView> => {
             baseURL: `${DOU_ENDPOINT}/oauth/register-user`,
         })
         .setBody(body)
-        .execute<UserView>();
+        .execute<UserView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const registerUserV2 = async (body: RegisterUserV2Body, email?: boolean): Promise<UserView> => {
@@ -46,9 +47,9 @@ export const registerUserV2 = async (body: RegisterUserV2Body, email?: boolean):
         })
         .setParams(email !== undefined ? { email: email ? 'true' : 'false' } : {})
         .setBody(body)
-        .execute<UserView>();
+        .execute<UserView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const login = async (body: LoginUserBody, email?: boolean): Promise<UserTokenView> => {
@@ -59,9 +60,9 @@ export const login = async (body: LoginUserBody, email?: boolean): Promise<UserT
         })
         .setParams({ token: 1, ...(email !== undefined && { email: email ? 'true' : 'false' }) })
         .setBody(body)
-        .execute<UserTokenView>();
+        .execute<UserTokenView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const issueCloudToken = async (baseURL: string, body: CloudExchangeTokenBody): Promise<UserTokenView> => {
@@ -71,9 +72,9 @@ export const issueCloudToken = async (baseURL: string, body: CloudExchangeTokenB
             baseURL: `${baseURL}/oauth/exchange-token`,
         })
         .setBody({ ...body })
-        .execute<UserTokenView>();
+        .execute<UserTokenView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const refreshCloudToken = async (authId: string, body: OAuthRefreshBody): Promise<UserTokenView> => {
@@ -85,9 +86,9 @@ export const refreshCloudToken = async (authId: string, body: OAuthRefreshBody):
         })
         .setParams({ token: 1 })
         .setBody({ ...body })
-        .execute<UserTokenView>();
+        .execute<UserTokenView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const findAlias = async (body: FindAliasBody): Promise<FindAliasView> => {
@@ -97,9 +98,9 @@ export const findAlias = async (body: FindAliasBody): Promise<FindAliasView> => 
             baseURL: `${DOU_ENDPOINT}/oauth/find-alias`,
         })
         .setBody(body)
-        .execute<FindAliasView>();
+        .execute<FindAliasView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const verifyAlias = async (body: VerifyAliasBody): Promise<VerifyAliasView> => {
@@ -109,7 +110,7 @@ export const verifyAlias = async (body: VerifyAliasBody): Promise<VerifyAliasVie
             baseURL: `${DOU_ENDPOINT}/oauth/verify-alias`,
         })
         .setBody(body)
-        .execute<VerifyAliasView>();
+        .execute<VerifyAliasView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
