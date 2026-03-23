@@ -287,6 +287,7 @@
         "title": "플레이스 목록",
         "myPlaces": "내 플레이스",
         "friendPlaces": "친구 플레이스",
+        "empty": "플레이스가 없어요",
         "settings": "설정",
         "delete": "삭제",
         "leave": "나가기",

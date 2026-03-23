@@ -128,16 +128,22 @@ export const PlaceOrderPage = () => {
                 >
                     <SortableContext items={activePlaces.map(p => p.id)} strategy={verticalListSortingStrategy}>
                         <div className="flex flex-col gap-[5px]">
-                            {activePlaces.map(place => (
-                                <SortablePlaceItem
-                                    key={place.id}
-                                    place={place}
-                                    isOwner={activeTab === 'my'}
-                                    onSettings={handleSettings}
-                                    onDelete={handleDelete}
-                                    onLeave={handleLeave}
-                                />
-                            ))}
+                            {activePlaces.length > 0 ? (
+                                activePlaces.map(place => (
+                                    <SortablePlaceItem
+                                        key={place.id}
+                                        place={place}
+                                        isOwner={activeTab === 'my'}
+                                        onSettings={handleSettings}
+                                        onDelete={handleDelete}
+                                        onLeave={handleLeave}
+                                    />
+                                ))
+                            ) : (
+                                <p className="py-8 text-center text-sm text-muted-foreground">
+                                    {t('placeOrder.empty')}
+                                </p>
+                            )}
                         </div>
                     </SortableContext>
                 </DndContext>
