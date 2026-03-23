@@ -772,5 +772,10 @@
         "goHome": "홈으로",
         "retrying": "재시도 중...",
         "unknownError": "알 수 없는 오류가 발생했습니다"
+    },
+    "serviceUnavailable": {
+        "title": "서비스 점검 중",
+        "description": "현재 서버 점검 중입니다. 잠시 후 다시 시도해주세요.",
+        "retry": "새로고침"
     }
 }

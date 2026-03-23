@@ -12,7 +12,7 @@ import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
 import { initializeMessageListener } from '@chatic/app-messages';
 
-import { WebSocketV2Connection } from './components';
+import { WebSocketV2Connection, ServiceUnavailableOverlay } from './components';
 import { Router } from './routes';
 import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
 import i18n from '../i18n';
@@ -77,6 +77,7 @@ export function App() {
                         <QueryClientProvider client={queryClient}>
                             <ThemeProvider>
                                 <WebSocketV2Connection />
+                                <ServiceUnavailableOverlay />
                                 <DeviceTokenRegistration />
                                 <Router />
                                 <GlobalLoader />

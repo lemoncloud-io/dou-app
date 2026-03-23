@@ -772,5 +772,10 @@
         "goHome": "Home",
         "retrying": "Retrying...",
         "unknownError": "An unknown error occurred"
+    },
+    "serviceUnavailable": {
+        "title": "Service Unavailable",
+        "description": "The server is currently under maintenance. Please try again later.",
+        "retry": "Reload"
     }
 }
