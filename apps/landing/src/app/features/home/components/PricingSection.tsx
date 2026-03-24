@@ -16,15 +16,15 @@ export const PricingSection = (): JSX.Element => {
                 {t('pricing.title')}
             </h2>
 
-            {/* Cards */}
-            <div className="flex flex-col md:flex-row gap-[26px] px-0 md:px-4 xl:px-[86px]">
+            {/* Cards - vertical stack */}
+            <div className="flex flex-col gap-[26px]">
                 {/* Basic Service */}
-                <div className="flex-1 glass-card border border-main-green rounded-[34px] md:rounded-[42px] p-9 md:p-12 xl:p-[48px_68px] animate-fade-in-up animate-delay-100">
+                <div className="glass-card border border-main-green rounded-[34px] md:rounded-[42px] p-9 md:p-12 animate-fade-in-up animate-delay-100 text-center">
                     <h3 className="font-semibold text-[24px] md:text-[32px] text-navy mb-6">
                         {t('pricing.basic.title')}
                     </h3>
                     <p className="text-subtitle text-base mb-6 leading-relaxed">{t('pricing.basic.description')}</p>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-wrap gap-3 justify-center">
                         {(['feature1', 'feature2'] as const).map(key => (
                             <span
                                 key={key}
@@ -38,7 +38,7 @@ export const PricingSection = (): JSX.Element => {
                 </div>
 
                 {/* Subscription Service */}
-                <div className="flex-1 glass-card border border-main-green rounded-[34px] md:rounded-[42px] p-9 md:p-12 animate-fade-in-up animate-delay-200">
+                <div className="glass-card border border-main-green rounded-[34px] md:rounded-[42px] p-9 md:p-12 animate-fade-in-up animate-delay-200 text-center">
                     <h3 className="font-semibold text-[24px] md:text-[32px] text-navy mb-4">
                         {t('pricing.subscription.title')}
                     </h3>
@@ -50,7 +50,7 @@ export const PricingSection = (): JSX.Element => {
                             {t('pricing.subscription.price')}
                         </span>
                     </p>
-                    <ul className="text-subtitle text-sm md:text-base space-y-2 mb-6">
+                    <ul className="text-subtitle text-sm md:text-base space-y-2 mb-6 inline-block text-left">
                         {(['detail1', 'detail2', 'detail3', 'detail4'] as const).map(key => (
                             <li key={key} className="flex items-start gap-2">
                                 <span className="mt-1.5 w-1.5 h-1.5 bg-subtitle rounded-full flex-shrink-0" />
@@ -58,7 +58,7 @@ export const PricingSection = (): JSX.Element => {
                             </li>
                         ))}
                     </ul>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-wrap gap-3 justify-center">
                         {(['feature1', 'feature2', 'feature3', 'feature4', 'feature5'] as const).map(key => (
                             <span
                                 key={key}

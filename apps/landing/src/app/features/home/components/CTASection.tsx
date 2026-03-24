@@ -11,10 +11,10 @@ export const CTASection = (): JSX.Element => {
     return (
         <section className="w-full bg-main-green">
             <div
-                className="mx-auto px-4 md:px-[62px] xl:px-[240px]
+                className="max-w-[1440px] mx-auto px-6 md:px-10
                             pt-11 md:pt-[68px] pb-6 md:pb-14 text-center"
             >
-                <div className="max-w-[1280px] mx-auto">
+                <div>
                     <h2
                         className="font-heading font-bold text-navy
                                    text-2xl md:text-[52px] xl:text-[64px]

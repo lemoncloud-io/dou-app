@@ -9,8 +9,8 @@ export const Footer = (): JSX.Element => {
     return (
         <footer className="w-full bg-main-green">
             <div
-                className="mx-auto flex flex-col md:flex-row md:items-center md:justify-between
-                            px-4 md:px-[62px] xl:px-[240px] py-12 md:py-16 gap-[18px]"
+                className="max-w-[1440px] mx-auto flex flex-col md:flex-row md:items-center md:justify-between
+                            px-6 md:px-10 py-12 md:py-16 gap-[18px]"
             >
                 {/* Logo */}
                 <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
