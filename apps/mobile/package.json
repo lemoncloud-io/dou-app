@@ -3,8 +3,6 @@
     "version": "0.0.1",
     "private": true,
     "dependencies": {
-        "@lemoncloud/chatic-sockets-api": "*",
-        "@lemoncloud/chatic-socials-api": "*",
         "@nx/eslint-plugin": "*",
         "@nx/vite": "*",
         "@react-native-async-storage/async-storage": "*",
@@ -76,13 +74,15 @@
         "@radix-ui/react-tabs": "*",
         "@react-native-google-signin/google-signin": "*",
         "@invertase/react-native-apple-authentication": "*",
-        "@lemoncloud/chatic-backend-api": "*",
         "lottie-react-native": "*",
         "@aws-crypto/sha256-js": "*",
         "@smithy/protocol-http": "*",
         "@smithy/signature-v4": "*",
         "crypto-js": "*",
-        "@lemoncloud/react-page-transition": "*"
+        "@lemoncloud/react-page-transition": "*",
+        "@lemoncloud/chatic-backend-api": "*",
+        "@lemoncloud/chatic-socials-api": "*",
+        "@lemoncloud/chatic-sockets-api": "*"
     },
     "devDependencies": {}
 }
