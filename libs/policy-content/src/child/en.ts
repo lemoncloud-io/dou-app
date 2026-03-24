@@ -32,7 +32,7 @@ export const CHILD_POLICY_CONTENT_EN: PolicyContent = {
                 {
                     title: '4. Inquiries and Reports',
                     content:
-                        'If you discover a child safety violation during service use or have related inquiries, please contact us through the following channel.\n\n• Department: Service Operations Team\n• Contact: app@example.com',
+                        'If you discover a child safety violation during service use or have related inquiries, please contact us through the following channel.\n\n• Department: Hyungtak Jin\n• Contact: app@lemoncloud.io',
                 },
             ],
         },
