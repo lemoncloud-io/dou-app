@@ -12,53 +12,66 @@ export const ChatBubbleIllustration = (): JSX.Element => {
                 />
             </div>
 
-            {/* "Hello!" bubble - top left area */}
+            {/* "Hello!" bubble - top left */}
             <div
-                className="absolute top-[10%] left-[5%] bg-[#F8F8F8]
-                           px-[22px] py-3 md:px-8 md:py-3 xl:px-10 xl:py-4
-                           rounded-bl-[22px] rounded-br-[22px] rounded-tr-[22px]
-                           md:rounded-bl-[28px] md:rounded-br-[28px] md:rounded-tr-[28px]
-                           xl:rounded-bl-[42px] xl:rounded-br-[42px] xl:rounded-tr-[42px]
-                           rounded-tl-sm md:rounded-tl-sm xl:rounded-tl-sm
+                className="absolute top-0 left-[10%] bg-[#F8F8F8]
+                           px-[22px] py-3 md:px-8 md:py-4 xl:px-10 xl:py-4
+                           rounded-bl-[22px] rounded-br-[22px] rounded-tr-[22px] rounded-tl-none
+                           md:rounded-bl-[28px] md:rounded-br-[28px] md:rounded-tr-[28px] md:rounded-tl-none
+                           xl:rounded-bl-[42px] xl:rounded-br-[42px] xl:rounded-tr-[42px] xl:rounded-tl-none
                            shadow-[2px_3px_16px_rgba(0,0,0,0.14)]
                            animate-fade-in-up animate-delay-200"
             >
-                <span className="text-[22px] md:text-[28px] xl:text-[46px] font-medium text-navy">Hello!</span>
+                <span className="text-[22px] md:text-[28px] xl:text-[46px] font-medium text-[#171725]">Hello!</span>
             </div>
 
-            {/* "Welcome~" bubble - top right area */}
+            {/* "Welcome~" bubble - top right */}
             <div
-                className="absolute top-[5%] right-[5%] bg-navy
-                           px-[22px] py-3 md:px-8 md:py-3 xl:px-10 xl:py-4
-                           rounded-bl-[22px] rounded-br-[22px] rounded-tl-[22px]
-                           md:rounded-bl-[28px] md:rounded-br-[28px] md:rounded-tl-[28px]
-                           xl:rounded-bl-[42px] xl:rounded-br-[42px] xl:rounded-tl-[42px]
-                           rounded-tr-sm md:rounded-tr-sm xl:rounded-tr-sm
+                className="absolute top-[10%] right-[5%] bg-navy
+                           px-[22px] py-3 md:px-8 md:py-4 xl:px-10 xl:py-4
+                           rounded-bl-[22px] rounded-br-[22px] rounded-tl-[22px] rounded-tr-none
+                           md:rounded-bl-[28px] md:rounded-br-[28px] md:rounded-tl-[28px] md:rounded-tr-none
+                           xl:rounded-bl-[42px] xl:rounded-br-[42px] xl:rounded-tl-[42px] xl:rounded-tr-none
                            shadow-[2px_3px_16px_rgba(0,0,0,0.14)]
                            animate-fade-in-up animate-delay-300"
             >
                 <span className="text-[22px] md:text-[28px] xl:text-[46px] font-medium text-white">Welcome~</span>
             </div>
 
-            {/* Bottom-left emoji bubble */}
+            {/* Bottom-left emoji bubble - light bg, 🤝🫶 */}
             <div
-                className="absolute bottom-[15%] left-[10%] bg-[#F8F8F8] px-3 py-2 xl:px-4 xl:py-3
-                           rounded-full shadow-[2px_3px_16px_rgba(0,0,0,0.10)]
+                className="absolute bottom-0 left-[10%] bg-[#F8F8F8]
+                           px-[22px] py-3 md:px-8 md:py-4 xl:px-10 xl:py-4
+                           rounded-bl-[22px] rounded-br-[22px] rounded-tr-[22px] rounded-tl-none
+                           md:rounded-bl-[28px] md:rounded-br-[28px] md:rounded-tr-[28px] md:rounded-tl-none
+                           xl:rounded-bl-[42px] xl:rounded-br-[42px] xl:rounded-tr-[42px] xl:rounded-tl-none
+                           shadow-[2px_3px_16px_rgba(0,0,0,0.14)]
                            animate-fade-in animate-delay-400"
             >
-                <span role="img" aria-label="wave">
-                    👋
+                <span
+                    role="img"
+                    aria-label="handshake and heart hands"
+                    className="text-[22px] md:text-[28px] xl:text-[46px] tracking-[5px]"
+                >
+                    🤝🫶
                 </span>
             </div>
 
-            {/* Bottom-right emoji bubble */}
+            {/* Bottom-right emoji bubble - dark bg, 😊☺️ */}
             <div
-                className="absolute bottom-[20%] right-[8%] bg-[#F8F8F8] px-3 py-2 xl:px-4 xl:py-3
-                           rounded-full shadow-[2px_3px_16px_rgba(0,0,0,0.10)]
+                className="absolute bottom-[5%] right-[8%] bg-navy
+                           px-[22px] py-3 md:px-8 md:py-4 xl:px-10 xl:py-4
+                           rounded-bl-[22px] rounded-br-[22px] rounded-tl-[22px] rounded-tr-none
+                           md:rounded-bl-[28px] md:rounded-br-[28px] md:rounded-tl-[28px] md:rounded-tr-none
+                           xl:rounded-bl-[42px] xl:rounded-br-[42px] xl:rounded-tl-[42px] xl:rounded-tr-none
                            animate-fade-in animate-delay-500"
             >
-                <span role="img" aria-label="smile">
-                    😊
+                <span
+                    role="img"
+                    aria-label="smiling faces"
+                    className="text-[22px] md:text-[28px] xl:text-[46px] tracking-[5px]"
+                >
+                    😊☺️
                 </span>
             </div>
         </div>

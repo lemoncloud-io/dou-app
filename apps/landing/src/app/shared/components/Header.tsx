@@ -35,10 +35,10 @@ export const Header = (): JSX.Element => {
         <header
             className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-main-green/95 backdrop-blur-xl shadow-sm' : ''}`}
         >
-            <div className="max-w-[1440px] mx-auto flex items-center justify-between h-16 px-6 md:px-10">
+            <div className="max-w-[1440px] mx-auto flex items-center justify-between h-20 px-6 md:px-10">
                 <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                    <img src={Logo.logo} alt="DoU" className="h-7 w-7" />
-                    <span className="text-[22px] font-bold text-navy tracking-tight">D.U</span>
+                    <img src={Logo.logo} alt="DoU" className="h-10 w-10" />
+                    <img src={Logo.douBk} alt="D.U" className="h-5" />
                 </Link>
                 <nav className="flex items-center gap-2 sm:gap-3">
                     {/* Theme Toggle - hidden for now, functionality preserved */}
@@ -54,7 +54,7 @@ export const Header = (): JSX.Element => {
                     {/* Language Toggle */}
                     <button
                         onClick={toggleLanguage}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-full transition-all
+                        className="flex items-center gap-2 px-5 py-2.5 text-[15px] font-semibold rounded-full transition-all
                                    text-navy hover:opacity-80 border border-subtitle"
                     >
                         <GlobeIcon />

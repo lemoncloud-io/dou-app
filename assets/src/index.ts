@@ -34,4 +34,7 @@ export const Logo = {
     purpleSymbol: new URL('./logo/box-purple-symbol.png', import.meta.url).href,
     symbol: new URL('./logo/symbol.png', import.meta.url).href,
     logo: new URL('./logo/logo.png', import.meta.url).href,
+    douBk: new URL('./images/BK.svg', import.meta.url).href,
+    douGr: new URL('./images/GR.svg', import.meta.url).href,
+    douWh: new URL('./images/WH.svg', import.meta.url).href,
 } as const;
