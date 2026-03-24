@@ -33,7 +33,7 @@ export const Header = (): JSX.Element => {
 
     return (
         <header
-            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-main-green/95 backdrop-blur-xl shadow-sm' : ''}`}
+            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/50 backdrop-blur-xl shadow-sm' : ''}`}
         >
             <div className="max-w-[1440px] mx-auto flex items-center justify-between h-20 px-6 md:px-10">
                 <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">

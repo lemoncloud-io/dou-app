@@ -31,7 +31,7 @@ export const FeaturesSection = (): JSX.Element => {
                 }}
             />
 
-            <div className="relative z-10 px-4 md:px-[62px] xl:px-[240px] py-16 md:py-32 xl:py-[162px]">
+            <div className="relative z-10 max-w-[1440px] mx-auto px-6 md:px-10 py-16 md:py-32 xl:py-[162px]">
                 {/* Feature cards */}
                 <div className="flex flex-col gap-7 md:gap-[38px] xl:gap-12">
                     {featureCards.map((card, index) => (
@@ -91,10 +91,10 @@ const FeatureCard = ({
                 className={`flex-1 flex flex-col justify-center px-0 md:px-7 py-4 md:py-0
                              ${imageRight ? 'md:order-1' : ''}`}
             >
-                <h3 className="font-heading font-bold text-navy text-[28px] md:text-[38px] tracking-[-0.95px] mb-3 md:mb-4">
+                <h3 className="font-heading font-bold text-navy text-[28px] md:text-[38px] tracking-[-0.95px] mb-3 md:mb-4 text-center">
                     {t(`features.${featureKey}.title`)}
                 </h3>
-                <p className="text-desc-alt text-base md:text-lg tracking-[-0.27px] md:tracking-[-0.36px] leading-relaxed">
+                <p className="text-desc-alt text-base md:text-lg tracking-[-0.27px] md:tracking-[-0.36px] leading-relaxed text-center">
                     {t(`features.${featureKey}.description`)}
                 </p>
             </div>
