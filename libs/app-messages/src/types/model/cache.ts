@@ -34,46 +34,68 @@ interface CacheQueryMap {
     usertoken: { query?: UserTokenQueryOptions };
 }
 
-/**
- * 기본 쿼리 옵션 (모든 쿼리의 부모)
- */
-export interface BaseQueryOptions {
+export interface ChannelQueryOptions {
     /**
-     * - cloudId
-     * - undefined 일 경우 전체데이터 쿼리
+     * - cloudId에 해당하는 채널 정보 쿼리
+     */
+    cid?: string;
+
+    /**
+     * - sid 아이디로 채널 쿼리하기
+     * - 특정 사이트에 대한 채널 쿼리
+     */
+    sid?: string;
+}
+
+export interface CloudQueryOptions {}
+
+export interface UserQueryOptions {
+    /**
+     * - cloudId에 해당하는 유저 정보 쿼리
      */
     cid?: string;
 }
 
-export interface ChannelQueryOptions extends BaseQueryOptions {
+export interface SiteQueryOptions {
     /**
-     * - siteId 아이디로 채널 쿼리하기
-     * - 특정 사이트에 대한 채널 쿼리
+     * - cloudId에 해당하는 사이트 정보 쿼리
      */
-    siteId?: string;
+    cid?: string;
 }
 
-export interface CloudQueryOptions extends BaseQueryOptions {}
-
-export interface UserQueryOptions extends BaseQueryOptions {}
-
-export interface SiteQueryOptions extends BaseQueryOptions {}
-
-export interface ChatQueryOptions extends BaseQueryOptions {
+export interface ChatQueryOptions {
+    /**
+     * - cloudId에 해당하는 채팅정보 쿼리
+     */
+    cid?: string;
     /**
      * 채널 아이디
      */
     channelId?: string;
+
+    /**
+     * 정렬 방식
+     */
+    sort?: 'asc' | 'desc';
 }
 
-export interface JoinQueryOptions extends BaseQueryOptions {
+export interface JoinQueryOptions {
+    /**
+     * - cloudId에 해당하는 채널정보 쿼리
+     */
+    cid?: string;
     /**
      * 특정 채널에 대한 참여 정보
      */
     channelId?: string;
 }
 
-export interface UserTokenQueryOptions extends BaseQueryOptions {}
+export interface UserTokenQueryOptions {
+    /**
+     * - cloudId에 해당하는 토큰정보 쿼리
+     */
+    cid?: string;
+}
 
 /** [요청] 다수 데이터 불러오기 */
 export type FetchAllCacheDataPayload = {
