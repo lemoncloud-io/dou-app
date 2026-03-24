@@ -269,7 +269,43 @@ export const PlaceList = ({
         return (
             <div>
                 {header}
-                <p className="px-4 py-2 text-sm text-muted-foreground">{t('placeList.empty')}</p>
+                <div className="flex items-center gap-[14px] px-4 py-2">
+                    <p className="text-sm text-muted-foreground">{t('placeList.empty')}</p>
+                    {!isGuest && onCreatePlace && (
+                        <button
+                            onClick={onCreatePlace}
+                            className="flex flex-col items-center gap-[5px] text-muted-foreground"
+                        >
+                            <div className="relative h-[47px] w-[47px]">
+                                <svg
+                                    className="absolute left-[3px] top-[3px]"
+                                    width="41"
+                                    height="41"
+                                    viewBox="0 0 41 41"
+                                    fill="none"
+                                >
+                                    <circle
+                                        cx="20.5"
+                                        cy="20.5"
+                                        r="19.75"
+                                        className="fill-background stroke-border"
+                                        strokeWidth="1.5"
+                                    />
+                                    <path
+                                        d="M20.5 14V27M14 20.5H27"
+                                        stroke="currentColor"
+                                        strokeWidth="1.2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </div>
+                            <span className="max-w-[70px] truncate text-center text-[14px] font-normal leading-[1.19] tracking-[-0.018em]">
+                                {t('placeList.addPlace')}
+                            </span>
+                        </button>
+                    )}
+                </div>
             </div>
         );
     }
