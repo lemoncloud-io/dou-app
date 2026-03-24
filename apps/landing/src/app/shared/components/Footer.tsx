@@ -14,8 +14,8 @@ export const Footer = (): JSX.Element => {
             >
                 {/* Logo */}
                 <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                    <img src={Logo.logo} alt="DoU" className="h-[55px] w-[58px] object-contain" />
-                    <span className="text-navy text-[22px] font-bold">D.U</span>
+                    <img src={Logo.logo} alt="DoU" className="h-10 w-10" />
+                    <img src={Logo.douBk} alt="D.U" className="h-5" />
                 </Link>
 
                 {/* Right side */}

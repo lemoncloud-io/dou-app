@@ -12,9 +12,9 @@ export const HeroSection = (): JSX.Element => {
     return (
         <section className="relative w-full min-h-screen bg-main-green overflow-hidden">
             <div
-                className="mx-auto flex flex-col md:flex-row items-center justify-center
-                           gap-[58px] md:gap-12 xl:gap-12
-                           px-4 md:px-[62px] xl:px-[240px]
+                className="max-w-[1440px] mx-auto flex flex-col md:flex-row items-center justify-center
+                           gap-[58px] md:gap-12
+                           px-4 md:px-10 lg:px-16 xl:px-20
                            pt-16 md:pt-0 pb-0 md:pb-0 min-h-screen"
             >
                 {/* Text content */}
@@ -53,7 +53,7 @@ export const HeroSection = (): JSX.Element => {
                 </div>
 
                 {/* Desktop/Tablet illustration */}
-                <div className="hidden md:block md:w-[426px] xl:w-[696px] flex-shrink-0 animate-fade-in-up animate-delay-100">
+                <div className="hidden md:block md:w-[40%] xl:w-[45%] flex-shrink-0 animate-fade-in-up animate-delay-100">
                     <ChatBubbleIllustration />
                 </div>
             </div>

@@ -15,9 +15,9 @@ export const StoreButton = ({
     fullWidth,
     width = 'w-[198px]',
 }: StoreButtonProps): JSX.Element => {
-    const className = `inline-flex items-center justify-center gap-3
+    const className = `inline-flex items-center justify-center gap-2
                        bg-navy text-white
-                       px-8 py-4 rounded-full text-lg font-semibold tracking-[-0.27px]
+                       px-5 py-3 md:px-8 md:py-4 rounded-full text-sm md:text-lg font-semibold tracking-[-0.27px]
                        transition-all duration-300
                        hover:opacity-90 active:scale-[0.98]
                        ${fullWidth ? 'flex-1' : width}`;
