@@ -26,6 +26,12 @@ module.exports = {
                     DEFAULT: 'hsl(var(--card))',
                     foreground: 'hsl(var(--card-foreground))',
                 },
+                navy: '#102346',
+                'main-green': '#B0EA10',
+                subtitle: '#53555B',
+                'desc-alt': '#3A3C40',
+                'feature-orange': '#F87A26',
+                'feature-blue': '#266FF8',
             },
             keyframes: {
                 fadeIn: {

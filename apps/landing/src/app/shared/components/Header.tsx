@@ -33,21 +33,19 @@ export const Header = (): JSX.Element => {
 
     return (
         <header
-            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-                isScrolled ? 'bg-background/95 backdrop-blur-xl border-b border-border shadow-sm' : ''
-            }`}
+            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-main-green/95 backdrop-blur-xl shadow-sm' : ''}`}
         >
-            <div className="max-w-[1440px] mx-auto flex items-center justify-between h-16 px-6 md:px-10">
+            <div className="mx-auto flex items-center justify-between h-16 md:h-[72px] px-4 md:px-[62px] xl:px-16">
                 <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                    <img src={Logo.logo} alt="DoU" className="h-7 w-7" />
-                    <span className="text-[22px] font-bold text-foreground tracking-tight">DoU</span>
+                    <img src={Logo.logo} alt="DoU" className="hidden md:block h-[55px] w-[58px] object-contain" />
+                    <span className="text-[22px] font-bold text-navy tracking-tight">D.U</span>
                 </Link>
-                <nav className="flex items-center gap-2 sm:gap-3">
-                    {/* Theme Toggle */}
+                <nav className="flex items-center gap-2">
+                    {/* Theme Toggle - hidden for now, functionality preserved */}
                     <button
                         onClick={toggleTheme}
-                        className="flex items-center justify-center w-8 h-8 rounded-full transition-all
-                                   text-muted-foreground hover:text-foreground bg-card hover:bg-muted border border-border"
+                        className="hidden items-center justify-center w-10 h-10 rounded-full transition-all
+                                   text-subtitle hover:text-navy border border-subtitle"
                         aria-label="Toggle theme"
                     >
                         {theme === 'light' ? <MoonIcon /> : <SunIcon />}
@@ -56,11 +54,12 @@ export const Header = (): JSX.Element => {
                     {/* Language Toggle */}
                     <button
                         onClick={toggleLanguage}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-full transition-all
-                                   text-muted-foreground hover:text-foreground bg-card hover:bg-muted border border-border"
+                        className="flex items-center gap-1.5 px-[18px] py-3 text-lg font-semibold rounded-full transition-all
+                                   text-navy hover:opacity-80 border border-subtitle"
                     >
                         <GlobeIcon />
-                        {i18n.language === 'ko' ? 'EN' : '한국어'}
+                        <span className="tracking-[-0.72px]">{i18n.language === 'ko' ? 'KR' : 'EN'}</span>
+                        <ChevronDownIcon />
                     </button>
                 </nav>
             </div>
@@ -69,20 +68,26 @@ export const Header = (): JSX.Element => {
 };
 
 const GlobeIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="10" />
         <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
     </svg>
 );
 
+const ChevronDownIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M6 9l6 6 6-6" />
+    </svg>
+);
+
 const MoonIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
     </svg>
 );
 
 const SunIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="5" />
         <line x1="12" y1="1" x2="12" y2="3" />
         <line x1="12" y1="21" x2="12" y2="23" />

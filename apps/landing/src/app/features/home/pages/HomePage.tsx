@@ -1,5 +1,5 @@
 import { Footer, Header } from '../../../shared/components';
-import { DownloadSection, FeaturesSection, HeroSection } from '../components';
+import { CTASection, FeaturesSection, HeroSection } from '../components';
 
 export const HomePage = (): JSX.Element => {
     return (
@@ -9,10 +9,10 @@ export const HomePage = (): JSX.Element => {
         >
             <Header />
 
-            <main className="flex-1 pt-16">
+            <main className="flex-1">
                 <HeroSection />
                 <FeaturesSection />
-                <DownloadSection />
+                <CTASection />
             </main>
 
             <Footer />

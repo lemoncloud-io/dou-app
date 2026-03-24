@@ -1,4 +1,5 @@
 export { HeroSection } from './HeroSection';
-export { FeatureCard } from './FeatureCard';
+export { ChatBubbleIllustration } from './ChatBubbleIllustration';
 export { FeaturesSection } from './FeaturesSection';
-export { DownloadSection } from './DownloadSection';
+export { PricingSection } from './PricingSection';
+export { CTASection } from './CTASection';

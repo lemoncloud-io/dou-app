@@ -44,9 +44,10 @@
     },
     "hero": {
         "badge": "Privacy-First Messaging",
-        "title1": "Meaningful conversations",
+        "title": "Private Community",
+        "title1": "Private Community",
         "title2": "deserve safe spaces.",
-        "subtitle": "A private community with people you invite. Experience focused conversations and secure communication.",
+        "subtitle": "A safe space to chat and connect freely",
         "appStore": "App Store",
         "googlePlay": "Google Play"
     },
@@ -55,20 +56,50 @@
         "subtitle": "Communicate safely while protecting your privacy",
         "private": {
             "title": "Private Community",
-            "description": "Create up to 5 spaces and 5 chat rooms to share the right conversations with the right people"
+            "description": "Create up to 5 spaces and 5 chat rooms to talk with the people you need"
         },
         "safe": {
-            "title": "Safe Conversation Space",
-            "description": "Chat securely with friends who received your invite link"
+            "title": "Safe Chat Space",
+            "description": "Chat safely with friends who received the invite link."
         },
         "group": {
             "title": "Group Communication",
-            "description": "Up to 100 members for focused discussions and active participation"
+            "description": "With up to 100 members, enjoy more focused conversations and active participation."
         },
         "memo": {
             "title": "Personal Memo Space",
-            "description": "Organize tasks and quick notes in your own private memo space"
+            "description": "Organize tasks and quick notes in your private memo space."
         }
+    },
+    "pricing": {
+        "title": "DoU's exclusive benefits",
+        "basic": {
+            "title": "Basic Service",
+            "description": "Start chatting for free with essential features.",
+            "feature1": "Chat with me",
+            "feature2": "Chat in your invited friend's space"
+        },
+        "subscription": {
+            "title": "Subscription Service",
+            "highlight": "7 days free for new users",
+            "price": "$0",
+            "detail1": "Create your own space and invite friends",
+            "detail2": "Up to 5 spaces with 5 chat rooms each",
+            "detail3": "Group chats with up to 100 members",
+            "detail4": "Personal memo space included",
+            "feature1": "My space",
+            "feature2": "Invite friends",
+            "feature3": "Group chat",
+            "feature4": "Memo space",
+            "feature5": "Priority support"
+        }
+    },
+    "cta": {
+        "title1": "Free for new users.",
+        "title2": "Try it now",
+        "subtitle": "Experience safe conversations with DoU",
+        "appStore": "Get it on the App Store",
+        "googlePlay": "Get it on Google Play"
     },
     "download": {
         "title": "Get Started Now",
@@ -90,7 +121,7 @@
         "email": "Email",
         "terms": "Terms of Service",
         "privacy": "Privacy Policy",
-        "child": "Child Safety Policy",
-        "copyright": "Copyrightⓒ2026 LEMONCLOUD. All rights reserved."
+        "child": "Child Safety & Operating Standards",
+        "copyright": "Copyright 2026 LEMONCLOUD. All rights reserved."
     }
 }
