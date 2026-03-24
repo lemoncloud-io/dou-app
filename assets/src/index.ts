@@ -19,10 +19,22 @@ export const Images = {
     onboardingEnStep2: new URL('./images/step2_en.png', import.meta.url).href,
     onboardingEnStep3: new URL('./images/step3_en.png', import.meta.url).href,
     onboardingEnStep4: new URL('./images/step4_en.png', import.meta.url).href,
+    overlayBackground: new URL('./images/overlay_bg.png', import.meta.url).href,
+    landingEn1: new URL('./images/landing_en_1.png', import.meta.url).href,
+    landingEn2: new URL('./images/landing_en_2.png', import.meta.url).href,
+    landingEn3: new URL('./images/landing_en_3.png', import.meta.url).href,
+    landingEn4: new URL('./images/landing_en_4.png', import.meta.url).href,
+    landingKo1: new URL('./images/landing_ko_1.png', import.meta.url).href,
+    landingKo2: new URL('./images/landing_ko_2.png', import.meta.url).href,
+    landingKo3: new URL('./images/landing_ko_3.png', import.meta.url).href,
+    landingKo4: new URL('./images/landing_ko_4.png', import.meta.url).href,
 } as const;
 
 export const Logo = {
     purpleSymbol: new URL('./logo/box-purple-symbol.png', import.meta.url).href,
     symbol: new URL('./logo/symbol.png', import.meta.url).href,
     logo: new URL('./logo/logo.png', import.meta.url).href,
+    douBk: new URL('./images/BK.svg', import.meta.url).href,
+    douGr: new URL('./images/GR.svg', import.meta.url).href,
+    douWh: new URL('./images/WH.svg', import.meta.url).href,
 } as const;

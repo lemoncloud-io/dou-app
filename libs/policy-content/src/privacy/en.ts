@@ -37,7 +37,7 @@ export const PRIVACY_POLICY_CONTENT_EN: PolicyContent = {
                 {
                     title: '5. Personal Information Protection Officer',
                     content:
-                        'For inquiries regarding personal information during service use, please contact the following officer.\n\n• Officer: Personal Information Protection Officer\n• Contact: app@example.com',
+                        'For inquiries regarding personal information during service use, please contact the following officer.\n\n• Officer: Hyungtak Jin\n• Contact: app@lemoncloud.io',
                 },
             ],
         },

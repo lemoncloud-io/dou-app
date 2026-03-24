@@ -32,7 +32,7 @@ export const CHILD_POLICY_CONTENT: PolicyContent = {
                 {
                     title: '4. 문의 및 신고',
                     content:
-                        '서비스 이용 중 아동 안전 위반 사례를 발견하거나 관련 문의가 있는 경우 아래의 채널로 연락해주시기 바랍니다.\n\n• 담당: 서비스 운영 팀\n• 문의처: app@example.com',
+                        '서비스 이용 중 아동 안전 위반 사례를 발견하거나 관련 문의가 있는 경우 아래의 채널로 연락해주시기 바랍니다.\n\n• 담당: Hyungtak Jin\n• 문의처: app@lemoncloud.io',
                 },
             ],
         },

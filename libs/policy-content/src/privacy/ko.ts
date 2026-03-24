@@ -37,7 +37,7 @@ export const PRIVACY_POLICY_CONTENT: PolicyContent = {
                 {
                     title: '5. 개인정보 보호책임자',
                     content:
-                        '서비스 이용 중 발생하는 개인정보 관련 문의는 아래의 담당자에게 연락해주시기 바랍니다.\n\n• 담당: 개인정보 보호책임자\n• 문의처: app@example.com',
+                        '서비스 이용 중 발생하는 개인정보 관련 문의는 아래의 담당자에게 연락해주시기 바랍니다.\n\n• 담당: Hyungtak Jin\n• 문의처: app@lemoncloud.io',
                 },
             ],
         },
