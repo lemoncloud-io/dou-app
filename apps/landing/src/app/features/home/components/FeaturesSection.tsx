@@ -23,8 +23,12 @@ export const FeaturesSection = (): JSX.Element => {
         <section className="relative w-full feature-gradient-bg overflow-hidden">
             {/* Star texture overlay */}
             <div
-                className="absolute inset-0 opacity-[0.28] bg-repeat"
-                style={{ backgroundImage: `url(${Images.overlayBackground})` }}
+                className="absolute inset-0 opacity-20 pointer-events-none"
+                style={{
+                    backgroundImage: `url(${Images.overlayBackground})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center top',
+                }}
             />
 
             <div className="relative z-10 px-4 md:px-[62px] xl:px-[240px] py-16 md:py-32 xl:py-[162px]">

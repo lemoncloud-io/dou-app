@@ -2,7 +2,7 @@ import { Logo } from '@chatic/assets';
 
 export const ChatBubbleIllustration = (): JSX.Element => {
     return (
-        <div className="relative w-full max-w-[696px] md:max-w-[426px] xl:max-w-[696px] aspect-square mx-auto">
+        <div className="relative w-full max-w-[696px] md:max-w-[426px] xl:max-w-[696px] h-[343px] md:h-auto md:aspect-square mx-auto">
             {/* Mascot */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
                 <img

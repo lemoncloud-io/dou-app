@@ -19,7 +19,7 @@ export const Footer = (): JSX.Element => {
                 </Link>
 
                 {/* Right side */}
-                <div className="flex flex-col gap-3 md:items-end">
+                <div className="flex flex-col gap-7 md:gap-3 md:items-end">
                     {/* Nav links */}
                     <div className="flex flex-col md:flex-row gap-3 md:gap-8 text-base text-desc-alt">
                         <Link to="/policy/terms" className="underline hover:text-navy transition-colors">
