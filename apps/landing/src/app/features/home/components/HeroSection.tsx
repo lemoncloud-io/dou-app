@@ -18,7 +18,7 @@ export const HeroSection = (): JSX.Element => {
                            pt-16 md:pt-0 pb-0 md:pb-0 min-h-screen"
             >
                 {/* Text content */}
-                <div className="flex-1 text-center md:text-left pb-[66px] md:pb-0 animate-fade-in-up">
+                <div className="md:flex-1 text-center md:text-left pb-[66px] md:pb-0 animate-fade-in-up">
                     <div className="flex flex-col gap-[45px] md:gap-12 items-center md:items-start">
                         <div className="flex flex-col gap-2 md:gap-[14px] w-full">
                             <h1
