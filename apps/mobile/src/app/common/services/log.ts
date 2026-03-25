@@ -12,7 +12,8 @@ export type LogTag =
     | 'PERMISSION'
     | 'DEVICE'
     | 'DEEPLINK'
-    | 'OAUTH';
+    | 'OAUTH'
+    | 'SQL';
 
 type LogListener = (level: LogLevel, tag: LogTag, message: string, data?: any, error?: any) => void;
 
