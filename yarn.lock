@@ -2903,10 +2903,10 @@
     crypto-js "^4.2.0"
     jwt-decode "^4.0.0"
 
-"@lemoncloud/page-transition-core@0.1.1":
-  version "0.1.1"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/page-transition-core/-/page-transition-core-0.1.1.tgz#d3e79a94e47c94e2b5b447cf0d9ac8b37bb3ce1c"
-  integrity sha512-WuE+weOK7St5ZEScHfPUTktMtuA8CI/hrsvFsOAuHDJYqdc/25f3FQxRA7ASua5MohrcnZNtHlNG2TE4bJUTkw==
+"@lemoncloud/page-transition-core@1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/page-transition-core/-/page-transition-core-1.0.0.tgz#912f0fd3f6182dc380c8455370e00a5f7165f0bc"
+  integrity sha512-h1lI4btNL5Nh5tfwcaP+MHWwO2EVQrXXmG9oKdx5X1mprZS/L7RPy2NBMGk1KObG+rzdEEdqB7FY9cy3RkZOEA==
 
 "@lemoncloud/page-transition-core@workspace:*":
   version "0.0.1"
@@ -2920,12 +2920,12 @@
   dependencies:
     "@lemoncloud/page-transition-core" "workspace:*"
 
-"@lemoncloud/react-page-transition@0.1.1":
-  version "0.1.1"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/react-page-transition/-/react-page-transition-0.1.1.tgz#07edf85a0d11d7ebf38471ca5dd226836b3d1857"
-  integrity sha512-Vn+ygbs80TJDxvhLz8yoprn+dTfR5dTRNyr4VAEit2c00rOwXoChm5Vd03y/NLaQjoKoNxN5lTGr6v3hQ7EAAQ==
+"@lemoncloud/react-page-transition@1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/react-page-transition/-/react-page-transition-1.0.0.tgz#fa4b2d76fca64463ed403b602f55480b2fe3b96a"
+  integrity sha512-1WzKm7D6t/OKai4zLVEgbJsxkMCrnhkRvkGhifqIfNKjKIzSgB4fW8S5EFD37BNRVSRC8OXFezAapit0dKAb5A==
   dependencies:
-    "@lemoncloud/page-transition-core" "0.1.1"
+    "@lemoncloud/page-transition-core" "1.0.0"
 
 "@microsoft/api-extractor-model@7.32.2":
   version "7.32.2"
