@@ -1,141 +1,244 @@
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
     FlatList,
+    LayoutAnimation,
     Platform,
+    ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     UIManager,
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { storageService } from '../../../common';
+import { cacheRepository } from '../../../common/storages';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-interface StorageItem {
-    key: string;
-    value: any;
-}
-
 export const StorageTestScreen = () => {
     const insets = useSafeAreaInsets();
-    const [items, setItems] = useState<StorageItem[]>([]);
-    const [filter, setFilter] = useState('');
-    const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-    const loadAllKeys = () => {
-        const keys = storageService.getAllKeys();
-        const loadedItems = keys.map(key => {
-            const value = storageService.get(key);
-            return { key, value };
-        });
-        setItems(loadedItems);
-        setSelectedKey(null);
+    const [cloudIds] = useState(['cloud-1', 'cloud-2', 'cloud-3']);
+    const [dataType] = useState('chat');
+    const [targetCid, setTargetCid] = useState(cloudIds[0]);
+
+    // 데이터 상태 관리
+    const [items, setItems] = useState<any[]>([]);
+    const [resultLog, setResultLog] = useState<string>('Ready');
+    const [isExpanded, setIsExpanded] = useState(true);
+
+    const togglePanel = () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setIsExpanded(!isExpanded);
+    };
+
+    const logResult = (title: string, message: string) => {
+        setResultLog(`[${title}] ${message}`);
+    };
+
+    const logError = (title: string, error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        setResultLog(`[${title} - ERROR] ${message}`);
+    };
+
+    // 테스트용 랜덤 채팅 메시지 생성기
+    const createRandomChat = (cid: string, id: string) => ({
+        id,
+        cid,
+        channelId: 'ch-general-test', // 테스트용 기본 채널 ID
+        text: `Random message @ ${new Date().toLocaleTimeString()}`,
+        createdAt: Date.now(),
+        ownerId: `user-${Math.floor(Math.random() * 100)}`,
+        ownerName: 'Random User',
+        isSystem: false,
+    });
+
+    // --- Repository Action Handlers ---
+
+    const fetchItems = async () => {
+        try {
+            // 명시적으로 sort를 문자열로 주입하여 toUpperCase 에러 방지
+            const query = targetCid ? { cid: targetCid, sort: 'desc' } : { sort: 'desc' };
+            const res = await cacheRepository.fetchAll({ type: dataType, query });
+            setItems(res || []);
+            logResult('FetchAll', `Loaded ${res?.length || 0} items.`);
+        } catch (e) {
+            logError('FetchAll', e);
+        }
+    };
+
+    const handleSaveRandom = async () => {
+        try {
+            const id = `msg-${Date.now()}`;
+            const item = createRandomChat(targetCid, id);
+            await cacheRepository.save({ type: dataType, id, cid: targetCid || undefined, item });
+            logResult('Save', `Saved message ${id}`);
+            await fetchItems(); // 저장 후 즉시 새로고침
+        } catch (e) {
+            logError('Save', e);
+        }
+    };
+
+    const handleSaveMultipleRandom = async () => {
+        try {
+            const newItems = Array.from({ length: 5 }).map((_, i) => {
+                const id = `msg-batch-${Date.now()}-${i}`;
+                return createRandomChat(targetCid, id);
+            });
+            await cacheRepository.saveAll({ type: dataType, items: newItems, cid: targetCid || undefined });
+            logResult('SaveAll', 'Saved 5 messages.');
+            await fetchItems(); // 저장 후 즉시 새로고침
+        } catch (e) {
+            logError('SaveAll', e);
+        }
+    };
+
+    const handleDeleteSingle = async (id: string) => {
+        try {
+            await cacheRepository.delete({ type: dataType, id, cid: targetCid || undefined });
+            logResult('Delete', `Deleted message ${id}`);
+            await fetchItems(); // 삭제 후 즉시 새로고침
+        } catch (e) {
+            logError('Delete', e);
+        }
+    };
+
+    const handleDeleteAll = async () => {
+        if (items.length === 0) return logResult('DeleteAll', '삭제할 데이터가 없습니다.');
+        const ids = items.map(item => item.id).filter(Boolean);
+        try {
+            await cacheRepository.deleteAll({ type: dataType, ids, cid: targetCid || undefined });
+            logResult('DeleteAll', `Deleted ${ids.length} messages.`);
+            await fetchItems(); // 삭제 후 즉시 새로고침
+        } catch (e) {
+            logError('DeleteAll', e);
+        }
     };
 
     useEffect(() => {
-        loadAllKeys();
-    }, []);
+        void fetchItems();
+    }, [targetCid, dataType, fetchItems]);
 
-    const handleDelete = (key: string) => {
-        Alert.alert('삭제 확인', `정말 '${key}' 데이터를 삭제하시겠습니까?`, [
-            { text: '취소', style: 'cancel' },
-            {
-                text: '삭제',
-                style: 'destructive',
-                onPress: () => {
-                    storageService.remove(key);
-                    loadAllKeys();
-                },
-            },
-        ]);
-    };
-
-    const handleClearAll = () => {
-        Alert.alert('전체 삭제 확인', '모든 캐시 데이터를 삭제하시겠습니까?', [
-            { text: '취소', style: 'cancel' },
-            {
-                text: '삭제',
-                style: 'destructive',
-                onPress: () => {
-                    storageService.clearAll();
-                    loadAllKeys();
-                },
-            },
-        ]);
-    };
-
-    const filteredItems = items.filter(item => item.key.toLowerCase().includes(filter.toLowerCase()));
-
-    const renderItem = ({ item }: { item: StorageItem }) => {
-        const isSelected = selectedKey === item.key;
-        return (
-            <TouchableOpacity
-                style={[styles.itemContainer, isSelected && styles.itemSelected]}
-                onPress={() => setSelectedKey(isSelected ? null : item.key)}
-            >
-                <View style={styles.itemHeader}>
-                    <Text style={styles.itemKey} numberOfLines={1}>
-                        {item.key}
-                    </Text>
-                    <TouchableOpacity
-                        style={styles.deleteButton}
-                        onPress={() => handleDelete(item.key)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                        <Text style={styles.deleteText}>삭제</Text>
-                    </TouchableOpacity>
-                </View>
-                {isSelected && (
-                    <View style={styles.itemValueContainer}>
-                        <Text style={styles.itemValue}>{JSON.stringify(item.value, null, 2)}</Text>
-                    </View>
-                )}
-            </TouchableOpacity>
-        );
-    };
+    // 리스트 아이템 렌더링
+    const renderItem = ({ item }: { item: any }) => (
+        <View style={styles.logRow}>
+            <View style={styles.logHeader}>
+                <Text style={styles.logTime}>[{item.id}]</Text>
+                <View style={{ flex: 1 }} />
+                <TouchableOpacity
+                    onPress={() => handleDeleteSingle(item.id)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                    <Text style={styles.deleteText}>Delete</Text>
+                </TouchableOpacity>
+            </View>
+            <Text style={styles.logData}>{item.text || JSON.stringify(item)}</Text>
+        </View>
+    );
 
     return (
         <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
-            <View style={styles.header}>
-                <Text style={styles.title}>Storage Viewer</Text>
-                <TouchableOpacity style={styles.refreshButton} onPress={loadAllKeys}>
-                    <Text style={styles.buttonText}>새로고침</Text>
+            {/* 상단 컨트롤 패널 */}
+            <View style={styles.controlPanel}>
+                <TouchableOpacity style={styles.panelHeader} onPress={togglePanel} activeOpacity={0.7}>
+                    <View style={styles.statusRow}>
+                        <View style={[styles.dot, { backgroundColor: '#50E3C2' }]} />
+                        <Text style={styles.statusText}>Data Source: {dataType}</Text>
+                    </View>
+                    <Text style={styles.toggleIcon}>{isExpanded ? '▲' : '▼'}</Text>
                 </TouchableOpacity>
+
+                {isExpanded && (
+                    <View style={styles.infoContainer}>
+                        <View style={styles.dividerHorizontal} />
+                        <View style={[styles.infoRow, { alignItems: 'center' }]}>
+                            <Text style={styles.infoLabel}>Target CID:</Text>
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={{ gap: 8 }}
+                            >
+                                {cloudIds.map(cid => (
+                                    <TouchableOpacity
+                                        key={cid}
+                                        style={[styles.cidPill, targetCid === cid && styles.cidPillSelected]}
+                                        onPress={() => setTargetCid(cid)}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.cidPillText,
+                                                targetCid === cid && styles.cidPillTextSelected,
+                                            ]}
+                                        >
+                                            {cid}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Result:</Text>
+                            <Text
+                                style={[
+                                    styles.infoValue,
+                                    { color: resultLog.includes('ERROR') ? '#FF5A5F' : '#50E3C2' },
+                                ]}
+                                numberOfLines={2}
+                            >
+                                {resultLog}
+                            </Text>
+                        </View>
+                    </View>
+                )}
             </View>
 
-            <View style={styles.searchContainer}>
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder="키 검색 (예: channel, chat)"
-                    placeholderTextColor="#666"
-                    value={filter}
-                    onChangeText={setFilter}
-                />
-            </View>
-
-            <View style={styles.listHeader}>
-                <Text style={styles.countText}>
-                    Total: {items.length} (Filtered: {filteredItems.length})
-                </Text>
-                <TouchableOpacity onPress={handleClearAll}>
-                    <Text style={styles.clearAllText}>전체 삭제</Text>
-                </TouchableOpacity>
-            </View>
-
+            {/* 데이터 리스트 */}
             <FlatList
-                data={filteredItems}
-                keyExtractor={item => item.key}
+                data={items}
+                keyExtractor={item => item.id}
                 renderItem={renderItem}
-                style={styles.list}
-                contentContainerStyle={styles.listContent}
+                style={styles.logList}
+                contentContainerStyle={styles.logContent}
                 ListEmptyComponent={<Text style={styles.emptyText}>데이터가 없습니다.</Text>}
             />
+
+            {/* 하단 액션 버튼 */}
+            <View style={styles.bottomContainer}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.actionContainer}
+                >
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#2980B9' }]}
+                        onPress={fetchItems}
+                    >
+                        <Text style={styles.buttonText}>Refresh</Text>
+                    </TouchableOpacity>
+                    <View style={styles.divider} />
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#27AE60' }]}
+                        onPress={handleSaveRandom}
+                    >
+                        <Text style={styles.buttonText}>+ 1 Add</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#F39C12' }]}
+                        onPress={handleSaveMultipleRandom}
+                    >
+                        <Text style={styles.buttonText}>+ 5 Add</Text>
+                    </TouchableOpacity>
+                    <View style={styles.divider} />
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#C0392B' }]}
+                        onPress={handleDeleteAll}
+                    >
+                        <Text style={styles.buttonText}>Clear All</Text>
+                    </TouchableOpacity>
+                </ScrollView>
+            </View>
         </View>
     );
 };
@@ -145,111 +248,144 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#121212',
     },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+    controlPanel: {
         padding: 16,
         borderBottomWidth: 1,
         borderBottomColor: '#333',
         backgroundColor: '#1E1E1E',
     },
-    title: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
+    panelHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
-    refreshButton: {
-        backgroundColor: '#4A90E2',
-        paddingVertical: 6,
+    statusRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    dot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        marginRight: 8,
+    },
+    statusText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    toggleIcon: {
+        color: '#888',
+        fontSize: 12,
+    },
+    infoContainer: {
+        marginTop: 4,
+    },
+    dividerHorizontal: {
+        height: 1,
+        backgroundColor: '#333',
+        marginVertical: 12,
+    },
+    infoRow: {
+        flexDirection: 'row',
+        marginBottom: 8,
+    },
+    infoLabel: {
+        color: '#888',
+        fontSize: 12,
+        width: 80,
+    },
+    infoValue: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: 'bold',
+        flex: 1,
+    },
+    cidPill: {
+        paddingVertical: 4,
         paddingHorizontal: 12,
-        borderRadius: 6,
+        borderRadius: 16,
+        backgroundColor: '#333',
+    },
+    cidPillSelected: {
+        backgroundColor: '#50E3C2',
+    },
+    cidPillText: {
+        color: '#AAA',
+        fontSize: 11,
+        fontWeight: '600',
+    },
+    cidPillTextSelected: {
+        color: '#000',
+    },
+    logList: {
+        flex: 1,
+        backgroundColor: '#000000',
+    },
+    logContent: {
+        padding: 16,
+    },
+    logRow: {
+        marginBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#222',
+        paddingBottom: 8,
+    },
+    logHeader: {
+        flexDirection: 'row',
+        marginBottom: 4,
+        alignItems: 'center',
+    },
+    logTime: {
+        color: '#4A90E2',
+        fontSize: 11,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        fontWeight: 'bold',
+    },
+    deleteText: {
+        color: '#FF5A5F',
+        fontSize: 11,
+        fontWeight: 'bold',
+    },
+    logData: {
+        color: '#888',
+        fontSize: 11,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        marginLeft: 4,
+    },
+    emptyText: {
+        color: '#444',
+        textAlign: 'center',
+        marginTop: 20,
+    },
+    bottomContainer: {
+        backgroundColor: '#1E1E1E',
+        borderTopWidth: 1,
+        borderTopColor: '#333',
+        paddingVertical: 12,
+    },
+    actionContainer: {
+        paddingHorizontal: 16,
+        alignItems: 'center',
+        gap: 8,
+    },
+    actionButton: {
+        height: 44,
+        paddingHorizontal: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 8,
+        opacity: 0.9,
+    },
+    divider: {
+        width: 1,
+        height: 24,
+        backgroundColor: '#444',
+        marginHorizontal: 4,
     },
     buttonText: {
         color: '#FFFFFF',
         fontWeight: 'bold',
-        fontSize: 12,
-    },
-    searchContainer: {
-        padding: 12,
-        backgroundColor: '#1E1E1E',
-        borderBottomWidth: 1,
-        borderBottomColor: '#333',
-    },
-    searchInput: {
-        backgroundColor: '#333',
-        borderRadius: 8,
-        padding: 10,
-        color: '#FFFFFF',
         fontSize: 14,
-    },
-    listHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: '#252525',
-    },
-    countText: {
-        color: '#888',
-        fontSize: 12,
-    },
-    clearAllText: {
-        color: '#FF5A5F',
-        fontSize: 12,
-        fontWeight: 'bold',
-    },
-    list: {
-        flex: 1,
-    },
-    listContent: {
-        padding: 16,
-    },
-    itemContainer: {
-        backgroundColor: '#1E1E1E',
-        borderRadius: 8,
-        padding: 12,
-        marginBottom: 8,
-        borderWidth: 1,
-        borderColor: '#333',
-    },
-    itemSelected: {
-        borderColor: '#4A90E2',
-    },
-    itemHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    itemKey: {
-        color: '#50E3C2',
-        fontWeight: 'bold',
-        fontSize: 14,
-        flex: 1,
-        marginRight: 8,
-    },
-    deleteButton: {
-        padding: 4,
-    },
-    deleteText: {
-        color: '#FF5A5F',
-        fontSize: 12,
-    },
-    itemValueContainer: {
-        marginTop: 8,
-        backgroundColor: '#000',
-        padding: 8,
-        borderRadius: 4,
-    },
-    itemValue: {
-        color: '#DDD',
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-        fontSize: 11,
-    },
-    emptyText: {
-        color: '#666',
-        textAlign: 'center',
-        marginTop: 20,
     },
 });
