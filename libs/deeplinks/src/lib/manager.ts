@@ -95,38 +95,41 @@ export class DeepLinkManager {
     /**
      * Main deep link handler
      * Processes URL and passes to handler (Zustand store manages pending state)
+     *
+     * Order: validate → domain conversion → short URL expansion → deliver
+     * Domain conversion must happen before short URL expansion because
+     * custom schemes (chatic-dev://s/xxx) break isShortUrl() parsing.
      */
     private async handleDeepLink(url: string, source: DeepLinkSource): Promise<void> {
-        // Expand short URL if needed and get envs
         let processedUrl = url;
         let envs: ServiceEndpoints | undefined;
 
-        try {
-            const result = await convertShortUrlWithEnvs(url);
-            processedUrl = result.url;
-            envs = result.envs;
-        } catch (error) {
-            console.error('[DeepLinkManager] Error expanding short URL:', error);
-        }
-
-        // Validate URL
+        // 1. Validate original URL
         if (!isValidDeepLink(processedUrl)) {
             console.error('[DeepLinkManager] Invalid deep link URL:', processedUrl);
             return;
         }
 
-        // Convert to frontend URL if needed
+        // 2. Convert custom scheme / deep link domain to frontend URL first
         if (needsConversion(processedUrl)) {
             processedUrl = convertDeepLinkToFrontendUrl(processedUrl);
 
-            // Re-validate after conversion
             if (!processedUrl.startsWith('https://')) {
                 console.error('[DeepLinkManager] Converted URL is not HTTPS:', processedUrl);
                 return;
             }
         }
 
-        // Pass to handler - Zustand store will manage pending state
+        // 3. Expand short URL (/s/xxx) after domain conversion
+        try {
+            const result = await convertShortUrlWithEnvs(processedUrl);
+            processedUrl = result.url;
+            envs = result.envs;
+        } catch (error) {
+            console.error('[DeepLinkManager] Error expanding short URL:', error);
+        }
+
+        // 4. Deliver to handler
         if (!this.webViewHandler) {
             console.error('[DeepLinkManager] WebView handler not initialized');
             return;
