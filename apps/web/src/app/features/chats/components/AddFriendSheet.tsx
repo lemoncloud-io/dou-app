@@ -146,10 +146,10 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent
                 side="bottom"
-                className="rounded-t-[20px] p-0 border-0 bg-background pb-safe-bottom"
+                className="rounded-t-[20px] p-0 border-0 bg-background max-h-[85dvh] flex flex-col"
                 hideClose
             >
-                <div className="flex items-center justify-between px-4 py-[14px]">
+                <div className="shrink-0 flex items-center justify-between px-4 py-[14px]">
                     <span className="text-[16px] font-medium leading-[1.5] tracking-[-0.02em] text-foreground">
                         {t('addFriend.title')}
                     </span>
@@ -161,56 +161,65 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                     </button>
                 </div>
 
-                <div className="flex flex-col gap-[26px] px-4">
-                    <div className="flex flex-col gap-[2px]">
-                        <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
-                            {t('addFriend.subtitle1')}
-                        </span>
-                        <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
-                            {t('addFriend.subtitle2')}
-                        </span>
-                    </div>
-
-                    <InputField
-                        label={t('addFriend.nameLabel')}
-                        value={name}
-                        onChange={setName}
-                        placeholder={t('addFriend.namePlaceholder')}
-                        maxLength={NAME_MAX}
-                    />
-
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold leading-[1.286] tracking-[0.005em] text-muted-foreground">
-                            {t('addFriend.phoneLabel')}
-                        </label>
-                        <div
-                            className={`flex items-center rounded-[10px] border bg-background px-3 py-3 ${phoneError ? 'border-destructive' : 'border-border'}`}
-                        >
-                            <input
-                                value={formatPhoneNumber(phoneDigits)}
-                                onChange={e => handlePhoneChange(e.target.value)}
-                                placeholder={t('addFriend.phonePlaceholder')}
-                                type="tel"
-                                className="flex-1 text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-foreground placeholder:text-muted-foreground outline-none bg-transparent"
-                            />
-                            <span className="text-[13px] font-medium tracking-[0.019em] text-muted-foreground opacity-74 shrink-0">
-                                {phoneDigits.length}/{PHONE_DIGITS_MAX}
+                <div className="flex-1 overflow-y-auto overscroll-none">
+                    <div className="flex flex-col gap-[26px] px-4">
+                        <div className="flex flex-col gap-[2px]">
+                            <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
+                                {t('addFriend.subtitle1')}
+                            </span>
+                            <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
+                                {t('addFriend.subtitle2')}
                             </span>
                         </div>
-                        {phoneError && <span className="text-[12px] text-destructive">{phoneError}</span>}
+
+                        <InputField
+                            label={t('addFriend.nameLabel')}
+                            value={name}
+                            onChange={setName}
+                            placeholder={t('addFriend.namePlaceholder')}
+                            maxLength={NAME_MAX}
+                        />
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[14px] font-semibold leading-[1.286] tracking-[0.005em] text-muted-foreground">
+                                {t('addFriend.phoneLabel')}
+                            </label>
+                            <div
+                                className={`flex items-center rounded-[10px] border bg-background px-3 py-3 ${phoneError ? 'border-destructive' : 'border-border'}`}
+                            >
+                                <input
+                                    value={formatPhoneNumber(phoneDigits)}
+                                    onChange={e => handlePhoneChange(e.target.value)}
+                                    placeholder={t('addFriend.phonePlaceholder')}
+                                    type="tel"
+                                    className="flex-1 text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-foreground placeholder:text-muted-foreground outline-none bg-transparent"
+                                />
+                                <span className="text-[13px] font-medium tracking-[0.019em] text-muted-foreground opacity-74 shrink-0">
+                                    {phoneDigits.length}/{PHONE_DIGITS_MAX}
+                                </span>
+                            </div>
+                            {phoneError && <span className="text-[12px] text-destructive">{phoneError}</span>}
+                        </div>
                     </div>
                 </div>
 
-                <div className="px-4 pt-5 pb-4">
-                    <button
-                        onClick={handleShare}
-                        disabled={isDisabled}
-                        className="w-full rounded-full py-3 text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-center transition-colors
-                            disabled:bg-muted disabled:text-muted-foreground
-                            enabled:bg-[#B0EA10] enabled:text-[#222325]"
-                    >
-                        {isPending ? '...' : t('addFriend.share')}
-                    </button>
+                <div className="shrink-0">
+                    <div className="px-4 pt-5 pb-4">
+                        <button
+                            onClick={handleShare}
+                            disabled={isDisabled}
+                            className="w-full rounded-full py-3 text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-center transition-colors
+                                disabled:bg-muted disabled:text-muted-foreground
+                                enabled:bg-[#B0EA10] enabled:text-[#222325]"
+                        >
+                            {isPending ? '...' : t('addFriend.share')}
+                        </button>
+                    </div>
+                    <div
+                        className="shrink-0 touch-none bg-background"
+                        style={{ height: 'calc(var(--safe-bottom, 0px) + var(--keyboard-height, 0px))' }}
+                        onTouchMove={e => e.preventDefault()}
+                    />
                 </div>
             </SheetContent>
         </Sheet>
