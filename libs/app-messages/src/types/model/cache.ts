@@ -72,6 +72,11 @@ export interface JoinQueryOptions extends BaseQueryOptions {
      * 특정 채널에 대한 참여 정보
      */
     channelId?: string;
+
+    /**
+     * 특정 유저에 대한 참여 정보
+     */
+    userId?: string;
 }
 
 export interface UserTokenQueryOptions extends BaseQueryOptions {}
