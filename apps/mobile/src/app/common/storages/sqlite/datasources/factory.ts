@@ -13,7 +13,6 @@ export interface ScopedCacheDataSource<T> {
 
     /**
      * Retrieves a single item by its ID.
-     * @param cid Optional Cloud ID to strictly match the scope.
      */
     fetch: (id: string, cid?: string) => Promise<T | null>;
 
@@ -34,35 +33,6 @@ export interface ScopedCacheDataSource<T> {
 
     /** Batch deletes multiple items by their IDs. CID is strictly required. */
     removeAll: (ids: string[], cid: string) => Promise<void>;
-}
-
-/**
- * Data source interface for global/default data that does not depend on a Cloud ID (CID).
- * No CID parameters are used in any of the operations.
- *
- * @template T The type of the data model stored in this data source.
- */
-export interface DefaultCacheDataSource<T> {
-    /** The SQLite table name */
-    tableName: string;
-
-    /** Retrieves a single item by its ID. */
-    fetch: (id: string) => Promise<T | null>;
-
-    /** Retrieves all items from the table. */
-    fetchAll: () => Promise<T[]>;
-
-    /** Inserts or replaces a single item. */
-    save: (id: string, item: T) => Promise<void>;
-
-    /** Batch inserts or replaces multiple items for optimal performance. */
-    saveAll: (items: { id: string; data: T }[]) => Promise<void>;
-
-    /** Deletes a single item. */
-    remove: (id: string) => Promise<void>;
-
-    /** Batch deletes multiple items by their IDs. */
-    removeAll: (ids: string[]) => Promise<void>;
 }
 
 /**
@@ -134,69 +104,6 @@ export const createScopedDataSource = <T>(tableName: string): ScopedCacheDataSou
         const query = `DELETE FROM ${tableName} WHERE id = ? AND cid = ?`;
 
         const commands: [string, any[]][] = ids.map(id => [query, [id, cid]]);
-        await database.executeBatch(commands);
-    };
-
-    return { tableName, fetch, fetchAll, save, saveAll, remove, removeAll };
-};
-
-/**
- * Factory function to create a DefaultCacheDataSource.
- * Ideal for global domain data that is not bound to any specific cloud (e.g., Clouds, Search).
- *
- * @template T The type of the data model.
- * @param tableName The name of the SQLite table (e.g., 'clouds').
- * @returns A fully constructed DefaultCacheDataSource.
- */
-export const createDefaultDataSource = <T>(tableName: string): DefaultCacheDataSource<T> => {
-    const fetch = async (id: string): Promise<T | null> => {
-        const query = `SELECT data FROM ${tableName} WHERE id = ?`;
-        const result = await database.execute(query, [id]);
-
-        if (result.rows && result.rows.length > 0) {
-            try {
-                return JSON.parse(result.rows[0].data as string) as T;
-            } catch {
-                return null;
-            }
-        }
-        return null;
-    };
-
-    const fetchAll = async (): Promise<T[]> => {
-        const result = await database.execute(`SELECT data FROM ${tableName}`);
-        const rows = result.rows || [];
-        return rows
-            .map(row => {
-                try {
-                    return JSON.parse(row.data as string) as T;
-                } catch {
-                    return null;
-                }
-            })
-            .filter((item: T | null): item is T => item !== null);
-    };
-
-    const save = async (id: string, item: T): Promise<void> => {
-        const query = `INSERT OR REPLACE INTO ${tableName} (id, data) VALUES (?, ?)`;
-        await database.execute(query, [id, JSON.stringify(item)]);
-    };
-
-    const saveAll = async (items: { id: string; data: T }[]): Promise<void> => {
-        if (items.length === 0) return;
-        const query = `INSERT OR REPLACE INTO ${tableName} (id, data) VALUES (?, ?)`;
-        const commands: [string, any[]][] = items.map(item => [query, [item.id, JSON.stringify(item.data)]]);
-        await database.executeBatch(commands);
-    };
-
-    const remove = async (id: string): Promise<void> => {
-        await database.execute(`DELETE FROM ${tableName} WHERE id = ?`, [id]);
-    };
-
-    const removeAll = async (ids: string[]): Promise<void> => {
-        if (ids.length === 0) return;
-        const query = `DELETE FROM ${tableName} WHERE id = ?`;
-        const commands: [string, any[]][] = ids.map(id => [query, [id]]);
         await database.executeBatch(commands);
     };
 

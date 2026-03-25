@@ -36,9 +36,9 @@ interface CacheQueryMap {
 
 export interface BaseQueryOptions {
     /**
-     * - cloudId에 해당하는 특정 정보 쿼리
+     * - 특정 클라우드에 대한 쿼리
      */
-    cid: string;
+    cid?: string;
 }
 
 export interface ChannelQueryOptions extends BaseQueryOptions {

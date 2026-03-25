@@ -3,11 +3,15 @@ import { TABLES } from './tables';
 export const SQL_SCHEMAS = [
     /**
      * Cloud
-     * - id : cloud id
+     * - key
+     *  - id : id
+     *  - cid : cloud id
      */
     `CREATE TABLE IF NOT EXISTS ${TABLES.CLOUDS} (
-        id TEXT NOT NULL PRIMARY KEY,
-        data TEXT NOT NULL
+        cid TEXT NOT NULL,
+        id TEXT NOT NULL,
+        data TEXT NOT NULL,
+        PRIMARY KEY (cid, id)
     );`,
 
     /**
@@ -19,9 +23,11 @@ export const SQL_SCHEMAS = [
     `CREATE TABLE IF NOT EXISTS ${TABLES.CHANNELS} (
         cid TEXT NOT NULL,
         id TEXT NOT NULL,
+        sid TEXT NOT NULL,
         data TEXT NOT NULL,
         PRIMARY KEY (cid, id)
     );`,
+    `CREATE INDEX IF NOT EXISTS idx_channel_sid ON ${TABLES.CHANNELS} (sid);`,
 
     /**
      * Chat (검색 및 정렬 최적화를 위해 channel_id, created_at 별도 컬럼 추출)
