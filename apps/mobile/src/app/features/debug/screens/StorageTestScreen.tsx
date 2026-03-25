@@ -11,7 +11,9 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import RNFS from 'react-native-fs';
 import { cacheRepository } from '../../../common/storages';
+import { database } from '../../../common/storages/sqlite';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -114,6 +116,33 @@ export const StorageTestScreen = () => {
             await fetchItems(); // 삭제 후 즉시 새로고침
         } catch (e) {
             logError('DeleteAll', e);
+        }
+    };
+
+    const handleBackup = async () => {
+        try {
+            const backupPath = `${RNFS.DocumentDirectoryPath}/dou_backup.sqlite`;
+            if (await RNFS.exists(backupPath)) {
+                await RNFS.unlink(backupPath); // 기존 백업 파일 덮어쓰기를 위해 삭제
+            }
+            await database.backup(backupPath);
+            logResult('Backup', `DB backed up safely to:\n${backupPath}`);
+        } catch (e) {
+            logError('Backup Error', e);
+        }
+    };
+
+    const handleRestore = async () => {
+        try {
+            const backupPath = `${RNFS.DocumentDirectoryPath}/dou_backup.sqlite`;
+            if (!(await RNFS.exists(backupPath))) {
+                return logError('Restore Error', '백업 파일이 존재하지 않습니다. 먼저 Backup을 실행해주세요.');
+            }
+            await database.restore(backupPath);
+            logResult('Restore', 'Database restored successfully! (Skipped mismatched schema)');
+            await fetchItems(); // 복원 완료 후 화면 갱신
+        } catch (e) {
+            logError('Restore Error', e);
         }
     };
 
@@ -236,6 +265,19 @@ export const StorageTestScreen = () => {
                         onPress={handleDeleteAll}
                     >
                         <Text style={styles.buttonText}>Clear All</Text>
+                    </TouchableOpacity>
+                    <View style={styles.divider} />
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#8E44AD' }]}
+                        onPress={handleBackup}
+                    >
+                        <Text style={styles.buttonText}>Backup</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#9B59B6' }]}
+                        onPress={handleRestore}
+                    >
+                        <Text style={styles.buttonText}>Restore</Text>
                     </TouchableOpacity>
                 </ScrollView>
             </View>
