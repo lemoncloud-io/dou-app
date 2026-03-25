@@ -82,7 +82,8 @@
         "@lemoncloud/react-page-transition": "*",
         "@lemoncloud/chatic-backend-api": "*",
         "@lemoncloud/chatic-socials-api": "*",
-        "@lemoncloud/chatic-sockets-api": "*"
+        "@lemoncloud/chatic-sockets-api": "*",
+        "@op-engineering/op-sqlite": "*"
     },
     "devDependencies": {}
 }

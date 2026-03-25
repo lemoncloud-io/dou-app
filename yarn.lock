@@ -2837,6 +2837,13 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
+"@lemoncloud/chatic-backend-api@*":
+  version "0.26.318"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-backend-api/-/chatic-backend-api-0.26.318.tgz#069ca4238b488212c16f66922f923730e06d57df"
+  integrity sha512-opm74m/+2j+EaMwthS1p9U2MBtvF0F6l99MLAVFzqnKVpkqjKdW/yQbHRitLioX+fJofGSfQZpODo/k6VnSSEw==
+  dependencies:
+    lemon-model "^1.1.1"
+
 "@lemoncloud/chatic-backend-api@^0.26.316":
   version "0.26.316"
   resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-backend-api/-/chatic-backend-api-0.26.316.tgz#398bbb90968cc6b4426214acfafc503f2989b720"
@@ -2851,10 +2858,17 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-socials-api@^0.26.129":
+"@lemoncloud/chatic-socials-api@*", "@lemoncloud/chatic-socials-api@^0.26.129":
   version "0.26.129"
   resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-socials-api/-/chatic-socials-api-0.26.129.tgz#2c09781ad09ef59838ba5bdf3acf11d700b23d4a"
   integrity sha512-GX4lSmYXwsIBOT3WXM/8qBSx5bRgPZHQ6G5hcT3O43QuNfBkXcwOnfRZfFUFSucGG8bi0amHN2z398bTnLX37Q==
+  dependencies:
+    lemon-model "^1.1.1"
+
+"@lemoncloud/chatic-sockets-api@*":
+  version "0.26.127"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.127.tgz#ad3879577d8e6f296917472d6372873841246ee2"
+  integrity sha512-xn+cFQHtVsNSMrMU3ddt7HukQttxfjyvpAWCjuCtPbDljLSo6EzlLEvUMyU3ydZEPx+a7MxPAmA2YhU+H/eHqg==
   dependencies:
     lemon-model "^1.1.1"
 
@@ -3735,6 +3749,11 @@
     semver "^7.6.3"
     tslib "^2.3.0"
     yargs-parser "21.1.1"
+
+"@op-engineering/op-sqlite@^15.2.7":
+  version "15.2.7"
+  resolved "https://registry.yarnpkg.com/@op-engineering/op-sqlite/-/op-sqlite-15.2.7.tgz#81753f1d4356ac47655d1cc60ad26bd4670b8e44"
+  integrity sha512-rXpzEt6FL0syAHa2QqBaB7DhhXwxEOs05cTIhv0RI+iur66XcuM73SpUSD8gnh8opHJu+Hw6Nu3IM4EDWxEdng==
 
 "@phenomnomnominal/tsquery@~5.0.1":
   version "5.0.1"
