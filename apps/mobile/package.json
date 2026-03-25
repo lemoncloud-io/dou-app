@@ -2,6 +2,9 @@
     "name": "@chatic/mobile",
     "version": "0.0.1",
     "private": true,
+    "scripts": {
+        "test": "jest"
+    },
     "dependencies": {
         "@nx/eslint-plugin": "*",
         "@nx/vite": "*",
