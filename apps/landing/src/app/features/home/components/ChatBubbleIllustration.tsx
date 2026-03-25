@@ -25,7 +25,11 @@ export const ChatBubbleIllustration = (): JSX.Element => {
     }, [updateScale]);
 
     return (
-        <div ref={containerRef} className="relative w-full aspect-square mx-auto overflow-hidden">
+        <div
+            ref={containerRef}
+            className="relative w-full mx-auto overflow-hidden"
+            style={{ height: DESIGN_WIDTH * scale }}
+        >
             {/* Scaled inner container — all children stay at design size */}
             <div
                 className="absolute top-0"

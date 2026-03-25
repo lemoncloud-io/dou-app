@@ -53,7 +53,7 @@ export const HeroSection = (): JSX.Element => {
                 </div>
 
                 {/* Desktop/Tablet illustration */}
-                <div className="hidden md:block md:w-[40%] xl:w-[45%] flex-shrink-0 animate-fade-in-up animate-delay-100">
+                <div className="hidden md:block md:w-[40%] xl:w-[45%] flex-shrink-0 self-center animate-fade-in-up animate-delay-100">
                     <ChatBubbleIllustration />
                 </div>
             </div>
