@@ -13,7 +13,7 @@ export type LogTag =
     | 'DEVICE'
     | 'DEEPLINK'
     | 'OAUTH'
-    | 'SQL';
+    | 'SQLITE';
 
 type LogListener = (level: LogLevel, tag: LogTag, message: string, data?: any, error?: any) => void;
 
