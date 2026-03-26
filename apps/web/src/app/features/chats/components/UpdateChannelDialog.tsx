@@ -161,6 +161,11 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                                 {isPending ? t('updateChannel.updating') : t('updateChannel.done')}
                             </Button>
                         </div>
+                        <div
+                            className="shrink-0 touch-none bg-background"
+                            style={{ height: 'var(--keyboard-height, 0px)' }}
+                            onTouchMove={e => e.preventDefault()}
+                        />
                     </div>
                 </form>
             </DialogContent>
