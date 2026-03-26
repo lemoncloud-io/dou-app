@@ -32,6 +32,8 @@ export class DeepLinkManager {
     private linkingSubscription: { remove: () => void } | null = null;
     private config: DeepLinkConfig;
     private isInitialized = false;
+    private coldStartResolve: (() => void) | null = null;
+    private coldStartPromise: Promise<void> | null = null;
 
     constructor(config?: Partial<DeepLinkConfig>) {
         this.config = {
@@ -53,22 +55,32 @@ export class DeepLinkManager {
         this.webViewHandler = handler;
         this.isInitialized = true;
         this.setupImmediateDeepLinks();
-        this.handleDeferredLinks();
     }
 
     /**
-     * Setup listeners for immediate deep links
+     * Setup listeners for immediate deep links.
+     * Deferred links are only checked when there is no cold start URL.
      */
     private setupImmediateDeepLinks(): void {
+        this.coldStartPromise = new Promise<void>(resolve => {
+            this.coldStartResolve = resolve;
+        });
+
         // Get initial URL (cold start)
         Linking.getInitialURL()
-            .then(url => {
+            .then(async url => {
                 if (url) {
                     console.log('[DeepLinkManager] Cold start URL:', url);
-                    this.handleDeepLink(url, 'cold_start');
+                    await this.handleDeepLink(url, 'cold_start');
+                } else {
+                    await this.handleDeferredLinks();
                 }
             })
-            .catch(err => console.error('[DeepLinkManager] Error getting initial URL:', err));
+            .catch(err => console.error('[DeepLinkManager] Error getting initial URL:', err))
+            .finally(() => {
+                this.coldStartResolve?.();
+                this.coldStartResolve = null;
+            });
 
         // Listen for URL events (app already running - warm start)
         this.linkingSubscription = Linking.addEventListener('url', ({ url }) => {
@@ -89,6 +101,15 @@ export class DeepLinkManager {
             }
         } catch (error) {
             console.error('[DeepLinkManager] Error handling deferred deep links:', error);
+        }
+    }
+
+    /**
+     * Wait for cold start deep link processing to complete.
+     */
+    async waitForColdStart(): Promise<void> {
+        if (this.coldStartPromise) {
+            await this.coldStartPromise;
         }
     }
 
@@ -162,6 +183,9 @@ export class DeepLinkManager {
         this.linkingSubscription = null;
         this.webViewHandler = null;
         this.isInitialized = false;
+        this.coldStartResolve?.();
+        this.coldStartResolve = null;
+        this.coldStartPromise = null;
     }
 }
 

@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { WebView } from 'react-native-webview';
+
+import { getDeepLinkManager } from '@chatic/deeplinks';
 
 import { logger, useDeepLinkStore } from '../../index';
 import { WEBVIEW_URL } from '../utils/constants';
@@ -16,34 +18,66 @@ const toLocalUrl = (url: string): string => {
     }
 };
 
+const buildTargetUrl = (url: string, envs?: { backend?: string; wss?: string } | null): string => {
+    let targetUrl = toLocalUrl(url);
+    if (envs?.backend || envs?.wss) {
+        const urlObj = new URL(targetUrl);
+        if (envs.backend) urlObj.searchParams.set('_backend', envs.backend);
+        if (envs.wss) urlObj.searchParams.set('_wss', envs.wss);
+        targetUrl = urlObj.toString();
+    }
+    return targetUrl;
+};
+
 export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) => {
     const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
-    const { pendingUrl, pendingEnvs, clearPendingUrl, setWebViewReady } = useDeepLinkStore();
+    const [isColdStartReady, setIsColdStartReady] = useState(false);
+    const coldStartUrlRef = useRef<string | null>(null);
+    const { pendingUrl, pendingEnvs, source, clearPendingUrl, setWebViewReady } = useDeepLinkStore();
 
-    // WebView 로드 완료 핸들러
+    // Wait for cold start deep link resolution before allowing WebView to load
+    useEffect(() => {
+        const manager = getDeepLinkManager();
+        manager.waitForColdStart().then(() => {
+            const state = useDeepLinkStore.getState();
+            if (state.pendingUrl && state.source === 'cold_start') {
+                const targetUrl = buildTargetUrl(state.pendingUrl, state.pendingEnvs);
+                coldStartUrlRef.current = targetUrl;
+                logger.info('DEEPLINK', `Cold start URL captured for initial source: ${targetUrl}`);
+                state.clearPendingUrl();
+            }
+            setIsColdStartReady(true);
+        });
+    }, []);
+
+    // Initial WebView source: use cold start deep link URL or default WEBVIEW_URL
+    const initialSource = useMemo(() => {
+        if (!isColdStartReady) return null;
+        const uri = coldStartUrlRef.current ?? WEBVIEW_URL;
+        logger.info('DEEPLINK', `WebView initial source: ${uri}`);
+        return { uri };
+    }, [isColdStartReady]);
+
     const handleWebViewLoad = useCallback(() => {
         logger.info('WEBVIEW', 'WebView loaded');
         setIsWebViewLoaded(true);
         setWebViewReady(true);
     }, [setWebViewReady]);
 
+    // Handle warm start / deferred deep links via injectJavaScript
     useEffect(() => {
-        if (pendingUrl && isWebViewLoaded && webViewRef.current) {
-            logger.info('DEEPLINK', `Loading deep link URL: ${pendingUrl}`, pendingEnvs);
-
-            let targetUrl = toLocalUrl(pendingUrl);
-            if (pendingEnvs?.backend || pendingEnvs?.wss) {
-                const urlObj = new URL(targetUrl);
-                if (pendingEnvs?.backend) urlObj.searchParams.set('_backend', pendingEnvs.backend);
-                if (pendingEnvs?.wss) urlObj.searchParams.set('_wss', pendingEnvs.wss);
-                targetUrl = urlObj.toString();
-            }
-            const script = `window.location.href = '${targetUrl.replace(/'/g, '%27')}';\ntrue;`;
-
-            webViewRef.current.injectJavaScript(script);
+        if (!pendingUrl || !isWebViewLoaded || !webViewRef.current) return;
+        if (source === 'cold_start') {
             clearPendingUrl();
+            return;
         }
-    }, [pendingUrl, pendingEnvs, isWebViewLoaded, clearPendingUrl, webViewRef]);
 
-    return { handleWebViewLoad };
+        logger.info('DEEPLINK', `Injecting deep link URL: ${pendingUrl}`, pendingEnvs);
+        const targetUrl = buildTargetUrl(pendingUrl, pendingEnvs);
+        const script = `window.location.href = '${targetUrl.replace(/'/g, '%27')}';\ntrue;`;
+        webViewRef.current.injectJavaScript(script);
+        clearPendingUrl();
+    }, [pendingUrl, pendingEnvs, source, isWebViewLoaded, clearPendingUrl, webViewRef]);
+
+    return { initialSource, handleWebViewLoad, isColdStartReady };
 };
