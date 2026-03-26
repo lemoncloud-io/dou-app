@@ -99,7 +99,7 @@ export const BridgeTestScreen = () => {
                     void fetchCurrentPurchases();
                     break;
                 case 'Purchase':
-                    void handlePurchaseSubscription(message.data.sku);
+                    void handlePurchaseSubscription(message.data.sku, message.data.oldSku);
                     break;
                 case 'FinishPurchaseTransaction':
                     void handleFinishPurchase(message.data.purchase);
@@ -220,7 +220,7 @@ export const BridgeTestScreen = () => {
                     <!-- IAP Test Buttons -->
                     <button onclick="sendToNative({ type: 'FetchProducts', data: {} })">IAP: Fetch Products</button>
                     <button onclick="sendToNative({ type: 'FetchCurrentPurchases', data: {} })">IAP: Fetch Purchases</button>
-                    <button onclick="sendToNative({ type: 'PurchaseSubscription', data: { sku: 'test_premium_monthly' } })">IAP: Buy (Test SKU)</button>
+                    <button onclick="sendToNative({ type: 'Purchase', data: { sku: 'TEST' }})">IAP: Buy Subscription (required sku)</button>
                     <button onclick="sendToNative({ type: 'OpenSubscriptionManagement', data: {} })">IAP: Manage</button>
                 </div>
 
