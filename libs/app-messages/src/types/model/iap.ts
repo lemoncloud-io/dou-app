@@ -4,10 +4,15 @@ import type { ProductSubscription, Purchase, PurchaseError } from 'react-native-
  * 구매 요청
  */
 export interface PurchasePayload {
-    /** 상품 ID (SKU) */
+    /** 상품 ID (SKU)
+     * == Product.id
+     * == Purchase.productId
+     **/
     sku: string;
     /**
      * 이전 상품 ID (SKU)
+     * == Product.id
+     * == Purchase.productId
      * Android에서 upgrade 또는 downgrade 수행시 해당값이 필수적임
      **/
     oldSku?: string;

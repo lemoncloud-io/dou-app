@@ -120,7 +120,7 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
 
     /**
      * Process purchase
-     * @param sku Product code (`Stock Keeping Unit`)
+     * @param sku Product code (`Stock Keeping Unit`); same `product.id or purchase.productId`
      * @param oldSku (Optional) The current subscription product code to replace for upgrade/downgrade
      */
     const handlePurchase = async (sku: string, oldSku?: string) => {
