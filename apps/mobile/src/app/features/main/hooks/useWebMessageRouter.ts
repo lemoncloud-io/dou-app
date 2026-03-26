@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
-import { logger, useThemeStore, useLanguageStore } from '../../../common';
+import { logger, useLanguageStore, useThemeStore } from '../../../common';
 import {
-    useCacheHandler,
+    useCrudCacheHandler,
     useDeviceHandler,
     useFcmHandler,
     useOAuthHandler,
     usePermissionHandler,
     useSafeAreaHandler,
+    useSearchCacheHandler,
     useSubscriptionIapHandler,
 } from '../../../common/webview/hooks';
 import { useModalHandler } from '../../../common/webview/hooks/useModalHandler';
@@ -59,10 +60,11 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
         handleSaveAllCacheData,
         handleDeleteCacheData,
         handleDeleteAllCacheData,
-        handleFetchPreference,
-        handleSavePreference,
-        handleDeletePreference,
-    } = useCacheHandler(bridge);
+    } = useCrudCacheHandler(bridge);
+
+    const { handleFetchPreference, handleSavePreference, handleDeletePreference } = usePreferenceCacheHandler(bridge);
+
+    const { handleExecuteGlobalSearch } = useSearchCacheHandler(bridge);
 
     const {
         handleOpenSettings,
@@ -148,6 +150,9 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
                         break;
                     case 'DeleteAllCacheData':
                         void handleDeleteAllCacheData(message);
+                        break;
+                    case `ExecuteGlobalSearch`:
+                        void handleExecuteGlobalSearch(message);
                         break;
                     // -- Preference Management --
                     case 'FetchPreference':

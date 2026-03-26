@@ -25,6 +25,7 @@ export const SQL_SCHEMAS = [
         id TEXT NOT NULL,
         sid TEXT NOT NULL,
         data TEXT NOT NULL,
+        name TEXT,
         PRIMARY KEY (cid, id)
     );`,
     `CREATE INDEX IF NOT EXISTS idx_channel_sid ON ${TABLES.CHANNELS} (sid);`,
@@ -41,6 +42,7 @@ export const SQL_SCHEMAS = [
         channel_id TEXT NOT NULL,
         chat_no INTEGER NOT NULL,
         created_at INTEGER,
+        content TEXT,
         data TEXT NOT NULL,
         PRIMARY KEY (cid, id)
     );`,

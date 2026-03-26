@@ -8,27 +8,34 @@ const baseChatDataSource = createScopedDataSource<ChatView>(TABLES.CHATS);
 /**
  * Data source specifically tailored for the Chat domain.
  * Extends the base ScopedCacheDataSource with custom implementations to
- * extract and index 'channel_id', 'chat_no', and 'created_at' for optimized querying.
+ * extract and index 'channel_id', 'chat_no', 'created_at', and 'content' for optimized querying.
  */
 export const chatDataSource = {
     ...baseChatDataSource,
 
     /**
-     * Overrides the default save method to extract 'channel_id', 'chat_no', and 'created_at'.
-     * This allows SQLite to index these columns for fast channel filtering and accurate sorting.
+     * Overrides the default save method to extract 'channel_id', 'chat_no', 'created_at', and 'content'.
      */
     save: async (id: string, item: ChatView, cid: string): Promise<void> => {
-        const query = `INSERT OR REPLACE INTO chats (cid, id, channel_id, chat_no, created_at, data) VALUES (?, ?, ?, ?, ?, ?)`;
-        const params = [cid, id, item.channelId || '', item.chatNo || 0, item.createdAt || 0, JSON.stringify(item)];
+        const query = `INSERT OR REPLACE INTO chats (cid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+        const content = (item as any).text || (item as any).content || '';
+        const params = [
+            cid,
+            id,
+            item.channelId || '',
+            item.chatNo || 0,
+            item.createdAt || 0,
+            content,
+            JSON.stringify(item),
+        ];
         await database.execute(query, params);
     },
 
     /**
      * Overrides the default saveAll method for batch insertions.
-     * Extracts 'channel_id', 'chat_no', and 'created_at' for each item to maintain index integrity.
      */
     saveAll: async (items: { id: string; data: ChatView }[], cid: string): Promise<void> => {
-        const query = `INSERT OR REPLACE INTO chats (cid, id, channel_id, chat_no, created_at, data) VALUES (?, ?, ?, ?, ?, ?)`;
+        const query = `INSERT OR REPLACE INTO chats (cid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?)`;
         const commands: [string, any[]][] = items.map(item => [
             query,
             [
@@ -37,6 +44,7 @@ export const chatDataSource = {
                 item.data.channelId || '',
                 item.data.chatNo || 0,
                 item.data.createdAt || 0,
+                (item.data as any).text || (item.data as any).content || '',
                 JSON.stringify(item.data),
             ],
         ]);
@@ -52,9 +60,15 @@ export const chatDataSource = {
      * @param cid Optional Cloud ID to scope the query. If omitted, fetches across all clouds.
      * @param channelId Optional. If provided, filters chats to only this channel.
      * @param sort Optional. Sorts the results chronologically ('asc' or 'desc') based on chat_no.
+     * @param keyword Optional. Keyword to perform a text search across the chat data.
      * @returns A promise that resolves to an array of parsed ChatView objects.
      */
-    fetchChats: async (cid?: string, channelId?: string, sort?: 'asc' | 'desc'): Promise<ChatView[]> => {
+    fetchChats: async (
+        cid?: string,
+        channelId?: string,
+        sort?: 'asc' | 'desc',
+        keyword?: string
+    ): Promise<ChatView[]> => {
         let query = `SELECT data FROM chats`;
         const params: (string | number)[] = [];
         const conditions: string[] = [];
@@ -66,6 +80,10 @@ export const chatDataSource = {
         if (channelId) {
             conditions.push(`channel_id = ?`);
             params.push(channelId);
+        }
+        if (keyword) {
+            conditions.push(`content LIKE ?`);
+            params.push(`%${keyword}%`);
         }
 
         if (conditions.length > 0) {

@@ -10,7 +10,7 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { oAuthService } from '../../../common/services/oauth';
+import { oAuthService } from '../../../common';
 import { logger } from '../../../common';
 import type { OAuthLoginProvider, OAuthTokenResult } from '@chatic/app-messages';
 

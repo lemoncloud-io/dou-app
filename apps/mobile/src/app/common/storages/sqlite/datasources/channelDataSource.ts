@@ -12,6 +12,11 @@ const extractSid = (item: any): string => {
     return item?.sid ? String(item.sid) : '';
 };
 
+/** Extract 'name' safely for searching */
+const extractName = (item: any): string => {
+    return item?.name ? String(item.name) : '';
+};
+
 /**
  * Data source specifically tailored for the Channel domain.
  * Extends the base ScopedCacheDataSource with custom implementations to
@@ -21,12 +26,12 @@ export const channelDataSource = {
     ...baseChannelDataSource,
 
     /**
-     * Overrides the default save method to extract 'sid'.
+     * Overrides the default save method to extract 'sid' and 'name'.
      * This allows SQLite to index this column for fast site filtering.
      */
     save: async (id: string, item: ChannelView, cid: string): Promise<void> => {
-        const query = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, id, sid, data) VALUES (?, ?, ?, ?)`;
-        const params = [cid, id, extractSid(item), JSON.stringify(item)];
+        const query = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, id, sid, name, data) VALUES (?, ?, ?, ?, ?)`;
+        const params = [cid, id, extractSid(item), extractName(item), JSON.stringify(item)];
         await database.execute(query, params);
     },
 
@@ -37,12 +42,12 @@ export const channelDataSource = {
     saveAll: async (items: { id: string; data: ChannelView }[], cid: string): Promise<void> => {
         if (items.length === 0) return;
 
-        const query = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, id, sid, data) VALUES (?, ?, ?, ?)`;
+        const query = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, id, sid, name, data) VALUES (?, ?, ?, ?, ?)`;
 
         // Using any[] for commands due to op-sqlite's executeBatch tuple requirement
         const commands: [string, any[]][] = items.map(item => [
             query,
-            [cid, item.id, extractSid(item.data), JSON.stringify(item.data)],
+            [cid, item.id, extractSid(item.data), extractName(item.data), JSON.stringify(item.data)],
         ]);
 
         await database.executeBatch(commands);
@@ -53,9 +58,10 @@ export const channelDataSource = {
      *
      * @param cid Optional Cloud ID to scope the query. If omitted, fetches across all clouds.
      * @param sid Optional Site ID to filter channels.
+     * @param keyword Optional. Keyword to perform a text search across the channel data.
      * @returns A promise that resolves to an array of parsed ChannelView objects.
      */
-    fetchChannels: async (cid?: string, sid?: string): Promise<ChannelView[]> => {
+    fetchChannels: async (cid?: string, sid?: string, keyword?: string): Promise<ChannelView[]> => {
         let query = `SELECT data FROM ${TABLES.CHANNELS}`;
         const params: (string | number)[] = [];
         const conditions: string[] = [];
@@ -67,6 +73,10 @@ export const channelDataSource = {
         if (sid) {
             conditions.push(`sid = ?`);
             params.push(sid);
+        }
+        if (keyword) {
+            conditions.push(`name LIKE ?`);
+            params.push(`%${keyword}%`);
         }
 
         if (conditions.length > 0) {
