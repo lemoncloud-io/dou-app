@@ -12,11 +12,11 @@ import { logger } from '../index';
 import { subscriptionIapService } from '../services';
 
 /**
- * @property onPurchaseSuccess: Listener for when all purchase processes are successfully completed
+ * @property onPurchaseSuccess: Listener for when a purchase is made. Passes the raw receipt to the web for server verification.
  * @property onPurchaseError: Listener for when an error occurs during the purchase process
  */
 interface UseIapOptions {
-    onPurchaseSuccess?: () => void;
+    onPurchaseSuccess?: (purchase: Purchase) => void;
     onPurchaseError?: (error: PurchaseError) => void;
 }
 
@@ -43,19 +43,16 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
 
     /**
      * Transaction processing
-     * - Performs server verification after a successful purchase
-     * - Executes the onPurchaseSuccess callback after verification and transaction processing are complete
+     * - NO auto-verify or auto-finish here.
+     * - Simply relays the raw Purchase object to the Web via onPurchaseSuccess callback.
      */
     const handleCompleteTransaction = useCallback(
         async (purchase: Purchase) => {
             try {
-                await subscriptionIapService.verifyPurchase(purchase);
-                await subscriptionIapService.finish(purchase);
-
                 await refreshPurchases();
 
                 if (callbacks.current.onPurchaseSuccess) {
-                    await callbacks.current.onPurchaseSuccess();
+                    callbacks.current.onPurchaseSuccess(purchase);
                 }
             } catch (e) {
                 logger.error('IAP', 'Failed to process transaction.', e);
@@ -135,29 +132,25 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
         } catch (e: any) {
             logger.error('IAP', 'Purchase Request Failed', e);
 
-            /*
-             * Execute restore (verification) logic if already owned
-             */
-            if (e.code === 'E_ALREADY_OWNED') {
-                await restorePurchases();
-            }
             setLoading(false);
         }
     };
 
     /**
-     * - Scans for products that were purchased in the app but failed server verification, and retries
-     * - Processes the final purchase completion transaction upon successful server verification
-     * - For iOS, calling restorePurchases() will deliver all previously purchased products again via the purchaseUpdatedListener
+     * Finish a transaction after successful server-side verification by the Web frontend
      */
-    const restorePurchases = useCallback(async () => {
-        const restored = await subscriptionIapService.restorePurchases();
-
-        if (restored.length > 0) {
-            callbacks.current.onPurchaseSuccess?.();
-            await refreshPurchases();
-        }
-    }, [refreshPurchases]);
+    const finishPurchase = useCallback(
+        async (purchase: Purchase) => {
+            try {
+                await subscriptionIapService.finish(purchase);
+                await refreshPurchases();
+            } catch (e) {
+                logger.error('IAP', `Failed to finish purchase: ${purchase.productId}`, e);
+                throw e;
+            }
+        },
+        [refreshPurchases]
+    );
 
     /**
      * Navigate to subscription management page
@@ -166,5 +159,5 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
         await subscriptionIapService.linkToManageSubscriptions();
     }, []);
 
-    return { products, currentPurchases, loading, handlePurchase, restorePurchases, openSubscriptionManagement };
+    return { products, currentPurchases, loading, handlePurchase, finishPurchase, openSubscriptionManagement };
 };
