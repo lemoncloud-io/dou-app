@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { AlertCircle, Check, Plus, User, X } from 'lucide-react';
+import { AlertCircle, Check, Loader2, Plus, User, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
@@ -78,7 +78,7 @@ interface CloudItemProps {
 
 const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud }: CloudItemProps) => {
     const { t } = useTranslation();
-    const disabled = isDisabled || isSelected;
+    const disabled = isDisabled || isSelected || cloud.status === 'pending';
     const displayName = getCloudDisplayName(cloud);
     const hasName = !!displayName;
 
@@ -90,7 +90,11 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud }: CloudItemPr
         >
             {/* Check icon area */}
             <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center">
-                {isSelected && <Check size={22} className="text-[#C139E3]" strokeWidth={1.5} />}
+                {cloud.status === 'pending' ? (
+                    <Loader2 size={18} className="animate-spin text-[#9FA2A7]" />
+                ) : (
+                    isSelected && <Check size={22} className="text-[#C139E3]" strokeWidth={1.5} />
+                )}
             </div>
 
             {/* Avatar + Info */}
@@ -168,11 +172,11 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
 
     useEffect(() => {
         if (autoSelectedRef.current) return;
-        const firstCloud = clouds[0];
-        if (!firstCloud) return;
+        const activeCloud = clouds.find(c => c.status === 'active');
+        if (!activeCloud) return;
         autoSelectedRef.current = true;
         if (getCloudSession()) return;
-        void handleSelectCloud(firstCloud.id);
+        void handleSelectCloud(activeCloud.id);
     }, [clouds]);
 
     const isLoading = isFetchingClouds && clouds.length === 0;
