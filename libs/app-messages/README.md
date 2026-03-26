@@ -17,32 +17,33 @@ This library was generated with [Nx](https://nx.dev).
 
 웹에서 네이티브 기능을 실행하기 위해 보내는 메시지입니다.
 
-| Message Type            | Payload (Data)                                                                        | Description                                                                                    | Expected Response                                            |
-| :---------------------- | :------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------- | :----------------------------------------------------------- |
-| `CloseModal`            | -                                                                                     | 모달 닫기                                                                                      | -                                                            |
-| `OpenModal`             | `{ url: string; type?: 'full';'sheet'; heightRatio?: number; dragHandle?: boolean; }` | 모달 열기                                                                                      | -                                                            |
-| `OpenSettings`          | -                                                                                     | 앱 설정 화면으로 이동합니다.                                                                   | -                                                            |
-| `OpenShareSheet`        | `{ title?: string; message?: string; url?: string; ... }`                             | 시스템 공유 시트를 엽니다.; 주의사항: iOS는 url,message 필드 둘 중 하나만 사용하여야만 합니다. | `OnOpenShareSheet`                                           |
-| `OpenDocument`          | `{ allowMultiSelection?: boolean; type?: string[] }`                                  | 파일 선택기를 엽니다.                                                                          | `OnPickDocument`                                             |
-| `OpenCamera`            | `{ mediaType?: 'photo'\|'video'; ... }`                                               | 카메라를 실행하여 사진/동영상을 촬영합니다.                                                    | `OnOpenCamera`                                               |
-| `OpenPhotoLibrary`      | `{ selectionLimit?: number; mediaType?: ... }`                                        | 갤러리(사진첩)를 엽니다.                                                                       | `OnOpenPhotoLibrary`                                         |
-| `FetchFcmToken`         | -                                                                                     | FCM 푸시 토큰을 요청합니다.                                                                    | `OnFetchFcmToken`                                            |
-| `FetchSafeArea`         | -                                                                                     | 기기의 Safe Area(Notch 등) 정보를 요청합니다.                                                  | `OnFetchSafeArea`                                            |
-| `FetchProducts`         | -                                                                                     | 스토어에 등록된 구독 상품 목록을 요청합니다.                                                   | `OnFetchProductSubscriptions`                                |
-| `FetchCurrentPurchases` | -                                                                                     | 현재 사용자가 보유 중인 구독 내역을 요청합니다.                                                | `OnFetchPurchases`                                           |
-| `RestorePurchase`       | -                                                                                     | 미완료된 결제 건을 복구하거나, 구매 내역을 최신화합니다.                                       | `OnSuccessPurchase`                                          |
-| `PurchaseSubscription`  | `{ sku: string }`                                                                     | 특정 상품(`sku`)의 구독 결제 프로세스를 시작합니다.                                            | 성공 시: `OnSuccessPurchase`<br/>실패 시: `OnAppLog` (Error) |
-| `FetchAllCacheData`     | `{ type: 'channel'\|'chat'\|'user'\|'join'; query?: {...} }`                          | 로컬 캐시(MMKV/SQLite)의 특정 도메인 전체 목록을 요청합니다.                                   | `OnFetchAllCacheData`                                        |
-| `FetchCacheData`        | `{ type: ...; id: string }`                                                           | 로컬 캐시의 특정 데이터를 요청합니다.                                                          | `OnFetchCacheData`                                           |
-| `SaveCacheData`         | `{ type: ...; id: string; value: object }`                                            | 데이터를 로컬 캐시에 저장(Upsert)합니다.                                                       | `OnSaveCacheData`                                            |
-| `SaveAllCacheData`      | `{ type: ...; items: object[] }`                                                      | 다수의 데이터를 로컬 캐시에 일괄 저장(Upsert)합니다.                                           | `OnSaveAllCacheData`                                         |
-| `DeleteCacheData`       | `{ type: ...; id: string }`                                                           | 로컬 캐시의 특정 데이터를 삭제합니다.                                                          | `OnDeleteCacheData`                                          |
-| `DeleteAllCacheData`    | `{ type: ...; ids?: string[] }`                                                       | 로컬 캐시의 데이터들을 일괄 삭제합니다.                                                        | `OnDeleteAllCacheData`                                       |
-| `FetchPreference`       | `{ key: string }`                                                                     | 앱 설정(Preference) 값을 요청합니다.                                                           | `OnFetchPreference`                                          |
-| `SavePreference`        | `{ key: string; value: any }`                                                         | 앱 설정(Preference) 값을 저장합니다.                                                           | `OnSavePreference`                                           |
-| `DeletePreference`      | `{ key: string }`                                                                     | 앱 설정(Preference) 값을 삭제합니다.                                                           | `OnDeletePreference`                                         |
-| `OAuthLogin`            | `{ provider: 'google'\|'apple' }`                                                     | 소셜 로그인(OAuth)을 요청합니다.                                                               | `OnOAuthLogin`                                               |
-| `OAuthLogout`           | `{ provider: 'google'\|'apple' }`                                                     | 소셜 로그아웃을 요청합니다.                                                                    | `OnOAuthLogout`                                              |
+| Message Type                 | Payload (Data)                                                                        | Description                                                                                            | Expected Response             |
+| :--------------------------- | :------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------- | :---------------------------- |
+| `CloseModal`                 | -                                                                                     | 모달 닫기                                                                                              | -                             |
+| `OpenModal`                  | `{ url: string; type?: 'full';'sheet'; heightRatio?: number; dragHandle?: boolean; }` | 모달 열기                                                                                              | -                             |
+| `OpenSettings`               | -                                                                                     | 앱 설정 화면으로 이동합니다.                                                                           | -                             |
+| `OpenShareSheet`             | `{ title?: string; message?: string; url?: string; ... }`                             | 시스템 공유 시트를 엽니다.; 주의사항: iOS는 url,message 필드 둘 중 하나만 사용하여야만 합니다.         | `OnOpenShareSheet`            |
+| `OpenDocument`               | `{ allowMultiSelection?: boolean; type?: string[] }`                                  | 파일 선택기를 엽니다.                                                                                  | `OnPickDocument`              |
+| `OpenCamera`                 | `{ mediaType?: 'photo'\|'video'; ... }`                                               | 카메라를 실행하여 사진/동영상을 촬영합니다.                                                            | `OnOpenCamera`                |
+| `OpenPhotoLibrary`           | `{ selectionLimit?: number; mediaType?: ... }`                                        | 갤러리(사진첩)를 엽니다.                                                                               | `OnOpenPhotoLibrary`          |
+| `FetchFcmToken`              | -                                                                                     | FCM 푸시 토큰을 요청합니다.                                                                            | `OnFetchFcmToken`             |
+| `FetchSafeArea`              | -                                                                                     | 기기의 Safe Area(Notch 등) 정보를 요청합니다.                                                          | `OnFetchSafeArea`             |
+| `FetchProducts`              | -                                                                                     | 스토어에 등록된 구독 상품 목록을 요청합니다.                                                           | `OnFetchProducts`             |
+| `FetchCurrentPurchases`      | -                                                                                     | 현재 사용자가 보유 중인 구독 내역을 요청합니다.                                                        | `OnFetchCurrentPurchases`     |
+| `Purchase`                   | `{ sku: string; oldSku?: string }`                                                    | 특정 상품(`sku`)의 구독 결제 프로세스를 시작합니다. (Android 업그레이드시 `oldSku` 포함)               | `OnPurchase`                  |
+| `FinishPurchaseTransaction`  | `{ purchase: Purchase }`                                                              | 웹 서버 검증을 마친 영수증의 트랜잭션을 스토어에서 완료 처리합니다. (완료 처리를 하지않을 경우 환불됨) | `OnFinishPurchaseTransaction` |
+| `OpenSubscriptionManagement` | -                                                                                     | 기기 OS에 맞는 스토어 구독 관리 페이지로 이동합니다.                                                   | -                             |
+| `FetchAllCacheData`          | `{ type: 'channel'\|'chat'\|'user'\|'join'; query?: {...} }`                          | 로컬 캐시(MMKV/SQLite)의 특정 도메인 전체 목록을 요청합니다.                                           | `OnFetchAllCacheData`         |
+| `FetchCacheData`             | `{ type: ...; id: string }`                                                           | 로컬 캐시의 특정 데이터를 요청합니다.                                                                  | `OnFetchCacheData`            |
+| `SaveCacheData`              | `{ type: ...; id: string; value: object }`                                            | 데이터를 로컬 캐시에 저장(Upsert)합니다.                                                               | `OnSaveCacheData`             |
+| `SaveAllCacheData`           | `{ type: ...; items: object[] }`                                                      | 다수의 데이터를 로컬 캐시에 일괄 저장(Upsert)합니다.                                                   | `OnSaveAllCacheData`          |
+| `DeleteCacheData`            | `{ type: ...; id: string }`                                                           | 로컬 캐시의 특정 데이터를 삭제합니다.                                                                  | `OnDeleteCacheData`           |
+| `DeleteAllCacheData`         | `{ type: ...; ids?: string[] }`                                                       | 로컬 캐시의 데이터들을 일괄 삭제합니다.                                                                | `OnDeleteAllCacheData`        |
+| `FetchPreference`            | `{ key: string }`                                                                     | 앱 설정(Preference) 값을 요청합니다.                                                                   | `OnFetchPreference`           |
+| `SavePreference`             | `{ key: string; value: any }`                                                         | 앱 설정(Preference) 값을 저장합니다.                                                                   | `OnSavePreference`            |
+| `DeletePreference`           | `{ key: string }`                                                                     | 앱 설정(Preference) 값을 삭제합니다.                                                                   | `OnDeletePreference`          |
+| `OAuthLogin`                 | `{ provider: 'google'\|'apple' }`                                                     | 소셜 로그인(OAuth)을 요청합니다.                                                                       | `OnOAuthLogin`                |
+| `OAuthLogout`                | `{ provider: 'google'\|'apple' }`                                                     | 소셜 로그아웃을 요청합니다.                                                                            | `OnOAuthLogout`               |
 
 ---
 
@@ -78,11 +79,12 @@ This library was generated with [Nx](https://nx.dev).
 
 ### In-App Purchase
 
-| Message Type                  | Description                                               | Data Structure (Example)                                      |
-| :---------------------------- | :-------------------------------------------------------- | :------------------------------------------------------------ |
-| `OnFetchProductSubscriptions` | 스토어의 구독 상품 목록 정보 전달                         | `{ products: [{ productId: "pro_monthly", price: "..." }] }`  |
-| `OnFetchPurchases`            | 사용자의 현재 구독(구매) 보유 현황 전달                   | `{ purchases: [{ productId: "...", transactionDate: ... }] }` |
-| `OnSuccessPurchase`           | 결제 프로세스(서버 검증 포함)가 **최종 성공**했을 때 발생 | -                                                             |
+| Message Type                  | Description                                     | Data Structure (Example)                                      |
+| :---------------------------- | :---------------------------------------------- | :------------------------------------------------------------ |
+| `OnFetchProducts`             | 스토어의 구독 상품 목록 정보 전달               | `{ products: [{ productId: "pro_monthly", price: "..." }] }`  |
+| `OnFetchCurrentPurchases`     | 사용자의 현재 구독(구매) 보유 현황 전달         | `{ purchases: [{ productId: "...", transactionDate: ... }] }` |
+| `OnPurchase`                  | 결제 진행 결과(성공 영수증 원본 또는 에러) 전달 | `{ purchase: { transactionId: "...", ... } }`                 |
+| `OnFinishPurchaseTransaction` | 영수증 스토어 완료(Finish) 처리 완료 전달       | `{ purchase: { transactionId: "...", ... } }`                 |
 
 ### Cache
 
@@ -94,6 +96,12 @@ This library was generated with [Nx](https://nx.dev).
 | `OnSaveAllCacheData`   | 다수 캐시 데이터 저장 완료 전달            | `{ type: "chat", ids: ["msg_1", "msg_2"] }`           |
 | `OnDeleteCacheData`    | 단건 캐시 데이터 삭제 완료 전달            | `{ type: "user", id: "user_1" }`                      |
 | `OnDeleteAllCacheData` | 다수 캐시 데이터 삭제 완료 전달            | `{ type: "channel", ids: ["ch_1", "ch_2"] }`          |
+
+### Search
+
+| Message Type            | Description                                    | Data Structure (Example)                              |
+| :---------------------- | :--------------------------------------------- | :---------------------------------------------------- |
+| `OnExecuteGlobalSearch` | 다중 도메인(채팅, 채널 등) 통합 검색 결과 반환 | `{ items: [{ _domain: 'chat', id: '1', ... }, ...] }` |
 
 ### Preference
 

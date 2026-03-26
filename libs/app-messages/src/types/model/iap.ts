@@ -15,6 +15,7 @@ export interface PurchasePayload {
 
 /**
  * 구매 트랜책션 처리 완료 요청
+ * 주의: 구매 처리후 해당 메서드를 수행하지 않을 경우 환불처리됨
  */
 export interface FinishPurchaseTransactionPayload {
     purchase: Purchase;
