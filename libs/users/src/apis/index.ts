@@ -7,6 +7,8 @@ import type {
     RegisterDeviceTokenBody,
     UserTokenView,
     CloudView,
+    CloudVerifyEmailBody,
+    CloudVerifyEmailView,
 } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { Params } from '@lemoncloud/lemon-web-core';
@@ -72,6 +74,18 @@ export const verifyNativeAppToken = async (body: VerifyNativeTokenBody): Promise
         .setParams({ token: 1 })
         .setBody(body)
         .execute<UserTokenView & { error?: string }>();
+
+    return throwIfApiError(data);
+};
+
+export const verifyEmail = async (body: CloudVerifyEmailBody): Promise<CloudVerifyEmailView> => {
+    const { data } = await webCore
+        .buildSignedRequest({
+            method: 'POST',
+            baseURL: `${DOU_ENDPOINT}/clouds/0/verify-email`,
+        })
+        .setBody(body)
+        .execute<CloudVerifyEmailView>();
 
     return throwIfApiError(data);
 };

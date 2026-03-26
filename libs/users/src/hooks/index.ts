@@ -2,11 +2,16 @@ import { useQuery } from '@tanstack/react-query';
 
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
 
-import { fetchClouds, fetchUsers, registerDeviceToken, verifyNativeAppToken } from '../apis';
+import { fetchClouds, fetchUsers, registerDeviceToken, verifyNativeAppToken, verifyEmail } from '../apis';
 
 import type { Params } from '@lemoncloud/lemon-web-core';
 import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
-import type { RegisterDeviceTokenBody, UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type {
+    CloudVerifyEmailBody,
+    CloudVerifyEmailView,
+    RegisterDeviceTokenBody,
+    UserTokenView,
+} from '@lemoncloud/chatic-backend-api';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
 export const usersKeys = createQueryKeys('users');
@@ -31,3 +36,6 @@ export const useRegisterDeviceToken = () =>
 
 export const useVerifyNativeAppToken = () =>
     useCustomMutation<UserTokenView, string, VerifyNativeTokenBody>(body => verifyNativeAppToken(body));
+
+export const useVerifyEmail = () =>
+    useCustomMutation<CloudVerifyEmailView, string, CloudVerifyEmailBody>(body => verifyEmail(body));

@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-ki
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 
 import { getCloudSession, useCloudSession } from '../../../shared/hooks/useCloudSession';
+import { AddAccountDialog } from './AddAccountDialog';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
@@ -124,12 +125,15 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud }: CloudItemPr
 
 // --- Add Account Button ---
 
-const AddAccountButton = () => {
+const AddAccountButton = ({ onClick }: { onClick: () => void }) => {
     const { t } = useTranslation();
 
     return (
-        <div className="px-4 pb-4 pt-5">
-            <button className="flex w-full items-center justify-center gap-[6px] rounded-full border border-foreground px-6 py-3">
+        <div className="px-4 pb-4 pt-10">
+            <button
+                onClick={onClick}
+                className="flex w-full items-center justify-center gap-[6px] rounded-full border border-foreground px-6 py-3"
+            >
                 <span className="text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-foreground">
                     {t('cloudSessionSheet.addAccount')}
                 </span>
@@ -150,6 +154,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const { t } = useTranslation();
     const { selectPlace, isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedCloudId());
+    const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
 
     const autoSelectedRef = useRef(false);
 
@@ -173,65 +178,73 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const isLoading = isFetchingClouds && clouds.length === 0;
 
     return (
-        <Sheet open={open} onOpenChange={open => !open && handleClose()}>
-            <SheetContent side="bottom" className="rounded-t-2xl p-0 pb-safe-bottom" hideClose>
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-border px-4 py-[14px]">
-                    <SheetTitle className="text-lg font-semibold text-foreground">
-                        {t('cloudSessionSheet.title')}
-                    </SheetTitle>
-                    <button onClick={handleClose} className="p-1">
-                        <X size={24} className="text-muted-foreground" />
-                    </button>
-                </div>
-                <SheetDescription className="sr-only">{t('cloudSessionSheet.title')}</SheetDescription>
+        <>
+            <Sheet open={open} onOpenChange={open => !open && handleClose()}>
+                <SheetContent side="bottom" className="rounded-t-2xl p-0 pb-safe-bottom" hideClose>
+                    <SheetTitle className="sr-only">{t('cloudSessionSheet.title')}</SheetTitle>
+                    <SheetDescription className="sr-only">{t('cloudSessionSheet.title')}</SheetDescription>
 
-                {/* Profile */}
-                <ProfileSection />
+                    {/* Close Button */}
+                    <div className="flex justify-end px-4 pt-[14px]">
+                        <button
+                            onClick={handleClose}
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-[#EAEAEC]"
+                        >
+                            <X size={14} className="text-foreground" strokeWidth={2} />
+                        </button>
+                    </div>
 
-                {/* Cloud List */}
-                <div className="h-[28px]" />
-                <div className="flex flex-col gap-[6px]">
-                    {isLoading ? (
-                        <div className="flex flex-col gap-[15px] px-3">
-                            {Array.from({ length: 3 }).map((_, i) => (
-                                <div key={i} className="flex items-center gap-2">
-                                    <div className="h-[22px] w-[22px]" />
-                                    <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
-                                    <div className="flex flex-col gap-1">
-                                        <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-                                        <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+                    {/* Profile */}
+                    <ProfileSection />
+
+                    {/* Cloud List */}
+                    <div className="flex flex-col gap-[6px] pt-6">
+                        {isLoading ? (
+                            <div className="flex flex-col gap-[15px] px-3">
+                                {Array.from({ length: 3 }).map((_, i) => (
+                                    <div key={i} className="flex items-center gap-2">
+                                        <div className="h-[22px] w-[22px]" />
+                                        <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
+                                        <div className="flex flex-col gap-1">
+                                            <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                                            <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : isCloudsError ? (
-                        <div className="flex items-center justify-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-                            <span>{t('cloudSessionSheet.errorLoading')}</span>
-                            <button onClick={() => refetchClouds()} className="flex items-center gap-1 text-foreground">
-                                <span>{t('cloudSessionSheet.retry')}</span>
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col gap-[15px] px-3">
-                            {clouds.map(cloud => (
-                                <CloudItem
-                                    key={cloud.id}
-                                    cloud={cloud}
-                                    isSelected={selectedId === cloud.id}
-                                    isDisabled={isPending}
-                                    onSelectCloud={handleSelectCloud}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </div>
+                                ))}
+                            </div>
+                        ) : isCloudsError ? (
+                            <div className="flex items-center justify-center gap-2 px-3 py-4 text-sm text-muted-foreground">
+                                <span>{t('cloudSessionSheet.errorLoading')}</span>
+                                <button
+                                    onClick={() => refetchClouds()}
+                                    className="flex items-center gap-1 text-foreground"
+                                >
+                                    <span>{t('cloudSessionSheet.retry')}</span>
+                                </button>
+                            </div>
+                        ) : clouds.length === 0 ? (
+                            <div className="flex items-center justify-center px-3 py-6 text-sm text-muted-foreground">
+                                {t('cloudSessionSheet.empty')}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-[15px] px-3">
+                                {clouds.map(cloud => (
+                                    <CloudItem
+                                        key={cloud.id}
+                                        cloud={cloud}
+                                        isSelected={selectedId === cloud.id}
+                                        isDisabled={isPending}
+                                        onSelectCloud={handleSelectCloud}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
-                <div className="h-6" />
-
-                {/* TODO: Add Account */}
-                {/* <AddAccountButton /> */}
-            </SheetContent>
-        </Sheet>
+                    <AddAccountButton onClick={() => setIsAddAccountOpen(true)} />
+                </SheetContent>
+            </Sheet>
+            <AddAccountDialog open={isAddAccountOpen} onOpenChange={setIsAddAccountOpen} />
+        </>
     );
 };
