@@ -64,6 +64,7 @@ export const AppMessageTypes = {
     OnSaveAllCacheData: 'OnSaveAllCacheData',
     OnDeleteCacheData: 'OnDeleteCacheData',
     OnDeleteAllCacheData: 'OnDeleteAllCacheData',
+    OnExecuteGlobalSearch: 'OnExecuteGlobalSearch',
     OnFetchPreference: 'OnFetchPreference',
     OnSavePreference: 'OnSavePreference',
     OnDeletePreference: 'OnDeletePreference',
@@ -216,6 +217,15 @@ export interface OnDeleteAllCacheData extends AppDefaultMessage<'OnDeleteAllCach
 }
 
 // Preference
+/** 전역 통합 검색 결과 반환 */
+export interface OnExecuteGlobalSearch extends AppDefaultMessage<'OnExecuteGlobalSearch'> {
+    data: OnExecuteGlobalSearch;
+}
+
+// ----------------------------------------------------------------------
+// Preference Messages
+// ----------------------------------------------------------------------
+
 export interface OnFetchPreference extends AppDefaultMessage<'OnFetchPreference'> {
     data: {
         key: PreferenceKey;
@@ -292,6 +302,7 @@ export interface AppMessageMap {
     OnSaveAllCacheData: OnSaveAllCacheData;
     OnDeleteCacheData: OnDeleteCacheData;
     OnDeleteAllCacheData: OnDeleteAllCacheData;
+    OnExecuteGlobalSearch: OnExecuteGlobalSearch;
     OnSetWsEndpoint: OnSetWsEndpoint;
 
     /**
