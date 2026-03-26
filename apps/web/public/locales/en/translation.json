@@ -266,7 +266,8 @@
         "statusActive": "Subscribed",
         "statusPending": "Preparing",
         "setupProfile": "Please set up your profile",
-        "addAccount": "Add Account"
+        "addAccount": "Add Account",
+        "empty": "No clouds registered"
     },
     "placeList": {
         "defaultPlace": "Default",
@@ -784,5 +785,25 @@
         "title": "Service Unavailable",
         "description": "The server is currently under maintenance. Please try again later.",
         "retry": "Reload"
+    },
+    "addAccount": {
+        "title": "Add Account",
+        "emailTitle": "Register Email",
+        "emailSubtitle": "Enter your email address\nfor chat backup",
+        "emailLabel": "Email",
+        "emailPlaceholder": "Enter your email",
+        "emailDescription": "Enter the email to receive a verification code",
+        "sendCode": "Send Code",
+        "sendCodeFailed": "Failed to send verification code",
+        "verificationTitle": "Enter Code",
+        "verificationDescription": "Enter the verification code sent to your email",
+        "timeRemaining": "Time left",
+        "resend": "Resend",
+        "resendFailed": "Failed to resend code",
+        "complete": "Confirm",
+        "verifyFailed": "Verification failed",
+        "codeError": "Please enter the correct verification code",
+        "success": "Account added successfully",
+        "tooltip": "If you didn't receive the email,\nplease check your spam folder"
     }
 }

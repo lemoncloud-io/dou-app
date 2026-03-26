@@ -7,9 +7,10 @@ import { VERIFICATION_CODE_LENGTH } from '../constants';
 interface VerificationCodeInputProps {
     value: string;
     onChange: (value: string) => void;
+    hasError?: boolean;
 }
 
-export const VerificationCodeInput = ({ value, onChange }: VerificationCodeInputProps) => {
+export const VerificationCodeInput = ({ value, onChange, hasError = false }: VerificationCodeInputProps) => {
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     const digits = value.split('').concat(Array(VERIFICATION_CODE_LENGTH - value.length).fill(''));
@@ -59,9 +60,11 @@ export const VerificationCodeInput = ({ value, onChange }: VerificationCodeInput
                         autoFocus={isFocusTarget && index === 0}
                         className={cn(
                             'flex h-[50px] w-[46px] items-center justify-center rounded-[10px] text-center text-[24px] font-bold outline-none transition-all',
-                            isFilled
-                                ? 'border-0 bg-secondary text-main-accent'
-                                : 'border border-input-border bg-surface focus:border-[1.5px] focus:border-main-accent'
+                            hasError
+                                ? 'border-0 bg-[#FFF1EF] text-[#FF4C35]'
+                                : isFilled
+                                  ? 'border-0 bg-secondary text-main-accent'
+                                  : 'border border-input-border bg-surface focus:border-[1.5px] focus:border-main-accent'
                         )}
                     />
                 );
