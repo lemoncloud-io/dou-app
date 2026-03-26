@@ -20,12 +20,16 @@ import type {
     OnSaveCacheDataPayload,
     PermissionStatus,
     PreferenceKey,
-    ProductSubscriptionInfo,
-    PurchaseInfo,
     SafeAreaInfo,
     ShareInfo,
     VersionInfo,
 } from './model';
+import type {
+    OnFetchCurrentPurchasesPayload,
+    OnFetchProductsPayload,
+    OnFinishPurchaseTransactionPayload,
+    OnPurchasePayload,
+} from './model/iap';
 
 export const AppMessageTypes = {
     OnSuccessSyncCredential: 'OnSuccessSyncCredential',
@@ -42,22 +46,32 @@ export const AppMessageTypes = {
     OnAppLog: 'OnAppLog',
     OnReceiveNotification: 'OnReceiveNotification',
     OnOpenNotification: 'OnOpenNotification',
-    OnSuccessPurchase: 'OnSuccessPurchase',
-    OnFetchProductSubscriptions: 'OnFetchProductSubscriptions',
-    OnFetchPurchases: 'OnFetchPurchases',
+    /**
+     * IAP Event
+     */
+    OnFetchCurrentPurchases: 'OnFetchCurrentPurchases',
+    OnFetchProducts: 'OnFetchProducts',
+    OnPurchase: `OnPurchase`,
+    OnFinishPurchaseTransaction: 'OnFinishPurchaseTransaction',
+    /**
+     * Cache Event
+     */
     OnFetchAllCacheData: 'OnFetchAllCacheData',
     OnFetchCacheData: 'OnFetchCacheData',
     OnSaveCacheData: 'OnSaveCacheData',
     OnSaveAllCacheData: 'OnSaveAllCacheData',
     OnDeleteCacheData: 'OnDeleteCacheData',
     OnDeleteAllCacheData: 'OnDeleteAllCacheData',
-    OnRequestPermission: 'OnRequestPermission',
-    OnSetWsEndpoint: 'OnSetWsEndpoint',
-    OnOAuthLogin: 'OnOAuthLogin',
-    OnOAuthLogout: 'OnOAuthLogout',
     OnFetchPreference: 'OnFetchPreference',
     OnSavePreference: 'OnSavePreference',
     OnDeletePreference: 'OnDeletePreference',
+    /**
+     * OAuth Event
+     */
+    OnOAuthLogin: 'OnOAuthLogin',
+    OnOAuthLogout: 'OnOAuthLogout',
+    OnRequestPermission: 'OnRequestPermission',
+    OnSetWsEndpoint: 'OnSetWsEndpoint',
 } as const;
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
 
@@ -124,14 +138,6 @@ export interface OnOpenNotification extends AppDefaultMessage<'OnOpenNotificatio
     data: NotificationInfo;
 }
 
-export interface OnFetchProductSubscriptions extends AppDefaultMessage<'OnFetchProductSubscriptions'> {
-    data: ProductSubscriptionInfo;
-}
-
-export interface OnFetchPurchases extends AppDefaultMessage<'OnFetchPurchases'> {
-    data: PurchaseInfo;
-}
-
 export interface OnSetWsEndpoint extends AppDefaultMessage<'OnSetWsEndpoint'> {
     data: { wss: string };
 }
@@ -155,6 +161,24 @@ export interface OnOAuthLogout extends AppDefaultMessage<'OnOAuthLogout'> {
     };
 }
 
+// IAP
+export interface OnFetchCurrentPurchases extends AppDefaultMessage<'OnFetchCurrentPurchases'> {
+    data: OnFetchCurrentPurchasesPayload;
+}
+
+export interface OnFetchProducts extends AppDefaultMessage<'OnFetchProducts'> {
+    data: OnFetchProductsPayload;
+}
+
+export interface OnPurchase extends AppDefaultMessage<'OnPurchase'> {
+    data: OnPurchasePayload;
+}
+
+export interface OnFinishPurchaseTransaction extends AppDefaultMessage<'OnFinishPurchaseTransaction'> {
+    data: OnFinishPurchaseTransactionPayload;
+}
+
+// Cache
 /** 다수 캐시 데이터 반환 */
 export interface OnFetchAllCacheData extends AppDefaultMessage<'OnFetchAllCacheData'> {
     data: OnFetchAllCacheDataPayload;
@@ -185,10 +209,7 @@ export interface OnDeleteAllCacheData extends AppDefaultMessage<'OnDeleteAllCach
     data: OnDeleteAllCacheDataPayload;
 }
 
-// ----------------------------------------------------------------------
-// Preference Messages
-// ----------------------------------------------------------------------
-
+// Preference
 export interface OnFetchPreference extends AppDefaultMessage<'OnFetchPreference'> {
     data: {
         key: PreferenceKey;
@@ -250,9 +271,10 @@ export interface AppMessageMap {
     /**
      * IAP Event
      */
-    OnFetchProductSubscriptions: OnFetchProductSubscriptions;
-    OnFetchPurchases: OnFetchPurchases;
-    OnSuccessPurchase: AppDefaultMessage<'OnSuccessPurchase'>;
+    OnFetchProducts: OnFetchProducts;
+    OnFetchCurrentPurchases: OnFetchCurrentPurchases;
+    OnPurchase: OnPurchase;
+    OnFinishPurchaseTransaction: OnFinishPurchaseTransaction;
 
     /**
      * Cache Event
