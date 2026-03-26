@@ -1,11 +1,11 @@
 import type { ChannelView, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
-import type { SiteView, UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type { CloudView, SiteView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 /**
  * 캐시 데이터 타입
- * @author dev@example.com
+ * @author raine@lemoncloud.io
  */
-export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'usertoken';
+export type CacheType = 'channel' | 'cloud' | 'chat' | 'user' | 'join' | 'site' | 'usertoken';
 
 /**
  * 관리 가능한 Preference Key 목록
@@ -16,6 +16,7 @@ export type PreferenceKey = 'isFirstRun' | 'theme' | 'language';
 
 interface CacheModelMap {
     channel: ChannelView;
+    cloud: CloudView;
     chat: ChatView;
     user: UserView;
     site: SiteView;
@@ -25,6 +26,7 @@ interface CacheModelMap {
 
 interface CacheQueryMap {
     channel: { query?: ChannelQueryOptions };
+    cloud: { query?: CloudQueryOptions };
     chat: { query?: ChatQueryOptions };
     user: { query?: UserQueryOptions };
     site: { query?: SiteQueryOptions };
@@ -32,58 +34,52 @@ interface CacheQueryMap {
     usertoken: { query?: UserTokenQueryOptions };
 }
 
-/**
- * 기본 쿼리 옵션 (모든 쿼리의 부모)
- */
 export interface BaseQueryOptions {
     /**
-     * - cloudId
-     * - undefined 일 경우 전체데이터 쿼리
+     * - 특정 클라우드에 대한 쿼리
      */
     cid?: string;
 }
 
 export interface ChannelQueryOptions extends BaseQueryOptions {
     /**
-     * - siteId 아이디로 채널 쿼리하기
+     * - sid 아이디로 채널 쿼리하기
      * - 특정 사이트에 대한 채널 쿼리
-     * - TODO: Not Implement
      */
-    siteId?: string;
+    sid?: string;
 }
+
+export interface CloudQueryOptions extends BaseQueryOptions {}
 
 export interface UserQueryOptions extends BaseQueryOptions {}
 
-export interface SiteQueryOptions extends BaseQueryOptions {
-    /**
-     * 특정 소유자의 플레이스
-     * - TODO: Not Implement
-     */
-    ownerId?: string;
-}
+export interface SiteQueryOptions extends BaseQueryOptions {}
 
 export interface ChatQueryOptions extends BaseQueryOptions {
     /**
      * 채널 아이디
      */
     channelId?: string;
+
+    /**
+     * 정렬 방식
+     */
+    sort?: 'asc' | 'desc';
 }
 
 export interface JoinQueryOptions extends BaseQueryOptions {
     /**
      * 특정 채널에 대한 참여 정보
-     * - TODO: Not Implement
      */
     channelId?: string;
+
+    /**
+     * 특정 유저에 대한 참여 정보
+     */
+    userId?: string;
 }
 
-export interface UserTokenQueryOptions extends BaseQueryOptions {
-    /**
-     *  권한에 따른 사용자
-     * - TODO: Not Implement
-     */
-    role?: 'guest';
-}
+export interface UserTokenQueryOptions extends BaseQueryOptions {}
 
 /** [요청] 다수 데이터 불러오기 */
 export type FetchAllCacheDataPayload = {

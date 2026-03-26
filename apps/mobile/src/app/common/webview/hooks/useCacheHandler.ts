@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 import { logger } from '../../services';
-import { cacheRepository } from '../../services';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type {
@@ -15,6 +14,7 @@ import type {
     SaveCacheData,
     SavePreference,
 } from '@chatic/app-messages';
+import { cacheRepository } from '../../storages';
 
 export const useCacheHandler = (bridge: WebViewBridge) => {
     const handleFetchAllCacheData = useCallback(
