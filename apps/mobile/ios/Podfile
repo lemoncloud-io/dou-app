@@ -45,8 +45,27 @@ target 'Chatic' do
     react_native_post_install(
       installer,
       config[:reactNativePath],
-      :mac_catalyst_enabled => false,
-      # :ccache_enabled => true
+      :mac_catalyst_enabled => false
     )
+
+    # op-sqlite의 헤더 중복 복사 명령만 깔끔하게 찾아내서 하나를 지우는 스크립트
+    installer.pods_project.targets.each do |target|
+      if target.name.include?('op-sqlite')
+        seen_headers = []
+        target.headers_build_phase.files.to_a.each do |file|
+          if file.file_ref
+            # 파일 이름을 안전하게 가져옵니다
+            header_name = file.file_ref.name || file.file_ref.path.split('/').last
+
+            # 이미 목록에 있는 헤더(예: libsql.h)라면 중복이므로 제거합니다
+            if seen_headers.include?(header_name)
+              target.headers_build_phase.remove_build_file(file)
+            else
+              seen_headers << header_name
+            end
+          end
+        end
+      end
+    end
   end
 end
