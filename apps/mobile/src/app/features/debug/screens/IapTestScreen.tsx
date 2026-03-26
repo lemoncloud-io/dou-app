@@ -91,21 +91,39 @@ export const IapTestScreen = () => {
         };
     }, [addLog]);
 
-    const { products, currentPurchases, loading, handlePurchase, restorePurchases, openSubscriptionManagement } =
+    const { products, currentPurchases, loading, handlePurchase, finishPurchase, openSubscriptionManagement } =
         useSubscriptionIap({
-            onPurchaseSuccess: () => {
-                addLog('success', 'Purchase/Restore Process Completed');
+            onPurchaseSuccess: async purchase => {
+                addLog('success', `Purchase Success:\n${JSON.stringify(purchase, null, 2)}`);
+                addLog('info', `Simulating web server verification...`);
+                try {
+                    await finishPurchase(purchase);
+                    addLog('success', `Transaction Finished: ${purchase.transactionId || purchase.productId}`);
+                } catch (e: any) {
+                    addLog('error', `Finish Failed: ${e.message}`);
+                }
             },
             onPurchaseError: error => {
-                addLog('error', `Purchase Failed: ${error.message}`);
+                addLog('error', `Purchase Failed:\n${JSON.stringify(error, null, 2)}`);
             },
         });
 
-    const handleRestore = async () => {
-        if (loading) return;
-        addLog('info', 'Starting Restore...');
-        await restorePurchases();
-    };
+    // 상품 목록 로드 상세 로깅
+    useEffect(() => {
+        if (products.length > 0) {
+            addLog('event', `Loaded ${products.length} products from store:\n${JSON.stringify(products, null, 2)}`);
+        }
+    }, [products.length, addLog]);
+
+    // 보유 중인 구독권 로드 상세 로깅
+    useEffect(() => {
+        if (currentPurchases.length > 0) {
+            addLog(
+                'event',
+                `Found ${currentPurchases.length} active purchases:\n${JSON.stringify(currentPurchases, null, 2)}`
+            );
+        }
+    }, [currentPurchases.length, addLog]);
 
     const getDisplayPrice = useCallback((item: ProductSubscription) => {
         const p = item as any;
@@ -211,7 +229,7 @@ export const IapTestScreen = () => {
                                     loading && { opacity: 0.5 },
                                 ]}
                                 onPress={() => {
-                                    addLog('info', `Requesting purchase: ${product.id}`);
+                                    addLog('event', `Requesting purchase: ${product.id}`);
                                     handlePurchase(product.id);
                                 }}
                                 disabled={loading}
@@ -227,14 +245,6 @@ export const IapTestScreen = () => {
                     })}
 
                     <View style={styles.divider} />
-
-                    <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: '#F5A623' }]}
-                        onPress={handleRestore}
-                        disabled={loading}
-                    >
-                        <Text style={styles.buttonText}>Restore</Text>
-                    </TouchableOpacity>
 
                     <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: '#8E44AD' }]}
@@ -283,7 +293,11 @@ const styles = StyleSheet.create({
         marginRight: 8,
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     },
-    logText: { fontSize: 14, flex: 1 },
+    logText: {
+        fontSize: 12,
+        flex: 1,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    },
     emptyText: { color: '#444', textAlign: 'center', marginTop: 20 },
     bottomContainer: {
         backgroundColor: '#1E1E1E',

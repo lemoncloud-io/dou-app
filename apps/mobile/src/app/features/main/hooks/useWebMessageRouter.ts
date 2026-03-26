@@ -41,8 +41,14 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
     // --- Domain-specific Handlers ---
     const { fetchSafeAreaInfo } = useSafeAreaHandler(bridge);
     const { fetchFcmToken } = useFcmHandler(bridge);
-    const { fetchProducts, fetchCurrentPurchases, restorePurchase, purchaseSubscription, isIapLoading } =
-        useSubscriptionIapHandler(bridge);
+    const {
+        fetchProducts,
+        fetchCurrentPurchases,
+        handlePurchaseSubscription,
+        handleFinishPurchase,
+        handleOpenSubscriptionManagement,
+        isIapLoading,
+    } = useSubscriptionIapHandler(bridge);
 
     const {
         handleFetchAllCacheData,
@@ -97,18 +103,23 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
                         fetchSafeAreaInfo();
                         break;
                     // -- In-App Purchases (IAP) --
-                    case 'RestorePurchase':
-                        void restorePurchase();
-                        break;
+
                     case 'FetchProducts':
                         void fetchProducts();
                         break;
                     case 'FetchCurrentPurchases':
                         void fetchCurrentPurchases();
                         break;
-                    case 'PurchaseSubscription':
-                        void purchaseSubscription(message.data.sku);
+                    case 'Purchase':
+                        void handlePurchaseSubscription(message.data.sku, message.data.oldSku);
                         break;
+                    case 'FinishPurchaseTransaction':
+                        void handleFinishPurchase(message.data.purchase);
+                        break;
+                    case `OpenSubscriptionManagement`:
+                        void handleOpenSubscriptionManagement();
+                        break;
+
                     // -- Native Modals --
                     case 'OpenModal': {
                         handleOpenModal(message.data);
@@ -201,10 +212,11 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
         handleCloseModal,
         fetchFcmToken,
         fetchSafeAreaInfo,
-        restorePurchase,
         fetchProducts,
         fetchCurrentPurchases,
-        purchaseSubscription,
+        handlePurchaseSubscription,
+        handleFinishPurchase,
+        handleOpenSubscriptionManagement,
         handleFetchCacheData,
         handleFetchAllCacheData,
         handleSaveCacheData,
