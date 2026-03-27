@@ -80,19 +80,32 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
 
     // Handle warm start / deferred deep links via injectJavaScript
     useEffect(() => {
-        if (!pendingUrl || !isWebViewLoaded || !webViewRef.current) return;
+        logger.info(
+            'DEEPLINK',
+            `🔍 Effect triggered | pendingUrl: ${pendingUrl ?? 'null'} | loaded: ${isWebViewLoaded} | hasRef: ${!!webViewRef.current} | source: ${source ?? 'null'}`
+        );
+
+        if (!pendingUrl || !isWebViewLoaded || !webViewRef.current) {
+            if (pendingUrl) {
+                logger.info(
+                    'DEEPLINK',
+                    `⚠️ URL pending but blocked: loaded=${isWebViewLoaded}, hasRef=${!!webViewRef.current}`
+                );
+            }
+            return;
+        }
         if (source === 'cold_start') {
             clearPendingUrl();
             return;
         }
 
-        logger.info('DEEPLINK', `Injecting deep link URL: ${pendingUrl}`, pendingEnvs);
         const targetUrl = buildTargetUrl(pendingUrl, pendingEnvs);
         // Add timestamp to prevent WebView from ignoring navigation to the same URL
         const urlWithCacheBust = new URL(targetUrl);
         urlWithCacheBust.searchParams.set('_t', Date.now().toString());
         const finalUrl = urlWithCacheBust.toString().replace(/'/g, '%27');
         const script = `window.location.href = '${finalUrl}';\ntrue;`;
+        logger.info('DEEPLINK', `✅ Injecting JS into WebView: ${finalUrl}`);
         webViewRef.current.injectJavaScript(script);
         clearPendingUrl();
     }, [pendingUrl, pendingEnvs, source, isWebViewLoaded, clearPendingUrl, webViewRef]);

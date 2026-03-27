@@ -34,6 +34,8 @@ export class DeepLinkManager {
     private isInitialized = false;
     private coldStartResolve: (() => void) | null = null;
     private coldStartPromise: Promise<void> | null = null;
+    // DEBUG: deep link event counter for diagnosing real device issues
+    private deepLinkCount = 0;
 
     constructor(config?: Partial<DeepLinkConfig>) {
         this.config = {
@@ -84,7 +86,10 @@ export class DeepLinkManager {
 
         // Listen for URL events (app already running - warm start)
         this.linkingSubscription = Linking.addEventListener('url', ({ url }) => {
-            console.log('[DeepLinkManager] Warm start URL:', url);
+            this.deepLinkCount++;
+            console.log(
+                `[DeepLinkManager] 🔗 WARM START #${this.deepLinkCount} | ${new Date().toISOString()} | URL: ${url}`
+            );
             this.handleDeepLink(url, 'warm_start');
         });
     }
@@ -122,51 +127,55 @@ export class DeepLinkManager {
      * custom schemes (chatic-dev://s/xxx) break isShortUrl() parsing.
      */
     private async handleDeepLink(url: string, source: DeepLinkSource): Promise<void> {
+        const tag = `[DeepLink #${this.deepLinkCount}]`;
         let processedUrl = url;
         let envs: ServiceEndpoints | undefined;
 
         // 1. Validate original URL
         if (!isValidDeepLink(processedUrl)) {
-            console.error('[DeepLinkManager] Invalid deep link URL:', processedUrl);
+            console.error(`${tag} ❌ STEP1 FAILED: invalid URL: ${processedUrl}`);
             return;
         }
+        console.log(`${tag} ✅ STEP1: validated`);
 
         // 2. Convert custom scheme / deep link domain to frontend URL first
         if (needsConversion(processedUrl)) {
             processedUrl = convertDeepLinkToFrontendUrl(processedUrl);
 
             if (!processedUrl.startsWith('https://')) {
-                console.error('[DeepLinkManager] Converted URL is not HTTPS:', processedUrl);
+                console.error(`${tag} ❌ STEP2 FAILED: not HTTPS: ${processedUrl}`);
                 return;
             }
         }
+        console.log(`${tag} ✅ STEP2: converted → ${processedUrl}`);
 
         // 3. Expand short URL (/s/xxx) after domain conversion
         try {
             const result = await convertShortUrlWithEnvs(processedUrl);
             processedUrl = result.url;
             envs = result.envs;
+            console.log(`${tag} ✅ STEP3: expanded → ${processedUrl}`);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
-            console.error('[DeepLinkManager] Error expanding short URL:', message);
+            console.error(`${tag} ❌ STEP3 FAILED: short URL expansion error:`, message);
             this.webViewHandler?.handleError?.(message);
             return;
         }
 
         // If URL is still a short URL after expansion, Firestore lookup failed
         if (isShortUrl(processedUrl)) {
-            console.error('[DeepLinkManager] Short URL expansion failed, URL unchanged:', processedUrl);
+            console.error(`${tag} ❌ STEP3 FAILED: short URL unchanged (Firestore lookup failed):`, processedUrl);
             this.webViewHandler?.handleError?.('Invite link not found');
             return;
         }
 
         // 4. Deliver to handler
         if (!this.webViewHandler) {
-            console.error('[DeepLinkManager] WebView handler not initialized');
+            console.error(`${tag} ❌ STEP4 FAILED: no WebView handler`);
             return;
         }
 
-        console.log('[DeepLinkManager] Delivering deep link:', processedUrl, 'source:', source, 'envs:', envs);
+        console.log(`${tag} ✅ STEP4: delivering to WebView | source: ${source}`);
         this.webViewHandler.handleDeepLink(processedUrl, source, envs);
     }
 
