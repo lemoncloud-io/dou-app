@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -212,7 +212,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                                 disabled:bg-muted disabled:text-muted-foreground
                                 enabled:bg-[#B0EA10] enabled:text-[#222325]"
                         >
-                            {isPending ? '...' : t('addFriend.share')}
+                            {isPending ? <Loader2 className="mx-auto size-5 animate-spin" /> : t('addFriend.share')}
                         </button>
                     </div>
                     <div
