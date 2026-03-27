@@ -1,17 +1,19 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { t } from '../../i18n';
+import { t } from '../i18n';
 
 interface DeepLinkErrorViewProps {
     onGoHome: () => void;
+    reason?: string | null;
 }
 
-export const DeepLinkErrorView = ({ onGoHome }: DeepLinkErrorViewProps) => {
+export const DeepLinkErrorView = ({ onGoHome, reason }: DeepLinkErrorViewProps) => {
     return (
         <View style={styles.container}>
-            <Image source={require('../../../../assets/src/logo/logo.png')} style={styles.logo} resizeMode="contain" />
+            <Image source={require('../../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
             <Text style={styles.title}>{t('deepLink.errorTitle')}</Text>
             <Text style={styles.message}>{t('deepLink.errorMessage')}</Text>
+            {reason && <Text style={styles.reason}>{reason}</Text>}
             <TouchableOpacity style={styles.button} onPress={onGoHome}>
                 <Text style={styles.buttonText}>{t('deepLink.goHome')}</Text>
             </TouchableOpacity>
@@ -57,5 +59,12 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         color: '#ffffff',
+    },
+    reason: {
+        fontSize: 12,
+        fontWeight: '400',
+        color: '#BABCC0',
+        textAlign: 'center',
+        marginTop: 8,
     },
 });

@@ -29,7 +29,7 @@ export interface WebViewHandler {
      * Handle deep link processing error
      * Called when short URL expansion (Firestore lookup) fails
      */
-    handleError?: () => void;
+    handleError?: (reason: string) => void;
 }
 
 export interface DeferredLinkData {

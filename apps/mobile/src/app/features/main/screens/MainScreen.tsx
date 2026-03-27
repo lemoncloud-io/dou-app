@@ -15,8 +15,14 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const { bridge } = useAppBridge(webViewRef);
 
     const { setWebCanGoBack, setNavCanGoBack } = useWebViewNavigation(webViewRef);
-    const { initialSource, handleWebViewLoad, isColdStartReady, deepLinkError, handleDismissError } =
-        useWebViewDeepLink(webViewRef);
+    const {
+        initialSource,
+        handleWebViewLoad,
+        isColdStartReady,
+        deepLinkError,
+        deepLinkErrorReason,
+        handleDismissError,
+    } = useWebViewDeepLink(webViewRef);
 
     const { handleMessage, isIapLoading } = useWebMessageRouter({
         bridge,
@@ -33,7 +39,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     }
 
     if (deepLinkError) {
-        return <DeepLinkErrorView onGoHome={handleDismissError} />;
+        return <DeepLinkErrorView onGoHome={handleDismissError} reason={deepLinkErrorReason} />;
     }
 
     return (

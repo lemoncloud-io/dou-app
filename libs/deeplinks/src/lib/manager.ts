@@ -147,15 +147,16 @@ export class DeepLinkManager {
             processedUrl = result.url;
             envs = result.envs;
         } catch (error) {
-            console.error('[DeepLinkManager] Error expanding short URL:', error);
-            this.webViewHandler?.handleError?.();
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            console.error('[DeepLinkManager] Error expanding short URL:', message);
+            this.webViewHandler?.handleError?.(message);
             return;
         }
 
         // If URL is still a short URL after expansion, Firestore lookup failed
         if (isShortUrl(processedUrl)) {
             console.error('[DeepLinkManager] Short URL expansion failed, URL unchanged:', processedUrl);
-            this.webViewHandler?.handleError?.();
+            this.webViewHandler?.handleError?.('Invite link not found');
             return;
         }
 

@@ -20,9 +20,9 @@ export const useInitializeDeepLink = () => {
                 logger.info('DEEPLINK', `[App] Deep link received: url, 'source:', source, 'envs:', envs`);
                 useDeepLinkStore.getState().setPendingUrl(url, source, envs);
             },
-            handleError: () => {
-                logger.error('DEEPLINK', '[App] Deep link processing failed');
-                useDeepLinkStore.getState().setDeepLinkError(true);
+            handleError: (reason: string) => {
+                logger.error('DEEPLINK', `[App] Deep link processing failed: ${reason}`);
+                useDeepLinkStore.getState().setDeepLinkError(true, reason);
             },
         });
 

@@ -19,6 +19,8 @@ interface DeepLinkState {
     isWebViewReady: boolean;
     /** Whether deep link processing failed */
     deepLinkError: boolean;
+    /** Deep link error reason */
+    deepLinkErrorReason: string | null;
     /** Set pending deep link URL with optional envs */
     setPendingUrl: (url: string, source: DeepLinkSource, envs?: ServiceEndpoints) => void;
     /** Clear pending deep link URL */
@@ -26,7 +28,7 @@ interface DeepLinkState {
     /** Mark WebView as ready */
     setWebViewReady: (ready: boolean) => void;
     /** Set deep link error state */
-    setDeepLinkError: (error: boolean) => void;
+    setDeepLinkError: (error: boolean, reason?: string) => void;
 }
 
 export const useDeepLinkStore = create<DeepLinkState>(set => ({
@@ -34,10 +36,11 @@ export const useDeepLinkStore = create<DeepLinkState>(set => ({
     source: null,
     pendingEnvs: null,
     isWebViewReady: false,
-    deepLinkError: true,
+    deepLinkError: false,
+    deepLinkErrorReason: null,
     setPendingUrl: (url, source, envs) =>
-        set({ pendingUrl: url, source, pendingEnvs: envs ?? null, deepLinkError: false }),
+        set({ pendingUrl: url, source, pendingEnvs: envs ?? null, deepLinkError: false, deepLinkErrorReason: null }),
     clearPendingUrl: () => set({ pendingUrl: null, source: null, pendingEnvs: null }),
     setWebViewReady: ready => set({ isWebViewReady: ready }),
-    setDeepLinkError: error => set({ deepLinkError: error }),
+    setDeepLinkError: (error, reason) => set({ deepLinkError: error, deepLinkErrorReason: reason ?? null }),
 }));

@@ -33,8 +33,16 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
     const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
     const [isColdStartReady, setIsColdStartReady] = useState(false);
     const coldStartUrlRef = useRef<string | null>(null);
-    const { pendingUrl, pendingEnvs, source, deepLinkError, clearPendingUrl, setWebViewReady, setDeepLinkError } =
-        useDeepLinkStore();
+    const {
+        pendingUrl,
+        pendingEnvs,
+        source,
+        deepLinkError,
+        deepLinkErrorReason,
+        clearPendingUrl,
+        setWebViewReady,
+        setDeepLinkError,
+    } = useDeepLinkStore();
 
     // Wait for cold start deep link resolution before allowing WebView to load
     useEffect(() => {
@@ -89,5 +97,12 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
         setDeepLinkError(false);
     }, [setDeepLinkError]);
 
-    return { initialSource, handleWebViewLoad, isColdStartReady, deepLinkError, handleDismissError };
+    return {
+        initialSource,
+        handleWebViewLoad,
+        isColdStartReady,
+        deepLinkError,
+        deepLinkErrorReason,
+        handleDismissError,
+    };
 };
