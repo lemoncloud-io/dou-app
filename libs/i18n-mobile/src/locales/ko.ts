@@ -21,4 +21,9 @@ export const ko = {
         processing: '처리 중입니다...',
         paymentProcessing: '결제 처리 중...',
     },
+    deepLink: {
+        errorTitle: '초대 링크를 열 수 없어요',
+        errorMessage: '링크가 만료되었거나 유효하지 않습니다.',
+        goHome: '홈으로 이동',
+    },
 } as const;

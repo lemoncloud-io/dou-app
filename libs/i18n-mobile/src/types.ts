@@ -8,4 +8,7 @@ export type TranslationKey =
     | 'app.updateDialog.update'
     | 'app.updateDialog.later'
     | 'loader.processing'
-    | 'loader.paymentProcessing';
+    | 'loader.paymentProcessing'
+    | 'deepLink.errorTitle'
+    | 'deepLink.errorMessage'
+    | 'deepLink.goHome';

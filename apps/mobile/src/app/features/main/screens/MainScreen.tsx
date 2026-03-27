@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 
-import { AppWebView, FullScreenLoader, t } from '../../../common';
+import { AppWebView, DeepLinkErrorView, FullScreenLoader, t } from '../../../common';
 import { useAppBridge } from '../../../common/webview/hooks';
 import type { WebView } from 'react-native-webview';
 import type { MainScreenProps } from '../navigation';
@@ -15,7 +15,14 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const { bridge } = useAppBridge(webViewRef);
 
     const { setWebCanGoBack, setNavCanGoBack } = useWebViewNavigation(webViewRef);
-    const { initialSource, handleWebViewLoad, isColdStartReady } = useWebViewDeepLink(webViewRef);
+    const {
+        initialSource,
+        handleWebViewLoad,
+        isColdStartReady,
+        deepLinkError,
+        deepLinkErrorReason,
+        handleDismissError,
+    } = useWebViewDeepLink(webViewRef);
 
     const { handleMessage, isIapLoading } = useWebMessageRouter({
         bridge,
@@ -26,9 +33,13 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     if (!isColdStartReady || !initialSource) {
         return (
             <View style={{ flex: 1, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#888" />
+                <ActivityIndicator size="small" color="#888" />
             </View>
         );
+    }
+
+    if (deepLinkError) {
+        return <DeepLinkErrorView onGoHome={handleDismissError} reason={deepLinkErrorReason} />;
     }
 
     return (

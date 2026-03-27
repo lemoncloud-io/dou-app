@@ -33,13 +33,27 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
     const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
     const [isColdStartReady, setIsColdStartReady] = useState(false);
     const coldStartUrlRef = useRef<string | null>(null);
-    const { pendingUrl, pendingEnvs, source, clearPendingUrl, setWebViewReady } = useDeepLinkStore();
+    const {
+        pendingUrl,
+        pendingEnvs,
+        source,
+        deepLinkError,
+        deepLinkErrorReason,
+        clearPendingUrl,
+        setWebViewReady,
+        setDeepLinkError,
+    } = useDeepLinkStore();
 
     // Wait for cold start deep link resolution before allowing WebView to load
     useEffect(() => {
         const manager = getDeepLinkManager();
         manager.waitForColdStart().then(() => {
             const state = useDeepLinkStore.getState();
+            // If error occurred during cold start, don't set source — let MainScreen show error
+            if (state.deepLinkError) {
+                setIsColdStartReady(true);
+                return;
+            }
             if (state.pendingUrl && state.source === 'cold_start') {
                 const targetUrl = buildTargetUrl(state.pendingUrl, state.pendingEnvs);
                 coldStartUrlRef.current = targetUrl;
@@ -79,5 +93,16 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
         clearPendingUrl();
     }, [pendingUrl, pendingEnvs, source, isWebViewLoaded, clearPendingUrl, webViewRef]);
 
-    return { initialSource, handleWebViewLoad, isColdStartReady };
+    const handleDismissError = useCallback(() => {
+        setDeepLinkError(false);
+    }, [setDeepLinkError]);
+
+    return {
+        initialSource,
+        handleWebViewLoad,
+        isColdStartReady,
+        deepLinkError,
+        deepLinkErrorReason,
+        handleDismissError,
+    };
 };

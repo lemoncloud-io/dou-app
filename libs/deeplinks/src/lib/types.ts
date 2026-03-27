@@ -25,6 +25,11 @@ export interface WebViewHandler {
      * @param envs - Optional service endpoints to inject into WebView
      */
     handleDeepLink: (url: string, source: DeepLinkSource, envs?: ServiceEndpoints) => void | Promise<void>;
+    /**
+     * Handle deep link processing error
+     * Called when short URL expansion (Firestore lookup) fails
+     */
+    handleError?: (reason: string) => void;
 }
 
 export interface DeferredLinkData {
