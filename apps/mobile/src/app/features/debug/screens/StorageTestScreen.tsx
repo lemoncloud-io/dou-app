@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RNFS from 'react-native-fs';
 import { cacheRepository } from '../../../common/storages';
 import { database } from '../../../common/storages/sqlite';
+import type { CacheType } from '@chatic/app-messages';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -23,7 +24,7 @@ export const StorageTestScreen = () => {
     const insets = useSafeAreaInsets();
 
     const [cloudIds] = useState(['cloud-1', 'cloud-2', 'cloud-3']);
-    const [dataType] = useState('chat');
+    const dataType: CacheType = 'chat';
     const [targetCid, setTargetCid] = useState(cloudIds[0]);
 
     // 데이터 상태 관리
@@ -75,7 +76,7 @@ export const StorageTestScreen = () => {
         try {
             const id = `msg-${Date.now()}`;
             const item = createRandomChat(targetCid, id);
-            await cacheRepository.save({ type: dataType, id, cid: targetCid || undefined, item });
+            await cacheRepository.save({ type: dataType, id, cid: targetCid, item });
             logResult('Save', `Saved message ${id}`);
             await fetchItems(); // 저장 후 즉시 새로고침
         } catch (e) {
@@ -89,7 +90,7 @@ export const StorageTestScreen = () => {
                 const id = `msg-batch-${Date.now()}-${i}`;
                 return createRandomChat(targetCid, id);
             });
-            await cacheRepository.saveAll({ type: dataType, items: newItems, cid: targetCid || undefined });
+            await cacheRepository.saveAll({ type: dataType, items: newItems, cid: targetCid });
             logResult('SaveAll', 'Saved 5 messages.');
             await fetchItems(); // 저장 후 즉시 새로고침
         } catch (e) {
@@ -99,7 +100,7 @@ export const StorageTestScreen = () => {
 
     const handleDeleteSingle = async (id: string) => {
         try {
-            await cacheRepository.delete({ type: dataType, id, cid: targetCid || undefined });
+            await cacheRepository.delete({ type: dataType, id, cid: targetCid });
             logResult('Delete', `Deleted message ${id}`);
             await fetchItems(); // 삭제 후 즉시 새로고침
         } catch (e) {
@@ -111,7 +112,7 @@ export const StorageTestScreen = () => {
         if (items.length === 0) return logResult('DeleteAll', '삭제할 데이터가 없습니다.');
         const ids = items.map(item => item.id).filter(Boolean);
         try {
-            await cacheRepository.deleteAll({ type: dataType, ids, cid: targetCid || undefined });
+            await cacheRepository.deleteAll({ type: dataType, ids, cid: targetCid });
             logResult('DeleteAll', `Deleted ${ids.length} messages.`);
             await fetchItems(); // 삭제 후 즉시 새로고침
         } catch (e) {

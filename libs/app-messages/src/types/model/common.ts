@@ -1,5 +1,3 @@
-import type { ProductSubscription, Purchase } from 'react-native-iap';
-
 export type PageLanguage = 'ko' | 'en' | 'cn' | 'jp' | 'vn' | 'id' | 'th';
 export type Env = 'local' | 'stage' | 'prod';
 export type Platform = 'ios' | 'android' | 'windows' | 'macos' | 'web';
@@ -76,20 +74,6 @@ export interface AppLogInfo {
     timestamp?: number;
     level?: AppLogLevel;
     error?: any;
-}
-
-/**
- * 인앱 결제 구독 상품 정보
- */
-export interface ProductSubscriptionInfo {
-    products: ProductSubscription[];
-}
-
-/**
- * 인앱 결제 구매 내역 정보
- */
-export interface PurchaseInfo {
-    purchases: Purchase[];
 }
 
 /**

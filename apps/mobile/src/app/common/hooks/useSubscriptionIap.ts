@@ -1,22 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
-import {
-    type ProductSubscription,
-    type Purchase,
-    type PurchaseError,
-    purchaseErrorListener,
-    purchaseUpdatedListener,
-} from 'react-native-iap';
+import { type Purchase, type PurchaseError, purchaseErrorListener, purchaseUpdatedListener } from 'react-native-iap';
 
 import { logger } from '../index';
 import { subscriptionIapService } from '../services';
+import type { IapProductSubscription } from '@chatic/app-messages';
 
 /**
- * @property onPurchaseSuccess: Listener for when all purchase processes are successfully completed
+ * @property onPurchaseSuccess: Listener for when a purchase is made. Passes the raw receipt to the web for server verification.
  * @property onPurchaseError: Listener for when an error occurs during the purchase process
  */
 interface UseIapOptions {
-    onPurchaseSuccess?: () => void;
+    onPurchaseSuccess?: (purchase: Purchase) => void;
     onPurchaseError?: (error: PurchaseError) => void;
 }
 
@@ -24,7 +19,7 @@ interface UseIapOptions {
  * In-app purchase hook
  */
 export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIapOptions = {}) => {
-    const [products, setProducts] = useState<ProductSubscription[]>([]);
+    const [products, setProducts] = useState<IapProductSubscription[]>([]);
     const [currentPurchases, setCurrentPurchases] = useState<Purchase[]>([]);
     const [loading, setLoading] = useState(false);
     const callbacks = useRef({ onPurchaseSuccess, onPurchaseError });
@@ -43,19 +38,16 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
 
     /**
      * Transaction processing
-     * - Performs server verification after a successful purchase
-     * - Executes the onPurchaseSuccess callback after verification and transaction processing are complete
+     * - NO auto-verify or auto-finish here.
+     * - Simply relays the raw Purchase object to the Web via onPurchaseSuccess callback.
      */
     const handleCompleteTransaction = useCallback(
         async (purchase: Purchase) => {
             try {
-                await subscriptionIapService.verifyPurchase(purchase);
-                await subscriptionIapService.finish(purchase);
-
                 await refreshPurchases();
 
                 if (callbacks.current.onPurchaseSuccess) {
-                    await callbacks.current.onPurchaseSuccess();
+                    callbacks.current.onPurchaseSuccess(purchase);
                 }
             } catch (e) {
                 logger.error('IAP', 'Failed to process transaction.', e);
@@ -122,42 +114,42 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     }, [handleCompleteTransaction]);
 
     /**
-     * Process purchase
-     * @param sku Product code (`Stock Keeping Unit`)
-     * @param oldSku (Optional) The current subscription product code to replace for upgrade/downgrade
+     * 구매 신청
+     * @param id 상품 코드 (sku)
+     * @param offerToken (Android 필수) 결제할 오퍼 토큰
+     * @param oldPlanId (Android) 현재 구독 중인 요금제 ID (basePlanId)
+     * @param newPlanId (Android) 새로 결제하려는 요금제 ID (basePlanId) - 업/다운 판별용
+     *
+     * 주의사항: oldPlanId, newPlanId가 존재하지 않을 경우, Android에서는 업그레이드/다운그레이드 모드가 기본 설정값을 따름 (WITH_TIME_PRORATION)
      */
-    const handlePurchase = async (sku: string, oldSku?: string) => {
+    const handlePurchase = async (id: string, offerToken?: string, oldPlanId?: string, newPlanId?: string) => {
         if (loading) return;
         setLoading(true);
 
         try {
-            await subscriptionIapService.purchase(sku, oldSku);
+            await subscriptionIapService.purchase(id, offerToken, oldPlanId, newPlanId);
         } catch (e: any) {
             logger.error('IAP', 'Purchase Request Failed', e);
 
-            /*
-             * Execute restore (verification) logic if already owned
-             */
-            if (e.code === 'E_ALREADY_OWNED') {
-                await restorePurchases();
-            }
             setLoading(false);
         }
     };
 
     /**
-     * - Scans for products that were purchased in the app but failed server verification, and retries
-     * - Processes the final purchase completion transaction upon successful server verification
-     * - For iOS, calling restorePurchases() will deliver all previously purchased products again via the purchaseUpdatedListener
+     * Finish a transaction after successful server-side verification by the Web frontend
      */
-    const restorePurchases = useCallback(async () => {
-        const restored = await subscriptionIapService.restorePurchases();
-
-        if (restored.length > 0) {
-            callbacks.current.onPurchaseSuccess?.();
-            await refreshPurchases();
-        }
-    }, [refreshPurchases]);
+    const finishPurchase = useCallback(
+        async (purchase: Purchase) => {
+            try {
+                await subscriptionIapService.finish(purchase);
+                await refreshPurchases();
+            } catch (e) {
+                logger.error('IAP', `Failed to finish purchase: ${purchase.productId}`, e);
+                throw e;
+            }
+        },
+        [refreshPurchases]
+    );
 
     /**
      * Navigate to subscription management page
@@ -166,5 +158,5 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
         await subscriptionIapService.linkToManageSubscriptions();
     }, []);
 
-    return { products, currentPurchases, loading, handlePurchase, restorePurchases, openSubscriptionManagement };
+    return { products, currentPurchases, loading, handlePurchase, finishPurchase, openSubscriptionManagement };
 };

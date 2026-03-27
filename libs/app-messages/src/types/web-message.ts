@@ -9,6 +9,7 @@ import type {
     SaveAllCacheDataPayload,
     SaveCacheDataPayload,
 } from './model';
+import type { FinishPurchaseTransactionPayload, PurchasePayload } from './model/iap';
 
 /**
  * Web Message:
@@ -35,10 +36,17 @@ export const WebMessageTypes = {
     FetchDeviceInfo: 'FetchDeviceInfo',
     FetchFcmToken: 'FetchFcmToken',
     FetchSafeArea: 'FetchSafeArea',
-    PurchaseSubscription: 'PurchaseSubscription',
-    RestorePurchase: 'RestorePurchase',
+    /**
+     * IAP Event
+     */
     FetchProducts: 'FetchProducts',
     FetchCurrentPurchases: 'FetchCurrentPurchases',
+    Purchase: 'Purchase',
+    FinishPurchaseTransaction: 'FinishPurchaseTransaction',
+    OpenSubscriptionManagement: `OpenSubscriptionManagement`,
+    /**
+     * Cache Event
+     */
     FetchAllCacheData: 'FetchAllCacheData',
     FetchCacheData: 'FetchCacheData',
     SaveCacheData: 'SaveCacheData',
@@ -48,6 +56,9 @@ export const WebMessageTypes = {
     FetchPreference: 'FetchPreference',
     SavePreference: 'SavePreference',
     DeletePreference: 'DeletePreference',
+    /**
+     * OAuth Event
+     */
     OAuthLogin: 'OAuthLogin',
     OAuthLogout: 'OAuthLogout',
     OpenURL: 'OpenURL',
@@ -84,11 +95,12 @@ export interface OnScrollData extends WebDefaultMessage<'OnScroll'> {
 /**
  * 구독 상품 구매 요청
  */
-export interface PurchaseSubscription extends WebDefaultMessage<'PurchaseSubscription'> {
-    data: {
-        /** 상품 ID (SKU) */
-        sku: string;
-    };
+export interface Purchase extends WebDefaultMessage<'Purchase'> {
+    data: PurchasePayload;
+}
+
+export interface FinishPurchaseTransaction extends WebDefaultMessage<`FinishPurchaseTransaction`> {
+    data: FinishPurchaseTransactionPayload;
 }
 
 /**
@@ -342,10 +354,11 @@ interface WebMessageMap {
     /**
      * IAP Event
      */
-    PurchaseSubscription: PurchaseSubscription;
-    RestorePurchase: WebDefaultMessage<'RestorePurchase'>;
     FetchProducts: WebDefaultMessage<'FetchProducts'>;
     FetchCurrentPurchases: WebDefaultMessage<'FetchCurrentPurchases'>;
+    Purchase: Purchase;
+    FinishPurchaseTransaction: FinishPurchaseTransaction;
+    OpenSubscriptionManagement: WebDefaultMessage<`OpenSubscriptionManagement`>;
 
     /**
      * Cache Event
