@@ -34,7 +34,6 @@ export class DeepLinkManager {
     private isInitialized = false;
     private coldStartResolve: (() => void) | null = null;
     private coldStartPromise: Promise<void> | null = null;
-
     constructor(config?: Partial<DeepLinkConfig>) {
         this.config = {
             ...DEFAULT_CONFIG,

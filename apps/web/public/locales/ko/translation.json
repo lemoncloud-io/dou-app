@@ -13,7 +13,8 @@
         "close": "닫기",
         "save": "변경사항 저장",
         "saving": "저장 중...",
-        "comingSoon": "기능 준비 중이에요 🛠️"
+        "comingSoon": "기능 준비 중이에요 🛠️",
+        "retry": "다시 시도"
     },
     "nav": {
         "home": "홈",

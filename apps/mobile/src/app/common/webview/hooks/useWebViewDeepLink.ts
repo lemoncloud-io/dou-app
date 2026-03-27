@@ -88,7 +88,11 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
 
         logger.info('DEEPLINK', `Injecting deep link URL: ${pendingUrl}`, pendingEnvs);
         const targetUrl = buildTargetUrl(pendingUrl, pendingEnvs);
-        const script = `window.location.href = '${targetUrl.replace(/'/g, '%27')}';\ntrue;`;
+        // Add timestamp to prevent WebView from ignoring navigation to the same URL
+        const urlWithCacheBust = new URL(targetUrl);
+        urlWithCacheBust.searchParams.set('_t', Date.now().toString());
+        const finalUrl = urlWithCacheBust.toString().replace(/'/g, '%27');
+        const script = `window.location.href = '${finalUrl}';\ntrue;`;
         webViewRef.current.injectJavaScript(script);
         clearPendingUrl();
     }, [pendingUrl, pendingEnvs, source, isWebViewLoaded, clearPendingUrl, webViewRef]);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
@@ -23,11 +23,31 @@ export const LoginPage = (): JSX.Element => {
     const [inviteData, setInviteData] = useState<LoginInviteResponse | null>(null);
     const [isAccepting, setIsAccepting] = useState(false);
     const [isFetchingInvite, setIsFetchingInvite] = useState(false);
+    const [inviteError, setInviteError] = useState(false);
     const loginCalled = useRef(false);
     const { mutateAsync: registerDevice, isPending: isRegisteringDevice } = useRegisterDevice();
     const { deviceId, isReady } = useDynamicDeviceId();
 
     const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+
+    const fetchInvite = useCallback(async () => {
+        const code = urlParams.get('code');
+        const backend = urlParams.get('_backend') ?? undefined;
+        if (!code) return;
+
+        setInviteError(false);
+        setIsFetchingInvite(true);
+        try {
+            const data = await loginWithInviteCode(code, backend);
+            setInviteData(data);
+        } catch (error) {
+            console.error('[LoginPage] Fetch invite data failed:', error);
+            toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
+            setInviteError(true);
+        } finally {
+            setIsFetchingInvite(false);
+        }
+    }, [urlParams, toast, t]);
 
     useEffect(() => {
         if (!isReady) return;
@@ -39,24 +59,7 @@ export const LoginPage = (): JSX.Element => {
 
         if (code && provider === 'invite') {
             setIsInviteLogin(true);
-            setIsFetchingInvite(true);
-
-            const fetchInviteData = async () => {
-                try {
-                    const data = await loginWithInviteCode(code, urlParams.get('_backend') ?? undefined);
-                    setInviteData(data);
-                } catch (error) {
-                    console.error('[LoginPage] Fetch invite data failed:', error);
-                    toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
-                    setTimeout(() => {
-                        window.location.href = '/auth/logout';
-                    }, 1500);
-                } finally {
-                    setIsFetchingInvite(false);
-                }
-            };
-
-            void fetchInviteData();
+            void fetchInvite();
         } else {
             const handleDeviceRegistration = async () => {
                 try {
@@ -74,7 +77,7 @@ export const LoginPage = (): JSX.Element => {
             };
             handleDeviceRegistration();
         }
-    }, [urlParams, toast, deviceId, isReady, t, registerDevice, setProfile, setIsAuthenticated]);
+    }, [urlParams, toast, deviceId, isReady, t, registerDevice, setProfile, setIsAuthenticated, fetchInvite]);
 
     const handleAccept = async () => {
         if (!inviteData || isAccepting) return;
@@ -122,6 +125,25 @@ export const LoginPage = (): JSX.Element => {
     // Show loading while fetching invite data
     if (isInviteLogin && isFetchingInvite) {
         return <LoadingFallback message={t('auth.inviteLoading')} />;
+    }
+
+    // Show invite error with retry
+    if (isInviteLogin && inviteError) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-[rgba(41,41,58,0.23)]">
+                <div className="relative mx-4 w-full max-w-[308px] rounded-[18px] bg-white/80 backdrop-blur-[4px] shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] px-[10px] pt-[26px] pb-[14px]">
+                    <div className="flex flex-col items-center pt-4 w-full gap-4">
+                        <p className="text-center text-[16px] font-medium text-[#84888f]">{t('inviteAccept.failed')}</p>
+                        <button
+                            onClick={fetchInvite}
+                            className="w-full max-w-[200px] h-[42px] rounded-full bg-[#b0ea10] text-[14px] font-semibold text-[#222325]"
+                        >
+                            {t('common.retry')}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     // Show invite accept UI
