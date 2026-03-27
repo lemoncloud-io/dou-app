@@ -18,12 +18,11 @@ export const useInitializeDeepLink = () => {
         manager.initialize({
             handleDeepLink: (url: string, source: DeepLinkSource, envs?: ServiceEndpoints) => {
                 logger.info('DEEPLINK', `[App] Deep link received: url, 'source:', source, 'envs:', envs`);
-
-                /**
-                 * Store the received deep link information in the Zustand global store.
-                 * Once the webview is fully loaded, it will read this state to perform URL navigation and storage processing.
-                 */
                 useDeepLinkStore.getState().setPendingUrl(url, source, envs);
+            },
+            handleError: () => {
+                logger.error('DEEPLINK', '[App] Deep link processing failed');
+                useDeepLinkStore.getState().setDeepLinkError(true);
             },
         });
 

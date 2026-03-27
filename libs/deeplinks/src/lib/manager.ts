@@ -15,7 +15,7 @@
 import { Linking } from 'react-native';
 
 import { handleDeferredDeepLink } from './deferred';
-import { isValidDeepLink } from './parser';
+import { isShortUrl, isValidDeepLink } from './parser';
 import { convertDeepLinkToFrontendUrl, convertShortUrlWithEnvs, needsConversion } from './urlConverter';
 
 import type { ServiceEndpoints } from './urlConverter';
@@ -148,6 +148,15 @@ export class DeepLinkManager {
             envs = result.envs;
         } catch (error) {
             console.error('[DeepLinkManager] Error expanding short URL:', error);
+            this.webViewHandler?.handleError?.();
+            return;
+        }
+
+        // If URL is still a short URL after expansion, Firestore lookup failed
+        if (isShortUrl(processedUrl)) {
+            console.error('[DeepLinkManager] Short URL expansion failed, URL unchanged:', processedUrl);
+            this.webViewHandler?.handleError?.();
+            return;
         }
 
         // 4. Deliver to handler

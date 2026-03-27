@@ -17,12 +17,16 @@ interface DeepLinkState {
     pendingEnvs: ServiceEndpoints | null;
     /** Whether WebView has been initialized */
     isWebViewReady: boolean;
+    /** Whether deep link processing failed */
+    deepLinkError: boolean;
     /** Set pending deep link URL with optional envs */
     setPendingUrl: (url: string, source: DeepLinkSource, envs?: ServiceEndpoints) => void;
     /** Clear pending deep link URL */
     clearPendingUrl: () => void;
     /** Mark WebView as ready */
     setWebViewReady: (ready: boolean) => void;
+    /** Set deep link error state */
+    setDeepLinkError: (error: boolean) => void;
 }
 
 export const useDeepLinkStore = create<DeepLinkState>(set => ({
@@ -30,7 +34,10 @@ export const useDeepLinkStore = create<DeepLinkState>(set => ({
     source: null,
     pendingEnvs: null,
     isWebViewReady: false,
-    setPendingUrl: (url, source, envs) => set({ pendingUrl: url, source, pendingEnvs: envs ?? null }),
+    deepLinkError: true,
+    setPendingUrl: (url, source, envs) =>
+        set({ pendingUrl: url, source, pendingEnvs: envs ?? null, deepLinkError: false }),
     clearPendingUrl: () => set({ pendingUrl: null, source: null, pendingEnvs: null }),
     setWebViewReady: ready => set({ isWebViewReady: ready }),
+    setDeepLinkError: error => set({ deepLinkError: error }),
 }));
