@@ -4,13 +4,12 @@ import {
     finishTransaction,
     getAvailablePurchases,
     initConnection,
-    type ProductSubscription,
-    type ProductSubscriptionAndroid,
     type Purchase,
     requestPurchase,
 } from 'react-native-iap';
-import { ANDROID_SKU_LIST, getReplacementMode, itemSkus } from './config';
+import { getReplacementMode, itemSkus } from './config';
 import { logger } from '../log';
+import type { IapProductSubscription } from '@chatic/app-messages';
 
 export const subscriptionIapService = {
     /** 인앱결제 모듈 초기화 */
@@ -36,75 +35,102 @@ export const subscriptionIapService = {
     /**
      * 구독 상품 목록 불러오기
      */
-    getSubscriptions: async (): Promise<any[]> => {
+    getSubscriptions: async (): Promise<IapProductSubscription[]> => {
         if (itemSkus.length === 0) return [];
 
         const products = await fetchProducts({ skus: itemSkus, type: 'subs' });
         if (!products) return [];
 
         if (Platform.OS === 'android') {
-            return (products as ProductSubscriptionAndroid[]).flatMap(product => {
+            return (products as IapProductSubscription[]).flatMap(product => {
                 const offers = product.subscriptionOffers ?? [];
                 const uniqueBasePlans = new Map();
 
+                //모든 플랜의 루프를 돌면서 플랜에 대한 요금제 채우기
                 offers.forEach(offer => {
-                    if (!uniqueBasePlans.has(offer.basePlanIdAndroid)) {
-                        const phases = offer.pricingPhasesAndroid?.pricingPhaseList ?? [];
-                        const regularPhase = phases[phases.length - 1];
+                    const basePlanId = offer.basePlanIdAndroid;
+                    const phases = offer.pricingPhasesAndroid?.pricingPhaseList ?? [];
+                    const regularPhase = phases[phases.length - 1];
+                    const isFreeTrial = phases.some(phase => String(phase.priceAmountMicros) === '0');
 
-                        uniqueBasePlans.set(offer.basePlanIdAndroid, {
+                    if (!uniqueBasePlans.has(basePlanId)) {
+                        uniqueBasePlans.set(basePlanId, {
                             ...product,
-                            id: offer.basePlanIdAndroid,
-                            productId: product.id,
-                            offerToken: offer.offerTokenAndroid,
+                            id: product.id,
+                            basePlanId: basePlanId,
                             displayPrice: regularPhase?.formattedPrice ?? product.displayPrice,
-                            basePlanId: offer.basePlanIdAndroid,
-                            subscriptionOffers: [offer],
+                            androidOfferToken: {
+                                freeTrial: null,
+                                base: null,
+                            },
+                            subscriptionOffers: [],
                         });
                     }
+
+                    const planData = uniqueBasePlans.get(offer.basePlanIdAndroid);
+                    planData.subscriptionOffers.push(offer);
+
+                    if (isFreeTrial) {
+                        planData.androidOfferToken.freeTrial = offer.offerTokenAndroid;
+                    } else if (!planData.androidOfferToken.base) {
+                        planData.androidOfferToken.base = offer.offerTokenAndroid;
+                    }
                 });
+
+                console.log(Array.from(uniqueBasePlans.values()));
                 return Array.from(uniqueBasePlans.values());
             });
         }
-        return products as ProductSubscription[];
+
+        return products as IapProductSubscription[];
     },
 
     /**
      * 구매 신청
-     * @param sku 상품 코드
-     * @param oldSku 업그레이드/다운그레이드 시 교체할 기존 상품 코드 (Android)
+     * @param id 상품 코드 (sku)
+     * @param offerToken (Android 필수) 결제할 오퍼 토큰
+     * @param oldPlanId (Android) 현재 구독 중인 요금제 ID (basePlanId)
+     * @param newPlanId (Android) 새로 결제하려는 요금제 ID (basePlanId) - 업/다운 판별용
+     *
+     * 주의사항: oldPlanId, newPlanId가 존재하지 않을 경우, Android에서는 업그레이드/다운그레이드 모드가 기본 설정값을 따름 (WITH_TIME_PRORATION)
      */
-    purchase: async (sku: string, oldSku?: string): Promise<void> => {
-        const products = await subscriptionIapService.getSubscriptions();
-        const targetProduct = products.find(p => p.id === sku);
+    purchase: async (id: string, offerToken?: string, oldPlanId?: string, newPlanId?: string): Promise<void> => {
+        if (Platform.OS === 'android' && !offerToken) {
+            throw new Error('Require offerToken for purchasing Android');
+        }
 
-        if (!targetProduct) throw new Error('Product not found');
+        console.log(id, offerToken, oldPlanId, newPlanId);
 
-        // Google 결제 파라미터 구성 (any 타입은 라이브러리 인터페이스 한계로 제한적 사용)
-        const googleRequest =
+        const googleRequest: any =
             Platform.OS === 'android'
                 ? {
-                      skus: [targetProduct.productId],
-                      subscriptionOffers: [{ sku: targetProduct.productId, offerToken: targetProduct.offerToken }],
+                      skus: [id],
+                      subscriptionOffers: [{ sku: id, offerToken: offerToken }],
                       subscriptionProductReplacementParams: undefined as any,
                   }
                 : undefined;
 
-        if (Platform.OS === 'android' && oldSku && googleRequest) {
+        // Android 환경이면서, 업그레이드/다운그레이드에 필요한 데이터가 전부 존재할때
+        if (Platform.OS === 'android' && oldPlanId && newPlanId && googleRequest) {
+            // sku를 활용하여 이전 구매내역 찾기
             const availablePurchases = await getAvailablePurchases();
-            const oldPurchase = availablePurchases.find(p => p.productId === ANDROID_SKU_LIST[0]);
+            const oldPurchase = availablePurchases.find(p => p.productId === id);
 
+            // 이전 구매내역이 존재할 경우 업그레이드/다운그레이드 관련 파라미터 추가
             if (oldPurchase) {
                 googleRequest.subscriptionProductReplacementParams = {
-                    oldProductId: oldPurchase.productId,
-                    replacementMode: getReplacementMode(oldSku, sku),
+                    oldPurchaseToken: oldPurchase.purchaseToken,
+                    replacementMode: getReplacementMode(oldPlanId, newPlanId),
                 };
             }
         }
 
         await requestPurchase({
             type: 'subs',
-            request: { apple: { sku, andDangerouslyFinishTransactionAutomatically: false }, google: googleRequest },
+            request: {
+                apple: { sku: id, andDangerouslyFinishTransactionAutomatically: false },
+                google: googleRequest,
+            },
         });
     },
 

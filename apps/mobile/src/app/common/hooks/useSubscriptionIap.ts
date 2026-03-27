@@ -1,15 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
-import {
-    type ProductSubscription,
-    type Purchase,
-    type PurchaseError,
-    purchaseErrorListener,
-    purchaseUpdatedListener,
-} from 'react-native-iap';
+import { type Purchase, type PurchaseError, purchaseErrorListener, purchaseUpdatedListener } from 'react-native-iap';
 
 import { logger } from '../index';
 import { subscriptionIapService } from '../services';
+import type { IapProductSubscription } from '@chatic/app-messages';
 
 /**
  * @property onPurchaseSuccess: Listener for when a purchase is made. Passes the raw receipt to the web for server verification.
@@ -24,7 +19,7 @@ interface UseIapOptions {
  * In-app purchase hook
  */
 export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIapOptions = {}) => {
-    const [products, setProducts] = useState<ProductSubscription[]>([]);
+    const [products, setProducts] = useState<IapProductSubscription[]>([]);
     const [currentPurchases, setCurrentPurchases] = useState<Purchase[]>([]);
     const [loading, setLoading] = useState(false);
     const callbacks = useRef({ onPurchaseSuccess, onPurchaseError });
@@ -119,16 +114,20 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     }, [handleCompleteTransaction]);
 
     /**
-     * Process purchase
-     * @param sku Product code (`Stock Keeping Unit`); same `product.id or purchase.productId`
-     * @param oldSku (Optional) The current subscription product code to replace for upgrade/downgrade
+     * 구매 신청
+     * @param id 상품 코드 (sku)
+     * @param offerToken (Android 필수) 결제할 오퍼 토큰
+     * @param oldPlanId (Android) 현재 구독 중인 요금제 ID (basePlanId)
+     * @param newPlanId (Android) 새로 결제하려는 요금제 ID (basePlanId) - 업/다운 판별용
+     *
+     * 주의사항: oldPlanId, newPlanId가 존재하지 않을 경우, Android에서는 업그레이드/다운그레이드 모드가 기본 설정값을 따름 (WITH_TIME_PRORATION)
      */
-    const handlePurchase = async (sku: string, oldSku?: string) => {
+    const handlePurchase = async (id: string, offerToken?: string, oldPlanId?: string, newPlanId?: string) => {
         if (loading) return;
         setLoading(true);
 
         try {
-            await subscriptionIapService.purchase(sku, oldSku);
+            await subscriptionIapService.purchase(id, offerToken, oldPlanId, newPlanId);
         } catch (e: any) {
             logger.error('IAP', 'Purchase Request Failed', e);
 

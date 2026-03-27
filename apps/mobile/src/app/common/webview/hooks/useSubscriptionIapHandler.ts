@@ -4,7 +4,7 @@ import { useSubscriptionIap } from '../../hooks';
 import { logger } from '../../services';
 
 import type { WebViewBridge } from './useBaseBridge';
-import type { AppMessageData } from '@chatic/app-messages';
+import type { AppMessageData, PurchasePayload } from '@chatic/app-messages';
 import type { Purchase, PurchaseError } from 'react-native-iap';
 
 /**
@@ -70,8 +70,8 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
      * 구독권 구매 수행
      */
     const handlePurchaseSubscription = useCallback(
-        async (sku: string, oldSku?: string) => {
-            await handlePurchase(sku, oldSku);
+        async (data: PurchasePayload) => {
+            await handlePurchase(data.id, data.offerToken, data.oldPlanId, data.newPlanId);
         },
         [handlePurchase]
     );
