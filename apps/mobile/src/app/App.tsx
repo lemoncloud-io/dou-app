@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 
 import { FloatingMenu, useAppVersionCheck, useInitializeDeepLink, useThemeStore } from './common';
+import { getDeepLinkManager } from '@chatic/deeplinks';
 import type { RootStackParamList } from './navigation';
 import { RootNavigator } from './navigation';
 import { SplashScreen } from './features/main';
@@ -22,6 +23,7 @@ export const App = () => {
 
     const { hasUpdate, showUpdateAlert } = useAppVersionCheck(true);
 
+    // Initialize deep link listeners early (captures URLs immediately)
     useInitializeDeepLink();
 
     // Show update alert when update is available
@@ -45,7 +47,13 @@ export const App = () => {
                 translucent={true}
             />
             {isSplashVisible ? (
-                <SplashScreen onFinish={() => setIsSplashVisible(false)} />
+                <SplashScreen
+                    onFinish={() => {
+                        setIsSplashVisible(false);
+                        // Signal that Firebase is ready for deep link processing
+                        getDeepLinkManager().setAppReady();
+                    }}
+                />
             ) : (
                 <NavigationContainer ref={navigationRef}>
                     <View style={{ flex: 1 }}>

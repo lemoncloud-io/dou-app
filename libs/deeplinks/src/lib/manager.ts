@@ -34,11 +34,38 @@ export class DeepLinkManager {
     private isInitialized = false;
     private coldStartResolve: (() => void) | null = null;
     private coldStartPromise: Promise<void> | null = null;
+    // App readiness gate: URL capture happens immediately, but processing waits for Firebase etc.
+    private appReadyResolve: (() => void) | null = null;
+    private appReadyPromise: Promise<void>;
+
     constructor(config?: Partial<DeepLinkConfig>) {
         this.config = {
             ...DEFAULT_CONFIG,
             ...config,
         };
+        this.appReadyPromise = new Promise<void>(resolve => {
+            this.appReadyResolve = resolve;
+            // Fallback: auto-resolve after 5s in case splash never finishes
+            setTimeout(() => {
+                if (this.appReadyResolve) {
+                    console.warn('[DeepLinkManager] App ready timeout, auto-resolving');
+                    this.appReadyResolve();
+                    this.appReadyResolve = null;
+                }
+            }, 5000);
+        });
+    }
+
+    /**
+     * Signal that the app is ready for deep link processing.
+     * Call after splash screen / Firebase initialization is complete.
+     * URL capture (Linking listeners) starts immediately, but actual processing
+     * (Firestore lookup, WebView delivery) waits for this signal.
+     */
+    setAppReady(): void {
+        console.log('[DeepLinkManager] App ready signal received');
+        this.appReadyResolve?.();
+        this.appReadyResolve = null;
     }
 
     /**
@@ -140,6 +167,13 @@ export class DeepLinkManager {
             }
         }
 
+        // Wait for app to be ready (Firebase initialized) before Firestore lookup
+        // URL capture happens immediately, but processing is gated here
+        if (isShortUrl(processedUrl)) {
+            console.log('[DeepLinkManager] Waiting for app ready before Firestore lookup...');
+            await this.appReadyPromise;
+        }
+
         // 3. Expand short URL (/s/xxx) after domain conversion
         try {
             const result = await convertShortUrlWithEnvs(processedUrl);
@@ -195,6 +229,8 @@ export class DeepLinkManager {
         this.coldStartResolve?.();
         this.coldStartResolve = null;
         this.coldStartPromise = null;
+        this.appReadyResolve?.();
+        this.appReadyResolve = null;
     }
 }
 
