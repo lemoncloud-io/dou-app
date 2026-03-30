@@ -12,7 +12,13 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useLocalProfileStore, useOnboardingStore, useWebCoreStore, useDynamicProfile } from '@chatic/web-core';
+import {
+    useLocalProfileStore,
+    useLogout,
+    useOnboardingStore,
+    useWebCoreStore,
+    useDynamicProfile,
+} from '@chatic/web-core';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
@@ -32,7 +38,8 @@ const IS_LOCAL = import.meta.env.VITE_ENV === 'LOCAL';
 
 export const HomePage = () => {
     const { t } = useTranslation();
-    const { logout, isGuest, isInvited, profile } = useWebCoreStore();
+    const { isGuest, isInvited, profile } = useWebCoreStore();
+    const { mutate: logout } = useLogout();
     const navigate = useNavigateWithTransition();
 
     const localProfile = useLocalProfileStore();
@@ -65,7 +72,6 @@ export const HomePage = () => {
 
     const handleLogout = () => {
         logout();
-        window.location.href = '/auth/login';
     };
 
     const { toast } = useToast();

@@ -2,7 +2,6 @@ import { Globe, Home, LogOut, Moon, Sun } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, useLocation } from 'react-router-dom';
 
-import { useNavigateWithTransition } from '@chatic/shared';
 import { toast } from 'sonner';
 
 import { useTheme } from '@chatic/theme';
@@ -29,19 +28,12 @@ const NAV_ITEMS: NavItem[] = [{ path: '/', labelKey: 'nav.home', icon: <Home cla
 export const Sidebar = (): JSX.Element => {
     const { t, i18n } = useTranslation();
     const location = useLocation();
-    const navigate = useNavigateWithTransition();
     const { theme, setTheme } = useTheme();
 
-    const { mutate: logout, isPending: isLoggingOut } = useLogout(
-        () => {
-            toast.success(t('home.logoutSuccess', 'Logged out successfully'));
-            navigate('/auth/login', { replace: true });
-        },
-        error => {
-            console.error('Logout failed:', error);
-            toast.error(t('home.logoutFailed', 'Logout failed'));
-        }
-    );
+    const { mutate: logout, isPending: isLoggingOut } = useLogout(undefined, error => {
+        console.error('Logout failed:', error);
+        toast.error(t('home.logoutFailed', 'Logout failed'));
+    });
 
     const isActive = (path: string): boolean => {
         if (path === '/') {

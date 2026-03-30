@@ -49,6 +49,21 @@ export const LoginPage = (): JSX.Element => {
         }
     }, [urlParams, toast, t]);
 
+    const handleDeviceRegistration = useCallback(async () => {
+        try {
+            const { Token, ...rest } = await registerDevice(deviceId);
+            if (!Token.identityToken) throw new Error('No identityToken in response');
+
+            await webCore.buildCredentialsByToken(Token);
+            setProfile(rest as Parameters<typeof setProfile>[0]);
+            setIsAuthenticated(true);
+            window.location.href = '/';
+        } catch (error) {
+            console.error('[LoginPage] Device registration failed:', error);
+            toast({ title: t('auth.loginFailed'), variant: 'destructive' });
+        }
+    }, [deviceId, registerDevice, setProfile, setIsAuthenticated, toast, t]);
+
     useEffect(() => {
         if (!isReady) return;
         if (loginCalled.current) return;
@@ -61,23 +76,9 @@ export const LoginPage = (): JSX.Element => {
             setIsInviteLogin(true);
             void fetchInvite();
         } else {
-            const handleDeviceRegistration = async () => {
-                try {
-                    const { Token, ...rest } = await registerDevice(deviceId);
-                    if (!Token.identityToken) throw new Error('No identityToken in response');
-
-                    await webCore.buildCredentialsByToken(Token);
-                    setProfile(rest as Parameters<typeof setProfile>[0]);
-                    setIsAuthenticated(true);
-                    window.location.href = '/';
-                } catch (error) {
-                    console.error('[LoginPage] Device registration failed:', error);
-                    toast({ title: t('auth.loginFailed'), variant: 'destructive' });
-                }
-            };
             handleDeviceRegistration();
         }
-    }, [urlParams, toast, deviceId, isReady, t, registerDevice, setProfile, setIsAuthenticated, fetchInvite]);
+    }, [urlParams, isReady, handleDeviceRegistration, fetchInvite]);
 
     const handleAccept = async () => {
         if (!inviteData || isAccepting) return;

@@ -63,6 +63,32 @@ if (isReactNativeWebView()) {
     setStorageAdapter(localStorage);
 }
 
+/**
+ * Clear all auth tokens from storage when arriving from explicit logout.
+ *
+ * The LoginPage auto-registers a guest device on mount, which re-authenticates the user.
+ * When logout redirects to /auth/login?logout=1, we must clear tokens BEFORE webCore.init()
+ * runs, so isAuthenticated() returns false and the Router renders public routes.
+ */
+const clearTokensOnLogout = (): void => {
+    if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') return;
+    try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('logout') !== '1') return;
+
+        const storage = isReactNativeWebView() ? localStorage : sessionStorage;
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < storage.length; i++) {
+            const key = storage.key(i);
+            if (key?.startsWith('@')) keysToRemove.push(key);
+        }
+        keysToRemove.forEach(key => storage.removeItem(key));
+    } catch {
+        // Ignore errors
+    }
+};
+clearTokensOnLogout();
+
 // Get endpoint from storage (mobile: localStorage, web: sessionStorage)
 const getEndpointStorageItem = (key: string): string | null => {
     try {
