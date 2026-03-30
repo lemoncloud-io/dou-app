@@ -8,14 +8,12 @@ import type {
 } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/views';
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
+import type { Params } from '@lemoncloud/lemon-web-core';
 
 const IAP_ENDPOINT = import.meta.env.VITE_IAP_ENDPOINT;
 
 /** #0. Google 구독 결제 검증 */
-export const validateGoogle = async (
-    body: ValidateAPIBody,
-    params?: { detail?: string | boolean }
-): Promise<ValidateAPIResponse> => {
+export const validateGoogle = async (body: ValidateAPIBody, params: Params = {}): Promise<ValidateAPIResponse> => {
     const { data } = await webCore
         .buildSignedRequest({
             method: 'POST',
@@ -29,10 +27,7 @@ export const validateGoogle = async (
 };
 
 /** #0. Apple 구독 결제 검증 */
-export const validateApple = async (
-    body: ValidateAPIBody,
-    params?: { detail?: string | boolean }
-): Promise<ValidateAPIResponse> => {
+export const validateApple = async (body: ValidateAPIBody, params: Params = {}): Promise<ValidateAPIResponse> => {
     const { data } = await webCore
         .buildSignedRequest({
             method: 'POST',

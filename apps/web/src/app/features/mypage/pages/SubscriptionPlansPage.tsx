@@ -72,7 +72,7 @@ export const SubscriptionPlansPage = () => {
             } as const;
 
             console.log('[IAP] Validating purchase:', { platform: isIOS ? 'apple' : 'google', body: validateBody });
-            const response = await validateFn.mutateAsync({ body: validateBody });
+            const response = await validateFn.mutateAsync({ body: validateBody, params: { detail: 1 } });
             console.log('[IAP] Validate response:', response);
 
             if (!response.isValid) {
@@ -85,7 +85,7 @@ export const SubscriptionPlansPage = () => {
             // Validation passed → finish transaction
             console.log('[IAP] Validation passed, finishing transaction');
             setPageState('finishing');
-             
+
             postMessage({ type: 'FinishPurchaseTransaction', data: { purchase: result } } as any);
         } catch (error) {
             console.error('[IAP] Validation error:', error);
@@ -214,6 +214,7 @@ export const SubscriptionPlansPage = () => {
                                                 purchaseToken: 'test-token',
                                                 isSubscription: true,
                                             },
+                                            params: { detail: 1 },
                                         })
                                     )
                                 }
@@ -232,6 +233,7 @@ export const SubscriptionPlansPage = () => {
                                                 purchaseToken: 'test-token',
                                                 isSubscription: true,
                                             },
+                                            params: { detail: 1 },
                                         })
                                     )
                                 }
