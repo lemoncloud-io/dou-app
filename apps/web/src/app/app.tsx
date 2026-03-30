@@ -4,6 +4,7 @@ import { HelmetProvider } from 'react-helmet-async';
 import { I18nextProvider } from 'react-i18next';
 
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster as SonnerToaster } from 'sonner';
 
 import { ErrorFallback, GlobalLoader, LoadingFallback, VersionUpdateBanner, useVersionCheck } from '@chatic/shared';
@@ -84,7 +85,7 @@ export function App() {
                                 <SonnerToaster />
                                 <Toaster />
                             </ThemeProvider>
-                            {/*{process.env.NODE_ENV !== 'prod' && <ReactQueryDevtools buttonPosition="bottom-left" />}*/}
+                            <ReactQueryDevtools buttonPosition="bottom-right" />
                         </QueryClientProvider>
                     </HelmetProvider>
                 </ErrorBoundary>
