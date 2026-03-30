@@ -26,30 +26,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useInviteAndCreateDeeplink } from '../hooks';
 import { firebaseService } from '../services';
 
-import type { DeeplinkEnvironment } from '../types';
 import type { JSX } from 'react';
 
 interface CreateDeeplinkDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSuccess?: () => void;
-    env: DeeplinkEnvironment;
 }
 
-export const CreateDeeplinkDialog = ({
-    open,
-    onOpenChange,
-    onSuccess,
-    env,
-}: CreateDeeplinkDialogProps): JSX.Element => {
+export const CreateDeeplinkDialog = ({ open, onOpenChange, onSuccess }: CreateDeeplinkDialogProps): JSX.Element => {
     const [channelId, setChannelId] = useState('');
     const [name, setName] = useState('');
     const [alias, setAlias] = useState('');
     const [type, setType] = useState<'phone' | 'email'>('phone');
 
-    const { mutateAsync: inviteAndCreate, isPending } = useInviteAndCreateDeeplink(env);
+    const { mutateAsync: inviteAndCreate, isPending } = useInviteAndCreateDeeplink();
 
-    const deeplinkUrlBase = firebaseService.getDeeplinkUrlBase(env);
+    const deeplinkUrlBase = firebaseService.getDeeplinkUrlBase();
 
     const handleCreate = async () => {
         if (!channelId.trim()) {
@@ -96,7 +89,7 @@ export const CreateDeeplinkDialog = ({
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Create Deeplink ({env})</DialogTitle>
+                    <DialogTitle>Create Deeplink</DialogTitle>
                     <DialogDescription>Create a new user invite and generate a deeplink</DialogDescription>
                 </DialogHeader>
 
