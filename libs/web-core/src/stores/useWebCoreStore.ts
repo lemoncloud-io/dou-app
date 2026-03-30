@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { getMobileAppInfo, initializeMessageListener, useAppMessageStore } from '@chatic/app-messages';
+import { getMobileAppInfo, initializeMessageListener, postMessage, useAppMessageStore } from '@chatic/app-messages';
 
 import { updateProfile } from '../api';
 import { LANGUAGE_KEY, cloudCore, webCore, coreStorage } from '../core';
@@ -115,6 +115,13 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
             }
         });
         logoutCallbacks.clear();
+
+        // Revoke native OAuth session on mobile
+        const { isOnMobileApp, isIOS } = getMobileAppInfo();
+        if (isOnMobileApp) {
+            postMessage({ type: 'OAuthLogout', data: { provider: isIOS ? 'apple' : 'google' } });
+            localStorage.clear();
+        }
 
         await webCore.logout();
         cloudCore.clearSession();
