@@ -1,0 +1,35 @@
+import { useCustomMutation } from '@chatic/shared';
+
+import { fetchActiveSubscriptions, fetchReceiptDetail, validateApple, validateGoogle } from '../apis';
+
+import type {
+    ValidateAPIBody,
+    ValidateAPIResponse,
+    ListValidateParam,
+} from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/views';
+import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
+import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
+
+/** #0. Google 결제 검증 */
+export const useValidateGoogle = () =>
+    useCustomMutation<ValidateAPIResponse, string, { body: ValidateAPIBody; params?: { detail?: string | boolean } }>(
+        ({ body, params }) => validateGoogle(body, params)
+    );
+
+/** #0. Apple 결제 검증 */
+export const useValidateApple = () =>
+    useCustomMutation<ValidateAPIResponse, string, { body: ValidateAPIBody; params?: { detail?: string | boolean } }>(
+        ({ body, params }) => validateApple(body, params)
+    );
+
+/** #1. 활성 구독 확인 */
+export const useFetchActiveSubscriptions = () =>
+    useCustomMutation<ListResult<ReceiptModel>, string, ListValidateParam>(params => fetchActiveSubscriptions(params));
+
+/** #2. 영수증 상세 조회 */
+export const useFetchReceiptDetail = () =>
+    useCustomMutation<
+        ValidateAPIResponse,
+        string,
+        { receiptId: string; params?: { v?: string | boolean; history?: string | boolean } }
+    >(({ receiptId, params }) => fetchReceiptDetail(receiptId, params));

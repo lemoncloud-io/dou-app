@@ -37,6 +37,7 @@
             "@chatic/pouches": ["libs/pouches/src/index.ts"],
             "@chatic/shared": ["libs/shared/src/index.ts"],
             "@chatic/socket": ["libs/socket/src/index.ts"],
+            "@chatic/subscriptions": ["libs/subscriptions/src/index.ts"],
             "@chatic/theme": ["libs/theme/src/index.ts"],
             "@chatic/ui-kit": ["libs/ui-kit/src/index.ts"],
             "@chatic/ui-kit/*": ["libs/ui-kit/src/*"],

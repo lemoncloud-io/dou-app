@@ -2851,6 +2851,13 @@
   dependencies:
     lemon-model "^1.1.1"
 
+"@lemoncloud/chatic-iap-api@^1.26.121":
+  version "1.26.121"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-iap-api/-/chatic-iap-api-1.26.121.tgz#22107db5734eff38489e479ab313e184c68db890"
+  integrity sha512-9EfRagfQgqG/ShtmgaXrSY1Z8GlEQu6we8vpjQ1QZEUUytjIDi9HiqJlOmD6WysAwvLpJksWwlnGbo/IgCq6hw==
+  dependencies:
+    lemon-model "^1.0.5"
+
 "@lemoncloud/chatic-pushes-api@^0.26.124":
   version "0.26.214"
   resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-pushes-api/-/chatic-pushes-api-0.26.214.tgz#e93e8869e95d267e1a985105d88ff4df0f2e82cf"
@@ -12249,7 +12256,7 @@ launch-editor@^2.9.1:
     picocolors "^1.1.1"
     shell-quote "^1.8.3"
 
-lemon-model@^1.0.3, lemon-model@^1.1.1:
+lemon-model@^1.0.3, lemon-model@^1.0.5, lemon-model@^1.1.1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/lemon-model/-/lemon-model-1.1.1.tgz#6344621b2c3fdfd99febc659baa7adef41ca951b"
   integrity sha512-idf2zPvYzUmz50F9wJik8f4vk+FeebgmzsHfpEtsv5nnWbdpaHM1sDMISmgqFPyv3X1cXvaRNyu4btdSIA03sQ==
