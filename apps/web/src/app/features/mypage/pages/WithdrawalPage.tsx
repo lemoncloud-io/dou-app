@@ -2,7 +2,7 @@ import { User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useWebCoreStore } from '@chatic/web-core';
+import { useLogout, useWebCoreStore } from '@chatic/web-core';
 
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';
@@ -11,7 +11,7 @@ import { WithdrawalDialog } from '../components/WithdrawalDialog';
 export const WithdrawalPage = () => {
     const { t } = useTranslation();
     const profile = useWebCoreStore(s => s.profile);
-    const logout = useWebCoreStore(s => s.logout);
+    const { mutate: logout } = useLogout();
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -22,9 +22,9 @@ export const WithdrawalPage = () => {
         setIsDialogOpen(true);
     };
 
-    const handleWithdrawal = async () => {
+    const handleWithdrawal = () => {
         // TODO: Implement actual withdrawal API call
-        await logout();
+        logout();
     };
 
     return (

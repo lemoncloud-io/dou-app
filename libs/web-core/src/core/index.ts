@@ -56,6 +56,13 @@ const initEnvFromQueryParams = (): void => {
 // Initialize from query params before reading localStorage
 initEnvFromQueryParams();
 
+// RN WebView 환경이면 네이티브 스토리지 어댑터로 교체
+const isReactNativeWebView = (): boolean => !!(window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView;
+
+if (isReactNativeWebView()) {
+    setStorageAdapter(localStorage);
+}
+
 /**
  * Clear all auth tokens from storage when arriving from explicit logout.
  *
@@ -69,9 +76,7 @@ const clearTokensOnLogout = (): void => {
         const params = new URLSearchParams(window.location.search);
         if (params.get('logout') !== '1') return;
 
-        const storage = (window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView
-            ? localStorage
-            : sessionStorage;
+        const storage = isReactNativeWebView() ? localStorage : sessionStorage;
         const keysToRemove: string[] = [];
         for (let i = 0; i < storage.length; i++) {
             const key = storage.key(i);
@@ -83,13 +88,6 @@ const clearTokensOnLogout = (): void => {
     }
 };
 clearTokensOnLogout();
-
-// RN WebView 환경이면 네이티브 스토리지 어댑터로 교체
-const isReactNativeWebView = (): boolean => !!(window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView;
-
-if (isReactNativeWebView()) {
-    setStorageAdapter(localStorage);
-}
 
 // Get endpoint from storage (mobile: localStorage, web: sessionStorage)
 const getEndpointStorageItem = (key: string): string | null => {

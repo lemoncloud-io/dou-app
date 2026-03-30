@@ -9,7 +9,7 @@ import { useDeviceInfo } from '@chatic/device-utils';
 import { getStoreUrl } from '@chatic/shared';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
-import { useLocalProfileStore, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
+import { useLocalProfileStore, useLogout, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { LanguageSelectSheet, LogoutDialog } from '../components';
@@ -19,7 +19,7 @@ export const MyPage = () => {
     const { t, i18n } = useTranslation();
     const isGuest = useWebCoreStore(s => s.isGuest);
     const profile = useWebCoreStore(s => s.profile);
-    const logout = useWebCoreStore(s => s.logout);
+    const { mutate: logout } = useLogout();
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();
     const localProfile = useLocalProfileStore();
@@ -33,8 +33,8 @@ export const MyPage = () => {
 
     const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
 
-    const handleLogout = async () => {
-        await logout();
+    const handleLogout = () => {
+        logout();
     };
 
     const handleProfileClick = () => {
