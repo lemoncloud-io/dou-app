@@ -146,8 +146,20 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             setInitStatus('pending');
         }
 
-        return stopInterval;
-    }, [isAuthenticated, initialize, startInterval, stopInterval, webCoreReady]);
+        // Refresh token on foreground resume
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && isAuthenticated && webCoreReady) {
+                console.log('👁️ [useTokenRefresh] foreground resume → refreshing webCore token');
+                void refreshToken();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            stopInterval();
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [isAuthenticated, initialize, startInterval, stopInterval, webCoreReady, refreshToken]);
 
     // isInitialized should be true only when initialization succeeded
     // or when initialization failed (to prevent infinite loading)

@@ -39,14 +39,16 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
 
     const connect = useCallback(async (): Promise<void> => {
         if (!endpoint) {
-            console.error(`${logPrefix} Endpoint not configured`);
+            console.error(`${logPrefix} ❌ Endpoint not configured`);
             return;
         }
 
         if (!connectParams?.deviceId) {
-            console.warn(`${logPrefix} DeviceId not provided, skipping connection`);
+            console.warn(`${logPrefix} ⏳ DeviceId not provided, skipping connection`);
             return;
         }
+
+        console.log(`${logPrefix} 🔌 connect() called`, { endpoint, deviceId: connectParams.deviceId });
 
         try {
             if (!workerRef.current && !globalWorkerRef) {
@@ -57,7 +59,12 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                 worker.onmessage = (e: MessageEvent) => {
                     const message = e.data;
 
+                    if (message.type === 'log') {
+                        console.log(`${logPrefix} 🔧 worker:`, message.message);
+                    }
+
                     if (message.type === 'status') {
+                        console.log(`${logPrefix} 📡 status: ${message.status}`);
                         store.setConnectionStatus(message.status);
                     }
 
@@ -77,13 +84,19 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                     }
 
                     if (message.type === 'connectionId') {
+                        console.log(`${logPrefix} 🆔 connectionId:`, message.connectionId, 'id:', message.id);
                         store.setId(message.id);
                         store.setConnectionId(message.connectionId);
                         store.setIsConnected(true);
                     }
 
                     if (message.type === 'status' && message.status === 'connected') {
+                        console.log(`${logPrefix} ✅ Connected`);
                         store.setIsConnected(true);
+                    }
+
+                    if (message.type === 'error') {
+                        console.error(`${logPrefix} ❌ worker error:`, message.error);
                     }
                 };
             }
@@ -111,6 +124,8 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
     }, [endpoint, logPrefix, connectParams, store]);
 
     const disconnect = useCallback((): void => {
+        console.log(`${logPrefix} 🔴 disconnect() called`);
+        console.trace(`${logPrefix} 🔴 disconnect trace`);
         const worker = workerRef.current || globalWorkerRef;
         if (worker) {
             worker.postMessage({ type: 'disconnect' });
@@ -118,7 +133,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
         store.setConnectionStatus('disconnected');
         store.setIsConnected(false);
         store.setIsVerified(false);
-    }, [store]);
+    }, [logPrefix, store]);
 
     const send = useCallback(
         (data: unknown): void => {
@@ -191,15 +206,37 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
 
     useEffect(() => {
         if (!enabled) {
-            console.log(`${logPrefix} Disconnecting (enabled=false)`);
+            console.log(`${logPrefix} ⚠️ Disconnecting (enabled=false)`, {
+                deviceId: config.connectParams?.deviceId,
+                endpoint,
+            });
             disconnectRef.current();
             return;
         }
 
-        console.log(`${logPrefix} Connecting to:`, endpoint);
+        console.log(`${logPrefix} 🚀 useEffect → connect`, {
+            endpoint,
+            enabled,
+            deviceId: config.connectParams?.deviceId,
+        });
         void connectRef.current();
 
+        // Reconnect on foreground resume (mobile WebView background → foreground)
+        const handleVisibilityChange = () => {
+            if (document.visibilityState !== 'visible') return;
+
+            const { isConnected: connected } = useWebSocketV2Store.getState();
+            console.log(`${logPrefix} 👁️ visibilitychange → visible, isConnected:`, connected);
+
+            if (!connected) {
+                console.log(`${logPrefix} 🔄 Reconnecting after foreground resume`);
+                void connectRef.current();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
         return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
             disconnectRef.current();
             if (workerRef.current) {
                 workerRef.current.terminate();

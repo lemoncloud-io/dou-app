@@ -15,36 +15,72 @@ export const useCloudTokenRefresh = () => {
     const { emit, isConnected } = useWebSocketV2();
     const { setServiceUnavailable } = useServiceStatusStore();
 
-    useEffect(() => {
-        if (!isConnected || !isAuthenticated) return;
+    const isCloudUser = !isGuest || isInvited;
 
-        const isCloudUser = !isGuest || isInvited;
-
-        const refresh = async () => {
-            if (!isCloudUser) {
-                const token = (await webCore.getTokenSignature()).originToken?.identityToken;
-                if (token) emit({ type: 'auth', action: 'update', payload: { token } });
-                return;
+    const emitAuthToken = async () => {
+        if (!isCloudUser) {
+            const token = (await webCore.getTokenSignature()).originToken?.identityToken;
+            if (token) {
+                console.log('[useCloudTokenRefresh] 📡 emitting webCore auth token to socket');
+                emit({ type: 'auth', action: 'update', payload: { token } });
             }
+            return;
+        }
 
-            try {
-                await cloudCore.refreshToken();
-                setServiceUnavailable(false);
-            } catch (e) {
-                console.error('[useCloudTokenRefresh] refreshToken failed', e);
-                if (isServerError(e)) {
-                    setServiceUnavailable(true);
-                    return;
+        const token = cloudCore.getIdentityToken();
+        if (token) {
+            console.log('[useCloudTokenRefresh] 📡 emitting cloud auth token to socket');
+            emit({ type: 'auth', action: 'update', payload: { token } });
+        } else {
+            console.warn('[useCloudTokenRefresh] ⚠️ no cloud identity token to emit');
+        }
+    };
+
+    // 1. HTTP token refresh + emit (independent of socket)
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        const refreshAndEmit = async () => {
+            if (isCloudUser) {
+                try {
+                    console.log('[useCloudTokenRefresh] 🔄 refreshing cloud token...');
+                    await cloudCore.refreshToken();
+                    setServiceUnavailable(false);
+                    console.log('[useCloudTokenRefresh] ✅ cloud token refreshed');
+                } catch (e) {
+                    console.error('[useCloudTokenRefresh] ❌ refreshToken failed', e);
+                    if (isServerError(e)) {
+                        setServiceUnavailable(true);
+                        return;
+                    }
                 }
             }
 
-            const token = cloudCore.getIdentityToken();
-            if (token) emit({ type: 'auth', action: 'update', payload: { token } });
+            await emitAuthToken();
         };
 
-        void refresh();
+        void refreshAndEmit();
 
-        const id = setInterval(refresh, REFRESH_INTERVAL_MS);
-        return () => clearInterval(id);
-    }, [isGuest, isInvited, isAuthenticated, isConnected, emit, setServiceUnavailable]);
+        const id = setInterval(refreshAndEmit, REFRESH_INTERVAL_MS);
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log('[useCloudTokenRefresh] 👁️ foreground resume → refresh + emit');
+                void refreshAndEmit();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            clearInterval(id);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [isAuthenticated, isCloudUser, setServiceUnavailable]);
+
+    // 2. Emit auth token when socket (re)connects
+    useEffect(() => {
+        if (!isAuthenticated || !isConnected) return;
+        console.log('[useCloudTokenRefresh] 🔌 socket connected → emitting auth token');
+        void emitAuthToken();
+    }, [isAuthenticated, isConnected]);
 };
