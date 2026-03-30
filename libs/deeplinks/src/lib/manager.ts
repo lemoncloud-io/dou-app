@@ -15,6 +15,7 @@
 import { Linking, NativeModules, Platform } from 'react-native';
 
 import { handleDeferredDeepLink } from './deferred';
+import { retrieveDeferredLinkFromFirestore } from './firestoreDeferred';
 import { isShortUrl, isValidDeepLink } from './parser';
 import { convertDeepLinkToFrontendUrl, convertShortUrlWithEnvs, needsConversion } from './urlConverter';
 
@@ -233,6 +234,26 @@ export class DeepLinkManager {
             if (!processedUrl.startsWith('https://')) {
                 console.error('[DeepLinkManager] Converted URL is not HTTPS:', processedUrl);
                 return;
+            }
+
+            // iOS custom scheme may arrive without path (e.g., chatic-dev:// → root URL).
+            // If the converted URL is just the frontend root, the path was lost.
+            // Query Firestore directly (bypassing isDeferredLinkProcessed flag)
+            // because the landing page stored the deferred link right before app launch.
+            try {
+                const parsedUrl = new URL(processedUrl);
+                if (parsedUrl.pathname === '/' && !parsedUrl.search) {
+                    console.warn('[DeepLinkManager] Custom scheme path lost, querying Firestore directly');
+                    await this.appReadyPromise;
+                    const deferredUrl = await retrieveDeferredLinkFromFirestore();
+                    if (deferredUrl) {
+                        console.log('[DeepLinkManager] Recovered URL from deferred link:', deferredUrl);
+                        await this.handleDeepLink(deferredUrl, 'deferred');
+                    }
+                    return;
+                }
+            } catch {
+                // URL parse failed, continue with normal flow
             }
         }
 

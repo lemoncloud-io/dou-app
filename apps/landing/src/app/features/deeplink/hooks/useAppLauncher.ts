@@ -14,7 +14,7 @@ interface UseAppLauncherReturn {
     state: DeepLinkState;
     dialogType: DialogType;
     showAppConfirmDialog: () => void;
-    confirmLaunchApp: () => void;
+    confirmLaunchApp: () => Promise<void>;
     confirmGoToStore: () => void;
     closeDialog: () => void;
 }
@@ -41,11 +41,16 @@ export const useAppLauncher = ({ deviceType, deepLinkInfo }: UseAppLauncherProps
         setState('initial');
     }, []);
 
-    const confirmLaunchApp = useCallback(() => {
+    const confirmLaunchApp = useCallback(async () => {
         if (deviceType === 'desktop') return;
 
         setDialogType(null);
         setState('launching');
+
+        // Store deferred link BEFORE launching app.
+        // iOS custom scheme may open the app without passing the URL path,
+        // so the app needs a fallback to retrieve the invite from Firestore.
+        await storeDeferredDeepLink(deepLinkInfo.deepLinkUrl);
 
         const pathWithoutLeadingSlash = deepLinkInfo.fullPath.replace(/^\//, '');
 
@@ -63,8 +68,7 @@ export const useAppLauncher = ({ deviceType, deepLinkInfo }: UseAppLauncherProps
         }
 
         // After timeout, show store dialog. User can dismiss if app actually opened.
-        setTimeout(async () => {
-            await storeDeferredDeepLink(deepLinkInfo.deepLinkUrl);
+        setTimeout(() => {
             setState('initial');
             setDialogType('store-confirm');
         }, DEEPLINK_CONFIG.launchTimeout);
