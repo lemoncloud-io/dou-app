@@ -61,6 +61,8 @@ export const LoginPage = (): JSX.Element => {
         } catch (error) {
             console.error('[LoginPage] Device registration failed:', error);
             toast({ title: t('auth.loginFailed'), variant: 'destructive' });
+            // Navigate to home to prevent permanent stuck on "preparing app"
+            window.location.href = '/';
         }
     }, [deviceId, registerDevice, setProfile, setIsAuthenticated, toast, t]);
 
