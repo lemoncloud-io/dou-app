@@ -138,9 +138,10 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
                 const value = params.get(key);
                 if (value) loginUrl.searchParams.set(key, value);
             }
+            loginUrl.searchParams.set('logout', '1');
             window.location.href = loginUrl.toString();
         } else {
-            window.location.href = '/auth/login';
+            window.location.href = '/auth/login?logout=1';
         }
     },
 

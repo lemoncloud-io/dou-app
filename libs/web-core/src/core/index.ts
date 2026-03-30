@@ -56,6 +56,34 @@ const initEnvFromQueryParams = (): void => {
 // Initialize from query params before reading localStorage
 initEnvFromQueryParams();
 
+/**
+ * Clear all auth tokens from storage when arriving from explicit logout.
+ *
+ * The LoginPage auto-registers a guest device on mount, which re-authenticates the user.
+ * When logout redirects to /auth/login?logout=1, we must clear tokens BEFORE webCore.init()
+ * runs, so isAuthenticated() returns false and the Router renders public routes.
+ */
+const clearTokensOnLogout = (): void => {
+    if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') return;
+    try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('logout') !== '1') return;
+
+        const storage = (window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView
+            ? localStorage
+            : sessionStorage;
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < storage.length; i++) {
+            const key = storage.key(i);
+            if (key?.startsWith('@')) keysToRemove.push(key);
+        }
+        keysToRemove.forEach(key => storage.removeItem(key));
+    } catch {
+        // Ignore errors
+    }
+};
+clearTokensOnLogout();
+
 // RN WebView 환경이면 네이티브 스토리지 어댑터로 교체
 const isReactNativeWebView = (): boolean => !!(window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView;
 

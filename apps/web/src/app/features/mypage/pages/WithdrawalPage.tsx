@@ -22,10 +22,9 @@ export const WithdrawalPage = () => {
         setIsDialogOpen(true);
     };
 
-    const handleWithdrawal = () => {
+    const handleWithdrawal = async () => {
         // TODO: Implement actual withdrawal API call
-        logout();
-        window.location.href = '/auth/login';
+        await logout();
     };
 
     return (

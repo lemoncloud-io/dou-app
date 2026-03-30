@@ -33,9 +33,8 @@ export const MyPage = () => {
 
     const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
 
-    const handleLogout = () => {
-        logout();
-        window.location.href = '/auth/login';
+    const handleLogout = async () => {
+        await logout();
     };
 
     const handleProfileClick = () => {

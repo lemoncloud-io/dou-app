@@ -63,9 +63,8 @@ export const HomePage = () => {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [limitDialogType, setLimitDialogType] = useState<'place' | 'channel' | null>(null);
 
-    const handleLogout = () => {
-        logout();
-        window.location.href = '/auth/login';
+    const handleLogout = async () => {
+        await logout();
     };
 
     const { toast } = useToast();
