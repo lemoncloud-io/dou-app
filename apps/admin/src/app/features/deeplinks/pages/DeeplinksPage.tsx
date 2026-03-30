@@ -25,7 +25,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@chatic/ui-kit/components/ui/tabs';
 
 import { CreateDeeplinkDialog, DeeplinkDetailDialog, DeeplinksPageHeader, DeeplinksTable } from '../components';
-import { useFirebaseAuth, useDeeplinks, useDeleteDeeplink } from '../hooks';
+import { useFirebaseAuth, useDeeplinks, useDeleteDeeplink, useDeleteAllDeeplinks } from '../hooks';
 
 import type { AdminDeeplink, DeeplinkEnvironment } from '../types';
 import type { JSX } from 'react';
@@ -35,10 +35,12 @@ const EnvironmentContent = ({ env }: { env: DeeplinkEnvironment }): JSX.Element 
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [viewTargetShortCode, setViewTargetShortCode] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<AdminDeeplink | null>(null);
+    const [deleteAllOpen, setDeleteAllOpen] = useState(false);
 
     const { isAuthenticated, isLoading: isAuthLoading, error: authError } = useFirebaseAuth(env);
     const { data, isLoading, isFetching, error, refetch } = useDeeplinks(env);
     const { mutateAsync: deleteDeeplink, isPending: isDeleting } = useDeleteDeeplink(env);
+    const { mutateAsync: deleteAllDeeplinks, isPending: isDeletingAll } = useDeleteAllDeeplinks(env);
 
     const handleDelete = async () => {
         if (!deleteTarget) return;
@@ -49,6 +51,17 @@ const EnvironmentContent = ({ env }: { env: DeeplinkEnvironment }): JSX.Element 
             setDeleteTarget(null);
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to delete deeplink';
+            toast.error(message);
+        }
+    };
+
+    const handleDeleteAll = async () => {
+        try {
+            const count = await deleteAllDeeplinks();
+            toast.success(`${count} deeplinks deleted successfully`);
+            setDeleteAllOpen(false);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to delete deeplinks';
             toast.error(message);
         }
     };
@@ -91,7 +104,16 @@ const EnvironmentContent = ({ env }: { env: DeeplinkEnvironment }): JSX.Element 
                 <div className="flex items-center gap-2">
                     {isFetching && <span className="text-sm text-muted-foreground">Refreshing...</span>}
                 </div>
-                <Button onClick={() => setCreateDialogOpen(true)}>Create Deeplink</Button>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="destructive"
+                        onClick={() => setDeleteAllOpen(true)}
+                        disabled={!data?.total || isDeletingAll}
+                    >
+                        {isDeletingAll ? 'Deleting...' : 'Delete All'}
+                    </Button>
+                    <Button onClick={() => setCreateDialogOpen(true)}>Create Deeplink</Button>
+                </div>
             </div>
 
             <CreateDeeplinkDialog
@@ -114,6 +136,24 @@ const EnvironmentContent = ({ env }: { env: DeeplinkEnvironment }): JSX.Element 
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
                             {isDeleting ? 'Deleting...' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={deleteAllOpen} onOpenChange={setDeleteAllOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete All Deeplinks</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete all {data?.total ?? 0} deeplinks in {env}? This action
+                            cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteAll} disabled={isDeletingAll}>
+                            {isDeletingAll ? 'Deleting...' : `Delete All (${data?.total ?? 0})`}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

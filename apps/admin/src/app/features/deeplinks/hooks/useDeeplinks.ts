@@ -13,6 +13,7 @@ import {
     fetchDeeplinks,
     createDeeplinkFromInvite,
     deleteDeeplink,
+    deleteAllDeeplinks,
     fetchDeeplinkByShortCode,
     inviteUser,
 } from '../services';
@@ -89,7 +90,20 @@ export const useDeleteDeeplink = (env: DeeplinkEnvironment) => {
     return useMutation({
         mutationFn: (id: string) => deleteDeeplink(env, id),
         onSuccess: () => {
-            // Invalidate deeplinks list for this environment
+            queryClient.invalidateQueries({ queryKey: deeplinksKeys.list({ env }) });
+        },
+    });
+};
+
+/**
+ * Hook to delete all deeplinks in specific environment
+ */
+export const useDeleteAllDeeplinks = (env: DeeplinkEnvironment) => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: () => deleteAllDeeplinks(env),
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: deeplinksKeys.list({ env }) });
         },
     });

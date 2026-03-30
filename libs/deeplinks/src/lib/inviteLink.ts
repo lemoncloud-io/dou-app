@@ -94,24 +94,38 @@ export const createInviteLink = async (id: string, invite: MyInviteView, created
  * @param id - Invite link ID (document ID)
  * @returns Invite link data or null if not found
  */
-export const getInviteLink = async (id: string): Promise<InviteLinkDocument | null> => {
-    const docRef = firestore().collection(DEFERRED_LINKS_COLLECTION).doc(id);
-    const snapshot = await docRef.get();
+export const getInviteLink = async (id: string, retries = 2): Promise<InviteLinkDocument | null> => {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            console.log(`[InviteLink] Fetching: ${id} (attempt ${attempt + 1}/${retries + 1})`);
+            const docRef = firestore().collection(DEFERRED_LINKS_COLLECTION).doc(id);
+            const snapshot = await docRef.get();
 
-    if (!snapshot.exists()) {
-        console.warn('[InviteLink] Not found:', id);
-        return null;
+            if (!snapshot.exists()) {
+                console.warn('[InviteLink] Not found:', id);
+                return null;
+            }
+
+            const data = snapshot.data();
+            console.log('[InviteLink] Retrieved:', { id, hasInvite: !!data?.invite });
+            if (!data?.deepLinkUrl || !data?.shortCode || !data?.invite) {
+                console.error('[InviteLink] Invalid document structure:', id);
+                return null;
+            }
+
+            return data as InviteLinkDocument;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error(`[InviteLink] Firestore error (attempt ${attempt + 1}):`, message);
+            if (attempt < retries) {
+                // Brief delay before retry — gives Firestore native module time to initialize on cold start
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } else {
+                throw error;
+            }
+        }
     }
-
-    const data = snapshot.data();
-    console.log('[InviteLink] Retrieved:', { id, data });
-    // Runtime validation of document structure
-    if (!data?.deepLinkUrl || !data?.shortCode || !data?.invite) {
-        console.error('[InviteLink] Invalid document structure:', id);
-        return null;
-    }
-
-    return data as InviteLinkDocument;
+    return null;
 };
 
 /**

@@ -12,6 +12,7 @@ import {
     getDocs,
     setDoc,
     deleteDoc,
+    writeBatch,
     query,
     orderBy,
     limit,
@@ -165,4 +166,34 @@ export const deleteDeeplink = async (env: DeeplinkEnvironment, id: string): Prom
     const col = firebaseService.getDeeplinksCollection(env);
     const docRef = doc(col, id);
     await deleteDoc(docRef);
+};
+
+/**
+ * Delete all deeplinks in specific environment
+ * Uses Firestore writeBatch (max 500 operations per batch)
+ */
+export const deleteAllDeeplinks = async (env: DeeplinkEnvironment): Promise<number> => {
+    const currentUser = firebaseService.getCurrentUser(env);
+    if (!currentUser) {
+        throw new Error('Not authenticated');
+    }
+
+    const col = firebaseService.getDeeplinksCollection(env);
+    const snapshot = await getDocs(query(col));
+
+    if (snapshot.empty) return 0;
+
+    const BATCH_SIZE = 500;
+    const firestore = firebaseService.getFirestore(env);
+    let deletedCount = 0;
+
+    for (let i = 0; i < snapshot.docs.length; i += BATCH_SIZE) {
+        const batch = writeBatch(firestore);
+        const chunk = snapshot.docs.slice(i, i + BATCH_SIZE);
+        chunk.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        deletedCount += chunk.length;
+    }
+
+    return deletedCount;
 };

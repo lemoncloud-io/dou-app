@@ -44,24 +44,32 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
         setDeepLinkError,
     } = useDeepLinkStore();
 
-    // Wait for cold start deep link resolution before allowing WebView to load
+    // Wait for cold start deep link resolution before allowing WebView to load.
+    // Accepts both 'cold_start' and 'warm_start' sources because on iOS Release builds,
+    // a late-arriving Universal Link URL may be classified as 'warm_start' by the manager
+    // if it arrived via addEventListener after getInitialURL returned null.
     useEffect(() => {
         const manager = getDeepLinkManager();
-        manager.waitForColdStart().then(() => {
-            const state = useDeepLinkStore.getState();
-            // If error occurred during cold start, don't set source — let MainScreen show error
-            if (state.deepLinkError) {
+        manager
+            .waitForColdStart()
+            .then(() => {
+                const state = useDeepLinkStore.getState();
+                if (state.deepLinkError) {
+                    setIsColdStartReady(true);
+                    return;
+                }
+                if (state.pendingUrl) {
+                    const targetUrl = buildTargetUrl(state.pendingUrl, state.pendingEnvs);
+                    coldStartUrlRef.current = targetUrl;
+                    logger.info('DEEPLINK', `Cold start URL captured (source: ${state.source}): ${targetUrl}`);
+                    state.clearPendingUrl();
+                }
                 setIsColdStartReady(true);
-                return;
-            }
-            if (state.pendingUrl && state.source === 'cold_start') {
-                const targetUrl = buildTargetUrl(state.pendingUrl, state.pendingEnvs);
-                coldStartUrlRef.current = targetUrl;
-                logger.info('DEEPLINK', `Cold start URL captured for initial source: ${targetUrl}`);
-                state.clearPendingUrl();
-            }
-            setIsColdStartReady(true);
-        });
+            })
+            .catch(err => {
+                logger.error('DEEPLINK', `Cold start wait failed: ${err}`);
+                setIsColdStartReady(true);
+            });
     }, []);
 
     // Initial WebView source: use cold start deep link URL or default WEBVIEW_URL

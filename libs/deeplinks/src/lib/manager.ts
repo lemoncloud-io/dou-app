@@ -12,7 +12,7 @@
  * - Delegates URL handling to WebView handler (Zustand store manages pending state)
  */
 
-import { Linking } from 'react-native';
+import { Linking, NativeModules, Platform } from 'react-native';
 
 import { handleDeferredDeepLink } from './deferred';
 import { isShortUrl, isValidDeepLink } from './parser';
@@ -20,6 +20,9 @@ import { convertDeepLinkToFrontendUrl, convertShortUrlWithEnvs, needsConversion 
 
 import type { ServiceEndpoints } from './urlConverter';
 import type { DeepLinkConfig, DeepLinkSource, WebViewHandler } from './types';
+
+/** Time to wait for a late-arriving Universal Link URL after getInitialURL returns null */
+const LATE_URL_WAIT_MS = 500;
 
 const DEFAULT_CONFIG: DeepLinkConfig = {
     deepLinkDomain: 'app.chatic.io',
@@ -34,6 +37,7 @@ export class DeepLinkManager {
     private isInitialized = false;
     private coldStartResolve: (() => void) | null = null;
     private coldStartPromise: Promise<void> | null = null;
+    private lateUrlTimeout: ReturnType<typeof setTimeout> | null = null;
     // App readiness gate: URL capture happens immediately, but processing waits for Firebase etc.
     private appReadyResolve: (() => void) | null = null;
     private appReadyPromise: Promise<void>;
@@ -84,35 +88,100 @@ export class DeepLinkManager {
     }
 
     /**
+     * Try to get the initial Universal Link URL from native module.
+     * Workaround for React Native race condition: on iOS Release builds,
+     * Linking.getInitialURL() may return null because the JS executes before
+     * application(_:continue:restorationHandler:) is called by iOS.
+     * The native module buffers the URL in AppDelegate.initialUniversalLink.
+     */
+    private async getNativeInitialUrl(): Promise<string | null> {
+        if (Platform.OS !== 'ios') return null;
+        try {
+            const { InitialUrlModule } = NativeModules;
+            if (!InitialUrlModule?.getInitialUniversalLink) return null;
+            const url = await InitialUrlModule.getInitialUniversalLink();
+            if (url) {
+                console.log('[DeepLinkManager] Native module initial URL:', url);
+            }
+            return url ?? null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Resolve cold start promise and clean up state.
+     */
+    private finishColdStart(): void {
+        if (this.lateUrlTimeout) {
+            clearTimeout(this.lateUrlTimeout);
+            this.lateUrlTimeout = null;
+        }
+        this.coldStartResolve?.();
+        this.coldStartResolve = null;
+    }
+
+    /**
      * Setup listeners for immediate deep links.
      * Deferred links are only checked when there is no cold start URL.
+     *
+     * Uses a 3-layer strategy for cold start URL capture:
+     * 1. Linking.getInitialURL() — standard RN API
+     * 2. Native module fallback — reads URL buffered in AppDelegate
+     * 3. Late URL wait — waits briefly for addEventListener to fire
      */
     private setupImmediateDeepLinks(): void {
         this.coldStartPromise = new Promise<void>(resolve => {
             this.coldStartResolve = resolve;
         });
 
-        // Get initial URL (cold start)
+        // Listen for URL events (warm start OR late-arriving cold start)
+        this.linkingSubscription = Linking.addEventListener('url', ({ url }) => {
+            if (this.coldStartResolve) {
+                // coldStart not yet resolved — this is a late-arriving cold start URL
+                console.log('[DeepLinkManager] Late cold start URL via addEventListener:', url);
+                this.handleDeepLink(url, 'cold_start').finally(() => this.finishColdStart());
+            } else {
+                // Normal warm start
+                console.log('[DeepLinkManager] Warm start URL:', url);
+                this.handleDeepLink(url, 'warm_start');
+            }
+        });
+
+        // Get initial URL (cold start) with native module fallback
         Linking.getInitialURL()
             .then(async url => {
                 if (url) {
-                    console.log('[DeepLinkManager] Cold start URL:', url);
+                    console.log('[DeepLinkManager] Cold start URL from getInitialURL:', url);
                     await this.handleDeepLink(url, 'cold_start');
-                } else {
-                    await this.handleDeferredLinks();
+                    this.finishColdStart();
+                    return;
                 }
-            })
-            .catch(err => console.error('[DeepLinkManager] Error getting initial URL:', err))
-            .finally(() => {
-                this.coldStartResolve?.();
-                this.coldStartResolve = null;
-            });
 
-        // Listen for URL events (app already running - warm start)
-        this.linkingSubscription = Linking.addEventListener('url', ({ url }) => {
-            console.log('[DeepLinkManager] Warm start URL:', url);
-            this.handleDeepLink(url, 'warm_start');
-        });
+                // Fallback: try native module (iOS Universal Link buffer)
+                const nativeUrl = await this.getNativeInitialUrl();
+                if (nativeUrl) {
+                    console.log('[DeepLinkManager] Cold start URL from native module:', nativeUrl);
+                    await this.handleDeepLink(nativeUrl, 'cold_start');
+                    this.finishColdStart();
+                    return;
+                }
+
+                // Neither source had a URL — wait briefly for late addEventListener delivery.
+                // In Release builds, the Universal Link callback may fire AFTER getInitialURL
+                // returns null. The addEventListener above will catch it and resolve coldStart.
+                console.log('[DeepLinkManager] No initial URL, waiting for late delivery...');
+                this.lateUrlTimeout = setTimeout(async () => {
+                    if (!this.coldStartResolve) return; // Already resolved by addEventListener
+                    console.log('[DeepLinkManager] Late URL wait expired, checking deferred links');
+                    await this.handleDeferredLinks();
+                    this.finishColdStart();
+                }, LATE_URL_WAIT_MS);
+            })
+            .catch(err => {
+                console.error('[DeepLinkManager] Error getting initial URL:', err);
+                this.finishColdStart();
+            });
     }
 
     /**
@@ -222,6 +291,10 @@ export class DeepLinkManager {
      * Cleanup
      */
     cleanup(): void {
+        if (this.lateUrlTimeout) {
+            clearTimeout(this.lateUrlTimeout);
+            this.lateUrlTimeout = null;
+        }
         this.linkingSubscription?.remove();
         this.linkingSubscription = null;
         this.webViewHandler = null;

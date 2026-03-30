@@ -4,5 +4,6 @@ export {
     useDeeplinkDetail,
     useInviteAndCreateDeeplink,
     useDeleteDeeplink,
+    useDeleteAllDeeplinks,
     deeplinksKeys,
 } from './useDeeplinks';

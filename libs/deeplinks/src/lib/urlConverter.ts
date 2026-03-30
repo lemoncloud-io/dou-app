@@ -47,8 +47,12 @@ export const convertDeepLinkToFrontendUrl = (deepLinkUrl: string): string => {
             search = parsed.search;
         }
 
+        // Remove trailing slash to prevent short code extraction failure
+        // (Hermes URL parser may add trailing slash to pathname)
+        const normalizedPath = path.length > 1 ? path.replace(/\/$/, '') : path;
+
         // Build frontend URL
-        const frontendUrl = `https://${FRONTEND_DOMAIN}${path}${search}`;
+        const frontendUrl = `https://${FRONTEND_DOMAIN}${normalizedPath}${search}`;
 
         console.log('[UrlConverter] Deep link → Frontend:', deepLinkUrl, '→', frontendUrl);
         return frontendUrl;
@@ -108,7 +112,9 @@ export const convertShortUrlToFrontendUrl = async (url: string): Promise<string>
     try {
         const parsed = new URL(url);
         // Extract short code from path: /s/abc123 -> abc123
-        const pathParts = parsed.pathname.split('/');
+        // Remove trailing slash before splitting (Hermes URL parser may add one)
+        const normalizedPath = parsed.pathname.replace(/\/$/, '');
+        const pathParts = normalizedPath.split('/');
         const shortCode = pathParts[pathParts.length - 1];
 
         if (!shortCode) {
@@ -177,15 +183,19 @@ export const convertShortUrlWithEnvs = async (url: string): Promise<ConvertedUrl
 
     try {
         const parsed = new URL(url);
-        const pathParts = parsed.pathname.split('/');
+        // Remove trailing slash before splitting (Hermes URL parser may add one)
+        const normalizedPath = parsed.pathname.replace(/\/$/, '');
+        const pathParts = normalizedPath.split('/');
         const shortCode = pathParts[pathParts.length - 1];
 
         if (!shortCode) {
             console.warn('[UrlConverter] No short code found in URL:', url);
-            return { url: convertDeepLinkToFrontendUrl(url) };
+            throw new Error(`No short code in URL: ${url}`);
         }
 
+        console.log('[UrlConverter] Looking up short code:', shortCode, 'from URL:', url);
         const inviteLink = await getInviteLink(shortCode);
+        console.log('[UrlConverter] Firestore result:', inviteLink ? 'found' : 'not found');
 
         if (inviteLink?.invite) {
             const invite = inviteLink.invite as {
@@ -208,17 +218,21 @@ export const convertShortUrlWithEnvs = async (url: string): Promise<ConvertedUrl
                 console.log('[UrlConverter] Short URL expanded from userId with envs:', url, '→', expandedUrl);
                 return { url: expandedUrl, envs: invite.$envs };
             }
+
+            // invite exists but has neither Location nor userId
+            console.warn('[UrlConverter] Invite found but missing Location and userId:', shortCode);
         }
 
-        console.log('[UrlConverter] Short URL fallback to domain conversion:', url);
-        if (isDeepLinkDomain(parsed.hostname)) {
-            return { url: `https://${FRONTEND_DOMAIN}${parsed.pathname}${parsed.search}` };
-        }
-        return { url };
+        console.warn('[UrlConverter] Short URL expansion failed for code:', shortCode);
+        // Throw to propagate the actual failure reason to the manager
+        throw new Error(
+            inviteLink ? `Invite data incomplete (code: ${shortCode})` : `Invite not found (code: ${shortCode})`
+        );
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         console.error('[UrlConverter] Error expanding short URL:', message);
-        return { url };
+        // Re-throw so the manager can show the actual error to the user
+        throw error;
     }
 };
 

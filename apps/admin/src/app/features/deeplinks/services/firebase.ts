@@ -31,35 +31,26 @@ export const DEEPLINK_URLS: Record<DeeplinkEnvironment, string> = {
     PROD: 'https://app.chatic.io/s',
 };
 
-/**
- * Firebase configuration for dev environment (REDACTED_FIREBASE_PROJECT)
- */
 const DEV_CONFIG: FirebaseConfig = {
-    apiKey: 'REDACTED_FIREBASE_API_KEY',
-    authDomain: 'REDACTED_FIREBASE_PROJECT.firebaseapp.com',
-    projectId: 'REDACTED_FIREBASE_PROJECT',
-    storageBucket: 'REDACTED_FIREBASE_PROJECT.firebasestorage.app',
-    messagingSenderId: '429595905351',
-    appId: '1:429595905351:web:a1866c5f60565098abd062',
-    measurementId: 'G-M8FFL54LLP',
+    apiKey: import.meta.env.VITE_FIREBASE_DEV_API_KEY || '',
+    authDomain: import.meta.env.VITE_FIREBASE_DEV_AUTH_DOMAIN || '',
+    projectId: import.meta.env.VITE_FIREBASE_DEV_PROJECT_ID || '',
+    storageBucket: import.meta.env.VITE_FIREBASE_DEV_STORAGE_BUCKET || '',
+    messagingSenderId: import.meta.env.VITE_FIREBASE_DEV_MESSAGING_SENDER_ID || '',
+    appId: import.meta.env.VITE_FIREBASE_DEV_APP_ID || '',
+    measurementId: import.meta.env.VITE_FIREBASE_DEV_MEASUREMENT_ID || '',
 };
 
-/**
- * Firebase configuration for prod environment (REDACTED_FIREBASE_PROJECT)
- */
 const PROD_CONFIG: FirebaseConfig = {
-    apiKey: 'REDACTED_FIREBASE_API_KEY',
-    authDomain: 'REDACTED_FIREBASE_PROJECT.firebaseapp.com',
-    projectId: 'REDACTED_FIREBASE_PROJECT',
-    storageBucket: 'REDACTED_FIREBASE_PROJECT.firebasestorage.app',
-    messagingSenderId: '884488290426',
-    appId: '1:884488290426:web:cc3663c181f5800385bbc3',
-    measurementId: 'G-HZTHHWPB7Q',
+    apiKey: import.meta.env.VITE_FIREBASE_PROD_API_KEY || '',
+    authDomain: import.meta.env.VITE_FIREBASE_PROD_AUTH_DOMAIN || '',
+    projectId: import.meta.env.VITE_FIREBASE_PROD_PROJECT_ID || '',
+    storageBucket: import.meta.env.VITE_FIREBASE_PROD_STORAGE_BUCKET || '',
+    messagingSenderId: import.meta.env.VITE_FIREBASE_PROD_MESSAGING_SENDER_ID || '',
+    appId: import.meta.env.VITE_FIREBASE_PROD_APP_ID || '',
+    measurementId: import.meta.env.VITE_FIREBASE_PROD_MEASUREMENT_ID || '',
 };
 
-/**
- * Get Firebase config for environment
- */
 const getConfigForEnv = (env: DeeplinkEnvironment): FirebaseConfig => {
     return env === 'PROD' ? PROD_CONFIG : DEV_CONFIG;
 };
