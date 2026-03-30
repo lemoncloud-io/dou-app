@@ -763,9 +763,11 @@
     },
     "inviteAccept": {
         "title": "채팅에 초대되었습니다",
+        "titleWithName": "{{name}}님이 초대했습니다",
         "description": "초대를 수락하고 채팅을 시작해 보세요.",
         "accept": "수락하기",
         "accepting": "수락 중...",
+        "decline": "거절하기",
         "failed": "초대 수락에 실패했습니다"
     },
     "limitExceeded": {

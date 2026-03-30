@@ -10,9 +10,9 @@ import type { CloudDelegationTokenView, UserProfile$, UserTokenView } from '@lem
 
 import { useRegisterDevice } from '@chatic/auth';
 
-import type { LoginInviteResponse } from '@chatic/web-core';
 import type { JSX } from 'react';
 import { useDynamicDeviceId } from '../../../shared/hooks/useDynamicDeviceId';
+import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
 
 export const LoginPage = (): JSX.Element => {
     const { t } = useTranslation();
@@ -20,14 +20,16 @@ export const LoginPage = (): JSX.Element => {
     const { setIsAuthenticated, setProfile } = useWebCoreStore();
     const { toast } = useToast();
     const [isInviteLogin, setIsInviteLogin] = useState(false);
-    const [inviteData, setInviteData] = useState<LoginInviteResponse | null>(null);
     const [isAccepting, setIsAccepting] = useState(false);
-    const [isFetchingInvite, setIsFetchingInvite] = useState(false);
     const loginCalled = useRef(false);
     const { mutateAsync: registerDevice, isPending: isRegisteringDevice } = useRegisterDevice();
     const { deviceId, isReady } = useDynamicDeviceId();
 
     const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+
+    // URL에서 초대 정보 파싱
+    const inviterName = urlParams.get('_inviterName');
+    const siteName = urlParams.get('_siteName');
 
     useEffect(() => {
         if (!isReady) return;
@@ -38,25 +40,8 @@ export const LoginPage = (): JSX.Element => {
         const provider = urlParams.get('provider');
 
         if (code && provider === 'invite') {
+            // 초대 정보만 보여주고, 수락 시 loginWithInviteCode 호출
             setIsInviteLogin(true);
-            setIsFetchingInvite(true);
-
-            const fetchInviteData = async () => {
-                try {
-                    const data = await loginWithInviteCode(code, urlParams.get('_backend') ?? undefined);
-                    setInviteData(data);
-                } catch (error) {
-                    console.error('[LoginPage] Fetch invite data failed:', error);
-                    toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
-                    setTimeout(() => {
-                        window.location.href = '/auth/logout';
-                    }, 1500);
-                } finally {
-                    setIsFetchingInvite(false);
-                }
-            };
-
-            void fetchInviteData();
         } else {
             const handleDeviceRegistration = async () => {
                 try {
@@ -77,37 +62,44 @@ export const LoginPage = (): JSX.Element => {
     }, [urlParams, toast, deviceId, isReady, t, registerDevice, setProfile, setIsAuthenticated]);
 
     const handleAccept = async () => {
-        if (!inviteData || isAccepting) return;
+        if (isAccepting) return;
 
-        const identityToken = inviteData.Token?.identityToken;
-        if (!identityToken) {
-            toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
-            return;
-        }
+        const code = urlParams.get('code');
+        if (!code) return;
 
         setIsAccepting(true);
         try {
-            // 1. Register device → webCore 임시 중계서버 계정
-            const { Token, ...rest } = await registerDevice(deviceId);
-            await webCore.buildCredentialsByToken(Token);
+            // 1. loginWithInviteCode → 서버에서 토큰 발급
+            const data = await loginWithInviteCode(code, urlParams.get('_backend') ?? undefined);
 
-            // 2. Save delegation token (backend, wss)
+            const identityToken = data.Token?.identityToken;
+            if (!identityToken) {
+                toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
+                setIsAccepting(false);
+                return;
+            }
+
+            // 2. Register device → webCore 임시 중계서버 계정
+            const { Token, ...rest } = await registerDevice(deviceId);
+            await webCore.buildCredentialsByToken(Token as unknown as LemonOAuthToken);
+
+            // 3. Save delegation token (backend, wss)
             const backend = urlParams.get('_backend');
             const wss = urlParams.get('_wss');
             if (backend && wss) {
                 cloudCore.saveDelegationToken({ backend, wss } as CloudDelegationTokenView);
             }
 
-            // 3. Save cloud token (inviteData)
-            cloudCore.saveCloudToken(inviteData as unknown as UserTokenView);
+            // 4. Save cloud token (inviteData)
+            cloudCore.saveCloudToken(data as unknown as UserTokenView);
 
-            // 4. Mark as invited
+            // 5. Mark as invited
             setIsInvitedSession(true);
 
-            // 5. Reset selected place (cloud token changed)
+            // 6. Reset selected place (cloud token changed)
             cloudCore.clearSelectedPlace();
 
-            // 6. Set webCore profile & authenticate
+            // 7. Set webCore profile & authenticate
             setProfile(rest as unknown as UserProfile$);
             setIsAuthenticated(true);
             toast({ title: t('auth.loginSuccess') });
@@ -119,13 +111,8 @@ export const LoginPage = (): JSX.Element => {
         }
     };
 
-    // Show loading while fetching invite data
-    if (isInviteLogin && isFetchingInvite) {
-        return <LoadingFallback message={t('auth.inviteLoading')} />;
-    }
-
-    // Show invite accept UI
-    if (isInviteLogin && inviteData) {
+    // Show invite accept UI (URL 파라미터 기반으로 먼저 보여줌)
+    if (isInviteLogin) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-[rgba(41,41,58,0.23)]">
                 <div className="relative mx-4 w-full max-w-[308px] rounded-[18px] bg-white/80 backdrop-blur-[4px] shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] px-[10px] pt-[26px] pb-[14px]">
@@ -133,28 +120,46 @@ export const LoginPage = (): JSX.Element => {
                         {/* Profile image */}
                         <div className="w-[82px] h-[82px] rounded-full border border-[#f4f5f5] bg-[rgba(0,43,126,0.04)] flex items-center justify-center overflow-hidden">
                             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-200 to-green-400 flex items-center justify-center text-2xl font-semibold text-white">
-                                {inviteData.name?.charAt(0)?.toUpperCase() || '?'}
+                                {inviterName?.charAt(0)?.toUpperCase() || '?'}
                             </div>
                         </div>
 
                         {/* Invite message */}
                         <div className="flex flex-col items-center gap-2 px-[22px] py-2 mt-1 w-full">
                             <div className="text-center text-[18px] font-semibold leading-[1.5] text-[#081837]">
-                                <p>{t('inviteAccept.title')}</p>
+                                <p>
+                                    {inviterName
+                                        ? t('inviteAccept.titleWithName', { name: inviterName })
+                                        : t('inviteAccept.title')}
+                                </p>
                             </div>
-                            <p className="text-center text-[16px] font-medium leading-[1.45] tracking-[-0.16px] text-[#84888f]">
+                            {siteName && (
+                                <p className="text-center text-[16px] font-semibold leading-[1.45] text-[#081837]">
+                                    {siteName}
+                                </p>
+                            )}
+                            <p className="text-center text-[14px] font-medium leading-[1.45] tracking-[-0.16px] text-[#84888f]">
                                 {t('inviteAccept.description')}
                             </p>
                         </div>
 
-                        {/* Button */}
-                        <div className="flex flex-col items-center w-full px-[22px] pt-5 pb-4">
+                        {/* Buttons */}
+                        <div className="flex flex-col items-center gap-2 w-full px-[22px] pt-5 pb-4">
                             <button
                                 onClick={handleAccept}
                                 disabled={isAccepting}
                                 className="w-full h-[50px] rounded-full bg-[#b0ea10] text-[16px] font-semibold leading-[22px] tracking-[0.08px] text-[#222325] disabled:opacity-50"
                             >
                                 {isAccepting ? t('inviteAccept.accepting') : t('inviteAccept.accept')}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    window.location.href = '/';
+                                }}
+                                disabled={isAccepting}
+                                className="w-full h-[50px] rounded-full text-[16px] font-semibold leading-[22px] tracking-[0.08px] text-[#84888f] disabled:opacity-50"
+                            >
+                                {t('inviteAccept.decline')}
                             </button>
                         </div>
                     </div>

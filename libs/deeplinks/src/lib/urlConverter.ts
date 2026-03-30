@@ -192,14 +192,19 @@ export const convertShortUrlWithEnvs = async (url: string): Promise<ConvertedUrl
                 Location?: string;
                 userId?: string;
                 $envs?: ServiceEndpoints;
+                inviter$?: { name?: string };
+                site$?: { name?: string };
             };
 
             if (invite.Location) {
                 const pathAndSearch = extractPathFromLocation(invite.Location);
                 if (pathAndSearch) {
                     const expandedUrl = `https://${FRONTEND_DOMAIN}${pathAndSearch}`;
-                    console.log('[UrlConverter] Short URL expanded with envs:', url, '→', expandedUrl);
-                    return { url: expandedUrl, envs: invite.$envs };
+                    const urlObj = new URL(expandedUrl);
+                    if (invite.inviter$?.name) urlObj.searchParams.set('_inviterName', invite.inviter$.name);
+                    if (invite.site$?.name) urlObj.searchParams.set('_siteName', invite.site$.name);
+                    console.log('[UrlConverter] Short URL expanded with envs:', url, '→', urlObj.toString());
+                    return { url: urlObj.toString(), envs: invite.$envs };
                 }
             }
 

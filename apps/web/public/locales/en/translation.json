@@ -763,9 +763,11 @@
     },
     "inviteAccept": {
         "title": "You've been invited to chat",
+        "titleWithName": "{{name}} invited you",
         "description": "Accept the invitation to start chatting.",
         "accept": "Accept",
         "accepting": "Accepting...",
+        "decline": "Decline",
         "failed": "Failed to accept invitation"
     },
     "limitExceeded": {
