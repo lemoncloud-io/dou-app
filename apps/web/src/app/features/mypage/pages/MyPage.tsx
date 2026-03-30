@@ -146,6 +146,30 @@ export const MyPage = () => {
                     </div>
                 )}
 
+                {/* Subscription & Account Management Card - Logged in only */}
+                {!isGuest && (
+                    <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
+                        <button
+                            onClick={() => navigate('/mypage/subscription')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <span className="text-[15px] font-medium text-foreground">
+                                {t('mypage.subscription.title')}
+                            </span>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                        <button
+                            onClick={() => navigate('/mypage/account-manage')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <span className="text-[15px] font-medium text-foreground">
+                                {t('mypage.accountManage.title')}
+                            </span>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                    </div>
+                )}
+
                 {/* Settings Card - For all users (including guests) */}
                 <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                     <div className="flex items-center justify-between py-3 pl-4 pr-3">
