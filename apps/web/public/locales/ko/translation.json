@@ -240,7 +240,15 @@
             "notice": "꼭 확인해 주세요.",
             "notice1": "구독 변경하면 즉시 적용되며, 남은 기간을 반영해 추가 요금이 청구됩니다.",
             "notice2": "하위 구독으로 변경하면 다음 갱신일부터 적용됩니다.",
-            "notice3": "구독 관리는 iPhone 설정 > Apple ID > 구독 또는 App Store 구독 관리에서 가능"
+            "notice3": "구독 관리는 iPhone 설정 > Apple ID > 구독 또는 App Store 구독 관리에서 가능",
+            "platform": "플랫폼",
+            "purchaseDate": "구매일",
+            "expiresAt": "만료일",
+            "autoRenew": "자동 갱신",
+            "autoRenewOn": "사용 중",
+            "autoRenewOff": "해제",
+            "canceledNotice": "{{date}}에 구독이 종료됩니다",
+            "otherReceipts": "기타 영수증 {{count}}건"
         },
         "accountManage": {
             "title": "계정 관리",

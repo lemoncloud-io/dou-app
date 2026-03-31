@@ -51,7 +51,6 @@ export const SubscriptionPlansPage = () => {
     // 3. Receive purchase result from native → server validate → finish transaction
     useHandleAppMessage('OnPurchase', async message => {
         const result = message.data.purchase;
-        console.log(result);
         if ('code' in result) {
             setPageState('idle');
             toast({ title: t('mypage.subscription.purchaseFailed'), variant: 'destructive' });
@@ -98,6 +97,7 @@ export const SubscriptionPlansPage = () => {
     useHandleAppMessage('OnFinishPurchaseTransaction', () => {
         setPageState('idle');
         toast({ title: t('mypage.subscription.purchaseSuccess') });
+        postMessage({ type: 'FetchCurrentPurchases' });
         navigate(-1);
     });
 

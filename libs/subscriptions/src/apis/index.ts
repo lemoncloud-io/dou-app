@@ -44,11 +44,10 @@ export const validateApple = async (body: ValidateAPIBody, params: Params = {}):
 export const fetchActiveSubscriptions = async (params: ListValidateParam): Promise<ListResult<ReceiptModel>> => {
     const { data } = await webCore
         .buildSignedRequest({
-            method: 'POST',
+            method: 'GET',
             baseURL: `${IAP_ENDPOINT}/validate`,
         })
-        .setParams({ ...params, active: '' })
-        .setBody({})
+        .setParams({ ...params, active: 1 })
         .execute<ListResult<ReceiptModel>>();
 
     return throwIfApiError(data);
@@ -61,11 +60,10 @@ export const fetchReceiptDetail = async (
 ): Promise<ValidateAPIResponse> => {
     const { data } = await webCore
         .buildSignedRequest({
-            method: 'POST',
+            method: 'GET',
             baseURL: `${IAP_ENDPOINT}/validate/${receiptId}`,
         })
         .setParams({ ...params })
-        .setBody({})
         .execute<ValidateAPIResponse>();
 
     return throwIfApiError(data);
