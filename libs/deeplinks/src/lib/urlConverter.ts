@@ -23,37 +23,43 @@ import { isShortUrl } from './parser';
  * convertDeepLinkToFrontendUrl('chatic://chat/123')
  * // Returns: 'https://dou.chatic.io/chat/123'
  */
+/**
+ * Extract path and search from custom scheme URL without relying on new URL().
+ * Hermes URL parser does not correctly handle custom schemes like chatic-dev://s/xxx.
+ * Manual parsing: strip scheme prefix, ensure leading slash.
+ */
+const parseCustomSchemeUrl = (url: string): { path: string; search: string } => {
+    // chatic-dev://s/abc?foo=bar → s/abc?foo=bar
+    const afterScheme = url.replace(/^[a-zA-Z][a-zA-Z0-9+\-.]*:\/\//, '');
+    const queryIndex = afterScheme.indexOf('?');
+    const pathPart = queryIndex >= 0 ? afterScheme.slice(0, queryIndex) : afterScheme;
+    const searchPart = queryIndex >= 0 ? afterScheme.slice(queryIndex) : '';
+    const path = pathPart.startsWith('/') ? pathPart : `/${pathPart}`;
+    return { path, search: searchPart };
+};
+
 export const convertDeepLinkToFrontendUrl = (deepLinkUrl: string): string => {
     try {
-        const parsed = new URL(deepLinkUrl);
-        const scheme = parsed.protocol.replace(':', '');
+        const scheme = deepLinkUrl.split(':')[0];
 
         let path: string;
         let search: string;
 
         if (isCustomScheme(scheme)) {
-            // For custom scheme (chatic://), hostname is part of the path
-            // e.g., chatic://chat/123 → hostname='chat', pathname='/123'
-            // We need to combine them: /chat/123
-            if (parsed.hostname) {
-                path = '/' + parsed.hostname + parsed.pathname;
-            } else {
-                path = parsed.pathname;
-            }
-            search = parsed.search;
+            // Manual parsing — Hermes new URL() breaks custom scheme hostname/pathname
+            const result = parseCustomSchemeUrl(deepLinkUrl);
+            path = result.path;
+            search = result.search;
         } else {
-            // For http/https, just use pathname
+            const parsed = new URL(deepLinkUrl);
             path = parsed.pathname;
             search = parsed.search;
         }
 
         // Remove trailing slash to prevent short code extraction failure
-        // (Hermes URL parser may add trailing slash to pathname)
         const normalizedPath = path.length > 1 ? path.replace(/\/$/, '') : path;
 
-        // Build frontend URL
         const frontendUrl = `https://${FRONTEND_DOMAIN}${normalizedPath}${search}`;
-
         console.log('[UrlConverter] Deep link → Frontend:', deepLinkUrl, '→', frontendUrl);
         return frontendUrl;
     } catch (error) {
@@ -170,13 +176,13 @@ export const convertShortUrlWithEnvs = async (url: string): Promise<ConvertedUrl
  */
 export const needsConversion = (url: string): boolean => {
     try {
-        const parsed = new URL(url);
-        const scheme = parsed.protocol.replace(':', '');
-
+        // Check custom scheme first without new URL() — Hermes may fail to parse custom schemes
+        const scheme = url.split(':')[0];
         if (isCustomScheme(scheme)) {
             return true;
         }
 
+        const parsed = new URL(url);
         if (isDeepLinkDomain(parsed.hostname)) {
             return true;
         }

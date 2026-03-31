@@ -91,27 +91,12 @@ class FirebaseDeeplinkService {
         const col = this.getCollection();
         const docRef = doc(col, inviteCode);
 
-        // Enrich invite data for mobile deep link resolution:
-        // - $envs: backend/wss endpoints so the WebView can connect to the correct API
-        // - Location: auth URL so the mobile URL converter can build the invite accept URL
-        const inviteData = invite as MyInviteView & { Location?: string; channelId?: string };
-        const inviteWithEnvs = {
-            ...inviteData,
-            $envs: {
-                backend: import.meta.env.VITE_BACKEND_ENDPOINT,
-                wss: import.meta.env.VITE_WS_ENDPOINT,
-            },
-            ...(!inviteData.Location && inviteData.channelId
-                ? {
-                      Location: `${window.location.origin}/auth/login?code=invt:${inviteData.channelId}:${inviteCode}&provider=invite`,
-                  }
-                : {}),
-        };
-
+        // Backend WebSocket response already includes $envs and Location.
+        // Don't override — just store invite as-is.
         await setDoc(docRef, {
             deepLinkUrl,
             shortCode: inviteCode,
-            invite: inviteWithEnvs,
+            invite,
             createdAt: Timestamp.now(),
             createdBy: 'web-user',
         });
