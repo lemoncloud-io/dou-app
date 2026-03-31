@@ -1,4 +1,5 @@
 export * from './AccountInfoPage';
+export * from './DebugPage';
 export * from './LoginPage';
 export * from './MyPage';
 export * from './PolicyListPage';

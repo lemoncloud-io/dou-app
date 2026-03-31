@@ -1,5 +1,5 @@
 import { ChevronRight, ChevronDown, User } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -30,6 +30,9 @@ export const MyPage = () => {
     const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
     const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
+    const [isDebugMode, setIsDebugMode] = useState(false);
+    const tapCountRef = useRef(0);
+    const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
 
@@ -44,6 +47,19 @@ export const MyPage = () => {
 
     const handleThemeToggle = () => {
         setTheme(isDarkTheme ? 'light' : 'dark');
+    };
+
+    const handleVersionTap = () => {
+        tapCountRef.current += 1;
+        if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+        tapTimerRef.current = setTimeout(() => {
+            tapCountRef.current = 0;
+        }, 3000);
+
+        if (tapCountRef.current >= 10) {
+            tapCountRef.current = 0;
+            setIsDebugMode(true);
+        }
     };
 
     const handleUpdateClick = () => {
@@ -176,7 +192,10 @@ export const MyPage = () => {
                             </div>
                         </button>
                     ) : (
-                        <div className="flex items-center justify-between py-3 pl-4 pr-3">
+                        <button
+                            onClick={handleVersionTap}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3 text-left"
+                        >
                             <div className="flex flex-col items-start gap-0.5">
                                 <span className="text-[15px] font-medium text-foreground">
                                     {t('mypage.appVersion')}
@@ -187,7 +206,16 @@ export const MyPage = () => {
                                         : `v${versionInfo?.webVersion}`}
                                 </span>
                             </div>
-                        </div>
+                        </button>
+                    )}
+                    {isDebugMode && (
+                        <button
+                            onClick={() => navigate('/mypage/debug')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <span className="text-[15px] font-medium text-destructive">Debug Mode</span>
+                            <ChevronRight size={18} className="text-destructive" />
+                        </button>
                     )}
                 </div>
 
