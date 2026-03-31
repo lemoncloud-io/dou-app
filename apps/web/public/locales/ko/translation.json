@@ -248,7 +248,17 @@
             "autoRenewOn": "사용 중",
             "autoRenewOff": "해제",
             "canceledNotice": "{{date}}에 구독이 종료됩니다",
-            "otherReceipts": "기타 영수증 {{count}}건"
+            "otherReceipts": "기타 영수증 {{count}}건",
+            "manageSubscription": "구독 관리",
+            "status": "상태",
+            "statusActive": "구독 중",
+            "statusCanceled": "해지 예정",
+            "statusExpired": "만료됨",
+            "expired": "구독이 만료되었습니다",
+            "restore": "구매 복원",
+            "restoreSuccess": "{{count}}건 복원 완료",
+            "restoreEmpty": "복원할 구매가 없습니다",
+            "restoreFailed": "복원에 실패했습니다"
         },
         "accountManage": {
             "title": "계정 관리",

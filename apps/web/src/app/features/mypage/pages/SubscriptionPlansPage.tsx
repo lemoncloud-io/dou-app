@@ -7,15 +7,17 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
-    useValidateGoogle,
-    useValidateApple,
     useFetchActiveSubscriptions,
     useFetchReceiptDetail,
+    useValidateApple,
+    useValidateGoogle,
 } from '@chatic/subscriptions';
+
+import { useSubscriptionIap } from '../hooks';
 
 import type { IapProductSubscription } from '@chatic/app-messages';
 
-type PageState = 'loading' | 'idle' | 'purchasing' | 'validating' | 'finishing';
+type PageState = 'loading' | 'idle' | 'purchasing';
 
 const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
 const APP_ID = IS_DEV ? 'io.chatic.dou.dev' : 'io.chatic.dou';
@@ -24,16 +26,13 @@ export const SubscriptionPlansPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { toast } = useToast();
+    const { isOnMobileApp } = getMobileAppInfo();
+    const { purchaseAndValidate } = useSubscriptionIap();
 
     const [products, setProducts] = useState<IapProductSubscription[]>([]);
     const [selectedProduct, setSelectedProduct] = useState<IapProductSubscription | null>(null);
     const [pageState, setPageState] = useState<PageState>('loading');
 
-    const { isOnMobileApp, isIOS } = getMobileAppInfo();
-    const validateGoogle = useValidateGoogle();
-    const validateApple = useValidateApple();
-
-    // 1. Fetch products on mount
     useEffect(() => {
         if (!isOnMobileApp) {
             setPageState('idle');
@@ -42,80 +41,30 @@ export const SubscriptionPlansPage = () => {
         postMessage({ type: 'FetchProducts' });
     }, [isOnMobileApp]);
 
-    // 2. Receive products from native
     useHandleAppMessage('OnFetchProducts', message => {
         setProducts(message.data.products);
         setPageState('idle');
     });
 
-    // 3. Receive purchase result from native → server validate → finish transaction
-    useHandleAppMessage('OnPurchase', async message => {
-        const result = message.data.purchase;
-        if ('code' in result) {
-            setPageState('idle');
-            toast({ title: t('mypage.subscription.purchaseFailed'), variant: 'destructive' });
-            return;
-        }
-
-        // Server-side validation
-        setPageState('validating');
-        try {
-            const validateFn = isIOS ? validateApple : validateGoogle;
-
-            const validateBody = {
-                paymentType: isIOS ? 'apple-inapp' : 'google-inapp',
-                appId: APP_ID,
-                productId: result.productId,
-                purchaseToken: result.purchaseToken ?? '',
-                isSubscription: true,
-            } as const;
-
-            console.log('[IAP] Validating purchase:', { platform: isIOS ? 'apple' : 'google', body: validateBody });
-            const response = await validateFn.mutateAsync({ body: validateBody, params: { detail: 1 } });
-            console.log('[IAP] Validate response:', response);
-
-            if (!response.isValid) {
-                console.error('[IAP] Validation failed: isValid=false');
-                setPageState('idle');
-                toast({ title: t('mypage.subscription.validateFailed'), variant: 'destructive' });
-                return;
-            }
-
-            // Validation passed → finish transaction
-            console.log('[IAP] Validation passed, finishing transaction');
-            setPageState('finishing');
-
-            postMessage({ type: 'FinishPurchaseTransaction', data: { purchase: result } } as any);
-        } catch (error) {
-            console.error('[IAP] Validation error:', error);
-            setPageState('idle');
-            toast({ title: t('mypage.subscription.validateFailed'), variant: 'destructive' });
-        }
-    });
-
-    // 4. Transaction finished
-    useHandleAppMessage('OnFinishPurchaseTransaction', () => {
-        setPageState('idle');
-        toast({ title: t('mypage.subscription.purchaseSuccess') });
-        postMessage({ type: 'FetchCurrentPurchases' });
-        navigate(-1);
-    });
-
-    // Purchase handler
-    const handleSubscribe = () => {
+    const handleSubscribe = async () => {
         if (!selectedProduct) return;
         setPageState('purchasing');
-        postMessage({
-            type: 'Purchase',
-            data: {
-                id: selectedProduct.id,
-                offerToken: selectedProduct.androidOfferToken?.base ?? undefined,
-            },
-        });
+        try {
+            await purchaseAndValidate(selectedProduct.id, selectedProduct.androidOfferToken?.base);
+            toast({ title: t('mypage.subscription.purchaseSuccess') });
+            navigate(-1);
+        } catch (e) {
+            console.error('[SubscriptionPlansPage] purchase failed:', e);
+            toast({ title: t('mypage.subscription.purchaseFailed'), variant: 'destructive' });
+        } finally {
+            setPageState('idle');
+        }
     };
 
-    // DEV test panel state
+    // DEV test panel
     const [devResult, setDevResult] = useState<string>('');
+    const validateGoogle = useValidateGoogle();
+    const validateApple = useValidateApple();
     const fetchActive = useFetchActiveSubscriptions();
     const fetchReceipt = useFetchReceiptDetail();
     const [receiptId, setReceiptId] = useState('');
@@ -130,19 +79,10 @@ export const SubscriptionPlansPage = () => {
         }
     };
 
-    const isBlocked = pageState !== 'idle' && pageState !== 'loading';
-    const buttonLabel =
-        pageState === 'purchasing'
-            ? t('mypage.subscription.purchasing')
-            : pageState === 'validating'
-              ? t('mypage.subscription.validating')
-              : pageState === 'finishing'
-                ? t('mypage.subscription.finishing')
-                : t('mypage.subscription.subscribe');
+    const isBlocked = pageState === 'purchasing';
 
     return (
         <div className="flex min-h-screen flex-col bg-background">
-            {/* Header */}
             <header className="flex items-center px-[6px] pt-safe-top">
                 <button onClick={() => !isBlocked && navigate(-1)} className="rounded-full p-[9px]">
                     <ChevronLeft size={26} strokeWidth={2} className={cn(isBlocked && 'opacity-30')} />
@@ -289,7 +229,7 @@ export const SubscriptionPlansPage = () => {
                             className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-3.5 text-[16px] font-semibold text-background disabled:opacity-40"
                         >
                             {isBlocked && <Loader2 size={18} className="animate-spin" />}
-                            {buttonLabel}
+                            {isBlocked ? t('mypage.subscription.purchasing') : t('mypage.subscription.subscribe')}
                         </button>
                     </div>
                 )}

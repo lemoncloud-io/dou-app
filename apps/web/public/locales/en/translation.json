@@ -248,7 +248,17 @@
             "autoRenewOn": "On",
             "autoRenewOff": "Off",
             "canceledNotice": "Subscription will end on {{date}}",
-            "otherReceipts": "{{count}} other receipt(s)"
+            "otherReceipts": "{{count}} other receipt(s)",
+            "manageSubscription": "Manage Subscription",
+            "status": "Status",
+            "statusActive": "Active",
+            "statusCanceled": "Canceled",
+            "statusExpired": "Expired",
+            "expired": "This subscription has expired",
+            "restore": "Restore",
+            "restoreSuccess": "{{count}} purchase(s) restored",
+            "restoreEmpty": "No purchases to restore",
+            "restoreFailed": "Restore failed"
         },
         "accountManage": {
             "title": "Account Management",
