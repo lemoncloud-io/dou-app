@@ -91,6 +91,8 @@ class FirebaseDeeplinkService {
         const col = this.getCollection();
         const docRef = doc(col, inviteCode);
 
+        // Backend WebSocket response already includes $envs and Location.
+        // Don't override — just store invite as-is.
         await setDoc(docRef, {
             deepLinkUrl,
             shortCode: inviteCode,

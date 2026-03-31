@@ -17,7 +17,10 @@ export const useInitializeDeepLink = () => {
         // Register callback and initialize listener to be executed upon receiving a deep link
         manager.initialize({
             handleDeepLink: (url: string, source: DeepLinkSource, envs?: ServiceEndpoints) => {
-                logger.info('DEEPLINK', `[App] Deep link received: url, 'source:', source, 'envs:', envs`);
+                logger.info(
+                    'DEEPLINK',
+                    `[App] Deep link received: ${url}, source: ${source}, envs: ${JSON.stringify(envs)}`
+                );
                 useDeepLinkStore.getState().setPendingUrl(url, source, envs);
             },
             handleError: (reason: string) => {

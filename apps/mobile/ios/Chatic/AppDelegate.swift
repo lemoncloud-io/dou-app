@@ -11,6 +11,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   var reactNativeDelegate: ReactNativeDelegate?
   var reactNativeFactory: RCTReactNativeFactory?
 
+  /// Buffer for Universal Link URL received during cold start.
+  /// Stored here because RCTLinkingManager may not be ready when
+  /// application(_:continue:restorationHandler:) is called.
+  static var initialUniversalLink: String?
+
   func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -51,6 +56,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     continue userActivity: NSUserActivity,
     restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
   ) -> Bool {
+    // Buffer the URL for JS to retrieve later (cold start race condition workaround)
+    if userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+       let url = userActivity.webpageURL {
+      AppDelegate.initialUniversalLink = url.absoluteString
+    }
     return RCTLinkingManager.application(
       application,
       continue: userActivity,

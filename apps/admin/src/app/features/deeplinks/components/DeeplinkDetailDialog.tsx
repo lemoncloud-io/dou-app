@@ -2,7 +2,6 @@
  * Deeplink Detail Dialog
  *
  * Dialog for viewing deeplink details from Firebase.
- * Supports environment-specific data fetching.
  */
 
 import { Loader2 } from 'lucide-react';
@@ -18,23 +17,21 @@ import {
 
 import { useDeeplinkDetail } from '../hooks';
 
-import type { DeeplinkEnvironment } from '../types';
 import type { JSX } from 'react';
 
 interface DeeplinkDetailDialogProps {
     shortCode: string | null;
     onOpenChange: (open: boolean) => void;
-    env: DeeplinkEnvironment;
 }
 
-export const DeeplinkDetailDialog = ({ shortCode, onOpenChange, env }: DeeplinkDetailDialogProps): JSX.Element => {
-    const { data: deeplink, isLoading, error } = useDeeplinkDetail(env, shortCode);
+export const DeeplinkDetailDialog = ({ shortCode, onOpenChange }: DeeplinkDetailDialogProps): JSX.Element => {
+    const { data: deeplink, isLoading, error } = useDeeplinkDetail(shortCode);
 
     return (
         <Dialog open={!!shortCode} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
-                    <DialogTitle>Deeplink Details ({env})</DialogTitle>
+                    <DialogTitle>Deeplink Details</DialogTitle>
                     <DialogDescription>View deeplink information from Firebase</DialogDescription>
                 </DialogHeader>
 

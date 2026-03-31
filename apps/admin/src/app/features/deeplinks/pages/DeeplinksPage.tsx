@@ -2,7 +2,7 @@
  * Deeplinks Page
  *
  * Main page for managing admin deeplinks.
- * Uses tabs to switch between DEV and PROD environments.
+ * Environment is determined by deployment (VITE_ENV).
  * Uses anonymous Firebase authentication.
  */
 
@@ -22,23 +22,25 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@chatic/ui-kit/components/ui/alert-dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@chatic/ui-kit/components/ui/tabs';
 
-import { CreateDeeplinkDialog, DeeplinkDetailDialog, DeeplinksPageHeader, DeeplinksTable } from '../components';
-import { useFirebaseAuth, useDeeplinks, useDeleteDeeplink } from '../hooks';
+import { CreateDeeplinkDialog, DeeplinkDetailDialog, DeeplinksTable } from '../components';
+import { useFirebaseAuth, useDeeplinks, useDeleteDeeplink, useDeleteAllDeeplinks } from '../hooks';
 
-import type { AdminDeeplink, DeeplinkEnvironment } from '../types';
+import type { AdminDeeplink } from '../types';
 import type { JSX } from 'react';
 
-/** Content for a single environment tab */
-const EnvironmentContent = ({ env }: { env: DeeplinkEnvironment }): JSX.Element => {
+const ENV_LABEL = import.meta.env.VITE_ENV === 'PROD' ? 'Production' : 'Development';
+
+export const DeeplinksPage = (): JSX.Element => {
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [viewTargetShortCode, setViewTargetShortCode] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<AdminDeeplink | null>(null);
+    const [deleteAllOpen, setDeleteAllOpen] = useState(false);
 
-    const { isAuthenticated, isLoading: isAuthLoading, error: authError } = useFirebaseAuth(env);
-    const { data, isLoading, isFetching, error, refetch } = useDeeplinks(env);
-    const { mutateAsync: deleteDeeplink, isPending: isDeleting } = useDeleteDeeplink(env);
+    const { isAuthenticated, isLoading: isAuthLoading, error: authError } = useFirebaseAuth();
+    const { data, isLoading, isFetching, error, refetch } = useDeeplinks();
+    const { mutateAsync: deleteDeeplink, isPending: isDeleting } = useDeleteDeeplink();
+    const { mutateAsync: deleteAllDeeplinks, isPending: isDeletingAll } = useDeleteAllDeeplinks();
 
     const handleDelete = async () => {
         if (!deleteTarget) return;
@@ -53,52 +55,76 @@ const EnvironmentContent = ({ env }: { env: DeeplinkEnvironment }): JSX.Element 
         }
     };
 
-    // Loading auth state
+    const handleDeleteAll = async () => {
+        try {
+            const count = await deleteAllDeeplinks();
+            toast.success(`${count} deeplinks deleted successfully`);
+            setDeleteAllOpen(false);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to delete deeplinks';
+            toast.error(message);
+        }
+    };
+
     if (isAuthLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <Skeleton className="h-8 w-32" />
+            <div className="p-6">
+                <h1 className="text-2xl font-bold mb-4">Deeplinks</h1>
+                <div className="flex items-center justify-center min-h-[400px]">
+                    <Skeleton className="h-8 w-32" />
+                </div>
             </div>
         );
     }
 
-    // Auth error state
     if (authError || !isAuthenticated) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-                <p className="text-destructive">{authError || 'Authentication failed'}</p>
-                <Button onClick={() => window.location.reload()}>Retry</Button>
+            <div className="p-6">
+                <h1 className="text-2xl font-bold mb-4">Deeplinks</h1>
+                <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+                    <p className="text-destructive">{authError || 'Authentication failed'}</p>
+                    <Button onClick={() => window.location.reload()}>Retry</Button>
+                </div>
             </div>
         );
     }
 
-    // Data error state
     if (error) {
         return (
-            <>
-                <DeeplinksPageHeader isFetching={isFetching} onCreateClick={() => setCreateDialogOpen(true)} />
+            <div className="p-6">
+                <h1 className="text-2xl font-bold mb-4">Deeplinks</h1>
                 <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
                     <p className="text-destructive">Failed to load deeplinks</p>
                     <Button onClick={() => refetch()}>Retry</Button>
                 </div>
-            </>
+            </div>
         );
     }
 
     return (
-        <>
+        <div className="p-6">
             <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-bold">Deeplinks</h1>
+                    <span className="text-sm text-muted-foreground px-2 py-1 bg-muted rounded">{ENV_LABEL}</span>
+                </div>
                 <div className="flex items-center gap-2">
                     {isFetching && <span className="text-sm text-muted-foreground">Refreshing...</span>}
+                    <Button
+                        variant="destructive"
+                        onClick={() => setDeleteAllOpen(true)}
+                        disabled={!data?.total || isDeletingAll}
+                    >
+                        {isDeletingAll ? 'Deleting...' : 'Delete All'}
+                    </Button>
+                    <Button onClick={() => setCreateDialogOpen(true)}>Create Deeplink</Button>
                 </div>
-                <Button onClick={() => setCreateDialogOpen(true)}>Create Deeplink</Button>
             </div>
 
             <CreateDeeplinkDialog
                 open={createDialogOpen}
                 onOpenChange={setCreateDialogOpen}
                 onSuccess={() => refetch()}
-                env={env}
             />
 
             <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
@@ -119,10 +145,27 @@ const EnvironmentContent = ({ env }: { env: DeeplinkEnvironment }): JSX.Element 
                 </AlertDialogContent>
             </AlertDialog>
 
+            <AlertDialog open={deleteAllOpen} onOpenChange={setDeleteAllOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete All Deeplinks</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete all {data?.total ?? 0} deeplinks? This action cannot be
+                            undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteAll} disabled={isDeletingAll}>
+                            {isDeletingAll ? 'Deleting...' : `Delete All (${data?.total ?? 0})`}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <DeeplinkDetailDialog
                 shortCode={viewTargetShortCode}
                 onOpenChange={open => !open && setViewTargetShortCode(null)}
-                env={env}
             />
 
             <DeeplinksTable
@@ -139,31 +182,6 @@ const EnvironmentContent = ({ env }: { env: DeeplinkEnvironment }): JSX.Element 
                     </div>
                 </div>
             )}
-        </>
-    );
-};
-
-export const DeeplinksPage = (): JSX.Element => {
-    const [activeEnv, setActiveEnv] = useState<DeeplinkEnvironment>('DEV');
-
-    return (
-        <div className="p-6">
-            <h1 className="text-2xl font-bold mb-4">Deeplinks</h1>
-
-            <Tabs value={activeEnv} onValueChange={value => setActiveEnv(value as DeeplinkEnvironment)}>
-                <TabsList className="mb-4">
-                    <TabsTrigger value="DEV">Development</TabsTrigger>
-                    <TabsTrigger value="PROD">Production</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="DEV">
-                    <EnvironmentContent env="DEV" />
-                </TabsContent>
-
-                <TabsContent value="PROD">
-                    <EnvironmentContent env="PROD" />
-                </TabsContent>
-            </Tabs>
         </div>
     );
 };

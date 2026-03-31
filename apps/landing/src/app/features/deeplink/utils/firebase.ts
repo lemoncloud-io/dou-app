@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, serverTimestamp, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 
 import { DEEPLINK_CONFIG } from '../constants';
 import { generateFingerprint } from './fingerprint';
@@ -23,20 +24,28 @@ const getFirebaseApp = () => {
     return initializeApp(getFirebaseConfig());
 };
 
+const ensureAuth = async (app: ReturnType<typeof getFirebaseApp>) => {
+    const auth = getAuth(app);
+    if (!auth.currentUser) {
+        await signInAnonymously(auth);
+    }
+};
+
 export const storeDeferredDeepLink = async (url: string): Promise<void> => {
     try {
         const app = getFirebaseApp();
+        await ensureAuth(app);
         const db = getFirestore(app);
         const fingerprint = await generateFingerprint();
+        const now = Timestamp.now();
         const expiresAt = Timestamp.fromDate(new Date(Date.now() + DEEPLINK_CONFIG.linkTtlHours * 60 * 60 * 1000));
 
         await addDoc(collection(db, DEEPLINK_CONFIG.collectionName), {
             fingerprint,
             deepLinkUrl: url,
-            createdAt: serverTimestamp(),
+            createdAt: now,
             expiresAt,
         });
-
         console.log('[Deferred] Stored:', { fingerprint, url });
     } catch (error) {
         console.error('[Deferred] Failed to store:', error);
