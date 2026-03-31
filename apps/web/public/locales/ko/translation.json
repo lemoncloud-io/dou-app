@@ -242,6 +242,7 @@
             "notice1": "구독 변경하면 즉시 적용되며, 남은 기간을 반영해 추가 요금이 청구됩니다.",
             "notice2": "하위 구독으로 변경하면 다음 갱신일부터 적용됩니다.",
             "notice3": "구독 관리는 iPhone 설정 > Apple ID > 구독 또는 App Store 구독 관리에서 가능",
+            "noticeTerms": "구매 정책과 관련한 자세한 내용은 <terms>이용약관</terms>을 확인해 주세요.",
             "platform": "플랫폼",
             "purchaseDate": "구매일",
             "expiresAt": "만료일",
