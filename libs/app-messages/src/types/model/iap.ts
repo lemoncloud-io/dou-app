@@ -94,11 +94,15 @@ export interface OnFetchCurrentPurchasesPayload {
 /**
  * 인앱 결제 구매 정보
  */
-export interface OnPurchasePayload {
-    purchase: Purchase | PurchaseError;
+export interface OnPurchaseSuccessPayload {
+    purchase: Purchase;
 }
 
-/**
+export interface OnPurchaseErrorPayload {
+    error: PurchaseError;
+}
+
+/**₩
  * 인앱 결제 구매 완료 처리
  */
 export interface OnFinishPurchaseTransactionPayload {

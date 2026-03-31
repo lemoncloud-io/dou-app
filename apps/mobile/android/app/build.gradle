@@ -2,6 +2,7 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 apply plugin: 'com.google.gms.google-services'
+apply plugin: 'com.google.firebase.crashlytics'
 
 project.ext.envConfigFiles = [
     devDebug: ".env.dev",
@@ -82,8 +83,8 @@ android {
         applicationId "io.chatic.dou"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 20
-        versionName "0.9.2"
+        versionCode 22
+        versionName "0.9.4"
         resValue "string", "build_config_package", "io.chatic.dou"
     }
 

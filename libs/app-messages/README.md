@@ -79,12 +79,13 @@ This library was generated with [Nx](https://nx.dev).
 
 ### In-App Purchase
 
-| Message Type                  | Description                                     | Data Structure (Example)                                      |
-| :---------------------------- | :---------------------------------------------- | :------------------------------------------------------------ |
-| `OnFetchProducts`             | 스토어의 구독 상품 목록 정보 전달               | `{ products: [{ productId: "pro_monthly", price: "..." }] }`  |
-| `OnFetchCurrentPurchases`     | 사용자의 현재 구독(구매) 보유 현황 전달         | `{ purchases: [{ productId: "...", transactionDate: ... }] }` |
-| `OnPurchase`                  | 결제 진행 결과(성공 영수증 원본 또는 에러) 전달 | `{ purchase: { transactionId: "...", ... } }`                 |
-| `OnFinishPurchaseTransaction` | 영수증 스토어 완료(Finish) 처리 완료 전달       | `{ purchase: { transactionId: "...", ... } }`                 |
+| Message Type                  | Description                               | Data Structure (Example)                                      |
+| :---------------------------- | :---------------------------------------- | :------------------------------------------------------------ |
+| `OnFetchProducts`             | 스토어의 구독 상품 목록 정보 전달         | `{ products: [{ productId: "pro_monthly", price: "..." }] }`  |
+| `OnFetchCurrentPurchases`     | 사용자의 현재 구독(구매) 보유 현황 전달   | `{ purchases: [{ productId: "...", transactionDate: ... }] }` |
+| `OnPurchaseSuccess`           | 결제 진행 결과 성공 및 영수증 원본 전달   | `{ purchase: { transactionId: "...", ... } }`                 |
+| `OnPurchaseError`             | 결제 진행 결과 실패 및 영수증 원본 전달   | `{ error: { ... } }`                                          |
+| `OnFinishPurchaseTransaction` | 영수증 스토어 완료(Finish) 처리 완료 전달 | `{ purchase: { transactionId: "...", ... } }`                 |
 
 ### Cache
 

@@ -21,6 +21,7 @@ export const LoginPage = (): JSX.Element => {
     const { toast } = useToast();
     const [isInviteLogin, setIsInviteLogin] = useState(false);
     const [isAccepting, setIsAccepting] = useState(false);
+
     const loginCalled = useRef(false);
     const { mutateAsync: registerDevice, isPending: isRegisteringDevice } = useRegisterDevice();
     const { deviceId, isReady } = useDynamicDeviceId();
@@ -40,26 +41,26 @@ export const LoginPage = (): JSX.Element => {
         const provider = urlParams.get('provider');
 
         if (code && provider === 'invite') {
-            // 초대 정보만 보여주고, 수락 시 loginWithInviteCode 호출
             setIsInviteLogin(true);
         } else {
-            const handleDeviceRegistration = async () => {
-                try {
-                    const { Token, ...rest } = await registerDevice(deviceId);
-                    if (!Token.identityToken) throw new Error('No identityToken in response');
-
-                    await webCore.buildCredentialsByToken(Token);
-                    setProfile(rest as Parameters<typeof setProfile>[0]);
-                    setIsAuthenticated(true);
-                    window.location.href = '/';
-                } catch (error) {
-                    console.error('[LoginPage] Device registration failed:', error);
-                    toast({ title: t('auth.loginFailed'), variant: 'destructive' });
-                }
-            };
             handleDeviceRegistration();
         }
-    }, [urlParams, toast, deviceId, isReady, t, registerDevice, setProfile, setIsAuthenticated]);
+    }, [urlParams, isReady]);
+
+    const handleDeviceRegistration = async () => {
+        try {
+            const { Token, ...rest } = await registerDevice(deviceId);
+
+            await webCore.buildCredentialsByToken(Token as unknown as LemonOAuthToken);
+            setProfile(rest as unknown as UserProfile$);
+            setIsAuthenticated(true);
+            window.location.href = '/';
+        } catch (error) {
+            console.error('[LoginPage] Device registration failed:', error);
+            toast({ title: t('auth.loginFailed'), variant: 'destructive' });
+            window.location.href = '/';
+        }
+    };
 
     const handleAccept = async () => {
         if (isAccepting) return;

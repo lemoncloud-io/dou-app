@@ -36,9 +36,14 @@ export interface WebCoreState {
     userName: string;
 }
 
+export interface LogoutOptions {
+    /** Preserve current URL (pathname + search) instead of redirecting to /auth/login */
+    preserveUrl?: boolean;
+}
+
 export interface WebCoreStore extends WebCoreState {
     initialize: () => void;
-    logout: () => Promise<void>;
+    logout: (options?: LogoutOptions) => Promise<void>;
     setIsAuthenticated: (isAuth: boolean) => void;
     setProfile: (profile: UserProfile$) => void;
     updateProfile: (user: UserView) => Promise<void>;
@@ -105,7 +110,10 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      * - Removes user profile data
      * - Redirects to login page
      */
-    logout: async () => {
+    logout: async (options?: LogoutOptions) => {
+        // Capture URL params before cleanup (cleanup may affect the URL)
+        const searchBeforeCleanup = window.location.search;
+
         // Execute all registered callbacks before logout
         logoutCallbacks.forEach(callback => {
             try {
@@ -129,7 +137,19 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         localStorage.removeItem('chatic-device-token');
 
         set({ isAuthenticated: false, profile: null, userName: '', isGuest: false, isInvited: false });
-        window.location.href = '/auth/login';
+
+        if (options?.preserveUrl) {
+            const params = new URLSearchParams(searchBeforeCleanup);
+            const loginUrl = new URL('/auth/login', window.location.origin);
+            for (const key of ['code', 'provider', '_backend', '_wss']) {
+                const value = params.get(key);
+                if (value) loginUrl.searchParams.set(key, value);
+            }
+            loginUrl.searchParams.set('logout', '1');
+            window.location.href = loginUrl.toString();
+        } else {
+            window.location.href = '/auth/login?logout=1';
+        }
     },
 
     /**

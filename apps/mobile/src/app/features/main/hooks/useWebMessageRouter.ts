@@ -192,8 +192,13 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
                     default:
                         if ((message as any).type === '__console__') {
                             const m = message as any;
-                            if (m.level === 'error') console.error(m.msg);
-                            else console.info(m.msg);
+                            if (m.level === 'error') {
+                                logger.error('WEBVIEW', m.msg, m.data);
+                                console.error(m.msg);
+                            } else {
+                                logger.info('WEBVIEW', m.msg, m.data);
+                                console.info(m.msg);
+                            }
                         } else {
                             console.error(`Failed received error. : ${message.type}`);
                         }

@@ -19,8 +19,8 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
              * 웹 프론트엔드가 이 영수증을 받아 백엔드 서버 검증을 책임집니다.
              */
             onPurchaseSuccess: (purchase: Purchase) => {
-                const message: AppMessageData<'OnPurchase'> = {
-                    type: 'OnPurchase',
+                const message: AppMessageData<'OnPurchaseSuccess'> = {
+                    type: 'OnPurchaseSuccess',
                     data: {
                         purchase: purchase,
                     },
@@ -34,10 +34,10 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
              */
             onPurchaseError: (error: PurchaseError) => {
                 logger.error('IAP', 'Purchase failed:', error);
-                const message: AppMessageData<'OnPurchase'> = {
-                    type: 'OnPurchase',
+                const message: AppMessageData<'OnPurchaseError'> = {
+                    type: 'OnPurchaseError',
                     data: {
-                        purchase: error,
+                        error: error,
                     },
                 };
                 bridge.post(message);

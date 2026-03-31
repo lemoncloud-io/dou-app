@@ -13,6 +13,11 @@ type InitializationStatus = 'pending' | 'success' | 'failed';
 const REFRESH_INTERVAL = 1000 * 60; // 1분
 const MIN_REFRESH_GAP = 5000; // 5초 간격 제한
 
+const isInviteFlow = (): boolean => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('provider') === 'invite';
+};
+
 export const useTokenRefresh = (webCoreReady: boolean) => {
     const { isAuthenticated, isOnMobileApp, setProfile, logout } = useWebCoreStore();
 
@@ -22,6 +27,8 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
     const isInitializedRef = useRef(false);
     const hasFailedRef = useRef(false);
     const [initStatus, setInitStatus] = useState<InitializationStatus>('pending');
+    // Capture invite flow state at mount time to avoid stale URL reads during interval refresh
+    const wasInviteFlowRef = useRef(isInviteFlow());
 
     const refreshToken = useCallback(async (): Promise<boolean> => {
         const now = Date.now();
@@ -47,7 +54,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             const errorClassification: ErrorClassification = classifyError(error);
             if (errorClassification.shouldLogout) {
                 console.log('🚪 Token completely expired or invalid - logging out...');
-                await logout();
+                await logout(wasInviteFlowRef.current ? { preserveUrl: true } : undefined);
                 return false;
             }
             console.log('⚠️ Temporary refresh failure, will retry later');
@@ -117,7 +124,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
                             console.log('🚪 Profile fetch still failing with auth error - logging out...');
                             hasFailedRef.current = true;
                             setInitStatus('failed');
-                            await logout();
+                            await logout(wasInviteFlowRef.current ? { preserveUrl: true } : undefined);
                             return;
                         }
                     }

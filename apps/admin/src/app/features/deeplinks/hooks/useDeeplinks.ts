@@ -2,7 +2,6 @@
  * Deeplinks Hooks
  *
  * TanStack Query hooks for deeplink CRUD operations.
- * Supports both DEV and PROD environments.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,26 +12,26 @@ import {
     fetchDeeplinks,
     createDeeplinkFromInvite,
     deleteDeeplink,
+    deleteAllDeeplinks,
     fetchDeeplinkByShortCode,
     inviteUser,
 } from '../services';
 
 import type { MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
-import type { DeeplinkEnvironment } from '../types';
 
 /** Query keys for deeplinks */
 export const deeplinksKeys = createQueryKeys('deeplinks');
 
 /**
- * Hook to fetch deeplinks list for specific environment
+ * Hook to fetch deeplinks list
  */
-export const useDeeplinks = (env: DeeplinkEnvironment, params: { limit?: number } = {}) => {
+export const useDeeplinks = (params: { limit?: number } = {}) => {
     const { limit = 20 } = params;
 
     return useQuery({
-        queryKey: deeplinksKeys.list({ env, limit }),
+        queryKey: deeplinksKeys.list({ limit }),
         queryFn: async () => {
-            const result = await fetchDeeplinks(env, { pageSize: limit });
+            const result = await fetchDeeplinks({ pageSize: limit });
             return {
                 list: result.list,
                 total: result.total,
@@ -43,54 +42,57 @@ export const useDeeplinks = (env: DeeplinkEnvironment, params: { limit?: number 
 };
 
 /**
- * Hook to fetch a single deeplink by short code (inviteCode) for specific environment
+ * Hook to fetch a single deeplink by short code
  */
-export const useDeeplinkDetail = (env: DeeplinkEnvironment, shortCode: string | null) => {
+export const useDeeplinkDetail = (shortCode: string | null) => {
     return useQuery({
-        queryKey: deeplinksKeys.detail({ env, shortCode: shortCode ?? '' }),
-        queryFn: () => fetchDeeplinkByShortCode(env, shortCode!),
+        queryKey: deeplinksKeys.detail({ shortCode: shortCode ?? '' }),
+        queryFn: () => fetchDeeplinkByShortCode(shortCode!),
         enabled: !!shortCode,
     });
 };
 
 /**
  * Hook to invite user via backend API and create deeplink
- *
- * Flow:
- * 1. POST /users/0/invite - creates user + returns MyInviteView
- * 2. Create deeplink in Firestore with invite data
  */
-export const useInviteAndCreateDeeplink = (env: DeeplinkEnvironment) => {
+export const useInviteAndCreateDeeplink = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: async (body: MyUserInviteBody) => {
-            // Step 1: Call backend invite API
             const invite = await inviteUser(body);
-
-            // Step 2: Create deeplink in Firestore
-            const deeplink = await createDeeplinkFromInvite(env, invite);
-
-            return deeplink;
+            return createDeeplinkFromInvite(invite);
         },
         onSuccess: () => {
-            // Invalidate deeplinks list for this environment
-            queryClient.invalidateQueries({ queryKey: deeplinksKeys.list({ env }) });
+            queryClient.invalidateQueries({ queryKey: deeplinksKeys.all });
         },
     });
 };
 
 /**
- * Hook to delete a deeplink in specific environment
+ * Hook to delete a deeplink
  */
-export const useDeleteDeeplink = (env: DeeplinkEnvironment) => {
+export const useDeleteDeeplink = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (id: string) => deleteDeeplink(env, id),
+        mutationFn: (id: string) => deleteDeeplink(id),
         onSuccess: () => {
-            // Invalidate deeplinks list for this environment
-            queryClient.invalidateQueries({ queryKey: deeplinksKeys.list({ env }) });
+            queryClient.invalidateQueries({ queryKey: deeplinksKeys.all });
+        },
+    });
+};
+
+/**
+ * Hook to delete all deeplinks
+ */
+export const useDeleteAllDeeplinks = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: () => deleteAllDeeplinks(),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: deeplinksKeys.all });
         },
     });
 };

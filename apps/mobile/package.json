@@ -86,7 +86,8 @@
         "@lemoncloud/chatic-backend-api": "*",
         "@lemoncloud/chatic-socials-api": "*",
         "@lemoncloud/chatic-sockets-api": "*",
-        "@op-engineering/op-sqlite": "*"
+        "@op-engineering/op-sqlite": "*",
+        "@react-native-firebase/crashlytics": "*"
     },
     "devDependencies": {}
 }

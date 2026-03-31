@@ -13,7 +13,8 @@
         "close": "Close",
         "save": "Save Changes",
         "saving": "Saving...",
-        "comingSoon": "This feature is coming soon 🛠️"
+        "comingSoon": "This feature is coming soon 🛠️",
+        "retry": "Retry"
     },
     "nav": {
         "home": "Home",
