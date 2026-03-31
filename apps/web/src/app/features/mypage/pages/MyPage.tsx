@@ -13,6 +13,7 @@ import { useLocalProfileStore, useLogout, useOnboardingStore, useWebCoreStore } 
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { LanguageSelectSheet, LogoutDialog } from '../components';
+import { DEBUG_STORAGE_KEY } from '../consts';
 
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
@@ -31,7 +32,6 @@ export const MyPage = () => {
     const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
     const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
-    const DEBUG_STORAGE_KEY = 'chatic-debug-mode';
     const [isDebugMode, setIsDebugMode] = useState(() => sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true');
     const tapCountRef = useRef(0);
     const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -39,6 +39,12 @@ export const MyPage = () => {
     useEffect(() => {
         return registerLogoutCallback(() => sessionStorage.removeItem(DEBUG_STORAGE_KEY));
     }, [registerLogoutCallback]);
+
+    useEffect(() => {
+        return () => {
+            if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+        };
+    }, []);
 
     const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
 

@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 
 import {
     AccountInfoPage,
+    DebugLoginPage,
     DebugPage,
     LoginPage,
     MyPage,
@@ -19,6 +20,7 @@ export const MyPageRoutes = () => {
             <Route path="account" element={<AccountInfoPage />} />
             <Route path="edit" element={<ProfileEditPage />} />
             <Route path="debug" element={<DebugPage />} />
+            <Route path="debug/login" element={<DebugLoginPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="policy" element={<PolicyListPage />} />
             <Route path="policy/terms" element={<TermsPage />} />

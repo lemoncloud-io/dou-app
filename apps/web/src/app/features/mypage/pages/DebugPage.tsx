@@ -1,37 +1,26 @@
-import { ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronLeft, ChevronRight, Mail, XCircle } from 'lucide-react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useLogin } from '@chatic/auth';
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { webCore } from '@chatic/web-core';
-
 import { useNavigateWithTransition } from '@chatic/shared';
-import { Input } from '@chatic/ui-kit/components/ui/input';
+import { useDeviceInfo } from '@chatic/device-utils';
+
+import { DEBUG_STORAGE_KEY } from '../consts';
 
 export const DebugPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
-    const { toast } = useToast();
-    const { mutateAsync: login, isPending } = useLogin();
+    const { versionInfo } = useDeviceInfo();
 
-    const [uid, setUid] = useState('');
-    const [pwd, setPwd] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            const { Token } = await login({ uid, pwd });
-            await webCore.buildCredentialsByToken(Token as Parameters<typeof webCore.buildCredentialsByToken>[0]);
-            window.location.href = '/';
-        } catch {
-            toast({
-                title: t('mypageLogin.error'),
-                description: t('mypageLogin.errorDescription'),
-                variant: 'destructive',
-            });
+    useEffect(() => {
+        if (sessionStorage.getItem(DEBUG_STORAGE_KEY) !== 'true') {
+            navigate('/mypage', { replace: true });
         }
+    }, [navigate]);
+
+    const handleDisableDebug = () => {
+        sessionStorage.removeItem(DEBUG_STORAGE_KEY);
+        navigate('/mypage', { replace: true });
     };
 
     return (
@@ -44,73 +33,38 @@ export const DebugPage = () => {
             </header>
 
             <div className="flex-1 overflow-y-auto overscroll-none px-4 pb-safe-bottom">
-                <div className="mt-6 mb-8">
-                    <h1 className="text-[20px] font-semibold leading-[1.35]">{t('mypageLogin.title')}</h1>
-                    <p className="mt-1 text-[13px] text-muted-foreground">Debug Mode - Email Login</p>
+                <div className="mt-6 mb-6">
+                    <h1 className="text-[20px] font-semibold leading-[1.35]">Debug Mode</h1>
+                    <p className="mt-1 text-[13px] text-muted-foreground">v{versionInfo?.webVersion ?? '?'}</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold text-label">{t('mypageLogin.emailLabel')}</label>
-                        <Input
-                            type="email"
-                            value={uid}
-                            onChange={e => setUid(e.target.value)}
-                            placeholder={t('mypageLogin.emailPlaceholder')}
-                            required
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold text-label">{t('mypageLogin.passwordLabel')}</label>
-                        <div className="relative">
-                            <Input
-                                type={showPassword ? 'text' : 'password'}
-                                value={pwd}
-                                onChange={e => setPwd(e.target.value)}
-                                placeholder={t('mypageLogin.passwordPlaceholder')}
-                                className="pr-11"
-                                required
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(prev => !prev)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-placeholder"
-                                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                            >
-                                {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="mt-4">
+                {/* Debug Menu */}
+                <div className="flex flex-col gap-3">
+                    <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
-                            type="submit"
-                            disabled={isPending}
-                            className="w-full rounded-[100px] bg-[#B0EA10] py-3 text-[16px] font-semibold text-[#222325] disabled:opacity-50"
+                            onClick={() => navigate('/mypage/debug/login')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
-                            {isPending ? t('mypageLogin.loading') : t('mypageLogin.submit')}
+                            <div className="flex items-center gap-3">
+                                <Mail size={18} className="text-muted-foreground" />
+                                <span className="text-[15px] font-medium text-foreground">
+                                    {t('mypageLogin.title', { defaultValue: 'Email Login' })}
+                                </span>
+                            </div>
+                            <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                     </div>
-                </form>
+                </div>
 
-                <div className="mt-6 flex items-center justify-center gap-6">
+                {/* Disable Debug Mode */}
+                <div className="mt-10 flex justify-center">
                     <button
                         type="button"
-                        onClick={() => navigate('/account/signup')}
-                        className="flex items-center gap-0.5 text-[15px] font-medium text-label"
+                        onClick={handleDisableDebug}
+                        className="flex items-center gap-1 text-[13px] font-medium text-destructive"
                     >
-                        {t('mypageLogin.signup')}
-                        <ChevronRight size={18} />
-                    </button>
-                    <div className="h-[14px] w-px bg-input-border" />
-                    <button
-                        type="button"
-                        onClick={() => navigate('/account/reset-password')}
-                        className="flex items-center gap-0.5 text-[15px] font-medium text-label"
-                    >
-                        {t('mypageLogin.forgotPassword')}
-                        <ChevronRight size={18} />
+                        <XCircle size={14} />
+                        <span>Disable Debug Mode</span>
                     </button>
                 </div>
             </div>
