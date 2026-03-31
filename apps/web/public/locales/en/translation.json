@@ -241,6 +241,7 @@
             "notice1": "Plan changes take effect immediately, and additional charges may apply based on the remaining period.",
             "notice2": "Downgrading will take effect from the next renewal date.",
             "notice3": "Manage subscriptions in iPhone Settings > Apple ID > Subscriptions or App Store subscription management.",
+            "noticeTerms": "For details on purchase policies, please refer to our <terms>Terms of Service</terms>.",
             "platform": "Platform",
             "purchaseDate": "Purchased",
             "expiresAt": "Expires",

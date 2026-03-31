@@ -1,12 +1,14 @@
 import { AlertCircle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useSubscriptionIap } from '../hooks';
+
+const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
 
 interface NativePurchase {
     productId: string;
@@ -75,7 +77,7 @@ export const SubscriptionPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex min-h-screen flex-col bg-background overflow-y-auto">
             {/* Header */}
             <header className="flex items-center px-[6px] pt-safe-top">
                 <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
@@ -85,7 +87,7 @@ export const SubscriptionPage = () => {
                 <div className="w-[44px]" />
             </header>
 
-            <div className="flex flex-col gap-[18px] px-4 pt-4">
+            <div className="flex flex-col gap-[18px] px-4 pt-4 pb-safe-bottom">
                 {isLoading ? (
                     <div className="flex items-center justify-center pt-20">
                         <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
@@ -255,6 +257,32 @@ export const SubscriptionPage = () => {
                                 </span>
                             </div>
                         ))}
+                        <div className="flex items-start gap-2 px-4 py-1.5">
+                            <span className="text-[14px] text-muted-foreground">•</span>
+                            <span className="text-[14px] leading-[1.4] tracking-[-0.015em] text-muted-foreground">
+                                <Trans
+                                    i18nKey="mypage.subscription.noticeTerms"
+                                    components={{
+                                        terms: (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const url = IS_DEV
+                                                        ? 'https://app-dev.chatic.io/policy/terms'
+                                                        : 'https://app.chatic.io/policy/terms';
+                                                    if (isOnMobileApp) {
+                                                        postMessage({ type: 'OpenURL', data: { url } });
+                                                    } else {
+                                                        window.open(url, '_blank');
+                                                    }
+                                                }}
+                                                className="underline text-foreground"
+                                            />
+                                        ),
+                                    }}
+                                />
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
