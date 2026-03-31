@@ -99,7 +99,7 @@ export const BridgeTestScreen = () => {
                     void fetchCurrentPurchases();
                     break;
                 case 'Purchase':
-                    void handlePurchaseSubscription(message.data.sku, message.data.oldSku);
+                    void handlePurchaseSubscription(message.data);
                     break;
                 case 'FinishPurchaseTransaction':
                     void handleFinishPurchase(message.data.purchase);

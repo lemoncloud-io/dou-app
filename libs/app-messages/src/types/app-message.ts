@@ -28,8 +28,9 @@ import type {
     OnFetchCurrentPurchasesPayload,
     OnFetchProductsPayload,
     OnFinishPurchaseTransactionPayload,
-    OnPurchasePayload,
-} from './model/iap';
+    OnPurchaseSuccessPayload,
+    OnPurchaseErrorPayload,
+} from './model';
 
 export const AppMessageTypes = {
     OnSuccessSyncCredential: 'OnSuccessSyncCredential',
@@ -51,7 +52,8 @@ export const AppMessageTypes = {
      */
     OnFetchCurrentPurchases: 'OnFetchCurrentPurchases',
     OnFetchProducts: 'OnFetchProducts',
-    OnPurchase: `OnPurchase`,
+    OnPurchaseSuccess: `OnPurchaseSuccess`,
+    OnPurchaseError: `OnPurchaseError`,
     OnFinishPurchaseTransaction: 'OnFinishPurchaseTransaction',
     /**
      * Cache Event
@@ -170,8 +172,12 @@ export interface OnFetchProducts extends AppDefaultMessage<'OnFetchProducts'> {
     data: OnFetchProductsPayload;
 }
 
-export interface OnPurchase extends AppDefaultMessage<'OnPurchase'> {
-    data: OnPurchasePayload;
+export interface OnPurchaseSuccess extends AppDefaultMessage<'OnPurchaseSuccess'> {
+    data: OnPurchaseSuccessPayload;
+}
+
+export interface OnPurchaseError extends AppDefaultMessage<'OnPurchaseError'> {
+    data: OnPurchaseErrorPayload;
 }
 
 export interface OnFinishPurchaseTransaction extends AppDefaultMessage<'OnFinishPurchaseTransaction'> {
@@ -273,7 +279,8 @@ export interface AppMessageMap {
      */
     OnFetchProducts: OnFetchProducts;
     OnFetchCurrentPurchases: OnFetchCurrentPurchases;
-    OnPurchase: OnPurchase;
+    OnPurchaseSuccess: OnPurchaseSuccess;
+    OnPurchaseError: OnPurchaseError;
     OnFinishPurchaseTransaction: OnFinishPurchaseTransaction;
 
     /**
