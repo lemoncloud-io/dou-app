@@ -139,12 +139,21 @@ export const AddAccountDialog = ({ open, onOpenChange }: AddAccountDialogProps) 
 
     return (
         <Dialog open={open} onOpenChange={open => !open && handleClose()}>
-            <DialogContent className="h-full max-w-none rounded-none p-0 sm:rounded-none">
+            <DialogContent
+                hideClose
+                variant="fullscreen"
+                className="h-full max-w-none rounded-none p-0 sm:rounded-none"
+            >
                 <DialogTitle className="sr-only">{t('addAccount.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('addAccount.title')}</DialogDescription>
 
                 {step === 'email' && (
                     <div className="flex h-full flex-col p-6">
+                        <div className="flex justify-end">
+                            <button onClick={handleClose} className="rounded-full p-1">
+                                <X size={24} strokeWidth={2} />
+                            </button>
+                        </div>
                         <div className="flex flex-col gap-6">
                             <div className="flex flex-col items-center gap-[46px] pt-6">
                                 <img
@@ -218,11 +227,16 @@ export const AddAccountDialog = ({ open, onOpenChange }: AddAccountDialogProps) 
 
                 {step === 'verify' && (
                     <div className="flex h-full flex-col p-6">
-                        <div className="flex flex-col gap-5">
-                            <button onClick={handleBackToEmail} className="-ml-2 self-start rounded-full p-1">
+                        <div className="flex items-center justify-between">
+                            <button onClick={handleBackToEmail} className="-ml-2 rounded-full p-1">
                                 <ChevronLeft size={24} strokeWidth={2} />
                             </button>
+                            <button onClick={handleClose} className="rounded-full p-1">
+                                <X size={24} strokeWidth={2} />
+                            </button>
+                        </div>
 
+                        <div className="flex flex-col gap-5">
                             <div className="flex flex-col items-center pt-2">
                                 <img
                                     src={isDarkTheme ? Logo.douWh : Logo.douBk}
