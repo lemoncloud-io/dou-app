@@ -1,4 +1,6 @@
-import { useCustomMutation } from '@chatic/shared';
+import { useQuery } from '@tanstack/react-query';
+
+import { createQueryKeys, useCustomMutation } from '@chatic/shared';
 
 import { fetchActiveSubscriptions, fetchReceiptDetail, validateApple, validateGoogle } from '../apis';
 
@@ -10,6 +12,8 @@ import type {
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { Params } from '@lemoncloud/lemon-web-core';
+
+export const subscriptionKeys = createQueryKeys('subscriptions');
 
 /** #0. Google 결제 검증 */
 export const useValidateGoogle = () =>
@@ -23,7 +27,15 @@ export const useValidateApple = () =>
         validateApple(body, params)
     );
 
-/** #1. 활성 구독 확인 */
+/** #1. 활성 구독 확인 (선언형) */
+export const useActiveSubscriptions = (params: ListValidateParam) =>
+    useQuery<ListResult<ReceiptModel>>({
+        queryKey: subscriptionKeys.list(params),
+        queryFn: () => fetchActiveSubscriptions(params),
+        refetchOnWindowFocus: false,
+    });
+
+/** #1. 활성 구독 확인 (명령형) */
 export const useFetchActiveSubscriptions = () =>
     useCustomMutation<ListResult<ReceiptModel>, string, ListValidateParam>(params => fetchActiveSubscriptions(params));
 
