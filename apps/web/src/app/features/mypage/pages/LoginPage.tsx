@@ -1,15 +1,17 @@
-import { ChevronLeft, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { webCore } from '@chatic/web-core';
 
-import { useNavigateWithTransition } from '@chatic/shared';
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
 import type { OAuthTokenResult } from '@chatic/app-messages';
 import { useVerifyNativeAppToken } from '@chatic/users';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
+
+import { PageHeader } from '../../../shared/components';
+import { useNavigateWithTransition } from '@chatic/shared';
 
 const GoogleIcon = () => (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -81,11 +83,7 @@ export const LoginPage = () => {
 
     return (
         <div className="flex h-full flex-col bg-background pt-safe-top">
-            <header className="flex items-center px-[6px]">
-                <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
-                    <ChevronLeft size={26} strokeWidth={2} />
-                </button>
-            </header>
+            <PageHeader />
 
             <div className="flex flex-1 flex-col justify-center overflow-y-auto overscroll-none px-6 pb-safe-bottom">
                 <div className="flex flex-col items-center pb-10">
