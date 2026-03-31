@@ -1,9 +1,12 @@
-import { AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertCircle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+
+import { useSubscriptionIap } from '../hooks';
 
 interface NativePurchase {
     productId: string;
@@ -22,7 +25,10 @@ const formatDate = (timestamp?: number | null): string => {
 export const SubscriptionPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
+    const { toast } = useToast();
     const { isOnMobileApp } = getMobileAppInfo();
+    const { restorePurchases } = useSubscriptionIap();
+    const [isRestoring, setIsRestoring] = useState(false);
 
     const [purchases, setPurchases] = useState<NativePurchase[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -36,12 +42,37 @@ export const SubscriptionPage = () => {
     }, [isOnMobileApp]);
 
     useHandleAppMessage('OnFetchCurrentPurchases', message => {
-        setPurchases(message.data.purchases as NativePurchase[]);
-        console.log('Received purchases:', message.data.purchases);
+        const now = Date.now();
+        const validPurchases = (message.data.purchases as NativePurchase[]).filter(p => {
+            const expiry = p.expirationDateIOS;
+            return !expiry || expiry > now;
+        });
+        setPurchases(validPurchases);
+        console.log('Received purchases:', message.data.purchases, 'valid:', validPurchases.length);
         setIsLoading(false);
     });
 
     const activePurchase = purchases[0] ?? null;
+    const isCanceled = activePurchase ? !activePurchase.isAutoRenewing : false;
+
+    const handleRestore = async () => {
+        setIsRestoring(true);
+        try {
+            const count = await restorePurchases();
+            toast({
+                title:
+                    count > 0
+                        ? t('mypage.subscription.restoreSuccess', { count })
+                        : t('mypage.subscription.restoreEmpty'),
+            });
+            if (count > 0) postMessage({ type: 'FetchCurrentPurchases' });
+        } catch (e) {
+            console.error('[SubscriptionPage] restore failed:', e);
+            toast({ title: t('mypage.subscription.restoreFailed'), variant: 'destructive' });
+        } finally {
+            setIsRestoring(false);
+        }
+    };
 
     return (
         <div className="flex min-h-screen flex-col bg-background">
@@ -67,7 +98,9 @@ export const SubscriptionPage = () => {
                                 {t('mypage.subscription.currentPlan')}
                             </span>
 
-                            <div className="rounded-[20px] border-2 border-[#B0EA10] bg-card p-1.5 shadow-[0px_2px_14px_0px_rgba(0,0,0,0.08)]">
+                            <div
+                                className={`rounded-[20px] border-2 bg-card p-1.5 shadow-[0px_2px_14px_0px_rgba(0,0,0,0.08)] ${isCanceled ? 'border-yellow-400' : 'border-[#B0EA10]'}`}
+                            >
                                 {/* Plan Info */}
                                 <div className="flex items-center justify-between px-4 py-3">
                                     <span className="text-[18px] font-semibold tracking-[-0.015em]">
@@ -86,6 +119,17 @@ export const SubscriptionPage = () => {
 
                                 {/* Divider */}
                                 <div className="mx-auto w-[calc(100%-24px)] border-t border-border" />
+
+                                {/* Status Badge */}
+                                {isCanceled && (
+                                    <div className="mx-3 mt-1 rounded-[10px] bg-yellow-50 px-3 py-2 text-center dark:bg-yellow-950/30">
+                                        <span className="text-[14px] font-medium text-yellow-600 dark:text-yellow-400">
+                                            {t('mypage.subscription.canceledNotice', {
+                                                date: formatDate(activePurchase?.expirationDateIOS),
+                                            })}
+                                        </span>
+                                    </div>
+                                )}
 
                                 {/* Details */}
                                 <div className="flex flex-col gap-[6px] px-3.5 py-3">
@@ -117,16 +161,39 @@ export const SubscriptionPage = () => {
                                     )}
                                     <div className="flex items-center gap-[18px]">
                                         <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
-                                            {t('mypage.subscription.autoRenew')}
+                                            {t('mypage.subscription.status')}
                                         </span>
-                                        <span className="text-[16px] font-medium">
-                                            {activePurchase.isAutoRenewing
-                                                ? t('mypage.subscription.autoRenewOn')
-                                                : t('mypage.subscription.autoRenewOff')}
+                                        <span
+                                            className={`text-[16px] font-medium ${isCanceled ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}
+                                        >
+                                            {isCanceled
+                                                ? t('mypage.subscription.statusCanceled')
+                                                : t('mypage.subscription.statusActive')}
                                         </span>
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Manage / Restore */}
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => postMessage({ type: 'OpenSubscriptionManagement' })}
+                                className="flex-1 rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground"
+                            >
+                                {t('mypage.subscription.manageSubscription')}
+                            </button>
+                            <button
+                                onClick={handleRestore}
+                                disabled={isRestoring}
+                                className="flex-1 rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground disabled:opacity-50"
+                            >
+                                {isRestoring ? (
+                                    <Loader2 size={16} className="mx-auto animate-spin" />
+                                ) : (
+                                    t('mypage.subscription.restore')
+                                )}
+                            </button>
                         </div>
 
                         {/* Other purchases */}
