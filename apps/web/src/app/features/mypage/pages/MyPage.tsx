@@ -1,5 +1,5 @@
 import { ChevronRight, ChevronDown, User } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -20,6 +20,7 @@ export const MyPage = () => {
     const isGuest = useWebCoreStore(s => s.isGuest);
     const profile = useWebCoreStore(s => s.profile);
     const { mutate: logout } = useLogout();
+    const registerLogoutCallback = useWebCoreStore(s => s.registerLogoutCallback);
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();
     const localProfile = useLocalProfileStore();
@@ -30,9 +31,14 @@ export const MyPage = () => {
     const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
     const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
-    const [isDebugMode, setIsDebugMode] = useState(false);
+    const DEBUG_STORAGE_KEY = 'chatic-debug-mode';
+    const [isDebugMode, setIsDebugMode] = useState(() => sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true');
     const tapCountRef = useRef(0);
     const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        return registerLogoutCallback(() => sessionStorage.removeItem(DEBUG_STORAGE_KEY));
+    }, [registerLogoutCallback]);
 
     const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
 
@@ -58,6 +64,7 @@ export const MyPage = () => {
 
         if (tapCountRef.current >= 10) {
             tapCountRef.current = 0;
+            sessionStorage.setItem(DEBUG_STORAGE_KEY, 'true');
             setIsDebugMode(true);
         }
     };
