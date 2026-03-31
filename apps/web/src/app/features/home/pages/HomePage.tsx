@@ -44,7 +44,7 @@ export const HomePage = () => {
 
     const localProfile = useLocalProfileStore();
     const {
-        canCreate: canCreateChannel,
+        canCreate: _canCreateChannel,
         isLimitReached: isChannelLimitReached,
         isLoading: isChannelsLoading,
         maxCount: maxChannels,

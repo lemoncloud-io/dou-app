@@ -44,7 +44,7 @@ export default [
             'no-unused-vars': 'off',
             curly: ['error', 'multi-line'],
             '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
-            '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+            '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
             'unused-imports/no-unused-imports': 'error',
             'unused-imports/no-unused-vars': [
                 'warn',

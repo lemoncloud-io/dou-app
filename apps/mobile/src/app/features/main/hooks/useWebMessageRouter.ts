@@ -13,15 +13,17 @@ import { useModalHandler } from '../../../common/webview/hooks/useModalHandler';
 
 import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
+import type { WebViewBridge } from '../../../common/webview/hooks/useBaseBridge';
+import type { MainScreenProps } from '../navigation';
 
 /**
  * Props for the useWebMessageRouter hook.
  */
 export interface UseWebMessageRouterProps {
     /** Bridge instance for communicating with the WebView */
-    bridge: any;
+    bridge: WebViewBridge;
     /** React Navigation object for navigating to native screens (e.g., Modals) */
-    navigation: any;
+    navigation: MainScreenProps['navigation'];
     /** Callback to update the state indicating if the web layer can handle back navigation */
     setWebCanGoBack: (canGoBack: boolean) => void;
 }
@@ -204,7 +206,7 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
                         }
                 }
             },
-            (error: any, nativeEvent: WebViewMessage) => {
+            (error: unknown, nativeEvent: WebViewMessage) => {
                 logger.error('BRIDGE', `Failed parse message error. : ${nativeEvent.data}`, error);
             }
         );

@@ -104,7 +104,7 @@ interface ChannelListProps {
 export const ChannelList = ({
     workspaceId: _workspaceId,
     showCreateButton,
-    isChannelsLoading,
+    isChannelsLoading: _isChannelsLoading,
     onCreateChannel,
     channelLimit,
 }: ChannelListProps) => {

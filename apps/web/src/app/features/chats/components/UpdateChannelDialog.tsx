@@ -28,7 +28,7 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
         register,
         handleSubmit,
         formState: { errors },
-        reset,
+        reset: _reset,
     } = useForm<ChatStartBody>({
         defaultValues: {
             name: channel?.name || '',
