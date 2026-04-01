@@ -83,6 +83,7 @@ const clearTokensOnLogout = (): void => {
             if (key?.startsWith('@')) keysToRemove.push(key);
         }
         keysToRemove.forEach(key => storage.removeItem(key));
+        storage.removeItem('chatic-oauth-provider');
     } catch {
         // Ignore errors
     }

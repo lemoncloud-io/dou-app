@@ -38,7 +38,7 @@ const IS_LOCAL = import.meta.env.VITE_ENV === 'LOCAL';
 
 export const HomePage = () => {
     const { t } = useTranslation();
-    const { isGuest, isInvited, profile } = useWebCoreStore();
+    const { isGuest, isInvited, isCloudUser, profile } = useWebCoreStore();
     const { mutate: logout } = useLogout();
     const navigate = useNavigateWithTransition();
 
@@ -58,7 +58,7 @@ export const HomePage = () => {
     const { isCloudsError } = useCloudSession();
 
     const dynamicProfile = useDynamicProfile();
-    const displayName = !isGuest
+    const displayName = isCloudUser
         ? (dynamicProfile?.$user?.nick ?? dynamicProfile?.$user?.name ?? '-')
         : (dynamicProfile?.name ?? localProfile.name ?? '-');
     const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
@@ -100,7 +100,7 @@ export const HomePage = () => {
         <div className="flex min-h-screen flex-col bg-background pb-[98px] pt-4">
             {/* Header */}
             <header className="flex items-center justify-between px-5 pb-3 pt-safe-top">
-                {isGuest && !isInvited ? (
+                {!isCloudUser ? (
                     <img src="/logo-chatic.svg" alt="chatic" className="h-6" />
                 ) : IS_LOCAL ? (
                     <DropdownMenu>
@@ -149,7 +149,7 @@ export const HomePage = () => {
                     </div>
                 )}
                 <div className="flex items-center gap-4">
-                    {!isGuest && (
+                    {isCloudUser && (
                         <button onClick={() => setIsCloudSessionOpen(true)} className="p-1">
                             <ArrowLeftRight size={22} className="text-foreground" />
                         </button>
@@ -164,7 +164,7 @@ export const HomePage = () => {
             </header>
 
             {/* Cloud Error Banner */}
-            {!isGuest && isCloudsError && (
+            {isCloudUser && isCloudsError && (
                 <button
                     onClick={() => setIsCloudSessionOpen(true)}
                     className="mx-5 mb-2 rounded-lg bg-destructive/10 px-4 py-2.5 text-left text-sm text-destructive"
@@ -190,7 +190,7 @@ export const HomePage = () => {
             <section className="flex-1 px-4 pt-[18px]">
                 <ChannelList
                     workspaceId={selectedPlaceId ?? ''}
-                    showCreateButton={!isGuest && !isInvited && !isChannelsLoading}
+                    showCreateButton={isCloudUser && !isInvited && !isChannelsLoading}
                     isChannelsLoading={isChannelsLoading}
                     onCreateChannel={handleCreateChannel}
                     channelLimit={maxChannels}

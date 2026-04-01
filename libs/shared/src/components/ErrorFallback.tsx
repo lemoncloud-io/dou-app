@@ -16,11 +16,11 @@ interface ErrorFallbackProps extends FallbackProps {
 }
 
 const ERROR_ICONS: Record<ErrorType, ReactNode> = {
-    network: <WifiOff className="h-10 w-10 text-orange-500" />,
-    auth: <ShieldOff className="h-10 w-10 text-orange-500" />,
-    server: <ServerCrash className="h-10 w-10 text-orange-500" />,
-    client: <AlertTriangle className="h-10 w-10 text-orange-500" />,
-    unknown: <AlertTriangle className="h-10 w-10 text-orange-500" />,
+    network: <WifiOff className="h-10 w-10 text-primary" />,
+    auth: <ShieldOff className="h-10 w-10 text-primary" />,
+    server: <ServerCrash className="h-10 w-10 text-primary" />,
+    client: <AlertTriangle className="h-10 w-10 text-primary" />,
+    unknown: <AlertTriangle className="h-10 w-10 text-primary" />,
 };
 
 const inferErrorType = (error: Error): ErrorType => {
@@ -127,7 +127,7 @@ export const ErrorFallback: ComponentType<ErrorFallbackProps> = ({ error, resetE
                     <Button
                         onClick={handleRetry}
                         disabled={isRetrying}
-                        className="bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50"
+                        className="bg-primary hover:bg-primary/90 text-white disabled:opacity-50"
                         aria-label="다시 시도"
                     >
                         <RefreshCw className={`h-4 w-4 mr-2 ${isRetrying ? 'animate-spin' : ''}`} />

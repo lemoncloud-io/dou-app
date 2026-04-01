@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
-import { getMobileAppInfo, initializeMessageListener, useAppMessageStore } from '@chatic/app-messages';
+import { getMobileAppInfo, initializeMessageListener, postMessage, useAppMessageStore } from '@chatic/app-messages';
+import type { OAuthLoginProvider } from '@chatic/app-messages';
 
 import { updateProfile } from '../api';
 import { LANGUAGE_KEY, cloudCore, webCore, coreStorage } from '../core';
@@ -14,6 +15,7 @@ interface UserViewExtended {
 }
 
 const INVITED_SESSION_KEY = 'chatic-is-invited';
+const OAUTH_PROVIDER_KEY = 'chatic-oauth-provider';
 
 export const getIsInvited = (): boolean => coreStorage.get(INVITED_SESSION_KEY) === 'true';
 export const setIsInvitedSession = (value: boolean): void => {
@@ -21,6 +23,17 @@ export const setIsInvitedSession = (value: boolean): void => {
         coreStorage.set(INVITED_SESSION_KEY, 'true');
     } else {
         coreStorage.remove(INVITED_SESSION_KEY);
+    }
+};
+
+export const getOAuthProvider = (): OAuthLoginProvider | null =>
+    coreStorage.get(OAUTH_PROVIDER_KEY) as OAuthLoginProvider | null;
+
+export const setOAuthProvider = (provider: OAuthLoginProvider | null): void => {
+    if (provider) {
+        coreStorage.set(OAUTH_PROVIDER_KEY, provider);
+    } else {
+        coreStorage.remove(OAUTH_PROVIDER_KEY);
     }
 };
 
@@ -124,6 +137,14 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         });
         logoutCallbacks.clear();
 
+        // Revoke OAuth session on native side if applicable
+        const oauthProvider = getOAuthProvider();
+        const { isOnMobileApp } = getMobileAppInfo();
+        if (oauthProvider && isOnMobileApp) {
+            postMessage({ type: 'OAuthLogout', data: { provider: oauthProvider } });
+        }
+        setOAuthProvider(null);
+
         await webCore.logout();
         cloudCore.clearSession();
         setIsInvitedSession(false);
@@ -156,13 +177,17 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      * @param profile - User profile data
      */
     setProfile: (profile: UserProfile$) => {
-        const isGuest = (profile.$user as UserViewExtended)?.userRole === 'guest';
+        const userRoleGuest = (profile.$user as UserViewExtended)?.userRole === 'guest';
         const isInvited = getIsInvited();
+        const hasCloudSession = !!cloudCore.getSelectedCloudId();
+        const hasSocialLogin = !!getOAuthProvider();
+        // Treat as guest if: role is guest, OR (not invited, no cloud, no active social login)
+        const isGuest = userRoleGuest || (!isInvited && !hasCloudSession && !hasSocialLogin);
         return set({
             profile,
             isGuest,
             isInvited,
-            isCloudUser: !isGuest || isInvited,
+            isCloudUser: isInvited || hasCloudSession,
             userName: profile['$user']?.name || 'Unknown',
         });
     },

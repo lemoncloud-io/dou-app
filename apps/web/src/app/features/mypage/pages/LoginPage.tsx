@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { webCore } from '@chatic/web-core';
+import { webCore, useWebCoreStore, setOAuthProvider } from '@chatic/web-core';
 
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
 import type { OAuthTokenResult } from '@chatic/app-messages';
@@ -11,7 +11,6 @@ import { useVerifyNativeAppToken } from '@chatic/users';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
 
 import { PageHeader } from '../../../shared/components';
-import { useNavigateWithTransition } from '@chatic/shared';
 
 const GoogleIcon = () => (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -41,9 +40,9 @@ const AppleIcon = () => (
 );
 
 export const LoginPage = () => {
-    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { toast } = useToast();
+    const { setProfile, setIsAuthenticated } = useWebCoreStore();
     const [isOAuthPending, setIsOAuthPending] = useState(false);
     const [activeProvider, setActiveProvider] = useState<'google' | 'apple' | null>(null);
 
@@ -67,7 +66,11 @@ export const LoginPage = () => {
 
         try {
             const res = await verifyNativeAppToken(result);
-            await webCore.buildCredentialsByToken(res?.Token as unknown as LemonOAuthToken);
+            const { Token, ...rest } = res;
+            await webCore.buildCredentialsByToken(Token as unknown as LemonOAuthToken);
+            setOAuthProvider(result.provider);
+            setProfile(rest as Parameters<typeof setProfile>[0]);
+            setIsAuthenticated(true);
             window.location.href = '/';
         } catch (e) {
             console.error('[LoginPage] OAuth login failed:', e);
@@ -129,9 +132,9 @@ export const LoginPage = () => {
                 )}
 
                 <p className="mt-6 text-center text-[12px] leading-[1.5] text-description">
-                    By continuing, you agree
-                    <br />
-                    to our Terms & Privacy Policy
+                    {t('mypageLogin.termsAgreement', {
+                        defaultValue: 'By continuing, you agree\nto our Terms & Privacy Policy',
+                    })}
                 </p>
             </div>
         </div>

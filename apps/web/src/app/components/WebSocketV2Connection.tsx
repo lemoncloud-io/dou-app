@@ -16,9 +16,8 @@ export const WebSocketV2Connection = () => {
     const { isPending } = useCloudSession();
     const { t } = useTranslation();
 
-    const { isGuest, isInvited } = useWebCoreStore();
+    const { isCloudUser } = useWebCoreStore();
     const wss = cloudCore.getWss();
-    const isCloudUser = !isGuest || isInvited;
     const endpoint = isCloudUser ? wss : import.meta.env.VITE_WS_ENDPOINT;
 
     const connectionStatus = useWebSocketV2Store(s => s.connectionStatus);
