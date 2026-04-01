@@ -547,6 +547,8 @@
     },
     "mypageLogin": {
         "title": "Sign In",
+        "welcome": "Welcome to DoU",
+        "subtitle": "Sign in to get started",
         "emailLabel": "Email",
         "emailPlaceholder": "Enter your email",
         "passwordLabel": "Password",

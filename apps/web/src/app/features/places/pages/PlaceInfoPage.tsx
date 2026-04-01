@@ -110,7 +110,7 @@ export const PlaceInfoPage = () => {
                 ...(isImageDirty && { thumbnail: imageUrl }),
             });
             navigate(-1);
-        } catch (error) {
+        } catch {
             toast({ title: t('error.unknownError'), variant: 'destructive' });
         }
     };

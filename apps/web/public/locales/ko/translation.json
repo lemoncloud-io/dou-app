@@ -547,6 +547,8 @@
     },
     "mypageLogin": {
         "title": "로그인하기",
+        "welcome": "DoU에 오신 걸 환영해요",
+        "subtitle": "로그인하고 시작해 보세요",
         "emailLabel": "이메일",
         "emailPlaceholder": "이메일을 입력해 주세요",
         "passwordLabel": "비밀번호",

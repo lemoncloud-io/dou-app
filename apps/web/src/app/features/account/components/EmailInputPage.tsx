@@ -6,10 +6,9 @@ import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { KeyboardAwareLayout } from '../../../shared/layouts';
+import { isValidEmail } from '../utils';
 import { DouLogo } from './DouLogo';
 import { FloatingButton } from './FloatingButton';
-
-const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 interface EmailInputPageProps {
     translationPrefix: string;

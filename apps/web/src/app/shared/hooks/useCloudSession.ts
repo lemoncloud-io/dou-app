@@ -20,7 +20,7 @@ export const clearCloudSession = (): void => {
 export const useCloudSession = () => {
     const { t } = useTranslation();
     const { mutateAsync: issueCloudToken, isPending } = useIssueCloudToken();
-    const { setProfile, isGuest } = useWebCoreStore();
+    const { setProfile, isGuest: _isGuest } = useWebCoreStore();
     const { setIsLoading } = useGlobalLoader();
     const { data, isError: isFetchError, isFetching, refetch } = useClouds();
 
@@ -37,7 +37,7 @@ export const useCloudSession = () => {
             cloudCore.saveSelectedCloudId(placeId);
 
             const currentProfile = useWebCoreStore.getState().profile;
-            const { Token, ...cloudProfile } = userToken;
+            const { Token: _Token, ...cloudProfile } = userToken;
             setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
         } finally {
             setIsLoading(false);

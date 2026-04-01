@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     FlatList,
     LayoutAnimation,
@@ -60,7 +60,7 @@ export const StorageTestScreen = () => {
 
     // --- Repository Action Handlers ---
 
-    const fetchItems = async () => {
+    const fetchItems = useCallback(async () => {
         try {
             // 명시적으로 sort를 문자열로 주입하여 toUpperCase 에러 방지
             const query = targetCid ? { cid: targetCid, sort: 'desc' } : { sort: 'desc' };
@@ -70,7 +70,7 @@ export const StorageTestScreen = () => {
         } catch (e) {
             logError('FetchAll', e);
         }
-    };
+    }, [targetCid, dataType]);
 
     const handleSaveRandom = async () => {
         try {
