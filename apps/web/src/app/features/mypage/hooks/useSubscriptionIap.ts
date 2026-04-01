@@ -41,13 +41,15 @@ export const useSubscriptionIap = () => {
     } | null>(null);
 
     // Listen for native messages
-    useHandleAppMessage('OnPurchase', (message: AppMessageData<'OnPurchase'>) => {
+    useHandleAppMessage('OnPurchaseSuccess', (message: AppMessageData<'OnPurchaseSuccess'>) => {
         const result = message.data.purchase;
-        if ('code' in result) {
-            purchaseResolverRef.current?.reject(result as PurchaseError);
-        } else {
-            purchaseResolverRef.current?.resolve(result as unknown as PurchaseResult);
-        }
+        purchaseResolverRef.current?.resolve(result);
+        purchaseResolverRef.current = null;
+    });
+
+    useHandleAppMessage('OnPurchaseError', (message: AppMessageData<'OnPurchaseError'>) => {
+        const result = message.data.error;
+        purchaseResolverRef.current?.reject(result);
         purchaseResolverRef.current = null;
     });
 
@@ -62,12 +64,18 @@ export const useSubscriptionIap = () => {
     });
 
     /** 스토어 구매 요청 → Promise */
-    const purchase = useCallback((productId: string, offerToken?: string): Promise<PurchaseResult> => {
-        return new Promise((resolve, reject) => {
-            purchaseResolverRef.current = { resolve, reject };
-            postMessage({ type: 'Purchase', data: { id: productId, offerToken } });
-        });
-    }, []);
+    const purchase = useCallback(
+        (product: { id: string; androidOfferToken?: { base?: string } }): Promise<PurchaseResult> => {
+            return new Promise((resolve, reject) => {
+                purchaseResolverRef.current = { resolve, reject };
+                const id = product.id;
+                const offerToken = isIOS ? undefined : product.androidOfferToken?.base;
+
+                postMessage({ type: 'Purchase', data: { id, offerToken } });
+            });
+        },
+        [isIOS]
+    );
 
     /** 서버 검증 */
     const validate = useCallback(
@@ -97,7 +105,7 @@ export const useSubscriptionIap = () => {
     const finishTransaction = useCallback((result: PurchaseResult): Promise<void> => {
         return new Promise(resolve => {
             finishResolverRef.current = { resolve };
-             
+
             postMessage({ type: 'FinishPurchaseTransaction', data: { purchase: result } } as any);
         });
     }, []);
@@ -112,8 +120,8 @@ export const useSubscriptionIap = () => {
 
     /** 구매 → 검증 → 트랜잭션 완료 (한방) */
     const purchaseAndValidate = useCallback(
-        async (productId: string, offerToken?: string) => {
-            const result = await purchase(productId, offerToken);
+        async (product: { id: string; basePlanId?: string; androidOfferToken?: { base?: string } }) => {
+            const result = await purchase(product);
             await validate(result);
             await finishTransaction(result);
             postMessage({ type: 'FetchCurrentPurchases' });

@@ -41,7 +41,17 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
-                    android:host="${appHost}" />
+                    android:host="${appHost}"
+                    android:pathPattern="/s/.*" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="${appHost}"
+                    android:pathPattern="/auth/.*" />
             </intent-filter>
         </activity>
     </application>

@@ -104,13 +104,13 @@ export const SubscriptionPage = () => {
                                 className={`rounded-[20px] border-2 bg-card p-1.5 shadow-[0px_2px_14px_0px_rgba(0,0,0,0.08)] ${isCanceled ? 'border-yellow-400' : 'border-[#B0EA10]'}`}
                             >
                                 {/* Plan Info */}
-                                <div className="flex items-center justify-between px-4 py-3">
-                                    <span className="text-[18px] font-semibold tracking-[-0.015em]">
+                                <div className="flex items-center justify-between gap-2 px-4 py-3">
+                                    <span className="min-w-0 truncate text-[18px] font-semibold tracking-[-0.015em]">
                                         {activePurchase.productId}
                                     </span>
                                     <button
                                         onClick={() => navigate('/mypage/subscription/plans')}
-                                        className="flex items-center gap-1"
+                                        className="flex shrink-0 items-center gap-1"
                                     >
                                         <span className="text-[15px] font-medium tracking-[-0.015em] text-foreground">
                                             {t('mypage.subscription.changePlan')}

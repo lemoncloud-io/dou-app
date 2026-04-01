@@ -26,7 +26,7 @@ export const SubscriptionPlansPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { toast } = useToast();
-    const { isOnMobileApp } = getMobileAppInfo();
+    const { isOnMobileApp, isIOS } = getMobileAppInfo();
     const { purchaseAndValidate } = useSubscriptionIap();
 
     const [products, setProducts] = useState<IapProductSubscription[]>([]);
@@ -43,6 +43,7 @@ export const SubscriptionPlansPage = () => {
 
     useHandleAppMessage('OnFetchProducts', message => {
         setProducts(message.data.products);
+        console.log(message.data.products);
         setPageState('idle');
     });
 
@@ -50,12 +51,16 @@ export const SubscriptionPlansPage = () => {
         if (!selectedProduct) return;
         setPageState('purchasing');
         try {
-            await purchaseAndValidate(selectedProduct.id, selectedProduct.androidOfferToken?.base);
+            await purchaseAndValidate(selectedProduct);
             toast({ title: t('mypage.subscription.purchaseSuccess') });
             navigate(-1);
         } catch (e) {
             console.error('[SubscriptionPlansPage] purchase failed:', e);
-            toast({ title: t('mypage.subscription.purchaseFailed'), variant: 'destructive' });
+            toast({
+                title: t('mypage.subscription.purchaseFailed'),
+                description: e instanceof Error ? e.message : undefined,
+                variant: 'destructive',
+            });
         } finally {
             setPageState('idle');
         }
@@ -107,10 +112,14 @@ export const SubscriptionPlansPage = () => {
                 ) : (
                     <div className="flex flex-col gap-3">
                         {products.map(product => {
-                            const isSelected = selectedProduct?.id === product.id;
+                            const productKey = isIOS ? product.id : (product.basePlanId ?? product.id);
+                            const isSelected = selectedProduct
+                                ? (isIOS ? selectedProduct.id : (selectedProduct.basePlanId ?? selectedProduct.id)) ===
+                                  productKey
+                                : false;
                             return (
                                 <button
-                                    key={product.id}
+                                    key={productKey}
                                     onClick={() => !isBlocked && setSelectedProduct(product)}
                                     disabled={isBlocked}
                                     className={cn(

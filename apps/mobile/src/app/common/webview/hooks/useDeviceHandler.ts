@@ -186,7 +186,8 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
 
     const handleOpenURL = useCallback(async (message: OpenURL) => {
         try {
-            await Linking.openURL(message.data.url);
+            const { url } = message.data;
+            await Linking.openURL(url);
         } catch (e) {
             logger.error('DEVICE', 'OpenURL error', e);
         }
