@@ -21,6 +21,13 @@ export const fcmService = {
         return authStatus === AuthorizationStatus.AUTHORIZED || authStatus === AuthorizationStatus.PROVISIONAL;
     },
 
+    getAPNSToken: async () => {
+        if (Platform.OS === 'ios') {
+            return await messaging().getAPNSToken();
+        }
+        return null;
+    },
+
     getToken: async (): Promise<string | null> => {
         try {
             return await messaging().getToken();

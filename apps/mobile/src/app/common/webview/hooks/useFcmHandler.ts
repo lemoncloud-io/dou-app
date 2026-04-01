@@ -16,12 +16,13 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
             const hasPermission = await fcmService.requestPermission();
 
             if (hasPermission) {
-                // iOS의 경우 APNs 토큰 생성을 위해 명시적으로 기기 등록을 수행
+                let token;
                 if (Platform.OS === 'ios') {
                     await fcmService.registerAPNs();
+                    token = await fcmService.getAPNSToken();
+                } else {
+                    token = await fcmService.getToken();
                 }
-
-                const token = await fcmService.getToken();
 
                 if (token) {
                     const message: AppMessageData<'OnFetchFcmToken'> = {
