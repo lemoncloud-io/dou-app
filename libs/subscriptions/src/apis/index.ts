@@ -74,7 +74,7 @@ export const fetchMembershipInfo = async (): Promise<MembershipView> => {
     const { data } = await webCore
         .buildSignedRequest({
             method: 'GET',
-            baseURL: `${DOU_ENDPOINT}/membership/0/mine`,
+            baseURL: `${DOU_ENDPOINT}/memberships/0/mine`,
         })
         .execute<MembershipView>();
 

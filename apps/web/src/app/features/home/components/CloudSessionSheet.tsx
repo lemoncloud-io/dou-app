@@ -247,7 +247,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                         )}
                     </div>
 
-                    <AddAccountButton onClick={handleAddAccount} />
+                    {clouds.length < 2 && <AddAccountButton onClick={handleAddAccount} />}
                 </SheetContent>
             </Sheet>
             <AddAccountDialog open={isAddAccountOpen} onOpenChange={setIsAddAccountOpen} />

@@ -245,6 +245,7 @@
             "noticeTerms": "구매 정책과 관련한 자세한 내용은 <terms>이용약관</terms>을 확인해 주세요.",
             "platform": "플랫폼",
             "purchaseDate": "구매일",
+            "startDate": "시작일",
             "expiresAt": "만료일",
             "autoRenew": "자동 갱신",
             "autoRenewOn": "사용 중",

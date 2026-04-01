@@ -245,6 +245,7 @@
             "noticeTerms": "For details on purchase policies, please refer to our <terms>Terms of Service</terms>.",
             "platform": "Platform",
             "purchaseDate": "Purchased",
+            "startDate": "Start Date",
             "expiresAt": "Expires",
             "autoRenew": "Auto Renew",
             "autoRenewOn": "On",

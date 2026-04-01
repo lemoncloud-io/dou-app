@@ -115,14 +115,18 @@ export const SubscriptionPage = () => {
                                                 {t('mypage.subscription.platform')}
                                             </span>
                                             <span className="text-[16px] font-medium capitalize">
-                                                {membership.platform}
+                                                {membership.platform === 'apple'
+                                                    ? 'App Store'
+                                                    : membership.platform === 'google'
+                                                      ? 'Google Play'
+                                                      : membership.platform}
                                             </span>
                                         </div>
                                     )}
                                     {membership?.validFrom && (
                                         <div className="flex items-center gap-[18px]">
                                             <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.purchaseDate')}
+                                                {t('mypage.subscription.startDate')}
                                             </span>
                                             <span className="text-[16px] font-medium">
                                                 {formatDate(membership.validFrom)}
@@ -132,7 +136,9 @@ export const SubscriptionPage = () => {
                                     {membership?.validUntil && (
                                         <div className="flex items-center gap-[18px]">
                                             <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.expiresAt')}
+                                                {isCanceled
+                                                    ? t('mypage.subscription.expiresAt')
+                                                    : t('mypage.subscription.nextPayment')}
                                             </span>
                                             <span className="text-[16px] font-medium">
                                                 {formatDate(membership.validUntil)}
@@ -175,6 +181,16 @@ export const SubscriptionPage = () => {
                                 )}
                             </button>
                         </div>
+
+                        {/* View Plans (canceled or no subscription) */}
+                        {(isCanceled || !isActive) && (
+                            <button
+                                onClick={() => navigate('/mypage/subscription/plans')}
+                                className="w-full rounded-full bg-foreground py-3 text-[16px] font-semibold text-background"
+                            >
+                                {t('mypage.subscription.viewPlans')}
+                            </button>
+                        )}
                     </>
                 ) : (
                     /* Empty State */
