@@ -23,6 +23,7 @@ import {
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
+import { useMembershipInfo } from '@chatic/subscriptions';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { LimitExceededDialog } from '../../../shared/components/LimitExceededDialog';
 import { SettingsDialog } from '../../../components/SettingsDialog';
@@ -39,6 +40,7 @@ const IS_LOCAL = import.meta.env.VITE_ENV === 'LOCAL';
 export const HomePage = () => {
     const { t } = useTranslation();
     const { isGuest, isInvited, isCloudUser, profile } = useWebCoreStore();
+    const { data: membership, isLoading: isMembershipLoading } = useMembershipInfo();
     const { mutate: logout } = useLogout();
     const navigate = useNavigateWithTransition();
 
@@ -149,7 +151,7 @@ export const HomePage = () => {
                     </div>
                 )}
                 <div className="flex items-center gap-4">
-                    {isCloudUser && (
+                    {!isMembershipLoading && membership?.isValid && (
                         <button onClick={() => setIsCloudSessionOpen(true)} className="p-1">
                             <ArrowLeftRight size={22} className="text-foreground" />
                         </button>
