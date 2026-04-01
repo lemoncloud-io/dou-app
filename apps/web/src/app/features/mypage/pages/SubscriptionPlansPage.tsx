@@ -56,11 +56,14 @@ export const SubscriptionPlansPage = () => {
             navigate(-1);
         } catch (e) {
             console.error('[SubscriptionPlansPage] purchase failed:', e);
-            toast({
-                title: t('mypage.subscription.purchaseFailed'),
-                description: e instanceof Error ? e.message : undefined,
-                variant: 'destructive',
-            });
+            const isCancelled = (e as { code?: string })?.code === 'user-cancelled';
+            if (!isCancelled) {
+                toast({
+                    title: t('mypage.subscription.purchaseFailed'),
+                    description: e instanceof Error ? e.message : undefined,
+                    variant: 'destructive',
+                });
+            }
         } finally {
             setPageState('idle');
         }
@@ -231,7 +234,7 @@ export const SubscriptionPlansPage = () => {
 
                 {/* Subscribe Button */}
                 {products.length > 0 && (
-                    <div className="mt-auto pb-4 pt-6">
+                    <div className="mt-auto pb-safe-bottom pt-6">
                         <button
                             onClick={handleSubscribe}
                             disabled={!selectedProduct || isBlocked}

@@ -1,4 +1,4 @@
-import { AlertCircle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { AlertCircle, ChevronLeft, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -108,15 +108,6 @@ export const SubscriptionPage = () => {
                                     <span className="min-w-0 truncate text-[18px] font-semibold tracking-[-0.015em]">
                                         {activePurchase.productId}
                                     </span>
-                                    <button
-                                        onClick={() => navigate('/mypage/subscription/plans')}
-                                        className="flex shrink-0 items-center gap-1"
-                                    >
-                                        <span className="text-[15px] font-medium tracking-[-0.015em] text-foreground">
-                                            {t('mypage.subscription.changePlan')}
-                                        </span>
-                                        <ChevronRight size={18} />
-                                    </button>
                                 </div>
 
                                 {/* Divider */}

@@ -69,9 +69,11 @@ export const useSubscriptionIap = () => {
             return new Promise((resolve, reject) => {
                 purchaseResolverRef.current = { resolve, reject };
                 const id = product.id;
-                const offerToken = isIOS ? undefined : product.androidOfferToken?.base;
 
-                postMessage({ type: 'Purchase', data: { id, offerToken } });
+                postMessage({
+                    type: 'Purchase',
+                    data: { id, ...(!isIOS && { offerToken: product.androidOfferToken?.base }) },
+                });
             });
         },
         [isIOS]
