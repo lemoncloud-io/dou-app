@@ -20,12 +20,12 @@ export const clearCloudSession = (): void => {
 export const useCloudSession = () => {
     const { t } = useTranslation();
     const { mutateAsync: issueCloudToken, isPending } = useIssueCloudToken();
-    const { setProfile, isGuest: _isGuest } = useWebCoreStore();
+    const { setProfile } = useWebCoreStore();
     const { setIsLoading } = useGlobalLoader();
     const { data, isError: isFetchError, isFetching, refetch } = useClouds();
 
     const clouds = data?.list ?? [];
-    const isCloudsError = !isFetching && (isFetchError || clouds.length === 0);
+    const isCloudsError = !isFetching && isFetchError;
 
     const selectPlace = async (placeId: string) => {
         setIsLoading(true, t('globalLoader.switchingCloud'));

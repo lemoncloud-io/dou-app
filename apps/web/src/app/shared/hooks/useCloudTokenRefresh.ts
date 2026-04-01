@@ -11,14 +11,12 @@ const isServerError = (error: unknown): boolean => {
 };
 
 export const useCloudTokenRefresh = () => {
-    const { isGuest, isInvited, isAuthenticated } = useWebCoreStore();
+    const { isCloudUser, isAuthenticated } = useWebCoreStore();
     const { emit, isConnected } = useWebSocketV2();
     const { setServiceUnavailable } = useServiceStatusStore();
 
     useEffect(() => {
         if (!isConnected || !isAuthenticated) return;
-
-        const isCloudUser = !isGuest || isInvited;
 
         const refresh = async () => {
             if (!isCloudUser) {
@@ -46,5 +44,5 @@ export const useCloudTokenRefresh = () => {
 
         const id = setInterval(refresh, REFRESH_INTERVAL_MS);
         return () => clearInterval(id);
-    }, [isGuest, isInvited, isAuthenticated, isConnected, emit, setServiceUnavailable]);
+    }, [isCloudUser, isAuthenticated, isConnected, emit, setServiceUnavailable]);
 };

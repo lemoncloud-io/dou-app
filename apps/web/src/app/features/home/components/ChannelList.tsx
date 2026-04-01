@@ -110,8 +110,8 @@ export const ChannelList = ({
 }: ChannelListProps) => {
     const { t } = useTranslation();
     const { channels, isLoading, isError, retry } = useMyChannels();
-    const { isGuest } = useWebCoreStore();
-    const hasSelectedPlace = isGuest || !!cloudCore.getSelectedPlaceId();
+    const { isCloudUser } = useWebCoreStore();
+    const hasSelectedPlace = !isCloudUser || !!cloudCore.getSelectedPlaceId();
 
     if (!hasSelectedPlace) return null;
 

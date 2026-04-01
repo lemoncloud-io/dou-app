@@ -34,7 +34,7 @@ export const NotFoundPage = (): JSX.Element => {
             className="min-h-screen bg-white flex items-center justify-center p-4 outline-none"
         >
             <div className="w-full max-w-md text-center space-y-8">
-                <h1 className="text-8xl font-bold text-orange-500">404</h1>
+                <h1 className="text-8xl font-bold text-primary">404</h1>
 
                 <div className="space-y-3">
                     <h2 id="notfound-title" className="text-2xl font-bold text-neutral-900">
@@ -55,7 +55,7 @@ export const NotFoundPage = (): JSX.Element => {
                     </Button>
                     <Button
                         onClick={handleGoHome}
-                        className="bg-orange-500 hover:bg-orange-600 text-white"
+                        className="bg-primary hover:bg-primary/90 text-white"
                         aria-label={messages.primaryAction}
                     >
                         <Home className="h-4 w-4 mr-2" />
