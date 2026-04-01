@@ -1,7 +1,8 @@
 import { useCallback, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
-import { useValidateApple, useValidateGoogle } from '@chatic/subscriptions';
+import { useValidateApple, useValidateGoogle, subscriptionKeys } from '@chatic/subscriptions';
 
 import type { AppMessageData } from '@chatic/app-messages';
 
@@ -25,6 +26,7 @@ export const useSubscriptionIap = () => {
     const { isIOS } = getMobileAppInfo();
     const validateGoogle = useValidateGoogle();
     const validateApple = useValidateApple();
+    const queryClient = useQueryClient();
 
     // Promise resolvers
     const purchaseResolverRef = useRef<{
@@ -127,6 +129,7 @@ export const useSubscriptionIap = () => {
             await validate(result);
             await finishTransaction(result);
             postMessage({ type: 'FetchCurrentPurchases' });
+            await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
         },
         [purchase, validate, finishTransaction]
     );
@@ -148,6 +151,7 @@ export const useSubscriptionIap = () => {
 
         if (restored > 0) {
             postMessage({ type: 'FetchCurrentPurchases' });
+            await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
         }
 
         return restored;
