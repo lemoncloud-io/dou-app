@@ -1,23 +1,15 @@
 import { AlertCircle, ChevronLeft, Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
+import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import { useMembershipInfo } from '@chatic/subscriptions';
 
 import { useSubscriptionIap } from '../hooks';
 
 const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
-
-interface NativePurchase {
-    productId: string;
-    transactionDate: number;
-    transactionId?: string | null;
-    isAutoRenewing: boolean;
-    platform: string;
-    expirationDateIOS?: number | null;
-}
 
 const formatDate = (timestamp?: number | null): string => {
     if (!timestamp) return '-';
@@ -32,30 +24,11 @@ export const SubscriptionPage = () => {
     const { restorePurchases } = useSubscriptionIap();
     const [isRestoring, setIsRestoring] = useState(false);
 
-    const [purchases, setPurchases] = useState<NativePurchase[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const { data: membership, isLoading } = useMembershipInfo();
 
-    useEffect(() => {
-        if (!isOnMobileApp) {
-            setIsLoading(false);
-            return;
-        }
-        postMessage({ type: 'FetchCurrentPurchases' });
-    }, [isOnMobileApp]);
-
-    useHandleAppMessage('OnFetchCurrentPurchases', message => {
-        const now = Date.now();
-        const validPurchases = (message.data.purchases as NativePurchase[]).filter(p => {
-            const expiry = p.expirationDateIOS;
-            return !expiry || expiry > now;
-        });
-        setPurchases(validPurchases);
-        console.log('Received purchases:', message.data.purchases, 'valid:', validPurchases.length);
-        setIsLoading(false);
-    });
-
-    const activePurchase = purchases[0] ?? null;
-    const isCanceled = activePurchase ? !activePurchase.isAutoRenewing : false;
+    const isActive = membership?.isValid === true;
+    const isCanceled = isActive && !membership?.autoRenewing;
+    const hasPendingChange = !!membership?.pendingProductId;
 
     const handleRestore = async () => {
         setIsRestoring(true);
@@ -67,7 +40,6 @@ export const SubscriptionPage = () => {
                         ? t('mypage.subscription.restoreSuccess', { count })
                         : t('mypage.subscription.restoreEmpty'),
             });
-            if (count > 0) postMessage({ type: 'FetchCurrentPurchases' });
         } catch (e) {
             console.error('[SubscriptionPage] restore failed:', e);
             toast({ title: t('mypage.subscription.restoreFailed'), variant: 'destructive' });
@@ -77,7 +49,7 @@ export const SubscriptionPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background overflow-y-auto">
+        <div className="flex min-h-screen flex-col overflow-y-auto bg-background">
             {/* Header */}
             <header className="flex items-center px-[6px] pt-safe-top">
                 <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
@@ -87,12 +59,12 @@ export const SubscriptionPage = () => {
                 <div className="w-[44px]" />
             </header>
 
-            <div className="flex flex-col gap-[18px] px-4 pt-4 pb-safe-bottom">
+            <div className="flex flex-col gap-[18px] px-4 pb-safe-bottom pt-4">
                 {isLoading ? (
                     <div className="flex items-center justify-center pt-20">
                         <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
                     </div>
-                ) : activePurchase ? (
+                ) : isActive ? (
                     <>
                         {/* Current Subscription */}
                         <div className="flex flex-col gap-1">
@@ -104,9 +76,9 @@ export const SubscriptionPage = () => {
                                 className={`rounded-[20px] border-2 bg-card p-1.5 shadow-[0px_2px_14px_0px_rgba(0,0,0,0.08)] ${isCanceled ? 'border-yellow-400' : 'border-[#B0EA10]'}`}
                             >
                                 {/* Plan Info */}
-                                <div className="flex items-center justify-between gap-2 px-4 py-3">
+                                <div className="flex items-center gap-2 px-4 py-3">
                                     <span className="min-w-0 truncate text-[18px] font-semibold tracking-[-0.015em]">
-                                        {activePurchase.productId}
+                                        {membership?.productId ?? '-'}
                                     </span>
                                 </div>
 
@@ -118,7 +90,18 @@ export const SubscriptionPage = () => {
                                     <div className="mx-3 mt-1 rounded-[10px] bg-yellow-50 px-3 py-2 text-center dark:bg-yellow-950/30">
                                         <span className="text-[14px] font-medium text-yellow-600 dark:text-yellow-400">
                                             {t('mypage.subscription.canceledNotice', {
-                                                date: formatDate(activePurchase?.expirationDateIOS),
+                                                date: formatDate(membership?.validUntil),
+                                            })}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* Pending change */}
+                                {hasPendingChange && (
+                                    <div className="mx-3 mt-1 rounded-[10px] bg-blue-50 px-3 py-2 text-center dark:bg-blue-950/30">
+                                        <span className="text-[14px] font-medium text-blue-600 dark:text-blue-400">
+                                            {t('mypage.subscription.pendingChange', {
+                                                product: membership?.pendingProductId,
                                             })}
                                         </span>
                                     </div>
@@ -126,29 +109,33 @@ export const SubscriptionPage = () => {
 
                                 {/* Details */}
                                 <div className="flex flex-col gap-[6px] px-3.5 py-3">
-                                    <div className="flex items-center gap-[18px]">
-                                        <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
-                                            {t('mypage.subscription.platform')}
-                                        </span>
-                                        <span className="text-[16px] font-medium capitalize">
-                                            {activePurchase.platform}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-[18px]">
-                                        <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
-                                            {t('mypage.subscription.purchaseDate')}
-                                        </span>
-                                        <span className="text-[16px] font-medium">
-                                            {formatDate(activePurchase.transactionDate)}
-                                        </span>
-                                    </div>
-                                    {activePurchase.expirationDateIOS && (
+                                    {membership?.platform && (
+                                        <div className="flex items-center gap-[18px]">
+                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                                {t('mypage.subscription.platform')}
+                                            </span>
+                                            <span className="text-[16px] font-medium capitalize">
+                                                {membership.platform}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {membership?.validFrom && (
+                                        <div className="flex items-center gap-[18px]">
+                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                                {t('mypage.subscription.purchaseDate')}
+                                            </span>
+                                            <span className="text-[16px] font-medium">
+                                                {formatDate(membership.validFrom)}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {membership?.validUntil && (
                                         <div className="flex items-center gap-[18px]">
                                             <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
                                                 {t('mypage.subscription.expiresAt')}
                                             </span>
                                             <span className="text-[16px] font-medium">
-                                                {formatDate(activePurchase.expirationDateIOS)}
+                                                {formatDate(membership.validUntil)}
                                             </span>
                                         </div>
                                     )}
@@ -188,28 +175,6 @@ export const SubscriptionPage = () => {
                                 )}
                             </button>
                         </div>
-
-                        {/* Other purchases */}
-                        {purchases.length > 1 && (
-                            <div className="flex flex-col gap-2">
-                                <span className="px-1 text-[14px] font-medium text-muted-foreground">
-                                    {t('mypage.subscription.otherReceipts', { count: purchases.length - 1 })}
-                                </span>
-                                {purchases.slice(1).map((purchase, i) => (
-                                    <div
-                                        key={purchase.transactionId ?? i}
-                                        className="rounded-[14px] border border-border bg-card px-4 py-3"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[15px] font-medium">{purchase.productId}</span>
-                                            <span className="text-[13px] text-muted-foreground">
-                                                {formatDate(purchase.transactionDate)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
                     </>
                 ) : (
                     /* Empty State */

@@ -9,9 +9,10 @@ import type {
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { Params } from '@lemoncloud/lemon-web-core';
+import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 
 const IAP_ENDPOINT = import.meta.env.VITE_IAP_ENDPOINT;
-
+const DOU_ENDPOINT = import.meta.env.VITE_DOU_ENDPOINT;
 /** #0. Google 구독 결제 검증 */
 export const validateGoogle = async (body: ValidateAPIBody, params: Params = {}): Promise<ValidateAPIResponse> => {
     const { data } = await webCore
@@ -65,6 +66,17 @@ export const fetchReceiptDetail = async (
         })
         .setParams({ ...params })
         .execute<ValidateAPIResponse>();
+
+    return throwIfApiError(data);
+};
+
+export const fetchMembershipInfo = async (): Promise<MembershipView> => {
+    const { data } = await webCore
+        .buildSignedRequest({
+            method: 'GET',
+            baseURL: `${DOU_ENDPOINT}/membership/0/mine`,
+        })
+        .execute<MembershipView>();
 
     return throwIfApiError(data);
 };

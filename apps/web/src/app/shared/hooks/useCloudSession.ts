@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useIssueCloudToken } from '@chatic/auth';
 import { useGlobalLoader } from '@chatic/shared';
 import { useClouds } from '@chatic/users';
@@ -43,6 +44,17 @@ export const useCloudSession = () => {
             setIsLoading(false);
         }
     };
+
+    const autoSelectedRef = useRef(false);
+
+    useEffect(() => {
+        if (autoSelectedRef.current) return;
+        if (getCloudSession()) return;
+        const activeCloud = clouds.find(c => c.status === 'active');
+        if (!activeCloud) return;
+        autoSelectedRef.current = true;
+        void selectPlace(activeCloud.id as string);
+    }, [clouds]);
 
     return { selectPlace, isPending, clouds, isCloudsError, isFetchingClouds: isFetching, refetchClouds: refetch };
 };

@@ -250,6 +250,7 @@
             "autoRenewOn": "On",
             "autoRenewOff": "Off",
             "canceledNotice": "Subscription will end on {{date}}",
+            "pendingChange": "Plan will change to {{product}} on next renewal",
             "otherReceipts": "{{count}} other receipt(s)",
             "manageSubscription": "Manage Subscription",
             "status": "Status",

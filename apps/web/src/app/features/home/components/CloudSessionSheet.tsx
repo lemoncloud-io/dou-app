@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AlertCircle, Check, Loader2, Plus, User, X } from 'lucide-react';
@@ -7,7 +7,7 @@ import { cn } from '@chatic/lib/utils';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 
-import { getCloudSession, useCloudSession } from '../../../shared/hooks/useCloudSession';
+import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { AddAccountDialog } from './AddAccountDialog';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
@@ -160,8 +160,6 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedCloudId());
     const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
 
-    const autoSelectedRef = useRef(false);
-
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
 
     const handleSelectCloud = async (cloudId: string) => {
@@ -169,15 +167,6 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
         setSelectedId(cloudId);
         handleClose();
     };
-
-    useEffect(() => {
-        if (autoSelectedRef.current) return;
-        const activeCloud = clouds.find(c => c.status === 'active');
-        if (!activeCloud) return;
-        autoSelectedRef.current = true;
-        if (getCloudSession()) return;
-        void handleSelectCloud(activeCloud.id);
-    }, [clouds]);
 
     const isLoading = isFetchingClouds && clouds.length === 0;
 

@@ -250,6 +250,7 @@
             "autoRenewOn": "사용 중",
             "autoRenewOff": "해제",
             "canceledNotice": "{{date}}에 구독이 종료됩니다",
+            "pendingChange": "다음 갱신 시 {{product}}로 변경됩니다",
             "otherReceipts": "기타 영수증 {{count}}건",
             "manageSubscription": "구독 관리",
             "status": "상태",

@@ -2,7 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
 
-import { fetchActiveSubscriptions, fetchReceiptDetail, validateApple, validateGoogle } from '../apis';
+import {
+    fetchActiveSubscriptions,
+    fetchMembershipInfo,
+    fetchReceiptDetail,
+    validateApple,
+    validateGoogle,
+} from '../apis';
 
 import type {
     ValidateAPIBody,
@@ -12,9 +18,10 @@ import type {
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { Params } from '@lemoncloud/lemon-web-core';
+import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 
 export const subscriptionKeys = createQueryKeys('subscriptions');
-
+export const membershipKeys = createQueryKeys('memberships');
 /** #0. Google 결제 검증 */
 export const useValidateGoogle = () =>
     useCustomMutation<ValidateAPIResponse, string, { body: ValidateAPIBody; params: Params }>(({ body, params }) =>
@@ -46,3 +53,11 @@ export const useFetchReceiptDetail = () =>
         string,
         { receiptId: string; params?: { v?: string | boolean; history?: string | boolean } }
     >(({ receiptId, params }) => fetchReceiptDetail(receiptId, params));
+
+/** 멤버십 정보 조회 */
+export const useMembershipInfo = () =>
+    useQuery<MembershipView>({
+        queryKey: subscriptionKeys.detail('mine'),
+        queryFn: fetchMembershipInfo,
+        refetchOnWindowFocus: false,
+    });
