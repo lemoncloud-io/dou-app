@@ -118,18 +118,30 @@ export const FcmTestScreen = () => {
     };
 
     /**
-     * FCM 토큰 가져오기
+     * Device Token토큰 가져오기
      */
     const handleGetToken = async () => {
         try {
-            addLog('info', 'Fetching FCM Token...');
-            const fcmToken = await fcmService.getToken();
-            if (fcmToken) {
-                setToken(fcmToken);
-                addLog('success', 'Token Received');
-                console.log('FCM Token:', fcmToken); // 디버깅용 콘솔 출력
+            addLog('info', `Fetching ${Platform.OS === 'ios' ? 'APNs' : 'FCM'} Token...`);
+
+            let token: string | null = null;
+
+            if (Platform.OS === 'ios') {
+                await fcmService.registerAPNs();
+                token = await fcmService.getAPNSToken();
             } else {
-                addLog('error', 'Failed to get FCM Token (null)');
+                token = await fcmService.getToken();
+            }
+
+            if (token) {
+                setToken(token);
+                addLog('success', `${Platform.OS === 'ios' ? 'APNs' : 'FCM'} Token Received`);
+                console.log(`${Platform.OS === 'ios' ? 'APNs' : 'FCM'} Token:`, token);
+            } else {
+                addLog(
+                    'error',
+                    `Failed to get token (null). Check ${Platform.OS === 'ios' ? 'APNs' : 'FCM'} settings.`
+                );
             }
         } catch (error: any) {
             addLog('error', `Get Token Error: ${error.message}`);
@@ -170,7 +182,7 @@ export const FcmTestScreen = () => {
      * 초기화 및 리스너 등록
      */
     useEffect(() => {
-        addLog('info', 'Initializing FCM listeners...');
+        addLog('info', 'Initializing Device Tokenlisteners...');
         checkPermission();
 
         const unsubscribeOnMessage = fcmService.onMessage(async remoteMessage => {
@@ -224,7 +236,7 @@ export const FcmTestScreen = () => {
                                 },
                             ]}
                         />
-                        <Text style={styles.statusText}>FCM Debugger</Text>
+                        <Text style={styles.statusText}>Device Token Debugger</Text>
                         <Text style={styles.toggleIcon}>{isExpanded ? '▲' : '▼'}</Text>
                     </TouchableOpacity>
 
@@ -242,7 +254,7 @@ export const FcmTestScreen = () => {
                             <Text style={[styles.deviceStatusValue, { color: '#F5A623' }]}>{permissionStatus}</Text>
                         </View>
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>FCM Token:</Text>
+                            <Text style={styles.deviceStatusLabel}>Device Token:</Text>
                             <Text
                                 style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}
                                 numberOfLines={2}
