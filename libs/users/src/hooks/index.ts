@@ -37,5 +37,9 @@ export const useRegisterDeviceToken = () =>
 export const useVerifyNativeAppToken = () =>
     useCustomMutation<UserTokenView, string, VerifyNativeTokenBody>(body => verifyNativeAppToken(body));
 
+const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
+
 export const useVerifyEmail = () =>
-    useCustomMutation<CloudVerifyEmailView, string, CloudVerifyEmailBody>(body => verifyEmail(body));
+    useCustomMutation<CloudVerifyEmailView, string, CloudVerifyEmailBody>(body =>
+        verifyEmail(body, { dryRun: IS_DEV })
+    );

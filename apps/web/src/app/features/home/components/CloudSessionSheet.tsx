@@ -6,9 +6,11 @@ import { AlertCircle, Check, Loader2, Plus, User, X } from 'lucide-react';
 import { cn } from '@chatic/lib/utils';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { useMembershipInfo } from '@chatic/subscriptions';
 
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { AddAccountDialog } from './AddAccountDialog';
+import { SubscriptionRequiredDialog } from './SubscriptionRequiredDialog';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
@@ -159,6 +161,17 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const { selectPlace, isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedCloudId());
     const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+    const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
+    const { data: membership } = useMembershipInfo();
+
+    const handleAddAccount = () => {
+        if (!membership?.isValid) {
+            handleClose();
+            setIsSubscriptionRequiredOpen(true);
+            return;
+        }
+        setIsAddAccountOpen(true);
+    };
 
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
 
@@ -234,10 +247,14 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                         )}
                     </div>
 
-                    <AddAccountButton onClick={() => setIsAddAccountOpen(true)} />
+                    <AddAccountButton onClick={handleAddAccount} />
                 </SheetContent>
             </Sheet>
             <AddAccountDialog open={isAddAccountOpen} onOpenChange={setIsAddAccountOpen} />
+            <SubscriptionRequiredDialog
+                open={isSubscriptionRequiredOpen}
+                onClose={() => setIsSubscriptionRequiredOpen(false)}
+            />
         </>
     );
 };

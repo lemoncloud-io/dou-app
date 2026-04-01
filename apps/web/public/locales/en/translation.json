@@ -791,6 +791,12 @@
         "accepting": "Accepting...",
         "failed": "Failed to accept invitation"
     },
+    "subscriptionRequired": {
+        "title": "A subscription is required to use this service",
+        "description": "Subscribe to create chat rooms and invite friends to start chatting.",
+        "cancel": "Cancel",
+        "subscribe": "Subscribe"
+    },
     "limitExceeded": {
         "placeTitle": "Can't create more places",
         "placeDescription": "You can create up to {{max}} places.",

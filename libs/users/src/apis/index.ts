@@ -78,12 +78,16 @@ export const verifyNativeAppToken = async (body: VerifyNativeTokenBody): Promise
     return throwIfApiError(data);
 };
 
-export const verifyEmail = async (body: CloudVerifyEmailBody): Promise<CloudVerifyEmailView> => {
+export const verifyEmail = async (
+    body: CloudVerifyEmailBody,
+    params?: { dryRun?: boolean }
+): Promise<CloudVerifyEmailView> => {
     const { data } = await webCore
         .buildSignedRequest({
             method: 'POST',
             baseURL: `${DOU_ENDPOINT}/clouds/0/verify-email`,
         })
+        .setParams({ ...params })
         .setBody(body)
         .execute<CloudVerifyEmailView>();
 

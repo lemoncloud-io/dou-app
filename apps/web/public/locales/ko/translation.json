@@ -791,6 +791,12 @@
         "accepting": "수락 중...",
         "failed": "초대 수락에 실패했습니다"
     },
+    "subscriptionRequired": {
+        "title": "해당 서비스를 이용하시려면\n구독이 필요해요",
+        "description": "구독 후에 채팅방을 만들고,\n친구를 초대하여 채팅을 시작해 보세요.",
+        "cancel": "취소",
+        "subscribe": "구독하기"
+    },
     "limitExceeded": {
         "placeTitle": "플레이스를 더 만들 수 없어요",
         "placeDescription": "플레이스는 최대 {{max}}개까지만 만들 수 있어요.",
