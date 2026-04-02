@@ -22,7 +22,7 @@ import {
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
-import { useAutoSelectCloud, useCloudSession } from '../../../shared/hooks/useCloudSession';
+import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { LimitExceededDialog } from '../../../shared/components/LimitExceededDialog';
 import { SettingsDialog } from '../../../components/SettingsDialog';
@@ -56,7 +56,6 @@ export const HomePage = () => {
     } = useCanCreatePlace();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const { isCloudsError } = useCloudSession();
-    useAutoSelectCloud();
 
     const dynamicProfile = useDynamicProfile();
     const displayName = isCloudUser

@@ -19,6 +19,7 @@ export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
     const isGuest = useWebCoreStore(s => s.isGuest);
+
     const profile = useWebCoreStore(s => s.profile);
     const { mutate: logout } = useLogout();
     const registerLogoutCallback = useWebCoreStore(s => s.registerLogoutCallback);

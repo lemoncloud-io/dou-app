@@ -2,9 +2,9 @@ import { ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useLogin } from '@chatic/auth';
+import { login } from '@chatic/auth';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { webCore } from '@chatic/web-core';
+import { webCore, useWebCoreStore } from '@chatic/web-core';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { Input } from '@chatic/ui-kit/components/ui/input';
@@ -13,7 +13,8 @@ export const DebugLoginPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { toast } = useToast();
-    const { mutateAsync: login, isPending } = useLogin();
+    const { setProfile, setIsAuthenticated } = useWebCoreStore();
+    const [isPending, setIsPending] = useState(false);
 
     const [uid, setUid] = useState('');
     const [pwd, setPwd] = useState('');
@@ -21,9 +22,12 @@ export const DebugLoginPage = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsPending(true);
         try {
-            const { Token } = await login({ uid, pwd });
+            const { Token, ...rest } = await login({ uid, pwd });
             await webCore.buildCredentialsByToken(Token as Parameters<typeof webCore.buildCredentialsByToken>[0]);
+            setProfile(rest as Parameters<typeof setProfile>[0]);
+            setIsAuthenticated(true);
             window.location.href = '/';
         } catch {
             toast({
@@ -31,6 +35,8 @@ export const DebugLoginPage = () => {
                 description: t('mypageLogin.errorDescription'),
                 variant: 'destructive',
             });
+        } finally {
+            setIsPending(false);
         }
     };
 

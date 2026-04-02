@@ -53,16 +53,16 @@ export const useCloudSession = () => {
 
 export const useAutoSelectCloud = () => {
     const { clouds, selectPlace } = useCloudSession();
-    const { isGuest } = useWebCoreStore();
+    const { isAuthenticated } = useWebCoreStore();
     const autoSelectedRef = useRef(false);
 
     useEffect(() => {
         if (autoSelectedRef.current) return;
-        if (isGuest) return;
+        if (!isAuthenticated) return;
         if (getCloudSession()) return;
         const activeCloud = clouds.find(c => c.status === 'active');
         if (!activeCloud) return;
         autoSelectedRef.current = true;
         void selectPlace(activeCloud.id as string);
-    }, [clouds, isGuest]);
+    }, [clouds, isAuthenticated]);
 };

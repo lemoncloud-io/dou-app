@@ -15,6 +15,7 @@ import { initializeMessageListener } from '@chatic/app-messages';
 import { WebSocketV2Connection, ServiceUnavailableOverlay } from './components';
 import { Router } from './routes';
 import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
+import { useAutoSelectCloud } from './shared/hooks/useCloudSession';
 import i18n from '../i18n';
 
 import type { ErrorInfo } from 'react';
@@ -35,6 +36,11 @@ const queryClient = new QueryClient({
         },
     },
 });
+
+const AutoSelectCloud = () => {
+    useAutoSelectCloud();
+    return null;
+};
 
 export function App() {
     const isWebCoreReady = useInitWebCore();
@@ -76,6 +82,7 @@ export function App() {
                     <HelmetProvider>
                         <QueryClientProvider client={queryClient}>
                             <ThemeProvider>
+                                <AutoSelectCloud />
                                 <WebSocketV2Connection />
                                 <ServiceUnavailableOverlay />
                                 <DeviceTokenRegistration />
