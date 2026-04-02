@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
+import { useDeviceInfo } from '@chatic/device-utils';
 
 import {
     fetchActiveSubscriptions,
@@ -63,3 +64,19 @@ export const useMembershipInfo = () =>
         staleTime: 0,
         refetchOnMount: 'always',
     });
+
+/** 현재 디바이스 플랫폼과 구독 플랫폼이 일치하는지 확인 */
+export const useIsSubscriptionAvailable = () => {
+    const { data: membership, isLoading } = useMembershipInfo();
+    const { deviceInfo } = useDeviceInfo();
+
+    const isPlatformMatch =
+        (membership?.platform === 'apple' && deviceInfo?.platform === 'ios') ||
+        (membership?.platform === 'google' && deviceInfo?.platform === 'android');
+
+    return {
+        isAvailable: membership?.isValid === true && isPlatformMatch,
+        isLoading,
+        membership,
+    };
+};
