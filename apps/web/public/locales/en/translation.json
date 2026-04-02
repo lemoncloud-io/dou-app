@@ -222,7 +222,7 @@
             "changePlan": "Change Plan",
             "period": "Period",
             "currentPayment": "Current Payment",
-            "nextPayment": "Next Payment",
+            "nextPayment": "Expires",
             "viewDetail": "View Details",
             "empty": "No active subscriptions",
             "emptyDescription": "Check out our subscription plans",
@@ -332,7 +332,8 @@
         "statusPending": "Preparing",
         "setupProfile": "Please set up your profile",
         "addAccount": "Add Account",
-        "empty": "No clouds registered"
+        "empty": "No clouds registered",
+        "switchFailed": "Failed to switch cloud"
     },
     "placeList": {
         "defaultPlace": "Default",
@@ -877,6 +878,9 @@
         "verifyFailed": "Verification failed",
         "codeError": "Please enter the correct verification code",
         "success": "Account added successfully",
-        "tooltip": "If you didn't receive the email,\nplease check your spam folder"
+        "tooltip": "If you didn't receive the email,\nplease check your spam folder",
+        "limitExceeded": "You can add up to 1 account",
+        "subscriptionRequired": "You can only add an account on your subscribed platform",
+        "cloudUserRequired": "Only cloud users can add an account"
     }
 }

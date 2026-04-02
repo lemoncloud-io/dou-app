@@ -222,7 +222,7 @@
             "changePlan": "구독 변경",
             "period": "기간",
             "currentPayment": "이번 결제",
-            "nextPayment": "다음 결제 예정",
+            "nextPayment": "만료일",
             "viewDetail": "자세히 보기",
             "empty": "구독 중인 상품이 없어요",
             "emptyDescription": "구독 상품을 확인해 보세요",
@@ -245,7 +245,7 @@
             "noticeTerms": "구매 정책과 관련한 자세한 내용은 <terms>이용약관</terms>을 확인해 주세요.",
             "platform": "플랫폼",
             "purchaseDate": "구매일",
-            "startDate": "시작일",
+            "startDate": "구독 시작일",
             "expiresAt": "만료일",
             "autoRenew": "자동 갱신",
             "autoRenewOn": "사용 중",
@@ -332,7 +332,8 @@
         "statusPending": "구독 준비 중",
         "setupProfile": "프로필 설정을 해주세요",
         "addAccount": "계정 추가",
-        "empty": "등록된 클라우드가 없어요"
+        "empty": "등록된 클라우드가 없어요",
+        "switchFailed": "클라우드 전환에 실패했어요"
     },
     "placeList": {
         "defaultPlace": "기본",
@@ -877,6 +878,9 @@
         "verifyFailed": "인증에 실패했어요",
         "codeError": "인증번호를 정확히 입력해 주세요",
         "success": "계정이 추가되었어요",
-        "tooltip": "이메일이 도착하지 않았다면\n스팸 메일함을 확인해주세요"
+        "tooltip": "이메일이 도착하지 않았다면\n스팸 메일함을 확인해주세요",
+        "limitExceeded": "계정은 최대 1개까지 추가할 수 있어요",
+        "subscriptionRequired": "구독 중인 플랫폼에서만 계정을 추가할 수 있어요",
+        "cloudUserRequired": "클라우드 사용자만 계정을 추가할 수 있어요"
     }
 }

@@ -22,8 +22,7 @@ import {
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
-import { useCloudSession } from '../../../shared/hooks/useCloudSession';
-import { useMembershipInfo } from '@chatic/subscriptions';
+import { useAutoSelectCloud, useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { LimitExceededDialog } from '../../../shared/components/LimitExceededDialog';
 import { SettingsDialog } from '../../../components/SettingsDialog';
@@ -40,7 +39,6 @@ const IS_LOCAL = import.meta.env.VITE_ENV === 'LOCAL';
 export const HomePage = () => {
     const { t } = useTranslation();
     const { isGuest, isInvited, isCloudUser, profile } = useWebCoreStore();
-    const { data: membership, isLoading: isMembershipLoading } = useMembershipInfo();
     const { mutate: logout } = useLogout();
     const navigate = useNavigateWithTransition();
 
@@ -58,6 +56,7 @@ export const HomePage = () => {
     } = useCanCreatePlace();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const { isCloudsError } = useCloudSession();
+    useAutoSelectCloud();
 
     const dynamicProfile = useDynamicProfile();
     const displayName = isCloudUser
@@ -151,7 +150,7 @@ export const HomePage = () => {
                     </div>
                 )}
                 <div className="flex items-center gap-4">
-                    {!isMembershipLoading && membership?.isValid && (
+                    {isCloudUser && (
                         <button onClick={() => setIsCloudSessionOpen(true)} className="p-1">
                             <ArrowLeftRight size={22} className="text-foreground" />
                         </button>

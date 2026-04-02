@@ -5,8 +5,9 @@ import { AlertCircle, Check, Loader2, Plus, User, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
-import { useMembershipInfo } from '@chatic/subscriptions';
+import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
 
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { AddAccountDialog } from './AddAccountDialog';
@@ -158,14 +159,19 @@ interface CloudSessionSheetProps {
 
 export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps) => {
     const { t } = useTranslation();
+    const { toast } = useToast();
     const { selectPlace, isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
+    const { isAvailable: isSubscriptionAvailable } = useIsSubscriptionAvailable();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedCloudId());
     const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
     const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
-    const { data: membership } = useMembershipInfo();
 
     const handleAddAccount = () => {
-        if (!membership?.isValid) {
+        if (clouds.length >= 1) {
+            toast({ title: t('addAccount.limitExceeded'), variant: 'destructive' });
+            return;
+        }
+        if (!isSubscriptionAvailable) {
             handleClose();
             setIsSubscriptionRequiredOpen(true);
             return;
@@ -176,9 +182,14 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
 
     const handleSelectCloud = async (cloudId: string) => {
-        await selectPlace(cloudId);
-        setSelectedId(cloudId);
-        handleClose();
+        try {
+            await selectPlace(cloudId);
+            setSelectedId(cloudId);
+            handleClose();
+        } catch (e) {
+            console.error('[CloudSessionSheet] selectCloud failed:', e);
+            toast({ title: t('cloudSessionSheet.switchFailed'), variant: 'destructive' });
+        }
     };
 
     const isLoading = isFetchingClouds && clouds.length === 0;

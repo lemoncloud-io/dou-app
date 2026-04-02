@@ -9,7 +9,9 @@ import { Logo } from '@chatic/assets';
 import { useTheme } from '@chatic/theme';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudsKeys, useVerifyEmail } from '@chatic/users';
+import { cloudsKeys, fetchClouds, useVerifyEmail } from '@chatic/users';
+import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
+import { useWebCoreStore } from '@chatic/web-core';
 
 import { VerificationCodeInput } from '../../account/components/VerificationCodeInput';
 import { VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../../account/constants';
@@ -28,6 +30,8 @@ export const AddAccountDialog = ({ open, onOpenChange }: AddAccountDialogProps) 
     const queryClient = useQueryClient();
     const verifyEmail = useVerifyEmail();
     const { isDarkTheme } = useTheme();
+    const { isCloudUser } = useWebCoreStore();
+    const { isAvailable: isSubscriptionAvailable } = useIsSubscriptionAvailable();
 
     const [step, setStep] = useState<Step>('email');
     const [email, setEmail] = useState('');
@@ -86,6 +90,22 @@ export const AddAccountDialog = ({ open, onOpenChange }: AddAccountDialogProps) 
     const handleSendCode = async () => {
         setLoading(true);
         try {
+            if (!isCloudUser) {
+                toast({ title: t('addAccount.cloudUserRequired'), variant: 'destructive' });
+                return;
+            }
+            if (!isSubscriptionAvailable) {
+                toast({ title: t('addAccount.subscriptionRequired'), variant: 'destructive' });
+                return;
+            }
+            const clouds = await queryClient.fetchQuery({
+                queryKey: cloudsKeys.list({}),
+                queryFn: () => fetchClouds(),
+            });
+            if ((clouds?.total ?? 0) >= 1) {
+                toast({ title: t('addAccount.limitExceeded'), variant: 'destructive' });
+                return;
+            }
             await verifyEmail.mutateAsync({ email, step: 'send' });
             setStep('verify');
             startTimer();
