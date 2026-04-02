@@ -1,2 +1,3 @@
-// TODO: revert to Config.VITE_WEBVIEW_BASE_URL
-export const WEBVIEW_URL = 'http://192.168.1.13:5003';
+import Config from 'react-native-config';
+
+export const WEBVIEW_URL = Config.VITE_WEBVIEW_BASE_URL;
