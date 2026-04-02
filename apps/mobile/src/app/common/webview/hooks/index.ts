@@ -8,4 +8,5 @@ export * from './useDeviceHandler';
 export * from './useSafeAreaHandler';
 export * from './usePermissionHandler';
 export * from './useSubscriptionIapHandler';
+export * from './usePreferenceCacheHandler';
 export * from './useOAuthHandler';

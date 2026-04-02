@@ -9,12 +9,13 @@ import {
     useSafeAreaHandler,
     useSearchCacheHandler,
     useSubscriptionIapHandler,
+    usePreferenceCacheHandler,
 } from '../../../common/webview/hooks';
 import { useModalHandler } from '../../../common/webview/hooks/useModalHandler';
 
 import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
-import type { WebViewBridge } from '../../../common/webview/hooks/useBaseBridge';
+import type { WebViewBridge } from '../../../common';
 import type { MainScreenProps } from '../navigation';
 
 /**
