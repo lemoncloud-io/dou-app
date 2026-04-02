@@ -1,11 +1,13 @@
 import { AlertCircle, ChevronLeft, Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
+
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useMembershipInfo } from '@chatic/subscriptions';
+import { fetchMembershipInfo, subscriptionKeys, useMembershipInfo } from '@chatic/subscriptions';
 
 import { useSubscriptionIap } from '../hooks';
 
@@ -27,23 +29,25 @@ export const SubscriptionPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { toast } = useToast();
+    const queryClient = useQueryClient();
     const { isOnMobileApp } = getMobileAppInfo();
     const { restorePurchases } = useSubscriptionIap();
     const [isRestoring, setIsRestoring] = useState(false);
-    const [isAutoRestoring, setIsAutoRestoring] = useState(true);
 
     const { data: membership, isLoading } = useMembershipInfo();
-
-    useEffect(() => {
-        setIsAutoRestoring(true);
-        restorePurchases()
-            .catch(e => console.warn('[SubscriptionPage] auto restore failed:', e))
-            .finally(() => setIsAutoRestoring(false));
-    }, []);
-
+    console.log(membership, 'membership');
     const isActive = membership?.isValid === true;
     const isCanceled = membership?.status === 'canceled';
     const hasPendingChange = !!membership?.pendingProductId;
+
+    const handleViewPlans = async () => {
+        const latest = await queryClient.fetchQuery({
+            queryKey: subscriptionKeys.detail('mine'),
+            queryFn: fetchMembershipInfo,
+        });
+        if (latest?.isValid) return;
+        navigate('/mypage/subscription/plans');
+    };
 
     const handleRestore = async () => {
         setIsRestoring(true);
@@ -75,7 +79,7 @@ export const SubscriptionPage = () => {
             </header>
 
             <div className="flex flex-col gap-[18px] px-4 pb-safe-bottom pt-4">
-                {isLoading || isAutoRestoring ? (
+                {isLoading ? (
                     <div className="flex items-center justify-center pt-20">
                         <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
                     </div>
@@ -141,6 +145,24 @@ export const SubscriptionPage = () => {
                                                 : t('mypage.subscription.statusActive')}
                                         </span>
                                     </div>
+                                    {membership?.status$?.renewal && (
+                                        <div className="flex items-center gap-[18px]">
+                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                                {t('mypage.subscription.renewal')}
+                                            </span>
+                                            <span
+                                                className={`text-[16px] font-medium ${
+                                                    membership.status$.renewal === 'auto'
+                                                        ? 'text-green-600 dark:text-green-400'
+                                                        : membership.status$.renewal === 'pending_cancel'
+                                                          ? 'text-yellow-600 dark:text-yellow-400'
+                                                          : 'text-red-600 dark:text-red-400'
+                                                }`}
+                                            >
+                                                {t(`mypage.subscription.renewal_${membership.status$.renewal}`)}
+                                            </span>
+                                        </div>
+                                    )}
                                     {membership?.platform && (
                                         <div className="flex items-center gap-[18px]">
                                             <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
@@ -246,7 +268,7 @@ export const SubscriptionPage = () => {
 
                         {!isActive && isOnMobileApp && (
                             <button
-                                onClick={() => navigate('/mypage/subscription/plans')}
+                                onClick={handleViewPlans}
                                 className="w-full rounded-full bg-foreground py-3 text-[16px] font-semibold text-background"
                             >
                                 {t('mypage.subscription.viewPlans')}
@@ -278,7 +300,7 @@ export const SubscriptionPage = () => {
                         </button>
                         {isOnMobileApp && (
                             <button
-                                onClick={() => navigate('/mypage/subscription/plans')}
+                                onClick={handleViewPlans}
                                 className="w-full rounded-full bg-foreground py-3 text-[16px] font-semibold text-background"
                             >
                                 {t('mypage.subscription.viewPlans')}

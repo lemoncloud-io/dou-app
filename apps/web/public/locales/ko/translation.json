@@ -266,7 +266,11 @@
             "renewedAt": "갱신일",
             "canceledAt": "해지일",
             "lastSyncAt": "마지막 동기화",
-            "receiptId": "영수증 ID"
+            "receiptId": "영수증 ID",
+            "renewal": "갱신 상태",
+            "renewal_auto": "자동 갱신",
+            "renewal_pending_cancel": "해지 예정",
+            "renewal_canceled": "취소됨"
         },
         "accountManage": {
             "title": "계정 관리",

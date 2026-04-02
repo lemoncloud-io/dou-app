@@ -266,7 +266,11 @@
             "renewedAt": "Renewed",
             "canceledAt": "Canceled",
             "lastSyncAt": "Last synced",
-            "receiptId": "Receipt ID"
+            "receiptId": "Receipt ID",
+            "renewal": "Renewal",
+            "renewal_auto": "Auto renew",
+            "renewal_pending_cancel": "Pending cancel",
+            "renewal_canceled": "Canceled"
         },
         "accountManage": {
             "title": "Account Management",

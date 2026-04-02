@@ -60,4 +60,6 @@ export const useMembershipInfo = () =>
         queryKey: subscriptionKeys.detail('mine'),
         queryFn: fetchMembershipInfo,
         refetchOnWindowFocus: false,
+        staleTime: 0,
+        refetchOnMount: 'always',
     });
