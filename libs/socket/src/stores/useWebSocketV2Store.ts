@@ -6,7 +6,7 @@ import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
 export interface WebSocketV2State {
     id: string | null;
-    cloudId: string | null;
+    cloudId: string;
     connectionId: string | null;
     isConnected: boolean;
     isVerified: boolean;
@@ -17,7 +17,7 @@ export interface WebSocketV2State {
 
 export interface WebSocketV2Store extends WebSocketV2State {
     setId: (id: string | null) => void;
-    setCloudId: (cid: string | null) => void;
+    setCloudId: (cloudId: string) => void;
     setConnectionId: (connectionId: string | null) => void;
     setIsConnected: (isConnected: boolean) => void;
     setIsVerified: (isVerified: boolean) => void;
@@ -29,7 +29,7 @@ export interface WebSocketV2Store extends WebSocketV2State {
 
 const initialState: WebSocketV2State = {
     id: null,
-    cloudId: null,
+    cloudId: 'default',
     connectionId: null,
     isConnected: false,
     isVerified: false,
