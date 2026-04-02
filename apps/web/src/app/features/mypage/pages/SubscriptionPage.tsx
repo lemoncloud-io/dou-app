@@ -190,9 +190,7 @@ export const SubscriptionPage = () => {
                                     {(membership?.validUntil ?? 0) > 0 && (
                                         <div className="flex items-center gap-[18px]">
                                             <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
-                                                {isCanceled
-                                                    ? t('mypage.subscription.expiresAt')
-                                                    : t('mypage.subscription.nextPayment')}
+                                                {t('mypage.subscription.expiresAt')}
                                             </span>
                                             <span className="text-[16px] font-medium">
                                                 {formatDate(membership.validUntil)}
