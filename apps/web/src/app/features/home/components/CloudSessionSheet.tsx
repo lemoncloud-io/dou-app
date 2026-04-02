@@ -160,7 +160,7 @@ interface CloudSessionSheetProps {
 export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
-    const { selectPlace, isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
+    const { selectCloud, isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
     const { isAvailable: isSubscriptionAvailable } = useIsSubscriptionAvailable();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedCloudId());
     const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
@@ -183,7 +183,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
 
     const handleSelectCloud = async (cloudId: string) => {
         try {
-            await selectPlace(cloudId);
+            await selectCloud(cloudId);
             setSelectedId(cloudId);
             handleClose();
         } catch (e) {

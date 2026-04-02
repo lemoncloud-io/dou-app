@@ -28,14 +28,14 @@ export const useCloudSession = () => {
     const clouds = data?.list ?? [];
     const isCloudsError = !isFetching && isFetchError;
 
-    const selectPlace = async (placeId: string) => {
+    const selectCloud = async (cloudId: string) => {
         setIsLoading(true, t('globalLoader.switchingCloud'));
         try {
-            const { cloudDelegationToken, userToken } = await issueCloudToken(placeId);
+            const { cloudDelegationToken, userToken } = await issueCloudToken(cloudId);
 
             cloudCore.saveDelegationToken(cloudDelegationToken);
             cloudCore.saveCloudToken(userToken);
-            cloudCore.saveSelectedCloudId(placeId);
+            cloudCore.saveSelectedCloudId(cloudId);
 
             const currentProfile = useWebCoreStore.getState().profile;
             const { Token: _Token, ...cloudProfile } = userToken;
@@ -48,7 +48,7 @@ export const useCloudSession = () => {
         }
     };
 
-    return { selectPlace, isPending, clouds, isCloudsError, isFetchingClouds: isFetching, refetchClouds: refetch };
+    return { selectCloud, isPending, clouds, isCloudsError, isFetchingClouds: isFetching, refetchClouds: refetch };
 };
 
 export const useAutoSelectCloud = () => {
