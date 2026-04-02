@@ -1,11 +1,11 @@
-import { createNativeDBAdapter, isNativeApp } from '../core';
-import type { StorageRepository } from '../core';
+import { createNativeDBAdapter, isNativeApp } from '../local';
+import type { CacheStorage } from '../local';
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
-interface CloudRepository extends StorageRepository<CloudView> {}
+interface CloudRepository extends CacheStorage<CloudView> {}
 
 export const cloudRepository = (cid: string): CloudRepository => {
-    const adapter: StorageRepository<CloudView> = isNativeApp()
+    const adapter: CacheStorage<CloudView> = isNativeApp()
         ? createNativeDBAdapter<CloudView>('cloud', cid)
         : createNativeDBAdapter<CloudView>('cloud', cid);
 

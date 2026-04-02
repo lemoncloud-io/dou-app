@@ -1,11 +1,11 @@
-import type { StorageRepository } from '../core';
-import { createNativeDBAdapter, isNativeApp } from '../core';
+import type { CacheStorage } from '../local';
+import { createNativeDBAdapter, isNativeApp } from '../local';
 import type { SiteView } from '@lemoncloud/chatic-socials-api';
 
-interface SiteRepository extends StorageRepository<SiteView> {}
+interface SiteRepository extends CacheStorage<SiteView> {}
 
 export const siteRepository = (cid: string): SiteRepository => {
-    const adapter: StorageRepository<SiteView> = isNativeApp()
+    const adapter: CacheStorage<SiteView> = isNativeApp()
         ? createNativeDBAdapter<SiteView>('site', cid)
         : createNativeDBAdapter<SiteView>('site', cid);
 

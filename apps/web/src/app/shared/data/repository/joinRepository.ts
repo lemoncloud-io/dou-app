@@ -1,12 +1,12 @@
-import { isNativeApp } from '../core';
-import { createNativeDBAdapter } from '../core';
-import type { StorageRepository } from '../core';
+import { isNativeApp } from '../local';
+import { createNativeDBAdapter } from '../local';
+import type { CacheStorage } from '../local';
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
 
-interface JoinRepository extends StorageRepository<JoinView> {}
+interface JoinRepository extends CacheStorage<JoinView> {}
 
 export const joinRepository = (cid: string): JoinRepository => {
-    const adapter: StorageRepository<JoinView> = isNativeApp()
+    const adapter: CacheStorage<JoinView> = isNativeApp()
         ? createNativeDBAdapter<JoinView>('join', cid)
         : createNativeDBAdapter<JoinView>('join', cid);
 

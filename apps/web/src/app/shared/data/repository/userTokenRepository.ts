@@ -1,12 +1,12 @@
-import { isNativeApp } from '../core';
-import { createNativeDBAdapter } from '../core';
-import type { StorageRepository } from '../core';
+import { isNativeApp } from '../local';
+import { createNativeDBAdapter } from '../local';
+import type { CacheStorage } from '../local';
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-interface UserTokenRepository extends StorageRepository<UserTokenView> {}
+interface UserTokenRepository extends CacheStorage<UserTokenView> {}
 
 export const userTokenRepository = (cid: string): UserTokenRepository => {
-    const adapter: StorageRepository<UserTokenView> = isNativeApp()
+    const adapter: CacheStorage<UserTokenView> = isNativeApp()
         ? createNativeDBAdapter<UserTokenView>('usertoken', cid)
         : createNativeDBAdapter<UserTokenView>('usertoken', cid);
 

@@ -1,11 +1,11 @@
-import { createNativeDBAdapter, isNativeApp } from '../core';
+import { createNativeDBAdapter, isNativeApp } from '../local';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
-import type { StorageRepository } from '../core';
+import type { CacheStorage } from '../local';
 
-interface ChannelRepository extends StorageRepository<ChannelView> {}
+interface ChannelRepository extends CacheStorage<ChannelView> {}
 
 export const channelRepository = (cid: string): ChannelRepository => {
-    const adapter: StorageRepository<ChannelView> = isNativeApp()
+    const adapter: CacheStorage<ChannelView> = isNativeApp()
         ? createNativeDBAdapter<ChannelView>('channel', cid)
         : createNativeDBAdapter<ChannelView>('channel', cid);
 
