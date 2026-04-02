@@ -18,7 +18,7 @@ export const WebSocketV2Connection = () => {
 
     const { isCloudUser } = useWebCoreStore();
 
-    const selectedCloudId = cloudCore.getSelectedCloudId();
+    const selectedCloudId = cloudCore.getSelectedCloudId() || 'default';
     const wss = cloudCore.getWss();
     const endpoint = isCloudUser ? wss : import.meta.env.VITE_WS_ENDPOINT;
 
