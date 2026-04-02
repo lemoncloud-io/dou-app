@@ -41,5 +41,5 @@ const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV ==
 
 export const useVerifyEmail = () =>
     useCustomMutation<CloudVerifyEmailView, string, CloudVerifyEmailBody>(body =>
-        verifyEmail(body, { dryRun: IS_DEV })
+        verifyEmail(body, { ...(IS_DEV && { dryRun: true }) })
     );

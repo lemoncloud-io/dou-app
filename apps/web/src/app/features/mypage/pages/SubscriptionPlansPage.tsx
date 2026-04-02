@@ -53,6 +53,7 @@ export const SubscriptionPlansPage = () => {
         try {
             await purchaseAndValidate(selectedProduct);
             toast({ title: t('mypage.subscription.purchaseSuccess') });
+            await new Promise(resolve => setTimeout(resolve, 1500));
             navigate(-1);
         } catch (e) {
             console.error('[SubscriptionPlansPage] purchase failed:', e);

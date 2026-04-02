@@ -262,7 +262,11 @@
             "restore": "Restore",
             "restoreSuccess": "{{count}} purchase(s) restored",
             "restoreEmpty": "No purchases to restore",
-            "restoreFailed": "Restore failed"
+            "restoreFailed": "Restore failed",
+            "renewedAt": "Renewed",
+            "canceledAt": "Canceled",
+            "lastSyncAt": "Last synced",
+            "receiptId": "Receipt ID"
         },
         "accountManage": {
             "title": "Account Management",
