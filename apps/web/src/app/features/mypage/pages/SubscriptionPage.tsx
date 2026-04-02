@@ -30,12 +30,15 @@ export const SubscriptionPage = () => {
     const { isOnMobileApp } = getMobileAppInfo();
     const { restorePurchases } = useSubscriptionIap();
     const [isRestoring, setIsRestoring] = useState(false);
+    const [isAutoRestoring, setIsAutoRestoring] = useState(true);
 
     const { data: membership, isLoading } = useMembershipInfo();
-    console.log(membership, 'membership');
 
     useEffect(() => {
-        restorePurchases().catch(e => console.warn('[SubscriptionPage] auto restore failed:', e));
+        setIsAutoRestoring(true);
+        restorePurchases()
+            .catch(e => console.warn('[SubscriptionPage] auto restore failed:', e))
+            .finally(() => setIsAutoRestoring(false));
     }, []);
 
     const isActive = membership?.isValid === true;
@@ -72,7 +75,7 @@ export const SubscriptionPage = () => {
             </header>
 
             <div className="flex flex-col gap-[18px] px-4 pb-safe-bottom pt-4">
-                {isLoading ? (
+                {isLoading || isAutoRestoring ? (
                     <div className="flex items-center justify-center pt-20">
                         <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
                     </div>
