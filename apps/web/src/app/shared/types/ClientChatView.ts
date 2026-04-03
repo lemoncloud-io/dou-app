@@ -21,4 +21,18 @@ export interface ClientChatView extends ChatView {
      * 임시 전송 상태 여부
      */
     isPending?: boolean;
+    /**
+     * from ChatView.createdAt
+     */
+    timestamp: Date;
+
+    /**
+     * 시스템 메시지 여부
+     */
+    isSystem: boolean;
+
+    /**
+     * 메시지 작성자
+     */
+    ownerName: string;
 }

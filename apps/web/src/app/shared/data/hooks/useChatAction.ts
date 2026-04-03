@@ -38,7 +38,9 @@ export const useChatActions = (channelId: string | null, userId: string | null) 
             .map((msg): ClientChatView => {
                 let unreadCount = 0;
                 const isPending = !msg.chatNo;
-
+                const timestamp = msg?.createdAt ? new Date(msg.createdAt) : new Date();
+                const isSystem = msg.stereo === 'system';
+                const ownerName = msg.owner$?.name || '...';
                 if (msg.chatNo !== undefined) {
                     const readCount = activeJoins.filter(join => (join.chatNo || 0) >= msg.chatNo!).length;
                     unreadCount = Math.max(0, totalActiveMembers - readCount);
@@ -46,7 +48,7 @@ export const useChatActions = (channelId: string | null, userId: string | null) 
                     unreadCount = Math.max(0, totalActiveMembers - 1);
                 }
 
-                return { ...msg, unreadCount, isPending };
+                return { ...msg, unreadCount, isPending, timestamp, isSystem, ownerName };
             });
 
         setMessages(processedData);
