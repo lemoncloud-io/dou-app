@@ -148,6 +148,6 @@ export interface ExecuteGlobalSearchPayload {
 }
 
 /** [응답] 전역 통합 검색 결과 */
-export interface OnExecuteGlobalSearch {
+export interface OnExecuteGlobalSearchPayload {
     items: (ChatView | ChannelView)[];
 }
