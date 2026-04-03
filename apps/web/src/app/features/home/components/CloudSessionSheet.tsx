@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AlertCircle, Check, Loader2, Plus, User, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
 
-import { getCloudSession, useCloudSession } from '../../../shared/hooks/useCloudSession';
+import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { AddAccountDialog } from './AddAccountDialog';
+import { SubscriptionRequiredDialog } from './SubscriptionRequiredDialog';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
@@ -156,28 +159,38 @@ interface CloudSessionSheetProps {
 
 export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps) => {
     const { t } = useTranslation();
+    const { toast } = useToast();
     const { selectPlace, isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
+    const { isAvailable: isSubscriptionAvailable } = useIsSubscriptionAvailable();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedCloudId());
     const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+    const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
 
-    const autoSelectedRef = useRef(false);
+    const handleAddAccount = () => {
+        if (clouds.length >= 1) {
+            toast({ title: t('addAccount.limitExceeded'), variant: 'destructive' });
+            return;
+        }
+        if (!isSubscriptionAvailable) {
+            handleClose();
+            setIsSubscriptionRequiredOpen(true);
+            return;
+        }
+        setIsAddAccountOpen(true);
+    };
 
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
 
     const handleSelectCloud = async (cloudId: string) => {
-        await selectPlace(cloudId);
-        setSelectedId(cloudId);
-        handleClose();
+        try {
+            await selectPlace(cloudId);
+            setSelectedId(cloudId);
+            handleClose();
+        } catch (e) {
+            console.error('[CloudSessionSheet] selectCloud failed:', e);
+            toast({ title: t('cloudSessionSheet.switchFailed'), variant: 'destructive' });
+        }
     };
-
-    useEffect(() => {
-        if (autoSelectedRef.current) return;
-        const activeCloud = clouds.find(c => c.status === 'active');
-        if (!activeCloud) return;
-        autoSelectedRef.current = true;
-        if (getCloudSession()) return;
-        void handleSelectCloud(activeCloud.id);
-    }, [clouds]);
 
     const isLoading = isFetchingClouds && clouds.length === 0;
 
@@ -245,10 +258,14 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                         )}
                     </div>
 
-                    <AddAccountButton onClick={() => setIsAddAccountOpen(true)} />
+                    {clouds.length < 2 && <AddAccountButton onClick={handleAddAccount} />}
                 </SheetContent>
             </Sheet>
             <AddAccountDialog open={isAddAccountOpen} onOpenChange={setIsAddAccountOpen} />
+            <SubscriptionRequiredDialog
+                open={isSubscriptionRequiredOpen}
+                onClose={() => setIsSubscriptionRequiredOpen(false)}
+            />
         </>
     );
 };

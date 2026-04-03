@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useIssueCloudToken } from '@chatic/auth';
 import { useGlobalLoader } from '@chatic/shared';
 import { useClouds } from '@chatic/users';
@@ -39,10 +40,29 @@ export const useCloudSession = () => {
             const currentProfile = useWebCoreStore.getState().profile;
             const { Token: _Token, ...cloudProfile } = userToken;
             setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
+        } catch (e) {
+            console.error('[useCloudSession] selectPlace failed:', e);
+            throw e;
         } finally {
             setIsLoading(false);
         }
     };
 
     return { selectPlace, isPending, clouds, isCloudsError, isFetchingClouds: isFetching, refetchClouds: refetch };
+};
+
+export const useAutoSelectCloud = () => {
+    const { clouds, selectPlace } = useCloudSession();
+    const { isAuthenticated } = useWebCoreStore();
+    const autoSelectedRef = useRef(false);
+
+    useEffect(() => {
+        if (autoSelectedRef.current) return;
+        if (!isAuthenticated) return;
+        if (getCloudSession()) return;
+        const activeCloud = clouds.find(c => c.status === 'active');
+        if (!activeCloud) return;
+        autoSelectedRef.current = true;
+        void selectPlace(activeCloud.id as string);
+    }, [clouds, isAuthenticated]);
 };

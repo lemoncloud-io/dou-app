@@ -215,6 +215,70 @@
             "profileEdit": "Edit Profile",
             "withdrawal": "Delete Account"
         },
+        "subscription": {
+            "title": "Subscription",
+            "currentPlan": "Current Plan",
+            "planActive": "{{count}} Subscriptions Active",
+            "changePlan": "Change Plan",
+            "period": "Period",
+            "currentPayment": "Current Payment",
+            "nextPayment": "Expires",
+            "viewDetail": "View Details",
+            "empty": "No active subscriptions",
+            "emptyDescription": "Check out our subscription plans",
+            "viewPlans": "View Plans",
+            "plans": "Plans",
+            "popular": "Popular",
+            "subscribe": "Subscribe",
+            "mobileOnly": "Subscriptions are only available in the app",
+            "noProducts": "Failed to load subscription plans",
+            "purchasing": "Processing payment...",
+            "validating": "Verifying...",
+            "finishing": "Completing...",
+            "purchaseSuccess": "Subscription completed",
+            "purchaseFailed": "Payment failed",
+            "validateFailed": "Payment verification failed",
+            "notice": "Please note",
+            "notice1": "Plan changes take effect immediately, and additional charges may apply based on the remaining period.",
+            "notice2": "Downgrading will take effect from the next renewal date.",
+            "notice3": "Manage subscriptions in iPhone Settings > Apple ID > Subscriptions or App Store subscription management.",
+            "noticeTerms": "For details on purchase policies, please refer to our <terms>Terms of Service</terms>.",
+            "platform": "Platform",
+            "purchaseDate": "Purchased",
+            "startDate": "Start Date",
+            "expiresAt": "Expires",
+            "autoRenew": "Auto Renew",
+            "autoRenewOn": "On",
+            "autoRenewOff": "Off",
+            "canceledNotice": "Subscription will end on {{date}}",
+            "pendingChange": "Plan will change to {{product}} on next renewal",
+            "otherReceipts": "{{count}} other receipt(s)",
+            "manageSubscription": "Manage Subscription",
+            "status": "Status",
+            "statusActive": "Active",
+            "statusCanceled": "Canceled",
+            "statusExpired": "Expired",
+            "expired": "This subscription has expired",
+            "restore": "Restore",
+            "restoreSuccess": "{{count}} purchase(s) restored",
+            "restoreEmpty": "No purchases to restore",
+            "restoreFailed": "Restore failed",
+            "renewedAt": "Renewed",
+            "canceledAt": "Canceled",
+            "lastSyncAt": "Last synced",
+            "receiptId": "Receipt ID",
+            "renewal": "Renewal",
+            "renewal_auto": "Auto renew",
+            "renewal_pending_cancel": "Pending cancel",
+            "renewal_canceled": "Canceled"
+        },
+        "accountManage": {
+            "title": "Account Management",
+            "currentAccount": "Current Account",
+            "cloudAccounts": "Cloud Accounts",
+            "noAccounts": "No cloud accounts registered",
+            "deleteAccount": "Delete Account"
+        },
         "policy": {
             "title": "Terms & Policies",
             "terms": "Terms of Service",
@@ -268,7 +332,8 @@
         "statusPending": "Preparing",
         "setupProfile": "Please set up your profile",
         "addAccount": "Add Account",
-        "empty": "No clouds registered"
+        "empty": "No clouds registered",
+        "switchFailed": "Failed to switch cloud"
     },
     "placeList": {
         "defaultPlace": "Default",
@@ -736,6 +801,12 @@
         "accepting": "Accepting...",
         "failed": "Failed to accept invitation"
     },
+    "subscriptionRequired": {
+        "title": "A subscription is required to use this service",
+        "description": "Subscribe to create chat rooms and invite friends to start chatting.",
+        "cancel": "Cancel",
+        "subscribe": "Subscribe"
+    },
     "limitExceeded": {
         "placeTitle": "Can't create more places",
         "placeDescription": "You can create up to {{max}} places.",
@@ -807,6 +878,9 @@
         "verifyFailed": "Verification failed",
         "codeError": "Please enter the correct verification code",
         "success": "Account added successfully",
-        "tooltip": "If you didn't receive the email,\nplease check your spam folder"
+        "tooltip": "If you didn't receive the email,\nplease check your spam folder",
+        "limitExceeded": "You can add up to 1 account",
+        "subscriptionRequired": "You can only add an account on your subscribed platform",
+        "cloudUserRequired": "Only cloud users can add an account"
     }
 }

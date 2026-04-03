@@ -19,6 +19,7 @@ export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
     const isGuest = useWebCoreStore(s => s.isGuest);
+
     const profile = useWebCoreStore(s => s.profile);
     const { mutate: logout } = useLogout();
     const registerLogoutCallback = useWebCoreStore(s => s.registerLogoutCallback);
@@ -140,6 +141,21 @@ export const MyPage = () => {
                         >
                             <span className="text-[15px] font-medium text-foreground">
                                 {t('mypage.accountInfo.title')}
+                            </span>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                    </div>
+                )}
+
+                {/* Subscription & Account Management Card - Logged in only */}
+                {!isGuest && (
+                    <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
+                        <button
+                            onClick={() => navigate('/mypage/subscription')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <span className="text-[15px] font-medium text-foreground">
+                                {t('mypage.subscription.title')}
                             </span>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>

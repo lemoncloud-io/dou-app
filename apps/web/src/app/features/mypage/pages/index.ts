@@ -6,5 +6,7 @@ export * from './MyPage';
 export * from './PolicyListPage';
 export * from './PrivacyPage';
 export * from './ProfileEditPage';
+export * from './SubscriptionPage';
+export * from './SubscriptionPlansPage';
 export * from './TermsPage';
 export * from './WithdrawalPage';

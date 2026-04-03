@@ -83,7 +83,11 @@ const clearTokensOnLogout = (): void => {
             if (key?.startsWith('@')) keysToRemove.push(key);
         }
         keysToRemove.forEach(key => storage.removeItem(key));
-        storage.removeItem('chatic-oauth-provider');
+        // Clear oauth provider from both storages to handle RN WebView case
+        sessionStorage.removeItem('chatic-oauth-provider');
+        localStorage.removeItem('chatic-oauth-provider');
+        sessionStorage.removeItem('chatic-is-invited');
+        localStorage.removeItem('chatic-is-invited');
     } catch {
         // Ignore errors
     }

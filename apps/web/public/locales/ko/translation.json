@@ -215,6 +215,70 @@
             "profileEdit": "프로필 수정",
             "withdrawal": "탈퇴"
         },
+        "subscription": {
+            "title": "구독 관리",
+            "currentPlan": "현재 구독 상품",
+            "planActive": "구독 {{count}}개 이용 중",
+            "changePlan": "구독 변경",
+            "period": "기간",
+            "currentPayment": "이번 결제",
+            "nextPayment": "만료일",
+            "viewDetail": "자세히 보기",
+            "empty": "구독 중인 상품이 없어요",
+            "emptyDescription": "구독 상품을 확인해 보세요",
+            "viewPlans": "구독 상품 보기",
+            "plans": "구독 상품",
+            "popular": "인기",
+            "subscribe": "구독하기",
+            "mobileOnly": "앱에서만 구독할 수 있어요",
+            "noProducts": "구독 상품을 불러오지 못했어요",
+            "purchasing": "결제 중...",
+            "validating": "검증 중...",
+            "finishing": "처리 중...",
+            "purchaseSuccess": "구독이 완료되었어요",
+            "purchaseFailed": "결제에 실패했어요",
+            "validateFailed": "결제 검증에 실패했어요",
+            "notice": "꼭 확인해 주세요.",
+            "notice1": "구독 변경하면 즉시 적용되며, 남은 기간을 반영해 추가 요금이 청구됩니다.",
+            "notice2": "하위 구독으로 변경하면 다음 갱신일부터 적용됩니다.",
+            "notice3": "구독 관리는 iPhone 설정 > Apple ID > 구독 또는 App Store 구독 관리에서 가능",
+            "noticeTerms": "구매 정책과 관련한 자세한 내용은 <terms>이용약관</terms>을 확인해 주세요.",
+            "platform": "플랫폼",
+            "purchaseDate": "구매일",
+            "startDate": "구독 시작일",
+            "expiresAt": "만료일",
+            "autoRenew": "자동 갱신",
+            "autoRenewOn": "사용 중",
+            "autoRenewOff": "해제",
+            "canceledNotice": "{{date}}에 구독이 종료됩니다",
+            "pendingChange": "다음 갱신 시 {{product}}로 변경됩니다",
+            "otherReceipts": "기타 영수증 {{count}}건",
+            "manageSubscription": "구독 관리",
+            "status": "상태",
+            "statusActive": "구독 중",
+            "statusCanceled": "해지 예정",
+            "statusExpired": "만료됨",
+            "expired": "구독이 만료되었습니다",
+            "restore": "구매 복원",
+            "restoreSuccess": "{{count}}건 복원 완료",
+            "restoreEmpty": "복원할 구매가 없습니다",
+            "restoreFailed": "복원에 실패했습니다",
+            "renewedAt": "갱신일",
+            "canceledAt": "해지일",
+            "lastSyncAt": "마지막 동기화",
+            "receiptId": "영수증 ID",
+            "renewal": "갱신 상태",
+            "renewal_auto": "자동 갱신",
+            "renewal_pending_cancel": "해지 예정",
+            "renewal_canceled": "취소됨"
+        },
+        "accountManage": {
+            "title": "계정 관리",
+            "currentAccount": "현재 계정",
+            "cloudAccounts": "클라우드 계정",
+            "noAccounts": "등록된 클라우드 계정이 없어요",
+            "deleteAccount": "계정 삭제"
+        },
         "policy": {
             "title": "약관 및 정책",
             "terms": "서비스 이용약관",
@@ -268,7 +332,8 @@
         "statusPending": "구독 준비 중",
         "setupProfile": "프로필 설정을 해주세요",
         "addAccount": "계정 추가",
-        "empty": "등록된 클라우드가 없어요"
+        "empty": "등록된 클라우드가 없어요",
+        "switchFailed": "클라우드 전환에 실패했어요"
     },
     "placeList": {
         "defaultPlace": "기본",
@@ -736,6 +801,12 @@
         "accepting": "수락 중...",
         "failed": "초대 수락에 실패했습니다"
     },
+    "subscriptionRequired": {
+        "title": "해당 서비스를 이용하시려면\n구독이 필요해요",
+        "description": "구독 후에 채팅방을 만들고,\n친구를 초대하여 채팅을 시작해 보세요.",
+        "cancel": "취소",
+        "subscribe": "구독하기"
+    },
     "limitExceeded": {
         "placeTitle": "플레이스를 더 만들 수 없어요",
         "placeDescription": "플레이스는 최대 {{max}}개까지만 만들 수 있어요.",
@@ -807,6 +878,9 @@
         "verifyFailed": "인증에 실패했어요",
         "codeError": "인증번호를 정확히 입력해 주세요",
         "success": "계정이 추가되었어요",
-        "tooltip": "이메일이 도착하지 않았다면\n스팸 메일함을 확인해주세요"
+        "tooltip": "이메일이 도착하지 않았다면\n스팸 메일함을 확인해주세요",
+        "limitExceeded": "계정은 최대 1개까지 추가할 수 있어요",
+        "subscriptionRequired": "구독 중인 플랫폼에서만 계정을 추가할 수 있어요",
+        "cloudUserRequired": "클라우드 사용자만 계정을 추가할 수 있어요"
     }
 }

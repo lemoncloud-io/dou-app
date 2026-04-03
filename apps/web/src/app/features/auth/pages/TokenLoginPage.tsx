@@ -53,6 +53,10 @@ export const TokenLoginPage = () => {
                 return;
             }
 
+            await webCore.buildCredentialsByToken({ identityToken: token } as Parameters<
+                typeof webCore.buildCredentialsByToken
+            >[0]);
+
             if (decoded?.User) {
                 setProfile({
                     id: decoded.uid,
@@ -61,10 +65,6 @@ export const TokenLoginPage = () => {
                 } as Parameters<typeof setProfile>[0]);
                 setIsAuthenticated(true);
             }
-
-            await webCore.buildCredentialsByToken({ identityToken: token } as Parameters<
-                typeof webCore.buildCredentialsByToken
-            >[0]);
 
             send({
                 type: 'auth',
