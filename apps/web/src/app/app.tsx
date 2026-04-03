@@ -19,6 +19,7 @@ import { useAutoSelectCloud } from './shared/hooks/useCloudSession';
 import i18n from '../i18n';
 
 import type { ErrorInfo } from 'react';
+import { useGlobalCacheSync } from './shared/data/sync';
 
 const mutationCache = new MutationCache({
     onError: (error: Error): void => {
@@ -49,6 +50,8 @@ export function App() {
     const canRenderApp =
         isWebCoreReady && (!isAuthenticated || (isTokenInitialized && (!!profile || initStatus === 'failed')));
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
+
+    useGlobalCacheSync();
 
     useEffect(() => {
         const cleanup = initializeMessageListener();

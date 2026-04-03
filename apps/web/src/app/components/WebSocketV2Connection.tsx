@@ -17,12 +17,18 @@ export const WebSocketV2Connection = () => {
     const { t } = useTranslation();
 
     const { isCloudUser } = useWebCoreStore();
+
+    const selectedCloudId = cloudCore.getSelectedCloudId() || 'default';
     const wss = cloudCore.getWss();
     const endpoint = isCloudUser ? wss : import.meta.env.VITE_WS_ENDPOINT;
 
     const connectionStatus = useWebSocketV2Store(s => s.connectionStatus);
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const setGlobalLoading = useLoaderStore(s => s.setIsLoading);
+
+    useEffect(() => {
+        useWebSocketV2Store.getState().setCloudId(selectedCloudId);
+    }, [selectedCloudId]);
 
     const isSocketConnecting = connectionStatus === 'connecting' || (connectionStatus === 'connected' && !isVerified);
 
