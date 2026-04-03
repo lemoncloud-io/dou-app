@@ -249,6 +249,7 @@ jobs:
                   VITE_WS_ENDPOINT=${{ secrets[format('{0}_DEV_WS_ENDPOINT', matrix.prefix)] }}
                   VITE_DOU_ENDPOINT=${{ secrets[format('{0}_DEV_DOU_ENDPOINT', matrix.prefix)] }}
                   VITE_SOC_ENDPOINT=${{ secrets[format('{0}_DEV_SOC_ENDPOINT', matrix.prefix)] }}
+                  VITE_IAP_ENDPOINT=${{ secrets[format('{0}_DEV_IAP_ENDPOINT', matrix.prefix)] }}
                   VITE_FRONT_ENDPOINT=${{ secrets[format('{0}_DEV_FRONT_ENDPOINT', matrix.prefix)] }}
                   EOF
                   sed -i 's/^ *//' "$ENV_FILE"
