@@ -183,17 +183,14 @@ export const SubscriptionPlansPage = () => {
                                         <span className="text-[17px] font-semibold">
                                             {product.displayName ?? product.id}
                                         </span>
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-[14px] text-muted-foreground">
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-[15px] font-medium text-muted-foreground">
                                                 {product.displayPrice}
                                             </span>
                                             {periodLabel && (
-                                                <>
-                                                    <span className="text-[12px] text-muted-foreground/50">/</span>
-                                                    <span className="rounded-[4px] bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-                                                        {periodLabel}
-                                                    </span>
-                                                </>
+                                                <span className="text-[13px] text-muted-foreground">
+                                                    / {periodLabel}
+                                                </span>
                                             )}
                                         </div>
                                     </div>
