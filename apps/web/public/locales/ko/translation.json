@@ -270,7 +270,14 @@
             "renewal": "갱신 상태",
             "renewal_auto": "자동 갱신",
             "renewal_pending_cancel": "해지 예정",
-            "renewal_canceled": "취소됨"
+            "renewal_canceled": "취소됨",
+            "period_day": "{{count}}일",
+            "period_week": "{{count}}주",
+            "period_month": "{{count}}개월",
+            "period_year": "{{count}}년",
+            "autoRenewNotice": "본 구독은 자동 갱신 구독입니다. 구독 기간이 종료되면 동일한 가격으로 자동 갱신되며, 갱신일 최소 24시간 전에 구독을 해지하지 않으면 요금이 청구됩니다.",
+            "termsOfService": "이용약관",
+            "privacyPolicy": "개인정보처리방침"
         },
         "accountManage": {
             "title": "계정 관리",
