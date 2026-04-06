@@ -15,12 +15,50 @@ import {
 
 import { useSubscriptionIap } from '../hooks';
 
+import type { TFunction } from 'i18next';
 import type { IapProductSubscription } from '@chatic/app-messages';
 
 type PageState = 'loading' | 'idle' | 'purchasing';
 
 const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
 const APP_ID = IS_DEV ? 'io.chatic.dou.dev' : 'io.chatic.dou';
+
+const POLICY_BASE_URL = IS_DEV ? 'https://app-dev.chatic.io' : 'https://app.chatic.io';
+
+/** ISO 8601 duration (e.g. "P1M", "P1Y", "P7D") → { unit, value } */
+const parseISO8601Duration = (duration: string): { unit: string; value: number } | null => {
+    const match = duration.match(/^P(\d+)([DWMY])$/);
+    if (!match) return null;
+    const value = parseInt(match[1], 10);
+    const unitMap: Record<string, string> = { D: 'day', W: 'week', M: 'month', Y: 'year' };
+    return { unit: unitMap[match[2]] ?? 'month', value };
+};
+
+const getSubscriptionPeriodLabel = (product: IapProductSubscription, t: TFunction): string => {
+    // iOS: subscriptionPeriodUnitIOS + subscriptionPeriodNumberIOS
+    if ('subscriptionPeriodUnitIOS' in product && product.subscriptionPeriodUnitIOS) {
+        const unit = product.subscriptionPeriodUnitIOS;
+        if (unit === 'empty') return '';
+        const count =
+            parseInt(String((product as Record<string, unknown>).subscriptionPeriodNumberIOS ?? '1'), 10) || 1;
+        return t(`mypage.subscription.period_${unit}`, { count });
+    }
+
+    // Android: subscriptionOffers → last pricing phase billingPeriod
+    if ('subscriptionOffers' in product) {
+        const offers = (product as Record<string, unknown>).subscriptionOffers as Array<{
+            pricingPhasesAndroid?: { pricingPhaseList?: Array<{ billingPeriod?: string }> };
+        }> | null;
+        const phases = offers?.[0]?.pricingPhasesAndroid?.pricingPhaseList;
+        const lastPhase = phases?.[phases.length - 1];
+        if (lastPhase?.billingPeriod) {
+            const parsed = parseISO8601Duration(lastPhase.billingPeriod);
+            if (parsed) return t(`mypage.subscription.period_${parsed.unit}`, { count: parsed.value });
+        }
+    }
+
+    return '';
+};
 
 export const SubscriptionPlansPage = () => {
     const navigate = useNavigateWithTransition();
@@ -90,6 +128,12 @@ export const SubscriptionPlansPage = () => {
 
     const isBlocked = pageState === 'purchasing';
 
+    const openPolicyUrl = (path: string) => {
+        const url = `${POLICY_BASE_URL}${path}`;
+        if (isOnMobileApp) postMessage({ type: 'OpenURL', data: { url } });
+        else window.open(url, '_blank');
+    };
+
     return (
         <div className="flex min-h-screen flex-col bg-background">
             <header className="flex items-center px-[6px] pt-safe-top">
@@ -121,6 +165,7 @@ export const SubscriptionPlansPage = () => {
                                 ? (isIOS ? selectedProduct.id : (selectedProduct.basePlanId ?? selectedProduct.id)) ===
                                   productKey
                                 : false;
+                            const periodLabel = getSubscriptionPeriodLabel(product, t);
                             return (
                                 <button
                                     key={productKey}
@@ -138,9 +183,16 @@ export const SubscriptionPlansPage = () => {
                                         <span className="text-[17px] font-semibold">
                                             {product.displayName ?? product.id}
                                         </span>
-                                        <span className="text-[14px] text-muted-foreground">
-                                            {product.displayPrice}
-                                        </span>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-[15px] font-medium text-muted-foreground">
+                                                {product.displayPrice}
+                                            </span>
+                                            {periodLabel && (
+                                                <span className="text-[13px] text-muted-foreground">
+                                                    / {periodLabel}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="flex h-6 w-6 items-center justify-center">
                                         {isSelected && <Check size={22} className="text-[#B0EA10]" strokeWidth={2.5} />}
@@ -154,7 +206,7 @@ export const SubscriptionPlansPage = () => {
                 {/* DEV Test Panel */}
                 {IS_DEV && !isOnMobileApp && (
                     <div className="mt-6 rounded-[12px] border border-dashed border-yellow-500/50 bg-yellow-500/5 p-4">
-                        <p className="mb-3 text-[13px] font-bold text-yellow-600">🛠 DEV API Tester</p>
+                        <p className="mb-3 text-[13px] font-bold text-yellow-600">DEV API Tester</p>
                         <div className="flex flex-col gap-2">
                             <button
                                 onClick={() =>
@@ -233,9 +285,31 @@ export const SubscriptionPlansPage = () => {
                     </div>
                 )}
 
-                {/* Subscribe Button */}
+                {/* Auto-renewal notice + Policy Links + Subscribe Button */}
                 {products.length > 0 && (
                     <div className="mt-auto pb-safe-bottom pt-6">
+                        <div className="mb-4 rounded-[12px] bg-muted/50 px-4 py-3">
+                            <p className="text-[12px] leading-[1.6] text-muted-foreground">
+                                {t('mypage.subscription.autoRenewNotice')}
+                            </p>
+                            <div className="mt-2 flex items-center justify-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => openPolicyUrl('/policy/terms')}
+                                    className="text-[12px] font-medium text-foreground underline underline-offset-2"
+                                >
+                                    {t('mypage.subscription.termsOfService')}
+                                </button>
+                                <span className="text-[10px] text-muted-foreground/40">|</span>
+                                <button
+                                    type="button"
+                                    onClick={() => openPolicyUrl('/policy/privacy')}
+                                    className="text-[12px] font-medium text-foreground underline underline-offset-2"
+                                >
+                                    {t('mypage.subscription.privacyPolicy')}
+                                </button>
+                            </div>
+                        </div>
                         <button
                             onClick={handleSubscribe}
                             disabled={!selectedProduct || isBlocked}

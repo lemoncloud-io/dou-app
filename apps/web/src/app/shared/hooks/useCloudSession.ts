@@ -52,7 +52,7 @@ export const useCloudSession = () => {
 };
 
 export const useAutoSelectCloud = () => {
-    const { clouds, selectPlace } = useCloudSession();
+    const { clouds, selectCloud } = useCloudSession();
     const { isAuthenticated } = useWebCoreStore();
     const autoSelectedRef = useRef(false);
 
@@ -63,6 +63,6 @@ export const useAutoSelectCloud = () => {
         const activeCloud = clouds.find(c => c.status === 'active');
         if (!activeCloud) return;
         autoSelectedRef.current = true;
-        void selectPlace(activeCloud.id as string);
+        void selectCloud(activeCloud.id as string);
     }, [clouds, isAuthenticated]);
 };
