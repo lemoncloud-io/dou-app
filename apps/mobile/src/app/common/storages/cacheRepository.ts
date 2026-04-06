@@ -6,6 +6,7 @@ import {
     joinDataSource,
     siteDataSource,
     userTokenDataSource,
+    inviteCloudDataSource,
 } from './sqlite';
 
 import { preferenceStore } from './mmkv';
@@ -22,6 +23,7 @@ const DS_MAP: Record<CacheType, any> = {
     join: joinDataSource,
     site: siteDataSource,
     usertoken: userTokenDataSource,
+    invitecloud: inviteCloudDataSource,
 };
 
 /**

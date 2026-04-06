@@ -100,4 +100,15 @@ export const SQL_SCHEMAS = [
         data TEXT NOT NULL,
         PRIMARY KEY (cid, id)
     );`,
+
+    /**
+     * InviteCloud
+     * - cid 없이 초대된 cloud 정보 저장
+     *  - key
+     *   - id: site id
+     */
+    `CREATE TABLE IF NOT EXISTS ${TABLES.INVITE_CLOUDS} (
+        id TEXT NOT NULL PRIMARY KEY,
+        data TEXT NOT NULL
+    );`,
 ];
