@@ -52,6 +52,9 @@ const isDev = getIsDev();
 /** Frontend domain for WebView navigation */
 export const FRONTEND_DOMAIN = isDev ? 'dou-dev.chatic.io' : 'dou.chatic.io';
 
+/** Frontend base URL (protocol + domain) */
+export const FRONTEND_BASE_URL = `https://${FRONTEND_DOMAIN}`;
+
 /** Deep link domain for URL generation */
 export const DEEPLINK_DOMAIN = isDev ? 'app-dev.chatic.io' : 'app.chatic.io';
 
