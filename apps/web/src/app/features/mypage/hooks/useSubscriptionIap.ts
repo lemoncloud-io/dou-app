@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
-import { useValidateApple, useValidateGoogle, subscriptionKeys } from '@chatic/subscriptions';
+import { useValidateApple, useValidateGoogle, useValidateMembership, subscriptionKeys } from '@chatic/subscriptions';
 
 import type { AppMessageData } from '@chatic/app-messages';
 
@@ -26,6 +26,7 @@ export const useSubscriptionIap = () => {
     const { isIOS } = getMobileAppInfo();
     const validateGoogle = useValidateGoogle();
     const validateApple = useValidateApple();
+    const validateMembership = useValidateMembership();
     const queryClient = useQueryClient();
 
     // Promise resolvers
@@ -100,9 +101,18 @@ export const useSubscriptionIap = () => {
                 throw new Error('Validation failed: isValid=false');
             }
 
+            await validateMembership.mutateAsync({
+                body: {
+                    appId: APP_ID,
+                    paymentType: isIOS ? 'apple-inapp' : 'google-inapp',
+                    purchaseToken: result.purchaseToken ?? '',
+                    productId: result.productId,
+                },
+            });
+
             return response;
         },
-        [isIOS, validateApple, validateGoogle]
+        [isIOS, validateApple, validateGoogle, validateMembership]
     );
 
     /** 트랜잭션 완료 → Promise */

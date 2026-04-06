@@ -9,7 +9,7 @@ import type {
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { Params } from '@lemoncloud/lemon-web-core';
-import type { MembershipView } from '@lemoncloud/chatic-backend-api';
+import type { CreateMembershipBody, MembershipView } from '@lemoncloud/chatic-backend-api';
 
 const IAP_ENDPOINT = import.meta.env.VITE_IAP_ENDPOINT;
 const DOU_ENDPOINT = import.meta.env.VITE_DOU_ENDPOINT;
@@ -76,6 +76,18 @@ export const fetchMembershipInfo = async (): Promise<MembershipView> => {
             method: 'GET',
             baseURL: `${DOU_ENDPOINT}/memberships/0/mine`,
         })
+        .execute<MembershipView>();
+
+    return throwIfApiError(data);
+};
+
+export const validateMembership = async (body: CreateMembershipBody): Promise<MembershipView> => {
+    const { data } = await webCore
+        .buildSignedRequest({
+            method: 'POST',
+            baseURL: `${DOU_ENDPOINT}/memberships/0`,
+        })
+        .setBody(body)
         .execute<MembershipView>();
 
     return throwIfApiError(data);
