@@ -10,12 +10,14 @@ import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
 
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
+import { useInviteClouds } from '../../../shared/hooks/useInviteClouds';
 import { AddAccountDialog } from './AddAccountDialog';
 import { SubscriptionRequiredDialog } from './SubscriptionRequiredDialog';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
+import type { InviteCloudView } from '@chatic/app-messages';
 
-// --- Profile Section (Top) ---
+// --- Profile Section ---
 
 const ProfileSection = () => {
     const { profile } = useWebCoreStore();
@@ -91,7 +93,6 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud }: CloudItemPr
             disabled={disabled}
             className={cn('flex w-full items-center gap-[5px]', disabled && !isSelected && 'cursor-not-allowed')}
         >
-            {/* Check icon area */}
             <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center">
                 {cloud.status === 'pending' ? (
                     <Loader2 size={18} className="animate-spin text-[#9FA2A7]" />
@@ -99,8 +100,6 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud }: CloudItemPr
                     isSelected && <Check size={22} className="text-[#C139E3]" strokeWidth={1.5} />
                 )}
             </div>
-
-            {/* Avatar + Info */}
             <div className="flex flex-1 items-center gap-2 pr-[6px]">
                 <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-[#F4F5F5] bg-[rgba(0,43,126,0.04)]">
                     <User size={16} className="text-placeholder" />
@@ -130,6 +129,24 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud }: CloudItemPr
     );
 };
 
+// --- Invite Cloud Item ---
+
+const InviteCloudItem = ({ inviteCloud }: { inviteCloud: InviteCloudView }) => (
+    <div className="flex items-center gap-[5px]">
+        <div className="h-[22px] w-[22px]" />
+        <div className="flex flex-1 items-center gap-2 pr-[6px]">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-[#F4F5F5] bg-[rgba(0,43,126,0.04)]">
+                <User size={16} className="text-placeholder" />
+            </div>
+            <div className="flex flex-col gap-1">
+                <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
+                    {inviteCloud.name ?? inviteCloud.id}
+                </span>
+            </div>
+        </div>
+    </div>
+);
+
 // --- Add Account Button ---
 
 const AddAccountButton = ({ onClick }: { onClick: () => void }) => {
@@ -150,6 +167,32 @@ const AddAccountButton = ({ onClick }: { onClick: () => void }) => {
     );
 };
 
+// --- Tab ---
+
+type Tab = 'my' | 'invited';
+
+const TabBar = ({ tab, onChange, inviteCount }: { tab: Tab; onChange: (t: Tab) => void; inviteCount: number }) => {
+    const { t } = useTranslation();
+    return (
+        <div className="flex border-b border-border">
+            {(['my', 'invited'] as Tab[]).map(key => (
+                <button
+                    key={key}
+                    onClick={() => onChange(key)}
+                    className={cn(
+                        'flex-1 py-2.5 text-[14px] font-medium transition-colors',
+                        tab === key ? 'border-b-2 border-foreground text-foreground' : 'text-muted-foreground'
+                    )}
+                >
+                    {key === 'my'
+                        ? t('cloudSessionSheet.tabMy')
+                        : `${t('cloudSessionSheet.tabInvited')}${inviteCount > 0 ? ` (${inviteCount})` : ''}`}
+                </button>
+            ))}
+        </div>
+    );
+};
+
 // --- Main Sheet ---
 
 interface CloudSessionSheetProps {
@@ -161,10 +204,14 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const { t } = useTranslation();
     const { toast } = useToast();
     const { selectPlace, isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
+    const { inviteClouds } = useInviteClouds();
     const { isAvailable: isSubscriptionAvailable } = useIsSubscriptionAvailable();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedCloudId());
     const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
     const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
+    const [tab, setTab] = useState<Tab>('my');
+
+    const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
 
     const handleAddAccount = () => {
         if (clouds.length >= 1) {
@@ -178,8 +225,6 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
         }
         setIsAddAccountOpen(true);
     };
-
-    const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
 
     const handleSelectCloud = async (cloudId: string) => {
         try {
@@ -214,51 +259,66 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                     {/* Profile */}
                     <ProfileSection />
 
-                    {/* Cloud List */}
+                    {/* Tabs */}
+                    <TabBar tab={tab} onChange={setTab} inviteCount={inviteClouds.length} />
+
+                    {/* Content */}
                     <div className="flex flex-col gap-[6px] pt-6">
-                        {isLoading ? (
-                            <div className="flex flex-col gap-[15px] px-3">
-                                {Array.from({ length: 3 }).map((_, i) => (
-                                    <div key={i} className="flex items-center gap-2">
-                                        <div className="h-[22px] w-[22px]" />
-                                        <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
-                                        <div className="flex flex-col gap-1">
-                                            <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-                                            <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+                        {tab === 'my' ? (
+                            isLoading ? (
+                                <div className="flex flex-col gap-[15px] px-3">
+                                    {Array.from({ length: 3 }).map((_, i) => (
+                                        <div key={i} className="flex items-center gap-2">
+                                            <div className="h-[22px] w-[22px]" />
+                                            <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
+                                            <div className="flex flex-col gap-1">
+                                                <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                                                <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : isCloudsError ? (
-                            <div className="flex items-center justify-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-                                <span>{t('cloudSessionSheet.errorLoading')}</span>
-                                <button
-                                    onClick={() => refetchClouds()}
-                                    className="flex items-center gap-1 text-foreground"
-                                >
-                                    <span>{t('cloudSessionSheet.retry')}</span>
-                                </button>
-                            </div>
-                        ) : clouds.length === 0 ? (
+                                    ))}
+                                </div>
+                            ) : isCloudsError ? (
+                                <div className="flex items-center justify-center gap-2 px-3 py-4 text-sm text-muted-foreground">
+                                    <span>{t('cloudSessionSheet.errorLoading')}</span>
+                                    <button
+                                        onClick={() => refetchClouds()}
+                                        className="flex items-center gap-1 text-foreground"
+                                    >
+                                        <span>{t('cloudSessionSheet.retry')}</span>
+                                    </button>
+                                </div>
+                            ) : clouds.length === 0 ? (
+                                <div className="flex items-center justify-center px-3 py-6 text-sm text-muted-foreground">
+                                    {t('cloudSessionSheet.empty')}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-[15px] px-3">
+                                    {clouds.map(cloud => (
+                                        <CloudItem
+                                            key={cloud.id}
+                                            cloud={cloud}
+                                            isSelected={selectedId === cloud.id}
+                                            isDisabled={isPending}
+                                            onSelectCloud={handleSelectCloud}
+                                        />
+                                    ))}
+                                </div>
+                            )
+                        ) : inviteClouds.length === 0 ? (
                             <div className="flex items-center justify-center px-3 py-6 text-sm text-muted-foreground">
-                                {t('cloudSessionSheet.empty')}
+                                {t('cloudSessionSheet.emptyInvited')}
                             </div>
                         ) : (
                             <div className="flex flex-col gap-[15px] px-3">
-                                {clouds.map(cloud => (
-                                    <CloudItem
-                                        key={cloud.id}
-                                        cloud={cloud}
-                                        isSelected={selectedId === cloud.id}
-                                        isDisabled={isPending}
-                                        onSelectCloud={handleSelectCloud}
-                                    />
+                                {inviteClouds.map(inviteCloud => (
+                                    <InviteCloudItem key={inviteCloud.id} inviteCloud={inviteCloud} />
                                 ))}
                             </div>
                         )}
                     </div>
 
-                    {clouds.length < 2 && <AddAccountButton onClick={handleAddAccount} />}
+                    {tab === 'my' && clouds.length < 2 && <AddAccountButton onClick={handleAddAccount} />}
                 </SheetContent>
             </Sheet>
             <AddAccountDialog open={isAddAccountOpen} onOpenChange={setIsAddAccountOpen} />

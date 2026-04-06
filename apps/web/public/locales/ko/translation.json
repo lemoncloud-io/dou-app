@@ -333,7 +333,11 @@
         "setupProfile": "프로필 설정을 해주세요",
         "addAccount": "계정 추가",
         "empty": "등록된 클라우드가 없어요",
-        "switchFailed": "클라우드 전환에 실패했어요"
+        "switchFailed": "클라우드 전환에 실패했어요",
+        "invited": "초대됨",
+        "tabMy": "나의 클라우드",
+        "tabInvited": "초대된 클라우드",
+        "emptyInvited": "초대된 클라우드가 없어요"
     },
     "placeList": {
         "defaultPlace": "기본",
@@ -799,7 +803,10 @@
         "description": "초대를 수락하고 채팅을 시작해 보세요.",
         "accept": "수락하기",
         "accepting": "수락 중...",
-        "failed": "초대 수락에 실패했습니다"
+        "failed": "초대 수락에 실패했습니다",
+        "invalidLink": "유효하지 않은 초대 링크입니다",
+        "goBack": "돌아가기",
+        "decline": "거절하기"
     },
     "subscriptionRequired": {
         "title": "해당 서비스를 이용하시려면\n구독이 필요해요",
