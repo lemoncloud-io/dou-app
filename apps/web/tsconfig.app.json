@@ -60,6 +60,9 @@
         },
         {
             "path": "../../libs/subscriptions/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/deeplinks/tsconfig.lib.json"
         }
     ]
 }

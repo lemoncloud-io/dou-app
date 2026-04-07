@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getMobileAppInfo } from '@chatic/app-messages';
 import type { InviteCloudView } from '@chatic/app-messages';
-import { inviteCloudRepository } from '../repository';
+import { inviteCloudRepository } from '../repository/repository';
 
 export const useInviteClouds = () => {
     const [inviteClouds, setInviteClouds] = useState<InviteCloudView[]>([]);
