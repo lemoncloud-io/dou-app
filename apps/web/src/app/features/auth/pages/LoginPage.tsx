@@ -5,6 +5,7 @@ import { useLocation } from 'react-router-dom';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudCore, loginWithInviteCode, webCore, useWebCoreStore, setIsInvitedSession } from '@chatic/web-core';
 import { LoadingFallback } from '@chatic/shared';
+
 import { getMobileAppInfo } from '@chatic/app-messages';
 
 import type { CloudDelegationTokenView, UserProfile$, UserTokenView } from '@lemoncloud/chatic-backend-api';
@@ -125,15 +126,13 @@ export const LoginPage = (): JSX.Element => {
             cloudCore.saveCloudToken(data as unknown as UserTokenView);
 
             // 4. Save invite cloud to cache
-            const siteId = urlParams.get('_siteId') ?? siteInfo?.id ?? (data as any)?.siteId;
-            const siteName = urlParams.get('_siteName') ?? siteInfo?.name ?? (data as any)?.site$?.name;
-            if (siteId) {
+            if (data.id) {
                 const { isOnMobileApp } = getMobileAppInfo();
                 if (isOnMobileApp) {
                     const repo = inviteCloudRepository();
-                    await repo.save(siteId, {
-                        id: siteId,
-                        name: siteName,
+                    await repo.save(data.id, {
+                        id: data.id,
+                        name: data.name,
                         backend: backend ?? undefined,
                         wss: wss ?? undefined,
                     });
