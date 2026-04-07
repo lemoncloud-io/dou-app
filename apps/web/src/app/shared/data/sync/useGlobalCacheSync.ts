@@ -1,4 +1,5 @@
 import { useChatCacheSync } from './useChatCacheSync';
+import { useChannelCacheSync } from './useChannelCacheSync';
 
 /**
  * 앱 전역에서 요구되는 캐시 동기화 훅들을 중앙에서 실행하는 진입점 훅입니다.
@@ -7,4 +8,5 @@ import { useChatCacheSync } from './useChatCacheSync';
 export const useGlobalCacheSync = () => {
     // 채팅 도메인에 대한 로컬 캐시 동기화 실행
     useChatCacheSync();
+    useChannelCacheSync();
 };
