@@ -223,6 +223,8 @@
             "period": "Period",
             "currentPayment": "Current Payment",
             "nextPayment": "Next Payment",
+            "pricePerMonth": "{{price}}/mo",
+            "vatIncluded": "(VAT incl.)",
             "viewDetail": "View Details",
             "empty": "No active subscriptions",
             "emptyDescription": "Check out our subscription plans",

@@ -172,10 +172,12 @@ export const SubscriptionPlansPage = () => {
                                             {product.price != null && (
                                                 <div className="flex items-center gap-1">
                                                     <span className="text-[16px] font-medium leading-[1.5] tracking-[-0.02em] text-[#222325] dark:text-foreground">
-                                                        ${product.price}/월
+                                                        {t('mypage.subscription.pricePerMonth', {
+                                                            price: `$${product.price}`,
+                                                        })}
                                                     </span>
                                                     <span className="text-[14px] leading-[1.5] tracking-[-0.02em] text-[#78828A]">
-                                                        (VAT 포함)
+                                                        {t('mypage.subscription.vatIncluded')}
                                                     </span>
                                                 </div>
                                             )}
