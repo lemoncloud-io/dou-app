@@ -18,7 +18,7 @@ export type CacheType = 'channel' | 'cloud' | 'chat' | 'user' | 'join' | 'site' 
 export type PreferenceKey = 'isFirstRun' | 'theme' | 'language';
 
 interface CacheModelMap {
-    channel: ChannelView;
+    channel: CacheChannelView;
     cloud: CloudView;
     chat: ChatView;
     user: UserView;
@@ -156,5 +156,12 @@ export interface ExecuteGlobalSearchPayload {
 
 /** [응답] 전역 통합 검색 결과 */
 export interface OnExecuteGlobalSearchPayload {
-    items: (ChatView | ChannelView)[];
+    items: (ChatView | CacheChannelView)[];
+}
+
+/**
+ * 캐싱 전용 채널 타입
+ */
+export interface CacheChannelView extends ChannelView {
+    sid: string;
 }
