@@ -43,7 +43,7 @@
         }
     },
     "hero": {
-        "badge": "Privacy-First Messaging",
+        "badge": "Personal Messaging",
         "title": "Private Community",
         "title1": "Private Community",
         "title2": "deserve safe spaces.",
@@ -53,7 +53,7 @@
     },
     "features": {
         "title": "What Makes DoU Special",
-        "subtitle": "Communicate safely while protecting your privacy",
+        "subtitle": "Communicate safely in your own personal space",
         "private": {
             "title": "Private Community",
             "description": "Create up to 5 spaces and 5 chat rooms to talk with the people you need"
