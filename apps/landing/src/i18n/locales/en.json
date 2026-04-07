@@ -44,8 +44,8 @@
     },
     "hero": {
         "badge": "Personal Messaging",
-        "title": "Personal Community",
-        "title1": "Personal Community",
+        "title": "Private Community",
+        "title1": "Private Community",
         "title2": "deserve safe spaces.",
         "subtitle": "A safe space to chat and connect freely",
         "appStore": "App Store",
@@ -54,8 +54,8 @@
     "features": {
         "title": "What Makes DoU Special",
         "subtitle": "Communicate safely in your own personal space",
-        "personal": {
-            "title": "Personal Community",
+        "private": {
+            "title": "Private Community",
             "description": "Create up to 5 spaces and 5 chat rooms to talk with the people you need"
         },
         "safe": {

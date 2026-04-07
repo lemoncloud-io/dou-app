@@ -5,7 +5,7 @@ import { Images } from '@chatic/assets';
 import { PricingSection } from './PricingSection';
 
 const featureCards = [
-    { key: 'personal', color: 'bg-feature-orange', imageRight: false },
+    { key: 'private', color: 'bg-feature-orange', imageRight: false },
     { key: 'safe', color: 'bg-feature-blue', imageRight: true },
     { key: 'group', color: 'bg-feature-orange', imageRight: false },
     { key: 'memo', color: 'bg-feature-blue', imageRight: true },
