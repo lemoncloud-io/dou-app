@@ -13,8 +13,8 @@ export const useOnboardingSteps = (): OnboardingStep[] => {
 
         return [
             {
-                id: 'private-community',
-                title: isKorean ? '프라이빗 커뮤니티' : 'Private Community',
+                id: 'personal-community',
+                title: isKorean ? '퍼스널 커뮤니티' : 'Personal Community',
                 description: isKorean
                     ? '최대 5개의 대화공간과, 5개의 채팅방으로\n필요한 사람들과 필요한 이야기를 나눠요'
                     : 'Create up to 5 spaces and 5 chat rooms\nto talk with the people you need',

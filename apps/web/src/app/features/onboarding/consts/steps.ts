@@ -9,8 +9,8 @@ export interface OnboardingStep {
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
     {
-        id: 'private-community',
-        title: '프라이빗 커뮤니티',
+        id: 'personal-community',
+        title: '퍼스널 커뮤니티',
         description: '최대 5개의 대화공간과, 5개의 채팅방으로\n필요한 사람들과 필요한 이야기를 나눠요',
         image: Images.onboardingStep1,
     },

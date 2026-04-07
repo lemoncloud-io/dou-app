@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /s/
+
+Sitemap: https://app.chatic.io/sitemap.xml
