@@ -94,12 +94,13 @@ export const fetchMembershipInfo = async (): Promise<MembershipView> => {
     return throwIfApiError(data);
 };
 
-export const validateMembership = async (body: CreateMembershipBody): Promise<MembershipView> => {
+export const validateMembership = async (body: CreateMembershipBody, params: Params = {}): Promise<MembershipView> => {
     const { data } = await webCore
         .buildSignedRequest({
             method: 'POST',
             baseURL: `${DOU_ENDPOINT}/memberships/0`,
         })
+        .setParams({ ...params })
         .setBody(body)
         .execute<MembershipView>();
 

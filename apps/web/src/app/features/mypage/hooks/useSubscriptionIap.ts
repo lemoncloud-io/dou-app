@@ -138,14 +138,16 @@ export const useSubscriptionIap = () => {
                 throw new Error('Validation failed: isValid=false');
             }
 
-            await validateMembership.mutateAsync({
+            const membershipResult = await validateMembership.mutateAsync({
                 body: {
                     appId: APP_ID,
                     paymentType: isIOS ? 'apple-inapp' : 'google-inapp',
                     purchaseToken: result.purchaseToken ?? '',
                     productId: result.productId,
                 },
+                ...(IS_DEV && { params: { dryRun: 1 } }),
             });
+            console.log('[validateMembership] result:', membershipResult);
 
             return response;
         },

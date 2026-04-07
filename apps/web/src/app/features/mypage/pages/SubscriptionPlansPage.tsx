@@ -46,6 +46,7 @@ export const SubscriptionPlansPage = () => {
         setPageState('purchasing');
         try {
             const nativeProducts = await fetchNativeProducts();
+            console.log(nativeProducts, 'nativeProducts');
             const matched = nativeProducts.find(p =>
                 isIOS ? p.id === selectedProduct.id?.replace('#', '') : p.basePlanId === selectedProduct.planId
             );

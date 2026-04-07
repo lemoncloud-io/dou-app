@@ -41,7 +41,9 @@ export const useValidateApple = () =>
 
 /** #0. 멤버십 검증 */
 export const useValidateMembership = () =>
-    useCustomMutation<MembershipView, string, { body: CreateMembershipBody }>(({ body }) => validateMembership(body));
+    useCustomMutation<MembershipView, string, { body: CreateMembershipBody; params?: Params }>(({ body, params }) =>
+        validateMembership(body, params)
+    );
 
 /** #1. 활성 구독 확인 (선언형) */
 export const useActiveSubscriptions = (params: ListValidateParam) =>

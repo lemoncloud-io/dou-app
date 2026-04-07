@@ -23,7 +23,7 @@ export const useCloudSession = () => {
     const { mutateAsync: issueCloudToken, isPending } = useIssueCloudToken();
     const { setProfile } = useWebCoreStore();
     const { setIsLoading } = useGlobalLoader();
-    const { data, isError: isFetchError, isFetching, refetch } = useClouds();
+    const { data, isError: isFetchError, isFetching, refetch } = useClouds({ limit: -1 });
 
     const clouds = data?.list ?? [];
     const isCloudsError = !isFetching && isFetchError;

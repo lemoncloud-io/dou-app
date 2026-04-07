@@ -339,6 +339,7 @@
         "retry": "Retry",
         "statusActive": "Subscribed",
         "statusPending": "Preparing",
+        "statusError": "Error",
         "setupProfile": "Please set up your profile",
         "addAccount": "Add Account",
         "empty": "No clouds registered",

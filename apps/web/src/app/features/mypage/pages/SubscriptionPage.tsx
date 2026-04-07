@@ -29,7 +29,7 @@ export const SubscriptionPage = () => {
     const [isRestoring, setIsRestoring] = useState(false);
 
     const { data: membership, isLoading } = useMembershipInfo();
-    console.log(membership, 'membership');
+
     const isActive = membership?.isValid === true;
     const isCanceled = membership?.status === 'canceled';
     const hasPendingChange = !!membership?.pendingProductId;

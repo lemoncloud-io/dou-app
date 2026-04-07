@@ -20,7 +20,11 @@ export const cloudsKeys = createQueryKeys('clouds');
 export const useClouds = (params: Params = {}) =>
     useQuery({
         queryKey: cloudsKeys.list(params),
-        queryFn: () => fetchClouds(params),
+        queryFn: async () => {
+            const result = await fetchClouds(params);
+            console.log('[useClouds] result:', result);
+            return result;
+        },
         refetchOnWindowFocus: false,
     });
 

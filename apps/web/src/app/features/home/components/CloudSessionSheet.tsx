@@ -79,23 +79,33 @@ interface CloudItemProps {
     isSelected: boolean;
     isDisabled: boolean;
     onSelectCloud: (cloudId: string) => void;
+    onErrorClick: () => void;
 }
 
-const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud }: CloudItemProps) => {
+const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick }: CloudItemProps) => {
     const { t } = useTranslation();
-    const disabled = isDisabled || isSelected || cloud.status === 'pending';
+    const isError = cloud.status === 'error';
+    const disabled = isDisabled || isSelected || cloud.status === 'pending' || isError;
     const displayName = getCloudDisplayName(cloud);
     const hasName = !!displayName;
 
     return (
         <button
-            onClick={() => !disabled && cloud.id && onSelectCloud(cloud.id)}
-            disabled={disabled}
+            onClick={() => {
+                if (isError) {
+                    onErrorClick();
+                    return;
+                }
+                if (!disabled && cloud.id) onSelectCloud(cloud.id);
+            }}
+            disabled={isDisabled || cloud.status === 'pending'}
             className={cn('flex w-full items-center gap-[5px]', disabled && !isSelected && 'cursor-not-allowed')}
         >
             <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center">
                 {cloud.status === 'pending' ? (
                     <Loader2 size={18} className="animate-spin text-[#9FA2A7]" />
+                ) : isError ? (
+                    <AlertCircle size={20} className="text-red-500" />
                 ) : (
                     isSelected && <Check size={22} className="text-[#C139E3]" strokeWidth={1.5} />
                 )}
@@ -123,6 +133,9 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud }: CloudItemPr
                     <span className="text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
                         {cloud.email ?? ''}
                     </span>
+                    {isError && cloud.error && (
+                        <span className="text-left text-[11px] leading-[1.3] text-red-400">{cloud.error}</span>
+                    )}
                 </div>
             </div>
         </button>
@@ -264,59 +277,68 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                     <TabBar tab={tab} onChange={setTab} inviteCount={inviteClouds.length} />
 
                     {/* Content */}
-                    <div className="flex flex-col gap-[6px] pt-6">
-                        {tab === 'my' ? (
-                            isLoading ? (
-                                <div className="flex flex-col gap-[15px] px-3">
-                                    {Array.from({ length: 3 }).map((_, i) => (
-                                        <div key={i} className="flex items-center gap-2">
-                                            <div className="h-[22px] w-[22px]" />
-                                            <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
-                                            <div className="flex flex-col gap-1">
-                                                <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-                                                <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+                    <div className="max-h-[40vh] overflow-y-auto">
+                        <div className="flex flex-col gap-[6px] pt-6">
+                            {tab === 'my' ? (
+                                isLoading ? (
+                                    <div className="flex flex-col gap-[15px] px-3">
+                                        {Array.from({ length: 3 }).map((_, i) => (
+                                            <div key={i} className="flex items-center gap-2">
+                                                <div className="h-[22px] w-[22px]" />
+                                                <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                                                    <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : isCloudsError ? (
-                                <div className="flex items-center justify-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-                                    <span>{t('cloudSessionSheet.errorLoading')}</span>
-                                    <button
-                                        onClick={() => refetchClouds()}
-                                        className="flex items-center gap-1 text-foreground"
-                                    >
-                                        <span>{t('cloudSessionSheet.retry')}</span>
-                                    </button>
-                                </div>
-                            ) : clouds.length === 0 ? (
+                                        ))}
+                                    </div>
+                                ) : isCloudsError ? (
+                                    <div className="flex items-center justify-center gap-2 px-3 py-4 text-sm text-muted-foreground">
+                                        <span>{t('cloudSessionSheet.errorLoading')}</span>
+                                        <button
+                                            onClick={() => refetchClouds()}
+                                            className="flex items-center gap-1 text-foreground"
+                                        >
+                                            <span>{t('cloudSessionSheet.retry')}</span>
+                                        </button>
+                                    </div>
+                                ) : clouds.length === 0 ? (
+                                    <div className="flex items-center justify-center px-3 py-6 text-sm text-muted-foreground">
+                                        {t('cloudSessionSheet.empty')}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-[15px] px-3">
+                                        {clouds.map(cloud => (
+                                            <CloudItem
+                                                key={cloud.id}
+                                                cloud={cloud}
+                                                isSelected={selectedId === cloud.id}
+                                                isDisabled={isPending}
+                                                onSelectCloud={handleSelectCloud}
+                                                onErrorClick={() =>
+                                                    toast({
+                                                        title: t('cloudSessionSheet.statusError'),
+                                                        description: cloud.error ?? undefined,
+                                                        variant: 'destructive',
+                                                    })
+                                                }
+                                            />
+                                        ))}
+                                    </div>
+                                )
+                            ) : inviteClouds.length === 0 ? (
                                 <div className="flex items-center justify-center px-3 py-6 text-sm text-muted-foreground">
-                                    {t('cloudSessionSheet.empty')}
+                                    {t('cloudSessionSheet.emptyInvited')}
                                 </div>
                             ) : (
                                 <div className="flex flex-col gap-[15px] px-3">
-                                    {clouds.map(cloud => (
-                                        <CloudItem
-                                            key={cloud.id}
-                                            cloud={cloud}
-                                            isSelected={selectedId === cloud.id}
-                                            isDisabled={isPending}
-                                            onSelectCloud={handleSelectCloud}
-                                        />
+                                    {inviteClouds.map(inviteCloud => (
+                                        <InviteCloudItem key={inviteCloud.id} inviteCloud={inviteCloud} />
                                     ))}
                                 </div>
-                            )
-                        ) : inviteClouds.length === 0 ? (
-                            <div className="flex items-center justify-center px-3 py-6 text-sm text-muted-foreground">
-                                {t('cloudSessionSheet.emptyInvited')}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col gap-[15px] px-3">
-                                {inviteClouds.map(inviteCloud => (
-                                    <InviteCloudItem key={inviteCloud.id} inviteCloud={inviteCloud} />
-                                ))}
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
 
                     {tab === 'my' && clouds.length < 2 && <AddAccountButton onClick={handleAddAccount} />}
