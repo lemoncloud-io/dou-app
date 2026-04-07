@@ -1,12 +1,12 @@
-import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import { database, TABLES } from '../core';
 import { createScopedDataSource } from './factory';
+import type { CacheChannelView } from '@chatic/app-messages';
 
-const baseChannelDataSource = createScopedDataSource<ChannelView>(TABLES.CHANNELS);
+const baseChannelDataSource = createScopedDataSource<CacheChannelView>(TABLES.CHANNELS);
 
 /**
  * Extract 'sid' safely from the item.
- * Using 'any' here because the base ChannelView type might not explicitly define 'sid' yet.
+ * Using 'any' here because the base CacheChannelView type might not explicitly define 'sid' yet.
  */
 const extractSid = (item: any): string => {
     return item?.sid ? String(item.sid) : '';
@@ -29,7 +29,7 @@ export const channelDataSource = {
      * Overrides the default save method to extract 'sid' and 'name'.
      * This allows SQLite to index this column for fast site filtering.
      */
-    save: async (id: string, item: ChannelView, cid: string): Promise<void> => {
+    save: async (id: string, item: CacheChannelView, cid: string): Promise<void> => {
         const query = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, id, sid, name, data) VALUES (?, ?, ?, ?, ?)`;
         const params = [cid, id, extractSid(item), extractName(item), JSON.stringify(item)];
         await database.execute(query, params);
@@ -39,7 +39,7 @@ export const channelDataSource = {
      * Overrides the default saveAll method for batch insertions.
      * Extracts 'sid' for each item to maintain index integrity.
      */
-    saveAll: async (items: { id: string; data: ChannelView }[], cid: string): Promise<void> => {
+    saveAll: async (items: { id: string; data: CacheChannelView }[], cid: string): Promise<void> => {
         if (items.length === 0) return;
 
         const query = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, id, sid, name, data) VALUES (?, ?, ?, ?, ?)`;
@@ -59,9 +59,9 @@ export const channelDataSource = {
      * @param cid Optional Cloud ID to scope the query. If omitted, fetches across all clouds.
      * @param sid Optional Site ID to filter channels.
      * @param keyword Optional. Keyword to perform a text search across the channel data.
-     * @returns A promise that resolves to an array of parsed ChannelView objects.
+     * @returns A promise that resolves to an array of parsed CacheChannelView objects.
      */
-    fetchChannels: async (cid?: string, sid?: string, keyword?: string): Promise<ChannelView[]> => {
+    fetchChannels: async (cid?: string, sid?: string, keyword?: string): Promise<CacheChannelView[]> => {
         let query = `SELECT data FROM ${TABLES.CHANNELS}`;
         const params: (string | number)[] = [];
         const conditions: string[] = [];
@@ -91,11 +91,11 @@ export const channelDataSource = {
                 try {
                     // Using any cast to safely access 'data' from op-sqlite's Record result
                     const dataString = (row as any).data as string;
-                    return JSON.parse(dataString) as ChannelView;
+                    return JSON.parse(dataString) as CacheChannelView;
                 } catch {
                     return null;
                 }
             })
-            .filter((item: ChannelView | null): item is ChannelView => item !== null);
+            .filter((item: CacheChannelView | null): item is CacheChannelView => item !== null);
     },
 };
