@@ -53,12 +53,35 @@ export const subscriptionIapService = {
                     const regularPhase = phases[phases.length - 1];
                     const isFreeTrial = phases.some(phase => String(phase.priceAmountMicros) === '0');
 
+                    const billingPeriod = regularPhase?.billingPeriod;
+                    let periodUnit: string | undefined;
+                    let periodNumber: number | undefined;
+
+                    if (billingPeriod) {
+                        const match = billingPeriod.match(/^P(\d+)([YMWD])$/);
+                        if (match) {
+                            periodNumber = parseInt(match[1], 10);
+                            const unitChar = match[2];
+                            const unitMap: Record<string, string> = {
+                                Y: 'year',
+                                M: 'month',
+                                W: 'week',
+                                D: 'day',
+                            };
+                            periodUnit = unitMap[unitChar];
+                        }
+                    }
+
                     if (!uniqueBasePlans.has(basePlanId)) {
                         uniqueBasePlans.set(basePlanId, {
                             ...product,
                             id: product.id,
                             basePlanId: basePlanId,
+                            displayName: `${product.title}\n(${basePlanId})`,
                             displayPrice: regularPhase?.formattedPrice ?? product.displayPrice,
+                            billingPeriod: regularPhase?.billingPeriod,
+                            periodUnit: periodUnit,
+                            periodNumber: periodNumber,
                             androidOfferToken: {
                                 freeTrial: null,
                                 base: null,
@@ -76,13 +99,26 @@ export const subscriptionIapService = {
                         planData.androidOfferToken.base = offer.offerTokenAndroid;
                     }
                 });
-
-                console.log(Array.from(uniqueBasePlans.values()));
                 return Array.from(uniqueBasePlans.values());
             });
         }
 
-        return products as IapProductSubscription[];
+        return (products as any[]).map(product => {
+            const num = product.subscriptionPeriodNumberIOS;
+            const unit = product.subscriptionPeriodUnitIOS;
+            const billingPeriod = num && unit ? `P${num}${unit.charAt(0).toUpperCase()}` : undefined;
+
+            return {
+                ...product,
+                id: product.productId,
+                displayName: product.title,
+                displayPrice: product.localizedPrice,
+                currency: product.currency,
+                billingPeriod,
+                periodUnit: unit || undefined,
+                periodNumber: num ? Number(num) : undefined,
+            };
+        });
     },
 
     /**
