@@ -2,11 +2,20 @@ import { useEffect } from 'react';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { createStorageAdapter } from '../local';
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
+import { notifyDbUpdated } from './utils';
 
 /**
  * 웹소켓의 수신 메시지를 구독하고, 이를 로컬 DB(캐시)와 동기화하는 커스텀 훅입니다.
  */
 export const useChatCacheSync = () => {
+    useEffect(() => {
+        const bc = new BroadcastChannel('app-db-sync');
+        bc.onmessage = event => {
+            window.dispatchEvent(new CustomEvent('local-db-updated', { detail: event.data }));
+        };
+        return () => bc.close();
+    }, []);
+
     useEffect(() => {
         // Zustand 스토어(웹소켓 상태)의 lastMessage 변경 사항을 구독
         const unsubscribe = useWebSocketV2Store.subscribe(
@@ -62,11 +71,7 @@ export const useChatCacheSync = () => {
                 // DB에 변경 사항이 발생한 경우에만 전역 이벤트 디스패치
                 // 이를 통해 UI 컴포넌트들이 로컬 캐시 갱신을 인지하고 리렌더링을 수행할 수 있음
                 if (isDbUpdated) {
-                    window.dispatchEvent(
-                        new CustomEvent('local-db-updated', {
-                            detail: { domain: 'chat', cid: cloudId, channelId },
-                        })
-                    );
+                    notifyDbUpdated({ domain: 'chat', cid: cloudId, channelId });
                 }
             }
         );

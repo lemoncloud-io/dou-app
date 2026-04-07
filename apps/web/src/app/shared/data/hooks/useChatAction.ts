@@ -3,6 +3,7 @@ import { useChatRepository } from '../';
 import { getSocketSend } from '@chatic/socket';
 import type { ChatView } from '@lemoncloud/chatic-socials-api';
 import type { ClientChatView } from '../../types';
+import { notifyDbUpdated } from '../sync';
 
 /**
  * 채팅 비즈니스 로직, 데이터 가공 및 UI 액션을 관리하는 훅
@@ -89,11 +90,7 @@ export const useChatActions = (channelId: string | null, userId: string | null) 
             // Repository를 통한 로컬 우선 저장
             await repository.saveChat(tempId, tempMessage);
 
-            window.dispatchEvent(
-                new CustomEvent('local-db-updated', {
-                    detail: { domain: 'chat', cid: repository.cloudId, channelId },
-                })
-            );
+            notifyDbUpdated({ domain: 'chat', cid: repository.cloudId, channelId });
 
             // 실제 소켓 전송
             const sendFn = getSocketSend();
