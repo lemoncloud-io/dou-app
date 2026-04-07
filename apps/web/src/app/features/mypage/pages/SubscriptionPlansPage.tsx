@@ -59,13 +59,16 @@ export const SubscriptionPlansPage = () => {
 
             await purchaseAndValidate(
                 isIOS
-                    ? { id: matched?.id ?? '', newPlanId: matched?.basePlanId ?? undefined }
+                    ? {
+                          id: matched.id,
+                          ...(matched.basePlanId && { newPlanId: matched.basePlanId }),
+                      }
                     : {
-                          id: matched?.id ?? '',
-                          newPlanId: matched?.basePlanId ?? undefined,
-                          androidOfferToken: matched?.androidOfferToken
-                              ? { base: matched.androidOfferToken.base ?? undefined }
-                              : undefined,
+                          id: matched.id,
+                          ...(matched.basePlanId && { newPlanId: matched.basePlanId }),
+                          ...(matched.androidOfferToken?.base && {
+                              androidOfferToken: { base: matched.androidOfferToken.base },
+                          }),
                       }
             );
             toast({ title: t('mypage.subscription.purchaseSuccess') });
