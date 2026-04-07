@@ -2,9 +2,9 @@ import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
-import { useValidateApple, useValidateGoogle, subscriptionKeys } from '@chatic/subscriptions';
+import { useValidateApple, useValidateGoogle, useValidateMembership, subscriptionKeys } from '@chatic/subscriptions';
 
-import type { AppMessageData } from '@chatic/app-messages';
+import type { AppMessageData, IapProductSubscription } from '@chatic/app-messages';
 
 const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
 const APP_ID = IS_DEV ? 'io.chatic.dou.dev' : 'io.chatic.dou';
@@ -26,6 +26,7 @@ export const useSubscriptionIap = () => {
     const { isIOS } = getMobileAppInfo();
     const validateGoogle = useValidateGoogle();
     const validateApple = useValidateApple();
+    const validateMembership = useValidateMembership();
     const queryClient = useQueryClient();
 
     // Promise resolvers
@@ -40,6 +41,11 @@ export const useSubscriptionIap = () => {
 
     const currentPurchasesResolverRef = useRef<{
         resolve: (purchases: NativePurchase[]) => void;
+    } | null>(null);
+
+    const nativeProductsResolverRef = useRef<{
+        resolve: (products: IapProductSubscription[]) => void;
+        reject: (reason: Error) => void;
     } | null>(null);
 
     // Listen for native messages
@@ -65,17 +71,49 @@ export const useSubscriptionIap = () => {
         currentPurchasesResolverRef.current = null;
     });
 
+    useHandleAppMessage('OnFetchProducts', (message: AppMessageData<'OnFetchProducts'>) => {
+        nativeProductsResolverRef.current?.resolve(message.data.products);
+        nativeProductsResolverRef.current = null;
+    });
+
     /** 스토어 구매 요청 → Promise */
     const purchase = useCallback(
-        (product: { id: string; androidOfferToken?: { base?: string } }): Promise<PurchaseResult> => {
+        (product: {
+            id: string;
+            newPlanId?: string;
+            androidOfferToken?: { base?: string };
+        }): Promise<PurchaseResult> => {
             return new Promise((resolve, reject) => {
                 purchaseResolverRef.current = { resolve, reject };
                 const id = product.id;
 
+                const timeout = setTimeout(() => {
+                    if (purchaseResolverRef.current) {
+                        purchaseResolverRef.current.reject({ code: 'timeout', message: 'Purchase timed out' });
+                        purchaseResolverRef.current = null;
+                    }
+                }, 60000);
+
                 postMessage({
                     type: 'Purchase',
-                    data: { id, ...(!isIOS && { offerToken: product.androidOfferToken?.base }) },
+                    data: {
+                        id,
+                        ...(!isIOS && { offerToken: product.androidOfferToken?.base, newPlanId: product.newPlanId }),
+                    },
                 });
+
+                const originalResolve = resolve;
+                const originalReject = reject;
+                purchaseResolverRef.current = {
+                    resolve: result => {
+                        clearTimeout(timeout);
+                        originalResolve(result);
+                    },
+                    reject: reason => {
+                        clearTimeout(timeout);
+                        originalReject(reason);
+                    },
+                };
             });
         },
         [isIOS]
@@ -100,9 +138,18 @@ export const useSubscriptionIap = () => {
                 throw new Error('Validation failed: isValid=false');
             }
 
+            await validateMembership.mutateAsync({
+                body: {
+                    appId: APP_ID,
+                    paymentType: isIOS ? 'apple-inapp' : 'google-inapp',
+                    purchaseToken: result.purchaseToken ?? '',
+                    productId: result.productId,
+                },
+            });
+
             return response;
         },
-        [isIOS, validateApple, validateGoogle]
+        [isIOS, validateApple, validateGoogle, validateMembership]
     );
 
     /** 트랜잭션 완료 → Promise */
@@ -122,9 +169,32 @@ export const useSubscriptionIap = () => {
         });
     }, []);
 
+    /** 네이티브 상품 목록 가져오기 → Promise (Android offerToken 추출용) */
+    const fetchNativeProducts = useCallback((): Promise<IapProductSubscription[]> => {
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                if (nativeProductsResolverRef.current) {
+                    nativeProductsResolverRef.current.reject(new Error('FetchProducts timed out'));
+                    nativeProductsResolverRef.current = null;
+                }
+            }, 10000);
+            nativeProductsResolverRef.current = {
+                resolve: products => {
+                    clearTimeout(timeout);
+                    resolve(products);
+                },
+                reject: reason => {
+                    clearTimeout(timeout);
+                    reject(reason);
+                },
+            };
+            postMessage({ type: 'FetchProducts' });
+        });
+    }, []);
+
     /** 구매 → 검증 → 트랜잭션 완료 (한방) */
     const purchaseAndValidate = useCallback(
-        async (product: { id: string; basePlanId?: string; androidOfferToken?: { base?: string } }) => {
+        async (product: { id: string; newPlanId?: string; androidOfferToken?: { base?: string } }) => {
             const result = await purchase(product);
             await validate(result);
             await finishTransaction(result);
@@ -162,6 +232,7 @@ export const useSubscriptionIap = () => {
         validate,
         finishTransaction,
         fetchCurrentPurchases,
+        fetchNativeProducts,
         purchaseAndValidate,
         restorePurchases,
     };

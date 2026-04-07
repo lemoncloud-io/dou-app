@@ -4,7 +4,7 @@
  * Type definitions for native deep linking implementation
  */
 
-import type { ServiceEndpoints } from './urlConverter';
+import type { ServiceEndpoints, InviteSiteInfo } from './urlConverter';
 
 export type DeepLinkSource = 'cold_start' | 'warm_start' | 'deferred';
 
@@ -24,7 +24,12 @@ export interface WebViewHandler {
      * @param source - The source of the deep link
      * @param envs - Optional service endpoints to inject into WebView
      */
-    handleDeepLink: (url: string, source: DeepLinkSource, envs?: ServiceEndpoints) => void | Promise<void>;
+    handleDeepLink: (
+        url: string,
+        source: DeepLinkSource,
+        envs?: ServiceEndpoints,
+        site?: InviteSiteInfo
+    ) => void | Promise<void>;
     /**
      * Handle deep link processing error
      * Called when short URL expansion (Firestore lookup) fails

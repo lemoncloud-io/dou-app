@@ -6,7 +6,7 @@
  * - chatic://path -> https://dou.chatic.io/path
  */
 
-import { FRONTEND_DOMAIN, isCustomScheme, isDeepLinkDomain } from './constants';
+import { FRONTEND_BASE_URL, isCustomScheme, isDeepLinkDomain } from './constants';
 import { getInviteLink } from './inviteLink';
 import { isShortUrl } from './parser';
 
@@ -59,7 +59,7 @@ export const convertDeepLinkToFrontendUrl = (deepLinkUrl: string): string => {
         // Remove trailing slash to prevent short code extraction failure
         const normalizedPath = path.length > 1 ? path.replace(/\/$/, '') : path;
 
-        const frontendUrl = `https://${FRONTEND_DOMAIN}${normalizedPath}${search}`;
+        const frontendUrl = `${FRONTEND_BASE_URL}${normalizedPath}${search}`;
         console.log('[UrlConverter] Deep link → Frontend:', deepLinkUrl, '→', frontendUrl);
         return frontendUrl;
     } catch (error) {
@@ -78,11 +78,20 @@ export interface ServiceEndpoints {
 }
 
 /**
+ * Site info from invite.site$
+ */
+export interface InviteSiteInfo {
+    id?: string;
+    name?: string;
+}
+
+/**
  * Result of converting short URL with environment info
  */
 export interface ConvertedUrlResult {
     url: string;
     envs?: ServiceEndpoints;
+    site?: InviteSiteInfo;
 }
 
 /**
@@ -137,21 +146,26 @@ export const convertShortUrlWithEnvs = async (url: string): Promise<ConvertedUrl
                 Location?: string;
                 userId?: string;
                 $envs?: ServiceEndpoints;
+                site$?: InviteSiteInfo;
+                siteId?: string;
             };
+
+            const site: InviteSiteInfo | undefined =
+                invite.site$ ?? (invite.siteId ? { id: invite.siteId } : undefined);
 
             if (invite.Location) {
                 const pathAndSearch = extractPathFromLocation(invite.Location);
                 if (pathAndSearch) {
-                    const expandedUrl = `https://${FRONTEND_DOMAIN}${pathAndSearch}`;
+                    const expandedUrl = `${FRONTEND_BASE_URL}${pathAndSearch}`;
                     console.log('[UrlConverter] Short URL expanded with envs:', url, '→', expandedUrl);
-                    return { url: expandedUrl, envs: invite.$envs };
+                    return { url: expandedUrl, envs: invite.$envs, site };
                 }
             }
 
             if (invite.userId) {
-                const expandedUrl = `https://${FRONTEND_DOMAIN}/users/${invite.userId}`;
+                const expandedUrl = `${FRONTEND_BASE_URL}/users/${invite.userId}`;
                 console.log('[UrlConverter] Short URL expanded from userId with envs:', url, '→', expandedUrl);
-                return { url: expandedUrl, envs: invite.$envs };
+                return { url: expandedUrl, envs: invite.$envs, site };
             }
 
             // invite exists but has neither Location nor userId

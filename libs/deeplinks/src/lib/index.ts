@@ -27,7 +27,7 @@ export {
 } from './deferred';
 export { extractCampaignParams, extractShortCode, isShortUrl, isValidDeepLink } from './parser';
 export { convertDeepLinkToFrontendUrl, convertShortUrlWithEnvs, needsConversion } from './urlConverter';
-export type { ConvertedUrlResult, ServiceEndpoints } from './urlConverter';
+export type { ConvertedUrlResult, ServiceEndpoints, InviteSiteInfo } from './urlConverter';
 export { generateFingerprint, getFingerprintComponents } from './fingerprint';
 export { retrieveDeferredLinkFromFirestore, storeDeferredLinkToFirestore } from './firestoreDeferred';
 export { createInviteLink, getInviteLink, checkInviteLinkExists, deleteInviteLink } from './inviteLink';

@@ -6,9 +6,11 @@ import { useDeviceInfo } from '@chatic/device-utils';
 import {
     fetchActiveSubscriptions,
     fetchMembershipInfo,
+    fetchPlans,
     fetchReceiptDetail,
     validateApple,
     validateGoogle,
+    validateMembership,
 } from '../apis';
 
 import type {
@@ -19,10 +21,12 @@ import type {
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { Params } from '@lemoncloud/lemon-web-core';
-import type { MembershipView } from '@lemoncloud/chatic-backend-api';
+import type { CreateMembershipBody, MembershipView } from '@lemoncloud/chatic-backend-api';
 
 export const subscriptionKeys = createQueryKeys('subscriptions');
 export const membershipKeys = createQueryKeys('memberships');
+export const productPlansKeys = createQueryKeys('productPlans');
+
 /** #0. Google 결제 검증 */
 export const useValidateGoogle = () =>
     useCustomMutation<ValidateAPIResponse, string, { body: ValidateAPIBody; params: Params }>(({ body, params }) =>
@@ -34,6 +38,10 @@ export const useValidateApple = () =>
     useCustomMutation<ValidateAPIResponse, string, { body: ValidateAPIBody; params: Params }>(({ body, params }) =>
         validateApple(body, params)
     );
+
+/** #0. 멤버십 검증 */
+export const useValidateMembership = () =>
+    useCustomMutation<MembershipView, string, { body: CreateMembershipBody }>(({ body }) => validateMembership(body));
 
 /** #1. 활성 구독 확인 (선언형) */
 export const useActiveSubscriptions = (params: ListValidateParam) =>
@@ -54,6 +62,13 @@ export const useFetchReceiptDetail = () =>
         string,
         { receiptId: string; params?: { v?: string | boolean; history?: string | boolean } }
     >(({ receiptId, params }) => fetchReceiptDetail(receiptId, params));
+
+export const useProductPlans = (params: Params = {}) =>
+    useQuery({
+        queryKey: productPlansKeys.list(params),
+        queryFn: () => fetchPlans(params),
+        refetchOnWindowFocus: false,
+    });
 
 /** 멤버십 정보 조회 */
 export const useMembershipInfo = () =>

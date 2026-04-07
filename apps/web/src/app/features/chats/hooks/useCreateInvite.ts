@@ -1,6 +1,8 @@
 import { useState } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
+import { cloudCore } from '@chatic/web-core';
+import { useClouds } from '@chatic/users';
 
 import { firebaseDeeplinkService } from '../apis/firebase-service';
 
@@ -26,6 +28,7 @@ const parseCodeFromLocation = (location: string): string | null => {
 
 export const useCreateInvite = () => {
     const { emitAuthenticated } = useWebSocketV2();
+    const { data: cloudsData } = useClouds();
     const [isPending, setIsPending] = useState(false);
     const [isError, setIsError] = useState(false);
     const [error, setError] = useState<Error | null>(null);
@@ -74,9 +77,16 @@ export const useCreateInvite = () => {
                         return;
                     }
 
+                    const selectedCloudId = cloudCore.getSelectedCloudId();
+                    const selectedCloud = cloudsData?.list?.find(c => c.id === selectedCloudId);
+
                     const invite: MyInviteView = {
                         ...payload,
                         code,
+                        ...(!payload.siteId && selectedCloudId ? { siteId: selectedCloudId } : {}),
+                        ...(!payload.site$ && selectedCloud
+                            ? { site$: { id: selectedCloud.id, name: selectedCloud.name ?? undefined } }
+                            : {}),
                     };
 
                     // Create deeplink in Firebase

@@ -26,10 +26,10 @@
             "path": "../../libs/policy-content/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/users/tsconfig.lib.json"
+            "path": "../../libs/device-utils/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/device-utils/tsconfig.lib.json"
+            "path": "../../libs/users/tsconfig.lib.json"
         },
         {
             "path": "../../libs/chats/tsconfig.lib.json"
@@ -57,6 +57,12 @@
         },
         {
             "path": "../../libs/shared/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/subscriptions/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/deeplinks/tsconfig.lib.json"
         }
     ]
 }

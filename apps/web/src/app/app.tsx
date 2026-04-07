@@ -16,6 +16,7 @@ import { WebSocketV2Connection, ServiceUnavailableOverlay } from './components';
 import { Router } from './routes';
 import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
 import { useAutoSelectCloud } from './shared/hooks/useCloudSession';
+import { useForegroundTokenRefresh } from './shared/hooks/useForegroundTokenRefresh';
 import i18n from '../i18n';
 
 import type { ErrorInfo } from 'react';
@@ -43,10 +44,15 @@ const AutoSelectCloud = () => {
     return null;
 };
 
+const ForegroundTokenRefresh = ({ refreshToken }: { refreshToken: () => Promise<boolean> }) => {
+    useForegroundTokenRefresh(refreshToken);
+    return null;
+};
+
 export function App() {
     const isWebCoreReady = useInitWebCore();
     const { isAuthenticated, profile } = useWebCoreStore();
-    const { isInitialized: isTokenInitialized, initStatus } = useTokenRefresh(isWebCoreReady);
+    const { isInitialized: isTokenInitialized, initStatus, refreshToken } = useTokenRefresh(isWebCoreReady);
     const canRenderApp =
         isWebCoreReady && (!isAuthenticated || (isTokenInitialized && (!!profile || initStatus === 'failed')));
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
@@ -86,6 +92,7 @@ export function App() {
                         <QueryClientProvider client={queryClient}>
                             <ThemeProvider>
                                 <AutoSelectCloud />
+                                <ForegroundTokenRefresh refreshToken={refreshToken} />
                                 <WebSocketV2Connection />
                                 <ServiceUnavailableOverlay />
                                 <DeviceTokenRegistration />

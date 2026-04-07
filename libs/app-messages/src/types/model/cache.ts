@@ -1,11 +1,14 @@
 import type { ChannelView, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
 import type { CloudView, SiteView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-/**
- * 캐시 데이터 타입
- * @author raine@lemoncloud.io
- */
-export type CacheType = 'channel' | 'cloud' | 'chat' | 'user' | 'join' | 'site' | 'usertoken';
+export interface InviteCloudView {
+    id: string;
+    name?: string;
+    backend?: string;
+    wss?: string;
+}
+
+export type CacheType = 'channel' | 'cloud' | 'chat' | 'user' | 'join' | 'site' | 'usertoken' | 'invitecloud';
 
 /**
  * 관리 가능한 Preference Key 목록
@@ -22,6 +25,7 @@ interface CacheModelMap {
     site: SiteView;
     join: JoinView;
     usertoken: UserTokenView;
+    invitecloud: InviteCloudView;
 }
 
 interface CacheQueryMap {
@@ -32,6 +36,7 @@ interface CacheQueryMap {
     site: { query?: SiteQueryOptions };
     join: { query?: JoinQueryOptions };
     usertoken: { query?: UserTokenQueryOptions };
+    invitecloud: { query?: InviteCloudQueryOptions };
 }
 
 export interface BaseQueryOptions {
@@ -80,6 +85,8 @@ export interface JoinQueryOptions extends BaseQueryOptions {
 }
 
 export interface UserTokenQueryOptions extends BaseQueryOptions {}
+
+export interface InviteCloudQueryOptions extends BaseQueryOptions {}
 
 /** [요청] 다수 데이터 불러오기 */
 export type FetchAllCacheDataPayload = {

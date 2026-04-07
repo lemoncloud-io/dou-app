@@ -222,7 +222,9 @@
             "changePlan": "Change Plan",
             "period": "Period",
             "currentPayment": "Current Payment",
-            "nextPayment": "Expires",
+            "nextPayment": "Next Payment",
+            "pricePerMonth": "{{price}}/mo",
+            "vatIncluded": "(VAT incl.)",
             "viewDetail": "View Details",
             "empty": "No active subscriptions",
             "emptyDescription": "Check out our subscription plans",
@@ -340,7 +342,11 @@
         "setupProfile": "Please set up your profile",
         "addAccount": "Add Account",
         "empty": "No clouds registered",
-        "switchFailed": "Failed to switch cloud"
+        "switchFailed": "Failed to switch cloud",
+        "invited": "Invited",
+        "tabMy": "My Clouds",
+        "tabInvited": "Invited",
+        "emptyInvited": "No invited clouds"
     },
     "placeList": {
         "defaultPlace": "Default",
@@ -806,7 +812,10 @@
         "description": "Accept the invitation to start chatting.",
         "accept": "Accept",
         "accepting": "Accepting...",
-        "failed": "Failed to accept invitation"
+        "failed": "Failed to accept invitation",
+        "invalidLink": "Invalid invite link",
+        "goBack": "Go Back",
+        "decline": "Decline"
     },
     "subscriptionRequired": {
         "title": "A subscription is required to use this service",

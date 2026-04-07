@@ -18,12 +18,22 @@ const toLocalUrl = (url: string): string => {
     }
 };
 
-const buildTargetUrl = (url: string, envs?: { backend?: string; wss?: string } | null): string => {
+const buildTargetUrl = (
+    url: string,
+    envs?: { backend?: string; wss?: string } | null,
+    site?: { id?: string; name?: string } | null
+): string => {
     let targetUrl = toLocalUrl(url);
     if (envs?.backend || envs?.wss) {
         const urlObj = new URL(targetUrl);
         if (envs.backend) urlObj.searchParams.set('_backend', envs.backend);
         if (envs.wss) urlObj.searchParams.set('_wss', envs.wss);
+        targetUrl = urlObj.toString();
+    }
+    if (site?.id || site?.name) {
+        const urlObj = new URL(targetUrl);
+        if (site.id) urlObj.searchParams.set('_siteId', site.id);
+        if (site.name) urlObj.searchParams.set('_siteName', site.name);
         targetUrl = urlObj.toString();
     }
     return targetUrl;
@@ -36,6 +46,7 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
     const {
         pendingUrl,
         pendingEnvs,
+        pendingSite,
         source,
         deepLinkError,
         deepLinkErrorReason,
@@ -59,7 +70,7 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
                     return;
                 }
                 if (state.pendingUrl) {
-                    const targetUrl = buildTargetUrl(state.pendingUrl, state.pendingEnvs);
+                    const targetUrl = buildTargetUrl(state.pendingUrl, state.pendingEnvs, state.pendingSite);
                     coldStartUrlRef.current = targetUrl;
                     logger.info('DEEPLINK', `Cold start URL captured (source: ${state.source}): ${targetUrl}`);
                     state.clearPendingUrl();
@@ -95,7 +106,7 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
         }
 
         logger.info('DEEPLINK', `Injecting deep link URL: ${pendingUrl}`, pendingEnvs);
-        const targetUrl = buildTargetUrl(pendingUrl, pendingEnvs);
+        const targetUrl = buildTargetUrl(pendingUrl, pendingEnvs, pendingSite);
         // Add timestamp to prevent WebView from ignoring navigation to the same URL
         const urlWithCacheBust = new URL(targetUrl);
         urlWithCacheBust.searchParams.set('_t', Date.now().toString());
@@ -103,7 +114,7 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
         const script = `window.location.href = '${finalUrl}';\ntrue;`;
         webViewRef.current.injectJavaScript(script);
         clearPendingUrl();
-    }, [pendingUrl, pendingEnvs, source, isWebViewLoaded, clearPendingUrl, webViewRef]);
+    }, [pendingUrl, pendingEnvs, pendingSite, source, isWebViewLoaded, clearPendingUrl, webViewRef]);
 
     const handleDismissError = useCallback(() => {
         setDeepLinkError(false);
