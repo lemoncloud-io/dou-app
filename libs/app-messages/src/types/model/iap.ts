@@ -33,6 +33,22 @@ export type IapProductSubscription = ProductSubscription & {
     currency: string;
 
     /**
+     * The unified billing period (ISO 8601 format: e.g., 'P1M', 'P1Y').
+     * Useful for logic checks and mapping translations.
+     */
+    billingPeriod?: string;
+
+    /**
+     * The unit of the subscription period.
+     */
+    periodUnit?: 'year' | 'month' | 'week' | 'day';
+
+    /**
+     * The number of units in the subscription period (e.g., 1, 12).
+     */
+    periodNumber?: number;
+
+    /**
      * (Android 전용)
      * 구독 토큰 목록
      * 무료 체험 여부에 따라 골라 써야 하므로 필수적입니다.

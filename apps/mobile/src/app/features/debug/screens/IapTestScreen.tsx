@@ -125,8 +125,10 @@ export const IapTestScreen = () => {
     }, [currentPurchases.length, addLog]);
 
     const getDisplayPrice = useCallback((item: IapProductSubscription) => {
-        const p = item as any;
-        return p.displayPrice || p.localizedPrice || p.price || '가격 문의';
+        const price = item.displayPrice || item.price;
+        if (!price) return '가격 문의';
+        const currencySuffix = item.currency ? ` ${item.currency}` : '';
+        return `${price}${currencySuffix}`;
     }, []);
 
     const handleClearLogs = () => {
@@ -218,57 +220,58 @@ export const IapTestScreen = () => {
                 >
                     {products.map(_product => {
                         const product = _product as IapProductSubscription;
-                        //구매 여부 확인 (Android는 productId로, iOS는 id(sku)로 확인)
                         const isPurchased = currentPurchases.some(p => p.productId === product.id);
+
+                        const displayPeriod = product.billingPeriod;
 
                         return (
                             <View key={product.basePlanId || product.id} style={styles.productButtonGroup}>
-                                {/* 3. 상단에 어떤 플랜인지 표시 (Android: basePlanId, iOS: id) */}
-                                <Text style={styles.productLabel}>
-                                    {Platform.OS === 'android' ? product.basePlanId : product.id}
-                                </Text>
-
-                                <View style={{ flexDirection: 'row', gap: 4 }}>
-                                    {/* --- [버튼 1] 기본 결제 (Base Token) --- */}
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.actionButton,
-                                            { backgroundColor: isPurchased ? '#2E7D32' : '#4A90E2' },
-                                            loading && { opacity: 0.5 },
-                                        ]}
-                                        onPress={() => {
-                                            const token = product.androidOfferToken?.base || undefined;
-                                            addLog(
-                                                'event',
-                                                `Request Base Purchase: ${product.id} (Plan: ${product.basePlanId} ${product.androidOfferToken})`
-                                            );
-
-                                            // purchase(id, offerToken, oldPlanId, newPlanId)
-                                            handlePurchase(product.id, token, undefined, product.basePlanId);
-                                        }}
-                                        disabled={loading}
-                                    >
-                                        <Text style={styles.buttonText}>{isPurchased ? 'Owned' : 'Buy'}</Text>
-                                        <Text style={styles.priceText}>{getDisplayPrice(product)}</Text>
-                                    </TouchableOpacity>
-
-                                    {/* --- 안드로이드 전용: 무료 체험 (Free Trial Token) --- */}
-                                    {Platform.OS === 'android' && product.androidOfferToken?.freeTrial && (
-                                        <TouchableOpacity
-                                            style={[styles.actionButton, { backgroundColor: '#F5A623' }]}
-                                            onPress={() => {
-                                                const token = product.androidOfferToken?.freeTrial || undefined;
-                                                addLog('event', `Request Trial Purchase: ${product.id}`);
-
-                                                handlePurchase(product.id, token, undefined, product.basePlanId);
-                                            }}
-                                            disabled={loading}
-                                        >
-                                            <Text style={styles.buttonText}>Trial</Text>
-                                            <Text style={styles.priceText}>Free</Text>
-                                        </TouchableOpacity>
-                                    )}
+                                <View style={styles.labelColumn}>
+                                    <Text style={styles.periodBadge}>{displayPeriod}</Text>
+                                    <Text style={styles.productLabel}>{product.displayName}</Text>
                                 </View>
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.actionButton,
+                                        {
+                                            backgroundColor: isPurchased
+                                                ? '#2E7D32'
+                                                : product.androidOfferToken?.freeTrial
+                                                  ? '#F5A623'
+                                                  : '#4A90E2',
+                                        },
+                                        loading && { opacity: 0.5 },
+                                    ]}
+                                    onPress={() => {
+                                        const token =
+                                            product.androidOfferToken?.freeTrial ||
+                                            product.androidOfferToken?.base ||
+                                            undefined;
+
+                                        const logMsg = product.androidOfferToken?.freeTrial
+                                            ? 'Request Trial Purchase'
+                                            : 'Request Base Purchase';
+
+                                        addLog('event', `${logMsg}: ${product.id} (Plan: ${product.basePlanId})`);
+
+                                        handlePurchase(product.id, token, undefined, product.basePlanId);
+                                    }}
+                                    disabled={loading || isPurchased}
+                                >
+                                    <View style={styles.buttonContent}>
+                                        <Text style={styles.buttonText}>
+                                            {isPurchased
+                                                ? '사용 중'
+                                                : product.androidOfferToken?.freeTrial
+                                                  ? '무료 체험 시작'
+                                                  : '구독하기'}
+                                        </Text>
+                                        <Text style={styles.priceText}>
+                                            {isPurchased ? '구독 중인 상품' : getDisplayPrice(product)}
+                                        </Text>
+                                    </View>
+                                </TouchableOpacity>
                             </View>
                         );
                     })}
@@ -357,13 +360,36 @@ const styles = StyleSheet.create({
     },
     productLabel: {
         color: '#AAA',
-        fontSize: 10,
+        fontSize: 8,
         marginBottom: 4,
         fontWeight: 'bold',
+        textAlign: 'center',
     },
     priceText: {
         color: '#FFFFFF',
         fontSize: 10,
         fontWeight: 'normal',
+    },
+    labelColumn: {
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 2,
+    },
+    periodBadge: {
+        backgroundColor: '#444444',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 4,
+        fontSize: 10,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        textAlign: 'center',
+        overflow: 'hidden',
+    },
+    buttonContent: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 2,
     },
 });
