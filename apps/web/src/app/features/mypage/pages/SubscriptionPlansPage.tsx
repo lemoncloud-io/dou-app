@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { getMobileAppInfo } from '@chatic/app-messages';
+import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
