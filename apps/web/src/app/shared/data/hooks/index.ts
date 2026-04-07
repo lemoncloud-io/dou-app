@@ -1,1 +1,2 @@
-export * from './useChatAction';
+export * from './useChannelActions';
+export * from './useChatActions';
