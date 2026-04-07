@@ -20,12 +20,11 @@ import {
     useDynamicProfile,
 } from '@chatic/web-core';
 
-import { Logo } from '@chatic/assets';
-
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
+import { CloudLogo } from '../../../shared/components/CloudLogo';
 import { LimitExceededDialog } from '../../../shared/components/LimitExceededDialog';
 import { SettingsDialog } from '../../../components/SettingsDialog';
 import { OnboardingModal } from '../../onboarding';
@@ -103,11 +102,7 @@ export const HomePage = () => {
             {/* Header */}
             <header className="flex items-center justify-between px-5 pb-3 pt-safe-top">
                 {!isCloudUser ? (
-                    <div className="flex items-center gap-1.5">
-                        <img src={Logo.logo} alt="DoU" className="h-7 w-7" />
-                        <img src={Logo.douBk} alt="D.U" className="h-4 dark:hidden" />
-                        <img src={Logo.douGr} alt="D.U" className="hidden h-4 dark:block" />
-                    </div>
+                    <CloudLogo />
                 ) : IS_LOCAL ? (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
