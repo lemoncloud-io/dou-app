@@ -4,6 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 
 import { toast } from 'sonner';
 
+import { Logo } from '@chatic/assets';
 import { useTheme } from '@chatic/theme';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@chatic/ui-kit/components/ui/tooltip';
@@ -58,8 +59,10 @@ export const Sidebar = (): JSX.Element => {
     return (
         <aside className="w-56 border-r bg-card flex flex-col">
             {/* Logo/Brand */}
-            <div className="h-14 flex items-center px-4 border-b">
-                <span className="text-lg font-semibold">DoU</span>
+            <div className="h-14 flex items-center gap-2 px-4 border-b">
+                <img src={Logo.logo} alt="DoU" className="h-7 w-7" />
+                <img src={Logo.douBk} alt="D.U" className="h-4 dark:hidden" />
+                <img src={Logo.douGr} alt="D.U" className="hidden h-4 dark:block" />
             </div>
 
             {/* Navigation */}
