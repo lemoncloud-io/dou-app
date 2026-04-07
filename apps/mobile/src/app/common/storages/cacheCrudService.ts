@@ -1,15 +1,13 @@
 import {
-    chatDataSource,
     channelDataSource,
-    userDataSource,
+    chatDataSource,
     cloudDataSource,
     joinDataSource,
     siteDataSource,
+    userDataSource,
     userTokenDataSource,
     inviteCloudDataSource,
 } from './sqlite';
-
-import { preferenceStore } from './mmkv';
 import type { CacheType } from '@chatic/app-messages';
 
 /**
@@ -28,15 +26,10 @@ const DS_MAP: Record<CacheType, any> = {
 
 /**
  * The central Facade for all local storage operations in the app.
- * Routes requests to either synchronous MMKV (for preferences) or asynchronous SQLite (for domain data).
+ * Routes requests to either synchronous asynchronous SQLite (for domain data).
  * Enforces strict validation for `cid` (Cloud ID) based on whether the data type is scoped or default.
  */
-export const cacheRepository = {
-    // --- Preferences (MMKV) ---
-    getPreference: (key: string) => preferenceStore.get(key as any),
-    savePreference: (key: string, value: any) => preferenceStore.set(key as any, value),
-    removePreference: (key: string) => preferenceStore.remove(key as any),
-
+export const cacheCrudService = {
     /**
      * Retrieves a single cached item.
      * Automatically handles the `cid` parameter depending on whether the domain is scoped or default.

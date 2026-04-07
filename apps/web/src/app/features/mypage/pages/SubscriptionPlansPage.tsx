@@ -24,6 +24,8 @@ type PageState = 'idle' | 'purchasing';
 const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
 const APP_ID = IS_DEV ? 'io.chatic.dou.dev' : 'io.chatic.dou';
 
+const POLICY_BASE_URL = IS_DEV ? 'https://app-dev.chatic.io' : 'https://app.chatic.io';
+
 export const SubscriptionPlansPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
@@ -109,6 +111,12 @@ export const SubscriptionPlansPage = () => {
 
     const isBlocked = pageState === 'purchasing';
 
+    const openPolicyUrl = (path: string) => {
+        const url = `${POLICY_BASE_URL}${path}`;
+        if (isOnMobileApp) postMessage({ type: 'OpenURL', data: { url } });
+        else window.open(url, '_blank');
+    };
+
     return (
         <div className="flex h-screen flex-col bg-background">
             <header className="flex items-center px-[6px] pt-safe-top">
@@ -138,6 +146,7 @@ export const SubscriptionPlansPage = () => {
                             const isKo = i18n.language.startsWith('ko');
                             const description = isKo ? product.desc : (product.descEn ?? product.desc);
                             const hasTrial = (product.trialDays ?? 0) > 0;
+
                             return (
                                 <button
                                     key={productKey}
@@ -206,7 +215,7 @@ export const SubscriptionPlansPage = () => {
                 {/* DEV Test Panel */}
                 {IS_DEV && !isOnMobileApp && (
                     <div className="mt-6 rounded-[12px] border border-dashed border-yellow-500/50 bg-yellow-500/5 p-4">
-                        <p className="mb-3 text-[13px] font-bold text-yellow-600">🛠 DEV API Tester</p>
+                        <p className="mb-3 text-[13px] font-bold text-yellow-600">DEV API Tester</p>
                         <div className="flex flex-col gap-2">
                             <button
                                 onClick={() =>
@@ -285,9 +294,31 @@ export const SubscriptionPlansPage = () => {
                     </div>
                 )}
 
-                {/* Subscribe Button */}
+                {/* Auto-renewal notice + Policy Links + Subscribe Button */}
                 {products.length > 0 && (
                     <div className="mt-auto pb-safe-bottom pt-6">
+                        <div className="mb-4 rounded-[12px] bg-muted/50 px-4 py-3">
+                            <p className="text-[12px] leading-[1.6] text-muted-foreground">
+                                {t('mypage.subscription.autoRenewNotice')}
+                            </p>
+                            <div className="mt-2 flex items-center justify-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => openPolicyUrl('/policy/terms')}
+                                    className="text-[12px] font-medium text-foreground underline underline-offset-2"
+                                >
+                                    {t('mypage.subscription.termsOfService')}
+                                </button>
+                                <span className="text-[10px] text-muted-foreground/40">|</span>
+                                <button
+                                    type="button"
+                                    onClick={() => openPolicyUrl('/policy/privacy')}
+                                    className="text-[12px] font-medium text-foreground underline underline-offset-2"
+                                >
+                                    {t('mypage.subscription.privacyPolicy')}
+                                </button>
+                            </div>
+                        </div>
                         <button
                             onClick={handleSubscribe}
                             disabled={!selectedProduct || isBlocked}

@@ -2,7 +2,7 @@ import type { StateStorage } from 'zustand/middleware';
 import { createJSONStorage } from 'zustand/middleware';
 import { logger } from '../services';
 import type { PreferenceKey } from '@chatic/app-messages';
-import { cacheRepository } from '../storages';
+import { cachePreferenceService } from '../storages';
 
 const isPreferenceKey = (key: string): key is PreferenceKey => {
     const validKeys: PreferenceKey[] = ['isFirstRun', 'theme'];
@@ -19,7 +19,7 @@ export const storageAdapter = createJSONStorage<StateStorage>(() => ({
             logger.warn('STORAGE', `Invalid key access: ${name}`);
             return null;
         }
-        const value = await cacheRepository.getPreference(name as PreferenceKey);
+        const value = await cachePreferenceService.getPreference(name as PreferenceKey);
         return value ?? null;
     },
     setItem: async (name: string, value: string): Promise<void> => {
@@ -27,13 +27,13 @@ export const storageAdapter = createJSONStorage<StateStorage>(() => ({
             logger.warn('STORAGE', `Invalid key access: ${name}`);
             return;
         }
-        await cacheRepository.savePreference(name as PreferenceKey, value);
+        await cachePreferenceService.savePreference(name as PreferenceKey, value);
     },
     removeItem: async (name: string): Promise<void> => {
         if (!isPreferenceKey(name)) {
             logger.warn('STORAGE', `Invalid key access: ${name}`);
             return;
         }
-        await cacheRepository.removePreference(name as PreferenceKey);
+        await cachePreferenceService.removePreference(name as PreferenceKey);
     },
 }));

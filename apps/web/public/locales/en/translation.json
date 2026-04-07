@@ -272,7 +272,14 @@
             "renewal": "Renewal",
             "renewal_auto": "Auto renew",
             "renewal_pending_cancel": "Pending cancel",
-            "renewal_canceled": "Canceled"
+            "renewal_canceled": "Canceled",
+            "period_day": "{{count}} day",
+            "period_week": "{{count}} week",
+            "period_month": "{{count}} month",
+            "period_year": "{{count}} year",
+            "autoRenewNotice": "This is an auto-renewable subscription. It will automatically renew at the same price at the end of each subscription period. You will be charged unless you cancel at least 24 hours before the end of the current period.",
+            "termsOfService": "Terms of Service",
+            "privacyPolicy": "Privacy Policy"
         },
         "accountManage": {
             "title": "Account Management",

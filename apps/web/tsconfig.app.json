@@ -57,6 +57,9 @@
         },
         {
             "path": "../../libs/shared/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/subscriptions/tsconfig.lib.json"
         }
     ]
 }

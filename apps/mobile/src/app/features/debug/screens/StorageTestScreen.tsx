@@ -90,7 +90,7 @@ export const StorageTestScreen = () => {
                 const id = `msg-batch-${Date.now()}-${i}`;
                 return createRandomChat(targetCid, id);
             });
-            await cacheRepository.saveAll({ type: dataType, items: newItems, cid: targetCid });
+            await cacheRepository.saveAll({ type: dataType, items: newItems, cid: targetCid || undefined });
             logResult('SaveAll', 'Saved 5 messages.');
             await fetchItems(); // 저장 후 즉시 새로고침
         } catch (e) {

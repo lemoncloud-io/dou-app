@@ -1,7 +1,7 @@
 {
     "name": "@chatic/source",
     "version": "0.35.1",
-    "license": "MIT",
+    "license": "Apache-2.0",
     "scripts": {
         "clean:cache": "(rm -rf ./node_modules/.vite ./node_modules/.cache || true) && (rm -rf ./.nx || true)",
         "prepare": "husky",

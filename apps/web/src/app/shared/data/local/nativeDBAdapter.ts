@@ -1,6 +1,6 @@
-import { postMessage, useAppMessageStore } from '@chatic/app-messages';
 import type { AppMessage, AppMessageType, CacheType } from '@chatic/app-messages';
-import type { StorageRepository } from './StorageRepository';
+import { postMessage, useAppMessageStore } from '@chatic/app-messages';
+import type { CacheStorage } from './cacheStorage';
 
 const generateNonce = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
@@ -36,7 +36,7 @@ const waitForAppMessage = <T extends AppMessageType>(
  * @param type 저장소 도메인 타입 (예: 'chat', 'channel')
  * @param cid 특정 도메인에서 요구하는 고유 식별자 (Optional)
  */
-export const createNativeDBAdapter = <T>(type: CacheType, cid: string): StorageRepository<T> => {
+export const createNativeDBAdapter = <T>(type: CacheType, cid: string): CacheStorage<T> => {
     return {
         save: async (id: string, item: T): Promise<void> => {
             const nonce = generateNonce();

@@ -3,6 +3,13 @@
  * message from App to Web
  */
 import type {
+    OnFetchCurrentPurchasesPayload,
+    OnFetchProductsPayload,
+    OnFinishPurchaseTransactionPayload,
+    OnPurchaseErrorPayload,
+    OnPurchaseSuccessPayload,
+} from './model';
+import type {
     AppLogInfo,
     AppPermissionType,
     ContactInfo,
@@ -14,6 +21,7 @@ import type {
     OAuthTokenResult,
     OnDeleteAllCacheDataPayload,
     OnDeleteCacheDataPayload,
+    OnExecuteGlobalSearchPayload,
     OnFetchAllCacheDataPayload,
     OnFetchCacheDataPayload,
     OnSaveAllCacheDataPayload,
@@ -23,13 +31,6 @@ import type {
     SafeAreaInfo,
     ShareInfo,
     VersionInfo,
-} from './model';
-import type {
-    OnFetchCurrentPurchasesPayload,
-    OnFetchProductsPayload,
-    OnFinishPurchaseTransactionPayload,
-    OnPurchaseSuccessPayload,
-    OnPurchaseErrorPayload,
 } from './model';
 
 export const AppMessageTypes = {
@@ -64,6 +65,7 @@ export const AppMessageTypes = {
     OnSaveAllCacheData: 'OnSaveAllCacheData',
     OnDeleteCacheData: 'OnDeleteCacheData',
     OnDeleteAllCacheData: 'OnDeleteAllCacheData',
+    OnExecuteGlobalSearch: 'OnExecuteGlobalSearch',
     OnFetchPreference: 'OnFetchPreference',
     OnSavePreference: 'OnSavePreference',
     OnDeletePreference: 'OnDeletePreference',
@@ -216,6 +218,15 @@ export interface OnDeleteAllCacheData extends AppDefaultMessage<'OnDeleteAllCach
 }
 
 // Preference
+/** 전역 통합 검색 결과 반환 */
+export interface OnExecuteGlobalSearch extends AppDefaultMessage<'OnExecuteGlobalSearch'> {
+    data: OnExecuteGlobalSearchPayload;
+}
+
+// ----------------------------------------------------------------------
+// Preference Messages
+// ----------------------------------------------------------------------
+
 export interface OnFetchPreference extends AppDefaultMessage<'OnFetchPreference'> {
     data: {
         key: PreferenceKey;
@@ -292,6 +303,7 @@ export interface AppMessageMap {
     OnSaveAllCacheData: OnSaveAllCacheData;
     OnDeleteCacheData: OnDeleteCacheData;
     OnDeleteAllCacheData: OnDeleteAllCacheData;
+    OnExecuteGlobalSearch: OnExecuteGlobalSearch;
     OnSetWsEndpoint: OnSetWsEndpoint;
 
     /**

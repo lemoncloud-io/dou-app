@@ -147,3 +147,14 @@ export type DeleteAllCacheDataPayload = {
 export type OnDeleteAllCacheDataPayload = {
     [K in CacheType]: { type: K; ids: string[]; cid: string };
 }[CacheType];
+
+/** [요청] 전역 통합 검색 실행 */
+export interface ExecuteGlobalSearchPayload {
+    keyword: string;
+    cid?: string;
+}
+
+/** [응답] 전역 통합 검색 결과 */
+export interface OnExecuteGlobalSearchPayload {
+    items: (ChatView | ChannelView)[];
+}
