@@ -1,1 +1,2 @@
-export * from './chatRepository';
+export * from './useChatRepository';
+export * from './useChannelRepository';
