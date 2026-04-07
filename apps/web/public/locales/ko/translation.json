@@ -222,7 +222,7 @@
             "changePlan": "구독 변경",
             "period": "기간",
             "currentPayment": "이번 결제",
-            "nextPayment": "만료일",
+            "nextPayment": "다음 결제 예정",
             "viewDetail": "자세히 보기",
             "empty": "구독 중인 상품이 없어요",
             "emptyDescription": "구독 상품을 확인해 보세요",

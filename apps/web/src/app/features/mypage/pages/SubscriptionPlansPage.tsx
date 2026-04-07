@@ -1,57 +1,73 @@
-import { Check, ChevronLeft, Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ChevronLeft, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
+import { getMobileAppInfo } from '@chatic/app-messages';
+
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     useFetchActiveSubscriptions,
     useFetchReceiptDetail,
     useValidateApple,
     useValidateGoogle,
+    useProductPlans,
 } from '@chatic/subscriptions';
 
 import { useSubscriptionIap } from '../hooks';
 
-import type { IapProductSubscription } from '@chatic/app-messages';
+import type { ProductView } from '@lemoncloud/chatic-backend-api';
 
-type PageState = 'loading' | 'idle' | 'purchasing';
+type PageState = 'idle' | 'purchasing';
 
 const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
 const APP_ID = IS_DEV ? 'io.chatic.dou.dev' : 'io.chatic.dou';
 
 export const SubscriptionPlansPage = () => {
     const navigate = useNavigateWithTransition();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { toast } = useToast();
     const { isOnMobileApp, isIOS } = getMobileAppInfo();
-    const { purchaseAndValidate } = useSubscriptionIap();
+    const { purchaseAndValidate, fetchNativeProducts } = useSubscriptionIap();
 
-    const [products, setProducts] = useState<IapProductSubscription[]>([]);
-    const [selectedProduct, setSelectedProduct] = useState<IapProductSubscription | null>(null);
-    const [pageState, setPageState] = useState<PageState>('loading');
-
-    useEffect(() => {
-        if (!isOnMobileApp) {
-            setPageState('idle');
-            return;
-        }
-        postMessage({ type: 'FetchProducts' });
-    }, [isOnMobileApp]);
-
-    useHandleAppMessage('OnFetchProducts', message => {
-        setProducts(message.data.products);
-        console.log(message.data.products);
-        setPageState('idle');
-    });
+    const platform = isOnMobileApp ? (isIOS ? 'apple' : 'google') : undefined;
+    const { data: plansData, isLoading: isPlansLoading } = useProductPlans(
+        platform ? { platform, limit: -1 } : { limit: -1 }
+    );
+    const products = plansData?.list ?? [];
+    const [selectedProduct, setSelectedProduct] = useState<ProductView | null>(null);
+    const [pageState, setPageState] = useState<PageState>('idle');
 
     const handleSubscribe = async () => {
         if (!selectedProduct) return;
         setPageState('purchasing');
         try {
-            await purchaseAndValidate(selectedProduct);
+            const nativeProducts = await fetchNativeProducts();
+            const matched = nativeProducts.find(p =>
+                isIOS ? p.id === selectedProduct.id?.replace('#', '') : p.basePlanId === selectedProduct.planId
+            );
+            if (!matched) {
+                toast({
+                    title: t('mypage.subscription.purchaseFailed'),
+                    description: 'Product not found on store',
+                    variant: 'destructive',
+                });
+                setPageState('idle');
+                return;
+            }
+
+            await purchaseAndValidate(
+                isIOS
+                    ? { id: matched?.id ?? '', newPlanId: matched?.basePlanId ?? undefined }
+                    : {
+                          id: matched?.id ?? '',
+                          newPlanId: matched?.basePlanId ?? undefined,
+                          androidOfferToken: matched?.androidOfferToken
+                              ? { base: matched.androidOfferToken.base ?? undefined }
+                              : undefined,
+                      }
+            );
             toast({ title: t('mypage.subscription.purchaseSuccess') });
             await new Promise(resolve => setTimeout(resolve, 1500));
             navigate(-1);
@@ -91,7 +107,7 @@ export const SubscriptionPlansPage = () => {
     const isBlocked = pageState === 'purchasing';
 
     return (
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex h-screen flex-col bg-background">
             <header className="flex items-center px-[6px] pt-safe-top">
                 <button onClick={() => !isBlocked && navigate(-1)} className="rounded-full p-[9px]">
                     <ChevronLeft size={26} strokeWidth={2} className={cn(isBlocked && 'opacity-30')} />
@@ -100,8 +116,8 @@ export const SubscriptionPlansPage = () => {
                 <div className="w-[44px]" />
             </header>
 
-            <div className="flex flex-1 flex-col p-4">
-                {pageState === 'loading' ? (
+            <div className="flex flex-1 flex-col overflow-y-auto p-4">
+                {isPlansLoading ? (
                     <div className="flex flex-col gap-3">
                         {Array.from({ length: 3 }).map((_, i) => (
                             <div key={i} className="h-[80px] animate-pulse rounded-[16px] bg-muted" />
@@ -109,41 +125,72 @@ export const SubscriptionPlansPage = () => {
                     </div>
                 ) : products.length === 0 ? (
                     <div className="flex flex-1 items-center justify-center">
-                        <span className="text-[15px] text-muted-foreground">
-                            {!isOnMobileApp ? t('mypage.subscription.mobileOnly') : t('mypage.subscription.noProducts')}
-                        </span>
+                        <span className="text-[15px] text-muted-foreground">{t('mypage.subscription.noProducts')}</span>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-3">
                         {products.map(product => {
-                            const productKey = isIOS ? product.id : (product.basePlanId ?? product.id);
-                            const isSelected = selectedProduct
-                                ? (isIOS ? selectedProduct.id : (selectedProduct.basePlanId ?? selectedProduct.id)) ===
-                                  productKey
-                                : false;
+                            const productKey = product.id;
+                            const isSelected = selectedProduct?.id === product.id;
+                            const isKo = i18n.language.startsWith('ko');
+                            const description = isKo ? product.desc : (product.descEn ?? product.desc);
+                            const hasTrial = (product.trialDays ?? 0) > 0;
                             return (
                                 <button
                                     key={productKey}
                                     onClick={() => !isBlocked && setSelectedProduct(product)}
                                     disabled={isBlocked}
                                     className={cn(
-                                        'flex items-center justify-between rounded-[16px] border-2 px-5 py-4 transition-colors',
-                                        isSelected
-                                            ? 'border-[#B0EA10] bg-card shadow-[0px_2px_14px_0px_rgba(0,0,0,0.08)]'
-                                            : 'border-border bg-card',
+                                        'flex w-full items-center gap-[3px] rounded-[20px] border bg-white px-4 py-3 text-left shadow-[0px_2px_14px_0px_rgba(0,0,0,0.08)] transition-colors dark:bg-card',
+                                        isSelected ? 'border-[#B0EA10]' : 'border-[#F4F5F5]',
                                         isBlocked && 'opacity-60'
                                     )}
                                 >
-                                    <div className="flex flex-col items-start gap-1">
-                                        <span className="text-[17px] font-semibold">
-                                            {product.displayName ?? product.id}
-                                        </span>
-                                        <span className="text-[14px] text-muted-foreground">
-                                            {product.displayPrice}
-                                        </span>
+                                    {/* 상품 정보 */}
+                                    <div className="flex flex-1 flex-col gap-[4px]">
+                                        {/* 상품명 + Free 배지 */}
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[18px] font-semibold leading-[1.29] tracking-[-0.015em] text-[#222325] dark:text-foreground">
+                                                {isKo
+                                                    ? (product.name ?? product.id)
+                                                    : (product.nameEn ?? product.name ?? product.id)}
+                                            </span>
+                                            {hasTrial && (
+                                                <span className="rounded-full bg-[#B0EA10] px-2 py-0.5 text-[11px] font-semibold text-[#222325]">
+                                                    {product.trialDays}d Free
+                                                </span>
+                                            )}
+                                        </div>
+                                        {/* description */}
+                                        {description && (
+                                            <p className="text-[13px] leading-[1.4] tracking-[-0.02em] text-[#78828A]">
+                                                {description}
+                                            </p>
+                                        )}
+                                        {/* 가격 + 계정 수 */}
+                                        <div className="flex flex-col gap-[1px]">
+                                            {product.price != null && (
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-[16px] font-medium leading-[1.5] tracking-[-0.02em] text-[#222325] dark:text-foreground">
+                                                        ${product.price}/월
+                                                    </span>
+                                                    <span className="text-[14px] leading-[1.5] tracking-[-0.02em] text-[#78828A]">
+                                                        (VAT 포함)
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {product.maxClouds != null && (
+                                                <span className="text-[14px] leading-[1.5] tracking-[-0.02em] text-[#78828A]">
+                                                    {isKo
+                                                        ? `계정 ${product.maxClouds}개 구독 가능`
+                                                        : `Up to ${product.maxClouds} accounts`}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="flex h-6 w-6 items-center justify-center">
-                                        {isSelected && <Check size={22} className="text-[#B0EA10]" strokeWidth={2.5} />}
+                                    {/* 라디오 버튼 */}
+                                    <div className="flex h-[25px] w-[25px] flex-shrink-0 items-center justify-center rounded-full border-2 border-[#CFD0D3]">
+                                        {isSelected && <div className="h-[13px] w-[13px] rounded-full bg-[#B0EA10]" />}
                                     </div>
                                 </button>
                             );

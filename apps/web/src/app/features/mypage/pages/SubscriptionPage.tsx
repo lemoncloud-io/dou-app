@@ -15,14 +15,8 @@ const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV ==
 
 const formatDate = (timestamp?: number | null): string => {
     if (!timestamp || timestamp <= 0) return '-';
-    return new Date(timestamp).toLocaleString('ko-KR', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-    });
+    const d = new Date(timestamp);
+    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 };
 
 export const SubscriptionPage = () => {
@@ -177,33 +171,33 @@ export const SubscriptionPage = () => {
                                             </span>
                                         </div>
                                     )}
-                                    {(membership?.validFrom ?? 0) > 0 && (
+                                    {(membership?.validFrom ?? 0) > 0 && (membership?.validUntil ?? 0) > 0 && (
                                         <div className="flex items-center gap-[18px]">
                                             <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.startDate')}
+                                                {t('mypage.subscription.period')}
                                             </span>
                                             <span className="text-[16px] font-medium">
-                                                {formatDate(membership.validFrom)}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {(membership?.validUntil ?? 0) > 0 && (
-                                        <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.expiresAt')}
-                                            </span>
-                                            <span className="text-[16px] font-medium">
-                                                {formatDate(membership.validUntil)}
+                                                {formatDate(membership.validFrom)} ~ {formatDate(membership.validUntil)}
                                             </span>
                                         </div>
                                     )}
                                     {(membership?.renewedAt ?? 0) > 0 && (
                                         <div className="flex items-center gap-[18px]">
                                             <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.renewedAt')}
+                                                {t('mypage.subscription.currentPayment')}
                                             </span>
                                             <span className="text-[16px] font-medium">
                                                 {formatDate(membership.renewedAt)}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {(membership?.validUntil ?? 0) > 0 && (
+                                        <div className="flex items-center gap-[18px]">
+                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                                {t('mypage.subscription.nextPayment')}
+                                            </span>
+                                            <span className="text-[16px] font-medium">
+                                                {formatDate(membership.validUntil)}
                                             </span>
                                         </div>
                                     )}
@@ -214,26 +208,6 @@ export const SubscriptionPage = () => {
                                             </span>
                                             <span className="text-[16px] font-medium text-yellow-600 dark:text-yellow-400">
                                                 {formatDate(membership.canceledAt)}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {(membership?.lastSyncAt ?? 0) > 0 && (
-                                        <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.lastSyncAt')}
-                                            </span>
-                                            <span className="text-[16px] font-medium">
-                                                {formatDate(membership.lastSyncAt)}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {membership?.receiptId && (
-                                        <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.receiptId')}
-                                            </span>
-                                            <span className="min-w-0 truncate text-[14px] font-medium text-muted-foreground">
-                                                {membership.receiptId}
                                             </span>
                                         </div>
                                     )}

@@ -222,7 +222,7 @@
             "changePlan": "Change Plan",
             "period": "Period",
             "currentPayment": "Current Payment",
-            "nextPayment": "Expires",
+            "nextPayment": "Next Payment",
             "viewDetail": "View Details",
             "empty": "No active subscriptions",
             "emptyDescription": "Check out our subscription plans",
