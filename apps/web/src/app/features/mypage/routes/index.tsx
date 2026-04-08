@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 
 import {
     AccountInfoPage,
+    AccountManagePage,
     DebugLoginPage,
     DebugPage,
     LoginPage,
@@ -20,6 +21,7 @@ export const MyPageRoutes = () => {
         <Routes>
             <Route index element={<MyPage />} />
             <Route path="account" element={<AccountInfoPage />} />
+            <Route path="account-manage" element={<AccountManagePage />} />
             <Route path="edit" element={<ProfileEditPage />} />
             <Route path="debug" element={<DebugPage />} />
             <Route path="debug/login" element={<DebugLoginPage />} />
