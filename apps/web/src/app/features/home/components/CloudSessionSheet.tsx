@@ -233,6 +233,10 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
 
     const handleAddAccount = () => {
+        if (clouds.length >= 1) {
+            toast({ title: t('addAccount.limitExceeded'), variant: 'destructive' });
+            return;
+        }
         setIsSubscriptionSelectOpen(true);
     };
 

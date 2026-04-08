@@ -17,6 +17,7 @@ import {
 
 import { useSubscriptionIap } from '../hooks';
 import { EmailVerifyDialog } from '../../home/components/EmailVerifyDialog';
+import { useClouds } from '@chatic/users';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 import type { IapProductSubscription } from '@chatic/app-messages';
@@ -37,6 +38,8 @@ export const SubscriptionPlansPage = () => {
     const { toast } = useToast();
     const { isOnMobileApp, isIOS } = getMobileAppInfo();
     const { purchaseAndValidate, fetchNativeProducts } = useSubscriptionIap();
+    const { data: cloudsData } = useClouds({ limit: -1 });
+    const clouds = cloudsData?.list ?? [];
 
     const platform = isOnMobileApp ? (isIOS ? 'apple' : 'google') : undefined;
     const { data: plansData, isLoading: isPlansLoading } = useProductPlans(
@@ -79,6 +82,10 @@ export const SubscriptionPlansPage = () => {
 
     const handleSubscribe = async () => {
         if (!selectedProduct || isBlocked) return;
+        if (clouds.length >= 1) {
+            toast({ title: t('addAccount.limitExceeded'), variant: 'destructive' });
+            return;
+        }
         setPageState(PageState.Fetching);
         try {
             const nativeProducts = await fetchNativeProducts();
