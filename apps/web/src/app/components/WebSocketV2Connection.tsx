@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { useLoaderStore } from '@chatic/shared';
@@ -14,8 +13,6 @@ import { useCloudSession } from '../shared/hooks/useCloudSession';
 export const WebSocketV2Connection = () => {
     const { deviceId } = useDynamicDeviceId();
     const { isPending } = useCloudSession();
-    const { t } = useTranslation();
-
     const { isCloudUser } = useWebCoreStore();
 
     const selectedCloudId = cloudCore.getSelectedCloudId() || 'default';
@@ -34,7 +31,7 @@ export const WebSocketV2Connection = () => {
 
     useEffect(() => {
         if (isSocketConnecting) {
-            setGlobalLoading(true, t('socket.connecting'));
+            setGlobalLoading(true);
         } else {
             setGlobalLoading(false);
         }

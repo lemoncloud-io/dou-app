@@ -5,6 +5,8 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { useTheme } from '@chatic/theme';
+
+import { CloudLogo } from './CloudLogo';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@chatic/ui-kit/components/ui/tooltip';
 import { useLogout } from '@chatic/web-core';
@@ -59,7 +61,7 @@ export const Sidebar = (): JSX.Element => {
         <aside className="w-56 border-r bg-card flex flex-col">
             {/* Logo/Brand */}
             <div className="h-14 flex items-center px-4 border-b">
-                <span className="text-lg font-semibold">DoU</span>
+                <CloudLogo />
             </div>
 
             {/* Navigation */}

@@ -24,6 +24,7 @@ import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
+import { CloudLogo } from '../../../shared/components/CloudLogo';
 import { LimitExceededDialog } from '../../../shared/components/LimitExceededDialog';
 import { SettingsDialog } from '../../../components/SettingsDialog';
 import { OnboardingModal } from '../../onboarding';
@@ -101,7 +102,7 @@ export const HomePage = () => {
             {/* Header */}
             <header className="flex items-center justify-between px-5 pb-3 pt-safe-top">
                 {!isCloudUser ? (
-                    <img src="/logo-chatic.svg" alt="chatic" className="h-6" />
+                    <CloudLogo />
                 ) : IS_LOCAL ? (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>

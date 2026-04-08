@@ -111,6 +111,14 @@ module.exports = {
                     '0%': { opacity: '1' },
                     '100%': { opacity: '0' },
                 },
+                'cloud-bounce': {
+                    '0%': { transform: 'scale(1) rotate(0deg)' },
+                    '20%': { transform: 'scale(1.2) rotate(-10deg)' },
+                    '40%': { transform: 'scale(0.95) rotate(5deg)' },
+                    '60%': { transform: 'scale(1.1) rotate(-3deg)' },
+                    '80%': { transform: 'scale(0.98) rotate(1deg)' },
+                    '100%': { transform: 'scale(1) rotate(0deg)' },
+                },
             },
             animation: {
                 'slide-in-from-top': 'slide-in-from-top 0.3s ease-out',
@@ -118,6 +126,7 @@ module.exports = {
                 'slide-out-to-right': 'slide-out-to-right 0.3s ease-in',
                 'fade-in': 'fade-in 0.2s ease-out',
                 'fade-out': 'fade-out 0.2s ease-in',
+                'cloud-bounce': 'cloud-bounce 600ms ease-out',
             },
             spacing: {
                 'safe-top': 'var(--safe-top, 0px)',
