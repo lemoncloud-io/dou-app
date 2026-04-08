@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useQueryClient } from '@tanstack/react-query';
+
 import { AlertCircle, Check, Loader2, Plus, User, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
@@ -8,10 +10,11 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-ki
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
+import { cloudsKeys } from '@chatic/users';
 
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { useInviteClouds } from '../../../shared/hooks/useInviteClouds';
-import { AddAccountDialog } from './AddAccountDialog';
+import { SubscriptionSelectDialog } from './SubscriptionSelectDialog';
 import { SubscriptionRequiredDialog } from './SubscriptionRequiredDialog';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
@@ -216,28 +219,21 @@ interface CloudSessionSheetProps {
 export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
+    const queryClient = useQueryClient();
     const { selectCloud, isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
     const { inviteClouds } = useInviteClouds();
 
     const { isAvailable: isSubscriptionAvailable } = useIsSubscriptionAvailable();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedCloudId());
-    const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+    const [isEmailVerifyOpen, setIsEmailVerifyOpen] = useState(false);
+    const [isSubscriptionSelectOpen, setIsSubscriptionSelectOpen] = useState(false);
     const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
     const [tab, setTab] = useState<Tab>('my');
 
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
 
     const handleAddAccount = () => {
-        if (clouds.length >= 1) {
-            toast({ title: t('addAccount.limitExceeded'), variant: 'destructive' });
-            return;
-        }
-        if (!isSubscriptionAvailable) {
-            handleClose();
-            setIsSubscriptionRequiredOpen(true);
-            return;
-        }
-        setIsAddAccountOpen(true);
+        setIsSubscriptionSelectOpen(true);
     };
 
     const handleSelectCloud = async (cloudId: string) => {
@@ -341,10 +337,18 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                         </div>
                     </div>
 
-                    {tab === 'my' && clouds.length < 2 && <AddAccountButton onClick={handleAddAccount} />}
+                    {tab === 'my' && <AddAccountButton onClick={handleAddAccount} />}
                 </SheetContent>
             </Sheet>
-            <AddAccountDialog open={isAddAccountOpen} onOpenChange={setIsAddAccountOpen} />
+            <SubscriptionSelectDialog
+                open={isSubscriptionSelectOpen}
+                onOpenChange={setIsSubscriptionSelectOpen}
+                onComplete={() => {
+                    toast({ title: t('addAccount.success') });
+                    queryClient.invalidateQueries({ queryKey: cloudsKeys.all });
+                }}
+                onError={e => toast({ title: e.message, variant: 'destructive' })}
+            />
             <SubscriptionRequiredDialog
                 open={isSubscriptionRequiredOpen}
                 onClose={() => setIsSubscriptionRequiredOpen(false)}
