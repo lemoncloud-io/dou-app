@@ -110,7 +110,7 @@ export const subscriptionIapService = {
 
             return {
                 ...product,
-                id: product.productId,
+                id: product.id,
                 displayName: product.title,
                 displayPrice: product.localizedPrice,
                 currency: product.currency,
