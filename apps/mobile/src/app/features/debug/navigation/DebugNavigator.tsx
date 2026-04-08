@@ -6,7 +6,7 @@ import {
     DebugHomeScreen,
     DeeplinkTestScreen,
     DeviceTestScreen,
-    FcmTestScreen,
+    NotificationTestScreen,
     IapTestScreen,
     SocketTestScreen,
     OAuthTestScreen,
@@ -55,8 +55,8 @@ export const DebugNavigator = () => {
                 }}
             />
             <DebugStack.Screen
-                name="FcmTest"
-                component={FcmTestScreen}
+                name="NotificationTest"
+                component={NotificationTestScreen}
                 options={{
                     title: 'FCM 테스트',
                     headerBackButtonDisplayMode: 'minimal',

@@ -1,7 +1,8 @@
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 export type LogTag =
     | 'APP'
-    | 'FCM'
+    | 'NOTIFICATION'
+    | 'FIREBASE'
     | 'IAP'
     | 'BRIDGE'
     | 'NETWORK'

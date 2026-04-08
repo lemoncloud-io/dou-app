@@ -14,7 +14,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { AuthorizationStatus } from '@react-native-firebase/messaging';
-import { fcmService } from '../../../common';
+import { notificationService } from '../../../common';
+import { firebaseInstallationService } from '../../../common/services/firebase/firebaseInstallationService';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -29,10 +30,12 @@ interface LogItem {
     timestamp: string;
 }
 
-export const FcmTestScreen = () => {
+export const NotificationTestScreen = () => {
     const insets = useSafeAreaInsets();
     const [logs, setLogs] = useState<LogItem[]>([]);
     const [token, setToken] = useState<string>('');
+
+    const [installId, setInstallId] = useState<string>('');
     const [permissionStatus, setPermissionStatus] = useState<string>('Checking...');
     const [isExpanded, setIsExpanded] = useState(true);
 
@@ -74,7 +77,7 @@ export const FcmTestScreen = () => {
      */
     const checkPermission = async () => {
         try {
-            const authStatus = await fcmService.hasPermission();
+            const authStatus = await notificationService.hasPermission();
             let statusStr = '';
             switch (authStatus) {
                 case AuthorizationStatus.NOT_DETERMINED:
@@ -109,7 +112,7 @@ export const FcmTestScreen = () => {
     const handleRequestPermission = async () => {
         try {
             addLog('info', 'Requesting permission...');
-            const enabled = await fcmService.requestPermission();
+            const enabled = await notificationService.requestPermission();
             addLog(enabled ? 'success' : 'error', `Request Result: ${enabled ? 'Granted' : 'Denied'}`);
             await checkPermission();
         } catch (error: any) {
@@ -118,7 +121,7 @@ export const FcmTestScreen = () => {
     };
 
     /**
-     * Device Token토큰 가져오기
+     * Device Token 가져오기
      */
     const handleGetToken = async () => {
         try {
@@ -127,10 +130,10 @@ export const FcmTestScreen = () => {
             let token: string | null = null;
 
             if (Platform.OS === 'ios') {
-                await fcmService.registerAPNs();
-                token = await fcmService.getAPNSToken();
+                await notificationService.registerAPNs();
+                token = await notificationService.getAPNSToken();
             } else {
-                token = await fcmService.getToken();
+                token = await notificationService.getToken();
             }
 
             if (token) {
@@ -149,6 +152,26 @@ export const FcmTestScreen = () => {
     };
 
     /**
+     * Firebase Installation ID 가져오기
+     */
+    const handleGetInstallId = async () => {
+        try {
+            addLog('info', 'Fetching Firebase Installation ID...');
+            const id = await firebaseInstallationService.getFirebaseId();
+
+            if (id) {
+                setInstallId(id);
+                addLog('success', 'Installation ID Received');
+                console.log('Installation ID:', id);
+            } else {
+                addLog('error', 'Failed to get Installation ID (null)');
+            }
+        } catch (error: any) {
+            addLog('error', `Get Install ID Error: ${error.message}`);
+        }
+    };
+
+    /**
      * iOS APNs 기기 등록 (수동)
      */
     const handleRegisterDevice = async () => {
@@ -158,7 +181,7 @@ export const FcmTestScreen = () => {
         }
         try {
             addLog('info', 'Registering for Remote Messages (APNs)...');
-            await fcmService.registerAPNs();
+            await notificationService.registerAPNs();
             addLog('success', 'APNs Registration Call Completed');
         } catch (error: any) {
             addLog('error', `APNs Register Error: ${error.message}`);
@@ -170,7 +193,7 @@ export const FcmTestScreen = () => {
      */
     const handleDeleteToken = async () => {
         try {
-            await fcmService.deleteToken();
+            await notificationService.deleteToken();
             setToken('');
             addLog('info', 'Token Deleted. Request new token to refresh.');
         } catch (error: any) {
@@ -182,18 +205,18 @@ export const FcmTestScreen = () => {
      * 초기화 및 리스너 등록
      */
     useEffect(() => {
-        addLog('info', 'Initializing Device Tokenlisteners...');
+        addLog('info', 'Initializing Device Token listeners...');
         checkPermission();
 
-        const unsubscribeOnMessage = fcmService.onMessage(async remoteMessage => {
+        const unsubscribeOnMessage = notificationService.onMessage(async remoteMessage => {
             addLog('event', `[Foreground] ${JSON.stringify(remoteMessage.notification || remoteMessage.data)}`);
         });
 
-        const unsubscribeOnNotificationOpenedApp = fcmService.onNotificationOpenedApp(remoteMessage => {
+        const unsubscribeOnNotificationOpenedApp = notificationService.onNotificationOpenedApp(remoteMessage => {
             addLog('event', `[OpenedApp] ${JSON.stringify(remoteMessage.notification || remoteMessage.data)}`);
         });
 
-        const unsubscribeOnTokenRefresh = fcmService.onTokenRefresh(newToken => {
+        const unsubscribeOnTokenRefresh = notificationService.onTokenRefresh(newToken => {
             setToken(newToken);
             addLog('event', `[TokenRefresh] New Token: ${newToken.substring(0, 10)}...`);
         });
@@ -253,6 +276,7 @@ export const FcmTestScreen = () => {
                             <Text style={styles.deviceStatusLabel}>Permission:</Text>
                             <Text style={[styles.deviceStatusValue, { color: '#F5A623' }]}>{permissionStatus}</Text>
                         </View>
+
                         <View style={styles.deviceStatusRow}>
                             <Text style={styles.deviceStatusLabel}>Device Token:</Text>
                             <Text
@@ -269,6 +293,26 @@ export const FcmTestScreen = () => {
                                 }}
                             >
                                 {token || '(Not Fetched)'}
+                            </Text>
+                        </View>
+
+                        {/* 3. Install ID 표시 영역 추가 */}
+                        <View style={styles.deviceStatusRow}>
+                            <Text style={styles.deviceStatusLabel}>Install ID:</Text>
+                            <Text
+                                style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}
+                                numberOfLines={2}
+                                ellipsizeMode="middle"
+                                onPress={() => {
+                                    if (installId) {
+                                        Clipboard.setString(installId);
+                                        console.log('Full Install ID:', installId);
+                                        Alert.alert('Copied', 'Install ID copied to clipboard');
+                                        addLog('info', 'Install ID copied to clipboard');
+                                    }
+                                }}
+                            >
+                                {installId || '(Not Fetched)'}
                             </Text>
                         </View>
                     </View>
@@ -314,6 +358,14 @@ export const FcmTestScreen = () => {
                         <Text style={styles.buttonText}>Get Token</Text>
                     </TouchableOpacity>
 
+                    {/* 4. Get FID 버튼 추가 */}
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#F39C12' }]}
+                        onPress={handleGetInstallId}
+                    >
+                        <Text style={styles.buttonText}>Get FID</Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: '#FF5A5F' }]}
                         onPress={handleDeleteToken}
@@ -340,7 +392,7 @@ const styles = StyleSheet.create({
     dot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
     statusText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
     toggleIcon: { color: '#888', fontSize: 12, marginLeft: 8 },
-    infoContainer: { marginTop: 4, gap: 4 },
+    infoContainer: { marginTop: 4, gap: 8 }, // gap 살짝 늘려 가독성 확보
     dividerHorizontal: { height: 1, backgroundColor: '#333', marginVertical: 8 },
     deviceStatusRow: { flexDirection: 'row', alignItems: 'center' },
     deviceStatusLabel: { color: '#888', fontSize: 11, width: 85 },

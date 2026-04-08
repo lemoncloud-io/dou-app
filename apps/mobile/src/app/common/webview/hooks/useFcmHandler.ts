@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
 
-import { fcmService, logger } from '../../services';
+import { notificationService, logger } from '../../services';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type { AppMessageData } from '@chatic/app-messages';
@@ -13,15 +13,15 @@ import type { AppMessageData } from '@chatic/app-messages';
 export const useFcmHandler = (bridge: WebViewBridge) => {
     const fetchFcmToken = useCallback(async () => {
         try {
-            const hasPermission = await fcmService.requestPermission();
+            const hasPermission = await notificationService.requestPermission();
 
             if (hasPermission) {
                 let token;
                 if (Platform.OS === 'ios') {
-                    await fcmService.registerAPNs();
-                    token = await fcmService.getAPNSToken();
+                    await notificationService.registerAPNs();
+                    token = await notificationService.getAPNSToken();
                 } else {
-                    token = await fcmService.getToken();
+                    token = await notificationService.getToken();
                 }
 
                 if (token) {
@@ -30,19 +30,19 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
                         data: { token },
                     };
                     bridge.post(message);
-                    logger.debug('FCM', 'Success set token.' + token);
+                    logger.debug('NOTIFICATION', 'Success set token.' + token);
                 }
             } else {
-                logger.error('FCM', 'Allow not notification permission.');
+                logger.error('NOTIFICATION', 'Allow not notification permission.');
             }
         } catch (e: any) {
-            logger.error('FCM', 'Set FCM token error.', e);
+            logger.error('NOTIFICATION', 'Set FCM token error.', e);
         }
     }, [bridge]);
 
     useEffect(() => {
         // 포그라운드 알림 수신
-        const unsubscribeOnMessage = fcmService.onMessage(async remoteMessage => {
+        const unsubscribeOnMessage = notificationService.onMessage(async remoteMessage => {
             const message: AppMessageData<'OnReceiveNotification'> = {
                 type: 'OnReceiveNotification',
                 data: {
@@ -55,7 +55,7 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
         });
 
         // 앱 백그라운드 상태에서 알림 클릭
-        const unsubscribeOnOpened = fcmService.onNotificationOpenedApp(remoteMessage => {
+        const unsubscribeOnOpened = notificationService.onNotificationOpenedApp(remoteMessage => {
             const message: AppMessageData<'OnOpenNotification'> = {
                 type: 'OnOpenNotification',
                 data: remoteMessage.data || {},
@@ -64,7 +64,7 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
         });
 
         // 앱 종료 상태에서 알림 클릭 (Cold Start)
-        fcmService.getInitialNotification().then(remoteMessage => {
+        notificationService.getInitialNotification().then(remoteMessage => {
             if (remoteMessage) {
                 /**
                  * TODO: Handle initial notification when webview is ready
