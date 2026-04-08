@@ -114,7 +114,6 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified }: EmailVerif
         setVerifyError(false);
         try {
             await verifyEmail.mutateAsync({ email, step: 'check', code });
-            await verifyEmail.mutateAsync({ email, step: 'confirm' });
             onVerified(email);
             handleClose();
         } catch {

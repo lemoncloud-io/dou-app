@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
@@ -24,6 +24,8 @@ type PurchaseError = { code: string; message?: string };
 
 export const useSubscriptionIap = () => {
     const { isIOS } = getMobileAppInfo();
+    const [isFetchingProducts, setIsFetchingProducts] = useState(false);
+    const [isPurchasing, setIsPurchasing] = useState(false);
     const validateGoogle = useValidateGoogle();
     const validateApple = useValidateApple();
     const validateMembership = useValidateMembership();
@@ -121,7 +123,7 @@ export const useSubscriptionIap = () => {
 
     /** 서버 검증 */
     const validate = useCallback(
-        async (result: PurchaseResult) => {
+        async (result: PurchaseResult, email?: string) => {
             const validateFn = isIOS ? validateApple : validateGoogle;
             const response = await validateFn.mutateAsync({
                 body: {
@@ -138,16 +140,16 @@ export const useSubscriptionIap = () => {
                 throw new Error('Validation failed: isValid=false');
             }
 
-            const membershipResult = await validateMembership.mutateAsync({
+            await validateMembership.mutateAsync({
                 body: {
                     appId: APP_ID,
                     paymentType: isIOS ? 'apple-inapp' : 'google-inapp',
                     purchaseToken: result.purchaseToken ?? '',
                     productId: result.productId,
+                    ...(email && { email }),
                 },
                 ...(IS_DEV && { params: { dryRun: 1 } }),
             });
-            console.log('[validateMembership] result:', membershipResult);
 
             return response;
         },
@@ -196,9 +198,9 @@ export const useSubscriptionIap = () => {
 
     /** 구매 → 검증 → 트랜잭션 완료 (한방) */
     const purchaseAndValidate = useCallback(
-        async (product: { id: string; newPlanId?: string; androidOfferToken?: { base?: string } }) => {
+        async (product: { id: string; newPlanId?: string; androidOfferToken?: { base?: string } }, email?: string) => {
             const result = await purchase(product);
-            await validate(result);
+            await validate(result, email);
             await finishTransaction(result);
             postMessage({ type: 'FetchCurrentPurchases' });
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });

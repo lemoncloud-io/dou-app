@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { fetchMembershipInfo, subscriptionKeys, useMembershipInfo } from '@chatic/subscriptions';
+import { useMembershipInfo } from '@chatic/subscriptions';
 
 import { useSubscriptionIap } from '../hooks';
 
@@ -34,12 +34,7 @@ export const SubscriptionPage = () => {
     const isCanceled = membership?.status === 'canceled';
     const hasPendingChange = !!membership?.pendingProductId;
 
-    const handleViewPlans = async () => {
-        const latest = await queryClient.fetchQuery({
-            queryKey: subscriptionKeys.detail('mine'),
-            queryFn: fetchMembershipInfo,
-        });
-        if (latest?.isValid) return;
+    const handleViewPlans = () => {
         navigate('/mypage/subscription/plans');
     };
 

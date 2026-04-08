@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { X } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
@@ -14,8 +14,28 @@ import { useSubscriptionIap } from '../../mypage/hooks/useSubscriptionIap';
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 import type { IapProductSubscription } from '@chatic/app-messages';
 
+enum PageState {
+    Idle = 'idle',
+    Fetching = 'fetching',
+    Purchasing = 'purchasing',
+}
+
 const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
 const POLICY_BASE_URL = IS_DEV ? 'https://app-dev.chatic.io' : 'https://app.chatic.io';
+
+const buildPurchaseProduct = (matched: IapProductSubscription, isIOS: boolean) =>
+    isIOS
+        ? {
+              id: matched.id,
+              ...(matched.basePlanId && { newPlanId: matched.basePlanId }),
+          }
+        : {
+              id: matched.id,
+              ...(matched.basePlanId && { newPlanId: matched.basePlanId }),
+              ...(matched.androidOfferToken?.base && {
+                  androidOfferToken: { base: matched.androidOfferToken.base },
+              }),
+          };
 
 interface SubscriptionSelectDialogProps {
     open: boolean;
@@ -32,7 +52,7 @@ export const SubscriptionSelectDialog = ({
 }: SubscriptionSelectDialogProps) => {
     const { t, i18n } = useTranslation();
     const { isIOS, isOnMobileApp } = getMobileAppInfo();
-    const { fetchNativeProducts } = useSubscriptionIap();
+    const { fetchNativeProducts, purchaseAndValidate } = useSubscriptionIap();
 
     const platform = isOnMobileApp ? (isIOS ? 'apple' : 'google') : undefined;
     const { data: plansData, isLoading: isPlansLoading } = useProductPlans(
@@ -43,6 +63,10 @@ export const SubscriptionSelectDialog = ({
     const [selectedProduct, setSelectedProduct] = useState<ProductView | null>(null);
     const [matchedNativeProduct, setMatchedNativeProduct] = useState<IapProductSubscription | null>(null);
     const [isEmailVerifyOpen, setIsEmailVerifyOpen] = useState(false);
+    const [pageState, setPageState] = useState<PageState>(PageState.Idle);
+
+    const isBlocked = pageState !== PageState.Idle;
+    const isKo = i18n.language.startsWith('ko');
 
     const openPolicyUrl = (path: string) => {
         const url = `${POLICY_BASE_URL}${path}`;
@@ -51,38 +75,44 @@ export const SubscriptionSelectDialog = ({
     };
 
     const handleClose = () => {
+        if (isBlocked) return;
         setSelectedProduct(null);
         setMatchedNativeProduct(null);
         onOpenChange(false);
     };
 
-    const handleSelectProduct = async (product: ProductView) => {
-        setSelectedProduct(product);
-        const nativeProducts = await fetchNativeProducts();
-        const matched = nativeProducts.find(p =>
-            isIOS ? p.id === product.id?.replace('#', '') : p.basePlanId === product.planId
-        );
-        console.log('[SubscriptionSelectDialog] matched native product:', matched);
-        setMatchedNativeProduct(matched ?? null);
-        setIsEmailVerifyOpen(true);
+    const handleNext = async () => {
+        if (!selectedProduct || isBlocked) return;
+        setPageState(PageState.Fetching);
+        try {
+            const nativeProducts = await fetchNativeProducts();
+            const matched = nativeProducts.find(p =>
+                isIOS ? p.id === selectedProduct.id?.replace('#', '') : p.basePlanId === selectedProduct.planId
+            );
+            setMatchedNativeProduct(matched ?? null);
+            setIsEmailVerifyOpen(true);
+        } finally {
+            setPageState(PageState.Idle);
+        }
     };
 
-    const handleVerified = (email: string) => {
-        if (!selectedProduct) return;
-        console.log(
-            '[SubscriptionSelectDialog] product:',
-            selectedProduct,
-            'matched:',
-            matchedNativeProduct,
-            'email:',
-            email
-        );
-        // TODO: 구매 로직 연동
-        // onComplete?.();
-        // onError?.(error);
+    const handleVerified = async (email: string) => {
+        if (!selectedProduct || !matchedNativeProduct) return;
+        setPageState(PageState.Purchasing);
+        try {
+            await purchaseAndValidate(buildPurchaseProduct(matchedNativeProduct, isIOS), email);
+            onComplete?.();
+            handleClose();
+        } catch (e) {
+            const isCancelled = (e as { code?: string })?.code === 'user-cancelled';
+            if (!isCancelled) onError?.(e instanceof Error ? e : new Error(String(e)));
+        } finally {
+            setPageState(PageState.Idle);
+        }
     };
 
-    const isKo = i18n.language.startsWith('ko');
+    const submitLabel =
+        pageState === PageState.Purchasing ? t('mypage.subscription.purchasing') : t('mypage.subscription.subscribe');
 
     return (
         <>
@@ -95,15 +125,19 @@ export const SubscriptionSelectDialog = ({
                     <DialogDescription className="sr-only">{t('mypage.subscription.plans')}</DialogDescription>
 
                     {/* 헤더 */}
-                    <div className="flex items-center justify-between px-6 pt-safe-top pb-0 pt-6">
+                    <div className="flex items-center justify-between px-6 pb-0 pt-6 pt-safe-top">
                         <h2 className="text-[20px] font-bold">{t('mypage.subscription.plans')}</h2>
-                        <button onClick={handleClose} className="rounded-full p-1">
+                        <button
+                            onClick={handleClose}
+                            disabled={isBlocked}
+                            className={cn('rounded-full p-1', isBlocked && 'opacity-30')}
+                        >
                             <X size={24} strokeWidth={2} />
                         </button>
                     </div>
 
                     {/* 스크롤 영역 */}
-                    <div className="flex-1 overflow-y-auto px-6 pb-safe-bottom">
+                    <div className="flex-1 overflow-y-auto px-6">
                         <div className="flex flex-col gap-3 pt-4">
                             {isPlansLoading
                                 ? Array.from({ length: 3 }).map((_, i) => (
@@ -113,21 +147,24 @@ export const SubscriptionSelectDialog = ({
                                       const isSelected = selectedProduct?.id === product.id;
                                       const hasTrial = (product.trialDays ?? 0) > 0;
                                       const description = isKo ? product.desc : (product.descEn ?? product.desc);
+                                      const displayName = isKo
+                                          ? (product.name ?? product.id)
+                                          : (product.nameEn ?? product.name ?? product.id);
                                       return (
                                           <button
                                               key={product.id}
-                                              onClick={() => handleSelectProduct(product)}
+                                              onClick={() => !isBlocked && setSelectedProduct(product)}
+                                              disabled={isBlocked}
                                               className={cn(
                                                   'flex w-full items-center gap-[3px] rounded-[20px] border bg-white px-4 py-3 text-left shadow-[0px_2px_14px_0px_rgba(0,0,0,0.08)] transition-colors dark:bg-card',
-                                                  isSelected ? 'border-[#B0EA10]' : 'border-[#F4F5F5]'
+                                                  isSelected ? 'border-[#B0EA10]' : 'border-[#F4F5F5]',
+                                                  isBlocked && 'opacity-60'
                                               )}
                                           >
                                               <div className="flex flex-1 flex-col gap-[4px]">
                                                   <div className="flex items-center gap-2">
                                                       <span className="text-[18px] font-semibold leading-[1.29] tracking-[-0.015em] text-[#222325] dark:text-foreground">
-                                                          {isKo
-                                                              ? (product.name ?? product.id)
-                                                              : (product.nameEn ?? product.name ?? product.id)}
+                                                          {displayName}
                                                       </span>
                                                       {hasTrial && (
                                                           <span className="rounded-full bg-[#B0EA10] px-2 py-0.5 text-[11px] font-semibold text-[#222325]">
@@ -184,6 +221,18 @@ export const SubscriptionSelectDialog = ({
                                 </button>
                             </div>
                         </div>
+                    </div>
+
+                    {/* 하단 버튼 */}
+                    <div className="px-6 pb-safe-bottom pt-4">
+                        <button
+                            onClick={handleNext}
+                            disabled={!selectedProduct || isBlocked}
+                            className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-3.5 text-[16px] font-semibold text-background disabled:opacity-40"
+                        >
+                            {isBlocked && <Loader2 size={18} className="animate-spin" />}
+                            {submitLabel}
+                        </button>
                     </div>
                 </DialogContent>
             </Dialog>
