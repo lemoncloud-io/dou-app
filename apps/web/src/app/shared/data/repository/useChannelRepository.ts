@@ -10,12 +10,15 @@ import type { JoinView } from '@lemoncloud/chatic-socials-api';
  */
 export const useChannelRepository = () => {
     const cloudId = useWebSocketV2Store(s => s.cloudId) ?? 'default';
+
+    // 채널 정보 스토리지 어댑터
     const channelDB = useMemo(
         () => (cloudId ? createStorageAdapter<CacheChannelView>('channel', cloudId) : null),
         [cloudId]
     );
-    const joinDB = useMemo(() => (cloudId ? createStorageAdapter<JoinView>('join', cloudId) : null), [cloudId]);
 
+    // 채널 참여 정보($join) 스토리지 어댑터
+    const joinDB = useMemo(() => (cloudId ? createStorageAdapter<JoinView>('join', cloudId) : null), [cloudId]);
     /**
      * 로컬 DB에 저장된 모든 채널 목록을 로드합니다.
      */
@@ -48,20 +51,16 @@ export const useChannelRepository = () => {
     );
 
     /**
-     * 채널 정보를 로컬 DB에 저장합니다.
-     * 채널 정보 내에 참여 정보($join)가 포함되어 있다면 joinDB에도 동시에 저장합니다.
+     * 채널 정보를 저장하고, 포함된 $join 정보가 있다면 joinDB에도 동기화합니다.
      */
-    const saveChannel: (id: string, channel: CacheChannelView) => Promise<void> = useCallback(
+    const saveChannel = useCallback(
         async (id: string, channel: CacheChannelView): Promise<void> => {
-            const tasks: Promise<void>[] = [];
+            if (!channelDB) return;
 
-            // 채널 기본 정보 저장 태스크 추가
-            if (channelDB) {
-                tasks.push(channelDB.save(id, channel));
-            }
+            const tasks: Promise<void>[] = [channelDB.save(id, channel)];
 
-            // 참여 정보($join)가 존재할 경우 별도 테이블에 저장 태스크 추가
-            if (joinDB && channel.$join && channel.$join.id) {
+            // 관계형 데이터 무결성: $join 정보가 포함된 경우 joinDB에 별도 기록
+            if (joinDB && channel.$join?.id) {
                 tasks.push(joinDB.save(channel.$join.id, channel.$join));
             }
             await Promise.all(tasks);
@@ -70,18 +69,23 @@ export const useChannelRepository = () => {
     );
 
     /**
-     * 로컬 DB에서 특정 채널 정보를 삭제합니다.
+     * 채널 정보를 삭제합니다.
+     * 연관된 join 정보까지 함께 정리하여 고립된 데이터를 방지합니다.
      */
     const deleteChannel = useCallback(
         async (id: string): Promise<void> => {
-            const tasks: Promise<void>[] = [];
+            if (!channelDB) return;
 
-            if (channelDB) {
-                tasks.push(channelDB.delete(id));
+            // 삭제 전 대상 채널의 join ID를 확인하여 동시 삭제 시도
+            const channel = await channelDB.load(id);
+            const tasks: Promise<void>[] = [channelDB.delete(id)];
+
+            if (joinDB && channel?.$join?.id) {
+                tasks.push(joinDB.delete(channel.$join.id));
             }
             await Promise.all(tasks);
         },
-        [channelDB]
+        [channelDB, joinDB]
     );
 
     return useMemo(
