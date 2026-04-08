@@ -4,7 +4,7 @@ import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import messaging, { AuthorizationStatus } from '@react-native-firebase/messaging';
 import { logger } from './log';
 
-export const fcmService = {
+export const notificationService = {
     hasPermission: async (): Promise<FirebaseMessagingTypes.AuthorizationStatus> => {
         return messaging().hasPermission();
     },
@@ -32,7 +32,7 @@ export const fcmService = {
         try {
             return await messaging().getToken();
         } catch (e) {
-            logger.error('FCM', 'Get token error.', e);
+            logger.error('NOTIFICATION', 'Get token error.', e);
             return null;
         }
     },
@@ -41,7 +41,7 @@ export const fcmService = {
         try {
             await messaging().deleteToken();
         } catch (e) {
-            logger.error('FCM', 'Delete token error.', e);
+            logger.error('NOTIFICATION', 'Delete token error.', e);
         }
     },
 
@@ -49,7 +49,7 @@ export const fcmService = {
         try {
             await messaging().registerDeviceForRemoteMessages();
         } catch (e) {
-            logger.error('FCM', 'Register APNs error.', e);
+            logger.error('NOTIFICATION', 'Register APNs error.', e);
         }
     },
 
