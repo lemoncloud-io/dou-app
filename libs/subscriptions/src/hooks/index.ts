@@ -4,6 +4,7 @@ import { createQueryKeys, useCustomMutation } from '@chatic/shared';
 import { useDeviceInfo } from '@chatic/device-utils';
 
 import {
+    deleteCloud,
     fetchActiveSubscriptions,
     fetchMembershipInfo,
     fetchPlans,
@@ -21,7 +22,7 @@ import type {
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { Params } from '@lemoncloud/lemon-web-core';
-import type { CreateMembershipBody, MembershipView } from '@lemoncloud/chatic-backend-api';
+import type { CloudView, CreateMembershipBody, MembershipView } from '@lemoncloud/chatic-backend-api';
 
 export const subscriptionKeys = createQueryKeys('subscriptions');
 export const membershipKeys = createQueryKeys('memberships');
@@ -97,3 +98,6 @@ export const useIsSubscriptionAvailable = () => {
         membership,
     };
 };
+
+export const useDeleteCloud = () =>
+    useCustomMutation<CloudView, string, { id: string; params?: Params }>(({ id, params }) => deleteCloud(id, params));

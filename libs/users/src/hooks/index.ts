@@ -26,6 +26,8 @@ export const useClouds = (params: Params = {}) =>
             return result;
         },
         refetchOnWindowFocus: false,
+        staleTime: 0,
+        refetchOnMount: 'always',
     });
 
 export const useUsers = (params: Params = {}) =>
