@@ -31,6 +31,7 @@ export interface DeviceInfo {
     deviceToken?: string;
     deviceId?: string | null;
     deviceModel?: string | null;
+    installId?: string | null;
     lang?: PageLanguage;
 }
 

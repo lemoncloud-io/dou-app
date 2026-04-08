@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAppLanguage, getUserAgent } from '../utils';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
 import { getConsoleOverrideScript, getDeviceInfoScript, getSafeAreaScript } from './utils/injectionScripts';
+import { firebaseInstallationService } from '../services/firebase/firebaseInstallationService';
 
 interface AppWebViewProps extends WebViewProps {}
 
@@ -20,7 +21,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     // 최초 1회: deviceInfo 주입 (비동기 초기화)
     useEffect(() => {
         const prepareWebView = async () => {
-            const [userAgent, uniqueId] = await Promise.all([getUserAgent(), DeviceInfo.getUniqueId()]);
+            const [userAgent, uniqueId, installationId] = await Promise.all([
+                getUserAgent(),
+                DeviceInfo.getUniqueId(),
+                firebaseInstallationService.getFirebaseId(),
+            ]);
 
             const deviceInfoScript = getDeviceInfoScript({
                 platform: Platform.OS.toLowerCase(),
@@ -31,6 +36,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 appVersion: DeviceInfo.getVersion(),
                 buildNumber: DeviceInfo.getBuildNumber(),
                 appLanguage: getAppLanguage(),
+                installationId: installationId || '',
             });
 
             const injectionScript = `
