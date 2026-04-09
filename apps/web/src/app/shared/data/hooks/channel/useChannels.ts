@@ -46,7 +46,7 @@ export const useChannels = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [repository, placeId]);
+    }, [placeId]);
 
     /**
      * 서버에 최신 채널 목록 동기화 요청
@@ -57,7 +57,7 @@ export const useChannels = () => {
 
         // 서버 무응답 대비 5초 후 타임아웃 해제
         setTimeout(() => setIsSyncing(false), 5000);
-    }, [placeId, emitAuthenticated]);
+    }, [placeId]);
 
     /**
      * 초기 마운트 및 placeId 변경 시: DB 로드와 서버 갱신을 동시 수행

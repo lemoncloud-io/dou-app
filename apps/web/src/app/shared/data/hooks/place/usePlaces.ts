@@ -17,9 +17,9 @@ export const usePlaces = () => {
 
     const [places, setPlaces] = useState<MySiteView[]>([]);
 
-    // DB 최초 조회 로딩 (스켈레톤 UI 용도)
+    // DB 최초 조회 로딩
     const [isLoading, setIsLoading] = useState(true);
-    // 서버에 최신 목록을 요청하고 대기하는 상태 (상단 프로그레스바 등)
+    // 서버에 최신 목록을 요청하고 대기하는 상태
     const [isSyncing, setIsSyncing] = useState(false);
     // 데이터 조회 실패 상태
     const [isError, setIsError] = useState(false);

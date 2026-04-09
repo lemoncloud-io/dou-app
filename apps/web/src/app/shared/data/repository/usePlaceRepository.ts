@@ -73,13 +73,16 @@ export const usePlaceRepository = () => {
         [placeDB]
     );
 
-    return {
-        cloudId,
-        getPlaces,
-        getPlacesByCloud,
-        getPlace,
-        savePlace,
-        savePlaces,
-        deletePlace,
-    };
+    return useMemo(
+        () => ({
+            cloudId,
+            getPlaces,
+            getPlacesByCloud,
+            getPlace,
+            savePlace,
+            savePlaces,
+            deletePlace,
+        }),
+        [cloudId, getPlaces, getPlacesByCloud, getPlace, savePlace, savePlaces, deletePlace]
+    );
 };
