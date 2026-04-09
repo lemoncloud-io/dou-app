@@ -85,10 +85,6 @@ export const SubscriptionPlansPage = () => {
 
     const handleSubscribe = async () => {
         if (!selectedProduct || isBlocked) return;
-        if (clouds.length >= 1) {
-            toast({ title: t('addAccount.limitExceeded'), variant: 'destructive' });
-            return;
-        }
         setPageState(PageState.Fetching);
         try {
             const nativeProducts = await fetchNativeProducts();

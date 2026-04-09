@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useQueryClient } from '@tanstack/react-query';
@@ -232,11 +232,11 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
 
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
 
+    useEffect(() => {
+        if (open) refetchClouds();
+    }, [open]);
+
     const handleAddAccount = () => {
-        if (clouds.length >= 1) {
-            toast({ title: t('addAccount.limitExceeded'), variant: 'destructive' });
-            return;
-        }
         setIsSubscriptionSelectOpen(true);
     };
 

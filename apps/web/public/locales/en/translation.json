@@ -260,6 +260,7 @@
             "statusActive": "Active",
             "statusCanceled": "Canceled",
             "statusExpired": "Expired",
+            "statusExpired": "Expired",
             "expired": "This subscription has expired",
             "restore": "Restore",
             "restoreSuccess": "{{count}} purchase(s) restored",

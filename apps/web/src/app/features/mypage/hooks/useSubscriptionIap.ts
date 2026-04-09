@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
 import { useValidateApple, useValidateGoogle, useValidateMembership, subscriptionKeys } from '@chatic/subscriptions';
+import { cloudsKeys } from '@chatic/users';
 
 import type { AppMessageData, IapProductSubscription } from '@chatic/app-messages';
 
@@ -205,7 +206,10 @@ export const useSubscriptionIap = () => {
             await validate(result, email);
             await finishTransaction(result);
             postMessage({ type: 'FetchCurrentPurchases' });
+
+            await new Promise(resolve => setTimeout(resolve, 1500));
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
+            await queryClient.invalidateQueries({ queryKey: cloudsKeys.all });
         },
         [purchase, validate, finishTransaction]
     );
