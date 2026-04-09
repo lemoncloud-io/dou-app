@@ -19,6 +19,12 @@ interface NativePurchase {
     expirationDateIOS?: number | null;
 }
 
+export interface PurchaseProduct {
+    id: string;
+    newPlanId?: string;
+    offerToken?: string;
+}
+
 type PurchaseResult = NativePurchase;
 type PurchaseError = { code: string; message?: string };
 
@@ -80,11 +86,7 @@ export const useSubscriptionIap = () => {
 
     /** 스토어 구매 요청 → Promise */
     const purchase = useCallback(
-        (product: {
-            id: string;
-            newPlanId?: string;
-            androidOfferToken?: { base?: string };
-        }): Promise<PurchaseResult> => {
+        (product: PurchaseProduct): Promise<PurchaseResult> => {
             return new Promise((resolve, reject) => {
                 purchaseResolverRef.current = { resolve, reject };
                 const id = product.id;
@@ -100,7 +102,7 @@ export const useSubscriptionIap = () => {
                     type: 'Purchase',
                     data: {
                         id,
-                        ...(!isIOS && { offerToken: product.androidOfferToken?.base, newPlanId: product.newPlanId }),
+                        ...(!isIOS && { offerToken: product.offerToken, newPlanId: product.newPlanId }),
                     },
                 });
 
@@ -198,7 +200,7 @@ export const useSubscriptionIap = () => {
 
     /** 구매 → 검증 → 트랜잭션 완료 (한방) */
     const purchaseAndValidate = useCallback(
-        async (product: { id: string; newPlanId?: string; androidOfferToken?: { base?: string } }, email?: string) => {
+        async (product: PurchaseProduct, email?: string) => {
             const result = await purchase(product);
             await validate(result, email);
             await finishTransaction(result);
