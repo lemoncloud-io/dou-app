@@ -5,7 +5,8 @@ import type { JoinView, UserView } from '@lemoncloud/chatic-socials-api';
 import type { CacheChannelView } from '@chatic/app-messages';
 
 /**
- * 사용자 데이터 및 연관된 참여 정보($join)의 영속성을 관리하는 리포지토리
+ * 사용자 데이터의 영속성을 관리하는 리포지토리
+ * 서버와의 연동 없이 로컬 DB(IndexedDB 등)와의 직접적인 입출력을 전담
  */
 export const useUserRepository = () => {
     const cloudId = useWebSocketV2Store(s => s.cloudId) ?? 'default';
@@ -42,10 +43,10 @@ export const useUserRepository = () => {
     );
 
     /**
-     * 채널의 memberIds를사용하여 멤버 목록을 조회합니다.
-     * - 채널 본체 데이터를 가져와서 유효한 memberIds 추출
-     * - 추출된 memberIds를 기반으로 유저 정보 로드
-     * - 기존 UI 호환성(읽음 상태 등)을 위해 joinDB 데이터 매핑
+     * 채널의 memberIds를 사용하여 멤버 목록을 조회
+     * 채널 본체 데이터를 가져와서 유효한 memberIds 추출
+     * 추출된 memberIds를 기반으로 유저 정보 로드
+     * 읽음 상태 동기화을 위해 joinDB 데이터 매핑
      */
     const getUsersByChannel = useCallback(
         async (channelId: string): Promise<UserView[]> => {
@@ -74,8 +75,8 @@ export const useUserRepository = () => {
     );
 
     /**
-     * 단일 유저 저장 (및 연관된 $join 저장)
-     * - 유저 정보에 $join이 포함되어 있다면 joinDB에도 동시 저장
+     * 단일 유저 저장
+     * 유저 정보에 $join이 포함되어 있다면 joinDB에도 동시 저장
      */
     const saveUser = useCallback(
         async (user: UserView): Promise<void> => {
@@ -93,7 +94,7 @@ export const useUserRepository = () => {
     );
 
     /**
-     * 다중 유저 병렬 저장 (및 연관된 다중 $join 저장)
+     * 다중 유저 병렬 저장
      */
     const saveUsers = useCallback(
         async (users: UserView[]): Promise<void> => {
@@ -106,7 +107,6 @@ export const useUserRepository = () => {
                     tasks.push(userDB.save(user.id, user));
                 }
 
-                // 각 유저의 $join 정보도 별도 추출하여 저장 큐에 추가
                 if (joinDB && user.$join?.id) {
                     tasks.push(joinDB.save(user.$join.id, user.$join));
                 }

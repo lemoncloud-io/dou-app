@@ -4,15 +4,20 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
 
 /**
- * 채널 참여 정보(Join)의 로컬 영속성(Persistence)을 관리하는 리포지토리
+ * 채널 참여 정보(Join)의 로컬 영속성을 관리하는 리포지토리
+ * 서버와의 연동 없이 로컬 DB(IndexedDB 등)와의 직접적인 입출력을 전담
  */
 export const useJoinRepository = () => {
     const cloudId = useWebSocketV2Store(s => s.cloudId) ?? 'default';
-
     const joinDB = useMemo(() => (cloudId ? createStorageAdapter<JoinView>('join', cloudId) : null), [cloudId]);
 
+    const getJoins = useCallback(async (): Promise<JoinView[]> => {
+        if (!joinDB) return [];
+        return await joinDB.loadAll();
+    }, [joinDB]);
+
     /**
-     * 특정 채널에서 '현재 참여 중'인 정보만 필터링하여 반환합니다.
+     * 특정 채널에서 현재 참여 중인 정보만 필터링하여 반환
      */
     const getActiveJoinsByChannel = useCallback(
         async (channelId: string): Promise<JoinView[]> => {
@@ -24,7 +29,7 @@ export const useJoinRepository = () => {
     );
 
     /**
-     * 특정 채널의 모든 참여 정보(나간 사람 포함)를 반환합니다.
+     * 특정 채널의 모든 참여 정보(나간 사람 포함) 반환
      */
     const getJoinsByChannel = useCallback(
         async (channelId: string): Promise<JoinView[]> => {
@@ -35,6 +40,9 @@ export const useJoinRepository = () => {
         [joinDB]
     );
 
+    /**
+     * 참여 아이디를 통한 참여정보 불러오기
+     */
     const getJoin = useCallback(
         async (id: string): Promise<JoinView | null> => {
             return joinDB ? await joinDB.load(id) : null;
@@ -42,6 +50,9 @@ export const useJoinRepository = () => {
         [joinDB]
     );
 
+    /**
+     * 참여 데이터 저장
+     */
     const saveJoin = useCallback(
         async (id: string, join: JoinView): Promise<void> => {
             if (joinDB) await joinDB.save(id, join);
@@ -50,7 +61,7 @@ export const useJoinRepository = () => {
     );
 
     /**
-     * 다수의 참여 정보를 병렬로 저장합니다
+     * 다수의 참여 정보를 병렬로 저장
      */
     const saveJoins = useCallback(
         async (joins: JoinView[]): Promise<void> => {
@@ -65,7 +76,7 @@ export const useJoinRepository = () => {
     );
 
     /**
-     * 참여 정보를 로컬 DB에서 삭제합니다.
+     * 참여 정보를 로컬 DB에서 삭제
      */
     const deleteJoin = useCallback(
         async (id: string): Promise<void> => {
@@ -77,6 +88,7 @@ export const useJoinRepository = () => {
     return useMemo(
         () => ({
             cloudId,
+            getJoins,
             getJoin,
             getActiveJoinsByChannel,
             getJoinsByChannel,
@@ -84,6 +96,6 @@ export const useJoinRepository = () => {
             saveJoins,
             deleteJoin,
         }),
-        [cloudId, getJoin, getActiveJoinsByChannel, getJoinsByChannel, saveJoin, saveJoins, deleteJoin]
+        [cloudId, getJoins, getJoin, getActiveJoinsByChannel, getJoinsByChannel, saveJoin, saveJoins, deleteJoin]
     );
 };
