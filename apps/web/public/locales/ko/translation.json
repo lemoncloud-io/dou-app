@@ -286,7 +286,13 @@
             "currentAccount": "현재 계정",
             "cloudAccounts": "클라우드 계정",
             "noAccounts": "등록된 클라우드 계정이 없어요",
-            "deleteAccount": "계정 삭제"
+            "deleteAccount": "계정 삭제",
+            "delete": "삭제",
+            "deleteConfirmTitle": "계정을 삭제할까요?",
+            "deleteConfirmDesc": "{{name}} 계정이 영구적으로 삭제됩니다.",
+            "deleteSuccess": "계정이 삭제되었어요",
+            "deleteFailed": "계정 삭제에 실패했어요",
+            "subscriptionActive": "상품 이용 중"
         },
         "policy": {
             "title": "약관 및 정책",
@@ -339,6 +345,7 @@
         "retry": "재시도",
         "statusActive": "구독 완료",
         "statusPending": "구독 준비 중",
+        "statusError": "오류",
         "setupProfile": "프로필 설정을 해주세요",
         "addAccount": "계정 추가",
         "empty": "등록된 클라우드가 없어요",
@@ -370,6 +377,10 @@
         "empty": "플레이스가 없어요",
         "settings": "설정",
         "delete": "삭제",
+        "deleteConfirmTitle": "계정을 삭제할까요?",
+        "deleteConfirmDesc": "{{name}} 계정이 영구적으로 삭제됩니다.",
+        "deleteSuccess": "계정이 삭제되었어요",
+        "deleteFailed": "계정 삭제에 실패했어요",
         "leave": "나가기",
         "deleteDialog": {
             "title": "플레이스 삭제",
@@ -537,7 +548,11 @@
             "mine": "내 워크스페이스",
             "friends": "친구 워크스페이스",
             "settings": "설정",
-            "delete": "삭제"
+            "delete": "삭제",
+            "deleteConfirmTitle": "계정을 삭제할까요?",
+            "deleteConfirmDesc": "{{name}} 계정이 영구적으로 삭제됩니다.",
+            "deleteSuccess": "계정이 삭제되었어요",
+            "deleteFailed": "계정 삭제에 실패했어요"
         },
         "detail": {
             "private": "비공개",

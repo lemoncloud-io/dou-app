@@ -2530,10 +2530,10 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-backend-api@^0.26.325":
-  version "0.26.325"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-backend-api/-/chatic-backend-api-0.26.325.tgz#2c87272b35952c05c90c407f61cbeff19d6d069d"
-  integrity sha512-o4ODHwTVN9Vt9z8ZBxFZtmpxMwBau/6UAs4S2JJVHuhUutyF1Y2P+y/X2Sw42M6DU5mFC/O/a9B1Ls3eQMVzRg==
+"@lemoncloud/chatic-backend-api@^0.26.327":
+  version "0.26.327"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-backend-api/-/chatic-backend-api-0.26.327.tgz#80ede811b90f69fa08fd9ce242f5d3968f7bc288"
+  integrity sha512-TPHwffWCPgx9KJ2Jsjj1A0CC3wAdotfrfbj9qQrz2ya6Ie7sF+uGl+lQO8v4G911eqkoOnzo5xRUOtM20TVBQw==
   dependencies:
     lemon-model "^1.1.1"
 

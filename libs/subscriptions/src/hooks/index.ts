@@ -4,6 +4,7 @@ import { createQueryKeys, useCustomMutation } from '@chatic/shared';
 import { useDeviceInfo } from '@chatic/device-utils';
 
 import {
+    deleteCloud,
     fetchActiveSubscriptions,
     fetchMembershipInfo,
     fetchPlans,
@@ -21,7 +22,7 @@ import type {
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { Params } from '@lemoncloud/lemon-web-core';
-import type { CreateMembershipBody, MembershipView } from '@lemoncloud/chatic-backend-api';
+import type { CloudView, CreateMembershipBody, MembershipView } from '@lemoncloud/chatic-backend-api';
 
 export const subscriptionKeys = createQueryKeys('subscriptions');
 export const membershipKeys = createQueryKeys('memberships');
@@ -41,7 +42,9 @@ export const useValidateApple = () =>
 
 /** #0. 멤버십 검증 */
 export const useValidateMembership = () =>
-    useCustomMutation<MembershipView, string, { body: CreateMembershipBody }>(({ body }) => validateMembership(body));
+    useCustomMutation<MembershipView, string, { body: CreateMembershipBody; params?: Params }>(({ body, params }) =>
+        validateMembership(body, params)
+    );
 
 /** #1. 활성 구독 확인 (선언형) */
 export const useActiveSubscriptions = (params: ListValidateParam) =>
@@ -95,3 +98,6 @@ export const useIsSubscriptionAvailable = () => {
         membership,
     };
 };
+
+export const useDeleteCloud = () =>
+    useCustomMutation<CloudView, string, { id: string; params?: Params }>(({ id, params }) => deleteCloud(id, params));

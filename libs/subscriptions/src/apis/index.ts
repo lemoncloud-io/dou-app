@@ -9,7 +9,7 @@ import type {
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { Params } from '@lemoncloud/lemon-web-core';
-import type { CreateMembershipBody, MembershipView, ProductView } from '@lemoncloud/chatic-backend-api';
+import type { CloudView, CreateMembershipBody, MembershipView, ProductView } from '@lemoncloud/chatic-backend-api';
 
 const IAP_ENDPOINT = import.meta.env.VITE_IAP_ENDPOINT;
 const DOU_ENDPOINT = import.meta.env.VITE_DOU_ENDPOINT;
@@ -94,14 +94,30 @@ export const fetchMembershipInfo = async (): Promise<MembershipView> => {
     return throwIfApiError(data);
 };
 
-export const validateMembership = async (body: CreateMembershipBody): Promise<MembershipView> => {
+export const validateMembership = async (body: CreateMembershipBody, params: Params = {}): Promise<MembershipView> => {
     const { data } = await webCore
         .buildSignedRequest({
             method: 'POST',
             baseURL: `${DOU_ENDPOINT}/memberships/0`,
         })
+        .setParams({ ...params })
         .setBody(body)
         .execute<MembershipView>();
+
+    return throwIfApiError(data);
+};
+
+export const deleteCloud = async (cloudId: string, params: Params = {}): Promise<CloudView> => {
+    const { data } = await webCore
+        .buildSignedRequest({
+            method: 'POST',
+            baseURL: `${DOU_ENDPOINT}/clouds/${cloudId}/release`,
+        })
+        .setBody({})
+        .setParams({
+            ...params,
+        })
+        .execute<CloudView>();
 
     return throwIfApiError(data);
 };

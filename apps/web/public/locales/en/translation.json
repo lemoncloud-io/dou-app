@@ -286,7 +286,13 @@
             "currentAccount": "Current Account",
             "cloudAccounts": "Cloud Accounts",
             "noAccounts": "No cloud accounts registered",
-            "deleteAccount": "Delete Account"
+            "deleteAccount": "Delete Account",
+            "delete": "Delete",
+            "deleteConfirmTitle": "Delete account?",
+            "deleteConfirmDesc": "{{name}} will be permanently deleted.",
+            "deleteSuccess": "Account deleted",
+            "deleteFailed": "Failed to delete account",
+            "subscriptionActive": "subscription active"
         },
         "policy": {
             "title": "Terms & Policies",
@@ -339,6 +345,7 @@
         "retry": "Retry",
         "statusActive": "Subscribed",
         "statusPending": "Preparing",
+        "statusError": "Error",
         "setupProfile": "Please set up your profile",
         "addAccount": "Add Account",
         "empty": "No clouds registered",
@@ -370,6 +377,10 @@
         "empty": "No places",
         "settings": "Settings",
         "delete": "Delete",
+        "deleteConfirmTitle": "Delete account?",
+        "deleteConfirmDesc": "{{name}} will be permanently deleted.",
+        "deleteSuccess": "Account deleted",
+        "deleteFailed": "Failed to delete account",
         "leave": "Leave",
         "deleteDialog": {
             "title": "Delete Place",
@@ -537,7 +548,11 @@
             "mine": "My Workspaces",
             "friends": "Friend's Workspaces",
             "settings": "Settings",
-            "delete": "Delete"
+            "delete": "Delete",
+            "deleteConfirmTitle": "Delete account?",
+            "deleteConfirmDesc": "{{name}} will be permanently deleted.",
+            "deleteSuccess": "Account deleted",
+            "deleteFailed": "Failed to delete account"
         },
         "detail": {
             "private": "Private",

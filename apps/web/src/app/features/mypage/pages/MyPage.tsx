@@ -159,6 +159,16 @@ export const MyPage = () => {
                             </span>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
+                        <div className="h-2" />
+                        <button
+                            onClick={() => navigate('/mypage/account-manage')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <span className="text-[15px] font-medium text-foreground">
+                                {t('mypage.accountManage.title')}
+                            </span>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
                     </div>
                 )}
 
