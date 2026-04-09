@@ -1,7 +1,7 @@
 import type { ChannelView, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
-import type { CloudView, SiteView, UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type { CloudView, MyInviteView, MySiteView, SiteView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-export interface InviteCloudView {
+export interface InviteCloudView extends MyInviteView {
     id: string;
     name?: string;
     backend?: string;
@@ -164,4 +164,11 @@ export interface OnExecuteGlobalSearchPayload {
  */
 export interface CacheChannelView extends ChannelView {
     sid: string;
+}
+
+/**
+ * 캐싱 전용 플레이스 타입
+ */
+export interface CacheSiteView extends MySiteView {
+    cid: string;
 }

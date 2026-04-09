@@ -1,6 +1,7 @@
 import { channelDataSource, chatDataSource } from './sqlite';
 import { logger } from '../services';
-import type { ChannelView, ChatView } from '@lemoncloud/chatic-socials-api'; // 경로에 맞게 로거 import 수정 필요
+import type { ChatView } from '@lemoncloud/chatic-socials-api';
+import type { CacheChannelView } from '@chatic/app-messages';
 
 export const cacheSearchService = {
     /**
@@ -11,7 +12,7 @@ export const cacheSearchService = {
      * @param cid Optional Cloud ID to scope the search.
      * @returns A promise that resolves to an array of combined and sorted search results.
      */
-    executeGlobalSearch: async (keyword: string, cid?: string): Promise<(ChannelView | ChatView)[]> => {
+    executeGlobalSearch: async (keyword: string, cid?: string): Promise<(CacheChannelView | ChatView)[]> => {
         if (!keyword || keyword.trim() === '') {
             return [];
         }
