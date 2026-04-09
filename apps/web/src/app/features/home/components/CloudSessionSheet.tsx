@@ -237,6 +237,10 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     }, [open]);
 
     const handleAddAccount = () => {
+        if (clouds.length >= 1) {
+            toast({ title: t('addAccount.limitExceeded'), variant: 'destructive' });
+            return;
+        }
         setIsSubscriptionSelectOpen(true);
     };
 
