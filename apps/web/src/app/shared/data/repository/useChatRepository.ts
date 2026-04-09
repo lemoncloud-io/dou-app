@@ -19,8 +19,8 @@ export const useChatRepository = () => {
     const getChatsByChannel = useCallback(
         async (channelId: string): Promise<ChatView[]> => {
             if (!chatDB) return [];
-            const msgs = await chatDB.loadAll();
-            return msgs.filter(msg => msg.channelId === channelId);
+            const chats = await chatDB.loadAll();
+            return chats.filter(chat => chat.channelId === channelId);
         },
         [chatDB]
     );
@@ -48,13 +48,14 @@ export const useChatRepository = () => {
     /**
      * 채널의 안읽음 메시지 개수 계산
      * 채널 내 메시지 중 chatNo > 내가 마지막으로 읽은 chatNo)의 합계
+     * TODO 쿼리로 개선필요
      */
     const countUnread = useCallback(
         async (userId: string, channelId: string): Promise<number> => {
             if (!chatDB || !joinDB) return 0;
 
             // 참여 정보 로드 및 내 마지막 읽음 chatNo 획득
-            const joins = await joinDB.loadAll();
+            const joins: JoinView[] = await joinDB.loadAll();
             const myJoin = joins.find(j => j.channelId === channelId && j.userId === userId);
             const myReadNo = myJoin?.chatNo ?? 0;
 
@@ -69,13 +70,13 @@ export const useChatRepository = () => {
 
     /**
      * 앱 전체(여러 채널)의 안읽음 총합 계산
-     * //TODO 개선필요
+     * TODO 쿼리로 개선필요
      */
     const countTotalUnread = useCallback(
         async (userId: string, channelIds: string[]): Promise<number> => {
             if (!chatDB || !joinDB || channelIds.length === 0) return 0;
 
-            // 병렬 로드로 전체 데이터 확보
+            // 전체 참여 정보 및 채팅 데이터 데이터 확보
             const [allJoins, allChats] = await Promise.all([joinDB.loadAll(), chatDB.loadAll()]);
 
             let total = 0;

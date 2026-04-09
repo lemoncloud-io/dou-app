@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react';
-import { createStorageAdapter } from '../local'; // 로컬 스토리지를 제어하는 어댑터 생성 함수
+import { createStorageAdapter } from '../local';
 import { useWebSocketV2Store } from '@chatic/socket';
 import type { CacheChannelView } from '@chatic/app-messages';
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
@@ -10,17 +10,14 @@ import type { JoinView } from '@lemoncloud/chatic-socials-api';
  */
 export const useChannelRepository = () => {
     const cloudId = useWebSocketV2Store(s => s.cloudId) ?? 'default';
-
-    // 채널 정보 스토리지 어댑터
     const channelDB = useMemo(
         () => (cloudId ? createStorageAdapter<CacheChannelView>('channel', cloudId) : null),
         [cloudId]
     );
-
-    // 채널 참여 정보($join) 스토리지 어댑터
     const joinDB = useMemo(() => (cloudId ? createStorageAdapter<JoinView>('join', cloudId) : null), [cloudId]);
+
     /**
-     * 로컬 DB에 저장된 모든 채널 목록을 로드합니다.
+     * 모든 채널 목록을 로드
      */
     const getChannels = useCallback(async (): Promise<CacheChannelView[]> => {
         if (!channelDB) return [];
@@ -28,7 +25,7 @@ export const useChannelRepository = () => {
     }, [channelDB]);
 
     /**
-     * 특정 플레이스(placeId/sid)에 속한 채널들만 필터링하여 로드합니다.
+     * 특정 플레이스(placeId/sid)에 속한 채널들만 필터링하여 로드
      */
     const getChannelsByPlace = useCallback(
         async (placeId: string): Promise<CacheChannelView[]> => {
@@ -40,7 +37,7 @@ export const useChannelRepository = () => {
     );
 
     /**
-     * 특정 ID를 가진 단일 채널 정보를 로드합니다.
+     * 특정 ID를 가진 단일 채널 정보 로드
      */
     const getChannel = useCallback(
         async (id: string): Promise<CacheChannelView | null> => {
@@ -51,7 +48,8 @@ export const useChannelRepository = () => {
     );
 
     /**
-     * 채널 정보를 저장하고, 포함된 $join 정보가 있다면 joinDB에도 동기화합니다.
+     * 채널 정보를 저장
+     * 채널에 포함된 $join 정보가 있다면 joinDB 에도 동기화처리
      */
     const saveChannel = useCallback(
         async (id: string, channel: CacheChannelView): Promise<void> => {
@@ -59,7 +57,7 @@ export const useChannelRepository = () => {
 
             const tasks: Promise<void>[] = [channelDB.save(id, channel)];
 
-            // 관계형 데이터 무결성: $join 정보가 포함된 경우 joinDB에 별도 기록
+            // $join 정보가 포함된 경우 joinDB에 별도 기록하여 업데이트 처리
             if (joinDB && channel.$join?.id) {
                 tasks.push(joinDB.save(channel.$join.id, channel.$join));
             }
@@ -69,8 +67,8 @@ export const useChannelRepository = () => {
     );
 
     /**
-     * 채널 정보를 삭제합니다.
-     * 연관된 join 정보까지 함께 정리하여 고립된 데이터를 방지합니다.
+     * 채널 정보 삭제
+     * 연관된 join 정보까지 함께 정리
      */
     const deleteChannel = useCallback(
         async (id: string): Promise<void> => {
