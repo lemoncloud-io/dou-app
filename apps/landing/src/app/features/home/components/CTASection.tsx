@@ -1,13 +1,10 @@
 import { useTranslation } from 'react-i18next';
 
-import { AppleIcon, PlayStoreIcon, StoreButton, Toast } from '../../../shared/components';
-import { useToast } from '../../../shared/hooks';
+import { AppleIcon, PlayStoreIcon, StoreButton } from '../../../shared/components';
 import { storeUrls } from '../constants';
 
 export const CTASection = (): JSX.Element => {
     const { t } = useTranslation();
-    const toast = useToast();
-
     return (
         <section className="w-full bg-main-green">
             <div
@@ -35,7 +32,7 @@ export const CTASection = (): JSX.Element => {
 
                     <div className="flex flex-col md:flex-row items-center justify-center gap-[10px] animate-fade-in-up animate-delay-200">
                         <StoreButton
-                            onClick={toast.show}
+                            href={storeUrls.ios}
                             icon={<AppleIcon />}
                             label={t('cta.appStore')}
                             width="w-full md:w-[315px]"
@@ -47,13 +44,6 @@ export const CTASection = (): JSX.Element => {
                             width="w-full md:w-[315px]"
                         />
                     </div>
-
-                    <Toast
-                        key={toast.toastKey}
-                        message={t('common.comingSoon')}
-                        visible={toast.visible}
-                        onClose={toast.hide}
-                    />
                 </div>
             </div>
         </section>

@@ -1,14 +1,11 @@
 import { useTranslation } from 'react-i18next';
 
-import { AppleIcon, PlayStoreIcon, StoreButton, Toast } from '../../../shared/components';
-import { useToast } from '../../../shared/hooks';
+import { AppleIcon, PlayStoreIcon, StoreButton } from '../../../shared/components';
 import { storeUrls } from '../constants';
 import { ChatBubbleIllustration } from './ChatBubbleIllustration';
 
 export const HeroSection = (): JSX.Element => {
     const { t } = useTranslation();
-    const toast = useToast();
-
     return (
         <section className="relative w-full min-h-screen bg-main-green overflow-hidden">
             <div
@@ -42,7 +39,7 @@ export const HeroSection = (): JSX.Element => {
 
                         {/* Desktop store buttons */}
                         <div className="hidden md:flex flex-wrap items-center gap-3 justify-start animate-fade-in-up animate-delay-200">
-                            <StoreButton onClick={toast.show} icon={<AppleIcon />} label={t('hero.appStore')} />
+                            <StoreButton href={storeUrls.ios} icon={<AppleIcon />} label={t('hero.appStore')} />
                             <StoreButton
                                 href={storeUrls.android}
                                 icon={<PlayStoreIcon />}
@@ -61,7 +58,7 @@ export const HeroSection = (): JSX.Element => {
             {/* Mobile bottom buttons - absolute within hero, not fixed */}
             <div className="md:hidden absolute bottom-0 left-0 right-0 z-40 px-4 pb-[44px]">
                 <div className="flex gap-[10px]">
-                    <StoreButton onClick={toast.show} icon={<AppleIcon />} label={t('hero.appStore')} fullWidth />
+                    <StoreButton href={storeUrls.ios} icon={<AppleIcon />} label={t('hero.appStore')} fullWidth />
                     <StoreButton
                         href={storeUrls.android}
                         icon={<PlayStoreIcon />}
@@ -70,8 +67,6 @@ export const HeroSection = (): JSX.Element => {
                     />
                 </div>
             </div>
-
-            <Toast key={toast.toastKey} message={t('common.comingSoon')} visible={toast.visible} onClose={toast.hide} />
         </section>
     );
 };
