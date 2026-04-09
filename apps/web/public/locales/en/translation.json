@@ -260,6 +260,7 @@
             "statusActive": "Active",
             "statusCanceled": "Canceled",
             "statusExpired": "Expired",
+            "statusExpired": "Expired",
             "expired": "This subscription has expired",
             "restore": "Restore",
             "restoreSuccess": "{{count}} purchase(s) restored",
@@ -292,6 +293,7 @@
             "deleteConfirmDesc": "{{name}} will be permanently deleted.",
             "deleteSuccess": "Account deleted",
             "deleteFailed": "Failed to delete account",
+            "deleteSelectedCloudWarning": "This is your current account. The app will refresh after deletion.",
             "subscriptionActive": "subscription active"
         },
         "policy": {
@@ -381,6 +383,7 @@
         "deleteConfirmDesc": "{{name}} will be permanently deleted.",
         "deleteSuccess": "Account deleted",
         "deleteFailed": "Failed to delete account",
+        "deleteSelectedCloudWarning": "This is your current account. The app will refresh after deletion.",
         "leave": "Leave",
         "deleteDialog": {
             "title": "Delete Place",
@@ -552,7 +555,8 @@
             "deleteConfirmTitle": "Delete account?",
             "deleteConfirmDesc": "{{name}} will be permanently deleted.",
             "deleteSuccess": "Account deleted",
-            "deleteFailed": "Failed to delete account"
+            "deleteFailed": "Failed to delete account",
+            "deleteSelectedCloudWarning": "This is your current account. The app will refresh after deletion."
         },
         "detail": {
             "private": "Private",

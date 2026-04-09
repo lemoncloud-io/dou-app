@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useQueryClient } from '@tanstack/react-query';
@@ -231,6 +231,10 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const [tab, setTab] = useState<Tab>('my');
 
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
+
+    useEffect(() => {
+        if (open) refetchClouds();
+    }, [open]);
 
     const handleAddAccount = () => {
         if (clouds.length >= 1) {

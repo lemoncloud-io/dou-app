@@ -32,6 +32,7 @@ export const SubscriptionPage = () => {
 
     const isActive = membership?.isValid === true;
     const isCanceled = membership?.status === 'canceled';
+    const isExpired = membership?.status === 'expired';
     const hasPendingChange = !!membership?.pendingProductId;
 
     const handleViewPlans = () => {
@@ -72,7 +73,7 @@ export const SubscriptionPage = () => {
                     <div className="flex items-center justify-center pt-20">
                         <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
                     </div>
-                ) : isActive ? (
+                ) : isActive || isExpired ? (
                     <>
                         {/* Current Subscription */}
                         <div className="flex flex-col gap-1">
@@ -81,7 +82,7 @@ export const SubscriptionPage = () => {
                             </span>
 
                             <div
-                                className={`rounded-[20px] border-2 bg-card p-1.5 shadow-[0px_2px_14px_0px_rgba(0,0,0,0.08)] ${isCanceled ? 'border-yellow-400' : 'border-[#B0EA10]'}`}
+                                className={`rounded-[20px] border-2 bg-card p-1.5 shadow-[0px_2px_14px_0px_rgba(0,0,0,0.08)] ${isCanceled ? 'border-yellow-400' : isExpired ? 'border-gray-300' : 'border-[#B0EA10]'}`}
                             >
                                 {/* Plan Info */}
                                 <div className="flex items-center justify-between gap-2 px-4 py-3">
@@ -127,11 +128,13 @@ export const SubscriptionPage = () => {
                                             {t('mypage.subscription.status')}
                                         </span>
                                         <span
-                                            className={`text-[16px] font-medium ${isCanceled ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}
+                                            className={`text-[16px] font-medium ${isCanceled ? 'text-yellow-600 dark:text-yellow-400' : isExpired ? 'text-gray-400' : 'text-green-600 dark:text-green-400'}`}
                                         >
                                             {isCanceled
                                                 ? t('mypage.subscription.statusCanceled')
-                                                : t('mypage.subscription.statusActive')}
+                                                : isExpired
+                                                  ? t('mypage.subscription.statusExpired')
+                                                  : t('mypage.subscription.statusActive')}
                                         </span>
                                     </div>
                                     {membership?.status$?.renewal && (

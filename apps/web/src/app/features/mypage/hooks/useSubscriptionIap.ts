@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
 import { useValidateApple, useValidateGoogle, useValidateMembership, subscriptionKeys } from '@chatic/subscriptions';
+import { cloudsKeys } from '@chatic/users';
 
 import type { AppMessageData, IapProductSubscription } from '@chatic/app-messages';
 
@@ -17,6 +18,12 @@ interface NativePurchase {
     platform: string;
     purchaseToken?: string | null;
     expirationDateIOS?: number | null;
+}
+
+export interface PurchaseProduct {
+    id: string;
+    newPlanId?: string;
+    offerToken?: string;
 }
 
 type PurchaseResult = NativePurchase;
@@ -80,11 +87,7 @@ export const useSubscriptionIap = () => {
 
     /** 스토어 구매 요청 → Promise */
     const purchase = useCallback(
-        (product: {
-            id: string;
-            newPlanId?: string;
-            androidOfferToken?: { base?: string };
-        }): Promise<PurchaseResult> => {
+        (product: PurchaseProduct): Promise<PurchaseResult> => {
             return new Promise((resolve, reject) => {
                 purchaseResolverRef.current = { resolve, reject };
                 const id = product.id;
@@ -100,7 +103,7 @@ export const useSubscriptionIap = () => {
                     type: 'Purchase',
                     data: {
                         id,
-                        ...(!isIOS && { offerToken: product.androidOfferToken?.base, newPlanId: product.newPlanId }),
+                        ...(!isIOS && { offerToken: product.offerToken, newPlanId: product.newPlanId }),
                     },
                 });
 
@@ -198,12 +201,15 @@ export const useSubscriptionIap = () => {
 
     /** 구매 → 검증 → 트랜잭션 완료 (한방) */
     const purchaseAndValidate = useCallback(
-        async (product: { id: string; newPlanId?: string; androidOfferToken?: { base?: string } }, email?: string) => {
+        async (product: PurchaseProduct, email?: string) => {
             const result = await purchase(product);
             await validate(result, email);
             await finishTransaction(result);
             postMessage({ type: 'FetchCurrentPurchases' });
+
+            await new Promise(resolve => setTimeout(resolve, 1500));
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
+            await queryClient.invalidateQueries({ queryKey: cloudsKeys.all });
         },
         [purchase, validate, finishTransaction]
     );

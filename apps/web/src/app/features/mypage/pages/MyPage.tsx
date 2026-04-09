@@ -19,6 +19,7 @@ export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
     const isGuest = useWebCoreStore(s => s.isGuest);
+    const isCloudUser = useWebCoreStore(s => s.isCloudUser);
 
     const profile = useWebCoreStore(s => s.profile);
     const { mutate: logout } = useLogout();
@@ -92,7 +93,7 @@ export const MyPage = () => {
         <div className="flex min-h-screen flex-col bg-background pb-32 pt-4">
             {/* Profile Section */}
             <div className="px-5 pb-3 pt-safe-top">
-                {isGuest ? (
+                {!isCloudUser ? (
                     <button onClick={() => navigate('/mypage/login')} className="flex flex-col gap-1.5 text-left">
                         <div className="flex items-center gap-1">
                             <span className="text-[17px] font-semibold tracking-[-0.025em] text-foreground">
@@ -259,7 +260,7 @@ export const MyPage = () => {
                 </div>
 
                 {/* Logout Card - Logged in only */}
-                {!isGuest && (
+                {!isGuest && !isCloudUser && (
                     <div className="rounded-[18px] bg-card px-0.5 py-1.5 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => setIsLogoutDialogOpen(true)}

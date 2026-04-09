@@ -13,6 +13,7 @@ import { useSubscriptionIap } from '../../mypage/hooks/useSubscriptionIap';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 import type { IapProductSubscription } from '@chatic/app-messages';
+import type { PurchaseProduct } from '../../mypage/hooks/useSubscriptionIap';
 
 enum PageState {
     Idle = 'idle',
@@ -22,9 +23,13 @@ enum PageState {
 
 const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
 const POLICY_BASE_URL = IS_DEV ? 'https://app-dev.chatic.io' : 'https://app.chatic.io';
+// TODO: 추후 서버에서 노출할 상품 목록을 관리하는 방식으로 변경 예정
+const ALLOWED_PRODUCT_ID = IS_DEV ? '#pro_tier_01_dev' : '#pro_tier_01';
 
-const buildPurchaseProduct = (matched: IapProductSubscription, isIOS: boolean) =>
-    isIOS
+const buildPurchaseProduct = (matched: IapProductSubscription, isIOS: boolean): PurchaseProduct | null => {
+    const offerToken = matched.androidOfferToken?.freeTrial ?? matched.androidOfferToken?.base ?? undefined;
+    if (!isIOS && !offerToken) return null;
+    return isIOS
         ? {
               id: matched.id,
               ...(matched.basePlanId && { newPlanId: matched.basePlanId }),
@@ -32,10 +37,9 @@ const buildPurchaseProduct = (matched: IapProductSubscription, isIOS: boolean) =
         : {
               id: matched.id,
               ...(matched.basePlanId && { newPlanId: matched.basePlanId }),
-              ...(matched.androidOfferToken?.base && {
-                  androidOfferToken: { base: matched.androidOfferToken.base },
-              }),
+              ...(offerToken && { offerToken }),
           };
+};
 
 interface SubscriptionSelectDialogProps {
     open: boolean;
@@ -58,7 +62,7 @@ export const SubscriptionSelectDialog = ({
     const { data: plansData, isLoading: isPlansLoading } = useProductPlans(
         platform ? { platform, limit: -1 } : { limit: -1 }
     );
-    const plans = plansData?.list ?? [];
+    const plans = (plansData?.list ?? []).filter(p => p.id === ALLOWED_PRODUCT_ID);
 
     const [selectedProduct, setSelectedProduct] = useState<ProductView | null>(null);
     const [matchedNativeProduct, setMatchedNativeProduct] = useState<IapProductSubscription | null>(null);
@@ -98,9 +102,14 @@ export const SubscriptionSelectDialog = ({
 
     const handleVerified = async (email: string) => {
         if (!selectedProduct || !matchedNativeProduct) return;
+        const product = buildPurchaseProduct(matchedNativeProduct, isIOS);
+        if (!product) {
+            onError?.(new Error('offerToken is required for Android'));
+            return;
+        }
         setPageState(PageState.Purchasing);
         try {
-            await purchaseAndValidate(buildPurchaseProduct(matchedNativeProduct, isIOS), email);
+            await purchaseAndValidate(product, email);
             onComplete?.();
             handleClose();
         } catch (e) {

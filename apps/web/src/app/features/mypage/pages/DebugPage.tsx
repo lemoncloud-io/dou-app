@@ -1,9 +1,10 @@
-import { ChevronLeft, ChevronRight, Mail, XCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, Mail, XCircle } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useDeviceInfo } from '@chatic/device-utils';
+import { useLogout } from '@chatic/web-core';
 
 import { DEBUG_STORAGE_KEY } from '../consts';
 
@@ -11,6 +12,7 @@ export const DebugPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { versionInfo } = useDeviceInfo();
+    const { mutate: logout } = useLogout();
 
     useEffect(() => {
         if (sessionStorage.getItem(DEBUG_STORAGE_KEY) !== 'true') {
@@ -52,6 +54,16 @@ export const DebugPage = () => {
                                 </span>
                             </div>
                             <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                        <div className="mx-4 border-t border-border" />
+                        <button
+                            onClick={() => logout()}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <LogOut size={18} className="text-destructive" />
+                                <span className="text-[15px] font-medium text-destructive">Logout</span>
+                            </div>
                         </button>
                     </div>
                 </div>

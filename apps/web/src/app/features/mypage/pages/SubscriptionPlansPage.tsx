@@ -21,6 +21,7 @@ import { useClouds } from '@chatic/users';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 import type { IapProductSubscription } from '@chatic/app-messages';
+import type { PurchaseProduct } from '../hooks/useSubscriptionIap';
 
 enum PageState {
     Idle = 'idle',
@@ -31,6 +32,8 @@ enum PageState {
 const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
 const APP_ID = IS_DEV ? 'io.chatic.dou.dev' : 'io.chatic.dou';
 const POLICY_BASE_URL = IS_DEV ? 'https://app-dev.chatic.io' : 'https://app.chatic.io';
+// TODO: 추후 서버에서 노출할 상품 목록을 관리하는 방식으로 변경 예정
+const ALLOWED_PRODUCT_ID = IS_DEV ? '#pro_tier_01_dev' : '#pro_tier_01';
 
 export const SubscriptionPlansPage = () => {
     const navigate = useNavigateWithTransition();
@@ -45,7 +48,7 @@ export const SubscriptionPlansPage = () => {
     const { data: plansData, isLoading: isPlansLoading } = useProductPlans(
         platform ? { platform, limit: -1 } : { limit: -1 }
     );
-    const products = plansData?.list ?? [];
+    const products = (plansData?.list ?? []).filter(p => p.id === ALLOWED_PRODUCT_ID);
 
     const [selectedProduct, setSelectedProduct] = useState<ProductView | null>(null);
     const [matchedNativeProduct, setMatchedNativeProduct] = useState<IapProductSubscription | null>(null);
@@ -109,23 +112,24 @@ export const SubscriptionPlansPage = () => {
 
     const handleVerified = async (email: string) => {
         if (!matchedNativeProduct) return;
+        const offerToken =
+            matchedNativeProduct.androidOfferToken?.freeTrial ?? matchedNativeProduct.androidOfferToken?.base;
+        if (!isIOS && !offerToken) {
+            toast({
+                title: t('mypage.subscription.purchaseFailed'),
+                description: 'offerToken is required for Android',
+                variant: 'destructive',
+            });
+            return;
+        }
         setPageState(PageState.Purchasing);
+        const product: PurchaseProduct = {
+            id: matchedNativeProduct.id,
+            ...(matchedNativeProduct.basePlanId && { newPlanId: matchedNativeProduct.basePlanId }),
+            ...(!isIOS && offerToken && { offerToken }),
+        };
         try {
-            await purchaseAndValidate(
-                isIOS
-                    ? {
-                          id: matchedNativeProduct.id,
-                          ...(matchedNativeProduct.basePlanId && { newPlanId: matchedNativeProduct.basePlanId }),
-                      }
-                    : {
-                          id: matchedNativeProduct.id,
-                          ...(matchedNativeProduct.basePlanId && { newPlanId: matchedNativeProduct.basePlanId }),
-                          ...(matchedNativeProduct.androidOfferToken?.base && {
-                              androidOfferToken: { base: matchedNativeProduct.androidOfferToken.base },
-                          }),
-                      },
-                email
-            );
+            await purchaseAndValidate(product, email);
             toast({ title: t('mypage.subscription.purchaseSuccess') });
             await new Promise(resolve => setTimeout(resolve, 1500));
             navigate(-1);

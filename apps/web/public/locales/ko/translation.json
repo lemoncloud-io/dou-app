@@ -292,6 +292,7 @@
             "deleteConfirmDesc": "{{name}} 계정이 영구적으로 삭제됩니다.",
             "deleteSuccess": "계정이 삭제되었어요",
             "deleteFailed": "계정 삭제에 실패했어요",
+            "deleteSelectedCloudWarning": "현재 선택 중인 계정입니다. 삭제 시 앱이 새로고침됩니다.",
             "subscriptionActive": "상품 이용 중"
         },
         "policy": {
@@ -381,6 +382,7 @@
         "deleteConfirmDesc": "{{name}} 계정이 영구적으로 삭제됩니다.",
         "deleteSuccess": "계정이 삭제되었어요",
         "deleteFailed": "계정 삭제에 실패했어요",
+        "deleteSelectedCloudWarning": "현재 선택 중인 계정입니다. 삭제 시 앱이 새로고침됩니다.",
         "leave": "나가기",
         "deleteDialog": {
             "title": "플레이스 삭제",
@@ -552,7 +554,8 @@
             "deleteConfirmTitle": "계정을 삭제할까요?",
             "deleteConfirmDesc": "{{name}} 계정이 영구적으로 삭제됩니다.",
             "deleteSuccess": "계정이 삭제되었어요",
-            "deleteFailed": "계정 삭제에 실패했어요"
+            "deleteFailed": "계정 삭제에 실패했어요",
+            "deleteSelectedCloudWarning": "현재 선택 중인 계정입니다. 삭제 시 앱이 새로고침됩니다."
         },
         "detail": {
             "private": "비공개",

@@ -28,6 +28,7 @@ export const AccountManagePage = () => {
 
     const handleDeleteConfirm = async () => {
         if (!confirmCloud?.id) return;
+        const isDeletingSelectedCloud = confirmCloud.id === selectedCloudId;
         setDeletingId(confirmCloud.id);
         setConfirmCloud(null);
         try {
@@ -37,8 +38,11 @@ export const AccountManagePage = () => {
                 list: old?.list?.filter((c: any) => c.id !== confirmCloud.id) ?? [],
                 total: (old?.total ?? 1) - 1,
             }));
-
             toast({ title: t('mypage.accountManage.deleteSuccess') });
+            if (isDeletingSelectedCloud) {
+                cloudCore.clearSession();
+                window.location.href = '/auth/login';
+            }
         } catch {
             toast({ title: t('mypage.accountManage.deleteFailed'), variant: 'destructive' });
         } finally {
@@ -84,7 +88,7 @@ export const AccountManagePage = () => {
                                     {/* 계정 삭제 */}
                                     <button
                                         onClick={() => setConfirmCloud(cloud)}
-                                        disabled={cloud.id === selectedCloudId || cloud.id === deletingId}
+                                        disabled={cloud.id === deletingId}
                                         className="flex-shrink-0 disabled:opacity-30"
                                     >
                                         {deletingId === cloud.id ? (
@@ -125,6 +129,11 @@ export const AccountManagePage = () => {
                                 name: confirmCloud.name ?? confirmCloud.email,
                             })}
                         </p>
+                        {confirmCloud.id === selectedCloudId && (
+                            <p className="mt-2 text-center text-[13px] font-medium text-destructive">
+                                {t('mypage.accountManage.deleteSelectedCloudWarning')}
+                            </p>
+                        )}
                         <div className="mt-5 flex gap-3">
                             <button
                                 onClick={() => setConfirmCloud(null)}
