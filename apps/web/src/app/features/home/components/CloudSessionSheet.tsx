@@ -53,28 +53,23 @@ const getCloudDisplayName = (cloud: CloudView): string => {
 const CloudStatusBadge = ({ status }: { status: CloudView['status'] }) => {
     const { t } = useTranslation();
 
-    if (status === 'active') {
-        return (
-            <div className="flex items-center gap-1 rounded-[5px] bg-secondary px-[6px] py-1">
-                <span className="text-[14px] font-medium leading-[1.19] text-[#2A7EF4]">
-                    {t('cloudSessionSheet.statusActive')}
-                </span>
-                <Check size={16} className="text-[#2A7EF4]" strokeWidth={1.5} />
-            </div>
-        );
-    }
+    const configs: Partial<Record<NonNullable<CloudView['status']>, { label: string; className: string }>> = {
+        active: { label: t('cloudSessionSheet.statusActive'), className: 'text-[#2A7EF4]' },
+        reserved: { label: t('cloudSessionSheet.statusReserved'), className: 'text-label' },
+        suspended: { label: t('cloudSessionSheet.statusSuspended'), className: 'text-yellow-600 dark:text-yellow-400' },
+        expired: { label: t('cloudSessionSheet.statusExpired'), className: 'text-gray-400' },
+        error: { label: t('cloudSessionSheet.statusError'), className: 'text-red-500' },
+    };
 
-    if (status === 'pending') {
-        return (
-            <div className="flex items-center rounded-[5px] bg-secondary px-[6px] py-1">
-                <span className="text-[14px] font-medium leading-[1.19] text-label">
-                    {t('cloudSessionSheet.statusPending')}
-                </span>
-            </div>
-        );
-    }
+    const config = status ? configs[status] : null;
+    if (!config) return null;
 
-    return null;
+    return (
+        <div className="flex items-center gap-1 rounded-[5px] bg-secondary px-[6px] py-1">
+            <span className={`text-[14px] font-medium leading-[1.19] ${config.className}`}>{config.label}</span>
+            {status === 'active' && <Check size={16} className="text-[#2A7EF4]" strokeWidth={1.5} />}
+        </div>
+    );
 };
 
 interface CloudItemProps {
@@ -88,7 +83,8 @@ interface CloudItemProps {
 const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick }: CloudItemProps) => {
     const { t } = useTranslation();
     const isError = cloud.status === 'error';
-    const disabled = isDisabled || isSelected || cloud.status === 'pending' || isError;
+    const isActive = cloud.status === 'active';
+    const disabled = isDisabled || isSelected || !isActive;
     const displayName = getCloudDisplayName(cloud);
     const hasName = !!displayName;
 
@@ -101,11 +97,11 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick 
                 }
                 if (!disabled && cloud.id) onSelectCloud(cloud.id);
             }}
-            disabled={isDisabled || cloud.status === 'pending'}
+            disabled={isDisabled || !isActive}
             className={cn('flex w-full items-center gap-[5px]', disabled && !isSelected && 'cursor-not-allowed')}
         >
             <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center">
-                {cloud.status === 'pending' ? (
+                {cloud.status === 'reserved' || cloud.status === 'init' ? (
                     <Loader2 size={18} className="animate-spin text-[#9FA2A7]" />
                 ) : isError ? (
                     <AlertCircle size={20} className="text-red-500" />
