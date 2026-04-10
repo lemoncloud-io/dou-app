@@ -1,6 +1,6 @@
-# @chatic/data
+# @chatic/socket-data
 
-`@chatic/data`는 WebSocket을 통한 실시간 서버 동기화, IndexedDB를 활용한 로컬 캐싱, 그리고 멀티 탭 간의 데이터 동기화를 UI 계층으로부터 완전히 분리하여 관리합니다.
+`@chatic/socket-data`는 WebSocket을 통한 실시간 서버 동기화, IndexedDB를 활용한 로컬 캐싱, 그리고 멀티 탭 간의 데이터 동기화를 UI 계층으로부터 완전히 분리하여 관리합니다.
 
 ## 디렉토리 구조 (Directory Structure)
 
@@ -24,7 +24,7 @@ libs/data/src/
 애플리케이션 최상단(`App.tsx`)에서 동기화 엔진을 가동합니다. 이 훅은 소켓 라우터와 탭 간 브릿지를 활성화합니다.
 
 ```tsx
-import { useDataSync } from '@chatic/data';
+import { useDataSync } from '@chatic/socket-data';
 
 const App = () => {
     useDataSync();
@@ -41,7 +41,7 @@ const App = () => {
 모든 조회용 훅은 로컬 데이터를 우선 반환하고 백그라운드에서 서버와 동기화(`sync`)를 수행합니다.
 
 ```tsx
-import { useChats } from '@chatic/data';
+import { useChats } from '@chatic/socket-data';
 
 const ChatRoom = ({ channelId }) => {
     // 최신 상태를 기억하므로 page나 limit을 변경해도 안전하게 유지됩니다.
@@ -66,7 +66,7 @@ const ChatRoom = ({ channelId }) => {
 수정 요청은 `Promise`를 반환하며, 성공 시에만 후속 UI 로직을 실행할 수 있습니다.
 
 ```tsx
-import { useChatMutations } from '@chatic/data';
+import { useChatMutations } from '@chatic/socket-data';
 
 const ChatInput = ({ channelId }) => {
     const { sendMessage, isPending } = useChatMutations(channelId);
@@ -86,7 +86,7 @@ const ChatInput = ({ channelId }) => {
 
 ## 데이터 흐름 및 통신 방식 (Data Flow & Communication)
 
-`@chatic/data`는 **이벤트 기반 비동기 데이터 흐름**을 지향합니다. UI 컴포넌트, 서버(WebSocket), 그리고 로컬 DB(IndexedDB) 간의 통신은 직접적인 참조 대신 **통합 이벤트 버스**를 통해 느슨하게 연결됩니다.
+`@chatic/socket-data`는 **이벤트 기반 비동기 데이터 흐름**을 지향합니다. UI 컴포넌트, 서버(WebSocket), 그리고 로컬 DB(IndexedDB) 간의 통신은 직접적인 참조 대신 **통합 이벤트 버스**를 통해 느슨하게 연결됩니다.
 
 ### 1. 계층별 통신 메커니즘
 
@@ -133,7 +133,7 @@ const ChatInput = ({ channelId }) => {
 
 ### 역할 분담 및 확장 원칙 (Scope & Responsibility)
 
-`@chatic/data`는 **"데이터의 공급과 동기화"** 라는 본질적인 기능에만 집중합니다. 따라서 다음과 같은 원칙을 준수해야 합니다.
+`@chatic/socket-data`는 **"데이터의 공급과 동기화"** 라는 본질적인 기능에만 집중합니다. 따라서 다음과 같은 원칙을 준수해야 합니다.
 
 - **DB 및 네트워크 전담**: 이 라이브러리는 오직 원격 서버와의 통신과 로컬 DB의 무결성만을 관리합니다.
 - **일반적 유즈케이스의 분리**: 도메인별 복합적인 비즈니스 로직이나 특정 화면에 특화된 유즈케이스(예: 특정 조건의 메시지 필터링 루틴, 복합 로직 기반 알림 처리 등)는 **이 라이브러리의 훅을 기반으로 실제 사용처(Web/App)에서 정의**해야 합니다.
