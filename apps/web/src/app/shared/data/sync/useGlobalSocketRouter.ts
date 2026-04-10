@@ -36,10 +36,6 @@ export const useGlobalSocketRouter = () => {
             const envelope = rawMessage as WSSEnvelope;
             if (!envelope || !envelope.type) return;
 
-            if (__DEV__) {
-                console.log(`[Socket Router] Received Envelope:`, envelope);
-            }
-
             const cloudId = useWebSocketV2Store.getState().cloudId;
             if (!cloudId) return;
 

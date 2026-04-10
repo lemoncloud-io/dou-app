@@ -79,7 +79,6 @@ export const chatHandler = async (
 
         case 'mine': {
             const channelList = payload?.list || [];
-            await channelRepo.clearChannelsByPlace(placeId);
             if (channelList.length > 0) {
                 await Promise.all(
                     channelList.map((ch: any) =>
