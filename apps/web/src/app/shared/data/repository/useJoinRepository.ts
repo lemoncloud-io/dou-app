@@ -1,14 +1,12 @@
 import { useCallback, useMemo } from 'react';
 import { createStorageAdapter } from '../local';
-import { useWebSocketV2Store } from '@chatic/socket';
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
 
 /**
  * 채널 참여 정보(Join)의 로컬 영속성을 관리하는 리포지토리
  * 서버와의 연동 없이 로컬 DB(IndexedDB 등)와의 직접적인 입출력을 전담
  */
-export const useJoinRepository = () => {
-    const cloudId = useWebSocketV2Store(s => s.cloudId) ?? 'default';
+export const useJoinRepository = (cloudId: string) => {
     const joinDB = useMemo(() => (cloudId ? createStorageAdapter<JoinView>('join', cloudId) : null), [cloudId]);
 
     const getJoins = useCallback(async (): Promise<JoinView[]> => {

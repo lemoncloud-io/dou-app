@@ -1,6 +1,5 @@
 import { useMemo, useCallback } from 'react';
 import { createStorageAdapter } from '../local';
-import { useWebSocketV2Store } from '@chatic/socket';
 import type { CacheChannelView } from '@chatic/app-messages';
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
 
@@ -8,8 +7,7 @@ import type { JoinView } from '@lemoncloud/chatic-socials-api';
  * 채널 데이터의 영속성(Persistence)을 관리하는 리포지토리 훅
  * 로컬 DB(IndexedDB 등)와의 직접적인 CRUD 작업을 담당
  */
-export const useChannelRepository = () => {
-    const cloudId = useWebSocketV2Store(s => s.cloudId) ?? 'default';
+export const useChannelRepository = (cloudId: string) => {
     const channelDB = useMemo(
         () => (cloudId ? createStorageAdapter<CacheChannelView>('channel', cloudId) : null),
         [cloudId]

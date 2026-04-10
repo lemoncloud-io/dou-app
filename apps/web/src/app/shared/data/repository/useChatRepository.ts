@@ -1,14 +1,12 @@
 import { useMemo, useCallback } from 'react';
 import { createStorageAdapter } from '../local';
-import { useWebSocketV2Store } from '@chatic/socket';
 import type { ChatView } from '@lemoncloud/chatic-socials-api';
 
 /**
  * 채팅 메시지 및 참여 상태(ReadNo 등)의 영속성을 관리하는 리포지토리
  * 서버와의 연동 없이 로컬 DB(IndexedDB 등)와의 직접적인 입출력을 전담
  */
-export const useChatRepository = () => {
-    const cloudId = useWebSocketV2Store(s => s.cloudId) ?? 'default';
+export const useChatRepository = (cloudId: string) => {
     const chatDB = useMemo(() => (cloudId ? createStorageAdapter<ChatView>('chat', cloudId) : null), [cloudId]);
 
     const getChats = useCallback(async (): Promise<ChatView[]> => {

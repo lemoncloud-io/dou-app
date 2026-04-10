@@ -1,14 +1,12 @@
 import { useCallback, useMemo } from 'react';
 import { createStorageAdapter } from '../local'; // 경로 확인 필요
-import { useWebSocketV2Store } from '@chatic/socket';
 import type { CacheSiteView } from '@chatic/app-messages';
 
 /**
  * 플레이스(Site) 데이터 관리 레퍼지토리
  * 서버와의 연동 없이 로컬 DB(IndexedDB 등)와의 직접적인 입출력을 전담
  */
-export const usePlaceRepository = () => {
-    const cloudId = useWebSocketV2Store(s => s.cloudId) ?? 'default';
+export const usePlaceRepository = (cloudId: string) => {
     const placeDB = useMemo(() => (cloudId ? createStorageAdapter<CacheSiteView>('site', cloudId) : null), [cloudId]);
 
     /**
