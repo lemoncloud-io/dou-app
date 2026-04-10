@@ -6,21 +6,21 @@ import { I18nextProvider } from 'react-i18next';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster as SonnerToaster } from 'sonner';
 
-import { ErrorFallback, GlobalLoader, LoadingFallback, VersionUpdateBanner, useVersionCheck } from '@chatic/shared';
+import { ErrorFallback, GlobalLoader, LoadingFallback, useVersionCheck, VersionUpdateBanner } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
 import { initializeMessageListener } from '@chatic/app-messages';
 
-import { WebSocketV2Connection, ServiceUnavailableOverlay } from './components';
+import { ServiceUnavailableOverlay, WebSocketV2Connection } from './components';
 import { Router } from './routes';
 import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
 import { useAutoSelectCloud } from './shared/hooks/useCloudSession';
 import { useForegroundTokenRefresh } from './shared/hooks/useForegroundTokenRefresh';
 import i18n from '../i18n';
+import { useGlobalSocketRouter } from './shared/data/sync';
 
 import type { ErrorInfo } from 'react';
-import { useGlobalCacheSync } from './shared/data/sync';
 
 const mutationCache = new MutationCache({
     onError: (error: Error): void => {
@@ -57,7 +57,7 @@ export function App() {
         isWebCoreReady && (!isAuthenticated || (isTokenInitialized && (!!profile || initStatus === 'failed')));
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
-    useGlobalCacheSync();
+    useGlobalSocketRouter();
 
     useEffect(() => {
         const cleanup = initializeMessageListener();

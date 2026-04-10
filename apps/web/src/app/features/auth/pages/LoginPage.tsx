@@ -15,7 +15,8 @@ import { useRegisterDevice } from '@chatic/auth';
 import type { LoginInviteResponse } from '@chatic/web-core';
 import type { JSX } from 'react';
 import { useDynamicDeviceId } from '../../../shared/hooks/useDynamicDeviceId';
-import { inviteCloudRepository } from '../../../shared/repository';
+import { useWebSocketV2Store } from '@chatic/socket';
+import { useInviteRepository } from '../../../shared/data';
 
 export const LoginPage = (): JSX.Element => {
     const { t } = useTranslation();
@@ -29,6 +30,8 @@ export const LoginPage = (): JSX.Element => {
     const loginCalled = useRef(false);
     const { mutateAsync: registerDevice, isPending: isRegisteringDevice } = useRegisterDevice();
     const { deviceId, isReady } = useDynamicDeviceId();
+    const cloudId = useWebSocketV2Store().cloudId;
+    const inviteCloudRepository = useInviteRepository(cloudId);
 
     const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
@@ -111,8 +114,7 @@ export const LoginPage = (): JSX.Element => {
             if (data.id) {
                 const { isOnMobileApp } = getMobileAppInfo();
                 if (isOnMobileApp) {
-                    const repo = inviteCloudRepository();
-                    await repo.save(data.id, {
+                    await inviteCloudRepository.saveInvite(data.id, {
                         id: data.id,
                         name: data.name,
                         backend: backend ?? undefined,

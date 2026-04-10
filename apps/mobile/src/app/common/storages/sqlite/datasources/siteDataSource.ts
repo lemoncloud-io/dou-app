@@ -1,6 +1,6 @@
-import type { SiteView } from '@lemoncloud/chatic-backend-api';
 import type { ScopedCacheDataSource } from './factory';
 import { createScopedDataSource } from './factory';
 import { TABLES } from '../core';
+import type { CacheSiteView } from '@chatic/app-messages';
 
-export const siteDataSource: ScopedCacheDataSource<SiteView> = createScopedDataSource<SiteView>(TABLES.SITES);
+export const siteDataSource: ScopedCacheDataSource<CacheSiteView> = createScopedDataSource<CacheSiteView>(TABLES.SITES);
