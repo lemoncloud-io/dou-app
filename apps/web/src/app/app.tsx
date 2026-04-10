@@ -93,7 +93,7 @@ export function App() {
                             <ThemeProvider>
                                 <AutoSelectCloud />
                                 <ForegroundTokenRefresh refreshToken={refreshToken} />
-                                <WebSocketV2Connection />
+                                {isAuthenticated && <WebSocketV2Connection />}
                                 <ServiceUnavailableOverlay />
                                 <DeviceTokenRegistration />
                                 <Router />

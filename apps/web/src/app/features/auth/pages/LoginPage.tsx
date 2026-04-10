@@ -23,10 +23,8 @@ export const LoginPage = (): JSX.Element => {
     const { setIsAuthenticated, setProfile } = useWebCoreStore();
     const { toast } = useToast();
     const [isInviteLogin, setIsInviteLogin] = useState(false);
-    const [inviteData, setInviteData] = useState<LoginInviteResponse | null>(null);
     const [siteInfo, setSiteInfo] = useState<{ id: string; name: string } | null>(null);
     const [isAccepting, setIsAccepting] = useState(false);
-    const [isFetchingInvite, setIsFetchingInvite] = useState(false);
     const [inviteError, setInviteError] = useState(false);
     const loginCalled = useRef(false);
     const { mutateAsync: registerDevice, isPending: isRegisteringDevice } = useRegisterDevice();
@@ -34,22 +32,17 @@ export const LoginPage = (): JSX.Element => {
 
     const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
-    const fetchInvite = useCallback(async () => {
+    const fetchInvite = useCallback(async (): Promise<LoginInviteResponse | null> => {
         const code = urlParams.get('code');
         const backend = urlParams.get('_backend') ?? undefined;
-        if (!code) return;
-
-        setInviteError(false);
-        setIsFetchingInvite(true);
+        if (!code) return null;
         try {
-            const data = await loginWithInviteCode(code, backend);
-            setInviteData(data);
+            return await loginWithInviteCode(code, backend);
         } catch (error) {
             console.error('[LoginPage] Fetch invite data failed:', error);
             toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
             setInviteError(true);
-        } finally {
-            setIsFetchingInvite(false);
+            return null;
         }
     }, [urlParams, toast, t]);
     const handleDeviceRegistration = useCallback(async () => {
@@ -83,8 +76,6 @@ export const LoginPage = (): JSX.Element => {
             const siteName = urlParams.get('_siteName');
             if (siteId && siteName) {
                 setSiteInfo({ id: siteId, name: siteName });
-            } else {
-                setInviteError(true);
             }
         } else {
             handleDeviceRegistration();
@@ -96,17 +87,8 @@ export const LoginPage = (): JSX.Element => {
         setIsAccepting(true);
 
         try {
-            // siteInfo만 있는 경우(파라미터로 온 경우) fetchInvite 먼저 실행
-            let data = inviteData;
-            if (!data && siteInfo) {
-                const code = urlParams.get('code');
-                const backend = urlParams.get('_backend') ?? undefined;
-                if (!code) throw new Error('No invite code');
-                data = await loginWithInviteCode(code, backend);
-                setInviteData(data);
-            }
-
-            if (!data) throw new Error('No invite data');
+            const data = await fetchInvite();
+            if (!data) return;
 
             const identityToken = data.Token?.identityToken;
             if (!identityToken) throw new Error('No identityToken');
@@ -156,11 +138,6 @@ export const LoginPage = (): JSX.Element => {
             setIsAccepting(false);
         }
     };
-
-    // Show loading while fetching invite data
-    if (isInviteLogin && isFetchingInvite) {
-        return <LoadingFallback message={t('auth.inviteLoading')} />;
-    }
 
     // Show invite error with retry
     if (isInviteLogin && inviteError) {
