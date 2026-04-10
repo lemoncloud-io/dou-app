@@ -18,8 +18,7 @@ import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistrati
 import { useAutoSelectCloud } from './shared/hooks/useCloudSession';
 import { useForegroundTokenRefresh } from './shared/hooks/useForegroundTokenRefresh';
 import i18n from '../i18n';
-import { useGlobalSocketRouter } from './shared/data/sync';
-
+import { useGlobalSocketRouter, useBroadcastBridge } from './shared/data';
 import type { ErrorInfo } from 'react';
 
 const mutationCache = new MutationCache({
@@ -58,6 +57,7 @@ export function App() {
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
     useGlobalSocketRouter();
+    useBroadcastBridge();
 
     useEffect(() => {
         const cleanup = initializeMessageListener();
