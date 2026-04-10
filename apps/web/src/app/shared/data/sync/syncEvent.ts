@@ -1,6 +1,9 @@
 import type { CacheType } from '@chatic/app-messages';
 import type { WSSActionType } from '@lemoncloud/chatic-sockets-api';
 
+export const APP_SYNC_EVENT_NAME = 'app-sync-updated';
+export const APP_SYNC_CHANNEL_NAME = 'app-sync-channel';
+
 /**
  * 앱 전역 상태 도메인 (DB 테이블에 없는 상태들)
  */
@@ -47,8 +50,8 @@ export interface AppSyncDetail<T = any> {
  * 통합 앱 동기화 알림 함수
  */
 export const notifyAppUpdated = <T>(detail: AppSyncDetail<T>) => {
-    window.dispatchEvent(new CustomEvent('app-sync-updated', { detail }));
-    const bc = new BroadcastChannel('app-sync-channel');
+    window.dispatchEvent(new CustomEvent(APP_SYNC_EVENT_NAME, { detail }));
+    const bc = new BroadcastChannel(APP_SYNC_CHANNEL_NAME);
     bc.postMessage(detail);
     bc.close();
 };
