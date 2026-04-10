@@ -18,8 +18,8 @@ import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistrati
 import { useAutoSelectCloud } from './shared/hooks/useCloudSession';
 import { useForegroundTokenRefresh } from './shared/hooks/useForegroundTokenRefresh';
 import i18n from '../i18n';
-import { useGlobalSocketRouter, useBroadcastBridge } from './shared/data';
 import type { ErrorInfo } from 'react';
+import { useDataSync } from '@chatic/data';
 
 const mutationCache = new MutationCache({
     onError: (error: Error): void => {
@@ -56,8 +56,7 @@ export function App() {
         isWebCoreReady && (!isAuthenticated || (isTokenInitialized && (!!profile || initStatus === 'failed')));
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
-    useGlobalSocketRouter();
-    useBroadcastBridge();
+    useDataSync();
 
     useEffect(() => {
         const cleanup = initializeMessageListener();
