@@ -21,9 +21,9 @@ export const clearCloudSession = (): void => {
 export const useCloudSession = () => {
     const { t } = useTranslation();
     const { mutateAsync: issueCloudToken, isPending } = useIssueCloudToken();
-    const { setProfile } = useWebCoreStore();
+    const { isAuthenticated, setProfile } = useWebCoreStore();
     const { setIsLoading } = useGlobalLoader();
-    const { data, isError: isFetchError, isFetching, refetch } = useClouds({ limit: -1 });
+    const { data, isError: isFetchError, isFetching, refetch } = useClouds({ limit: -1, enabled: isAuthenticated });
 
     const clouds = data?.list ?? [];
     const isCloudsError = !isFetching && isFetchError;

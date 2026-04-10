@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
+import { useWebCoreStore } from '@chatic/web-core';
 
 import { fetchClouds, fetchUsers, registerDeviceToken, verifyNativeAppToken, verifyEmail } from '../apis';
 
@@ -17,18 +18,21 @@ import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/
 export const usersKeys = createQueryKeys('users');
 export const cloudsKeys = createQueryKeys('clouds');
 
-export const useClouds = (params: Params = {}) =>
-    useQuery({
+export const useClouds = (params: Params = {}) => {
+    const { isAuthenticated } = useWebCoreStore();
+    return useQuery({
         queryKey: cloudsKeys.list(params),
         queryFn: async () => {
             const result = await fetchClouds(params);
             console.log('[useClouds] result:', result);
             return result;
         },
+        enabled: isAuthenticated,
         refetchOnWindowFocus: false,
         staleTime: 0,
         refetchOnMount: 'always',
     });
+};
 
 export const useUsers = (params: Params = {}) =>
     useQuery({

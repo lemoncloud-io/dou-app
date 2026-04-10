@@ -19,7 +19,7 @@ import { retrieveDeferredLinkFromFirestore } from './firestoreDeferred';
 import { isShortUrl, isValidDeepLink } from './parser';
 import { convertDeepLinkToFrontendUrl, convertShortUrlWithEnvs, needsConversion } from './urlConverter';
 
-import type { ServiceEndpoints } from './urlConverter';
+import type { InviteSiteInfo, ServiceEndpoints } from './urlConverter';
 import type { DeepLinkConfig, DeepLinkSource, WebViewHandler } from './types';
 
 /** Time to wait for a late-arriving Universal Link URL after getInitialURL returns null */
@@ -231,7 +231,7 @@ export class DeepLinkManager {
         if (needsConversion(processedUrl)) {
             processedUrl = convertDeepLinkToFrontendUrl(processedUrl);
 
-            if (!processedUrl.startsWith('https://')) {
+            if (!processedUrl.startsWith('https://') && !processedUrl.startsWith('http://')) {
                 console.error('[DeepLinkManager] Converted URL is not HTTPS:', processedUrl);
                 return;
             }
@@ -265,10 +265,12 @@ export class DeepLinkManager {
         }
 
         // 3. Expand short URL (/s/xxx) after domain conversion
+        let site: InviteSiteInfo | undefined;
         try {
             const result = await convertShortUrlWithEnvs(processedUrl);
             processedUrl = result.url;
             envs = result.envs;
+            site = result.site;
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
             console.error('[DeepLinkManager] Error expanding short URL:', message);
@@ -289,8 +291,17 @@ export class DeepLinkManager {
             return;
         }
 
-        console.log('[DeepLinkManager] Delivering deep link:', processedUrl, 'source:', source, 'envs:', envs);
-        this.webViewHandler.handleDeepLink(processedUrl, source, envs);
+        console.log(
+            '[DeepLinkManager] Delivering deep link:',
+            processedUrl,
+            'source:',
+            source,
+            'envs:',
+            envs,
+            'site:',
+            site
+        );
+        this.webViewHandler.handleDeepLink(processedUrl, source, envs, site);
     }
 
     /**

@@ -35,6 +35,9 @@ export const WebSocketV2Connection = () => {
         } else {
             setGlobalLoading(false);
         }
+        return () => {
+            setGlobalLoading(false);
+        };
     }, [isSocketConnecting]);
 
     useWebSocketV2({
