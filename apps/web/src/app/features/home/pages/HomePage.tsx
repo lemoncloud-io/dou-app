@@ -54,6 +54,7 @@ export const HomePage = () => {
         isLimitReached: isPlaceLimitReached,
         isLoading: isPlacesLoading,
         maxCount: maxPlaces,
+        isMyCloud,
     } = useCanCreatePlace();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const { isCloudsError } = useCloudSession();
@@ -82,6 +83,10 @@ export const HomePage = () => {
     };
 
     const handleCreatePlace = () => {
+        if (!isMyCloud) {
+            toast({ title: t('homePage.cannotCreatePlace'), variant: 'destructive' });
+            return;
+        }
         if (isPlaceLimitReached) {
             setLimitDialogType('place');
         } else {
