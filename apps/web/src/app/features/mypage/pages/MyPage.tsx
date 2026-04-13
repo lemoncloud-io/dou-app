@@ -9,7 +9,14 @@ import { useDeviceInfo } from '@chatic/device-utils';
 import { getStoreUrl } from '@chatic/shared';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
-import { useLocalProfileStore, useLogout, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
+import {
+    useLocalProfileStore,
+    useLogout,
+    useOnboardingStore,
+    useWebCoreStore,
+    useUserContext,
+    UserType,
+} from '@chatic/web-core';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { LanguageSelectSheet, LogoutDialog } from '../components';
@@ -18,8 +25,7 @@ import { DEBUG_STORAGE_KEY } from '../consts';
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
-    const isGuest = useWebCoreStore(s => s.isGuest);
-    const isCloudUser = useWebCoreStore(s => s.isCloudUser);
+    const { userType } = useUserContext();
 
     const profile = useWebCoreStore(s => s.profile);
     const { mutate: logout } = useLogout();
@@ -29,9 +35,9 @@ export const MyPage = () => {
     const localProfile = useLocalProfileStore();
     const { resetOnboarding } = useOnboardingStore();
 
-    // Merge local overrides with server profile (local > nick > name)
-    const displayName = localProfile.name ?? profile?.$user?.nick ?? profile?.$user?.name;
-    const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
+    // Use profile.name from webCore
+    const displayName = profile?.name ?? localProfile.name;
+    const displayImageUrl = localProfile.imageData ?? profile?.imageUrl;
     const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
     const [isDebugMode, setIsDebugMode] = useState(() => sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true');
@@ -93,7 +99,7 @@ export const MyPage = () => {
         <div className="flex min-h-screen flex-col bg-background pb-32 pt-4">
             {/* Profile Section */}
             <div className="px-5 pb-3 pt-safe-top">
-                {!isCloudUser ? (
+                {userType === UserType.TEMP_ACCOUNT || userType === UserType.SOCIAL_NO_CLOUD ? (
                     <button onClick={() => navigate('/mypage/login')} className="flex flex-col gap-1.5 text-left">
                         <div className="flex items-center gap-1">
                             <span className="text-[17px] font-semibold tracking-[-0.025em] text-foreground">
@@ -133,8 +139,8 @@ export const MyPage = () => {
 
             {/* Menu Cards Container */}
             <div className="flex flex-col gap-[18px] px-4 pt-4">
-                {/* My Info Card - Logged in only */}
-                {!isGuest && (
+                {/* My Info Card - Cloud user only */}
+                {(userType === UserType.SOCIAL_WITH_CLOUD || userType === UserType.INVITED) && (
                     <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => navigate('/mypage/account')}
@@ -148,8 +154,8 @@ export const MyPage = () => {
                     </div>
                 )}
 
-                {/* Subscription & Account Management Card - Logged in only */}
-                {!isGuest && (
+                {/* Subscription & Account Management Card - Cloud user only */}
+                {(userType === UserType.SOCIAL_WITH_CLOUD || userType === UserType.INVITED) && (
                     <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => navigate('/mypage/subscription')}
@@ -259,8 +265,8 @@ export const MyPage = () => {
                     )}
                 </div>
 
-                {/* Logout Card - Logged in only */}
-                {!isGuest && !isCloudUser && (
+                {/* Logout Card - Social login without cloud only */}
+                {userType === UserType.SOCIAL_NO_CLOUD && (
                     <div className="rounded-[18px] bg-card px-0.5 py-1.5 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => setIsLogoutDialogOpen(true)}

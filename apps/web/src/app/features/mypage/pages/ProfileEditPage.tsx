@@ -6,11 +6,10 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { resizeImageToBase64 } from '@chatic/shared';
 
 import { cn } from '@chatic/lib/utils';
-import { useLocalProfileStore, useWebCoreStore } from '@chatic/web-core';
+import { useLocalProfileStore, useWebCoreStore, useUpdateProfile } from '@chatic/web-core';
 
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';
-import { useUpdateMyProfile } from '../../home/hooks';
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 
@@ -18,14 +17,13 @@ export const ProfileEditPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const profile = useWebCoreStore(s => s.profile);
-    const { isCloudUser } = useWebCoreStore();
     const localProfile = useLocalProfileStore();
-    const { updateProfile, isPending } = useUpdateMyProfile();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
 
     // Use local overrides if they exist, otherwise use server profile
-    const serverName = profile?.$user?.name || '';
-    const serverImageUrl = profile?.$user?.imageUrl || '';
+    const serverName = profile?.name || '';
+    const serverImageUrl = profile?.imageUrl || '';
     const initialName = localProfile.name ?? serverName;
     const initialImageUrl = localProfile.imageData ?? serverImageUrl;
 
@@ -39,21 +37,25 @@ export const ProfileEditPage = () => {
     const handleSave = async () => {
         if (!isValid || !hasChanges) return;
 
-        if (isCloudUser) {
+        try {
+            // Update server profile via webCore API
             await updateProfile({
-                nick: name.trim(),
-                thumbnail: imageUrl !== initialImageUrl ? imageUrl : undefined,
+                name: name.trim(),
+                imageUrl: imageUrl !== initialImageUrl ? imageUrl : undefined,
             });
-        }
 
-        if (name !== (localProfile.name ?? serverName)) {
-            localProfile.setName(name);
-        }
-        if (imageUrl !== (localProfile.imageData ?? serverImageUrl)) {
-            localProfile.setImage(imageUrl);
-        }
+            // Update local profile
+            if (name !== (localProfile.name ?? serverName)) {
+                localProfile.setName(name);
+            }
+            if (imageUrl !== (localProfile.imageData ?? serverImageUrl)) {
+                localProfile.setImage(imageUrl);
+            }
 
-        navigate(-1);
+            navigate(-1);
+        } catch (error) {
+            console.error('Failed to update profile:', error);
+        }
     };
 
     const handleImageClick = () => {
