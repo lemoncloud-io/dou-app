@@ -182,11 +182,12 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
 
         // Treat as guest if: role is guest, OR (not invited, no cloud, no active social login)
         const isGuest = userRoleGuest && !isInvited;
+        const isCloudUser = isInvited || (profile.$user as UserViewExtended)?.userRole === 'user';
         return set({
             profile,
             isGuest,
             isInvited,
-            isCloudUser: isInvited || (profile.$user as UserViewExtended)?.userRole === 'user',
+            isCloudUser,
             userName: profile['$user']?.name || 'Unknown',
         });
     },
