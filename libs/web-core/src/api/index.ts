@@ -219,7 +219,7 @@ export const fetchProfile = async () => {
     );
 };
 
-export const updateProfile = async (uid: string, body: Partial<UserProfile>) => {
+export const updateProfile = async (uid: string, body: Record<string, unknown>) => {
     const endpoint = getDynamicDOUEndpoint();
 
     try {

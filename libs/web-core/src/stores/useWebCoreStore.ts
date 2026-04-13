@@ -59,7 +59,7 @@ export interface WebCoreStore extends WebCoreState {
     logout: (options?: LogoutOptions) => Promise<void>;
     setIsAuthenticated: (isAuth: boolean) => void;
     setProfile: (profile: UserProfile$) => void;
-    updateProfile: (user: UserView) => Promise<void>;
+    updateProfile: (uid: string, user: Record<string, unknown>) => Promise<void>;
     registerLogoutCallback: (callback: () => void) => () => void;
 }
 
@@ -196,8 +196,8 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      * Updates username and related profile information
      * @param user - Updated user view data
      */
-    updateProfile: async (user: Partial<UserProfile$>) => {
-        await updateProfile(user);
+    updateProfile: async (uid: string, user: Record<string, unknown>) => {
+        await updateProfile(uid, user);
         // TODO: set updated profile
         // set(state => {
         //     const profile = { ...state.profile, $user: user };
