@@ -1,9 +1,11 @@
+import type { JSX } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudCore, loginWithInviteCode, webCore, useWebCoreStore, setIsInvitedSession } from '@chatic/web-core';
+import type { LoginInviteResponse } from '@chatic/web-core';
+import { cloudCore, loginWithInviteCode, setIsInvitedSession, useWebCoreStore, webCore } from '@chatic/web-core';
 import { LoadingFallback } from '@chatic/shared';
 
 import { getMobileAppInfo } from '@chatic/app-messages';
@@ -11,12 +13,8 @@ import { getMobileAppInfo } from '@chatic/app-messages';
 import type { CloudDelegationTokenView, UserProfile$, UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 import { useRegisterDevice } from '@chatic/auth';
-
-import type { LoginInviteResponse } from '@chatic/web-core';
-import type { JSX } from 'react';
 import { useDynamicDeviceId } from '../../../shared/hooks/useDynamicDeviceId';
-import { useWebSocketV2Store } from '@chatic/socket';
-import { useInviteRepository } from '../../../shared/data';
+import { useInviteMutations } from '@chatic/socket-data';
 
 export const LoginPage = (): JSX.Element => {
     const { t } = useTranslation();
@@ -30,8 +28,7 @@ export const LoginPage = (): JSX.Element => {
     const loginCalled = useRef(false);
     const { mutateAsync: registerDevice, isPending: isRegisteringDevice } = useRegisterDevice();
     const { deviceId, isReady } = useDynamicDeviceId();
-    const cloudId = useWebSocketV2Store().cloudId;
-    const inviteCloudRepository = useInviteRepository(cloudId);
+    const { saveInvite } = useInviteMutations();
 
     const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
@@ -114,7 +111,7 @@ export const LoginPage = (): JSX.Element => {
             if (data.id) {
                 const { isOnMobileApp } = getMobileAppInfo();
                 if (isOnMobileApp) {
-                    await inviteCloudRepository.saveInvite(data.id, {
+                    await saveInvite({
                         id: data.id,
                         name: data.name,
                         backend: backend ?? undefined,

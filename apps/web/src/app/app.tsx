@@ -1,3 +1,4 @@
+import type { ErrorInfo } from 'react';
 import { Suspense, useCallback, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { HelmetProvider } from 'react-helmet-async';
@@ -18,9 +19,7 @@ import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistrati
 import { useAutoSelectCloud } from './shared/hooks/useCloudSession';
 import { useForegroundTokenRefresh } from './shared/hooks/useForegroundTokenRefresh';
 import i18n from '../i18n';
-import { useGlobalSocketRouter } from './shared/data/sync';
-
-import type { ErrorInfo } from 'react';
+import { useDataSync } from '@chatic/socket-data';
 
 const mutationCache = new MutationCache({
     onError: (error: Error): void => {
@@ -57,7 +56,7 @@ export function App() {
         isWebCoreReady && (!isAuthenticated || (isTokenInitialized && (!!profile || initStatus === 'failed')));
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
-    useGlobalSocketRouter();
+    useDataSync();
 
     useEffect(() => {
         const cleanup = initializeMessageListener();
