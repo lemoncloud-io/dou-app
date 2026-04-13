@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { useLoaderStore } from '@chatic/shared';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, useUserContext } from '@chatic/web-core';
 
 import { useListenMessage } from '../features/chats/hooks/useListenMessage';
 import { useMyChannels } from '../features/home/hooks/useMyChannels';
@@ -13,11 +13,13 @@ import { useCloudSession } from '../shared/hooks/useCloudSession';
 export const WebSocketV2Connection = () => {
     const { deviceId } = useDynamicDeviceId();
     const { isPending } = useCloudSession();
-    const { isCloudUser } = useWebCoreStore();
+    const { currentWSS, endpoints } = useUserContext();
 
-    const selectedCloudId = cloudCore.getSelectedCloudId() || 'default';
-    const wss = cloudCore.getWss();
-    const endpoint = isCloudUser ? wss : import.meta.env.VITE_WS_ENDPOINT;
+    // 현재 WSS 타입에 따라 endpoint 결정
+    const endpoint = currentWSS === 'cloud' ? endpoints.cloudWSS : endpoints.relayWSS;
+
+    // cloudId 설정 (cloud WSS 사용 시만 실제 cloudId, 아니면 'default')
+    const selectedCloudId = currentWSS === 'cloud' ? cloudCore.getSelectedCloudId() || 'default' : 'default';
 
     const connectionStatus = useWebSocketV2Store(s => s.connectionStatus);
     const isVerified = useWebSocketV2Store(s => s.isVerified);
@@ -38,7 +40,7 @@ export const WebSocketV2Connection = () => {
         return () => {
             setGlobalLoading(false);
         };
-    }, [isSocketConnecting]);
+    }, [isSocketConnecting, setGlobalLoading]);
 
     useWebSocketV2({
         endpoint,

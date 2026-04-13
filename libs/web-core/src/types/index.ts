@@ -80,3 +80,5 @@ export interface LoginToken {
     identityId: string;
     identityToken: string;
 }
+
+export * from './userContext';

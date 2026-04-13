@@ -57,11 +57,37 @@ export const useAutoSelectCloud = () => {
     const autoSelectedRef = useRef(false);
 
     useEffect(() => {
-        if (autoSelectedRef.current) return;
-        if (!isAuthenticated) return;
-        if (getCloudSession()) return;
+        console.log('[useAutoSelectCloud] Check conditions:', {
+            autoSelectedRef: autoSelectedRef.current,
+            isAuthenticated,
+            hasCloudSession: !!getCloudSession(),
+            cloudsCount: clouds.length,
+            clouds,
+        });
+
+        if (autoSelectedRef.current) {
+            console.log('[useAutoSelectCloud] Skip: already selected');
+            return;
+        }
+        if (!isAuthenticated) {
+            console.log('[useAutoSelectCloud] Skip: not authenticated');
+            return;
+        }
         const activeCloud = clouds.find(c => c.status === 'active');
-        if (!activeCloud) return;
+        if (!activeCloud) {
+            console.log('[useAutoSelectCloud] Skip: no active cloud');
+            return;
+        }
+
+        // Skip if already selected the same cloud
+        const existingSession = getCloudSession();
+        const currentCloudId = cloudCore.getSelectedCloudId();
+        if (existingSession && currentCloudId === activeCloud.id) {
+            console.log('[useAutoSelectCloud] Skip: already selected this cloud', currentCloudId);
+            return;
+        }
+
+        console.log('[useAutoSelectCloud] Selecting cloud:', activeCloud.id);
         autoSelectedRef.current = true;
         void selectCloud(activeCloud.id as string);
     }, [clouds, isAuthenticated]);

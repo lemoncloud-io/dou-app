@@ -219,14 +219,16 @@ export const fetchProfile = async () => {
     );
 };
 
-export const updateProfile = async (body: Partial<UserProfile>) => {
+export const updateProfile = async (uid: string, body: Partial<UserProfile>) => {
+    const endpoint = getDynamicDOUEndpoint();
+
     try {
         return await withRetry(
             async () => {
                 const { data } = await webCore
                     .buildSignedRequest({
                         method: 'PUT',
-                        baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
+                        baseURL: `${endpoint}/users/${uid}`,
                     })
                     .setBody(body as Record<string, unknown>)
                     .execute<UserProfile & { error?: string }>();
@@ -242,16 +244,16 @@ export const updateProfile = async (body: Partial<UserProfile>) => {
             (error?.message && error.message.includes('403'));
 
         if (is403) {
-            console.log('Profile fetch got 403, attempting token refresh...');
+            console.log('Profile update got 403, attempting token refresh...');
             try {
                 await refreshAuthToken();
-                // Retry profile fetch once after successful token refresh
+                // Retry profile update once after successful token refresh
                 return await withRetry(
                     async () => {
                         const { data } = await webCore
                             .buildSignedRequest({
                                 method: 'PUT',
-                                baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
+                                baseURL: `${endpoint}/dou-d1/users/${uid}`,
                             })
                             .setBody(body as Record<string, unknown>)
                             .execute<UserProfile & { error?: string }>();
@@ -261,7 +263,7 @@ export const updateProfile = async (body: Partial<UserProfile>) => {
                     'Profile update after token refresh'
                 );
             } catch (refreshError) {
-                console.error('Token refresh failed during profile fetch:', refreshError);
+                console.error('Token refresh failed during profile update:', refreshError);
                 throw error;
             }
         }

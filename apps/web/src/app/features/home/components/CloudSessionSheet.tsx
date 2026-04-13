@@ -143,9 +143,11 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick 
 
 // --- Invite Cloud Item ---
 
-const InviteCloudItem = ({ inviteCloud }: { inviteCloud: InviteCloudView }) => (
+const InviteCloudItem = ({ inviteCloud, isSelected }: { inviteCloud: InviteCloudView; isSelected: boolean }) => (
     <div className="flex items-center gap-[5px]">
-        <div className="h-[22px] w-[22px]" />
+        <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center">
+            {isSelected && <Check size={22} className="text-[#C139E3]" strokeWidth={1.5} />}
+        </div>
         <div className="flex flex-1 items-center gap-2 pr-[6px]">
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-[#F4F5F5] bg-[rgba(0,43,126,0.04)]">
                 <User size={16} className="text-placeholder" />
@@ -153,6 +155,9 @@ const InviteCloudItem = ({ inviteCloud }: { inviteCloud: InviteCloudView }) => (
             <div className="flex flex-col gap-1">
                 <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
                     {inviteCloud.name ?? inviteCloud.id}
+                </span>
+                <span className="text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
+                    ID: {inviteCloud.id}
                 </span>
             </div>
         </div>
@@ -334,7 +339,11 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                             ) : (
                                 <div className="flex flex-col gap-[15px] px-3">
                                     {inviteClouds.map(inviteCloud => (
-                                        <InviteCloudItem key={inviteCloud.id} inviteCloud={inviteCloud} />
+                                        <InviteCloudItem
+                                            key={inviteCloud.id}
+                                            inviteCloud={inviteCloud}
+                                            isSelected={selectedId === inviteCloud.id}
+                                        />
                                     ))}
                                 </div>
                             )}

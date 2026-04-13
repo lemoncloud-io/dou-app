@@ -107,6 +107,11 @@ export const LoginPage = (): JSX.Element => {
             // 3. Save cloud token
             cloudCore.saveCloudToken(data as unknown as UserTokenView);
 
+            // 3-1. Save selected cloud ID
+            if (data.id) {
+                cloudCore.saveSelectedCloudId(data.id);
+            }
+
             // 4. Save invite cloud to cache
             if (data.id) {
                 const { isOnMobileApp } = getMobileAppInfo();

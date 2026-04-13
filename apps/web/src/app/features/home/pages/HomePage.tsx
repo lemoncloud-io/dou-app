@@ -12,13 +12,7 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import {
-    useLocalProfileStore,
-    useLogout,
-    useOnboardingStore,
-    useWebCoreStore,
-    useDynamicProfile,
-} from '@chatic/web-core';
+import { useLocalProfileStore, useLogout, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
@@ -54,15 +48,13 @@ export const HomePage = () => {
         isLimitReached: isPlaceLimitReached,
         isLoading: isPlacesLoading,
         maxCount: maxPlaces,
+        isMyCloud,
     } = useCanCreatePlace();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const { isCloudsError } = useCloudSession();
 
-    const dynamicProfile = useDynamicProfile();
-    const displayName = isCloudUser
-        ? (dynamicProfile?.$user?.nick ?? dynamicProfile?.$user?.name ?? '-')
-        : (dynamicProfile?.name ?? localProfile.name ?? '-');
-    const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
+    const displayName = profile?.name ?? localProfile.name ?? '-';
+    const displayImageUrl = localProfile.imageData ?? profile?.imageUrl;
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -82,6 +74,10 @@ export const HomePage = () => {
     };
 
     const handleCreatePlace = () => {
+        if (!isMyCloud) {
+            toast({ title: t('homePage.cannotCreatePlace'), variant: 'destructive' });
+            return;
+        }
         if (isPlaceLimitReached) {
             setLimitDialogType('place');
         } else {
