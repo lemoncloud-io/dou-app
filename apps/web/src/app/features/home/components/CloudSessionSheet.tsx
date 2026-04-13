@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useQueryClient } from '@tanstack/react-query';
@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Check, Loader2, Plus, User, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
+import { useInterval } from '@chatic/shared';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
@@ -45,6 +46,8 @@ const ProfileSection = () => {
 };
 
 // --- Cloud List Item ---
+
+const isProvisioning = (status?: CloudView['status']): boolean => status === 'reserved' || status === 'init';
 
 const getCloudDisplayName = (cloud: CloudView): string => {
     return cloud.name ?? cloud.email?.split('@')[0] ?? '';
@@ -101,7 +104,7 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick 
             className={cn('flex w-full items-center gap-[5px]', disabled && !isSelected && 'cursor-not-allowed')}
         >
             <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center">
-                {cloud.status === 'reserved' || cloud.status === 'init' ? (
+                {isProvisioning(cloud.status) ? (
                     <Loader2 size={18} className="animate-spin text-[#9FA2A7]" />
                 ) : isError ? (
                     <AlertCircle size={20} className="text-red-500" />
@@ -132,6 +135,11 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick 
                     <span className="text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
                         {cloud.email ?? ''}
                     </span>
+                    {isProvisioning(cloud.status) && (
+                        <span className="text-left text-[12px] leading-[1.3] text-[#9FA2A7]">
+                            {t('cloudSessionSheet.statusReservedDescription')}
+                        </span>
+                    )}
                     {isError && cloud.error && (
                         <span className="text-left text-[11px] leading-[1.3] text-red-400">{cloud.error}</span>
                     )}
@@ -232,10 +240,30 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const [tab, setTab] = useState<Tab>('my');
 
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
+    const prevCloudStatusesRef = useRef<Map<string, NonNullable<CloudView['status']>>>(new Map());
 
     useEffect(() => {
         if (open) refetchClouds();
     }, [open]);
+
+    // Detect reserved/init → active transition and show "cloud ready" toast
+    useEffect(() => {
+        const prev = prevCloudStatusesRef.current;
+        const next = new Map<string, NonNullable<CloudView['status']>>();
+        for (const cloud of clouds) {
+            if (!cloud.id || !cloud.status) continue;
+            const prevStatus = prev.get(cloud.id);
+            if (isProvisioning(prevStatus) && cloud.status === 'active') {
+                toast({ title: t('cloudSessionSheet.cloudReady') });
+            }
+            next.set(cloud.id, cloud.status);
+        }
+        prevCloudStatusesRef.current = next;
+         
+    }, [clouds]);
+
+    // Poll every 30s while sheet is open and there are provisioning clouds
+    useInterval(() => refetchClouds(), open && clouds.some(c => isProvisioning(c.status)) ? 30_000 : null);
 
     const handleAddAccount = () => {
         if (clouds.length >= 1) {
@@ -357,7 +385,10 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                 open={isSubscriptionSelectOpen}
                 onOpenChange={setIsSubscriptionSelectOpen}
                 onComplete={() => {
-                    toast({ title: t('addAccount.success') });
+                    toast({
+                        title: t('addAccount.success'),
+                        description: t('mypage.subscription.purchaseSuccessDescription'),
+                    });
                     queryClient.invalidateQueries({ queryKey: cloudsKeys.all });
                 }}
                 onError={e => toast({ title: e.message, variant: 'destructive' })}

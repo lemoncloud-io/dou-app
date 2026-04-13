@@ -1,4 +1,5 @@
 import { Loader2, User } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ContactInfo } from '@chatic/app-messages';
@@ -11,6 +12,7 @@ interface ContactListItemProps {
 
 export const ContactListItem = ({ contact, onInvite, isLoading }: ContactListItemProps) => {
     const { t } = useTranslation();
+    const [imgError, setImgError] = useState(false);
 
     const displayName =
         contact.displayName || `${contact.givenName} ${contact.familyName}`.trim() || t('chat.room.unknown');
@@ -19,13 +21,14 @@ export const ContactListItem = ({ contact, onInvite, isLoading }: ContactListIte
         <div className="flex items-center gap-2">
             {/* Avatar */}
             <div className="size-10 rounded-full border border-border bg-muted flex items-center justify-center overflow-hidden shrink-0">
-                {contact.hasThumbnail && contact.thumbnailPath ? (
+                {contact.hasThumbnail && contact.thumbnailPath && !imgError ? (
                     <img
                         src={contact.thumbnailPath}
                         alt={displayName}
                         loading="lazy"
                         decoding="async"
                         className="size-full object-cover"
+                        onError={() => setImgError(true)}
                     />
                 ) : (
                     <User className="size-3.5 text-muted-foreground" />

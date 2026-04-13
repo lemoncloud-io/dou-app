@@ -133,7 +133,10 @@ export const SubscriptionPlansPage = () => {
         };
         try {
             await purchaseAndValidate(product, email);
-            toast({ title: t('mypage.subscription.purchaseSuccess') });
+            toast({
+                title: t('mypage.subscription.purchaseSuccess'),
+                description: t('mypage.subscription.purchaseSuccessDescription'),
+            });
             await new Promise(resolve => setTimeout(resolve, 1500));
             navigate(-1);
         } catch (e) {
