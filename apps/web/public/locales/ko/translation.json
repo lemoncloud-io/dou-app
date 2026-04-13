@@ -403,6 +403,7 @@
         "retry": "다시 시도",
         "empty": "채널이 없습니다. 새 채팅방을 만들어보세요!",
         "unnamedChannel": "이름 없는 채널",
+        "selfChannel": "나와의 채팅",
         "selectPlaceFirst": "위에서 플레이스를 먼저 선택해주세요"
     },
     "bottomNav": {

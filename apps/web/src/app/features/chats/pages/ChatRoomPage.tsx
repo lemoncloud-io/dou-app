@@ -218,8 +218,8 @@ export const ChatRoomPage = () => {
                     <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
                 </button>
                 <h1 className="text-[17px] font-semibold text-foreground">
-                    {channel?.name || t('chat.room.title')}
-                    {channel?.memberNo && (
+                    {channel?.stereo === 'self' ? t('channelList.selfChannel') : channel?.name || t('chat.room.title')}
+                    {channel?.stereo !== 'self' && channel?.memberNo && (
                         <span className="ml-1.5 text-sm font-normal text-muted-foreground">{channel.memberNo}</span>
                     )}
                 </h1>

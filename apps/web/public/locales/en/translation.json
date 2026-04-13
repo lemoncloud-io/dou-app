@@ -404,6 +404,7 @@
         "retry": "Retry",
         "empty": "No channels yet. Create a new chat room!",
         "unnamedChannel": "Unnamed Channel",
+        "selfChannel": "My Chat",
         "selectPlaceFirst": "Please select a place above first"
     },
     "bottomNav": {

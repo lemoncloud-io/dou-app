@@ -69,7 +69,7 @@ const ChannelItem = ({ channel }: { channel: ChannelView }) => {
                             </span>
                         )}
                         <span className="truncate text-[15px] font-semibold tracking-[-0.025em] text-foreground">
-                            {channel.name || t('channelList.unnamedChannel')}
+                            {isSelf ? t('channelList.selfChannel') : channel.name || t('channelList.unnamedChannel')}
                         </span>
                     </div>
                     <p className="mt-1 truncate text-[13.5px] leading-[1.2] tracking-[-0.025em] text-muted-foreground">
