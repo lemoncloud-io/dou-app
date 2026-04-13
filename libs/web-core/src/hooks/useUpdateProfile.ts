@@ -18,7 +18,7 @@ export const useUpdateProfile = () => {
                 throw new Error('No user ID available');
             }
 
-            return await updateProfile(profile.uid, data);
+            return await updateProfile(profile.uid, data as Record<string, unknown>);
         },
         onSuccess: updated => {
             // Merge with existing profile to preserve other fields
