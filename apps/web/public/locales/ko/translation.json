@@ -238,6 +238,7 @@
             "validating": "검증 중...",
             "finishing": "처리 중...",
             "purchaseSuccess": "구독이 완료되었어요",
+            "purchaseSuccessDescription": "클라우드 설정에 최대 10분이 소요될 수 있어요",
             "purchaseFailed": "결제에 실패했어요",
             "validateFailed": "결제 검증에 실패했어요",
             "notice": "꼭 확인해 주세요.",
@@ -356,7 +357,9 @@
         "invited": "초대됨",
         "tabMy": "나의 클라우드",
         "tabInvited": "초대된 클라우드",
-        "emptyInvited": "초대된 클라우드가 없어요"
+        "emptyInvited": "초대된 클라우드가 없어요",
+        "statusReservedDescription": "클라우드 설정 중이에요. 최대 10분이 소요될 수 있어요.",
+        "cloudReady": "클라우드가 준비되었어요!"
     },
     "placeList": {
         "defaultPlace": "기본",

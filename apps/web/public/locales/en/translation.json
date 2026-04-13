@@ -238,6 +238,7 @@
             "validating": "Verifying...",
             "finishing": "Completing...",
             "purchaseSuccess": "Subscription completed",
+            "purchaseSuccessDescription": "Cloud setup may take up to 10 minutes",
             "purchaseFailed": "Payment failed",
             "validateFailed": "Payment verification failed",
             "notice": "Please note",
@@ -357,7 +358,9 @@
         "invited": "Invited",
         "tabMy": "My Clouds",
         "tabInvited": "Invited",
-        "emptyInvited": "No invited clouds"
+        "emptyInvited": "No invited clouds",
+        "statusReservedDescription": "Setting up your cloud. This may take up to 10 minutes.",
+        "cloudReady": "Your cloud is ready!"
     },
     "placeList": {
         "defaultPlace": "Default",
