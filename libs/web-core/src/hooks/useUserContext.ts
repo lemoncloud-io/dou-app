@@ -53,20 +53,15 @@ const getUserType = (profile: UserProfile$ | null, isInvited: boolean, hasCloudT
 /**
  * 현재 WSS 타입 결정
  *
- * currentPlace에 따라 어느 WSS를 사용할지 결정합니다.
+ * cloudWSS 유무에 따라 어느 WSS를 사용할지 결정합니다.
  */
 const getCurrentWSSType = (currentPlace: string | null, hasCloudWSS: boolean): WSSType => {
-    // place가 없거나 DEFAULT_PLACE면 중계서버 WSS
-    if (!currentPlace || currentPlace === 'DEFAULT_PLACE') {
-        return 'relay';
-    }
-
-    // cloud place인데 cloudWSS가 있으면 cloud WSS
+    // cloudWSS가 있으면 cloud WSS 사용
     if (hasCloudWSS) {
         return 'cloud';
     }
 
-    // fallback: 중계서버 WSS
+    // cloudWSS가 없으면 중계서버 WSS
     return 'relay';
 };
 

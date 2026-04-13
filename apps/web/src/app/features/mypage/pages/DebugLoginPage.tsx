@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { login } from '@chatic/auth';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { webCore, useWebCoreStore } from '@chatic/web-core';
+import { webCore, cloudCore, useWebCoreStore } from '@chatic/web-core';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { Input } from '@chatic/ui-kit/components/ui/input';
@@ -26,6 +26,10 @@ export const DebugLoginPage = () => {
         try {
             const { Token, ...rest } = await login({ uid, pwd });
             await webCore.buildCredentialsByToken(Token as Parameters<typeof webCore.buildCredentialsByToken>[0]);
+
+            // Clear previous cloud session data
+            cloudCore.clearSession();
+
             setProfile(rest as Parameters<typeof setProfile>[0]);
             setIsAuthenticated(true);
             window.location.href = '/';
