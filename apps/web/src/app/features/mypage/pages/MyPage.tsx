@@ -1,4 +1,4 @@
-import { ChevronRight, ChevronDown, User } from 'lucide-react';
+import { ChevronRight, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -125,12 +125,9 @@ export const MyPage = () => {
                             )}
                         </div>
                         <div className="flex flex-col items-start gap-0.5">
-                            <div className="flex items-center gap-1">
-                                <h2 className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
-                                    {displayName}
-                                </h2>
-                                <ChevronDown size={18} className="text-muted-foreground" />
-                            </div>
+                            <h2 className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
+                                {displayName}
+                            </h2>
                             <p className="text-[14px] text-muted-foreground">{profile?.$user?.email}</p>
                         </div>
                     </button>
