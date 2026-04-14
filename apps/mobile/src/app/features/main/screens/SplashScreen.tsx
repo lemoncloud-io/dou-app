@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     animation: {
-        width: '100%',
+        width: '75%',
         aspectRatio: 1,
         height: undefined,
     },
