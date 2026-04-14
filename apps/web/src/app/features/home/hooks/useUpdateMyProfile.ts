@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 import type { UserUpdateProfilePayload, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
@@ -9,12 +9,12 @@ type UserView = UserProfile$['$user'];
 
 export const useUpdateMyProfile = () => {
     const { emitAuthenticated } = useWebSocketV2();
-    const { isCloudUser } = useWebCoreStore();
+    const { userType } = useUserContext();
     const [isPending, setIsPending] = useState(false);
     const [isError, setIsError] = useState(false);
 
     const updateProfile = (payload: UserUpdateProfilePayload): Promise<UserView> => {
-        if (!isCloudUser) return Promise.reject(new Error('Not a cloud user'));
+        if (userType === UserType.TEMP_ACCOUNT) return Promise.reject(new Error('Not a cloud user'));
 
         return new Promise((resolve, reject) => {
             setIsPending(true);

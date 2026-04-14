@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useWebSocketV2 } from '@chatic/socket';
-import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
+import { useDynamicProfile, useUserContext, UserType } from '@chatic/web-core';
 import type { UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import type { AppSyncDetail } from '../sync-events';
@@ -14,7 +14,7 @@ type UserMutationAction = 'update-profile';
 export const useUserMutations = () => {
     const { emitAuthenticated } = useWebSocketV2();
     const profile = useDynamicProfile();
-    const { isCloudUser } = useWebCoreStore();
+    const { userType } = useUserContext();
     const myUserId = profile?.uid;
 
     const [pendingStates, setPendingStates] = useState<Record<UserMutationAction, boolean>>({
@@ -36,7 +36,7 @@ export const useUserMutations = () => {
     const updateProfile = useCallback(
         (payload: UserUpdateProfilePayload): Promise<void> => {
             return new Promise((resolve, reject) => {
-                if (!isCloudUser) return reject(new Error('Guests cannot edit their profiles.'));
+                if (userType === UserType.TEMP_ACCOUNT) return reject(new Error('Guests cannot edit their profiles.'));
                 if (!myUserId) return reject(new Error('User ID is missing.'));
 
                 const action: UserMutationAction = 'update-profile';
@@ -69,7 +69,7 @@ export const useUserMutations = () => {
                 });
             });
         },
-        [isCloudUser, myUserId, emitAuthenticated, cleanup]
+        [userType, myUserId, emitAuthenticated, cleanup]
     );
 
     return {
