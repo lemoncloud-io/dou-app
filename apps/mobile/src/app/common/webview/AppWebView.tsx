@@ -8,8 +8,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAppLanguage, getUserAgent } from '../utils';
 import { getVersionCheckResult } from '../hooks/useAppVersionCheck';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
-import { getConsoleOverrideScript, getDeviceInfoScript, getSafeAreaScript } from './utils/injectionScripts';
+import {
+    getCachedDataScript,
+    getConsoleOverrideScript,
+    getDeviceInfoScript,
+    getSafeAreaScript,
+} from './utils/injectionScripts';
 import { firebaseInstallationService } from '../services/firebase/firebaseInstallationService';
+import { cacheCrudService } from '../storages/cacheCrudService';
 
 interface AppWebViewProps extends WebViewProps {}
 
@@ -22,10 +28,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     // 최초 1회: deviceInfo 주입 (비동기 초기화)
     useEffect(() => {
         const prepareWebView = async () => {
-            const [userAgent, uniqueId, installationId] = await Promise.all([
+            const [userAgent, installationId, cachedChannels, cachedClouds] = await Promise.all([
                 getUserAgent(),
-                DeviceInfo.getUniqueId(),
                 firebaseInstallationService.getFirebaseId(),
+                cacheCrudService.fetchAll({ type: 'channel' }).catch(() => []),
+                cacheCrudService.fetchAll({ type: 'cloud' }).catch(() => []),
             ]);
 
             /**
@@ -38,7 +45,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 platform: Platform.OS.toLowerCase(),
                 applicationName: DeviceInfo.getApplicationName(),
                 stage: Config.VITE_ENV || 'PROD',
-                uniqueId: `${uniqueId || 'default'}:${installationId || 'default'}`,
+                uniqueId: installationId || '',
                 deviceModel: DeviceInfo.getDeviceId() || '',
                 appVersion: DeviceInfo.getVersion(),
                 buildNumber: DeviceInfo.getBuildNumber(),
@@ -48,9 +55,26 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 shouldUpdate: versionCheck?.hasUpdate ?? false,
             });
 
+            // Deduplicate by id — SQLite may have entries with different cid for the same item
+            const dedup = <T extends { id?: string }>(items: T[]): T[] => {
+                const seen = new Set<string>();
+                return items.filter(item => {
+                    if (!item.id || seen.has(item.id)) return false;
+                    seen.add(item.id);
+                    return true;
+                });
+            };
+
+            const cachedDataScript = getCachedDataScript({
+                channels: dedup(cachedChannels as { id?: string }[]),
+                clouds: dedup(cachedClouds as { id?: string }[]),
+                timestamp: Date.now(),
+            });
+
             const injectionScript = `
                 ${getSafeAreaScript(insets, keyboardHeight)}
                 ${deviceInfoScript}
+                ${cachedDataScript}
                 ${getConsoleOverrideScript()}
             `;
 

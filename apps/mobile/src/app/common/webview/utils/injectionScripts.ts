@@ -72,6 +72,28 @@ export const getDeviceInfoScript = (params: DeviceInfoParams): string => `
 `;
 
 /**
+ * Parameter interface for injecting cached init data from SQLite
+ */
+export interface CachedInitDataParams {
+    channels: unknown[];
+    clouds: unknown[];
+    timestamp: number;
+}
+
+/**
+ * Generates a script that injects SQLite-cached data into the WebView's global (`window`) object,
+ * enabling the web app to render immediately with cached data before fetching fresh data from the server.
+ *
+ * @param params Cached channels and clouds data with a timestamp
+ * @returns JavaScript string to be injected into the WebView
+ */
+export const getCachedDataScript = (params: CachedInitDataParams): string => `
+    window.CHATIC_CACHED_CHANNELS = ${JSON.stringify(params.channels)};
+    window.CHATIC_CACHED_CLOUDS = ${JSON.stringify(params.clouds)};
+    window.CHATIC_CACHED_TIMESTAMP = ${params.timestamp};
+`;
+
+/**
  * Generates a script that intercepts (overrides) \`console.log\` and \`console.error\` calls within the WebView
  * and forwards them to the React Native app's bridge (as a \`__console__\` type message).
  * This makes it easy to check the internal logs of the WebView even in a native debugging environment (e.g., Flipper, Metro Console).

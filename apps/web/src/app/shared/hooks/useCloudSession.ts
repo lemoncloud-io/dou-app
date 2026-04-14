@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useIssueCloudToken } from '@chatic/auth';
 import { useGlobalLoader } from '@chatic/shared';
 import { useClouds } from '@chatic/users';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, hasCachedInitData, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 import { useTranslation } from 'react-i18next';
 
@@ -29,7 +29,10 @@ export const useCloudSession = () => {
     const isCloudsError = !isFetching && isFetchError;
 
     const selectCloud = async (cloudId: string) => {
-        setIsLoading(true, t('globalLoader.switchingCloud'));
+        // Skip full-screen loader when cached data is available (background cloud init)
+        if (!hasCachedInitData()) {
+            setIsLoading(true, t('globalLoader.switchingCloud'));
+        }
         try {
             const { cloudDelegationToken, userToken } = await issueCloudToken(cloudId);
 

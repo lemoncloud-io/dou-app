@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { useLoaderStore } from '@chatic/shared';
-import { cloudCore, useUserContext } from '@chatic/web-core';
+import { cloudCore, hasCachedInitData, useUserContext } from '@chatic/web-core';
 
 import { useListenMessage } from '../features/chats/hooks/useListenMessage';
 import { useMyChannels } from '../features/home/hooks/useMyChannels';
@@ -31,8 +31,9 @@ export const WebSocketV2Connection = () => {
 
     const isSocketConnecting = connectionStatus === 'connecting' || (connectionStatus === 'connected' && !isVerified);
 
+    // Skip global loader when cached data is available — user sees cached content while socket syncs
     useEffect(() => {
-        if (isSocketConnecting) {
+        if (isSocketConnecting && !hasCachedInitData()) {
             setGlobalLoading(true);
         } else {
             setGlobalLoading(false);
