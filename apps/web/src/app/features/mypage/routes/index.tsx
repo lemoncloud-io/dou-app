@@ -16,6 +16,7 @@ import {
     TermsPage,
     WithdrawalPage,
 } from '../pages';
+import { DebugChatPage } from '../pages/DebugChatPage';
 
 export const MyPageRoutes = () => {
     return (
@@ -26,6 +27,7 @@ export const MyPageRoutes = () => {
             <Route path="edit" element={<ProfileEditPage />} />
             <Route path="debug" element={<DebugPage />} />
             <Route path="debug/login" element={<DebugLoginPage />} />
+            <Route path="debug/dashboard" element={<DebugChatPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="policy" element={<PolicyListPage />} />
             <Route path="policy/terms" element={<TermsPage />} />

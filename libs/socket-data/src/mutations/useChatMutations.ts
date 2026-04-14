@@ -36,7 +36,7 @@ export const useChatMutations = () => {
      * 메시지 전송
      */
     const sendMessage = useCallback(
-        (payload: ChatSendPayload, tempId: string = Date.now().toString()): Promise<void> => {
+        (payload: ChatSendPayload, tempId: string = Date.now().toString()): Promise<ChatView> => {
             if (!userId) return Promise.reject(new Error('User is not authenticated'));
             if (!payload.channelId) return Promise.reject(new Error('channelId is required'));
             if (!payload.content) return Promise.reject(new Error('content is required'));
@@ -44,7 +44,7 @@ export const useChatMutations = () => {
             const action: ChatMutationAction = 'send';
             setPendingStates(prev => ({ ...prev, [action]: true }));
 
-            return new Promise((resolve, reject) => {
+            return new Promise<ChatView>((resolve, reject) => {
                 const onUpdate = (e: Event) => {
                     const { detail } = e as CustomEvent<AppSyncDetail>;
 
