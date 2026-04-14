@@ -1,4 +1,4 @@
-import { Search, X } from 'lucide-react';
+import { ChevronLeft, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -175,16 +175,16 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                     <div className="flex h-full flex-col overflow-hidden bg-background">
                         <div className="shrink-0">
                             <div className="flex items-center justify-between px-1.5 py-3">
-                                <div className="h-11 w-11" />
-                                <DialogTitle className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-foreground">
-                                    {t('inviteFriends.title')}
-                                </DialogTitle>
                                 <button
                                     onClick={() => onOpenChange?.(false)}
                                     className="flex h-11 w-11 items-center justify-center"
                                 >
-                                    <X className="h-6 w-6 text-foreground" />
+                                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
                                 </button>
+                                <DialogTitle className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-foreground">
+                                    {t('inviteFriends.title')}
+                                </DialogTitle>
+                                <div className="h-11 w-11" />
                             </div>
 
                             {showPermissionBanner && <PermissionDeniedBanner />}

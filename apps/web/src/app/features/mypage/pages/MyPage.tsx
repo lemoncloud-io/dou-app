@@ -256,18 +256,7 @@ export const MyPage = () => {
                     )}
                 </div>
 
-                {/* Logout Card - Social login without cloud only */}
-                {userType === UserType.SOCIAL_NO_CLOUD && (
-                    <div className="rounded-[18px] bg-card px-0.5 py-1.5 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
-                        <button
-                            onClick={() => setIsLogoutDialogOpen(true)}
-                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                        >
-                            <span className="text-[15px] font-medium text-foreground">{t('mypage.logout')}</span>
-                            <ChevronRight size={18} className="text-muted-foreground" />
-                        </button>
-                    </div>
-                )}
+                {/* Logout Card - hidden for now */}
             </div>
 
             <BottomNavigation />

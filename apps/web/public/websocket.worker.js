@@ -8,9 +8,11 @@ let reconnectAttempts = 0;
 let syncInfoInterval = null;
 let syncInfoTimeout = null;
 let waitingForSyncInfo = false;
+let forceReconnectTimer = null;
 
 const SYNC_INFO_INTERVAL = 60000; // 60s
 const SYNC_INFO_TIMEOUT = 5000; // 5s
+const FORCE_RECONNECT_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours
 
 const startSyncInfoHeartbeat = () => {
     if (syncInfoInterval) clearInterval(syncInfoInterval);
@@ -107,6 +109,13 @@ const connectWebSocket = config => {
         self.postMessage({ type: 'log', message: 'Connected' });
 
         startSyncInfoHeartbeat();
+
+        // Force reconnect after 2 hours
+        if (forceReconnectTimer) clearTimeout(forceReconnectTimer);
+        forceReconnectTimer = setTimeout(() => {
+            self.postMessage({ type: 'log', message: 'Force reconnecting after 2 hours' });
+            if (ws) ws.close();
+        }, FORCE_RECONNECT_INTERVAL);
     };
 
     ws.onmessage = event => {
@@ -148,6 +157,10 @@ const connectWebSocket = config => {
             message: 'Disconnected: ' + event.code + ' ' + event.reason,
         });
         stopSyncInfoHeartbeat();
+        if (forceReconnectTimer) {
+            clearTimeout(forceReconnectTimer);
+            forceReconnectTimer = null;
+        }
         self.postMessage({ type: 'status', status: 'disconnected' });
 
         if (!isManualDisconnect) {
@@ -182,6 +195,10 @@ self.onmessage = e => {
             if (reconnectTimeout) {
                 clearTimeout(reconnectTimeout);
                 reconnectTimeout = null;
+            }
+            if (forceReconnectTimer) {
+                clearTimeout(forceReconnectTimer);
+                forceReconnectTimer = null;
             }
             stopSyncInfoHeartbeat();
             if (ws) {

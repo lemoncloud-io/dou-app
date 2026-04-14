@@ -339,7 +339,8 @@
         "places": "플레이스",
         "roomCreated": "채팅방이 생성되었습니다",
         "noCloudsError": "설정할 수 있는 클라우드가 없어요",
-        "selectCloud": "클라우드 선택하기"
+        "selectCloud": "클라우드 선택하기",
+        "cannotCreatePlace": "클라우드 소유자만 플레이스를 생성할 수 있습니다"
     },
     "cloudSessionSheet": {
         "title": "클라우드 선택",
@@ -838,6 +839,7 @@
         "accepting": "수락 중...",
         "failed": "초대 수락에 실패했습니다",
         "invalidLink": "유효하지 않은 초대 링크입니다",
+        "missingServerInfo": "초대 링크에 서버 정보가 누락되었습니다",
         "goBack": "돌아가기",
         "decline": "거절하기"
     },

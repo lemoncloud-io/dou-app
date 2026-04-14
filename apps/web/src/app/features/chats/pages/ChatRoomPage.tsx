@@ -257,22 +257,22 @@ export const ChatRoomPage = () => {
 
                         {/* Empty state */}
                         <div className="flex flex-col items-center gap-4">
-                            {userType !== UserType.TEMP_ACCOUNT && (
-                                <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
-                                    <p>{t('chat.room.emptyState.line1')}</p>
-                                    <p>{t('chat.room.emptyState.line2')}</p>
-                                </div>
-                            )}
-                            {userType !== UserType.TEMP_ACCOUNT && (
-                                <button
-                                    onClick={() => setInviteDialogOpen(true)}
-                                    className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
-                                >
-                                    <Plus size={20} />
-                                    <span className="text-[16px] font-semibold">
-                                        {t('chat.room.emptyState.inviteButton')}
-                                    </span>
-                                </button>
+                            {channel?.ownerId === dynamicProfile?.uid && (
+                                <>
+                                    <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
+                                        <p>{t('chat.room.emptyState.line1')}</p>
+                                        <p>{t('chat.room.emptyState.line2')}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setInviteDialogOpen(true)}
+                                        className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
+                                    >
+                                        <Plus size={20} />
+                                        <span className="text-[16px] font-semibold">
+                                            {t('chat.room.emptyState.inviteButton')}
+                                        </span>
+                                    </button>
+                                </>
                             )}
                         </div>
                     </div>

@@ -13,6 +13,7 @@ import type { FirebaseApp } from 'firebase/app';
 import type { Firestore, CollectionReference } from 'firebase/firestore';
 import type { Auth, User } from 'firebase/auth';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
+import { getMobileAppInfo } from '@chatic/app-messages';
 
 type Environment = 'DEV' | 'PROD';
 
@@ -98,7 +99,7 @@ class FirebaseDeeplinkService {
             shortCode: inviteCode,
             invite,
             createdAt: Timestamp.now(),
-            createdBy: 'web-user',
+            createdBy: getMobileAppInfo().isOnMobileApp ? 'app-user' : 'web-user',
         });
 
         return deepLinkUrl;

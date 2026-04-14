@@ -86,6 +86,11 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                     if (message.type === 'status' && message.status === 'connected') {
                         store.setIsConnected(true);
                     }
+
+                    if (message.type === 'status' && message.status === 'disconnected') {
+                        store.setIsConnected(false);
+                        store.setIsVerified(false);
+                    }
                 };
             }
 

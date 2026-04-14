@@ -95,10 +95,10 @@ export const HomePage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pb-[98px] pt-4">
+        <div className="flex h-screen flex-col overflow-hidden bg-background pb-[98px] pt-4">
             {/* Header */}
             <header className="flex items-center justify-between px-5 pb-3 pt-safe-top">
-                {userType === UserType.TEMP_ACCOUNT ? (
+                {userType === UserType.TEMP_ACCOUNT || userType === UserType.INVITED ? (
                     <CloudLogo />
                 ) : IS_LOCAL ? (
                     <DropdownMenu>
@@ -126,9 +126,6 @@ export const HomePage = () => {
                         <DropdownMenuContent align="start" className="w-48">
                             <DropdownMenuItem onClick={() => setIsSettingsOpen(true)} className="cursor-pointer">
                                 <span>{t('home.settings')}</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                                <span>{isInvited ? t('home.logoutInvited') : t('home.logout')}</span>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -185,7 +182,7 @@ export const HomePage = () => {
             <div className="mx-4 h-[3px] bg-border" />
 
             {/* Chat List */}
-            <section className="flex-1 px-4 pt-[18px]">
+            <section className="flex min-h-0 flex-1 flex-col px-4 pt-[18px]">
                 <ChannelList
                     workspaceId={selectedPlaceId ?? ''}
                     showCreateButton={userType !== UserType.TEMP_ACCOUNT && !isInvited && !isChannelsLoading}
