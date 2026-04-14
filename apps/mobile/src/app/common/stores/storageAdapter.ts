@@ -5,7 +5,7 @@ import type { PreferenceKey } from '@chatic/app-messages';
 import { cachePreferenceService } from '../storages';
 
 const isPreferenceKey = (key: string): key is PreferenceKey => {
-    const validKeys: PreferenceKey[] = ['isFirstRun', 'theme'];
+    const validKeys: PreferenceKey[] = ['isFirstRun', 'theme', 'language'];
     return (validKeys as string[]).includes(key);
 };
 
