@@ -1,26 +1,39 @@
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Loader2, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const MAX_MESSAGE_LENGTH = 200;
 
+const BUBBLE_BASE = 'whitespace-pre-wrap break-all px-3 py-2 text-[16px] leading-[1.28] tracking-[-0.288px]';
+const BUBBLE_MINE_SHAPE = 'rounded-bl-[14px] rounded-tl-[14px] rounded-tr-[14px]';
+const BUBBLE_OTHER_SHAPE = 'rounded-bl-[14px] rounded-br-[14px] rounded-tr-[14px]';
+
 interface MessageBubbleProps {
     content: string;
     isMine: boolean;
-    onViewAll: () => void;
+    onViewAll?: () => void;
+    status?: 'pending' | 'failed';
 }
 
-export const MessageBubble = ({ content, isMine, onViewAll }: MessageBubbleProps) => {
+export const MessageBubble = ({ content, isMine, onViewAll, status }: MessageBubbleProps) => {
     const { t } = useTranslation();
-    const isLongMessage = content.length > MAX_MESSAGE_LENGTH;
+    const isLongMessage = !status && content.length > MAX_MESSAGE_LENGTH;
+
+    const bubbleClassName = (() => {
+        if (status === 'pending') {
+            return `${BUBBLE_BASE} ${BUBBLE_MINE_SHAPE} bg-bubble-mine text-bubble-mine-foreground opacity-50`;
+        }
+        if (status === 'failed') {
+            return `${BUBBLE_BASE} ${BUBBLE_MINE_SHAPE} border border-destructive/30 bg-destructive/10 text-destructive`;
+        }
+        return `${BUBBLE_BASE} ${
+            isMine
+                ? `${BUBBLE_MINE_SHAPE} bg-bubble-mine text-bubble-mine-foreground`
+                : `${BUBBLE_OTHER_SHAPE} bg-bubble-other text-bubble-other-foreground`
+        }`;
+    })();
 
     return (
-        <div
-            className={`whitespace-pre-wrap break-all px-3 py-2 text-[16px] leading-[1.28] tracking-[-0.288px] ${
-                isMine
-                    ? 'rounded-bl-[14px] rounded-tl-[14px] rounded-tr-[14px] bg-bubble-mine text-bubble-mine-foreground'
-                    : 'rounded-bl-[14px] rounded-br-[14px] rounded-tr-[14px] bg-bubble-other text-bubble-other-foreground'
-            }`}
-        >
+        <div className={bubbleClassName}>
             {isLongMessage ? (
                 <>
                     {content.slice(0, MAX_MESSAGE_LENGTH)}...
@@ -36,6 +49,18 @@ export const MessageBubble = ({ content, isMine, onViewAll }: MessageBubbleProps
                 </>
             ) : (
                 content
+            )}
+            {status === 'pending' && (
+                <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Loader2 size={12} className="animate-spin" />
+                    <span>{t('chat.room.sending')}</span>
+                </div>
+            )}
+            {status === 'failed' && (
+                <button onClick={onViewAll} className="mt-1 flex items-center gap-1 text-[11px] text-destructive">
+                    <RotateCcw size={12} />
+                    <span>{t('chat.room.tapToRetry')}</span>
+                </button>
             )}
         </div>
     );

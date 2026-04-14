@@ -9,6 +9,7 @@ import { LoadingFallback } from '@chatic/shared';
 import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -26,15 +27,20 @@ import { MessageBubble } from '../components/MessageBubble';
 import { ReadStatus } from '../components/ReadStatus';
 import { useAppChecker } from '@chatic/device-utils';
 
+const MAX_INPUT_LENGTH = 5000;
+
 export const ChatRoomPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [content, setContent] = useState('');
+    const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+    const [failedMessage, setFailedMessage] = useState<string | null>(null);
     const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
     const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { emit } = useWebSocketV2();
+    const { toast } = useToast();
     const { sendMessage, isPending } = useSendMessage();
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
@@ -70,10 +76,10 @@ export const ChatRoomPage = () => {
     };
 
     useEffect(() => {
-        if (messages.length > 0 || isPending) {
+        if (messages.length > 0 || pendingMessage || failedMessage) {
             scrollToBottom();
         }
-    }, [messages.length, isPending]);
+    }, [messages.length, pendingMessage, failedMessage]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -111,13 +117,16 @@ export const ChatRoomPage = () => {
             e.stopPropagation();
         }
 
-        const trimmed = content.trim();
+        const trimmed = content.trim().slice(0, MAX_INPUT_LENGTH);
         if (!trimmed || !channelId) return;
 
         setContent('');
+        setFailedMessage(null);
+        setPendingMessage(trimmed);
 
         try {
             const newMessage = await sendMessage(channelId, trimmed);
+            setPendingMessage(null);
 
             const id = newMessage.id || '0';
             const timestamp = newMessage?.createdAt ? new Date(newMessage.createdAt) : new Date();
@@ -148,7 +157,17 @@ export const ChatRoomPage = () => {
             );
         } catch (error) {
             console.error('Failed to send message:', error);
+            setPendingMessage(null);
+            setFailedMessage(trimmed);
+            toast({ title: t('chat.room.sendFailed'), variant: 'destructive' });
         }
+    };
+
+    const handleRetry = () => {
+        if (!failedMessage) return;
+        setContent(failedMessage);
+        setFailedMessage(null);
+        inputRef.current?.focus();
     };
 
     const formatTime = (date: Date) => {
@@ -204,8 +223,8 @@ export const ChatRoomPage = () => {
     return (
         <div className="flex  h-screen flex-col pt-safe-top bg-background ">
             {/* Header */}
-            <header className="z-10 flex items-center justify-between border-b border-border px-4 py-2">
-                <button onClick={() => navigate(-1)} className="p-2">
+            <header className="relative z-10 flex min-h-[48px] items-center justify-center px-4 py-3">
+                <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
                     <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
                 </button>
                 <h1 className="text-[17px] font-semibold text-foreground">
@@ -216,7 +235,7 @@ export const ChatRoomPage = () => {
                 </h1>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <button className="p-1">
+                        <button className="absolute right-4 p-1">
                             <MoreHorizontal size={22} className="text-foreground" />
                         </button>
                     </DropdownMenuTrigger>
@@ -347,12 +366,17 @@ export const ChatRoomPage = () => {
                         </div>
                     ))
                 )}
-                {isPending && (
+                {pendingMessage && (
                     <div className="flex justify-end gap-1.5">
                         <div className="flex max-w-[75%] flex-col items-end">
-                            <div className="rounded-2xl rounded-tr-sm bg-bubble-mine px-3 py-2">
-                                <Loader2 size={16} className="animate-spin text-muted-foreground" />
-                            </div>
+                            <MessageBubble content={pendingMessage} isMine status="pending" />
+                        </div>
+                    </div>
+                )}
+                {failedMessage && (
+                    <div className="flex justify-end gap-1.5">
+                        <div className="flex max-w-[75%] flex-col items-end">
+                            <MessageBubble content={failedMessage} isMine status="failed" onViewAll={handleRetry} />
                         </div>
                     </div>
                 )}
@@ -406,20 +430,20 @@ export const ChatRoomPage = () => {
             <Dialog open={!!expandedMessage} onOpenChange={open => !open && setExpandedMessage(null)}>
                 <DialogContent variant="slide-up" hideClose className="flex flex-col gap-0 bg-background">
                     <DialogDescription className="sr-only">View full message content</DialogDescription>
-                    {/* Modal Header */}
-                    <header className="flex items-center justify-between border-b border-border px-4 py-4">
-                        <div className="w-8" />
-                        <DialogTitle className="text-[17px] font-bold text-foreground">
+                    <header className="relative flex min-h-[48px] items-center justify-center border-b border-border px-4 py-3">
+                        <DialogTitle className="text-[15px] font-semibold text-foreground">
                             {t('chat.room.messageDetail')}
                         </DialogTitle>
-                        <button onClick={() => setExpandedMessage(null)} className="p-1">
-                            <X size={24} className="text-foreground" />
+                        <button
+                            onClick={() => setExpandedMessage(null)}
+                            className="absolute right-3 flex size-8 items-center justify-center rounded-full outline-none transition-colors active:bg-muted"
+                        >
+                            <X size={20} className="text-muted-foreground" />
                         </button>
                     </header>
 
-                    {/* Modal Content */}
-                    <div className="flex-1 overflow-y-auto p-4">
-                        <p className="whitespace-pre-wrap break-all text-[16px] leading-[1.5] text-foreground">
+                    <div className="flex-1 overflow-y-auto px-4 py-3">
+                        <p className="whitespace-pre-wrap break-all text-[15px] leading-[1.55] text-foreground">
                             {expandedMessage?.content}
                         </p>
                     </div>

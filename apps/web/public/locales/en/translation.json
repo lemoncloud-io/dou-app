@@ -462,7 +462,10 @@
             "readCount": "Read {{count}}",
             "unreadCount": "Unread {{count}}",
             "viewAll": "View All",
-            "messageDetail": "Full Message"
+            "messageDetail": "Full Message",
+            "sending": "Sending...",
+            "sendFailed": "Failed to send message",
+            "tapToRetry": "Tap to retry"
         },
         "settings": {
             "title": "Room Settings",
