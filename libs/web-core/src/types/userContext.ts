@@ -29,13 +29,22 @@ export enum UserType {
     SOCIAL_WITH_CLOUD = 'social_with_cloud',
 
     /**
-     * 케이스 4: 초대 유저
+     * 케이스 4: 초대 유저 (guest)
      * - 초대 링크로 들어옴 (isInvited=true)
-     * - userRole='guest'
+     * - userRole='guest' (소셜 로그인 미완료)
+     * - 초대받은 cloud 정보 있음
+     * - SIGNIN 노출 대상
+     */
+    INVITED = 'invited',
+
+    /**
+     * 케이스 5: 초대 유저 + 소셜 로그인 완료
+     * - 초대 링크로 들어옴 (isInvited=true)
+     * - userRole='user' (소셜 로그인 완료)
      * - 초대받은 cloud 정보 있음
      * - cloud WSS + 중계서버 WSS 둘 다 필요
      */
-    INVITED = 'invited',
+    INVITED_WITH_CLOUD = 'invited_with_cloud',
 }
 
 /**
@@ -140,7 +149,13 @@ export const DEFAULT_PERMISSIONS: Record<UserType, Omit<UserPermissions, 'maxCha
     [UserType.INVITED]: {
         canCreateChannel: false,
         canCreatePlace: false,
+        useCloudProfile: false,
+        canSelectCloud: false,
+    },
+    [UserType.INVITED_WITH_CLOUD]: {
+        canCreateChannel: true,
+        canCreatePlace: true,
         useCloudProfile: true,
-        canSelectCloud: false, // 초대받은 cloud만 사용 가능
+        canSelectCloud: true,
     },
 };
