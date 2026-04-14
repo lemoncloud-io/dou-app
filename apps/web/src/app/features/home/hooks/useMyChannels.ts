@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
-import { cloudCore, useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, useDynamicProfile } from '@chatic/web-core';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
@@ -175,8 +175,8 @@ useWebSocketV2Store.subscribe(
     s => s.isVerified,
     isVerified => {
         if (!isVerified || !globalEmitAuthenticated) return;
-        const { isCloudUser } = useWebCoreStore.getState();
-        if (!isCloudUser && !cloudCore.getSelectedPlaceId()) return;
+        const wssType = useWebSocketV2Store.getState().wssType;
+        if (wssType === 'cloud' && !cloudCore.getSelectedPlaceId()) return;
         isBootstrapped = false;
         bootstrap(globalEmitAuthenticated, globalProfileId);
     }
@@ -243,8 +243,8 @@ export const useMyChannels = () => {
     useEffect(() => {
         const listener = () => forceUpdate({});
         listeners.add(listener);
-        const { isCloudUser } = useWebCoreStore.getState();
-        const hasPlace = !isCloudUser || !!cloudCore.getSelectedPlaceId();
+        const wssType = useWebSocketV2Store.getState().wssType;
+        const hasPlace = wssType !== 'cloud' || !!cloudCore.getSelectedPlaceId();
         if (isVerified && globalEmitAuthenticated && !isBootstrapped && hasPlace) {
             bootstrap(globalEmitAuthenticated, globalProfileId);
         }

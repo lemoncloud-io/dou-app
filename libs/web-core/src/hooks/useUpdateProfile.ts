@@ -25,7 +25,10 @@ export const useUpdateProfile = () => {
             if (updated && profile) {
                 setProfile({
                     ...profile,
-                    ...updated,
+                    $user: {
+                        ...profile.$user,
+                        ...updated,
+                    },
                 });
             }
         },
