@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RNFS from 'react-native-fs';
-import { cacheRepository } from '../../../common/storages';
+import { cacheCrudService } from '../../../common/storages';
 import { database } from '../../../common/storages/sqlite';
 import type { CacheType } from '@chatic/app-messages';
 
@@ -20,12 +20,12 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+const DATA_TYPES: CacheType[] = ['channel', 'cloud', 'chat', 'user', 'join', 'site', 'usertoken', 'invitecloud'];
+
 export const StorageTestScreen = () => {
     const insets = useSafeAreaInsets();
 
-    const [cloudIds] = useState(['cloud-1', 'cloud-2', 'cloud-3']);
-    const dataType: CacheType = 'chat';
-    const [targetCid, setTargetCid] = useState(cloudIds[0]);
+    const [dataType, setDataType] = useState<CacheType>(DATA_TYPES[0]);
 
     // 데이터 상태 관리
     const [items, setItems] = useState<any[]>([]);
@@ -46,79 +46,18 @@ export const StorageTestScreen = () => {
         setResultLog(`[${title} - ERROR] ${message}`);
     };
 
-    // 테스트용 랜덤 채팅 메시지 생성기
-    const createRandomChat = (cid: string, id: string) => ({
-        id,
-        cid,
-        channelId: 'ch-general-test', // 테스트용 기본 채널 ID
-        text: `Random message @ ${new Date().toLocaleTimeString()}`,
-        createdAt: Date.now(),
-        ownerId: `user-${Math.floor(Math.random() * 100)}`,
-        ownerName: 'Random User',
-        isSystem: false,
-    });
-
     // --- Repository Action Handlers ---
 
     const fetchItems = useCallback(async () => {
         try {
-            // 명시적으로 sort를 문자열로 주입하여 toUpperCase 에러 방지
-            const query = targetCid ? { cid: targetCid, sort: 'desc' } : { sort: 'desc' };
-            const res = await cacheRepository.fetchAll({ type: dataType, query });
+            const query = { sort: 'desc' };
+            const res = await cacheCrudService.fetchAll({ type: dataType, query });
             setItems(res || []);
-            logResult('FetchAll', `Loaded ${res?.length || 0} items.`);
+            logResult('FetchAll', `Loaded ${res?.length || 0} items for ${dataType}.`);
         } catch (e) {
             logError('FetchAll', e);
         }
-    }, [targetCid, dataType]);
-
-    const handleSaveRandom = async () => {
-        try {
-            const id = `msg-${Date.now()}`;
-            const item = createRandomChat(targetCid, id);
-            await cacheRepository.save({ type: dataType, id, cid: targetCid, item });
-            logResult('Save', `Saved message ${id}`);
-            await fetchItems(); // 저장 후 즉시 새로고침
-        } catch (e) {
-            logError('Save', e);
-        }
-    };
-
-    const handleSaveMultipleRandom = async () => {
-        try {
-            const newItems = Array.from({ length: 5 }).map((_, i) => {
-                const id = `msg-batch-${Date.now()}-${i}`;
-                return createRandomChat(targetCid, id);
-            });
-            await cacheRepository.saveAll({ type: dataType, items: newItems, cid: targetCid || undefined });
-            logResult('SaveAll', 'Saved 5 messages.');
-            await fetchItems(); // 저장 후 즉시 새로고침
-        } catch (e) {
-            logError('SaveAll', e);
-        }
-    };
-
-    const handleDeleteSingle = async (id: string) => {
-        try {
-            await cacheRepository.delete({ type: dataType, id, cid: targetCid });
-            logResult('Delete', `Deleted message ${id}`);
-            await fetchItems(); // 삭제 후 즉시 새로고침
-        } catch (e) {
-            logError('Delete', e);
-        }
-    };
-
-    const handleDeleteAll = async () => {
-        if (items.length === 0) return logResult('DeleteAll', '삭제할 데이터가 없습니다.');
-        const ids = items.map(item => item.id).filter(Boolean);
-        try {
-            await cacheRepository.deleteAll({ type: dataType, ids, cid: targetCid });
-            logResult('DeleteAll', `Deleted ${ids.length} messages.`);
-            await fetchItems(); // 삭제 후 즉시 새로고침
-        } catch (e) {
-            logError('DeleteAll', e);
-        }
-    };
+    }, [dataType]);
 
     const handleBackup = async () => {
         try {
@@ -149,20 +88,16 @@ export const StorageTestScreen = () => {
 
     useEffect(() => {
         void fetchItems();
-    }, [targetCid, dataType, fetchItems]);
+    }, [dataType, fetchItems]);
 
     // 리스트 아이템 렌더링
     const renderItem = ({ item }: { item: any }) => (
         <View style={styles.logRow}>
             <View style={styles.logHeader}>
-                <Text style={styles.logTime}>[{item.id}]</Text>
-                <View style={{ flex: 1 }} />
-                <TouchableOpacity
-                    onPress={() => handleDeleteSingle(item.id)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                    <Text style={styles.deleteText}>Delete</Text>
-                </TouchableOpacity>
+                <Text style={styles.logTime}>
+                    [{item.cid ? `${item.cid} / ` : ''}
+                    {item.id}]
+                </Text>
             </View>
             <Text style={styles.logData}>{item.text || JSON.stringify(item)}</Text>
         </View>
@@ -184,25 +119,25 @@ export const StorageTestScreen = () => {
                     <View style={styles.infoContainer}>
                         <View style={styles.dividerHorizontal} />
                         <View style={[styles.infoRow, { alignItems: 'center' }]}>
-                            <Text style={styles.infoLabel}>Target CID:</Text>
+                            <Text style={styles.infoLabel}>Data Type:</Text>
                             <ScrollView
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
                                 contentContainerStyle={{ gap: 8 }}
                             >
-                                {cloudIds.map(cid => (
+                                {DATA_TYPES.map(type => (
                                     <TouchableOpacity
-                                        key={cid}
-                                        style={[styles.cidPill, targetCid === cid && styles.cidPillSelected]}
-                                        onPress={() => setTargetCid(cid)}
+                                        key={type}
+                                        style={[styles.cidPill, dataType === type && styles.cidPillSelected]}
+                                        onPress={() => setDataType(type)}
                                     >
                                         <Text
                                             style={[
                                                 styles.cidPillText,
-                                                targetCid === cid && styles.cidPillTextSelected,
+                                                dataType === type && styles.cidPillTextSelected,
                                             ]}
                                         >
-                                            {cid}
+                                            {type}
                                         </Text>
                                     </TouchableOpacity>
                                 ))}
@@ -227,7 +162,7 @@ export const StorageTestScreen = () => {
             {/* 데이터 리스트 */}
             <FlatList
                 data={items}
-                keyExtractor={item => item.id}
+                keyExtractor={(item, index) => `${item.cid || 'default'}_${item.id}_${index}`}
                 renderItem={renderItem}
                 style={styles.logList}
                 contentContainerStyle={styles.logContent}
@@ -246,26 +181,6 @@ export const StorageTestScreen = () => {
                         onPress={fetchItems}
                     >
                         <Text style={styles.buttonText}>Refresh</Text>
-                    </TouchableOpacity>
-                    <View style={styles.divider} />
-                    <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: '#27AE60' }]}
-                        onPress={handleSaveRandom}
-                    >
-                        <Text style={styles.buttonText}>+ 1 Add</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: '#F39C12' }]}
-                        onPress={handleSaveMultipleRandom}
-                    >
-                        <Text style={styles.buttonText}>+ 5 Add</Text>
-                    </TouchableOpacity>
-                    <View style={styles.divider} />
-                    <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: '#C0392B' }]}
-                        onPress={handleDeleteAll}
-                    >
-                        <Text style={styles.buttonText}>Clear All</Text>
                     </TouchableOpacity>
                     <View style={styles.divider} />
                     <TouchableOpacity
@@ -383,11 +298,6 @@ const styles = StyleSheet.create({
         color: '#4A90E2',
         fontSize: 11,
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-        fontWeight: 'bold',
-    },
-    deleteText: {
-        color: '#FF5A5F',
-        fontSize: 11,
         fontWeight: 'bold',
     },
     logData: {
