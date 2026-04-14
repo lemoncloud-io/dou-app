@@ -10,3 +10,4 @@ export * from './usePermissionHandler';
 export * from './useSubscriptionIapHandler';
 export * from './usePreferenceCacheHandler';
 export * from './useOAuthHandler';
+export * from './useVersionCheckHandler';
