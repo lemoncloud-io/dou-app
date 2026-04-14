@@ -26,7 +26,7 @@ export const useChatMutations = () => {
     const cleanup = useCallback(
         (action: ChatMutationAction, handler: (e: Event) => void, timeoutId: NodeJS.Timeout) => {
             setPendingStates(prev => ({ ...prev, [action]: false }));
-            window.removeEventListener('local-db-updated', handler);
+            window.removeEventListener(APP_SYNC_EVENT_NAME, handler);
             clearTimeout(timeoutId);
         },
         []
@@ -50,7 +50,7 @@ export const useChatMutations = () => {
 
                     if (detail.domain === 'chat' && detail.action === 'send' && detail.targetId === payload.channelId) {
                         cleanup(action, onUpdate, timeoutId);
-                        resolve();
+                        resolve(detail.payload);
                     }
                 };
 
