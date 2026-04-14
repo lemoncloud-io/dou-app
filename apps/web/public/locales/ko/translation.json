@@ -301,7 +301,13 @@
             "terms": "서비스 이용약관",
             "privacy": "개인정보처리방침",
             "child": "아동 보호 정책",
-            "effectiveDate": "시행일"
+            "effectiveDate": "시행일",
+            "licenses": "오픈소스 라이선스",
+            "licensesDescription": "이 앱은 다음 오픈소스 라이브러리를 사용합니다",
+            "openSourceHero": "DoU는 오픈소스 프로젝트입니다",
+            "openSourceDescription": "GitHub에서 소스코드를 확인하고 기여해 보세요",
+            "viewOnGithub": "GitHub에서 보기",
+            "licensesEmpty": "라이선스 정보가 없습니다"
         },
         "logoutDialog": {
             "title": "로그아웃을 하시겠습니까?",

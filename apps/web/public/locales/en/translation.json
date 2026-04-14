@@ -302,7 +302,13 @@
             "terms": "Terms of Service",
             "privacy": "Privacy Policy",
             "child": "Child Policy",
-            "effectiveDate": "Effective Date"
+            "effectiveDate": "Effective Date",
+            "licenses": "Open Source Licenses",
+            "licensesDescription": "This app uses the following open source libraries",
+            "openSourceHero": "DoU is an open source project",
+            "openSourceDescription": "Check out the source code and contribute on GitHub",
+            "viewOnGithub": "View on GitHub",
+            "licensesEmpty": "No license data available"
         },
         "logoutDialog": {
             "title": "Are you sure you want to logout?",

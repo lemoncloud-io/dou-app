@@ -5,6 +5,7 @@ import {
     AccountManagePage,
     DebugLoginPage,
     DebugPage,
+    LicensesPage,
     LoginPage,
     MyPage,
     PolicyListPage,
@@ -28,6 +29,7 @@ export const MyPageRoutes = () => {
             <Route path="login" element={<LoginPage />} />
             <Route path="policy" element={<PolicyListPage />} />
             <Route path="policy/terms" element={<TermsPage />} />
+            <Route path="policy/licenses" element={<LicensesPage />} />
             <Route path="policy/privacy" element={<PrivacyPage />} />
             <Route path="subscription" element={<SubscriptionPage />} />
             <Route path="subscription/plans" element={<SubscriptionPlansPage />} />
