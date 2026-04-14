@@ -1,4 +1,4 @@
-import { ChevronRight, Loader2, RotateCcw } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const MAX_MESSAGE_LENGTH = 200;
@@ -49,18 +49,6 @@ export const MessageBubble = ({ content, isMine, onViewAll, status }: MessageBub
                 </>
             ) : (
                 content
-            )}
-            {status === 'pending' && (
-                <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Loader2 size={12} className="animate-spin" />
-                    <span>{t('chat.room.sending')}</span>
-                </div>
-            )}
-            {status === 'failed' && (
-                <button onClick={onViewAll} className="mt-1 flex items-center gap-1 text-[11px] text-destructive">
-                    <RotateCcw size={12} />
-                    <span>{t('chat.room.tapToRetry')}</span>
-                </button>
             )}
         </div>
     );

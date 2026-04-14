@@ -1,4 +1,4 @@
-import { ArrowUp, ChevronLeft, Loader2, MoreHorizontal, Plus, Settings, User, X } from 'lucide-react';
+import { ArrowUp, ChevronLeft, Loader2, MoreHorizontal, Plus, RotateCcw, Settings, User, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -372,13 +372,24 @@ export const ChatRoomPage = () => {
                     <div className="flex justify-end gap-1.5">
                         <div className="flex max-w-[75%] flex-col items-end">
                             <MessageBubble content={pendingMessage} isMine status="pending" />
+                            <div className="mt-1 flex items-center gap-1 text-[11px] leading-4 text-muted-foreground">
+                                <Loader2 size={12} className="animate-spin" />
+                                <span>{t('chat.room.sending')}</span>
+                            </div>
                         </div>
                     </div>
                 )}
                 {failedMessage && (
                     <div className="flex justify-end gap-1.5">
                         <div className="flex max-w-[75%] flex-col items-end">
-                            <MessageBubble content={failedMessage} isMine status="failed" onViewAll={handleRetry} />
+                            <MessageBubble content={failedMessage} isMine status="failed" />
+                            <button
+                                onClick={handleRetry}
+                                className="mt-1 flex items-center gap-1 text-[11px] leading-4 text-destructive"
+                            >
+                                <RotateCcw size={12} />
+                                <span>{t('chat.room.tapToRetry')}</span>
+                            </button>
                         </div>
                     </div>
                 )}
