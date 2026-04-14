@@ -234,7 +234,10 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
 
     useEffect(() => {
-        if (open) refetchClouds();
+        if (open) {
+            setSelectedId(cloudCore.getSelectedCloudId());
+            refetchClouds();
+        }
     }, [open]);
 
     const handleAddAccount = () => {
