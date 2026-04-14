@@ -15,6 +15,7 @@ export const authHandler = async (envelope: WSSEnvelope, cid: string) => {
     switch (action) {
         /**
          * 서버로부터 인증 상태 동기화 응답 수신
+         * TODO: 연동필요
          */
         case 'update': {
             if (payload.error) {
