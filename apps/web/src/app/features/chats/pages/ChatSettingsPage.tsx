@@ -7,7 +7,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 
 import { LoadingFallback } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
+import { useDynamicProfile, useUserContext, UserType } from '@chatic/web-core';
 
 import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -70,7 +70,7 @@ export const ChatSettingsPage = () => {
     const { toast } = useToast();
 
     const profile = useDynamicProfile();
-    const { isGuest } = useWebCoreStore();
+    const { userType } = useUserContext();
     const { clearMessages } = useChatMessages(profile?.uid ?? null, channelId ?? null);
 
     const isOwner = channel?.ownerId === profile?.uid;
@@ -185,7 +185,7 @@ export const ChatSettingsPage = () => {
 
                     {/* Action Buttons */}
                     <div className="flex items-start justify-center gap-6">
-                        {isOwner && !isGuest && (
+                        {isOwner && userType !== UserType.TEMP_ACCOUNT && (
                             <ActionButton
                                 icon={UserPlus}
                                 label={t('chat.settings.inviteFriends')}
@@ -272,7 +272,7 @@ export const ChatSettingsPage = () => {
             </div>
 
             {/* Dialogs */}
-            {!isGuest && (
+            {userType !== UserType.TEMP_ACCOUNT && (
                 <InviteFriendsDialog
                     open={activeDialog === 'invite'}
                     onOpenChange={open => (open ? openDialog('invite') : closeDialog())}

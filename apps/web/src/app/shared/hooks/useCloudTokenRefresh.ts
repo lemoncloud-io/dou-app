@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { useWebSocketV2 } from '@chatic/socket';
+import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useServiceStatusStore, useWebCoreStore, webCore } from '@chatic/web-core';
 
 const REFRESH_INTERVAL_MS = 60_000;
@@ -11,15 +11,16 @@ const isServerError = (error: unknown): boolean => {
 };
 
 export const useCloudTokenRefresh = () => {
-    const { isCloudUser, isAuthenticated } = useWebCoreStore();
+    const { isAuthenticated } = useWebCoreStore();
     const { emit, isConnected } = useWebSocketV2();
     const { setServiceUnavailable } = useServiceStatusStore();
+    const wssType = useWebSocketV2Store(s => s.wssType);
 
     useEffect(() => {
         if (!isConnected || !isAuthenticated) return;
 
         const refresh = async () => {
-            if (!isCloudUser) {
+            if (wssType !== 'cloud') {
                 const token = (await webCore.getTokenSignature()).originToken?.identityToken;
                 if (token) emit({ type: 'auth', action: 'update', payload: { token } });
                 return;
@@ -44,5 +45,5 @@ export const useCloudTokenRefresh = () => {
 
         const id = setInterval(refresh, REFRESH_INTERVAL_MS);
         return () => clearInterval(id);
-    }, [isCloudUser, isAuthenticated, isConnected, emit, setServiceUnavailable]);
+    }, [wssType, isAuthenticated, isConnected, emit, setServiceUnavailable]);
 };

@@ -5,7 +5,7 @@ import { Check, ChevronDown, Home, RefreshCw, SlidersHorizontal, Users } from 'l
 
 import { getSocketSend, useWebSocketV2Store } from '@chatic/socket';
 import { cn } from '@chatic/lib/utils';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -32,8 +32,8 @@ const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemPr
     const { t } = useTranslation();
     const isSelectable = place.stereo === 'work';
     const isDefaultPlace = place.id === 'default';
-    const disabled = !isSelectable || isDisabled || isSelected || isDefaultPlace;
-    const selected = isSelected || isDefaultPlace;
+    const disabled = !isSelectable || isDisabled || isSelected;
+    const selected = isSelected;
     const displayName = isDefaultPlace ? t('placeList.defaultPlace') : place.name;
 
     return (
@@ -92,7 +92,9 @@ export const PlaceList = ({
     isPlacesLoading,
 }: PlaceListProps) => {
     const { t } = useTranslation();
-    const { isCloudUser, isInvited } = useWebCoreStore();
+    const { userType } = useUserContext();
+    const isInvited = userType === UserType.INVITED || userType === UserType.INVITED_WITH_CLOUD;
+    const wssType = useWebSocketV2Store(s => s.wssType);
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
     const [isPending, setIsPending] = useState(false);
     const [filter, setFilter] = useState<PlaceFilter>('all');
@@ -101,6 +103,7 @@ export const PlaceList = ({
 
     const profileId = cloudCore.getCloudToken()?.id;
     const selectedCloudId = cloudCore.getSelectedCloudId();
+    const isDefaultMode = selectedCloudId === 'default';
 
     const filteredPlaces = (() => {
         if (filter === 'mine') return places.filter(p => p.ownerId === profileId);
@@ -109,6 +112,18 @@ export const PlaceList = ({
     })();
 
     const handleSelectPlace = async (placeId: string) => {
+        if (placeId === 'default') {
+            return handleSelectDefaultPlace();
+        }
+
+        // relay 모드: refreshToken 불필요, 단순 선택만
+        const currentWssType = useWebSocketV2Store.getState().wssType;
+        if (currentWssType !== 'cloud') {
+            setSelectedId(placeId);
+            onPlaceSelected?.(placeId);
+            return;
+        }
+
         const cloudToken = cloudCore.getCloudToken();
         const uid = cloudToken?.id;
         if (!uid) return;
@@ -140,14 +155,29 @@ export const PlaceList = ({
         }
     };
 
+    const handleSelectDefaultPlace = async () => {
+        setIsPending(true);
+        setGlobalLoading(true, t('globalLoader.switchingPlace'));
+        try {
+            cloudCore.clearDelegationToken();
+            useWebSocketV2Store.getState().setIsVerified(false);
+            setSelectedId('default');
+        } catch (e) {
+            console.error('Failed to switch to default place:', e);
+        } finally {
+            setIsPending(false);
+            setGlobalLoading(false);
+        }
+    };
+
     useEffect(() => {
         const hasSelected = !!cloudCore.getSelectedPlaceId();
         if (hasSelected || filteredPlaces.length === 0) return;
         handleSelectPlace(filteredPlaces[0].id);
     }, [filteredPlaces]);
 
-    // 순수 게스트(isGuest && !isInvited)는 DEFAULT_PLACE만 표시
-    if (!isCloudUser) {
+    // 순수 게스트 또는 cloud 미선택(default) 상태는 DEFAULT_PLACE만 표시
+    if (userType === UserType.TEMP_ACCOUNT || isDefaultMode) {
         return (
             <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
                 <PlaceItem place={DEFAULT_PLACE} isSelected isDisabled onSelectPlace={_id => _id} />
@@ -155,8 +185,8 @@ export const PlaceList = ({
         );
     }
 
-    // isInvited는 cloud 선택 없이도 place 목록 표시
-    if (!selectedCloudId && !isInvited) {
+    // cloud 모드에서 cloud 선택 대기 중 (isInvited는 cloud 선택 없이도 place 목록 표시)
+    if (wssType === 'cloud' && !selectedCloudId && !isInvited) {
         return (
             <div className="flex flex-col items-center gap-2 py-10">
                 <p className="text-sm text-muted-foreground">{t('placeList.selectCloud')}</p>
@@ -314,6 +344,14 @@ export const PlaceList = ({
         <div>
             {header}
             <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
+                {wssType === 'cloud' && (
+                    <PlaceItem
+                        place={DEFAULT_PLACE}
+                        isSelected={selectedId === 'default'}
+                        isDisabled={isPending}
+                        onSelectPlace={handleSelectPlace}
+                    />
+                )}
                 {filteredPlaces.map(place => (
                     <PlaceItem
                         key={place.id}

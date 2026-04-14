@@ -12,8 +12,8 @@ export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) 
             // 1. webCore 토큰 리프레시
             await refreshToken();
 
-            // 2. cloud 토큰 리프레시
-            if (cloudCore.getSelectedCloudId()) {
+            // 2. cloud 토큰 리프레시 (delegation token이 있을 때만)
+            if (cloudCore.getSelectedCloudId() && cloudCore.getDelegationToken()) {
                 void cloudCore.refreshToken();
             }
         };

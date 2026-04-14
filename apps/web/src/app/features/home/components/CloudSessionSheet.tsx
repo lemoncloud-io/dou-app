@@ -243,7 +243,10 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const prevCloudStatusesRef = useRef<Map<string, NonNullable<CloudView['status']>>>(new Map());
 
     useEffect(() => {
-        if (open) refetchClouds();
+        if (open) {
+            setSelectedId(cloudCore.getSelectedCloudId());
+            refetchClouds();
+        }
     }, [open]);
 
     // Detect reserved/init → active transition and show "cloud ready" toast

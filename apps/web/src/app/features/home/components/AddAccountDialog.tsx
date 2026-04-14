@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudsKeys, fetchClouds, useVerifyEmail } from '@chatic/users';
 import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useUserContext, UserType } from '@chatic/web-core';
 
 import { VerificationCodeInput } from '../../account/components/VerificationCodeInput';
 import { VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../../account/constants';
@@ -30,7 +30,7 @@ export const AddAccountDialog = ({ open, onOpenChange }: AddAccountDialogProps) 
     const queryClient = useQueryClient();
     const verifyEmail = useVerifyEmail();
     const { isDarkTheme } = useTheme();
-    const { isCloudUser } = useWebCoreStore();
+    const { userType } = useUserContext();
     const { isAvailable: isSubscriptionAvailable } = useIsSubscriptionAvailable();
 
     const [step, setStep] = useState<Step>('email');
@@ -90,7 +90,7 @@ export const AddAccountDialog = ({ open, onOpenChange }: AddAccountDialogProps) 
     const handleSendCode = async () => {
         setLoading(true);
         try {
-            if (!isCloudUser) {
+            if (userType === UserType.TEMP_ACCOUNT) {
                 toast({ title: t('addAccount.cloudUserRequired'), variant: 'destructive' });
                 return;
             }

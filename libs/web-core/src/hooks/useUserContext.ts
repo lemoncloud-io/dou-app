@@ -26,9 +26,9 @@ const getUserType = (profile: UserProfile$ | null, isInvited: boolean, hasCloudT
 
     const userRole = (profile.$user as { userRole?: string })?.userRole;
 
-    // 케이스 4: 초대 유저
+    // 케이스 4: 초대 유저 (guest → INVITED, user → INVITED_WITH_CLOUD)
     if (isInvited) {
-        return UserType.INVITED;
+        return userRole === 'user' ? UserType.INVITED_WITH_CLOUD : UserType.INVITED;
     }
 
     // 케이스 1: 순수 임시계정
@@ -73,9 +73,7 @@ const getPermissions = (userType: UserType): UserPermissions => {
 
     // maxChannels 계산
     let maxChannels: number;
-    if (userType === UserType.INVITED) {
-        maxChannels = 0; // 초대 유저는 채널 생성 불가
-    } else if (userType === UserType.TEMP_ACCOUNT) {
+    if (userType === UserType.INVITED || userType === UserType.TEMP_ACCOUNT) {
         maxChannels = GUEST_MAX_CHANNELS;
     } else {
         maxChannels = MAX_CHANNELS_PER_PLACE;
@@ -140,7 +138,10 @@ export const useUserContextCompat = () => {
         ...context,
         // 기존 boolean 값들 (deprecated)
         isGuest: context.userType === UserType.TEMP_ACCOUNT,
-        isInvited: context.userType === UserType.INVITED,
-        isCloudUser: context.userType === UserType.SOCIAL_WITH_CLOUD || context.userType === UserType.INVITED,
+        isInvited: context.userType === UserType.INVITED || context.userType === UserType.INVITED_WITH_CLOUD,
+        isCloudUser:
+            context.userType === UserType.SOCIAL_WITH_CLOUD ||
+            context.userType === UserType.INVITED ||
+            context.userType === UserType.INVITED_WITH_CLOUD,
     };
 };

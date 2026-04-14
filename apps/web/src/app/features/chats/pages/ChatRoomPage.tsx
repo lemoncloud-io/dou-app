@@ -6,7 +6,7 @@ import { useParams } from 'react-router-dom';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { LoadingFallback } from '@chatic/shared';
-import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
+import { useDynamicProfile, useUserContext, UserType } from '@chatic/web-core';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import {
@@ -41,7 +41,7 @@ export const ChatRoomPage = () => {
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
 
     const dynamicProfile = useDynamicProfile();
-    const { isGuest } = useWebCoreStore();
+    const { userType } = useUserContext();
     const { setChannels } = useMyChannels();
     const {
         messages,
@@ -257,13 +257,13 @@ export const ChatRoomPage = () => {
 
                         {/* Empty state */}
                         <div className="flex flex-col items-center gap-4">
-                            {!isGuest && (
+                            {userType !== UserType.TEMP_ACCOUNT && (
                                 <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
                                     <p>{t('chat.room.emptyState.line1')}</p>
                                     <p>{t('chat.room.emptyState.line2')}</p>
                                 </div>
                             )}
-                            {!isGuest && (
+                            {userType !== UserType.TEMP_ACCOUNT && (
                                 <button
                                     onClick={() => setInviteDialogOpen(true)}
                                     className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
@@ -277,88 +277,90 @@ export const ChatRoomPage = () => {
                         </div>
                     </div>
                 ) : (
-                    Object.entries(groupedMessages).map(([dateKey, dateMessages]) => (
-                        <div key={dateKey} className="flex flex-col gap-3">
-                            {/* Date Separator */}
-                            <div className="py-2 text-center">
-                                <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
-                                    {formatDateSeparator(dateMessages[0].timestamp)}
-                                </span>
-                            </div>
+                    Object.entries(groupedMessages)
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([dateKey, dateMessages]) => (
+                            <div key={dateKey} className="flex flex-col gap-3">
+                                {/* Date Separator */}
+                                <div className="py-2 text-center">
+                                    <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
+                                        {formatDateSeparator(dateMessages[0].timestamp)}
+                                    </span>
+                                </div>
 
-                            {/* Messages for this date */}
-                            {dateMessages
-                                .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-                                .map(message => {
-                                    const isMine = message.ownerId === dynamicProfile?.uid;
+                                {/* Messages for this date */}
+                                {dateMessages
+                                    .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+                                    .map(message => {
+                                        const isMine = message.ownerId === dynamicProfile?.uid;
 
-                                    if (message.isSystem) {
-                                        const systemMatch = message.content.match(/^(.+?)(님이.+)$/);
-                                        return (
-                                            <div key={message.id} className="flex justify-center py-1">
-                                                <span className="rounded-full bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground">
-                                                    {systemMatch ? (
-                                                        <>
-                                                            <span className="font-semibold">{systemMatch[1]}</span>
-                                                            {systemMatch[2]}
-                                                        </>
-                                                    ) : (
-                                                        message.content
-                                                    )}
-                                                </span>
-                                            </div>
-                                        );
-                                    }
-
-                                    return (
-                                        <div
-                                            key={message.id}
-                                            className={`flex gap-1.5 ${isMine ? 'justify-end' : 'justify-start'}`}
-                                        >
-                                            {!isMine && (
-                                                <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
-                                                    <User className="size-4 text-muted-foreground" />
+                                        if (message.isSystem) {
+                                            const systemMatch = message.content.match(/^(.+?)(님이.+)$/);
+                                            return (
+                                                <div key={message.id} className="flex justify-center py-1">
+                                                    <span className="rounded-full bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground">
+                                                        {systemMatch ? (
+                                                            <>
+                                                                <span className="font-semibold">{systemMatch[1]}</span>
+                                                                {systemMatch[2]}
+                                                            </>
+                                                        ) : (
+                                                            message.content
+                                                        )}
+                                                    </span>
                                                 </div>
-                                            )}
+                                            );
+                                        }
+
+                                        return (
                                             <div
-                                                className={`flex max-w-[75%] flex-col ${isMine ? 'items-end' : 'items-start'}`}
+                                                key={message.id}
+                                                className={`flex gap-1.5 ${isMine ? 'justify-end' : 'justify-start'}`}
                                             >
                                                 {!isMine && (
-                                                    <span className="mb-1 text-xs text-muted-foreground">
-                                                        {message.ownerName}
-                                                    </span>
+                                                    <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                                                        <User className="size-4 text-muted-foreground" />
+                                                    </div>
                                                 )}
-                                                <MessageBubble
-                                                    content={message.content}
-                                                    isMine={isMine}
-                                                    onViewAll={() =>
-                                                        setExpandedMessage({
-                                                            content: message.content,
-                                                            ownerName: message.ownerName,
-                                                        })
-                                                    }
-                                                />
                                                 <div
-                                                    className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${isMine ? 'flex-row-reverse' : ''}`}
+                                                    className={`flex max-w-[75%] flex-col ${isMine ? 'items-end' : 'items-start'}`}
                                                 >
-                                                    <span className="text-muted-foreground">
-                                                        {formatTime(message.timestamp)}
-                                                    </span>
-                                                    <ReadStatus
-                                                        memberNo={channel?.memberNo ?? 0}
-                                                        readCount={(message.readBy?.length ?? 1) - 1}
+                                                    {!isMine && (
+                                                        <span className="mb-1 text-xs text-muted-foreground">
+                                                            {message.ownerName}
+                                                        </span>
+                                                    )}
+                                                    <MessageBubble
+                                                        content={message.content}
+                                                        isMine={isMine}
+                                                        onViewAll={() =>
+                                                            setExpandedMessage({
+                                                                content: message.content,
+                                                                ownerName: message.ownerName,
+                                                            })
+                                                        }
                                                     />
+                                                    <div
+                                                        className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${isMine ? 'flex-row-reverse' : ''}`}
+                                                    >
+                                                        <span className="text-muted-foreground">
+                                                            {formatTime(message.timestamp)}
+                                                        </span>
+                                                        <ReadStatus
+                                                            memberNo={channel?.memberNo ?? 0}
+                                                            readCount={(message.readBy?.length ?? 1) - 1}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                        </div>
-                    ))
+                                        );
+                                    })}
+                            </div>
+                        ))
                 )}
             </div>
 
-            {!isGuest && (
+            {userType !== UserType.TEMP_ACCOUNT && (
                 <InviteFriendsDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} channelId={channelId} />
             )}
 

@@ -9,6 +9,7 @@ export interface UseWebSocketV2Config {
     connectParams?: WSSConnectParam;
     enabled?: boolean;
     logPrefix?: string;
+    wssType?: 'relay' | 'cloud';
 }
 
 // Global worker reference for singleton pattern
@@ -35,7 +36,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
         };
     }
 
-    const { endpoint, connectParams, enabled = true, logPrefix = '[WebSocketV2]' } = config;
+    const { endpoint, connectParams, enabled = true, logPrefix = '[WebSocketV2]', wssType } = config;
 
     const connect = useCallback(async (): Promise<void> => {
         if (!endpoint) {
@@ -101,6 +102,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
 
             store.setConnectionStatus('connecting');
             store.setIsConnected(false);
+            store.setWssType(wssType ?? null);
             if (connectParams?.deviceId) {
                 store.setDeviceId(connectParams.deviceId);
             }
@@ -118,6 +120,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
         store.setConnectionStatus('disconnected');
         store.setIsConnected(false);
         store.setIsVerified(false);
+        store.setWssType(null);
     }, [store]);
 
     const send = useCallback(
@@ -209,6 +212,8 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                 globalWorkerRef.terminate();
                 globalWorkerRef = null;
                 globalSendFn = null;
+                globalEmitFn = null;
+                globalEmitAuthenticatedFn = null;
             }
         };
     }, [enabled, endpoint]);

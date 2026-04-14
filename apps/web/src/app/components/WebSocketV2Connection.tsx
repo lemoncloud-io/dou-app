@@ -46,6 +46,7 @@ export const WebSocketV2Connection = () => {
         endpoint,
         connectParams: { deviceId },
         enabled: !!deviceId && !isPending && !!endpoint,
+        wssType: currentWSS,
     });
 
     useListenMessage();

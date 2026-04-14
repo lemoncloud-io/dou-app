@@ -6,7 +6,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { resizeImageToBase64 } from '@chatic/shared';
 
 import { cn } from '@chatic/lib/utils';
-import { useLocalProfileStore, useWebCoreStore, useUpdateProfile } from '@chatic/web-core';
+import { useWebCoreStore, useUpdateProfile } from '@chatic/web-core';
 
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';
@@ -17,15 +17,11 @@ export const ProfileEditPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const profile = useWebCoreStore(s => s.profile);
-    const localProfile = useLocalProfileStore();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
 
-    // Use local overrides if they exist, otherwise use server profile
-    const serverName = profile?.name || '';
-    const serverImageUrl = profile?.imageUrl || '';
-    const initialName = localProfile.name ?? serverName;
-    const initialImageUrl = localProfile.imageData ?? serverImageUrl;
+    const initialName = profile?.$user.name || '';
+    const initialImageUrl = profile?.$user.photo || '';
 
     const [name, setName] = useState(initialName);
     const [imageUrl, setImageUrl] = useState(initialImageUrl);
@@ -38,19 +34,10 @@ export const ProfileEditPage = () => {
         if (!isValid || !hasChanges) return;
 
         try {
-            // Update server profile via webCore API
             await updateProfile({
                 name: name.trim(),
                 imageUrl: imageUrl !== initialImageUrl ? imageUrl : undefined,
             });
-
-            // Update local profile
-            if (name !== (localProfile.name ?? serverName)) {
-                localProfile.setName(name);
-            }
-            if (imageUrl !== (localProfile.imageData ?? serverImageUrl)) {
-                localProfile.setImage(imageUrl);
-            }
 
             navigate(-1);
         } catch (error) {

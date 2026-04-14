@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 
+import { useWebSocketV2Store } from '@chatic/socket';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { cloudCore, useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, useDynamicProfile } from '@chatic/web-core';
 
 import { useUnreadCount } from '../../chats/hooks/useUnreadCount';
 import { useMyChannels } from '../hooks/useMyChannels';
@@ -110,8 +111,8 @@ export const ChannelList = ({
 }: ChannelListProps) => {
     const { t } = useTranslation();
     const { channels, isLoading, isError, retry } = useMyChannels();
-    const { isCloudUser } = useWebCoreStore();
-    const hasSelectedPlace = !isCloudUser || !!cloudCore.getSelectedPlaceId();
+    const wssType = useWebSocketV2Store(s => s.wssType);
+    const hasSelectedPlace = wssType !== 'cloud' || !!cloudCore.getSelectedPlaceId();
 
     if (!hasSelectedPlace) return null;
 
