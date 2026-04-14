@@ -1,4 +1,4 @@
-import { createScopedDataSource, createDefaultDataSource } from './factory';
+import { createScopedDataSource } from './factory';
 import { database } from '../core';
 
 jest.mock('../core', () => ({
@@ -71,7 +71,7 @@ describe('CacheDataSource Factory', () => {
             mockedExecute.mockResolvedValueOnce({
                 rows: [
                     { data: JSON.stringify(validData1) },
-                    { data: 'invalid-json' }, // 무시되어야 함
+                    { data: 'invalid-json' },
                     { data: JSON.stringify(validData2) },
                 ],
             });
@@ -133,60 +133,6 @@ describe('CacheDataSource Factory', () => {
             const batchArgs = mockedExecuteBatch.mock.calls[0][0];
             expect(batchArgs).toHaveLength(2);
             expect(batchArgs[0]).toEqual([`DELETE FROM ${tableName} WHERE id = ? AND cid = ?`, ['id-1', 'cid-1']]);
-        });
-    });
-
-    describe('createDefaultDataSource (CID 없는 디폴트 저장소)', () => {
-        const tableName = 'test_default_table';
-        const ds = createDefaultDataSource<TestModel>(tableName);
-
-        it('fetch: id만으로 정확한 SELECT 쿼리를 실행해야 한다', async () => {
-            mockedExecute.mockResolvedValueOnce({ rows: [] });
-            await ds.fetch('id-1');
-
-            expect(mockedExecute).toHaveBeenCalledWith(`SELECT data FROM ${tableName} WHERE id = ?`, ['id-1']);
-        });
-
-        it('fetchAll: 전체 데이터를 조회하는 SELECT 쿼리를 실행해야 한다', async () => {
-            mockedExecute.mockResolvedValueOnce({ rows: [] });
-            await ds.fetchAll();
-            expect(mockedExecute).toHaveBeenCalledWith(`SELECT data FROM ${tableName}`);
-        });
-
-        it('save: cid 컬럼 없이 정확한 INSERT 쿼리를 실행해야 한다', async () => {
-            const item = { name: 'save-test', value: 100 };
-            await ds.save('id-1', item);
-
-            expect(mockedExecute).toHaveBeenCalledWith(`INSERT OR REPLACE INTO ${tableName} (id, data) VALUES (?, ?)`, [
-                'id-1',
-                JSON.stringify(item),
-            ]);
-        });
-
-        it('saveAll: cid 컬럼 없이 배치 쿼리를 실행해야 한다', async () => {
-            const items = [{ id: 'id-1', data: { name: 'a', value: 1 } }];
-
-            await ds.saveAll(items);
-
-            const batchArgs = mockedExecuteBatch.mock.calls[0][0];
-            expect(batchArgs[0]).toEqual([
-                `INSERT OR REPLACE INTO ${tableName} (id, data) VALUES (?, ?)`,
-                ['id-1', JSON.stringify(items[0].data)],
-            ]);
-        });
-
-        it('remove: cid 조건 없이 정확한 DELETE 쿼리를 실행해야 한다', async () => {
-            await ds.remove('id-1');
-
-            expect(mockedExecute).toHaveBeenCalledWith(`DELETE FROM ${tableName} WHERE id = ?`, ['id-1']);
-        });
-
-        it('removeAll: cid 조건 없이 배치 쿼리를 삭제해야 한다', async () => {
-            const ids = ['id-1'];
-            await ds.removeAll(ids);
-
-            const batchArgs = mockedExecuteBatch.mock.calls[0][0];
-            expect(batchArgs[0]).toEqual([`DELETE FROM ${tableName} WHERE id = ?`, ['id-1']]);
         });
     });
 });

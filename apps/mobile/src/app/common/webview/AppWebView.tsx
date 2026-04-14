@@ -21,17 +21,21 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     // 최초 1회: deviceInfo 주입 (비동기 초기화)
     useEffect(() => {
         const prepareWebView = async () => {
-            const [userAgent, uniqueId, installationId] = await Promise.all([
+            const [userAgent, installationId] = await Promise.all([
                 getUserAgent(),
-                DeviceInfo.getUniqueId(),
                 firebaseInstallationService.getFirebaseId(),
             ]);
 
+            /**
+             * TODO
+             * 디바이스 아이디 검증을 위해 임시로 uniqueId를 installationId로 교체하였음
+             * 안정화 이후 `DeviceInfo.getUniqueId()` 사용할 것
+             */
             const deviceInfoScript = getDeviceInfoScript({
                 platform: Platform.OS.toLowerCase(),
                 applicationName: DeviceInfo.getApplicationName(),
                 stage: Config.VITE_ENV || 'PROD',
-                uniqueId: uniqueId || '',
+                uniqueId: installationId || '',
                 deviceModel: DeviceInfo.getDeviceId() || '',
                 appVersion: DeviceInfo.getVersion(),
                 buildNumber: DeviceInfo.getBuildNumber(),
