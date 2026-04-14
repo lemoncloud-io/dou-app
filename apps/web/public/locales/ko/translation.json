@@ -461,7 +461,10 @@
             "readCount": "읽음 {{count}}",
             "unreadCount": "안읽음 {{count}}",
             "viewAll": "전체보기",
-            "messageDetail": "메시지 전체보기"
+            "messageDetail": "메시지 전체보기",
+            "sending": "전송 중...",
+            "sendFailed": "메시지 전송에 실패했습니다",
+            "tapToRetry": "탭하여 다시 보내기"
         },
         "settings": {
             "title": "방 설정",
