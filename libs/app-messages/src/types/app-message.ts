@@ -3,6 +3,7 @@
  * message from App to Web
  */
 import type {
+    AppBackgroundStatus,
     OnFetchCurrentPurchasesPayload,
     OnFetchProductsPayload,
     OnFinishPurchaseTransactionPayload,
@@ -48,6 +49,7 @@ export const AppMessageTypes = {
     OnAppLog: 'OnAppLog',
     OnReceiveNotification: 'OnReceiveNotification',
     OnOpenNotification: 'OnOpenNotification',
+    OnBackgroundStatusChanged: 'OnBackgroundStatusChanged',
     /**
      * IAP Event
      */
@@ -248,6 +250,20 @@ export interface OnDeletePreference extends AppDefaultMessage<'OnDeletePreferenc
     };
 }
 
+/**
+ * 앱 백그라운드/포그라운드 상태 변경 이벤트
+ */
+export interface OnBackgroundStatusChanged extends AppDefaultMessage<'OnBackgroundStatusChanged'> {
+    data: {
+        /** 현재 앱 상태 원본 ('active' | 'background' | 'inactive') */
+        status: AppBackgroundStatus;
+        /** 앱이 현재 사용자와 상호작용 중인 포그라운드 상태인지 여부 */
+        isForeground: boolean;
+        /** 앱이 백그라운드에 숨겨져 있는지 여부 */
+        isBackground: boolean;
+    };
+}
+
 export interface AppMessageMap {
     /**
      * TODO: Not Implement
@@ -272,6 +288,7 @@ export interface AppMessageMap {
      * Device Info Event
      */
     OnFetchSafeArea: OnFetchSafeArea;
+    OnBackgroundStatusChanged: OnBackgroundStatusChanged;
 
     /**
      * Notification Event

@@ -25,7 +25,7 @@ export const useGlobalSocketRouter = () => {
      * 서버에서 `$: { sid: ... }` 와 같이 응답 페이로드로 값을 내려주는 것이 확인된다면,
      * 응답페이로드의 값을 활용하여 sid 주입하기; 현재 sid 주입 방식은 정확한 sid 전달 보장안됨
      */
-    const selectedPlaceId: string = cloudCore.getSelectedPlaceId() ?? 'default';
+    const selectedPlaceId = cloudCore.getSelectedPlaceId();
     const profile = useDynamicProfile();
     const myUserId = profile?.uid ?? '';
 
