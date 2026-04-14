@@ -11,7 +11,7 @@ import { useWebCoreStore, useUpdateProfile } from '@chatic/web-core';
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';
 
-const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export const ProfileEditPage = () => {
     const navigate = useNavigateWithTransition();
@@ -36,7 +36,7 @@ export const ProfileEditPage = () => {
         try {
             await updateProfile({
                 name: name.trim(),
-                imageUrl: imageUrl !== initialImageUrl ? imageUrl : undefined,
+                photo: imageUrl !== initialImageUrl ? imageUrl : undefined,
             });
 
             navigate(-1);
