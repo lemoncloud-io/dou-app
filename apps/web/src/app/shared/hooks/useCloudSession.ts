@@ -52,7 +52,7 @@ export const useCloudSession = () => {
 };
 
 export const useAutoSelectCloud = () => {
-    const { clouds, selectCloud } = useCloudSession();
+    const { clouds, selectCloud, isFetchingClouds } = useCloudSession();
     const { isAuthenticated } = useWebCoreStore();
     const autoSelectedRef = useRef(false);
 
@@ -73,15 +73,33 @@ export const useAutoSelectCloud = () => {
             console.log('[useAutoSelectCloud] Skip: not authenticated');
             return;
         }
+
+        // If clouds fetch is done but list is empty, set default (only if no existing selection)
+        if (!isFetchingClouds && clouds.length === 0) {
+            const currentCloudId = cloudCore.getSelectedCloudId();
+            if (!currentCloudId) {
+                console.log('[useAutoSelectCloud] No clouds found, setting default');
+                cloudCore.saveSelectedCloudId('default');
+                autoSelectedRef.current = true;
+            }
+            return;
+        }
+
         const activeCloud = clouds.find(c => c.status === 'active');
         if (!activeCloud) {
             console.log('[useAutoSelectCloud] Skip: no active cloud');
             return;
         }
 
+        // Skip if user explicitly chose default (relay) mode
+        const currentCloudId = cloudCore.getSelectedCloudId();
+        if (currentCloudId === 'default') {
+            console.log('[useAutoSelectCloud] Skip: user chose default (relay) mode');
+            return;
+        }
+
         // Skip if already selected the same cloud
         const existingSession = getCloudSession();
-        const currentCloudId = cloudCore.getSelectedCloudId();
         if (existingSession && currentCloudId === activeCloud.id) {
             console.log('[useAutoSelectCloud] Skip: already selected this cloud', currentCloudId);
             return;
@@ -90,5 +108,5 @@ export const useAutoSelectCloud = () => {
         console.log('[useAutoSelectCloud] Selecting cloud:', activeCloud.id);
         autoSelectedRef.current = true;
         void selectCloud(activeCloud.id as string);
-    }, [clouds, isAuthenticated]);
+    }, [clouds, isAuthenticated, isFetchingClouds]);
 };
