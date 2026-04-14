@@ -338,6 +338,7 @@
     "homePage": {
         "places": "플레이스",
         "roomCreated": "채팅방이 생성되었습니다",
+        "cannotCreatePlace": "이 클라우드에서는 플레이스를 만들 수 없어요",
         "noCloudsError": "설정할 수 있는 클라우드가 없어요",
         "selectCloud": "클라우드 선택하기"
     },
@@ -689,6 +690,9 @@
         "passwordMismatch": "비밀번호가 일치하지 않습니다",
         "complete": "완료",
         "success": "비밀번호가 변경되었습니다",
+        "changeFailed": "비밀번호 변경에 실패했어요",
+        "sendCodeFailed": "인증 코드 전송에 실패했어요",
+        "resendFailed": "재전송에 실패했어요",
         "accountNotFound": "등록되지 않은 이메일입니다"
     },
     "signup": {
@@ -710,7 +714,10 @@
         "passwordMismatch": "비밀번호가 일치하지 않습니다",
         "complete": "완료",
         "verifyFailed": "인증번호가 올바르지 않습니다",
-        "signupSuccess": "회원가입이 완료되었습니다"
+        "signupSuccess": "회원가입이 완료되었습니다",
+        "signupFailed": "회원가입에 실패했어요",
+        "sendCodeFailed": "인증 코드 전송에 실패했어요",
+        "resendFailed": "재전송에 실패했어요"
     },
     "createPlace": {
         "title": "플레이스 만들기",

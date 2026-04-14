@@ -339,6 +339,7 @@
     "homePage": {
         "places": "Places",
         "roomCreated": "Chat room created",
+        "cannotCreatePlace": "Can't create place in this cloud",
         "noCloudsError": "No clouds available to configure",
         "selectCloud": "Select a cloud"
     },
@@ -690,6 +691,9 @@
         "passwordMismatch": "Passwords do not match",
         "complete": "Complete",
         "success": "Password has been changed",
+        "changeFailed": "Failed to change password",
+        "sendCodeFailed": "Failed to send verification code",
+        "resendFailed": "Failed to resend code",
         "accountNotFound": "Account not found"
     },
     "signup": {
@@ -711,7 +715,10 @@
         "passwordMismatch": "Passwords do not match",
         "complete": "Complete",
         "verifyFailed": "Invalid verification code",
-        "signupSuccess": "Sign up completed"
+        "signupSuccess": "Sign up completed",
+        "signupFailed": "Sign up failed",
+        "sendCodeFailed": "Failed to send verification code",
+        "resendFailed": "Failed to resend code"
     },
     "createPlace": {
         "title": "Create Place",
