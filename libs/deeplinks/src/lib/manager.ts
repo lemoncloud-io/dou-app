@@ -12,14 +12,18 @@
  * - Delegates URL handling to WebView handler (Zustand store manages pending state)
  */
 
-import { Linking } from 'react-native';
+import { Linking, NativeModules, Platform } from 'react-native';
 
 import { handleDeferredDeepLink } from './deferred';
-import { isValidDeepLink } from './parser';
+import { retrieveDeferredLinkFromFirestore } from './firestoreDeferred';
+import { isShortUrl, isValidDeepLink } from './parser';
 import { convertDeepLinkToFrontendUrl, convertShortUrlWithEnvs, needsConversion } from './urlConverter';
 
-import type { ServiceEndpoints } from './urlConverter';
+import type { InviteSiteInfo, ServiceEndpoints } from './urlConverter';
 import type { DeepLinkConfig, DeepLinkSource, WebViewHandler } from './types';
+
+/** Time to wait for a late-arriving Universal Link URL after getInitialURL returns null */
+const LATE_URL_WAIT_MS = 500;
 
 const DEFAULT_CONFIG: DeepLinkConfig = {
     deepLinkDomain: 'app.chatic.io',
@@ -32,12 +36,41 @@ export class DeepLinkManager {
     private linkingSubscription: { remove: () => void } | null = null;
     private config: DeepLinkConfig;
     private isInitialized = false;
+    private coldStartResolve: (() => void) | null = null;
+    private coldStartPromise: Promise<void> | null = null;
+    private lateUrlTimeout: ReturnType<typeof setTimeout> | null = null;
+    // App readiness gate: URL capture happens immediately, but processing waits for Firebase etc.
+    private appReadyResolve: (() => void) | null = null;
+    private appReadyPromise: Promise<void>;
 
     constructor(config?: Partial<DeepLinkConfig>) {
         this.config = {
             ...DEFAULT_CONFIG,
             ...config,
         };
+        this.appReadyPromise = new Promise<void>(resolve => {
+            this.appReadyResolve = resolve;
+            // Fallback: auto-resolve after 5s in case splash never finishes
+            setTimeout(() => {
+                if (this.appReadyResolve) {
+                    console.warn('[DeepLinkManager] App ready timeout, auto-resolving');
+                    this.appReadyResolve();
+                    this.appReadyResolve = null;
+                }
+            }, 5000);
+        });
+    }
+
+    /**
+     * Signal that the app is ready for deep link processing.
+     * Call after splash screen / Firebase initialization is complete.
+     * URL capture (Linking listeners) starts immediately, but actual processing
+     * (Firestore lookup, WebView delivery) waits for this signal.
+     */
+    setAppReady(): void {
+        console.log('[DeepLinkManager] App ready signal received');
+        this.appReadyResolve?.();
+        this.appReadyResolve = null;
     }
 
     /**
@@ -53,28 +86,103 @@ export class DeepLinkManager {
         this.webViewHandler = handler;
         this.isInitialized = true;
         this.setupImmediateDeepLinks();
-        this.handleDeferredLinks();
     }
 
     /**
-     * Setup listeners for immediate deep links
+     * Try to get the initial Universal Link URL from native module.
+     * Workaround for React Native race condition: on iOS Release builds,
+     * Linking.getInitialURL() may return null because the JS executes before
+     * application(_:continue:restorationHandler:) is called by iOS.
+     * The native module buffers the URL in AppDelegate.initialUniversalLink.
+     */
+    private async getNativeInitialUrl(): Promise<string | null> {
+        if (Platform.OS !== 'ios') return null;
+        try {
+            const { InitialUrlModule } = NativeModules;
+            if (!InitialUrlModule?.getInitialUniversalLink) return null;
+            const url = await InitialUrlModule.getInitialUniversalLink();
+            if (url) {
+                console.log('[DeepLinkManager] Native module initial URL:', url);
+            }
+            return url ?? null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Resolve cold start promise and clean up state.
+     */
+    private finishColdStart(): void {
+        if (this.lateUrlTimeout) {
+            clearTimeout(this.lateUrlTimeout);
+            this.lateUrlTimeout = null;
+        }
+        this.coldStartResolve?.();
+        this.coldStartResolve = null;
+    }
+
+    /**
+     * Setup listeners for immediate deep links.
+     * Deferred links are only checked when there is no cold start URL.
+     *
+     * Uses a 3-layer strategy for cold start URL capture:
+     * 1. Linking.getInitialURL() — standard RN API
+     * 2. Native module fallback — reads URL buffered in AppDelegate
+     * 3. Late URL wait — waits briefly for addEventListener to fire
      */
     private setupImmediateDeepLinks(): void {
-        // Get initial URL (cold start)
-        Linking.getInitialURL()
-            .then(url => {
-                if (url) {
-                    console.log('[DeepLinkManager] Cold start URL:', url);
-                    this.handleDeepLink(url, 'cold_start');
-                }
-            })
-            .catch(err => console.error('[DeepLinkManager] Error getting initial URL:', err));
-
-        // Listen for URL events (app already running - warm start)
-        this.linkingSubscription = Linking.addEventListener('url', ({ url }) => {
-            console.log('[DeepLinkManager] Warm start URL:', url);
-            this.handleDeepLink(url, 'warm_start');
+        this.coldStartPromise = new Promise<void>(resolve => {
+            this.coldStartResolve = resolve;
         });
+
+        // Listen for URL events (warm start OR late-arriving cold start)
+        this.linkingSubscription = Linking.addEventListener('url', ({ url }) => {
+            if (this.coldStartResolve) {
+                // coldStart not yet resolved — this is a late-arriving cold start URL
+                console.log('[DeepLinkManager] Late cold start URL via addEventListener:', url);
+                this.handleDeepLink(url, 'cold_start').finally(() => this.finishColdStart());
+            } else {
+                // Normal warm start
+                console.log('[DeepLinkManager] Warm start URL:', url);
+                this.handleDeepLink(url, 'warm_start');
+            }
+        });
+
+        // Get initial URL (cold start) with native module fallback
+        Linking.getInitialURL()
+            .then(async url => {
+                if (url) {
+                    console.log('[DeepLinkManager] Cold start URL from getInitialURL:', url);
+                    await this.handleDeepLink(url, 'cold_start');
+                    this.finishColdStart();
+                    return;
+                }
+
+                // Fallback: try native module (iOS Universal Link buffer)
+                const nativeUrl = await this.getNativeInitialUrl();
+                if (nativeUrl) {
+                    console.log('[DeepLinkManager] Cold start URL from native module:', nativeUrl);
+                    await this.handleDeepLink(nativeUrl, 'cold_start');
+                    this.finishColdStart();
+                    return;
+                }
+
+                // Neither source had a URL — wait briefly for late addEventListener delivery.
+                // In Release builds, the Universal Link callback may fire AFTER getInitialURL
+                // returns null. The addEventListener above will catch it and resolve coldStart.
+                console.log('[DeepLinkManager] No initial URL, waiting for late delivery...');
+                this.lateUrlTimeout = setTimeout(async () => {
+                    if (!this.coldStartResolve) return; // Already resolved by addEventListener
+                    console.log('[DeepLinkManager] Late URL wait expired, checking deferred links');
+                    await this.handleDeferredLinks();
+                    this.finishColdStart();
+                }, LATE_URL_WAIT_MS);
+            })
+            .catch(err => {
+                console.error('[DeepLinkManager] Error getting initial URL:', err);
+                this.finishColdStart();
+            });
     }
 
     /**
@@ -93,47 +201,107 @@ export class DeepLinkManager {
     }
 
     /**
+     * Wait for cold start deep link processing to complete.
+     */
+    async waitForColdStart(): Promise<void> {
+        if (this.coldStartPromise) {
+            await this.coldStartPromise;
+        }
+    }
+
+    /**
      * Main deep link handler
      * Processes URL and passes to handler (Zustand store manages pending state)
+     *
+     * Order: validate → domain conversion → short URL expansion → deliver
+     * Domain conversion must happen before short URL expansion because
+     * custom schemes (chatic-dev://s/xxx) break isShortUrl() parsing.
      */
     private async handleDeepLink(url: string, source: DeepLinkSource): Promise<void> {
-        // Expand short URL if needed and get envs
         let processedUrl = url;
         let envs: ServiceEndpoints | undefined;
 
-        try {
-            const result = await convertShortUrlWithEnvs(url);
-            processedUrl = result.url;
-            envs = result.envs;
-        } catch (error) {
-            console.error('[DeepLinkManager] Error expanding short URL:', error);
-        }
-
-        // Validate URL
+        // 1. Validate original URL
         if (!isValidDeepLink(processedUrl)) {
             console.error('[DeepLinkManager] Invalid deep link URL:', processedUrl);
             return;
         }
 
-        // Convert to frontend URL if needed
+        // 2. Convert custom scheme / deep link domain to frontend URL first
         if (needsConversion(processedUrl)) {
             processedUrl = convertDeepLinkToFrontendUrl(processedUrl);
 
-            // Re-validate after conversion
-            if (!processedUrl.startsWith('https://')) {
+            if (!processedUrl.startsWith('https://') && !processedUrl.startsWith('http://')) {
                 console.error('[DeepLinkManager] Converted URL is not HTTPS:', processedUrl);
                 return;
             }
+
+            // iOS custom scheme may arrive without path (e.g., chatic-dev:// → root URL).
+            // If the converted URL is just the frontend root, the path was lost.
+            // Query Firestore directly (bypassing isDeferredLinkProcessed flag)
+            // because the landing page stored the deferred link right before app launch.
+            try {
+                const parsedUrl = new URL(processedUrl);
+                if (parsedUrl.pathname === '/' && !parsedUrl.search) {
+                    console.warn('[DeepLinkManager] Custom scheme path lost, querying Firestore directly');
+                    await this.appReadyPromise;
+                    const deferredUrl = await retrieveDeferredLinkFromFirestore();
+                    if (deferredUrl) {
+                        console.log('[DeepLinkManager] Recovered URL from deferred link:', deferredUrl);
+                        await this.handleDeepLink(deferredUrl, 'deferred');
+                    }
+                    return;
+                }
+            } catch {
+                // URL parse failed, continue with normal flow
+            }
         }
 
-        // Pass to handler - Zustand store will manage pending state
+        // Wait for app to be ready (Firebase initialized) before Firestore lookup
+        // URL capture happens immediately, but processing is gated here
+        if (isShortUrl(processedUrl)) {
+            console.log('[DeepLinkManager] Waiting for app ready before Firestore lookup...');
+            await this.appReadyPromise;
+        }
+
+        // 3. Expand short URL (/s/xxx) after domain conversion
+        let site: InviteSiteInfo | undefined;
+        try {
+            const result = await convertShortUrlWithEnvs(processedUrl);
+            processedUrl = result.url;
+            envs = result.envs;
+            site = result.site;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            console.error('[DeepLinkManager] Error expanding short URL:', message);
+            this.webViewHandler?.handleError?.(message);
+            return;
+        }
+
+        // If URL is still a short URL after expansion, Firestore lookup failed
+        if (isShortUrl(processedUrl)) {
+            console.error('[DeepLinkManager] Short URL expansion failed, URL unchanged:', processedUrl);
+            this.webViewHandler?.handleError?.('Invite link not found');
+            return;
+        }
+
+        // 4. Deliver to handler
         if (!this.webViewHandler) {
             console.error('[DeepLinkManager] WebView handler not initialized');
             return;
         }
 
-        console.log('[DeepLinkManager] Delivering deep link:', processedUrl, 'source:', source, 'envs:', envs);
-        this.webViewHandler.handleDeepLink(processedUrl, source, envs);
+        console.log(
+            '[DeepLinkManager] Delivering deep link:',
+            processedUrl,
+            'source:',
+            source,
+            'envs:',
+            envs,
+            'site:',
+            site
+        );
+        this.webViewHandler.handleDeepLink(processedUrl, source, envs, site);
     }
 
     /**
@@ -155,10 +323,19 @@ export class DeepLinkManager {
      * Cleanup
      */
     cleanup(): void {
+        if (this.lateUrlTimeout) {
+            clearTimeout(this.lateUrlTimeout);
+            this.lateUrlTimeout = null;
+        }
         this.linkingSubscription?.remove();
         this.linkingSubscription = null;
         this.webViewHandler = null;
         this.isInitialized = false;
+        this.coldStartResolve?.();
+        this.coldStartResolve = null;
+        this.coldStartPromise = null;
+        this.appReadyResolve?.();
+        this.appReadyResolve = null;
     }
 }
 

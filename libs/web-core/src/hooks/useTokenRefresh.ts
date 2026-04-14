@@ -12,6 +12,13 @@ type InitializationStatus = 'pending' | 'success' | 'failed';
 
 const REFRESH_INTERVAL = 1000 * 60; // 1분
 const MIN_REFRESH_GAP = 5000; // 5초 간격 제한
+const MAX_NETWORK_RETRIES = 3;
+const NETWORK_RETRY_BASE_MS = 2000;
+
+const isInviteFlow = (): boolean => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('provider') === 'invite';
+};
 
 export const useTokenRefresh = (webCoreReady: boolean) => {
     const { isAuthenticated, isOnMobileApp, setProfile, logout } = useWebCoreStore();
@@ -21,7 +28,10 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
     const lastRefreshTime = useRef(0);
     const isInitializedRef = useRef(false);
     const hasFailedRef = useRef(false);
+    const networkRetryRef = useRef(0);
     const [initStatus, setInitStatus] = useState<InitializationStatus>('pending');
+    // Capture invite flow state at mount time to avoid stale URL reads during interval refresh
+    const wasInviteFlowRef = useRef(isInviteFlow());
 
     const refreshToken = useCallback(async (): Promise<boolean> => {
         const now = Date.now();
@@ -47,7 +57,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             const errorClassification: ErrorClassification = classifyError(error);
             if (errorClassification.shouldLogout) {
                 console.log('🚪 Token completely expired or invalid - logging out...');
-                await logout();
+                await logout(wasInviteFlowRef.current ? { preserveUrl: true } : undefined);
                 return false;
             }
             console.log('⚠️ Temporary refresh failure, will retry later');
@@ -93,6 +103,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             setProfile(profile);
 
             isInitializedRef.current = true;
+            networkRetryRef.current = 0;
             setInitStatus('success');
         } catch (error: unknown) {
             console.error('❌ Profile fetch failed:', error);
@@ -117,18 +128,29 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
                             console.log('🚪 Profile fetch still failing with auth error - logging out...');
                             hasFailedRef.current = true;
                             setInitStatus('failed');
-                            await logout();
+                            await logout(wasInviteFlowRef.current ? { preserveUrl: true } : undefined);
                             return;
                         }
                     }
                 }
             }
 
-            // For non-auth errors (network, server), mark as failed but don't logout
-            // This prevents infinite loop when network is temporarily unavailable
+            // For non-auth errors (network, server), retry with backoff before giving up
+            if (networkRetryRef.current < MAX_NETWORK_RETRIES) {
+                networkRetryRef.current++;
+                const delay = NETWORK_RETRY_BASE_MS * networkRetryRef.current;
+                console.log(
+                    `⚠️ Network error, retrying in ${delay}ms (${networkRetryRef.current}/${MAX_NETWORK_RETRIES})`
+                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                hasFailedRef.current = false;
+                await initialize();
+                return;
+            }
+
             hasFailedRef.current = true;
             setInitStatus('failed');
-            console.log('⚠️ Initialization failed due to non-auth error');
+            console.log('⚠️ Initialization failed after all network retries');
         }
     }, [isAuthenticated, refreshToken, webCoreReady, setProfile, logout]);
 
@@ -143,11 +165,33 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             stopInterval();
             isInitializedRef.current = false;
             hasFailedRef.current = false;
+            networkRetryRef.current = 0;
             setInitStatus('pending');
         }
 
         return stopInterval;
     }, [isAuthenticated, initialize, startInterval, stopInterval, webCoreReady]);
+
+    // Retry initialization on foreground if it previously failed due to network
+    useEffect(() => {
+        if (initStatus !== 'failed' || !isAuthenticated || !webCoreReady) return;
+
+        const handleVisibility = () => {
+            if (document.visibilityState !== 'visible') return;
+            console.log('🔄 App resumed with failed init state, retrying...');
+            hasFailedRef.current = false;
+            networkRetryRef.current = 0;
+            setInitStatus('pending');
+            initialize().then(() => {
+                if (isInitializedRef.current) {
+                    startInterval();
+                }
+            });
+        };
+
+        document.addEventListener('visibilitychange', handleVisibility);
+        return () => document.removeEventListener('visibilitychange', handleVisibility);
+    }, [initStatus, isAuthenticated, webCoreReady, initialize, startInterval]);
 
     // isInitialized should be true only when initialization succeeded
     // or when initialization failed (to prevent infinite loading)

@@ -107,6 +107,11 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                                 {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : t('createPlace.done')}
                             </Button>
                         </div>
+                        <div
+                            className="shrink-0 touch-none bg-background"
+                            style={{ height: 'var(--keyboard-height, 0px)' }}
+                            onTouchMove={e => e.preventDefault()}
+                        />
                     </div>
                 </form>
             </DialogContent>

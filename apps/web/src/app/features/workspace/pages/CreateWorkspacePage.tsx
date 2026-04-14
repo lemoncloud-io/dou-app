@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { PageHeader } from '../../../shared/components';
+import { KeyboardAwareLayout } from '../../../shared/layouts';
 import { InviteCodeCard, VisibilityToggle } from '../components';
 
 interface CreateWorkspaceSuccessProps {
@@ -25,10 +26,20 @@ const CreateWorkspaceSuccess = ({
     t,
 }: CreateWorkspaceSuccessProps) => {
     return (
-        <div className="flex h-full flex-col bg-background">
-            <PageHeader title={t('workspace.create.successTitle')} onBack={onClose} />
-
-            <div className="flex-1 space-y-6 px-5 pt-8">
+        <KeyboardAwareLayout
+            header={<PageHeader title={t('workspace.create.successTitle')} onBack={onClose} />}
+            footer={
+                <div className="px-5 pt-4">
+                    <button
+                        onClick={onConfirm}
+                        className="w-full rounded-2xl bg-accent py-4 text-[15px] font-semibold text-accent-foreground transition-transform active:scale-[0.98]"
+                    >
+                        {t('workspace.create.confirm')}
+                    </button>
+                </div>
+            }
+        >
+            <div className="space-y-6 px-5 pt-8">
                 <div className="text-center">
                     <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent">
                         <span className="text-2xl">🎉</span>
@@ -49,16 +60,7 @@ const CreateWorkspaceSuccess = ({
                     </span>
                 </div>
             </div>
-
-            <div className="px-5 pb-10 pt-4">
-                <button
-                    onClick={onConfirm}
-                    className="w-full rounded-2xl bg-accent py-4 text-[15px] font-semibold text-accent-foreground transition-transform active:scale-[0.98]"
-                >
-                    {t('workspace.create.confirm')}
-                </button>
-            </div>
-        </div>
+        </KeyboardAwareLayout>
     );
 };
 
@@ -88,10 +90,21 @@ export const CreateWorkspacePage = () => {
     }
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
-            <PageHeader title={t('workspace.create.title')} />
-
-            <div className="flex-1 px-5 pt-4">
+        <KeyboardAwareLayout
+            header={<PageHeader title={t('workspace.create.title')} />}
+            footer={
+                <div className="px-5 pt-4">
+                    <button
+                        disabled={name.length === 0}
+                        onClick={handleCreate}
+                        className="w-full rounded-2xl bg-muted py-4 text-[15px] font-semibold text-muted-foreground transition-all disabled:opacity-100 enabled:bg-accent enabled:text-accent-foreground active:scale-[0.98]"
+                    >
+                        {t('workspace.create.done')}
+                    </button>
+                </div>
+            }
+        >
+            <div className="px-5 pt-4">
                 <h2 className="text-2xl font-extrabold leading-tight text-foreground">
                     {t('workspace.create.subtitle')}
                 </h2>
@@ -144,16 +157,6 @@ export const CreateWorkspacePage = () => {
                     </p>
                 </div>
             </div>
-
-            <div className="px-5 pb-10 pt-4">
-                <button
-                    disabled={name.length === 0}
-                    onClick={handleCreate}
-                    className="w-full rounded-2xl bg-muted py-4 text-[15px] font-semibold text-muted-foreground transition-all disabled:opacity-100 enabled:bg-accent enabled:text-accent-foreground active:scale-[0.98]"
-                >
-                    {t('workspace.create.done')}
-                </button>
-            </div>
-        </div>
+        </KeyboardAwareLayout>
     );
 };

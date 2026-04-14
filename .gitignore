@@ -1,5 +1,6 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 /.claude
+CLAUDE.md
 .playwright-mcp
 
 # Environment variables
@@ -12,6 +13,9 @@ scripts/.env.deploy
 **/GoogleService-Info-Dev.plist
 **/GoogleService-Info-Prod.plist
 **/google-services.json
+
+# Build-generated license file (copied to public/ for dev server)
+apps/web/public/licenses.json
 
 # compiled output
 dist
@@ -125,3 +129,4 @@ yarn-error.log
 
 
 vite.config.*.timestamp*
+.amazonq/

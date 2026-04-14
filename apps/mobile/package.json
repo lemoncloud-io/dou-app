@@ -2,15 +2,13 @@
     "name": "@chatic/mobile",
     "version": "0.0.1",
     "private": true,
+    "scripts": {
+        "test": "jest"
+    },
     "dependencies": {
-        "@lemoncloud/chatic-sockets-api": "*",
-        "@lemoncloud/chatic-socials-api": "*",
         "@nx/eslint-plugin": "*",
         "@nx/vite": "*",
         "@react-native-async-storage/async-storage": "*",
-        "@react-native-firebase/app": "*",
-        "@react-native-firebase/auth": "*",
-        "@react-native-firebase/messaging": "*",
         "@react-native/metro-config": "*",
         "@react-native/new-app-screen": "*",
         "@react-navigation/native": "*",
@@ -76,13 +74,21 @@
         "@radix-ui/react-tabs": "*",
         "@react-native-google-signin/google-signin": "*",
         "@invertase/react-native-apple-authentication": "*",
-        "@lemoncloud/chatic-backend-api": "*",
         "lottie-react-native": "*",
         "@aws-crypto/sha256-js": "*",
         "@smithy/protocol-http": "*",
         "@smithy/signature-v4": "*",
         "crypto-js": "*",
-        "@lemoncloud/react-page-transition": "*"
+        "@lemoncloud/react-page-transition": "*",
+        "@lemoncloud/chatic-backend-api": "*",
+        "@lemoncloud/chatic-socials-api": "*",
+        "@lemoncloud/chatic-sockets-api": "*",
+        "@op-engineering/op-sqlite": "*",
+        "@react-native-firebase/crashlytics": "*",
+        "@react-native-firebase/app": "*",
+        "@react-native-firebase/installations": "*",
+        "@react-native-firebase/messaging": "*",
+        "@react-native-firebase/auth": "*"
     },
     "devDependencies": {}
 }

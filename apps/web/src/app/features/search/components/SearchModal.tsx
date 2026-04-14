@@ -84,6 +84,12 @@ export const SearchModal = ({ open, onClose }: SearchModalProps) => {
                     {/* No Results */}
                     {showNoResults && <EmptyState />}
                 </div>
+
+                <div
+                    className="shrink-0 touch-none bg-background"
+                    style={{ height: 'var(--keyboard-height, 0px)' }}
+                    onTouchMove={e => e.preventDefault()}
+                />
             </DialogContent>
         </Dialog>
     );

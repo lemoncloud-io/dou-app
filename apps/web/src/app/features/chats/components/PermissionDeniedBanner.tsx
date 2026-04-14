@@ -25,7 +25,7 @@ export const PermissionDeniedBanner = () => {
                 </div>
             </div>
             <div className="px-1">
-                <p className="text-[14px] font-normal leading-[1.5] tracking-[-0.07px] text-[#53555B]">
+                <p className="text-[14px] font-normal leading-[1.5] tracking-[-0.07px] text-label">
                     {t('inviteFriends.permissionDenied.description')}
                 </p>
             </div>

@@ -1,5 +1,29 @@
 # Changelog
 
+## [2026-03-20] - root@0.35.1, @chatic/web@0.32.1
+
+### Features
+
+- (users) add fetchClouds API and useClouds hook
+
+### Bug Fixes
+
+- guard against undefined cloud.id in onSelectCloud
+
+### Refactor
+
+- replace usePlaces with useClouds from @chatic/users
+
+### Chores
+
+- comment out AddAccountButton temporarily
+- (deps) bump @lemoncloud/chatic-backend-api to 0.26.316
+- update iOS project files and web tsconfig references
+
+### Other
+
+- style: add bottom padding to CloudSessionSheet
+
 ## [2026-03-19] - root@0.35.0, @chatic/web@0.32.0
 
 ### Features

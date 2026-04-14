@@ -6,11 +6,10 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { resizeImageToBase64 } from '@chatic/shared';
 
 import { cn } from '@chatic/lib/utils';
-import { useLocalProfileStore, useWebCoreStore } from '@chatic/web-core';
+import { useWebCoreStore, useUpdateProfile } from '@chatic/web-core';
 
 import { PageHeader } from '../../../shared/components';
-import { useAppChecker } from '@chatic/device-utils';
-import { useUpdateMyProfile } from '../../home/hooks';
+import { KeyboardAwareLayout } from '../../../shared/layouts';
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
 
@@ -18,16 +17,11 @@ export const ProfileEditPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const profile = useWebCoreStore(s => s.profile);
-    const { isCloudUser } = useWebCoreStore();
-    const localProfile = useLocalProfileStore();
-    const { updateProfile, isPending } = useUpdateMyProfile();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
 
-    // Use local overrides if they exist, otherwise use server profile
-    const serverName = profile?.$user?.name || '';
-    const serverImageUrl = profile?.$user?.imageUrl || '';
-    const initialName = localProfile.name ?? serverName;
-    const initialImageUrl = localProfile.imageData ?? serverImageUrl;
+    const initialName = profile?.$user.name || '';
+    const initialImageUrl = profile?.$user.photo || '';
 
     const [name, setName] = useState(initialName);
     const [imageUrl, setImageUrl] = useState(initialImageUrl);
@@ -35,26 +29,20 @@ export const ProfileEditPage = () => {
 
     const hasChanges = name !== initialName || imageUrl !== initialImageUrl;
     const isValid = name.trim().length > 0 && name.length <= 20;
-    const { isIOS } = useAppChecker();
 
     const handleSave = async () => {
         if (!isValid || !hasChanges) return;
 
-        if (isCloudUser) {
+        try {
             await updateProfile({
-                nick: name.trim(),
-                thumbnail: imageUrl !== initialImageUrl ? imageUrl : undefined,
+                name: name.trim(),
+                imageUrl: imageUrl !== initialImageUrl ? imageUrl : undefined,
             });
-        }
 
-        if (name !== (localProfile.name ?? serverName)) {
-            localProfile.setName(name);
+            navigate(-1);
+        } catch (error) {
+            console.error('Failed to update profile:', error);
         }
-        if (imageUrl !== (localProfile.imageData ?? serverImageUrl)) {
-            localProfile.setImage(imageUrl);
-        }
-
-        navigate(-1);
     };
 
     const handleImageClick = () => {
@@ -83,12 +71,27 @@ export const ProfileEditPage = () => {
     };
 
     return (
-        <div className="fixed inset-0 flex flex-col overflow-hidden bg-background pt-safe-top">
-            <div className="shrink-0">
-                <PageHeader title={t('profileEdit.title')} />
-            </div>
-
-            <div className="flex-1 overflow-y-auto overscroll-none px-5 pt-4">
+        <KeyboardAwareLayout
+            className="fixed inset-0 overflow-hidden"
+            header={<PageHeader title={t('profileEdit.title')} />}
+            footer={
+                <div className="border-t border-border/50 bg-background px-5 py-4">
+                    <button
+                        onClick={handleSave}
+                        disabled={!isValid || !hasChanges || isPending}
+                        className={cn(
+                            'w-full rounded-2xl py-4 text-[15px] font-semibold transition-all',
+                            isValid && hasChanges && !isPending
+                                ? 'bg-[#B0EA10] text-foreground active:scale-[0.98]'
+                                : 'bg-muted text-muted-foreground'
+                        )}
+                    >
+                        {t('profileEdit.save')}
+                    </button>
+                </div>
+            }
+        >
+            <div className="px-5 pt-4">
                 <div className="mb-8">
                     <p className="text-[22px] font-bold leading-tight text-foreground">
                         {t('profileEdit.description1')}
@@ -155,31 +158,6 @@ export const ProfileEditPage = () => {
                     )}
                 </div>
             </div>
-
-            <div className="shrink-0 border-t border-border/50 bg-background px-5 py-4">
-                <button
-                    onClick={handleSave}
-                    disabled={!isValid || !hasChanges || isPending}
-                    className={cn(
-                        'w-full rounded-2xl py-4 text-[15px] font-semibold transition-all',
-                        isValid && hasChanges && !isPending
-                            ? 'bg-[#B0EA10] text-foreground active:scale-[0.98]'
-                            : 'bg-muted text-muted-foreground'
-                    )}
-                >
-                    {t('profileEdit.save')}
-                </button>
-            </div>
-
-            <div
-                className="shrink-0 touch-none bg-background"
-                style={{
-                    height: isIOS
-                        ? `calc(max(var(--safe-bottom, 0px), var(--keyboard-height, 0px)))`
-                        : `calc(var(--safe-bottom, 0px) + var(--keyboard-height, 0px))`,
-                }}
-                onTouchMove={e => e.preventDefault()}
-            />
-        </div>
+        </KeyboardAwareLayout>
     );
 };

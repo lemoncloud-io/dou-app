@@ -31,8 +31,8 @@
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F1ADAF0DE5B6C92A2CF01257 /* Pods-Chatic.release dev.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Chatic.release dev.xcconfig"; path = "Target Support Files/Pods-Chatic/Pods-Chatic.release dev.xcconfig"; sourceTree = "<group>"; };
 		F76029842F346C870009C3A7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
-		F7B7C69E2F30891F00EBEC79 /* Chatic.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = Chatic.entitlements; path = Chatic/Chatic.entitlements; sourceTree = "<group>"; };
-		F7E365E52F6037C300F2722C /* ChaticRelease Dev.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = "ChaticRelease Dev.entitlements"; path = "Chatic/ChaticRelease Dev.entitlements"; sourceTree = "<group>"; };
+		F7846D5F2F7DFC12004E135B /* ChaticProd.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ChaticProd.entitlements; sourceTree = "<group>"; };
+		F7846D612F7DFC2C004E135B /* ChaticDev.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ChaticDev.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -61,9 +61,9 @@
 		13B07FAE1A68108700A75B9A /* Chatic */ = {
 			isa = PBXGroup;
 			children = (
-				F7E365E52F6037C300F2722C /* ChaticRelease Dev.entitlements */,
+				F7846D612F7DFC2C004E135B /* ChaticDev.entitlements */,
+				F7846D5F2F7DFC12004E135B /* ChaticProd.entitlements */,
 				F76029262F333E600009C3A7 /* Firebase */,
-				F7B7C69E2F30891F00EBEC79 /* Chatic.entitlements */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -140,6 +140,8 @@
 				E235C05ADACE081382539298 /* [CP] Copy Pods Resources */,
 				831743313C8864959E2DEE52 /* [CP-User] [RNFB] Core Configuration */,
 				F760292B2F333E860009C3A7 /* Setup Firebase Environment */,
+				655DAACA2F8AEFC271FD89A5 /* [CP-User] [RNFB] Crashlytics Configuration */,
+				F7A07F952F7B582C00E1C310 /* Firebase Crashlytics */,
 			);
 			buildRules = (
 			);
@@ -232,6 +234,20 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Chatic/Pods-Chatic-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
+		655DAACA2F8AEFC271FD89A5 /* [CP-User] [RNFB] Crashlytics Configuration */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
+				"$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "[CP-User] [RNFB] Crashlytics Configuration";
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "#!/usr/bin/env bash\n#\n# Copyright (c) 2016-present Invertase Limited & Contributors\n#\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this library except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#   http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n#\nset -e\n\nif [[ ${PODS_ROOT} ]]; then\n  echo \"info: Exec FirebaseCrashlytics Run from Pods\"\n  \"${PODS_ROOT}/FirebaseCrashlytics/run\"\nelse\n  echo \"info: Exec FirebaseCrashlytics Run from framework\"\n  \"${PROJECT_DIR}/FirebaseCrashlytics.framework/run\"\nfi\n";
+		};
 		831743313C8864959E2DEE52 /* [CP-User] [RNFB] Core Configuration */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -302,6 +318,26 @@
 			shellPath = /bin/sh;
 			shellScript = "PLIST_FILE=\"GoogleService-Info-Prod.plist\"\n\nif [[ \"${CONFIGURATION}\" == *\"Dev\"* ]]; then\n  PLIST_FILE=\"GoogleService-Info-Dev.plist\"\nfi\n\necho \"Copying ${PLIST_FILE} to GoogleService-Info.plist\"\ncp \"${PROJECT_DIR}/Firebase/${PLIST_FILE}\" \"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/GoogleService-Info.plist\"\n";
 		};
+		F7A07F952F7B582C00E1C310 /* Firebase Crashlytics */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
+				"$(SRCROOT)/$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Firebase Crashlytics";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n\"${PODS_ROOT}/FirebaseCrashlytics/run\"\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -324,10 +360,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = Chatic/Chatic.entitlements;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
-				CURRENT_PROJECT_VERSION = 17;
-				DEVELOPMENT_TEAM = REDACTED_TEAM_ID;
+				CODE_SIGN_ENTITLEMENTS = ChaticProd.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 33;
+				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
@@ -337,7 +374,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.8.3;
+				MARKETING_VERSION = 0.10.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -345,9 +382,11 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = io.chatic.dou;
 				PRODUCT_NAME = DoU;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
+				VITE_GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.884488290426-rpptha74m8hmefv9po0vfs33f0u1efr8";
 			};
 			name = Debug;
 		};
@@ -359,10 +398,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = Chatic/Chatic.entitlements;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
-				CURRENT_PROJECT_VERSION = 17;
-				DEVELOPMENT_TEAM = REDACTED_TEAM_ID;
+				CODE_SIGN_ENTITLEMENTS = ChaticProd.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 33;
+				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
@@ -371,7 +411,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.8.3;
+				MARKETING_VERSION = 0.10.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -379,8 +419,10 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = io.chatic.dou;
 				PRODUCT_NAME = DoU;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
+				VITE_GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.884488290426-rpptha74m8hmefv9po0vfs33f0u1efr8";
 			};
 			name = Release;
 		};
@@ -413,6 +455,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_ENTITLEMENTS = ChaticProd.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -507,6 +550,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_ENTITLEMENTS = ChaticProd.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = YES;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -593,6 +637,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_ENTITLEMENTS = ChaticDev.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -666,10 +711,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = Chatic/Chatic.entitlements;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
-				CURRENT_PROJECT_VERSION = 17;
-				DEVELOPMENT_TEAM = REDACTED_TEAM_ID;
+				CODE_SIGN_ENTITLEMENTS = ChaticDev.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 33;
+				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
@@ -679,7 +725,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.8.3;
+				MARKETING_VERSION = 0.10.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -687,9 +733,11 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = io.chatic.dou.dev;
 				PRODUCT_NAME = "DoU-Dev";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
+				VITE_GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.429595905351-g1c6gl1nnq3a45n3v31cp2o5365rr24n";
 			};
 			name = "Debug Dev";
 		};
@@ -722,6 +770,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_ENTITLEMENTS = ChaticDev.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = YES;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -787,11 +836,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = "Chatic/ChaticRelease Dev.entitlements";
+				CODE_SIGN_ENTITLEMENTS = ChaticDev.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 17;
-				DEVELOPMENT_TEAM = REDACTED_TEAM_ID;
+				CURRENT_PROJECT_VERSION = 33;
+				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
@@ -800,7 +849,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.8.3;
+				MARKETING_VERSION = 0.10.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -811,6 +860,7 @@
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
+				VITE_GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.429595905351-g1c6gl1nnq3a45n3v31cp2o5365rr24n";
 			};
 			name = "Release Dev";
 		};

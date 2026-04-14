@@ -28,17 +28,19 @@ export const LimitExceededDialog = ({ open, onOpenChange, type, maxCount }: Limi
 
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
-            <AlertDialogContent className="max-w-[300px] rounded-[18px]">
-                <AlertDialogHeader>
-                    <AlertDialogTitle className="text-center text-[17px] font-semibold">{title}</AlertDialogTitle>
-                    <AlertDialogDescription className="text-center text-[14px] text-muted-foreground">
+            <AlertDialogContent className="max-w-[288px] gap-0 overflow-hidden rounded-[12px] border-0 p-0 shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)]">
+                <AlertDialogHeader className="gap-2 px-[22px] pt-[22px] pb-0 text-center">
+                    <AlertDialogTitle className="text-center text-[18px] font-semibold leading-[1.5]">
+                        {title}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-center text-[16px] font-medium leading-[1.45] tracking-[-0.16px] text-dialog-subtitle">
                         {description}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter className="flex-row justify-center">
+                <AlertDialogFooter className="mt-[22px] flex-row justify-center sm:flex-row sm:justify-center sm:space-x-0">
                     <AlertDialogAction
                         onClick={() => onOpenChange(false)}
-                        className="h-11 flex-1 rounded-full bg-[#B0EA10] text-[15px] font-semibold text-[#222325] hover:bg-[#9DD00E]"
+                        className="flex h-[52px] flex-1 items-center justify-center rounded-none border-0 border-t border-border bg-transparent text-[16px] font-semibold text-foreground transition-colors hover:bg-muted"
                     >
                         {t('limitExceeded.confirm')}
                     </AlertDialogAction>

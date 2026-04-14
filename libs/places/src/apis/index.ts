@@ -1,3 +1,4 @@
+import { throwIfApiError } from '@chatic/shared';
 import { DOU_ENDPOINT, webCore } from '@chatic/web-core';
 
 import type { ListResult } from '@chatic/shared';
@@ -11,7 +12,7 @@ export const fetchPlaces = async (params: Params): Promise<ListResult<MySiteView
             baseURL: `${DOU_ENDPOINT}/users/0/places`,
         })
         .setParams(params)
-        .execute<ListResult<MySiteView>>();
+        .execute<ListResult<MySiteView> & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };

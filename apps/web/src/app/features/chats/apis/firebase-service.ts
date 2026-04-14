@@ -19,25 +19,15 @@ type Environment = 'DEV' | 'PROD';
 const COLLECTION_NAME = 'deferredDeepLinks';
 const APP_NAME = 'chatic-web-invite';
 
-const DEV_CONFIG = {
-    apiKey: 'REDACTED_FIREBASE_API_KEY',
-    authDomain: 'REDACTED_FIREBASE_PROJECT.firebaseapp.com',
-    projectId: 'REDACTED_FIREBASE_PROJECT',
-    storageBucket: 'REDACTED_FIREBASE_PROJECT.firebasestorage.app',
-    messagingSenderId: '429595905351',
-    appId: '1:429595905351:web:a1866c5f60565098abd062',
-    measurementId: 'G-M8FFL54LLP',
-};
-
-const PROD_CONFIG = {
-    apiKey: 'REDACTED_FIREBASE_API_KEY',
-    authDomain: 'REDACTED_FIREBASE_PROJECT.firebaseapp.com',
-    projectId: 'REDACTED_FIREBASE_PROJECT',
-    storageBucket: 'REDACTED_FIREBASE_PROJECT.firebasestorage.app',
-    messagingSenderId: '884488290426',
-    appId: '1:884488290426:web:cc3663c181f5800385bbc3',
-    measurementId: 'G-HZTHHWPB7Q',
-};
+const getFirebaseConfig = () => ({
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+});
 
 const DEEPLINK_URLS: Record<Environment, string> = {
     DEV: 'https://app-dev.chatic.io/s',
@@ -56,15 +46,14 @@ class FirebaseDeeplinkService {
             return { app: this.app, db: this.db, auth: this.auth };
         }
 
-        const env = getEnv();
-        const config = env === 'PROD' ? PROD_CONFIG : DEV_CONFIG;
+        const config = getFirebaseConfig();
 
         const existingApps = getApps();
         this.app = existingApps.find(a => a.name === APP_NAME) ?? initializeApp(config, APP_NAME);
         this.db = getFirestore(this.app);
         this.auth = getAuth(this.app);
 
-        console.log(`[FirebaseDeeplinkService] Initialized for ${env}`);
+        console.log(`[FirebaseDeeplinkService] Initialized for ${getEnv()} (project: ${config.projectId})`);
 
         return { app: this.app, db: this.db, auth: this.auth };
     }
@@ -102,6 +91,8 @@ class FirebaseDeeplinkService {
         const col = this.getCollection();
         const docRef = doc(col, inviteCode);
 
+        // Backend WebSocket response already includes $envs and Location.
+        // Don't override — just store invite as-is.
         await setDoc(docRef, {
             deepLinkUrl,
             shortCode: inviteCode,

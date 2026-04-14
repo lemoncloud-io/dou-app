@@ -16,6 +16,7 @@ declare global {
         CHATIC_APP_LATEST_VERSION?: string;
         CHATIC_APP_SHOULD_UPDATE?: string;
         CHATIC_APP_CURRENT_LANGUAGE?: string;
+        CHATIC_APP_INSTALL_ID?: string;
     }
 }
 
@@ -23,6 +24,7 @@ export interface DeviceInfoStore {
     deviceInfo: DeviceInfo | null;
     versionInfo: VersionInfo | null;
     syncDeviceAndVersionInfo: () => void;
+    updateVersionInfo: (latestVersion: string, shouldUpdate: boolean) => void;
 }
 
 export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
@@ -39,6 +41,7 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
         const latestVersion = window.CHATIC_APP_LATEST_VERSION || '';
         const shouldUpdate = window.CHATIC_APP_SHOULD_UPDATE === 'true';
         const appLang = window.CHATIC_APP_CURRENT_LANGUAGE as PageLanguage | undefined;
+        const installId = window.CHATIC_APP_INSTALL_ID || '';
 
         const webVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
         const appVersion = currentVersion || webVersion;
@@ -50,6 +53,7 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
             deviceModel,
             deviceToken,
             platform,
+            installId,
             lang: appLang,
         };
         const versionInfo: VersionInfo = {
@@ -61,5 +65,16 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
         };
 
         set({ deviceInfo, versionInfo });
+    },
+    updateVersionInfo: (latestVersion: string, shouldUpdate: boolean) => {
+        set(state => {
+            if (!state.versionInfo) return state;
+            if (state.versionInfo.latestVersion === latestVersion && state.versionInfo.shouldUpdate === shouldUpdate) {
+                return state;
+            }
+            return {
+                versionInfo: { ...state.versionInfo, latestVersion, shouldUpdate },
+            };
+        });
     },
 }));

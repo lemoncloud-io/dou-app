@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { useLoaderStore } from '@chatic/shared';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, useUserContext } from '@chatic/web-core';
 
 import { useListenMessage } from '../features/chats/hooks/useListenMessage';
 import { useMyChannels } from '../features/home/hooks/useMyChannels';
@@ -14,31 +13,40 @@ import { useCloudSession } from '../shared/hooks/useCloudSession';
 export const WebSocketV2Connection = () => {
     const { deviceId } = useDynamicDeviceId();
     const { isPending } = useCloudSession();
-    const { t } = useTranslation();
+    const { currentWSS, endpoints } = useUserContext();
 
-    const { isGuest, isInvited } = useWebCoreStore();
-    const wss = cloudCore.getWss();
-    const isCloudUser = !isGuest || isInvited;
-    const endpoint = isCloudUser ? wss : import.meta.env.VITE_WS_ENDPOINT;
+    // 현재 WSS 타입에 따라 endpoint 결정
+    const endpoint = currentWSS === 'cloud' ? endpoints.cloudWSS : endpoints.relayWSS;
+
+    // cloudId 설정 (cloud WSS 사용 시만 실제 cloudId, 아니면 'default')
+    const selectedCloudId = currentWSS === 'cloud' ? cloudCore.getSelectedCloudId() || 'default' : 'default';
 
     const connectionStatus = useWebSocketV2Store(s => s.connectionStatus);
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const setGlobalLoading = useLoaderStore(s => s.setIsLoading);
 
+    useEffect(() => {
+        useWebSocketV2Store.getState().setCloudId(selectedCloudId);
+    }, [selectedCloudId]);
+
     const isSocketConnecting = connectionStatus === 'connecting' || (connectionStatus === 'connected' && !isVerified);
 
     useEffect(() => {
         if (isSocketConnecting) {
-            setGlobalLoading(true, t('socket.connecting'));
+            setGlobalLoading(true);
         } else {
             setGlobalLoading(false);
         }
-    }, [isSocketConnecting]);
+        return () => {
+            setGlobalLoading(false);
+        };
+    }, [isSocketConnecting, setGlobalLoading]);
 
     useWebSocketV2({
         endpoint,
         connectParams: { deviceId },
         enabled: !!deviceId && !isPending && !!endpoint,
+        wssType: currentWSS,
     });
 
     useListenMessage();

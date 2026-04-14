@@ -304,6 +304,18 @@ upload_well_known_files() {
     log_info "Uploading .well-known files for deep linking..."
     log_warning "These files are CRITICAL for iOS Universal Links and Android App Links!"
 
+    # Replace REDACTED_TEAM_ID with actual Apple Team ID in AASA file
+    local aasa_file="${WELL_KNOWN_DIR}/apple-app-site-association"
+    if [ -n "${APPLE_TEAM_ID:-}" ]; then
+        log_info "Replacing REDACTED_TEAM_ID with actual Apple Team ID..."
+        sed -i.bak "s/REDACTED_TEAM_ID/${APPLE_TEAM_ID}/g" "$aasa_file"
+        rm -f "${aasa_file}.bak"
+    elif grep -q "REDACTED_TEAM_ID" "$aasa_file"; then
+        log_error "AASA file contains REDACTED_TEAM_ID but APPLE_TEAM_ID env var is not set!"
+        log_error "Set APPLE_TEAM_ID in .env.deploy or GitHub Secrets"
+        return 1
+    fi
+
     # Upload apple-app-site-association (no file extension, must be application/json)
     log_info "Uploading apple-app-site-association..."
     if ! aws s3 ${AWS_PROFILE} cp "${WELL_KNOWN_DIR}/apple-app-site-association" \

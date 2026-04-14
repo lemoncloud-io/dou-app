@@ -17,9 +17,9 @@ interface RouterErrorFallbackProps {
 type RouterErrorType = 'notFound' | 'server' | 'unknown';
 
 const ERROR_ICONS: Record<RouterErrorType, ReactNode> = {
-    notFound: <AlertTriangle className="h-10 w-10 text-orange-500" />,
-    server: <ServerCrash className="h-10 w-10 text-orange-500" />,
-    unknown: <AlertTriangle className="h-10 w-10 text-orange-500" />,
+    notFound: <AlertTriangle className="h-10 w-10 text-primary" />,
+    server: <ServerCrash className="h-10 w-10 text-primary" />,
+    unknown: <AlertTriangle className="h-10 w-10 text-primary" />,
 };
 
 const inferRouterErrorType = (error: unknown): RouterErrorType => {
@@ -116,7 +116,7 @@ export const RouterErrorFallback = ({ onError }: RouterErrorFallbackProps): JSX.
                     </Button>
                     <Button
                         onClick={handleRetry}
-                        className="bg-orange-500 hover:bg-orange-600 text-white"
+                        className="bg-primary hover:bg-primary/90 text-white"
                         aria-label="다시 시도"
                     >
                         <RefreshCw className="h-4 w-4 mr-2" />

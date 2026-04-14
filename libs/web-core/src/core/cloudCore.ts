@@ -28,6 +28,7 @@ interface CloudCore {
     saveSelectedSiteId: (siteId: string) => void;
     clearSelectedPlace: () => void;
     getSelectedPlaceId: () => string | null;
+    clearDelegationToken: () => void;
     clearSession: () => void;
     getBackend: () => string | null;
     getWss: () => string | null;
@@ -74,6 +75,13 @@ export const cloudCore: CloudCore = {
 
     getSelectedPlaceId: (): string | null => {
         return coreStorage.get(CLOUD_SELECTED_PLACE_KEY);
+    },
+
+    clearDelegationToken: (): void => {
+        coreStorage.remove(CLOUD_DELEGATION_TOKEN_KEY);
+        coreStorage.remove(CLOUD_TOKEN_KEY);
+        coreStorage.remove(CLOUD_SELECTED_PLACE_KEY);
+        coreStorage.set(CLOUD_SELECTED_CLOUD_KEY, 'default');
     },
 
     clearSession: (): void => {

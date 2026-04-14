@@ -1,3 +1,4 @@
+import { AccountRoutes } from '../../features/account';
 import { ChatRoutes } from '../../features/chats';
 import { ExploreRoutes } from '../../features/explore';
 import { CreateRoomRoutes, HomeRoutes } from '../../features/home';
@@ -24,6 +25,7 @@ export const privateRoutes = [
         element: <SafeAreaLayout />,
         children: [
             { path: 'mypage/*', element: <MyPageRoutes /> },
+            { path: 'account/*', element: <AccountRoutes /> },
             { path: 'chats/*', element: <ChatRoutes /> },
             { path: 'workspace/*', element: <WorkspaceRoutes /> },
             { path: 'create-workspace/*', element: <CreateWorkspaceRoutes /> },

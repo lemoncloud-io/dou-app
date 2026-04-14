@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { useWebSocketV2 } from '@chatic/socket';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chats/model';
@@ -7,16 +8,27 @@ import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chat
 import { useChatMessages } from './useChatMessages';
 import { useMyChannels } from '../../home/hooks/useMyChannels';
 import { useDynamicProfile } from '@chatic/web-core';
+import { cloudsKeys } from '@chatic/users';
+import { membershipKeys, subscriptionKeys } from '@chatic/subscriptions';
 
 export const useListenMessage = () => {
     const { lastMessage } = useWebSocketV2();
     const profile = useDynamicProfile();
     const { addMessage } = useChatMessages(profile?.uid ?? null, null);
     const { setChannels } = useMyChannels();
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         const envelope = lastMessage as WSSEnvelope<ChatModel & { sourceType?: string; nick?: string }>;
         if (envelope?.type !== 'model') return;
+
+        // cloud/membership 상태 변경 시 refetch
+        if (envelope.action === 'update') {
+            void queryClient.invalidateQueries({ queryKey: cloudsKeys.all });
+            void queryClient.invalidateQueries({ queryKey: membershipKeys.all });
+            void queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
+            return;
+        }
 
         const channelId = envelope?.payload?.channelId ?? (envelope.meta as { channel?: string })?.channel;
         if (!channelId) return;

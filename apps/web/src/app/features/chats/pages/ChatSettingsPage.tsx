@@ -7,7 +7,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 
 import { LoadingFallback } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
+import { useDynamicProfile, useUserContext, UserType } from '@chatic/web-core';
 
 import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -70,10 +70,11 @@ export const ChatSettingsPage = () => {
     const { toast } = useToast();
 
     const profile = useDynamicProfile();
-    const { isGuest } = useWebCoreStore();
+    const { userType } = useUserContext();
     const { clearMessages } = useChatMessages(profile?.uid ?? null, channelId ?? null);
 
     const isOwner = channel?.ownerId === profile?.uid;
+    const isSelfChat = channel?.stereo === 'self';
     const memberCount = membersTotal || channel?.memberNo || 0;
 
     const openDialog = (type: DialogType) => setActiveDialog(type);
@@ -184,7 +185,7 @@ export const ChatSettingsPage = () => {
 
                     {/* Action Buttons */}
                     <div className="flex items-start justify-center gap-6">
-                        {isOwner && !isGuest && (
+                        {isOwner && userType !== UserType.TEMP_ACCOUNT && (
                             <ActionButton
                                 icon={UserPlus}
                                 label={t('chat.settings.inviteFriends')}
@@ -196,74 +197,82 @@ export const ChatSettingsPage = () => {
                             label={t('chat.settings.notifications')}
                             onClick={() => navigate(`/chats/${channelId}/settings/notifications`)}
                         />
-                        {isOwner ? (
-                            <ActionButton
-                                icon={Trash2}
-                                label={t('chat.settings.deleteRoom')}
-                                onClick={() => openDialog('delete')}
-                                variant="danger"
-                            />
-                        ) : (
-                            <ActionButton
-                                icon={LogOut}
-                                label={t('chat.settings.leaveRoom')}
-                                onClick={() => openDialog('leave')}
-                            />
-                        )}
+                        {!isSelfChat ? (
+                            isOwner ? (
+                                <ActionButton
+                                    icon={Trash2}
+                                    label={t('chat.settings.deleteRoom')}
+                                    onClick={() => openDialog('delete')}
+                                    variant="danger"
+                                />
+                            ) : (
+                                <ActionButton
+                                    icon={LogOut}
+                                    label={t('chat.settings.leaveRoom')}
+                                    onClick={() => openDialog('leave')}
+                                />
+                            )
+                        ) : null}
                     </div>
                 </div>
 
                 {/* Members List */}
-                <div className="flex w-full flex-col gap-[18px]">
-                    <div className="flex items-center gap-1 px-[18px]">
-                        <span className="text-[16px] font-semibold leading-[1.5] tracking-[-0.32px] text-foreground">
-                            {t('chat.settings.roomMembers')}
-                        </span>
-                        <span className="text-[16px] font-semibold leading-[1.5] text-muted-foreground">
-                            {memberCount}
-                        </span>
-                    </div>
-                    <div className="flex flex-col gap-[14px] px-4">
-                        {isMembersLoading ? (
-                            <div className="py-4 text-center text-sm text-muted-foreground">
-                                {t('chat.settings.loading')}
-                            </div>
-                        ) : members.length > 0 ? (
-                            members.map(member => {
-                                const memberId = member.id ?? '';
-                                const memberName =
-                                    member.$join?.nick || member.nick || memberId || t('chat.settings.unknownUser');
+                {!isSelfChat && (
+                    <div className="flex w-full flex-col gap-[18px]">
+                        <div className="flex items-center gap-1 px-[18px]">
+                            <span className="text-[16px] font-semibold leading-[1.5] tracking-[-0.32px] text-foreground">
+                                {t('chat.settings.roomMembers')}
+                            </span>
+                            <span className="text-[16px] font-semibold leading-[1.5] text-muted-foreground">
+                                {memberCount}
+                            </span>
+                        </div>
+                        <div className="flex flex-col gap-[14px] px-4">
+                            {isMembersLoading ? (
+                                <div className="py-4 text-center text-sm text-muted-foreground">
+                                    {t('chat.settings.loading')}
+                                </div>
+                            ) : members.length > 0 ? (
+                                members.map(member => {
+                                    const memberId = member.id ?? '';
+                                    const memberName =
+                                        member.$join?.nick || member.nick || memberId || t('chat.settings.unknownUser');
 
-                                const isMember = memberId === profile?.uid;
+                                    const isMember = memberId === profile?.uid;
 
-                                return (
-                                    <MemberListItem
-                                        key={memberId}
-                                        member={{
-                                            id: memberId,
-                                            name: memberName,
-                                            avatar: null,
-                                        }}
-                                        isMe={isMember}
-                                        isOwner={memberId === channel?.ownerId}
-                                        isPendingInvite={member.$join?.joined === 0}
-                                        showActions={!isMember}
-                                        onReport={() => openMemberDialog('report', { id: memberId, name: memberName })}
-                                        onBlock={() => openMemberDialog('block', { id: memberId, name: memberName })}
-                                    />
-                                );
-                            })
-                        ) : (
-                            <div className="py-4 text-center text-sm text-muted-foreground">
-                                {t('chat.settings.noMembers', '멤버가 없습니다')}
-                            </div>
-                        )}
+                                    return (
+                                        <MemberListItem
+                                            key={memberId}
+                                            member={{
+                                                id: memberId,
+                                                name: memberName,
+                                                avatar: null,
+                                            }}
+                                            isMe={isMember}
+                                            isOwner={memberId === channel?.ownerId}
+                                            isPendingInvite={member.$join?.joined === 0}
+                                            showActions={!isMember}
+                                            onReport={() =>
+                                                openMemberDialog('report', { id: memberId, name: memberName })
+                                            }
+                                            onBlock={() =>
+                                                openMemberDialog('block', { id: memberId, name: memberName })
+                                            }
+                                        />
+                                    );
+                                })
+                            ) : (
+                                <div className="py-4 text-center text-sm text-muted-foreground">
+                                    {t('chat.settings.noMembers', 'No members')}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Dialogs */}
-            {!isGuest && (
+            {userType !== UserType.TEMP_ACCOUNT && (
                 <InviteFriendsDialog
                     open={activeDialog === 'invite'}
                     onOpenChange={open => (open ? openDialog('invite') : closeDialog())}

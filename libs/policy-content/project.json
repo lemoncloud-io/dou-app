@@ -1,0 +1,9 @@
+{
+    "name": "@chatic/policy-content",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/policy-content/src",
+    "projectType": "library",
+    "tags": [],
+    "// targets": "to see all targets run: nx show project policy-content --web",
+    "targets": {}
+}

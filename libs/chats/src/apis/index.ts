@@ -1,3 +1,4 @@
+import { throwIfApiError } from '@chatic/shared';
 import { webCore } from '@chatic/web-core';
 
 import type { ChatReadBody, ChatSendBody, ChatView, JoinView } from '@lemoncloud/chatic-socials-api';
@@ -11,9 +12,9 @@ export const sendPublicMessage = async (body: ChatSendBody): Promise<ChatView> =
             baseURL: `${VITE_SOC_ENDPOINT}/hello/chat-send`,
         })
         .setBody(body)
-        .execute<ChatView>();
+        .execute<ChatView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const readPublicMessage = async (body: ChatReadBody): Promise<JoinView> => {
@@ -23,6 +24,7 @@ export const readPublicMessage = async (body: ChatReadBody): Promise<JoinView> =
             baseURL: `${VITE_SOC_ENDPOINT}/hello/chat-read`,
         })
         .setBody(body)
-        .execute<JoinView>();
-    return data;
+        .execute<JoinView & { error?: string }>();
+
+    return throwIfApiError(data);
 };

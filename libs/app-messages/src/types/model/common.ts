@@ -1,5 +1,3 @@
-import type { ProductSubscription, Purchase } from 'react-native-iap';
-
 export type PageLanguage = 'ko' | 'en' | 'cn' | 'jp' | 'vn' | 'id' | 'th';
 export type Env = 'local' | 'stage' | 'prod';
 export type Platform = 'ios' | 'android' | 'windows' | 'macos' | 'web';
@@ -33,6 +31,7 @@ export interface DeviceInfo {
     deviceToken?: string;
     deviceId?: string | null;
     deviceModel?: string | null;
+    installId?: string | null;
     lang?: PageLanguage;
 }
 
@@ -76,20 +75,6 @@ export interface AppLogInfo {
     timestamp?: number;
     level?: AppLogLevel;
     error?: any;
-}
-
-/**
- * 인앱 결제 구독 상품 정보
- */
-export interface ProductSubscriptionInfo {
-    products: ProductSubscription[];
-}
-
-/**
- * 인앱 결제 구매 내역 정보
- */
-export interface PurchaseInfo {
-    purchases: Purchase[];
 }
 
 /**
@@ -267,3 +252,11 @@ export interface AppleOAuthTokenResult extends BaseTokenResult {
 }
 
 export type OAuthTokenResult = GoogleOAuthTokenResult | AppleOAuthTokenResult;
+
+/**
+ * 앱 백그라운드/포그라운드 상태
+ * - active: 앱이 포그라운드에서 실행 중
+ * - background: 앱이 백그라운드에 숨겨짐
+ * - inactive: (iOS) 전화가 오거나 알림창을 내리는 등 전환 중인 상태
+ */
+export type AppBackgroundStatus = 'active' | 'background' | 'inactive';

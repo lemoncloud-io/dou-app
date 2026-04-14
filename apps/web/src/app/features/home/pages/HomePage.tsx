@@ -12,12 +12,13 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useLocalProfileStore, useOnboardingStore, useWebCoreStore, useDynamicProfile } from '@chatic/web-core';
+import { useLogout, useOnboardingStore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
+import { CloudLogo } from '../../../shared/components/CloudLogo';
 import { LimitExceededDialog } from '../../../shared/components/LimitExceededDialog';
 import { SettingsDialog } from '../../../components/SettingsDialog';
 import { OnboardingModal } from '../../onboarding';
@@ -32,12 +33,14 @@ const IS_LOCAL = import.meta.env.VITE_ENV === 'LOCAL';
 
 export const HomePage = () => {
     const { t } = useTranslation();
-    const { logout, isGuest, isInvited, profile } = useWebCoreStore();
+    const profile = useWebCoreStore(s => s.profile);
+    const { userType } = useUserContext();
+    const isInvited = userType === UserType.INVITED || userType === UserType.INVITED_WITH_CLOUD;
+    const { mutate: logout } = useLogout();
     const navigate = useNavigateWithTransition();
 
-    const localProfile = useLocalProfileStore();
     const {
-        canCreate: canCreateChannel,
+        canCreate: _canCreateChannel,
         isLimitReached: isChannelLimitReached,
         isLoading: isChannelsLoading,
         maxCount: maxChannels,
@@ -46,15 +49,13 @@ export const HomePage = () => {
         isLimitReached: isPlaceLimitReached,
         isLoading: isPlacesLoading,
         maxCount: maxPlaces,
+        isMyCloud,
     } = useCanCreatePlace();
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const { isCloudsError } = useCloudSession();
 
-    const dynamicProfile = useDynamicProfile();
-    const displayName = !isGuest
-        ? (dynamicProfile?.$user?.nick ?? dynamicProfile?.$user?.name ?? '-')
-        : (dynamicProfile?.name ?? localProfile.name ?? '-');
-    const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
+    const displayName = profile?.$user.name ?? '-';
+    const displayImageUrl = profile?.$user.photo;
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -65,7 +66,6 @@ export const HomePage = () => {
 
     const handleLogout = () => {
         logout();
-        window.location.href = '/auth/login';
     };
 
     const { toast } = useToast();
@@ -75,6 +75,10 @@ export const HomePage = () => {
     };
 
     const handleCreatePlace = () => {
+        if (!isMyCloud) {
+            toast({ title: t('homePage.cannotCreatePlace'), variant: 'destructive' });
+            return;
+        }
         if (isPlaceLimitReached) {
             setLimitDialogType('place');
         } else {
@@ -94,8 +98,8 @@ export const HomePage = () => {
         <div className="flex min-h-screen flex-col bg-background pb-[98px] pt-4">
             {/* Header */}
             <header className="flex items-center justify-between px-5 pb-3 pt-safe-top">
-                {isGuest && !isInvited ? (
-                    <img src="/logo-chatic.svg" alt="chatic" className="h-6" />
+                {userType === UserType.TEMP_ACCOUNT ? (
+                    <CloudLogo />
                 ) : IS_LOCAL ? (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -143,7 +147,7 @@ export const HomePage = () => {
                     </div>
                 )}
                 <div className="flex items-center gap-4">
-                    {!isGuest && (
+                    {userType !== UserType.TEMP_ACCOUNT && (
                         <button onClick={() => setIsCloudSessionOpen(true)} className="p-1">
                             <ArrowLeftRight size={22} className="text-foreground" />
                         </button>
@@ -158,7 +162,7 @@ export const HomePage = () => {
             </header>
 
             {/* Cloud Error Banner */}
-            {!isGuest && isCloudsError && (
+            {userType !== UserType.TEMP_ACCOUNT && isCloudsError && (
                 <button
                     onClick={() => setIsCloudSessionOpen(true)}
                     className="mx-5 mb-2 rounded-lg bg-destructive/10 px-4 py-2.5 text-left text-sm text-destructive"
@@ -173,7 +177,7 @@ export const HomePage = () => {
                     onPlaceSelected={setSelectedPlaceId}
                     onNavigateToOrder={() => navigate('/places/order')}
                     onCreatePlace={handleCreatePlace}
-                    isGuest={isGuest}
+                    isGuest={userType === UserType.TEMP_ACCOUNT}
                     isPlacesLoading={isPlacesLoading}
                 />
             </section>
@@ -184,9 +188,10 @@ export const HomePage = () => {
             <section className="flex-1 px-4 pt-[18px]">
                 <ChannelList
                     workspaceId={selectedPlaceId ?? ''}
-                    canCreateChannel={canCreateChannel}
+                    showCreateButton={userType !== UserType.TEMP_ACCOUNT && !isInvited && !isChannelsLoading}
                     isChannelsLoading={isChannelsLoading}
                     onCreateChannel={handleCreateChannel}
+                    channelLimit={maxChannels}
                 />
             </section>
 

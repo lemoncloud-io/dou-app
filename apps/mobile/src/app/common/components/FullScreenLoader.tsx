@@ -6,7 +6,7 @@ interface FullScreenLoaderProps {
     message?: string;
 }
 
-export const FullScreenLoader = ({ visible, message = '처리 중입니다...' }: FullScreenLoaderProps) => {
+export const FullScreenLoader = ({ visible, message = 'Processing...' }: FullScreenLoaderProps) => {
     return (
         <Modal
             transparent

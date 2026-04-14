@@ -26,8 +26,8 @@ export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
                     {renderMenuItem('인앱결제 테스트', () => {
                         navigation.navigate('InAppPurchaseTest');
                     })}
-                    {renderMenuItem('FCM 테스트', () => {
-                        navigation.navigate('FcmTest');
+                    {renderMenuItem('알림 테스트', () => {
+                        navigation.navigate('NotificationTest');
                     })}
                     {renderMenuItem('딥링크 테스트', () => {
                         navigation.navigate('DeeplinkTest');

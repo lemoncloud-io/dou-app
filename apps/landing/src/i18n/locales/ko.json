@@ -43,16 +43,17 @@
         }
     },
     "hero": {
-        "badge": "프라이버시 우선 메시징",
+        "badge": "퍼스널 메시징",
+        "title": "프라이빗 커뮤니티",
         "title1": "소중한 대화는",
         "title2": "안전한 공간에서",
-        "subtitle": "초대받은 사람들과 함께하는 프라이빗 커뮤니티. 집중된 대화, 안전한 소통을 경험하세요.",
+        "subtitle": "소중한 사람들과 자유롭게 대화하고 연결되는 안전한 공간",
         "appStore": "App Store",
         "googlePlay": "Google Play"
     },
     "features": {
         "title": "DoU의 특별한 기능",
-        "subtitle": "프라이버시를 지키며 안전하게 소통하세요",
+        "subtitle": "나만의 공간에서 안전하게 소통하세요",
         "private": {
             "title": "프라이빗 커뮤니티",
             "description": "최대 5개의 대화공간과, 5개의 채팅방으로 필요한 사람들과 필요한 이야기를 나눠요"
@@ -70,11 +71,49 @@
             "description": "할 일 정리, 빠른 기록까지 나만 보는 개인 메모 공간을 활용해요"
         }
     },
+    "pricing": {
+        "title": "DoU만의 특별한 혜택",
+        "basic": {
+            "title": "기본 서비스",
+            "description": "필수 기능으로 무료로 채팅을 시작하세요.",
+            "feature1": "나와의 채팅",
+            "feature2": "초대받은 친구의 공간에서 채팅"
+        },
+        "subscription": {
+            "title": "구독 서비스",
+            "highlight": "신규 가입 시 7일 무료",
+            "price": "$0",
+            "detail1": "나만의 공간을 만들고 친구를 초대하세요",
+            "detail2": "최대 5개의 공간과 각 5개의 채팅방",
+            "detail3": "최대 100명의 그룹 채팅",
+            "detail4": "개인 메모 공간 포함",
+            "feature1": "나의 공간",
+            "feature2": "친구 초대",
+            "feature3": "그룹 채팅",
+            "feature4": "메모 공간",
+            "feature5": "우선 지원"
+        }
+    },
+    "cta": {
+        "title1": "신규 가입자 무료.",
+        "title2": "지금 바로 시작하세요",
+        "subtitle": "DoU와 함께 안전한 대화를 경험하세요",
+        "appStore": "App Store에서 다운로드",
+        "googlePlay": "Google Play에서 다운로드"
+    },
     "download": {
         "title": "지금 바로 시작하세요",
         "subtitle": "DoU와 함께 안전한 대화를 경험해보세요",
         "appStore": "App Store에서 다운로드",
         "googlePlay": "Google Play에서 다운로드"
+    },
+    "common": {
+        "comingSoon": "현재 준비중입니다"
+    },
+    "policy": {
+        "effectiveDate": "시행일",
+        "versionNotFound": "버전을 찾을 수 없습니다.",
+        "current": "현재"
     },
     "footer": {
         "ceo": "대표자",
@@ -83,6 +122,6 @@
         "terms": "이용약관",
         "privacy": "개인정보처리방침",
         "child": "아동 보호 정책 및 운영표준",
-        "copyright": "Copyrightⓒ2026 LEMONCLOUD. All rights reserved."
+        "copyright": "Copyright 2026 LEMONCLOUD. All rights reserved."
     }
 }

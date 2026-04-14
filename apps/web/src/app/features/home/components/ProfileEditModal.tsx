@@ -94,7 +94,7 @@ export const ProfileEditModal = ({ isOpen, onClose }: ProfileEditModalProps) => 
                 </DialogDescription>
                 <div className="relative mx-4 w-full max-w-2xl">
                     {/* Background Effects */}
-                    <div className="absolute -left-10 -top-10 h-32 w-32 animate-float rounded-full bg-orange-500/10 blur-xl" />
+                    <div className="absolute -left-10 -top-10 h-32 w-32 animate-float rounded-full bg-primary/10 blur-xl" />
                     <div
                         className="absolute -bottom-10 -right-10 h-24 w-24 animate-float rounded-full bg-yellow-500/10 blur-xl"
                         style={{ animationDelay: '2s' }}
@@ -192,7 +192,7 @@ export const ProfileEditModal = ({ isOpen, onClose }: ProfileEditModalProps) => 
                                             value={formData.nick}
                                             onChange={e => handleInputChange('nick', e.target.value)}
                                             className={`glass border-white/20 bg-white/5 text-primary-content placeholder:text-muted-content ${
-                                                errors.nick ? 'border-red-400' : 'focus:border-orange-400'
+                                                errors.nick ? 'border-red-400' : 'focus:border-primary'
                                             }`}
                                             placeholder={t('profile.nicknamePlaceholder', 'Enter your nickname')}
                                         />
@@ -209,7 +209,7 @@ export const ProfileEditModal = ({ isOpen, onClose }: ProfileEditModalProps) => 
                                         >
                                             <SelectTrigger
                                                 className={`glass border-white/20 bg-white/5 text-primary-content ${
-                                                    errors.gender ? 'border-red-400' : 'focus:border-orange-400'
+                                                    errors.gender ? 'border-red-400' : 'focus:border-primary'
                                                 }`}
                                             >
                                                 <SelectValue placeholder={t('profile.selectGender', 'Select gender')} />
@@ -243,7 +243,7 @@ export const ProfileEditModal = ({ isOpen, onClose }: ProfileEditModalProps) => 
                                     <Input
                                         value={formData.text}
                                         onChange={e => handleInputChange('text', e.target.value)}
-                                        className="glass border-white/20 bg-white/5 text-primary-content placeholder:text-muted-content focus:border-orange-400"
+                                        className="glass border-white/20 bg-white/5 text-primary-content placeholder:text-muted-content focus:border-primary"
                                         placeholder={t('profile.bioPlaceholder', 'Tell us about yourself')}
                                     />
                                 </div>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
-import { getMobileAppInfo, initializeMessageListener, useAppMessageStore } from '@chatic/app-messages';
+import { getMobileAppInfo, initializeMessageListener, postMessage, useAppMessageStore } from '@chatic/app-messages';
+import type { OAuthLoginProvider } from '@chatic/app-messages';
 
 import { updateProfile } from '../api';
 import { LANGUAGE_KEY, cloudCore, webCore, coreStorage } from '../core';
@@ -14,6 +15,7 @@ interface UserViewExtended {
 }
 
 const INVITED_SESSION_KEY = 'chatic-is-invited';
+const OAUTH_PROVIDER_KEY = 'chatic-oauth-provider';
 
 export const getIsInvited = (): boolean => coreStorage.get(INVITED_SESSION_KEY) === 'true';
 export const setIsInvitedSession = (value: boolean): void => {
@@ -21,6 +23,17 @@ export const setIsInvitedSession = (value: boolean): void => {
         coreStorage.set(INVITED_SESSION_KEY, 'true');
     } else {
         coreStorage.remove(INVITED_SESSION_KEY);
+    }
+};
+
+export const getOAuthProvider = (): OAuthLoginProvider | null =>
+    coreStorage.get(OAUTH_PROVIDER_KEY) as OAuthLoginProvider | null;
+
+export const setOAuthProvider = (provider: OAuthLoginProvider | null): void => {
+    if (provider) {
+        coreStorage.set(OAUTH_PROVIDER_KEY, provider);
+    } else {
+        coreStorage.remove(OAUTH_PROVIDER_KEY);
     }
 };
 
@@ -36,12 +49,17 @@ export interface WebCoreState {
     userName: string;
 }
 
+export interface LogoutOptions {
+    /** Preserve current URL (pathname + search) instead of redirecting to /auth/login */
+    preserveUrl?: boolean;
+}
+
 export interface WebCoreStore extends WebCoreState {
     initialize: () => void;
-    logout: () => Promise<void>;
+    logout: (options?: LogoutOptions) => Promise<void>;
     setIsAuthenticated: (isAuth: boolean) => void;
     setProfile: (profile: UserProfile$) => void;
-    updateProfile: (user: UserView) => Promise<void>;
+    updateProfile: (uid: string, user: Record<string, unknown>) => Promise<void>;
     registerLogoutCallback: (callback: () => void) => () => void;
 }
 
@@ -105,7 +123,10 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      * - Removes user profile data
      * - Redirects to login page
      */
-    logout: async () => {
+    logout: async (options?: LogoutOptions) => {
+        // Capture URL params before cleanup (cleanup may affect the URL)
+        const searchBeforeCleanup = window.location.search;
+
         // Execute all registered callbacks before logout
         logoutCallbacks.forEach(callback => {
             try {
@@ -116,13 +137,33 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         });
         logoutCallbacks.clear();
 
+        // Revoke OAuth session on native side if applicable
+        const oauthProvider = getOAuthProvider();
+        const { isOnMobileApp } = getMobileAppInfo();
+        if (oauthProvider && isOnMobileApp) {
+            postMessage({ type: 'OAuthLogout', data: { provider: oauthProvider } });
+        }
+        setOAuthProvider(null);
+
         await webCore.logout();
         cloudCore.clearSession();
         setIsInvitedSession(false);
         localStorage.removeItem('chatic-device-token');
 
         set({ isAuthenticated: false, profile: null, userName: '', isGuest: false, isInvited: false });
-        window.location.href = '/auth/login';
+
+        if (options?.preserveUrl) {
+            const params = new URLSearchParams(searchBeforeCleanup);
+            const loginUrl = new URL('/auth/login', window.location.origin);
+            for (const key of ['code', 'provider', '_backend', '_wss']) {
+                const value = params.get(key);
+                if (value) loginUrl.searchParams.set(key, value);
+            }
+            loginUrl.searchParams.set('logout', '1');
+            window.location.href = loginUrl.toString();
+        } else {
+            window.location.href = '/auth/login?logout=1';
+        }
     },
 
     /**
@@ -136,13 +177,17 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      * @param profile - User profile data
      */
     setProfile: (profile: UserProfile$) => {
-        const isGuest = (profile.$user as UserViewExtended)?.userRole === 'guest';
+        const userRoleGuest = (profile.$user as UserViewExtended)?.userRole === 'guest';
         const isInvited = getIsInvited();
+
+        // Treat as guest if: role is guest, OR (not invited, no cloud, no active social login)
+        const isGuest = userRoleGuest && !isInvited;
+        const isCloudUser = isInvited || (profile.$user as UserViewExtended)?.userRole === 'user';
         return set({
             profile,
             isGuest,
             isInvited,
-            isCloudUser: !isGuest || isInvited,
+            isCloudUser,
             userName: profile['$user']?.name || 'Unknown',
         });
     },
@@ -151,8 +196,8 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      * Updates username and related profile information
      * @param user - Updated user view data
      */
-    updateProfile: async (user: Partial<UserProfile$>) => {
-        await updateProfile(user);
+    updateProfile: async (uid: string, user: Record<string, unknown>) => {
+        await updateProfile(uid, user);
         // TODO: set updated profile
         // set(state => {
         //     const profile = { ...state.profile, $user: user };

@@ -1,4 +1,4 @@
-import { ArrowUp, ChevronLeft, MoreHorizontal, Plus, Settings, User, X } from 'lucide-react';
+import { ArrowUp, ChevronLeft, Loader2, MoreHorizontal, Plus, Settings, User, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -6,9 +6,10 @@ import { useParams } from 'react-router-dom';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { LoadingFallback } from '@chatic/shared';
-import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';
+import { useDynamicProfile, useUserContext, UserType } from '@chatic/web-core';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -26,22 +27,26 @@ import { MessageBubble } from '../components/MessageBubble';
 import { ReadStatus } from '../components/ReadStatus';
 import { useAppChecker } from '@chatic/device-utils';
 
+const MAX_INPUT_LENGTH = 5000;
+
 export const ChatRoomPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [content, setContent] = useState('');
-    const [isComposing, setIsComposing] = useState(false);
+    const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+    const [failedMessage, setFailedMessage] = useState<string | null>(null);
     const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
     const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { emit } = useWebSocketV2();
+    const { toast } = useToast();
     const { sendMessage, isPending } = useSendMessage();
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
 
     const dynamicProfile = useDynamicProfile();
-    const { isGuest } = useWebCoreStore();
+    const { userType } = useUserContext();
     const { setChannels } = useMyChannels();
     const {
         messages,
@@ -71,10 +76,10 @@ export const ChatRoomPage = () => {
     };
 
     useEffect(() => {
-        if (messages.length > 0) {
+        if (messages.length > 0 || pendingMessage || failedMessage) {
             scrollToBottom();
         }
-    }, [messages.length]);
+    }, [messages.length, pendingMessage, failedMessage]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -112,12 +117,16 @@ export const ChatRoomPage = () => {
             e.stopPropagation();
         }
 
-        if (!content.trim() || !channelId || isPending) return;
+        const trimmed = content.trim().slice(0, MAX_INPUT_LENGTH);
+        if (!trimmed || !channelId) return;
 
         setContent('');
+        setFailedMessage(null);
+        setPendingMessage(trimmed);
 
         try {
-            const newMessage = await sendMessage(channelId, content.trim());
+            const newMessage = await sendMessage(channelId, trimmed);
+            setPendingMessage(null);
 
             const id = newMessage.id || '0';
             const timestamp = newMessage?.createdAt ? new Date(newMessage.createdAt) : new Date();
@@ -125,7 +134,7 @@ export const ChatRoomPage = () => {
             const ownerName = newMessage.owner$?.name || t('chat.room.unknown');
             const chatNo = newMessage?.chatNo;
 
-            addMessage({ id, content: content.trim(), timestamp, ownerId, ownerName, chatNo, isRead: true }, channelId);
+            addMessage({ id, content: trimmed, timestamp, ownerId, ownerName, chatNo, isRead: true }, channelId);
 
             if (chatNo && dynamicProfile?.uid) {
                 emit({ type: 'chat', action: 'read', payload: { channelId, chatNo } });
@@ -139,7 +148,7 @@ export const ChatRoomPage = () => {
                               lastChat$: {
                                   ...newMessage,
                                   id,
-                                  content: content.trim(),
+                                  content: trimmed,
                                   createdAt: newMessage.createdAt,
                               },
                           }
@@ -148,16 +157,17 @@ export const ChatRoomPage = () => {
             );
         } catch (error) {
             console.error('Failed to send message:', error);
+            setPendingMessage(null);
+            setFailedMessage(trimmed);
+            toast({ title: t('chat.room.sendFailed'), variant: 'destructive' });
         }
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (isComposing) return;
-
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            void handleSend(e);
-        }
+    const handleRetry = () => {
+        if (!failedMessage) return;
+        setContent(failedMessage);
+        setFailedMessage(null);
+        inputRef.current?.focus();
     };
 
     const formatTime = (date: Date) => {
@@ -213,19 +223,19 @@ export const ChatRoomPage = () => {
     return (
         <div className="flex  h-screen flex-col pt-safe-top bg-background ">
             {/* Header */}
-            <header className="z-10 flex items-center justify-between border-b border-border px-4 py-4">
-                <button onClick={() => navigate(-1)} className="p-1">
-                    <ChevronLeft size={24} className="text-foreground" />
+            <header className="relative z-10 flex min-h-[48px] items-center justify-center border-b border-border px-4 py-3">
+                <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
+                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
                 </button>
-                <h1 className="text-[17px] font-bold text-foreground">
-                    {channel?.name || t('chat.room.title')}
-                    {channel?.memberNo && (
+                <h1 className="text-[17px] font-semibold text-foreground">
+                    {channel?.stereo === 'self' ? t('channelList.selfChannel') : channel?.name || t('chat.room.title')}
+                    {channel?.stereo !== 'self' && channel?.memberNo && (
                         <span className="ml-1.5 text-sm font-normal text-muted-foreground">{channel.memberNo}</span>
                     )}
                 </h1>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <button className="p-1">
+                        <button className="absolute right-4 p-1">
                             <MoreHorizontal size={22} className="text-foreground" />
                         </button>
                     </DropdownMenuTrigger>
@@ -257,13 +267,13 @@ export const ChatRoomPage = () => {
 
                         {/* Empty state */}
                         <div className="flex flex-col items-center gap-4">
-                            {!isGuest && (
+                            {userType !== UserType.TEMP_ACCOUNT && (
                                 <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
                                     <p>{t('chat.room.emptyState.line1')}</p>
                                     <p>{t('chat.room.emptyState.line2')}</p>
                                 </div>
                             )}
-                            {!isGuest && (
+                            {userType !== UserType.TEMP_ACCOUNT && (
                                 <button
                                     onClick={() => setInviteDialogOpen(true)}
                                     className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
@@ -277,88 +287,104 @@ export const ChatRoomPage = () => {
                         </div>
                     </div>
                 ) : (
-                    Object.entries(groupedMessages).map(([dateKey, dateMessages]) => (
-                        <div key={dateKey} className="flex flex-col gap-3">
-                            {/* Date Separator */}
-                            <div className="py-2 text-center">
-                                <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
-                                    {formatDateSeparator(dateMessages[0].timestamp)}
-                                </span>
-                            </div>
+                    Object.entries(groupedMessages)
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([dateKey, dateMessages]) => (
+                            <div key={dateKey} className="flex flex-col gap-3">
+                                {/* Date Separator */}
+                                <div className="py-2 text-center">
+                                    <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
+                                        {formatDateSeparator(dateMessages[0].timestamp)}
+                                    </span>
+                                </div>
 
-                            {/* Messages for this date */}
-                            {dateMessages
-                                .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-                                .map(message => {
-                                    const isMine = message.ownerId === dynamicProfile?.uid;
+                                {/* Messages for this date */}
+                                {dateMessages
+                                    .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+                                    .map(message => {
+                                        const isMine = message.ownerId === dynamicProfile?.uid;
 
-                                    if (message.isSystem) {
-                                        const systemMatch = message.content.match(/^(.+?)(님이.+)$/);
-                                        return (
-                                            <div key={message.id} className="flex justify-center py-1">
-                                                <span className="rounded-full bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground">
-                                                    {systemMatch ? (
-                                                        <>
-                                                            <span className="font-semibold">{systemMatch[1]}</span>
-                                                            {systemMatch[2]}
-                                                        </>
-                                                    ) : (
-                                                        message.content
-                                                    )}
-                                                </span>
-                                            </div>
-                                        );
-                                    }
-
-                                    return (
-                                        <div
-                                            key={message.id}
-                                            className={`flex gap-1.5 ${isMine ? 'justify-end' : 'justify-start'}`}
-                                        >
-                                            {!isMine && (
-                                                <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
-                                                    <User className="size-4 text-muted-foreground" />
+                                        if (message.isSystem) {
+                                            const systemMatch = message.content.match(/^(.+?)(님이.+)$/);
+                                            return (
+                                                <div key={message.id} className="flex justify-center py-1">
+                                                    <span className="rounded-full bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground">
+                                                        {systemMatch ? (
+                                                            <>
+                                                                <span className="font-semibold">{systemMatch[1]}</span>
+                                                                {systemMatch[2]}
+                                                            </>
+                                                        ) : (
+                                                            message.content
+                                                        )}
+                                                    </span>
                                                 </div>
-                                            )}
+                                            );
+                                        }
+
+                                        return (
                                             <div
-                                                className={`flex max-w-[75%] flex-col ${isMine ? 'items-end' : 'items-start'}`}
+                                                key={message.id}
+                                                className={`flex gap-1.5 ${isMine ? 'justify-end' : 'justify-start'}`}
                                             >
                                                 {!isMine && (
-                                                    <span className="mb-1 text-xs text-muted-foreground">
-                                                        {message.ownerName}
-                                                    </span>
+                                                    <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                                                        <User className="size-4 text-muted-foreground" />
+                                                    </div>
                                                 )}
-                                                <MessageBubble
-                                                    content={message.content}
-                                                    isMine={isMine}
-                                                    onViewAll={() =>
-                                                        setExpandedMessage({
-                                                            content: message.content,
-                                                            ownerName: message.ownerName,
-                                                        })
-                                                    }
-                                                />
                                                 <div
-                                                    className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${isMine ? 'flex-row-reverse' : ''}`}
+                                                    className={`flex max-w-[75%] flex-col ${isMine ? 'items-end' : 'items-start'}`}
                                                 >
-                                                    <span className="text-muted-foreground">
-                                                        {formatTime(message.timestamp)}
-                                                    </span>
-                                                    <ReadStatus
-                                                        memberNo={channel?.memberNo ?? 0}
-                                                        readCount={(message.readBy?.length ?? 1) - 1}
+                                                    {!isMine && (
+                                                        <span className="mb-1 text-xs text-muted-foreground">
+                                                            {message.ownerName}
+                                                        </span>
+                                                    )}
+                                                    <MessageBubble
+                                                        content={message.content}
+                                                        isMine={isMine}
+                                                        onViewAll={() =>
+                                                            setExpandedMessage({
+                                                                content: message.content,
+                                                                ownerName: message.ownerName,
+                                                            })
+                                                        }
                                                     />
+                                                    <div
+                                                        className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${isMine ? 'flex-row-reverse' : ''}`}
+                                                    >
+                                                        <span className="text-muted-foreground">
+                                                            {formatTime(message.timestamp)}
+                                                        </span>
+                                                        <ReadStatus
+                                                            memberNo={channel?.memberNo ?? 0}
+                                                            readCount={(message.readBy?.length ?? 1) - 1}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                            </div>
+                        ))
+                )}
+                {pendingMessage && (
+                    <div className="flex justify-end gap-1.5">
+                        <div className="flex max-w-[75%] flex-col items-end">
+                            <MessageBubble content={pendingMessage} isMine status="pending" />
                         </div>
-                    ))
+                    </div>
+                )}
+                {failedMessage && (
+                    <div className="flex justify-end gap-1.5">
+                        <div className="flex max-w-[75%] flex-col items-end">
+                            <MessageBubble content={failedMessage} isMine status="failed" onViewAll={handleRetry} />
+                        </div>
+                    </div>
                 )}
             </div>
 
-            {!isGuest && (
+            {userType !== UserType.TEMP_ACCOUNT && (
                 <InviteFriendsDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} channelId={channelId} />
             )}
 
@@ -376,27 +402,25 @@ export const ChatRoomPage = () => {
                         ref={inputRef}
                         value={content}
                         onChange={e => setContent(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        onCompositionStart={() => setIsComposing(true)}
-                        onCompositionEnd={() => setIsComposing(false)}
                         placeholder={t('chat.room.inputPlaceholder')}
                         rows={1}
-                        enterKeyHint="send"
-                        className="max-h-[120px] flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-sm leading-[1.45] text-foreground outline-none placeholder:text-muted-foreground"
+                        disabled={isPending}
+                        enterKeyHint="enter"
+                        className="max-h-[120px] flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-sm leading-[1.45] text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-50"
                     />
                     <button
                         onMouseDown={e => e.preventDefault()}
                         onTouchStart={e => e.preventDefault()}
                         onClick={handleSend}
-                        disabled={isPending}
+                        disabled={isPending || !content.trim()}
                         className={`flex size-8 flex-shrink-0 items-center justify-center rounded-full transition-colors ${
-                            content.trim()
+                            content.trim() && !isPending
                                 ? 'bg-foreground text-background'
-                                : 'bg-muted-foreground/30 text-muted-foreground'
+                                : 'bg-muted-foreground/20 text-muted-foreground'
                         }`}
                     >
                         {isPending ? (
-                            <div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            <Loader2 size={16} className="animate-spin text-muted-foreground" />
                         ) : (
                             <ArrowUp size={18} />
                         )}
@@ -408,20 +432,20 @@ export const ChatRoomPage = () => {
             <Dialog open={!!expandedMessage} onOpenChange={open => !open && setExpandedMessage(null)}>
                 <DialogContent variant="slide-up" hideClose className="flex flex-col gap-0 bg-background">
                     <DialogDescription className="sr-only">View full message content</DialogDescription>
-                    {/* Modal Header */}
-                    <header className="flex items-center justify-between border-b border-border px-4 py-4">
-                        <div className="w-8" />
-                        <DialogTitle className="text-[17px] font-bold text-foreground">
+                    <header className="relative flex min-h-[48px] items-center justify-center border-b border-border px-4 py-3">
+                        <DialogTitle className="text-[15px] font-semibold text-foreground">
                             {t('chat.room.messageDetail')}
                         </DialogTitle>
-                        <button onClick={() => setExpandedMessage(null)} className="p-1">
-                            <X size={24} className="text-foreground" />
+                        <button
+                            onClick={() => setExpandedMessage(null)}
+                            className="absolute right-3 flex size-8 items-center justify-center rounded-full outline-none transition-colors active:bg-muted"
+                        >
+                            <X size={20} className="text-muted-foreground" />
                         </button>
                     </header>
 
-                    {/* Modal Content */}
-                    <div className="flex-1 overflow-y-auto p-4">
-                        <p className="whitespace-pre-wrap break-all text-[16px] leading-[1.5] text-foreground">
+                    <div className="flex-1 overflow-y-auto px-4 py-3">
+                        <p className="whitespace-pre-wrap break-all text-[15px] leading-[1.55] text-foreground">
                             {expandedMessage?.content}
                         </p>
                     </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { ChevronDown, Copy, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
@@ -23,6 +24,7 @@ import { useIssueToken } from '@chatic/auth';
 import { useSearchParams } from 'react-router-dom';
 
 export const UsersPage = (): JSX.Element => {
+    const { t } = useTranslation();
     const [searchParams, setSearchParams] = useSearchParams();
     const page = parseInt(searchParams.get('page') || '0', 10);
     const [limit] = useState(10);
@@ -59,19 +61,19 @@ export const UsersPage = (): JSX.Element => {
             });
 
             setTokens(prev => ({ ...prev, [loginId]: identityToken as string }));
-            toast.success('토큰이 발급되었습니다');
+            toast.success(t('users.token.issued'));
         } catch (error) {
             console.error('Failed to issue token:', error);
-            toast.error('토큰 발급에 실패했습니다');
+            toast.error(t('users.token.issueFailed'));
         }
     };
 
     const handleCopyToken = (token: string) => {
         const success = copy(token);
         if (success) {
-            toast.success('토큰이 복사되었습니다');
+            toast.success(t('users.token.copied'));
         } else {
-            toast.error('복사에 실패했습니다');
+            toast.error(t('users.token.copyFailed'));
         }
     };
 
@@ -216,14 +218,15 @@ export const UsersPage = (): JSX.Element => {
                                                     }
                                                 >
                                                     {isIssuing && issuingLoginId === user.loginId
-                                                        ? '발급 중...'
-                                                        : '토큰 발급'}
+                                                        ? t('users.token.issuing')
+                                                        : t('users.token.issue')}
                                                 </Button>
                                             ) : (
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button size="sm" variant="outline">
-                                                            토큰 발급됨 <ChevronDown className="ml-1 h-4 w-4" />
+                                                            {t('users.token.issuedLabel')}{' '}
+                                                            <ChevronDown className="ml-1 h-4 w-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
@@ -231,7 +234,7 @@ export const UsersPage = (): JSX.Element => {
                                                             onClick={() => handleGenerateToken(user.loginId as string)}
                                                             disabled={isIssuing && issuingLoginId === user.loginId}
                                                         >
-                                                            재발급
+                                                            {t('users.token.reissue')}
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             onClick={() =>
@@ -239,14 +242,15 @@ export const UsersPage = (): JSX.Element => {
                                                             }
                                                         >
                                                             <Copy className="mr-2 h-4 w-4" />
-                                                            복사
+                                                            {t('users.token.copy')}
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             onClick={() =>
                                                                 handleOpenTokenUrl(tokens[user.loginId as string])
                                                             }
                                                         >
-                                                            <ExternalLink className="mr-2 h-4 w-4" />새 탭에서 열기
+                                                            <ExternalLink className="mr-2 h-4 w-4" />
+                                                            {t('users.token.openInNewTab')}
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>

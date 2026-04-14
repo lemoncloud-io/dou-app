@@ -12,6 +12,11 @@ export const useAppBridge = (webViewRef: React.RefObject<WebView | null>) => {
     useEffect(() => {
         const unsubscribe = logger.subscribe((level, tag, message, data, error) => {
             try {
+                // WebView => App => Webview... 순환호출 방지 코드
+                if (tag === 'WEBVIEW') {
+                    return;
+                }
+
                 const logPayload: AppLogInfo = {
                     level: level,
                     tag: tag,

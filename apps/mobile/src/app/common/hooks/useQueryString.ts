@@ -1,9 +1,9 @@
 import { buildQueryString } from '../utils';
 
 /**
- * 객체 형태의 파라미터를 URL 쿼리 스트링 문자열로 변환하는 커스텀 훅
- * @param params  쿼리 스트링으로 변환할 키-값 쌍의 객체
- * @returns 변환된 쿼리 스트링 문자열 (예: "key1=value1&key2=value2")
+ * A custom hook that converts an object of parameters into a URL query string.
+ * @param params An object of key-value pairs to convert into a query string.
+ * @returns The converted query string (e.g., "key1=value1&key2=value2").
  */
 export const useQueryString = (params: Record<string, any> = {}): string => {
     return buildQueryString(params);

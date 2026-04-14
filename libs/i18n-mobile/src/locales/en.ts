@@ -17,4 +17,13 @@ export const en = {
             later: 'Later',
         },
     },
+    loader: {
+        processing: 'Processing...',
+        paymentProcessing: 'Processing payment...',
+    },
+    deepLink: {
+        errorTitle: 'Unable to open invite link',
+        errorMessage: 'The link may have expired or is no longer valid.',
+        goHome: 'Go to Home',
+    },
 } as const;

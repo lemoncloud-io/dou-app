@@ -2,7 +2,13 @@ import React, { useRef, useState } from 'react';
 import { FlatList, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAppBridge, useDeviceHandler, useOAuthHandler, usePermissionHandler } from '../../../common/webview/hooks';
+import {
+    useAppBridge,
+    useDeviceHandler,
+    useOAuthHandler,
+    usePermissionHandler,
+    useSubscriptionIapHandler,
+} from '../../../common/webview/hooks';
 import type { AppMessageData } from '@chatic/app-messages';
 
 type LogType = 'sent' | 'received' | 'info' | 'error';
@@ -24,6 +30,13 @@ export const BridgeTestScreen = () => {
     const { handleOpenShareSheet, handleOpenDocument, handleGetContacts, handleOpenCamera } = useDeviceHandler(bridge);
     const { handleRequestPermission } = usePermissionHandler(bridge);
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler(bridge);
+    const {
+        fetchProducts,
+        fetchCurrentPurchases,
+        handlePurchaseSubscription,
+        handleFinishPurchase,
+        handleOpenSubscriptionManagement,
+    } = useSubscriptionIapHandler(bridge);
 
     const addLog = (type: LogType, message: string) => {
         const now = new Date();
@@ -58,25 +71,41 @@ export const BridgeTestScreen = () => {
 
             switch (message.type) {
                 case 'OpenShareSheet':
-                    void handleOpenShareSheet(message.data);
+                    void handleOpenShareSheet(message);
                     break;
                 case 'OpenDocument':
-                    void handleOpenDocument(message.data);
+                    void handleOpenDocument(message);
                     break;
                 case 'RequestPermission':
                     void handleRequestPermission(message.data);
                     break;
                 case 'GetContacts':
-                    void handleGetContacts();
+                    void handleGetContacts(message);
                     break;
                 case 'OpenCamera':
-                    void handleOpenCamera(message.data);
+                    void handleOpenCamera(message);
                     break;
                 case 'OAuthLogin':
                     void handleOAuthLogin(message.data.provider);
                     break;
                 case 'OAuthLogout':
                     void handleOAuthLogout(message.data.provider);
+                    break;
+                // --- IAP 연동 ---
+                case 'FetchProducts':
+                    void fetchProducts();
+                    break;
+                case 'FetchCurrentPurchases':
+                    void fetchCurrentPurchases();
+                    break;
+                case 'Purchase':
+                    void handlePurchaseSubscription(message.data);
+                    break;
+                case 'FinishPurchaseTransaction':
+                    void handleFinishPurchase(message.data.purchase);
+                    break;
+                case 'OpenSubscriptionManagement':
+                    void handleOpenSubscriptionManagement();
                     break;
                 default:
                     addLog('info', `Unhandled message type: ${message.type}`);
@@ -187,6 +216,12 @@ export const BridgeTestScreen = () => {
                     <button onclick="sendToNative({ type: 'RequestPermission', data: { permission: 'CAMERA' } })">Req Cam Perm</button>
                     <button onclick="sendToNative({ type: 'OpenShareSheet', data: { message: 'Hello from WebView!' } })">Open Share</button>
                     <button onclick="sendToNative({ type: 'OpenDocument', data: { allowMultiSelection: true } })">Open Document</button>
+
+                    <!-- IAP Test Buttons -->
+                    <button onclick="sendToNative({ type: 'FetchProducts', data: {} })">IAP: Fetch Products</button>
+                    <button onclick="sendToNative({ type: 'FetchCurrentPurchases', data: {} })">IAP: Fetch Purchases</button>
+                    <button onclick="sendToNative({ type: 'Purchase', data: { sku: 'TEST' }})">IAP: Buy Subscription (required sku)</button>
+                    <button onclick="sendToNative({ type: 'OpenSubscriptionManagement', data: {} })">IAP: Manage</button>
                 </div>
 
                 <div id="log" class="log-container">

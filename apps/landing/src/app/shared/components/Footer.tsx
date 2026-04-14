@@ -7,37 +7,40 @@ export const Footer = (): JSX.Element => {
     const { t } = useTranslation();
 
     return (
-        <footer className="w-full bg-background border-t border-border">
-            <div className="max-w-[1440px] mx-auto flex flex-col items-center py-12 sm:py-16 px-6 md:px-10">
+        <footer className="w-full bg-main-green">
+            <div
+                className="max-w-[1440px] mx-auto flex flex-col md:flex-row md:items-center md:justify-between
+                            px-6 md:px-10 py-12 md:py-16 gap-[18px]"
+            >
                 {/* Logo */}
-                <div className="flex items-center gap-2 mb-4">
-                    <img src={Logo.logo} alt="DoU" className="h-7 w-7" />
-                    <span className="text-foreground text-[22px] font-bold">DoU</span>
+                <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <img src={Logo.logo} alt="DoU" className="h-10 w-10" />
+                    <img src={Logo.douBk} alt="D.U" className="h-5" />
+                </Link>
+
+                {/* Right side */}
+                <div className="flex flex-col gap-7 md:gap-3 md:items-end">
+                    {/* Nav links */}
+                    <div className="flex flex-col md:flex-row gap-3 md:gap-8 text-base text-desc-alt">
+                        <Link to="/policy/terms" className="underline hover:text-navy transition-colors">
+                            {t('footer.terms')}
+                        </Link>
+                        <Link to="/policy/privacy" className="underline hover:text-navy transition-colors">
+                            {t('footer.privacy')}
+                        </Link>
+                        <Link to="/policy/child" className="underline hover:text-navy transition-colors">
+                            {t('footer.child')}
+                        </Link>
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex flex-col md:flex-row gap-3 md:gap-8 text-base text-desc-alt">
+                        <a href="mailto:app@lemoncloud.io" className="hover:text-navy transition-colors">
+                            app@lemoncloud.io
+                        </a>
+                        <span>{t('footer.copyright')}</span>
+                    </div>
                 </div>
-
-                {/* Contact */}
-                <a
-                    href="mailto:app@example.com"
-                    className="text-[14px] text-muted-foreground hover:text-foreground transition-colors mb-6"
-                >
-                    app@example.com
-                </a>
-
-                {/* Links */}
-                <div className="flex gap-6 text-[14px] text-muted-foreground mb-8">
-                    <Link to="/policy/terms" className="hover:text-foreground transition-colors">
-                        {t('footer.terms')}
-                    </Link>
-                    <Link to="/policy/privacy" className="hover:text-foreground transition-colors">
-                        {t('footer.privacy')}
-                    </Link>
-                    <Link to="/policy/child" className="hover:text-foreground transition-colors">
-                        {t('footer.child')}
-                    </Link>
-                </div>
-
-                {/* Copyright */}
-                <p className="text-[12px] text-muted-foreground/70 text-center">{t('footer.copyright')}</p>
             </div>
         </footer>
     );

@@ -1,30 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
-import {
-    type ProductSubscription,
-    type Purchase,
-    type PurchaseError,
-    purchaseErrorListener,
-    purchaseUpdatedListener,
-} from 'react-native-iap';
+import { type Purchase, type PurchaseError, purchaseErrorListener, purchaseUpdatedListener } from 'react-native-iap';
 
 import { logger } from '../index';
 import { subscriptionIapService } from '../services';
+import type { IapProductSubscription } from '@chatic/app-messages';
 
 /**
- * @property onPurchaseSuccess: 모든 구매 프로세스가 성공적으로 마무리 되었을때에 대한 리스너
- * @property onPurchaseError: 구매 절차 중 에러가 발생하였을 때에 대한 리스너
+ * @property onPurchaseSuccess: Listener for when a purchase is made. Passes the raw receipt to the web for server verification.
+ * @property onPurchaseError: Listener for when an error occurs during the purchase process
  */
 interface UseIapOptions {
-    onPurchaseSuccess?: () => void;
+    onPurchaseSuccess?: (purchase: Purchase) => void;
     onPurchaseError?: (error: PurchaseError) => void;
 }
 
 /**
- * 인앱 결제 훅
+ * In-app purchase hook
  */
 export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIapOptions = {}) => {
-    const [products, setProducts] = useState<ProductSubscription[]>([]);
+    const [products, setProducts] = useState<IapProductSubscription[]>([]);
     const [currentPurchases, setCurrentPurchases] = useState<Purchase[]>([]);
     const [loading, setLoading] = useState(false);
     const callbacks = useRef({ onPurchaseSuccess, onPurchaseError });
@@ -34,7 +29,7 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     }, [onPurchaseSuccess, onPurchaseError]);
 
     /**
-     * 구매내역 최신화
+     * Refresh purchase history
      */
     const refreshPurchases = useCallback(async () => {
         const purchases = await subscriptionIapService.getAvailablePurchases();
@@ -42,20 +37,17 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     }, []);
 
     /**
-     * 트랜잭션 처리 프로세스
-     * - 구매 성공 이후 서버 검증 수행
-     * - 검증 및 트랜잭션 처리 완료 이후 onPurchaseSuccess 콜백 수행
+     * Transaction processing
+     * - NO auto-verify or auto-finish here.
+     * - Simply relays the raw Purchase object to the Web via onPurchaseSuccess callback.
      */
     const handleCompleteTransaction = useCallback(
         async (purchase: Purchase) => {
             try {
-                await subscriptionIapService.verifyPurchase(purchase);
-                await subscriptionIapService.finish(purchase);
-
                 await refreshPurchases();
 
                 if (callbacks.current.onPurchaseSuccess) {
-                    await callbacks.current.onPurchaseSuccess();
+                    callbacks.current.onPurchaseSuccess(purchase);
                 }
             } catch (e) {
                 logger.error('IAP', 'Failed to process transaction.', e);
@@ -67,9 +59,9 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     );
 
     /**
-     * - 초기화 로직
-     * - 구매 프로세스 성공/실패 리스너 등록
-     * - 구독 목록 및 사용자의 결제내역 조회
+     * - Initialization logic
+     * - Registers listeners for purchase process success/failure
+     * - Fetches the subscription list and the user's purchase history
      */
     useEffect(() => {
         const init = async () => {
@@ -122,49 +114,49 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     }, [handleCompleteTransaction]);
 
     /**
-     * 구매 처리
-     * @param sku 상품 코드 (`Stock Keeping Unit`)
-     * @param oldSku (Optional) 업그레이드/다운그레이드 시 교체할 현재 구독중인 상품 코드
+     * 구매 신청
+     * @param id 상품 코드 (sku)
+     * @param offerToken (Android 필수) 결제할 오퍼 토큰
+     * @param oldPlanId (Android) 현재 구독 중인 요금제 ID (basePlanId)
+     * @param newPlanId (Android) 새로 결제하려는 요금제 ID (basePlanId) - 업/다운 판별용
+     *
+     * 주의사항: oldPlanId, newPlanId가 존재하지 않을 경우, Android에서는 업그레이드/다운그레이드 모드가 기본 설정값을 따름 (WITH_TIME_PRORATION)
      */
-    const handlePurchase = async (sku: string, oldSku?: string) => {
+    const handlePurchase = async (id: string, offerToken?: string, oldPlanId?: string, newPlanId?: string) => {
         if (loading) return;
         setLoading(true);
 
         try {
-            await subscriptionIapService.purchase(sku, oldSku);
+            await subscriptionIapService.purchase(id, offerToken, oldPlanId, newPlanId);
         } catch (e: any) {
             logger.error('IAP', 'Purchase Request Failed', e);
 
-            /*
-             *  이미 보유 중인 경우 복구(검증) 로직 실행
-             */
-            if (e.code === 'E_ALREADY_OWNED') {
-                await restorePurchases();
-            }
             setLoading(false);
         }
     };
 
     /**
-     * - 앱에서 결제는 완료하였지만, 서버 검증에 실패한 상품들 탐색 후 재시도 처리
-     * - 서버 검증 성공 시, 최종 구매 완료 트랜잭션 처리
-     * - iOS의 경우 restorePurchases()를 호출하면 이전에 구매했던 모든 상품들이 purchaseUpdatedListener를 통해 다시 전달
+     * Finish a transaction after successful server-side verification by the Web frontend
      */
-    const restorePurchases = useCallback(async () => {
-        const restored = await subscriptionIapService.restorePurchases();
-
-        if (restored.length > 0) {
-            callbacks.current.onPurchaseSuccess?.();
-            await refreshPurchases();
-        }
-    }, [refreshPurchases]);
+    const finishPurchase = useCallback(
+        async (purchase: Purchase) => {
+            try {
+                await subscriptionIapService.finish(purchase);
+                await refreshPurchases();
+            } catch (e) {
+                logger.error('IAP', `Failed to finish purchase: ${purchase.productId}`, e);
+                throw e;
+            }
+        },
+        [refreshPurchases]
+    );
 
     /**
-     * 구독 관리 페이지 이동
+     * Navigate to subscription management page
      */
     const openSubscriptionManagement = useCallback(async () => {
         await subscriptionIapService.linkToManageSubscriptions();
     }, []);
 
-    return { products, currentPurchases, loading, handlePurchase, restorePurchases, openSubscriptionManagement };
+    return { products, currentPurchases, loading, handlePurchase, finishPurchase, openSubscriptionManagement };
 };

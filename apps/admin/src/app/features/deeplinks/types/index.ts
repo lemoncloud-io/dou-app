@@ -6,12 +6,6 @@ import type { Timestamp } from 'firebase/firestore';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 /**
- * Environment for deeplink management
- * Allows managing both DEV and PROD deeplinks from admin
- */
-export type DeeplinkEnvironment = 'DEV' | 'PROD';
-
-/**
  * Firestore document structure for deeplinks
  * Collection: deferredDeepLinks
  *

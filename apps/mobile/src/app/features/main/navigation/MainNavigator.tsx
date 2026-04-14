@@ -1,7 +1,7 @@
 import { createNativeStackNavigator, type NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainStackParamList } from '../../../navigation';
 import { MainScreen } from '../screens';
-import { ModalScreen } from '../screens/ModalScreen';
+import { ModalScreen } from '../screens';
 
 export type MainScreenProps = NativeStackScreenProps<MainStackParamList, 'Main'>;
 

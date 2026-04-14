@@ -36,6 +36,20 @@
             "settings": "Settings"
         }
     },
+    "users": {
+        "token": {
+            "issued": "Token issued successfully",
+            "issueFailed": "Failed to issue token",
+            "copied": "Token copied",
+            "copyFailed": "Failed to copy",
+            "issuing": "Issuing...",
+            "issue": "Issue Token",
+            "issuedLabel": "Token Issued",
+            "reissue": "Reissue",
+            "copy": "Copy",
+            "openInNewTab": "Open in new tab"
+        }
+    },
     "authTest": {
         "title": "Admin Controls",
         "deviceId": "Admin Device ID",

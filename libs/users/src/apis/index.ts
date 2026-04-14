@@ -1,3 +1,4 @@
+import { throwIfApiError } from '@chatic/shared';
 import { webCore } from '@chatic/web-core';
 
 import type {
@@ -5,6 +6,9 @@ import type {
     CloudDelegationTokenView,
     RegisterDeviceTokenBody,
     UserTokenView,
+    CloudView,
+    CloudVerifyEmailBody,
+    CloudVerifyEmailView,
 } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { Params } from '@lemoncloud/lemon-web-core';
@@ -19,9 +23,21 @@ export const fetchUsers = async (params: Params): Promise<ListResult<UserView>> 
             baseURL: `${DOU_ENDPOINT}/hello/user/list`,
         })
         .setParams({ ...params })
-        .execute<ListResult<UserView>>();
+        .execute<ListResult<UserView> & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
+};
+
+export const fetchClouds = async (params: Params = {}): Promise<ListResult<CloudView>> => {
+    const { data } = await webCore
+        .buildSignedRequest({
+            method: 'GET',
+            baseURL: `${DOU_ENDPOINT}/clouds/0/list`,
+        })
+        .setParams({ ...params, view: 'mine' })
+        .execute<ListResult<CloudView> & { error?: string }>();
+
+    return throwIfApiError(data);
 };
 
 export const issueCloudDelegationToken = async (target: string): Promise<CloudDelegationTokenView> => {
@@ -31,9 +47,10 @@ export const issueCloudDelegationToken = async (target: string): Promise<CloudDe
             baseURL: `${DOU_ENDPOINT}/users/0/delegate-cloud`,
         })
         .setBody({ target })
-        .execute<CloudDelegationTokenView>();
+        .setParams({ legacy: false })
+        .execute<CloudDelegationTokenView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const registerDeviceToken = async (body: RegisterDeviceTokenBody): Promise<RegisterDeviceResult> => {
@@ -43,9 +60,9 @@ export const registerDeviceToken = async (body: RegisterDeviceTokenBody): Promis
             baseURL: `${DOU_ENDPOINT}/users/0/reg-dev`,
         })
         .setBody(body)
-        .execute<RegisterDeviceResult>();
+        .execute<RegisterDeviceResult & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
 };
 
 export const verifyNativeAppToken = async (body: VerifyNativeTokenBody): Promise<UserTokenView> => {
@@ -56,7 +73,23 @@ export const verifyNativeAppToken = async (body: VerifyNativeTokenBody): Promise
         })
         .setParams({ token: 1 })
         .setBody(body)
-        .execute<UserTokenView>();
+        .execute<UserTokenView & { error?: string }>();
 
-    return data;
+    return throwIfApiError(data);
+};
+
+export const verifyEmail = async (
+    body: CloudVerifyEmailBody,
+    params?: { dryRun?: boolean }
+): Promise<CloudVerifyEmailView> => {
+    const { data } = await webCore
+        .buildSignedRequest({
+            method: 'POST',
+            baseURL: `${DOU_ENDPOINT}/clouds/0/verify-email`,
+        })
+        .setParams({ ...params })
+        .setBody(body)
+        .execute<CloudVerifyEmailView>();
+
+    return throwIfApiError(data);
 };

@@ -3,6 +3,7 @@
  * message from App to Web
  */
 import type {
+    AppBackgroundStatus,
     AppLogInfo,
     AppPermissionType,
     ContactInfo,
@@ -16,12 +17,12 @@ import type {
     OnDeleteCacheDataPayload,
     OnFetchAllCacheDataPayload,
     OnFetchCacheDataPayload,
+    OnFetchCurrentPurchasesPayload,
+    OnFetchProductsPayload,
     OnSaveAllCacheDataPayload,
     OnSaveCacheDataPayload,
     PermissionStatus,
     PreferenceKey,
-    ProductSubscriptionInfo,
-    PurchaseInfo,
     SafeAreaInfo,
     ShareInfo,
     VersionInfo,
@@ -57,6 +58,7 @@ export const AppMessageTypes = {
     OnFetchPreference: 'OnFetchPreference',
     OnSavePreference: 'OnSavePreference',
     OnDeletePreference: 'OnDeletePreference',
+    OnBackgroundStatusChanged: 'OnBackgroundStatusChanged',
 } as const;
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
 
@@ -122,11 +124,11 @@ export interface OnOpenNotification extends AppDefaultMessage<'OnOpenNotificatio
 }
 
 export interface OnFetchProductSubscriptions extends AppDefaultMessage<'OnFetchProductSubscriptions'> {
-    data: ProductSubscriptionInfo;
+    data: OnFetchProductsPayload;
 }
 
 export interface OnFetchPurchases extends AppDefaultMessage<'OnFetchPurchases'> {
-    data: PurchaseInfo;
+    data: OnFetchCurrentPurchasesPayload;
 }
 
 export interface OnSetWsEndpoint extends AppDefaultMessage<'OnSetWsEndpoint'> {
@@ -207,6 +209,14 @@ export interface OnDeletePreference extends AppDefaultMessage<'OnDeletePreferenc
     };
 }
 
+export interface OnBackgroundStatusChanged extends AppDefaultMessage<'OnBackgroundStatusChanged'> {
+    data: {
+        status: AppBackgroundStatus;
+        isForeground: boolean;
+        isBackground: boolean;
+    };
+}
+
 export interface AppMessageMap {
     /**
      * TODO: Not Implement
@@ -273,6 +283,11 @@ export interface AppMessageMap {
      */
     OnOAuthLogin: OnOAuthLogin;
     OnOAuthLogout: OnOAuthLogout;
+
+    /**
+     * App Status Event
+     */
+    OnBackgroundStatusChanged: OnBackgroundStatusChanged;
 }
 
 export type AppMessageData<T extends AppMessageType> = AppMessageMap[T];

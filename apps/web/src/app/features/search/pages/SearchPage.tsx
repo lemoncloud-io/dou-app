@@ -59,10 +59,18 @@ export const SearchPage = () => {
                                         key={place.id}
                                         className="flex w-full items-center gap-3 rounded-lg px-1 py-3 active:bg-muted"
                                     >
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-sm">
-                                            <span role="img" aria-label="place">
-                                                🏠
-                                            </span>
+                                        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-muted text-sm">
+                                            {place.thumbnail ? (
+                                                <img
+                                                    src={place.thumbnail}
+                                                    alt={place.name}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <span role="img" aria-label="place">
+                                                    🏠
+                                                </span>
+                                            )}
                                         </div>
                                         <span className="text-[15px] font-medium text-foreground">{place.name}</span>
                                     </button>

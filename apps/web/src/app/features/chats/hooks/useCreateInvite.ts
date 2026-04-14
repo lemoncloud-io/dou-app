@@ -1,6 +1,8 @@
 import { useState } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
+import { cloudCore } from '@chatic/web-core';
+import { useClouds } from '@chatic/users';
 
 import { firebaseDeeplinkService } from '../apis/firebase-service';
 
@@ -26,36 +28,49 @@ const parseCodeFromLocation = (location: string): string | null => {
 
 export const useCreateInvite = () => {
     const { emitAuthenticated } = useWebSocketV2();
+    const { data: cloudsData } = useClouds();
     const [isPending, setIsPending] = useState(false);
-    const [isError, setIsError] = useState(false);
     const [error, setError] = useState<Error | null>(null);
 
     const createInvite = (params: CreateInviteParams): Promise<CreateInviteResult> => {
         setIsPending(true);
-        setIsError(false);
         setError(null);
 
         return new Promise((resolve, reject) => {
+            let timeoutId: ReturnType<typeof setTimeout> | null = null;
+            let settled = false;
+
+            const cleanup = () => {
+                unsub();
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+            };
+
+            const safeReject = (err: Error) => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                setIsPending(false);
+                setError(err);
+                reject(err);
+            };
+
             const unsub = useWebSocketV2Store.subscribe(
                 s => s.lastMessage,
                 (envelope: WSSEnvelope<MyInviteView> | null) => {
+                    if (settled) return;
                     if (envelope?.type !== 'user') return;
 
                     if (envelope.action === 'error') {
-                        unsub();
-                        setIsError(true);
-                        setIsPending(false);
-                        const err = new Error(
-                            (envelope.payload as { message?: string })?.message || 'user/invite error'
+                        safeReject(
+                            new Error((envelope.payload as { message?: string })?.message || 'user/invite error')
                         );
-                        setError(err);
-                        reject(err);
                         return;
                     }
 
                     if (envelope.action !== 'invite') return;
-
-                    unsub();
 
                     const payload = envelope.payload as MyInviteView & { Location?: string };
 
@@ -66,34 +81,42 @@ export const useCreateInvite = () => {
                     }
 
                     if (!code) {
-                        setIsError(true);
-                        setIsPending(false);
-                        const err = new Error('Failed to get invite code from response');
-                        setError(err);
-                        reject(err);
+                        safeReject(new Error('Failed to get invite code from response'));
                         return;
                     }
+
+                    const selectedCloudId = cloudCore.getSelectedCloudId();
+                    const selectedCloud = cloudsData?.list?.find(c => c.id === selectedCloudId);
 
                     const invite: MyInviteView = {
                         ...payload,
                         code,
+                        ...(!payload.siteId && selectedCloudId ? { siteId: selectedCloudId } : {}),
+                        ...(!payload.site$ && selectedCloud
+                            ? { site$: { id: selectedCloud.id, name: selectedCloud.name ?? undefined } }
+                            : {}),
                     };
 
                     // Create deeplink in Firebase
                     firebaseDeeplinkService
                         .createDeeplink(invite)
                         .then(deeplinkUrl => {
+                            if (settled) return;
+                            settled = true;
+                            cleanup();
                             setIsPending(false);
                             resolve({ invite, deeplinkUrl });
                         })
                         .catch(err => {
-                            setIsError(true);
-                            setIsPending(false);
-                            setError(err);
-                            reject(err);
+                            safeReject(err);
                         });
                 }
             );
+
+            // Timeout: auto-reject after 15 seconds
+            timeoutId = setTimeout(() => {
+                safeReject(new Error('Invite request timed out'));
+            }, 15000);
 
             emitAuthenticated({
                 type: 'user',
@@ -107,5 +130,5 @@ export const useCreateInvite = () => {
         });
     };
 
-    return { createInvite, isPending, isError, error };
+    return { createInvite, isPending, isError: error !== null, error };
 };

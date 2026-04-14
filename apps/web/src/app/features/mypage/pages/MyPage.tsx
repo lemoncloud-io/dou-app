@@ -1,5 +1,5 @@
-import { ChevronRight, ChevronDown, User } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronRight, User } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -9,33 +9,46 @@ import { useDeviceInfo } from '@chatic/device-utils';
 import { getStoreUrl } from '@chatic/shared';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
-import { useLocalProfileStore, useOnboardingStore, useWebCoreStore } from '@chatic/web-core';
+import { useLogout, useOnboardingStore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { LanguageSelectSheet, LogoutDialog } from '../components';
+import { DEBUG_STORAGE_KEY } from '../consts';
 
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
-    const isGuest = useWebCoreStore(s => s.isGuest);
+    const { userType } = useUserContext();
+
     const profile = useWebCoreStore(s => s.profile);
-    const logout = useWebCoreStore(s => s.logout);
+    const { mutate: logout } = useLogout();
+    const registerLogoutCallback = useWebCoreStore(s => s.registerLogoutCallback);
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();
-    const localProfile = useLocalProfileStore();
     const { resetOnboarding } = useOnboardingStore();
 
-    // Merge local overrides with server profile (local > nick > name)
-    const displayName = localProfile.name ?? profile?.$user?.nick ?? profile?.$user?.name;
-    const displayImageUrl = localProfile.imageData ?? profile?.$user?.imageUrl;
+    const displayName = profile?.$user.name;
+    const displayImageUrl = profile?.$user.photo;
     const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
+    const [isDebugMode, setIsDebugMode] = useState(() => sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true');
+    const tapCountRef = useRef(0);
+    const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        return registerLogoutCallback(() => sessionStorage.removeItem(DEBUG_STORAGE_KEY));
+    }, [registerLogoutCallback]);
+
+    useEffect(() => {
+        return () => {
+            if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+        };
+    }, []);
 
     const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
 
     const handleLogout = () => {
         logout();
-        window.location.href = '/auth/login';
     };
 
     const handleProfileClick = () => {
@@ -45,6 +58,20 @@ export const MyPage = () => {
 
     const handleThemeToggle = () => {
         setTheme(isDarkTheme ? 'light' : 'dark');
+    };
+
+    const handleVersionTap = () => {
+        tapCountRef.current += 1;
+        if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+        tapTimerRef.current = setTimeout(() => {
+            tapCountRef.current = 0;
+        }, 3000);
+
+        if (tapCountRef.current >= 10) {
+            tapCountRef.current = 0;
+            sessionStorage.setItem(DEBUG_STORAGE_KEY, 'true');
+            setIsDebugMode(true);
+        }
     };
 
     const handleUpdateClick = () => {
@@ -60,10 +87,10 @@ export const MyPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pb-32 pt-4 pt-safe-top">
+        <div className="flex min-h-screen flex-col bg-background pb-32 pt-4">
             {/* Profile Section */}
-            <div className="px-5 pb-3">
-                {isGuest ? (
+            <div className="px-5 pb-3 pt-safe-top">
+                {userType === UserType.TEMP_ACCOUNT || userType === UserType.INVITED ? (
                     <button onClick={() => navigate('/mypage/login')} className="flex flex-col gap-1.5 text-left">
                         <div className="flex items-center gap-1">
                             <span className="text-[17px] font-semibold tracking-[-0.025em] text-foreground">
@@ -89,12 +116,9 @@ export const MyPage = () => {
                             )}
                         </div>
                         <div className="flex flex-col items-start gap-0.5">
-                            <div className="flex items-center gap-1">
-                                <h2 className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
-                                    {displayName}
-                                </h2>
-                                <ChevronDown size={18} className="text-muted-foreground" />
-                            </div>
+                            <h2 className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
+                                {displayName}
+                            </h2>
                             <p className="text-[14px] text-muted-foreground">{profile?.$user?.email}</p>
                         </div>
                     </button>
@@ -103,8 +127,8 @@ export const MyPage = () => {
 
             {/* Menu Cards Container */}
             <div className="flex flex-col gap-[18px] px-4 pt-4">
-                {/* My Info Card - Logged in only */}
-                {!isGuest && (
+                {/* My Info Card - Cloud user only */}
+                {(userType === UserType.SOCIAL_WITH_CLOUD || userType === UserType.INVITED_WITH_CLOUD) && (
                     <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => navigate('/mypage/account')}
@@ -112,6 +136,31 @@ export const MyPage = () => {
                         >
                             <span className="text-[15px] font-medium text-foreground">
                                 {t('mypage.accountInfo.title')}
+                            </span>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                    </div>
+                )}
+
+                {/* Subscription & Account Management Card - Cloud user only */}
+                {(userType === UserType.SOCIAL_WITH_CLOUD || userType === UserType.INVITED_WITH_CLOUD) && (
+                    <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
+                        <button
+                            onClick={() => navigate('/mypage/subscription')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <span className="text-[15px] font-medium text-foreground">
+                                {t('mypage.subscription.title')}
+                            </span>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                        <div className="h-2" />
+                        <button
+                            onClick={() => navigate('/mypage/account-manage')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <span className="text-[15px] font-medium text-foreground">
+                                {t('mypage.accountManage.title')}
                             </span>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
@@ -177,7 +226,10 @@ export const MyPage = () => {
                             </div>
                         </button>
                     ) : (
-                        <div className="flex items-center justify-between py-3 pl-4 pr-3">
+                        <button
+                            onClick={handleVersionTap}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3 text-left"
+                        >
                             <div className="flex flex-col items-start gap-0.5">
                                 <span className="text-[15px] font-medium text-foreground">
                                     {t('mypage.appVersion')}
@@ -188,12 +240,21 @@ export const MyPage = () => {
                                         : `v${versionInfo?.webVersion}`}
                                 </span>
                             </div>
-                        </div>
+                        </button>
+                    )}
+                    {isDebugMode && (
+                        <button
+                            onClick={() => navigate('/mypage/debug')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <span className="text-[15px] font-medium text-destructive">Debug Mode</span>
+                            <ChevronRight size={18} className="text-destructive" />
+                        </button>
                     )}
                 </div>
 
-                {/* Logout Card - Logged in only */}
-                {!isGuest && (
+                {/* Logout Card - Social login without cloud only */}
+                {userType === UserType.SOCIAL_NO_CLOUD && (
                     <div className="rounded-[18px] bg-card px-0.5 py-1.5 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => setIsLogoutDialogOpen(true)}
