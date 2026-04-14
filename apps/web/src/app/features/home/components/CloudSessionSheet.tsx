@@ -27,11 +27,16 @@ const ProfileSection = () => {
     const { profile } = useWebCoreStore();
     const name = profile?.$user?.name ?? '';
     const email = profile?.$user?.email ?? '';
+    const photo = profile?.$user?.photo;
 
     return (
         <div className="flex flex-col items-center gap-[9px] py-4">
-            <div className="flex h-[54px] w-[54px] items-center justify-center rounded-full border border-background bg-secondary">
-                <User size={20} className="text-placeholder" />
+            <div className="flex h-[54px] w-[54px] items-center justify-center overflow-hidden rounded-full border border-background bg-secondary">
+                {photo ? (
+                    <img src={photo} alt={name} className="h-full w-full object-cover" />
+                ) : (
+                    <User size={20} className="text-placeholder" />
+                )}
             </div>
             <div className="flex flex-col items-center gap-[2px]">
                 <span className="text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-foreground">
@@ -262,7 +267,6 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
             next.set(cloud.id, cloud.status);
         }
         prevCloudStatusesRef.current = next;
-         
     }, [clouds]);
 
     // Poll every 30s while sheet is open and there are provisioning clouds
