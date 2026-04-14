@@ -1,4 +1,4 @@
-import { ArrowUp, ChevronLeft, MoreHorizontal, Plus, Settings, User, X } from 'lucide-react';
+import { ArrowUp, ChevronLeft, Loader2, MoreHorizontal, Plus, Settings, User, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -31,7 +31,6 @@ export const ChatRoomPage = () => {
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [content, setContent] = useState('');
-    const [isComposing, setIsComposing] = useState(false);
     const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
     const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -71,10 +70,10 @@ export const ChatRoomPage = () => {
     };
 
     useEffect(() => {
-        if (messages.length > 0) {
+        if (messages.length > 0 || isPending) {
             scrollToBottom();
         }
-    }, [messages.length]);
+    }, [messages.length, isPending]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -112,12 +111,13 @@ export const ChatRoomPage = () => {
             e.stopPropagation();
         }
 
-        if (!content.trim() || !channelId || isPending) return;
+        const trimmed = content.trim();
+        if (!trimmed || !channelId) return;
 
         setContent('');
 
         try {
-            const newMessage = await sendMessage(channelId, content.trim());
+            const newMessage = await sendMessage(channelId, trimmed);
 
             const id = newMessage.id || '0';
             const timestamp = newMessage?.createdAt ? new Date(newMessage.createdAt) : new Date();
@@ -125,7 +125,7 @@ export const ChatRoomPage = () => {
             const ownerName = newMessage.owner$?.name || t('chat.room.unknown');
             const chatNo = newMessage?.chatNo;
 
-            addMessage({ id, content: content.trim(), timestamp, ownerId, ownerName, chatNo, isRead: true }, channelId);
+            addMessage({ id, content: trimmed, timestamp, ownerId, ownerName, chatNo, isRead: true }, channelId);
 
             if (chatNo && dynamicProfile?.uid) {
                 emit({ type: 'chat', action: 'read', payload: { channelId, chatNo } });
@@ -139,7 +139,7 @@ export const ChatRoomPage = () => {
                               lastChat$: {
                                   ...newMessage,
                                   id,
-                                  content: content.trim(),
+                                  content: trimmed,
                                   createdAt: newMessage.createdAt,
                               },
                           }
@@ -148,15 +148,6 @@ export const ChatRoomPage = () => {
             );
         } catch (error) {
             console.error('Failed to send message:', error);
-        }
-    };
-
-    const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (isComposing) return;
-
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            void handleSend(e);
         }
     };
 
@@ -356,6 +347,15 @@ export const ChatRoomPage = () => {
                         </div>
                     ))
                 )}
+                {isPending && (
+                    <div className="flex justify-end gap-1.5">
+                        <div className="flex max-w-[75%] flex-col items-end">
+                            <div className="rounded-2xl rounded-tr-sm bg-bubble-mine px-3 py-2">
+                                <Loader2 size={16} className="animate-spin text-muted-foreground" />
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {!isGuest && (
@@ -376,27 +376,25 @@ export const ChatRoomPage = () => {
                         ref={inputRef}
                         value={content}
                         onChange={e => setContent(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        onCompositionStart={() => setIsComposing(true)}
-                        onCompositionEnd={() => setIsComposing(false)}
                         placeholder={t('chat.room.inputPlaceholder')}
                         rows={1}
-                        enterKeyHint="send"
-                        className="max-h-[120px] flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-sm leading-[1.45] text-foreground outline-none placeholder:text-muted-foreground"
+                        disabled={isPending}
+                        enterKeyHint="enter"
+                        className="max-h-[120px] flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-sm leading-[1.45] text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-50"
                     />
                     <button
                         onMouseDown={e => e.preventDefault()}
                         onTouchStart={e => e.preventDefault()}
                         onClick={handleSend}
-                        disabled={isPending}
+                        disabled={isPending || !content.trim()}
                         className={`flex size-8 flex-shrink-0 items-center justify-center rounded-full transition-colors ${
-                            content.trim()
+                            content.trim() && !isPending
                                 ? 'bg-foreground text-background'
-                                : 'bg-muted-foreground/30 text-muted-foreground'
+                                : 'bg-muted-foreground/20 text-muted-foreground'
                         }`}
                     >
                         {isPending ? (
-                            <div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            <Loader2 size={16} className="animate-spin text-muted-foreground" />
                         ) : (
                             <ArrowUp size={18} />
                         )}
