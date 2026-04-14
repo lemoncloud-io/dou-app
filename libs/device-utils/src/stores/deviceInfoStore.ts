@@ -24,6 +24,7 @@ export interface DeviceInfoStore {
     deviceInfo: DeviceInfo | null;
     versionInfo: VersionInfo | null;
     syncDeviceAndVersionInfo: () => void;
+    updateVersionInfo: (latestVersion: string, shouldUpdate: boolean) => void;
 }
 
 export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
@@ -64,5 +65,16 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
         };
 
         set({ deviceInfo, versionInfo });
+    },
+    updateVersionInfo: (latestVersion: string, shouldUpdate: boolean) => {
+        set(state => {
+            if (!state.versionInfo) return state;
+            if (state.versionInfo.latestVersion === latestVersion && state.versionInfo.shouldUpdate === shouldUpdate) {
+                return state;
+            }
+            return {
+                versionInfo: { ...state.versionInfo, latestVersion, shouldUpdate },
+            };
+        });
     },
 }));

@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 
 import { AppWebView, DeepLinkErrorView, FullScreenLoader, t } from '../../../common';
-import { useAppBridge } from '../../../common/webview/hooks';
+import { useAppBridge, useVersionCheckHandler } from '../../../common/webview/hooks';
 import type { WebView } from 'react-native-webview';
 import type { MainScreenProps } from '../navigation';
 import { ActivityIndicator, View } from 'react-native';
@@ -23,6 +23,8 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         deepLinkErrorReason,
         handleDismissError,
     } = useWebViewDeepLink(webViewRef);
+
+    useVersionCheckHandler(bridge);
 
     const { handleMessage, isIapLoading } = useWebMessageRouter({
         bridge,

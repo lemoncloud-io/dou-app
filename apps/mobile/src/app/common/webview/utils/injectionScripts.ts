@@ -13,6 +13,8 @@ export interface DeviceInfoParams {
     buildNumber: string;
     appLanguage: string;
     installationId: string;
+    latestVersion: string;
+    shouldUpdate: boolean;
 }
 
 /**
@@ -52,6 +54,8 @@ export const getDeviceInfoScript = (params: DeviceInfoParams): string => `
     window.CHATIC_APP_BUILD_NUMBER = '${params.buildNumber}';
     window.CHATIC_APP_CURRENT_LANGUAGE = '${params.appLanguage}';
     window.CHATIC_APP_INSTALLATION_ID = '${params.installationId}';
+    window.CHATIC_APP_LATEST_VERSION = '${params.latestVersion}';
+    window.CHATIC_APP_SHOULD_UPDATE = '${params.shouldUpdate}';
 
     const bridge = {
         postMessage: function(msg) {

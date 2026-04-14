@@ -1,33 +1,13 @@
 {
-    "app": {
-        "exitDialog": {
-            "title": "앱 종료",
-            "message": "앱을 종료하시겠습니까?",
-            "cancel": "취소",
-            "confirm": "종료"
-        }
-    },
     "common": {
         "signout": "로그아웃",
         "cancel": "취소",
-        "close": "닫기",
         "save": "변경사항 저장",
-        "saving": "저장 중...",
-        "comingSoon": "기능 준비 중이에요 🛠️",
-        "retry": "다시 시도"
+        "saving": "저장 중..."
     },
     "nav": {
-        "home": "홈",
         "authTest": "인증 테스트",
         "pointerTest": "포인터 테스트"
-    },
-    "version": {
-        "updateAvailable": "웹 업데이트",
-        "newVersionReleased": "새 버전({{latestVersion}})이 출시되었습니다. 현재 버전: {{currentVersion}}",
-        "currentVersion": "현재 버전: v{{version}}",
-        "refresh": "업데이트",
-        "later": "나중에",
-        "unknown": "알 수 없음"
     },
     "oauth": {
         "signing": "로그인 중...",
@@ -41,40 +21,12 @@
         "theme": "테마",
         "language": "언어"
     },
-    "login": {
-        "title": "계정 로그인",
-        "emailPrompt": "이메일 주소를 입력해 주세요",
-        "emailLabel": "이메일",
-        "emailDescription": "이메일 형식으로 입력해 주세요",
-        "passwordLabel": "비밀번호",
-        "passwordDescription": "6자 이상 입력해 주세요",
-        "next": "다음",
-        "loggingIn": "로그인 중...",
-        "error": "로그인 실패",
-        "errorDescription": "이메일 또는 비밀번호를 확인해 주세요",
-        "tokenPrompt": "토큰을 입력해 주세요",
-        "tokenLabel": "토큰",
-        "tokenDescription": "JWT 토큰을 입력해 주세요",
-        "tokenError": "유효하지 않은 토큰입니다",
-        "subtitle": "계정에 로그인",
-        "google": "Google로 로그인",
-        "kakao": "Kakao로 로그인"
-    },
     "home": {
         "welcome": "환영합니다",
         "subtitle": "아래에서 설정을 관리하세요",
         "settings": "설정",
-        "theme": "테마",
-        "lightMode": "라이트 모드",
-        "darkMode": "다크 모드",
-        "toDark": "다크",
-        "toLight": "라이트",
-        "language": "언어",
         "logout": "로그아웃",
         "logoutInvited": "초대 계정 로그아웃",
-        "logoutDesc": "계정에서 로그아웃",
-        "loggingOut": "로그아웃 중...",
-        "logoutSuccess": "로그아웃 성공",
         "logoutFailed": "로그아웃 실패"
     },
     "profile": {
@@ -190,21 +142,14 @@
         }
     },
     "mypage": {
-        "title": "마이페이지",
         "loginPrompt": "로그인하기",
         "loginDescription": "로그인 하고, 대화내용을 안전하게 관리하세요.",
-        "edit": "편집",
-        "notifications": "알림",
-        "workspaceSettings": "워크스페이스 설정",
         "darkMode": "다크 모드",
         "languageSettings": "언어 설정",
         "viewOnboarding": "온보딩 다시보기",
         "logout": "로그아웃",
-        "version": "DoU v{{version}}",
         "appVersion": "버전",
-        "updateRequired": "업데이트 필요",
         "updateAvailable": "업데이트 가능",
-        "goToStore": "스토어로 이동",
         "language": {
             "ko": "한국어",
             "en": "English",
@@ -218,76 +163,51 @@
         "subscription": {
             "title": "구독 관리",
             "currentPlan": "현재 구독 상품",
-            "planActive": "구독 {{count}}개 이용 중",
-            "changePlan": "구독 변경",
             "period": "기간",
             "currentPayment": "이번 결제",
             "nextPayment": "다음 결제 예정",
             "pricePerMonth": "{{price}}/월",
             "vatIncluded": "(VAT 포함)",
-            "viewDetail": "자세히 보기",
             "empty": "구독 중인 상품이 없어요",
             "emptyDescription": "구독 상품을 확인해 보세요",
             "viewPlans": "구독 상품 보기",
             "plans": "구독 상품",
-            "popular": "인기",
             "subscribe": "구독하기",
             "mobileOnly": "앱에서만 구독할 수 있어요",
             "noProducts": "구독 상품을 불러오지 못했어요",
             "purchasing": "결제 중...",
-            "validating": "검증 중...",
-            "finishing": "처리 중...",
             "purchaseSuccess": "구독이 완료되었어요",
             "purchaseSuccessDescription": "클라우드 설정에 최대 10분이 소요될 수 있어요",
             "purchaseFailed": "결제에 실패했어요",
-            "validateFailed": "결제 검증에 실패했어요",
             "notice": "꼭 확인해 주세요.",
             "notice1": "구독 변경하면 즉시 적용되며, 남은 기간을 반영해 추가 요금이 청구됩니다.",
             "notice2": "하위 구독으로 변경하면 다음 갱신일부터 적용됩니다.",
             "notice3": "구독 관리는 iPhone 설정 > Apple ID > 구독 또는 App Store 구독 관리에서 가능",
             "noticeTerms": "구매 정책과 관련한 자세한 내용은 <terms>이용약관</terms>을 확인해 주세요.",
             "platform": "플랫폼",
-            "purchaseDate": "구매일",
-            "startDate": "구독 시작일",
-            "expiresAt": "만료일",
-            "autoRenew": "자동 갱신",
-            "autoRenewOn": "사용 중",
-            "autoRenewOff": "해제",
             "canceledNotice": "{{date}}에 구독이 종료됩니다",
             "pendingChange": "다음 갱신 시 {{product}}로 변경됩니다",
-            "otherReceipts": "기타 영수증 {{count}}건",
             "manageSubscription": "구독 관리",
             "status": "상태",
             "statusActive": "구독 중",
             "statusCanceled": "해지 예정",
             "statusExpired": "만료됨",
-            "expired": "구독이 만료되었습니다",
             "restore": "구매 복원",
             "restoreSuccess": "{{count}}건 복원 완료",
             "restoreEmpty": "복원할 구매가 없습니다",
             "restoreFailed": "복원에 실패했습니다",
-            "renewedAt": "갱신일",
             "canceledAt": "해지일",
-            "lastSyncAt": "마지막 동기화",
-            "receiptId": "영수증 ID",
             "renewal": "갱신 상태",
             "renewal_auto": "자동 갱신",
             "renewal_pending_cancel": "해지 예정",
             "renewal_canceled": "취소됨",
-            "period_day": "{{count}}일",
-            "period_week": "{{count}}주",
-            "period_month": "{{count}}개월",
-            "period_year": "{{count}}년",
             "autoRenewNotice": "본 구독은 자동 갱신 구독입니다. 구독 기간이 종료되면 동일한 가격으로 자동 갱신되며, 갱신일 최소 24시간 전에 구독을 해지하지 않으면 요금이 청구됩니다.",
             "termsOfService": "이용약관",
             "privacyPolicy": "개인정보처리방침"
         },
         "accountManage": {
             "title": "계정 관리",
-            "currentAccount": "현재 계정",
-            "cloudAccounts": "클라우드 계정",
             "noAccounts": "등록된 클라우드 계정이 없어요",
-            "deleteAccount": "계정 삭제",
             "delete": "삭제",
             "deleteConfirmTitle": "계정을 삭제할까요?",
             "deleteConfirmDesc": "{{name}} 계정이 영구적으로 삭제됩니다.",
@@ -331,21 +251,17 @@
     },
     "notifications": {
         "title": "알림",
-        "markAllRead": "모두 읽음",
         "empty": "알림이 없습니다"
     },
     "globalLoader": {
         "switchingCloud": "클라우드 전환 중...",
         "switchingPlace": "플레이스 전환 중..."
     },
-    "socket": {
-        "connecting": "서버에 연결 중..."
-    },
     "homePage": {
         "places": "플레이스",
         "roomCreated": "채팅방이 생성되었습니다",
-        "noCloudsError": "설정할 수 있는 클라우드가 없어요",
-        "selectCloud": "클라우드 선택하기"
+        "cannotCreatePlace": "이 클라우드에서는 플레이스를 만들 수 없어요",
+        "noCloudsError": "설정할 수 있는 클라우드가 없어요"
     },
     "cloudSessionSheet": {
         "title": "클라우드 선택",
@@ -389,11 +305,6 @@
         "empty": "플레이스가 없어요",
         "settings": "설정",
         "delete": "삭제",
-        "deleteConfirmTitle": "계정을 삭제할까요?",
-        "deleteConfirmDesc": "{{name}} 계정이 영구적으로 삭제됩니다.",
-        "deleteSuccess": "계정이 삭제되었어요",
-        "deleteFailed": "계정 삭제에 실패했어요",
-        "deleteSelectedCloudWarning": "현재 선택 중인 계정입니다. 삭제 시 앱이 새로고침됩니다.",
         "leave": "나가기",
         "deleteDialog": {
             "title": "플레이스 삭제",
@@ -412,8 +323,7 @@
         "retry": "다시 시도",
         "empty": "채널이 없습니다. 새 채팅방을 만들어보세요!",
         "unnamedChannel": "이름 없는 채널",
-        "selfChannel": "나와의 채팅",
-        "selectPlaceFirst": "위에서 플레이스를 먼저 선택해주세요"
+        "selfChannel": "나와의 채팅"
     },
     "bottomNav": {
         "chat": "채팅",
@@ -478,17 +388,11 @@
             "error": "채널 정보를 불러올 수 없습니다",
             "goBack": "뒤로 가기",
             "edit": "편집",
-            "public": "공개",
-            "private": "비공개",
-            "inviteCode": "채팅방 초대 코드",
             "inviteFriends": "친구 초대",
             "notifications": "알림",
             "deleteRoom": "방 삭제",
             "leaveRoom": "방 나가기",
             "roomMembers": "방 친구",
-            "host": "호스트",
-            "leaveConfirm": "정말로 채팅방을 나가시겠습니까?",
-            "deleteConfirm": "정말로 채팅방을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
             "leftRoom": "채팅방을 나갔습니다",
             "leaveFailed": "방 나가기에 실패했습니다",
             "deletedRoom": "채팅방이 삭제되었습니다",
@@ -542,15 +446,8 @@
     "placeInfo": {
         "title": "플레이스 정보",
         "createdDate": "만든 날짜",
-        "owner": "플레이스 관리자",
         "confirm": "완료",
-        "unnamed": "이름 없는 플레이스",
-        "unknownOwner": "알 수 없음",
         "notFound": "플레이스를 찾을 수 없습니다",
-        "myPlace": "내 플레이스",
-        "visibility": "공개 설정",
-        "public": "공개",
-        "private": "비공개",
         "nameLabel": "이름 수정",
         "namePlaceholder": "플레이스 이름을 입력해 주세요",
         "nameDescription": "20글자 이내로 입력해 주세요.",
@@ -565,12 +462,7 @@
             "mine": "내 워크스페이스",
             "friends": "친구 워크스페이스",
             "settings": "설정",
-            "delete": "삭제",
-            "deleteConfirmTitle": "계정을 삭제할까요?",
-            "deleteConfirmDesc": "{{name}} 계정이 영구적으로 삭제됩니다.",
-            "deleteSuccess": "계정이 삭제되었어요",
-            "deleteFailed": "계정 삭제에 실패했어요",
-            "deleteSelectedCloudWarning": "현재 선택 중인 계정입니다. 삭제 시 앱이 새로고침됩니다."
+            "delete": "삭제"
         },
         "detail": {
             "private": "비공개",
@@ -672,6 +564,8 @@
         "continueWithGoogle": "Google로 계속하기",
         "continueWithApple": "Apple로 계속하기",
         "oauthFailed": "소셜 로그인에 실패했습니다.",
+        "mobileOnly": "모바일 앱에서 로그인해 주세요.",
+        "termsAgreement": "계속 진행하시면 이용약관 및\n개인정보처리방침에 동의하게 됩니다",
         "signup": "회원가입",
         "forgotPassword": "비밀번호 찾기"
     },
@@ -695,6 +589,9 @@
         "passwordMismatch": "비밀번호가 일치하지 않습니다",
         "complete": "완료",
         "success": "비밀번호가 변경되었습니다",
+        "changeFailed": "비밀번호 변경에 실패했어요",
+        "sendCodeFailed": "인증 코드 전송에 실패했어요",
+        "resendFailed": "재전송에 실패했어요",
         "accountNotFound": "등록되지 않은 이메일입니다"
     },
     "signup": {
@@ -716,18 +613,18 @@
         "passwordMismatch": "비밀번호가 일치하지 않습니다",
         "complete": "완료",
         "verifyFailed": "인증번호가 올바르지 않습니다",
-        "signupSuccess": "회원가입이 완료되었습니다"
+        "signupSuccess": "회원가입이 완료되었습니다",
+        "signupFailed": "회원가입에 실패했어요",
+        "sendCodeFailed": "인증 코드 전송에 실패했어요",
+        "resendFailed": "재전송에 실패했어요"
     },
     "createPlace": {
         "title": "플레이스 만들기",
         "subtitle1": "나만의 공간 플레이스를",
         "subtitle2": "설정해 주세요",
-        "hint": "플레이스에 대한 내용으로 ~~~",
         "nameLabel": "플레이스 이름",
         "namePlaceholder": "예: 나만의 공간, 독서 모임 등",
         "nameHint": "20글자 이내로 입력해 주세요.",
-        "photoLabel": "플레이스 사진",
-        "photoOptional": "[선택]",
         "done": "완료"
     },
     "createChannel": {
@@ -739,9 +636,6 @@
         "nameRequired": "방 이름을 입력해주세요",
         "nameMinLength": "최소 2자 이상 입력해주세요",
         "nameMaxLength": "최대 20자까지 입력 가능합니다",
-        "descLabel": "방 설명",
-        "descPlaceholder": "예: UIUX 스터디를 위한 방입니다",
-        "imageLabel": "방 이미지 [선택]",
         "done": "완료"
     },
     "visibility": {
@@ -750,9 +644,7 @@
     },
     "inviteFriends": {
         "title": "친구 초대",
-        "copyLink": "링크 복사",
         "addFriend": "친구 추가",
-        "qrCode": "QR 코드",
         "searchPlaceholder": "친구 검색",
         "invite": "초대하기",
         "noSearchResults": "검색 결과가 없습니다.",
@@ -771,10 +663,8 @@
         "subtitle2": "이름을 입력해 주세요",
         "nameLabel": "이름",
         "namePlaceholder": "친구 이름을 입력해 주세요",
-        "nameHint": "20글자 이내로 입력해 주세요.",
         "phoneLabel": "전화번호",
         "phonePlaceholder": "전화번호를 입력해 주세요",
-        "phoneHint": "20글자 이내로 입력해 주세요.",
         "phoneInvalidFormat": "올바르지 않은 전화번호 형식입니다",
         "share": "공유하기"
     },
@@ -792,9 +682,6 @@
         "nameRequired": "방 이름을 입력해주세요",
         "nameMinLength": "최소 2자 이상 입력해주세요",
         "nameMaxLength": "최대 20자까지 입력 가능합니다",
-        "descLabel": "방 설명",
-        "descPlaceholder": "예: UIUX 스터디를 위한 방입니다",
-        "imageLabel": "방 이미지 [선택]",
         "updating": "업데이트 중...",
         "done": "완료",
         "success": "채널 정보가 업데이트되었습니다",
@@ -864,44 +751,6 @@
         "confirm": "확인"
     },
     "error": {
-        "network": {
-            "title": "연결 오류",
-            "description": "서버에 연결할 수 없습니다. 인터넷 연결을 확인해주세요.",
-            "retry": "다시 시도",
-            "refresh": "새로고침"
-        },
-        "auth": {
-            "title": "인증 오류",
-            "description": "세션이 만료되었습니다. 다시 로그인해주세요.",
-            "login": "로그인",
-            "home": "홈으로"
-        },
-        "server": {
-            "title": "서버 오류",
-            "description": "서버에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.",
-            "retry": "다시 시도",
-            "home": "홈으로"
-        },
-        "client": {
-            "title": "요청 오류",
-            "description": "요청에 문제가 있습니다. 다시 시도해주세요.",
-            "retry": "다시 시도",
-            "home": "홈으로"
-        },
-        "unknown": {
-            "title": "오류 발생",
-            "description": "예상치 못한 오류가 발생했습니다.",
-            "retry": "다시 시도",
-            "home": "홈으로"
-        },
-        "notFound": {
-            "title": "페이지를 찾을 수 없습니다",
-            "description": "요청하신 페이지가 존재하지 않거나 이동되었습니다.",
-            "home": "홈으로",
-            "back": "이전 페이지"
-        },
-        "goHome": "홈으로",
-        "retrying": "재시도 중...",
         "unknownError": "알 수 없는 오류가 발생했습니다"
     },
     "serviceUnavailable": {
@@ -924,7 +773,6 @@
         "resend": "재전송",
         "resendFailed": "재전송에 실패했어요",
         "complete": "확인",
-        "verifyFailed": "인증에 실패했어요",
         "codeError": "인증번호를 정확히 입력해 주세요",
         "success": "계정이 추가되었어요",
         "tooltip": "이메일이 도착하지 않았다면\n스팸 메일함을 확인해주세요",
