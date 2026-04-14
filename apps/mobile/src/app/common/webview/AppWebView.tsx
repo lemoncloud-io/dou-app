@@ -22,8 +22,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     // 최초 1회: deviceInfo 주입 (비동기 초기화)
     useEffect(() => {
         const prepareWebView = async () => {
-            const [userAgent, installationId] = await Promise.all([
+            const [userAgent, uniqueId, installationId] = await Promise.all([
                 getUserAgent(),
+                DeviceInfo.getUniqueId(),
                 firebaseInstallationService.getFirebaseId(),
             ]);
 
@@ -37,7 +38,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 platform: Platform.OS.toLowerCase(),
                 applicationName: DeviceInfo.getApplicationName(),
                 stage: Config.VITE_ENV || 'PROD',
-                uniqueId: installationId || '',
+                uniqueId: `${uniqueId || 'default'}:${installationId || 'default'}`,
                 deviceModel: DeviceInfo.getDeviceId() || '',
                 appVersion: DeviceInfo.getVersion(),
                 buildNumber: DeviceInfo.getBuildNumber(),
