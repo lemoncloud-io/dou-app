@@ -17,20 +17,32 @@ export const useCloudTokenRefresh = () => {
     const wssType = useWebSocketV2Store(s => s.wssType);
 
     useEffect(() => {
-        if (!isConnected || !isAuthenticated) return;
+        if (!isConnected || !isAuthenticated) {
+            console.log(`[CloudTokenRefresh] Skip: isConnected=${isConnected}, isAuthenticated=${isAuthenticated}`);
+            return;
+        }
+
+        console.log(`[CloudTokenRefresh] Starting refresh cycle (wssType=${wssType})`);
 
         const refresh = async () => {
             if (wssType !== 'cloud') {
+                console.log('[CloudTokenRefresh] Relay mode - getting webCore token');
                 const token = (await webCore.getTokenSignature()).originToken?.identityToken;
-                if (token) emit({ type: 'auth', action: 'update', payload: { token } });
+                if (token) {
+                    console.log('[CloudTokenRefresh] Sending relay auth token');
+                    emit({ type: 'auth', action: 'update', payload: { token } });
+                } else {
+                    console.warn('[CloudTokenRefresh] No relay token available');
+                }
                 return;
             }
 
             try {
+                console.log('[CloudTokenRefresh] Cloud mode - refreshing cloud token');
                 await cloudCore.refreshToken();
                 setServiceUnavailable(false);
             } catch (e) {
-                console.error('[useCloudTokenRefresh] refreshToken failed', e);
+                console.error('[CloudTokenRefresh] refreshToken failed', e);
                 if (isServerError(e)) {
                     setServiceUnavailable(true);
                     return;
@@ -38,7 +50,12 @@ export const useCloudTokenRefresh = () => {
             }
 
             const token = cloudCore.getIdentityToken();
-            if (token) emit({ type: 'auth', action: 'update', payload: { token } });
+            if (token) {
+                console.log('[CloudTokenRefresh] Sending cloud auth token');
+                emit({ type: 'auth', action: 'update', payload: { token } });
+            } else {
+                console.warn('[CloudTokenRefresh] No cloud token available');
+            }
         };
 
         void refresh();

@@ -216,7 +216,32 @@ self.onmessage = e => {
                 ws.send(jsonData);
                 self.postMessage({ type: 'log', message: 'Sent: ' + jsonData });
             } else {
-                self.postMessage({ type: 'log', message: 'Cannot send - not connected' });
+                self.postMessage({
+                    type: 'log',
+                    message: 'Cannot send - not connected (readyState: ' + (ws?.readyState ?? 'null') + ')',
+                });
+            }
+            break;
+
+        case 'check':
+            // Foreground resume: check if socket is still alive
+            if (!ws || ws.readyState !== 1) {
+                self.postMessage({
+                    type: 'log',
+                    message: 'Check: socket dead (readyState: ' + (ws?.readyState ?? 'null') + '), reconnecting...',
+                });
+                self.postMessage({ type: 'status', status: 'disconnected' });
+                if (ws) {
+                    ws.close();
+                    ws = null;
+                }
+                if (currentConfig && !isManualDisconnect) {
+                    reconnectAttempts = 0;
+                    connectWebSocket(currentConfig);
+                }
+            } else {
+                self.postMessage({ type: 'log', message: 'Check: socket alive' });
+                self.postMessage({ type: 'status', status: 'connected' });
             }
             break;
     }
