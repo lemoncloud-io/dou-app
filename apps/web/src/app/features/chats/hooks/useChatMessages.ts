@@ -89,7 +89,24 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
         [userId, channelId, storage]
     );
 
-    return { messages, addMessage, clearMessages, reloadMessages, markAllAsRead, applyReadEvent };
+    const updateMessage = useCallback((messageId: string, updater: (msg: ClientChatView) => ClientChatView) => {
+        setMessages(prev => prev.map(m => (m.id === messageId ? updater(m) : m)));
+    }, []);
+
+    const removeMessage = useCallback((messageId: string) => {
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+    }, []);
+
+    return {
+        messages,
+        addMessage,
+        updateMessage,
+        removeMessage,
+        clearMessages,
+        reloadMessages,
+        markAllAsRead,
+        applyReadEvent,
+    };
 };
 
 // storage 직접 접근이 필요한 외부 훅용 re-export

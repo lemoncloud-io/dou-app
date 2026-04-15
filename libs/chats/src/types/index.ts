@@ -30,6 +30,7 @@ export interface ClientChatView extends ChatView {
     chatNo?: number;
     isRead?: boolean;
     isSystem?: boolean;
+    status?: 'pending' | 'failed';
 }
 
 export const toClientChatView = (chat: ChatView): ClientChatView => {

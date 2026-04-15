@@ -1,5 +1,5 @@
 import { ArrowUp, ChevronLeft, Loader2, MoreHorizontal, Plus, RotateCcw, Settings, User, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
@@ -16,6 +16,8 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
+
+import { toClientChatView } from '@chatic/chats';
 
 import { useSendMessage } from '../hooks/useSendMessage';
 import { useMyChannel } from '../hooks/useMyChannel';
@@ -34,14 +36,13 @@ export const ChatRoomPage = () => {
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [content, setContent] = useState('');
-    const [pendingMessage, setPendingMessage] = useState<string | null>(null);
-    const [failedMessage, setFailedMessage] = useState<string | null>(null);
     const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+    const tempIdCounter = useRef(0);
     const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { emit } = useWebSocketV2();
     const { toast } = useToast();
-    const { sendMessage, isPending } = useSendMessage();
+    const { sendMessage } = useSendMessage();
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { channel, isLoading, isError } = useMyChannel(channelId ?? null);
 
@@ -52,6 +53,8 @@ export const ChatRoomPage = () => {
         messages,
         clearMessages: clearChatMessages,
         addMessage,
+        updateMessage,
+        removeMessage,
         applyReadEvent,
     } = useChatMessages(dynamicProfile?.uid ?? null, channelId ?? null);
 
@@ -76,10 +79,10 @@ export const ChatRoomPage = () => {
     };
 
     useEffect(() => {
-        if (messages.length > 0 || pendingMessage || failedMessage) {
+        if (messages.length > 0) {
             scrollToBottom();
         }
-    }, [messages.length, pendingMessage, failedMessage]);
+    }, [messages.length]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -111,64 +114,87 @@ export const ChatRoomPage = () => {
         }
     }, [content]);
 
-    const handleSend = async (e?: React.MouseEvent | React.KeyboardEvent) => {
-        if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
+    const dispatchMessage = useCallback(
+        (messageContent: string, targetChannelId: string) => {
+            const tempId = `temp-${Date.now()}-${tempIdCounter.current++}`;
+            const uid = dynamicProfile?.uid ?? '';
 
-        const trimmed = content.trim().slice(0, MAX_INPUT_LENGTH);
-        if (!trimmed || !channelId) return;
-
-        setContent('');
-        setFailedMessage(null);
-        setPendingMessage(trimmed);
-
-        try {
-            const newMessage = await sendMessage(channelId, trimmed);
-            setPendingMessage(null);
-
-            const id = newMessage.id || '0';
-            const timestamp = newMessage?.createdAt ? new Date(newMessage.createdAt) : new Date();
-            const ownerId = newMessage.ownerId || '';
-            const ownerName = newMessage.owner$?.name || t('chat.room.unknown');
-            const chatNo = newMessage?.chatNo;
-
-            addMessage({ id, content: trimmed, timestamp, ownerId, ownerName, chatNo, isRead: true }, channelId);
-
-            if (chatNo && dynamicProfile?.uid) {
-                emit({ type: 'chat', action: 'read', payload: { channelId, chatNo } });
-                applyReadEvent(chatNo, dynamicProfile.uid);
-            }
-            setChannels(prev =>
-                prev.map(ch =>
-                    ch.id === channelId
-                        ? {
-                              ...ch,
-                              lastChat$: {
-                                  ...newMessage,
-                                  id,
-                                  content: trimmed,
-                                  createdAt: newMessage.createdAt,
-                              },
-                          }
-                        : ch
-                )
+            addMessage(
+                {
+                    id: tempId,
+                    content: messageContent,
+                    timestamp: new Date(),
+                    ownerId: uid,
+                    ownerName: dynamicProfile?.name ?? '',
+                    isRead: true,
+                    status: 'pending',
+                },
+                targetChannelId
             );
-        } catch (error) {
-            console.error('Failed to send message:', error);
-            setPendingMessage(null);
-            setFailedMessage(trimmed);
-            toast({ title: t('chat.room.sendFailed'), variant: 'destructive' });
-        }
-    };
 
-    const handleRetry = () => {
-        if (!failedMessage) return;
-        setContent(failedMessage);
-        setFailedMessage(null);
-        inputRef.current?.focus();
-    };
+            sendMessage(targetChannelId, messageContent, {
+                tempId,
+                onSuccess: (tid, chatView) => {
+                    const resolved = { ...toClientChatView(chatView), isRead: true, status: undefined as const };
+                    updateMessage(tid, () => resolved);
+
+                    const chatNo = chatView.chatNo;
+                    if (chatNo && uid) {
+                        emit({ type: 'chat', action: 'read', payload: { channelId: targetChannelId, chatNo } });
+                        applyReadEvent(chatNo, uid);
+                    }
+
+                    setChannels(prev =>
+                        prev.map(ch =>
+                            ch.id === targetChannelId
+                                ? {
+                                      ...ch,
+                                      lastChat$: {
+                                          ...chatView,
+                                          id: chatView.id || '0',
+                                          content: messageContent,
+                                          createdAt: chatView.createdAt,
+                                      },
+                                  }
+                                : ch
+                        )
+                    );
+                },
+                onError: tid => {
+                    updateMessage(tid, msg => ({ ...msg, status: 'failed' }));
+                    toast({ title: t('chat.room.sendFailed'), variant: 'destructive' });
+                },
+            });
+        },
+        [dynamicProfile, sendMessage, addMessage, updateMessage, emit, applyReadEvent, setChannels, toast, t]
+    );
+
+    const handleSend = useCallback(
+        (e?: React.MouseEvent | React.KeyboardEvent) => {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            const trimmed = content.trim().slice(0, MAX_INPUT_LENGTH);
+            if (!trimmed || !channelId) return;
+
+            setContent('');
+            dispatchMessage(trimmed, channelId);
+        },
+        [content, channelId, dispatchMessage]
+    );
+
+    const handleRetry = useCallback(
+        (messageId: string) => {
+            const failedMsg = messages.find(m => m.id === messageId);
+            if (!failedMsg || !channelId) return;
+
+            removeMessage(messageId);
+            dispatchMessage(failedMsg.content, channelId);
+        },
+        [messages, channelId, removeMessage, dispatchMessage]
+    );
 
     const formatTime = (date: Date) => {
         const hours = date.getHours();
@@ -343,6 +369,7 @@ export const ChatRoomPage = () => {
                                                     <MessageBubble
                                                         content={message.content}
                                                         isMine={isMine}
+                                                        status={message.status}
                                                         onViewAll={() =>
                                                             setExpandedMessage({
                                                                 content: message.content,
@@ -350,48 +377,38 @@ export const ChatRoomPage = () => {
                                                             })
                                                         }
                                                     />
-                                                    <div
-                                                        className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${isMine ? 'flex-row-reverse' : ''}`}
-                                                    >
-                                                        <span className="text-muted-foreground">
-                                                            {formatTime(message.timestamp)}
-                                                        </span>
-                                                        <ReadStatus
-                                                            memberNo={channel?.memberNo ?? 0}
-                                                            readCount={(message.readBy?.length ?? 1) - 1}
-                                                        />
-                                                    </div>
+                                                    {message.status === 'pending' ? (
+                                                        <div className="mt-1 flex items-center gap-1 text-[11px] leading-4 text-muted-foreground">
+                                                            <Loader2 size={12} className="animate-spin" />
+                                                            <span>{t('chat.room.sending')}</span>
+                                                        </div>
+                                                    ) : message.status === 'failed' ? (
+                                                        <button
+                                                            onClick={() => handleRetry(message.id)}
+                                                            className="mt-1 flex items-center gap-1 text-[11px] leading-4 text-destructive"
+                                                        >
+                                                            <RotateCcw size={12} />
+                                                            <span>{t('chat.room.tapToRetry')}</span>
+                                                        </button>
+                                                    ) : (
+                                                        <div
+                                                            className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${isMine ? 'flex-row-reverse' : ''}`}
+                                                        >
+                                                            <span className="text-muted-foreground">
+                                                                {formatTime(message.timestamp)}
+                                                            </span>
+                                                            <ReadStatus
+                                                                memberNo={channel?.memberNo ?? 0}
+                                                                readCount={(message.readBy?.length ?? 1) - 1}
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         );
                                     })}
                             </div>
                         ))
-                )}
-                {pendingMessage && (
-                    <div className="flex justify-end gap-1.5">
-                        <div className="flex max-w-[75%] flex-col items-end">
-                            <MessageBubble content={pendingMessage} isMine status="pending" />
-                            <div className="mt-1 flex items-center gap-1 text-[11px] leading-4 text-muted-foreground">
-                                <Loader2 size={12} className="animate-spin" />
-                                <span>{t('chat.room.sending')}</span>
-                            </div>
-                        </div>
-                    </div>
-                )}
-                {failedMessage && (
-                    <div className="flex justify-end gap-1.5">
-                        <div className="flex max-w-[75%] flex-col items-end">
-                            <MessageBubble content={failedMessage} isMine status="failed" />
-                            <button
-                                onClick={handleRetry}
-                                className="mt-1 flex items-center gap-1 text-[11px] leading-4 text-destructive"
-                            >
-                                <RotateCcw size={12} />
-                                <span>{t('chat.room.tapToRetry')}</span>
-                            </button>
-                        </div>
-                    </div>
                 )}
             </div>
 
@@ -415,26 +432,21 @@ export const ChatRoomPage = () => {
                         onChange={e => setContent(e.target.value)}
                         placeholder={t('chat.room.inputPlaceholder')}
                         rows={1}
-                        disabled={isPending}
                         enterKeyHint="enter"
-                        className="max-h-[120px] flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-sm leading-[1.45] text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-50"
+                        className="max-h-[120px] flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-sm leading-[1.45] text-foreground outline-none placeholder:text-muted-foreground"
                     />
                     <button
                         onMouseDown={e => e.preventDefault()}
                         onTouchStart={e => e.preventDefault()}
                         onClick={handleSend}
-                        disabled={isPending || !content.trim()}
+                        disabled={!content.trim()}
                         className={`flex size-8 flex-shrink-0 items-center justify-center rounded-full transition-colors ${
-                            content.trim() && !isPending
+                            content.trim()
                                 ? 'bg-foreground text-background'
                                 : 'bg-muted-foreground/20 text-muted-foreground'
                         }`}
                     >
-                        {isPending ? (
-                            <Loader2 size={16} className="animate-spin text-muted-foreground" />
-                        ) : (
-                            <ArrowUp size={18} />
-                        )}
+                        <ArrowUp size={18} />
                     </button>
                 </div>
             </div>
