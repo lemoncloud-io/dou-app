@@ -1,37 +1,75 @@
 import { useEffect, useState } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
-import { cloudCore, useDynamicProfile } from '@chatic/web-core';
+import { clearCachedInitData, cloudCore, getCachedInitData, useDynamicProfile } from '@chatic/web-core';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
 import { IndexedDBChannelAdapter } from '../../chats/storages/IndexedDBChannelAdapter';
 import { CHANNELS_BROADCAST_CHANNEL_NAME } from '../../chats/storages/IndexedDBStorageAdapter';
 
+// ── Helpers (must be defined before module-level hydration call) ──────────────
+
 const isReactNativeWebView = (): boolean => !!(window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView;
 
-// 싱글톤 상태
+const getChannelSortTime = (channel: ChannelView): number =>
+    channel.lastChat$?.createdAt ?? channel.updatedAt ?? channel.createdAt ?? 0;
+
+const sortChannelsByLatest = (channels: ChannelView[]): ChannelView[] =>
+    [...channels].sort((a, b) => getChannelSortTime(b) - getChannelSortTime(a));
+
+const deduplicateById = (channels: ChannelView[]): ChannelView[] => {
+    const seen = new Set<string>();
+    return channels.filter(ch => {
+        if (!ch.id || seen.has(ch.id)) return false;
+        seen.add(ch.id);
+        return true;
+    });
+};
+
+// ── Singleton State ──────────────────────────────────────────────────────────
+
 let globalChannels: ChannelView[] = [];
 let globalIsLoading = true;
 let globalIsError = false;
 const listeners: Set<() => void> = new Set();
 let isBootstrapped = false;
 let isCacheLoaded = false;
+let globalEmitAuthenticated: ((msg: object) => void) | null = null;
+let globalProfileId = '';
+
+// ── Cache Hydration ──────────────────────────────────────────────────────────
+
+const hydrateFromInjectedCache = (): boolean => {
+    if (isCacheLoaded) return globalChannels.length > 0;
+    if (typeof window === 'undefined' || !isReactNativeWebView()) return false;
+
+    const cached = getCachedInitData();
+    if (!cached || cached.channels.length === 0) return false;
+
+    const unique = deduplicateById(cached.channels as ChannelView[]);
+    if (unique.length === 0) return false;
+
+    globalChannels = sortChannelsByLatest(unique);
+    globalIsLoading = false;
+    isCacheLoaded = true;
+    clearCachedInitData();
+    return true;
+};
+
+// Best-effort at module evaluation time
+hydrateFromInjectedCache();
+
+// ── Constants & Timers ───────────────────────────────────────────────────────
 
 const BOOTSTRAP_TIMEOUT_MS = 10_000;
 const MAX_BOOTSTRAP_RETRIES = 2;
 let bootstrapRetryCount = 0;
 let bootstrapTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
+// ── Internal Functions ───────────────────────────────────────────────────────
+
 const notifyListeners = () => listeners.forEach(l => l());
-
-const getChannelSortTime = (channel: ChannelView): number => {
-    return channel.lastChat$?.createdAt ?? channel.updatedAt ?? channel.createdAt ?? 0;
-};
-
-const sortChannelsByLatest = (channels: ChannelView[]): ChannelView[] => {
-    return [...channels].sort((a, b) => getChannelSortTime(b) - getChannelSortTime(a));
-};
 
 const setGlobalState = (channels: ChannelView[], isLoading: boolean, isError: boolean, saveToDb = false) => {
     globalChannels = sortChannelsByLatest(channels);
@@ -40,8 +78,13 @@ const setGlobalState = (channels: ChannelView[], isLoading: boolean, isError: bo
     notifyListeners();
 
     if (saveToDb && globalProfileId && !isReactNativeWebView()) {
-        IndexedDBChannelAdapter.saveAll(globalProfileId, channels).catch(console.error);
+        IndexedDBChannelAdapter.saveAll(globalProfileId, globalChannels).catch(console.error);
     }
+};
+
+/** Update channels keeping isLoading=false — prevents skeleton flash during background refresh */
+const setChannelsSilently = (channels: ChannelView[], saveToDb = false) => {
+    setGlobalState(channels, false, false, saveToDb);
 };
 
 const loadCachedChannels = async (userId: string) => {
@@ -95,13 +138,18 @@ const bootstrap = (emitAuthenticated: (msg: object) => void, profileId: string) 
     bootstrapRetryCount = 0;
 
     loadCachedChannels(profileId);
-    setGlobalState(globalChannels, true, false);
 
-    setTimeout(emitMineRequest, 500);
+    // Skip isLoading=true when cached channels already shown
+    if (globalChannels.length === 0) {
+        setGlobalState(globalChannels, true, false);
+    }
+
+    emitMineRequest();
     scheduleBootstrapTimeout();
 };
 
-// Single message subscription (module-level, never duplicated)
+// ── Socket Message Subscription ──────────────────────────────────────────────
+
 useWebSocketV2Store.subscribe(
     s => s.lastMessage,
     lastMessage => {
@@ -116,10 +164,8 @@ useWebSocketV2Store.subscribe(
         if (envelope.type === 'model' && envelope.action === 'delete' && envelope.payload?.sourceType === 'join') {
             const { userId, channelId } = envelope.payload;
             if (userId === globalProfileId && channelId) {
-                setGlobalState(
+                setChannelsSilently(
                     globalChannels.filter(ch => ch.id !== channelId),
-                    false,
-                    false,
                     true
                 );
                 if (!isReactNativeWebView()) {
@@ -136,10 +182,8 @@ useWebSocketV2Store.subscribe(
         ) {
             const channelId = (envelope.payload as { channelId?: string })?.channelId;
             if (channelId) {
-                setGlobalState(
+                setChannelsSilently(
                     globalChannels.filter(ch => ch.id !== channelId),
-                    false,
-                    false,
                     true
                 );
                 if (globalProfileId && !isReactNativeWebView()) {
@@ -150,7 +194,7 @@ useWebSocketV2Store.subscribe(
         }
 
         if (envelope.action === 'update' && envelope.payload?.sourceType === 'channel') {
-            setGlobalState(globalChannels, true, false);
+            // Background refresh — no skeleton
             emitMineRequest();
             return;
         }
@@ -163,9 +207,11 @@ useWebSocketV2Store.subscribe(
         }
         if (envelope.action !== 'mine') return;
         clearBootstrapTimeout();
-        setGlobalState(envelope.payload?.list ?? [], false, false, true);
+        setChannelsSilently(envelope.payload?.list ?? [], true);
     }
 );
+
+// ── Lifecycle Subscriptions ──────────────────────────────────────────────────
 
 const setChannels = (updater: ChannelView[] | ((prev: ChannelView[]) => ChannelView[])) => {
     const next = typeof updater === 'function' ? updater(globalChannels) : updater;
@@ -173,19 +219,14 @@ const setChannels = (updater: ChannelView[] | ((prev: ChannelView[]) => ChannelV
 };
 
 const removeChannel = (channelId: string) => {
-    setGlobalState(
+    setChannelsSilently(
         globalChannels.filter(ch => ch.id !== channelId),
-        false,
-        false,
         true
     );
     if (globalProfileId && !isReactNativeWebView()) {
         IndexedDBChannelAdapter.remove(globalProfileId, channelId).catch(console.error);
     }
 };
-
-let globalEmitAuthenticated: ((msg: object) => void) | null = null;
-let globalProfileId = '';
 
 useWebSocketV2Store.subscribe(
     s => s.isVerified,
@@ -258,6 +299,8 @@ const retryMine = () => {
     emitMineRequest();
 };
 
+// ── Hook ─────────────────────────────────────────────────────────────────────
+
 export const useMyChannels = () => {
     const { emitAuthenticated } = useWebSocketV2();
     const isVerified = useWebSocketV2Store(s => s.isVerified);
@@ -266,6 +309,9 @@ export const useMyChannels = () => {
 
     globalEmitAuthenticated = emitAuthenticated;
     globalProfileId = profile?.uid ?? '';
+
+    // Retry cache hydration during render (in case module-level missed it)
+    hydrateFromInjectedCache();
 
     useEffect(() => {
         const listener = () => forceUpdate({});

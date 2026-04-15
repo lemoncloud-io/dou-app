@@ -71,6 +71,18 @@ export const getDeviceInfoScript = (params: DeviceInfoParams): string => `
     }
 `;
 
+export interface CachedInitDataParams {
+    channels: unknown[];
+    clouds: unknown[];
+    timestamp: number;
+}
+
+export const getCachedDataScript = (params: CachedInitDataParams): string => `
+    window.CHATIC_CACHED_CHANNELS = ${JSON.stringify(params.channels)};
+    window.CHATIC_CACHED_CLOUDS = ${JSON.stringify(params.clouds)};
+    window.CHATIC_CACHED_TIMESTAMP = ${params.timestamp};
+`;
+
 /**
  * Generates a script that intercepts (overrides) \`console.log\` and \`console.error\` calls within the WebView
  * and forwards them to the React Native app's bridge (as a \`__console__\` type message).
