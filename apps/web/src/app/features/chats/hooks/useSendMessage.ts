@@ -49,7 +49,11 @@ export const useSendMessage = () => {
                 }
             }
         );
-        return unsub;
+        return () => {
+            unsub();
+            pendingRef.current.forEach(item => clearTimeout(item.timer));
+            pendingRef.current = [];
+        };
     }, []);
 
     const sendMessage = useCallback(

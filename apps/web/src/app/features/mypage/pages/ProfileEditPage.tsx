@@ -31,8 +31,8 @@ export const ProfileEditPage = () => {
             const initName = profile.$user.name || '';
             const initImage = profile.$user.photo || '';
             initialRef.current = { name: initName, imageUrl: initImage, initialized: true };
-            if (initName) setName(initName.slice(0, 30));
-            if (initImage) setImageUrl(initImage);
+            if (!name && initName) setName(initName.slice(0, 30));
+            if (!imageUrl && initImage) setImageUrl(initImage);
         }
     }, [profile]);
 

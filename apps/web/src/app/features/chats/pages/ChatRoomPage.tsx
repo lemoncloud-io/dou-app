@@ -134,8 +134,7 @@ export const ChatRoomPage = () => {
 
             sendMessage(targetChannelId, messageContent, {
                 tempId,
-                onSuccess: (tid, chatView) => {
-                    removeMessage(tid);
+                onSuccess: (_tid, chatView) => {
                     const resolved = { ...toClientChatView(chatView), isRead: true };
                     addMessage(resolved, targetChannelId);
 
@@ -168,18 +167,7 @@ export const ChatRoomPage = () => {
                 },
             });
         },
-        [
-            dynamicProfile,
-            sendMessage,
-            addMessage,
-            removeMessage,
-            updateMessage,
-            emit,
-            applyReadEvent,
-            setChannels,
-            toast,
-            t,
-        ]
+        [dynamicProfile, sendMessage, addMessage, updateMessage, emit, applyReadEvent, setChannels, toast, t]
     );
 
     const handleSend = useCallback(
