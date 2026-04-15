@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { CacheChannelView } from '@chatic/app-messages';
 import { useWebSocketV2 } from '@chatic/socket';
+import { useDynamicProfile } from '@chatic/web-core';
 import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import { useChannelRepository } from '../repository';
-import type { ClientChatMinePayload } from '../types';
+import type { ClientChatMinePayload, ClientChannelView } from '../types';
 
 /**
  * 특정 워크스페이스(Place)의 채널 목록을 로컬 DB에서 즉시 조회
@@ -16,14 +17,16 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     const { emitAuthenticated, cloudId } = useWebSocketV2();
     const repository = useChannelRepository(cloudId);
 
-    const [channels, setChannels] = useState<ChannelView[]>([]);
+    // 현재 접속 중인 내 프로필 정보
+    const profile = useDynamicProfile();
+    const [channels, setChannels] = useState<ClientChannelView[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isError, setIsError] = useState(false);
 
     const currentParamsRef = useRef<ClientChatMinePayload>(initialParams);
     /**
-     *  로컬 DB에서 채널 목록 읽어오기 및 정렬
+     * 로컬 DB에서 채널 목록 읽어오기 및 정렬
      */
     const requestFromLocal = useCallback(
         async (params?: ClientChatMinePayload) => {
@@ -49,7 +52,15 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                     return timeB - timeA;
                 });
 
-                let resultChannels = sortedChannels.map(({ sid, ...rest }) => rest as ChannelView);
+                let resultChannels: ClientChannelView[] = sortedChannels.map(({ sid, ...rest }) => {
+                    const baseChannel = rest as ChannelView;
+                    return {
+                        ...baseChannel,
+                        isOwner: baseChannel.ownerId === profile?.uid,
+                        isSelfChat: baseChannel.stereo === 'self',
+                        memberCount: baseChannel.memberNo || 0,
+                    };
+                });
 
                 if (activeParams.limit) {
                     const limit = activeParams.limit;
@@ -66,7 +77,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                 setIsLoading(false);
             }
         },
-        [repository]
+        [repository, profile?.uid]
     );
 
     /**

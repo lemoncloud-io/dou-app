@@ -5,6 +5,8 @@ import { useWebSocketV2 } from '@chatic/socket';
 import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import { useChannelRepository } from '../repository';
+import type { ClientChannelView } from '../types';
+import { useDynamicProfile } from '@chatic/web-core';
 
 /**
  * 특정 채널의 상세 정보를 로컬 DB에서만 단방향으로 조회하는 훅.
@@ -13,8 +15,9 @@ import { useChannelRepository } from '../repository';
 export const useChannel = (channelId: string | null) => {
     const { cloudId } = useWebSocketV2();
     const repository = useChannelRepository(cloudId);
+    const profile = useDynamicProfile();
 
-    const [channel, setChannel] = useState<ChannelView | null>(null);
+    const [channel, setChannel] = useState<ClientChannelView | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isError, setIsError] = useState(false);
 
@@ -34,9 +37,18 @@ export const useChannel = (channelId: string | null) => {
 
             if (channelData) {
                 const { sid, ...rest } = channelData as any;
-                setChannel(rest as ChannelView);
+                const baseChannel = rest as ChannelView;
+
+                // ClientChannelView 규격에 맞게 파생 속성 매핑
+                const clientChannel: ClientChannelView = {
+                    ...baseChannel,
+                    isOwner: baseChannel.ownerId === profile?.uid,
+                    isSelfChat: baseChannel.stereo === 'self',
+                    memberCount: baseChannel.memberNo || 0,
+                };
+
+                setChannel(clientChannel);
             } else {
-                // DB에 해당 채널이 없으면 null 처리
                 setChannel(null);
             }
         } catch (error) {
