@@ -48,4 +48,6 @@ export interface ClientChannelView extends ChannelView {
     isSelfChat: boolean;
     /** 채널 참여 인원 수 */
     memberCount: number;
+    /** 읽지 않은 채팅 개수 */
+    unreadCount: number;
 }

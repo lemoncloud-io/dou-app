@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { ChannelView } from '@lemoncloud/chatic-socials-api';
-import type { CacheChannelView } from '@chatic/app-messages';
+import type { ChannelView, JoinView } from '@lemoncloud/chatic-socials-api';
 import { useWebSocketV2 } from '@chatic/socket';
 import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
-import { useChannelRepository } from '../repository';
+import { useChannelRepository, useJoinRepository } from '../repository';
 import type { ClientChannelView } from '../types';
 import { useDynamicProfile } from '@chatic/web-core';
 
@@ -15,6 +14,7 @@ import { useDynamicProfile } from '@chatic/web-core';
 export const useChannel = (channelId: string | null) => {
     const { cloudId } = useWebSocketV2();
     const repository = useChannelRepository(cloudId);
+    const joinRepo = useJoinRepository(cloudId);
     const profile = useDynamicProfile();
 
     const [channel, setChannel] = useState<ClientChannelView | null>(null);
@@ -33,20 +33,27 @@ export const useChannel = (channelId: string | null) => {
 
         try {
             setIsError(false);
-            const channelData: CacheChannelView | null = await repository.getChannel(channelId);
+            const [channelData, joins] = await Promise.all([
+                repository.getChannel(channelId),
+                profile?.uid ? joinRepo.getJoinsByChannel(channelId) : Promise.resolve([]),
+            ]);
 
             if (channelData) {
                 const { sid, ...rest } = channelData as any;
                 const baseChannel = rest as ChannelView;
+                const myJoin = (joins as JoinView[]).find(j => j.userId === profile?.uid);
 
-                // ClientChannelView 규격에 맞게 파생 속성 매핑
+                const lastChatNo = baseChannel.lastChat$?.chatNo || 0;
+                const myReadNo = myJoin?.chatNo || 0;
+                const unreadCount = Math.max(0, lastChatNo - myReadNo);
+
                 const clientChannel: ClientChannelView = {
                     ...baseChannel,
                     isOwner: baseChannel.ownerId === profile?.uid,
                     isSelfChat: baseChannel.stereo === 'self',
                     memberCount: baseChannel.memberNo || 0,
+                    unreadCount,
                 };
-
                 setChannel(clientChannel);
             } else {
                 setChannel(null);
@@ -58,7 +65,7 @@ export const useChannel = (channelId: string | null) => {
         } finally {
             setIsLoading(false);
         }
-    }, [channelId, repository]);
+    }, [channelId, repository, joinRepo, profile?.uid]);
 
     // 초기 마운트 및 channelId 변경 시 로컬 DB 조회
     useEffect(() => {
@@ -69,15 +76,16 @@ export const useChannel = (channelId: string | null) => {
     // 전역 이벤트 버스 구독
     useEffect(() => {
         if (!repository.cloudId || !channelId) return;
-
         const handleUpdate = (e: Event) => {
             const { detail } = e as CustomEvent<AppSyncDetail>;
-
-            if (detail.domain === 'channel' && detail.targetId === channelId && detail.cid === repository.cloudId) {
+            if (
+                (detail.domain === 'channel' || detail.domain === 'chat' || detail.domain === 'join') &&
+                detail.targetId === channelId &&
+                detail.cid === repository.cloudId
+            ) {
                 void requestFromLocal();
             }
         };
-
         window.addEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
         return () => window.removeEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
     }, [repository.cloudId, channelId, requestFromLocal]);
