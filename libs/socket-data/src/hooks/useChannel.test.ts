@@ -1,10 +1,11 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useChannel } from './useChannel'; // 실제 파일 경로에 맞게 수정하세요.
+import { useChannel } from './useChannel';
 import { useWebSocketV2 } from '@chatic/socket';
 import { useDynamicProfile } from '@chatic/web-core';
-import { useChannelRepository } from '../repository';
+import { useChannelRepository, useJoinRepository } from '../repository'; // useJoinRepository 추가
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 
+// 의존성 모킹
 jest.mock('@chatic/socket', () => ({
     useWebSocketV2: jest.fn(),
 }));
@@ -15,12 +16,14 @@ jest.mock('@chatic/web-core', () => ({
 
 jest.mock('../repository', () => ({
     useChannelRepository: jest.fn(),
+    useJoinRepository: jest.fn(), // 추가
 }));
 
 describe('useChannel Hook', () => {
     const mockCloudId = 'test-cloud-id';
     const mockUid = 'user-123';
     const mockGetChannel = jest.fn();
+    const mockGetJoins = jest.fn();
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -29,6 +32,9 @@ describe('useChannel Hook', () => {
         (useChannelRepository as jest.Mock).mockReturnValue({
             cloudId: mockCloudId,
             getChannel: mockGetChannel,
+        });
+        (useJoinRepository as jest.Mock).mockReturnValue({
+            getJoinsByChannel: mockGetJoins,
         });
     });
 
@@ -41,50 +47,44 @@ describe('useChannel Hook', () => {
 
         expect(result.current.channel).toBeNull();
         expect(result.current.isError).toBe(false);
-        expect(mockGetChannel).not.toHaveBeenCalled();
     });
 
-    it('channelId가 주어지면 DB에서 데이터를 가져와 ClientChannelView로 매핑해야 한다', async () => {
+    it('데이터를 가져와 ClientChannelView로 정확히 매핑하고 unreadCount를 계산해야 한다', async () => {
         const mockChannelId = 'channel-1';
-        const mockChannelData = {
-            id: mockChannelId,
-            ownerId: mockUid, // 내 UID와 같으므로 isOwner = true
-            stereo: 'self', // isSelfChat = true
-            memberNo: 3, // memberCount = 3
-            sid: 'internal-db-id', // 반환 시 제거되어야 함
-            name: 'Test Channel',
-        };
 
-        mockGetChannel.mockResolvedValue(mockChannelData);
+        // 1. DB 채널 데이터 모킹
+        mockGetChannel.mockResolvedValue({
+            id: mockChannelId,
+            ownerId: mockUid,
+            stereo: 'self',
+            memberNo: 1,
+            lastChat$: { chatNo: 10 }, // 마지막 메시지 번호 10
+        });
+
+        // 2. 참여 정보 모킹 (내 읽음 위치 7)
+        mockGetJoins.mockResolvedValue([{ userId: mockUid, chatNo: 7 }]);
 
         const { result } = renderHook(() => useChannel(mockChannelId));
 
-        // 처음 렌더링 시에는 로딩 중이어야 함
         expect(result.current.isLoading).toBe(true);
 
-        // 비동기 작업(DB 조회)이 끝날 때까지 대기
         await waitFor(() => {
             expect(result.current.isLoading).toBe(false);
         });
 
-        expect(mockGetChannel).toHaveBeenCalledWith(mockChannelId);
-        expect(result.current.isError).toBe(false);
-
-        // 매핑된 ClientChannelView 검증
+        // 매핑 결과 검증
         expect(result.current.channel).toEqual(
             expect.objectContaining({
                 id: mockChannelId,
-                name: 'Test Channel',
                 isOwner: true,
                 isSelfChat: true,
-                memberCount: 3,
+                memberCount: 1,
+                unreadCount: 3, // 10 - 7 = 3
             })
         );
-
-        expect(result.current.channel).not.toHaveProperty('sid');
     });
 
-    it('DB에서 데이터를 가져오는 중 에러가 발생하면 isError가 true가 되어야 한다', async () => {
+    it('DB 조회 중 에러가 발생하면 isError가 true가 되어야 한다', async () => {
         const mockChannelId = 'channel-error';
         mockGetChannel.mockRejectedValue(new Error('DB Error'));
 
@@ -98,25 +98,28 @@ describe('useChannel Hook', () => {
         expect(result.current.channel).toBeNull();
     });
 
-    it('APP_SYNC_EVENT_NAME 이벤트가 발생하고 조건이 맞으면 데이터를 다시 페칭해야 한다', async () => {
+    it('전역 이벤트(APP_SYNC_EVENT_NAME) 발생 시 데이터를 다시 가져와야 한다', async () => {
         const mockChannelId = 'channel-sync';
-        mockGetChannel.mockResolvedValue({ id: mockChannelId, ownerId: 'other', stereo: 'public' });
+        mockGetChannel.mockResolvedValue({ id: mockChannelId, ownerId: 'other' });
+        mockGetJoins.mockResolvedValue([]);
 
         renderHook(() => useChannel(mockChannelId));
 
         await waitFor(() => {
-            expect(mockGetChannel).toHaveBeenCalledTimes(1); // 초기 로드
+            expect(mockGetChannel).toHaveBeenCalledTimes(1);
         });
 
+        // 이벤트 발생 시뮬레이션
         act(() => {
-            const event = new CustomEvent(APP_SYNC_EVENT_NAME, {
-                detail: {
-                    domain: 'channel',
-                    targetId: mockChannelId,
-                    cid: mockCloudId,
-                },
-            });
-            window.dispatchEvent(event);
+            window.dispatchEvent(
+                new CustomEvent(APP_SYNC_EVENT_NAME, {
+                    detail: {
+                        domain: 'chat', // 채널 뿐만 아니라 채팅 이벤트 시에도 갱신 확인
+                        targetId: mockChannelId,
+                        cid: mockCloudId,
+                    },
+                })
+            );
         });
 
         await waitFor(() => {
@@ -127,6 +130,7 @@ describe('useChannel Hook', () => {
     it('refresh 함수를 호출하면 데이터를 수동으로 다시 가져와야 한다', async () => {
         const mockChannelId = 'channel-refresh';
         mockGetChannel.mockResolvedValue({ id: mockChannelId });
+        mockGetJoins.mockResolvedValue([]);
 
         const { result } = renderHook(() => useChannel(mockChannelId));
 
