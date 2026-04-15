@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { LoadingFallback } from '@chatic/shared';
-import { useDynamicProfile, useUserContext, UserType } from '@chatic/web-core';
+import { useUserContext, UserType } from '@chatic/web-core';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
@@ -19,6 +19,7 @@ import { useAppChecker } from '@chatic/device-utils';
 import { InviteFriendsDialog } from '../components';
 import { MessageBubble } from '../components/MessageBubble';
 import { ReadStatus } from '../components/ReadStatus';
+import type { ClientChatView } from '@chatic/socket-data';
 import { useChannelMembers, useChannel, useChatMutations, useChats } from '@chatic/socket-data';
 
 // 입력 가능한 최대 글자 수
@@ -32,7 +33,6 @@ export const ChatRoomPage = () => {
 
     // UI 상태 관리
     const [content, setContent] = useState(''); // 현재 입력 중인 메시지
-    const [failedMessage, setFailedMessage] = useState<string | null>(null); // 전송 실패 시 복구를 위해 저장하는 메시지
     const [inviteDialogOpen, setInviteDialogOpen] = useState(false); // 초대 모달 상태
     const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null); // 긴 메시지 상세보기 상태
 
@@ -43,7 +43,6 @@ export const ChatRoomPage = () => {
     // 중복 읽음 처리(read 요청)를 방지하기 위해 마지막으로 읽음 처리한 메시지 번호를 저장
     const lastReadChatNoRef = useRef<number | null>(null);
 
-    const dynamicProfile = useDynamicProfile();
     const { userType } = useUserContext();
     const { isIOS } = useAppChecker();
 
@@ -60,7 +59,7 @@ export const ChatRoomPage = () => {
     });
 
     // 메시지 전송 및 읽음 처리 관련 Mutation
-    const { sendMessage, readMessage } = useChatMutations();
+    const { sendMessage, readMessage, deleteMessage } = useChatMutations();
 
     useEffect(() => {
         // 채널 정보를 불러오는 중이면 대기
@@ -76,7 +75,7 @@ export const ChatRoomPage = () => {
      * @param smooth - true: 부드럽게 스크롤, false: 즉시 스크롤
      * DOM 렌더링(새 메시지 추가, 텍스트박스 축소 등)이 완료될 시간을 주기 위해 setTimeout(50) 사용
      */
-    const scrollToBottom = (smooth = true) => {
+    const scrollToBottom = (smooth = false) => {
         setTimeout(() => {
             if (messagesEndRef.current) {
                 messagesEndRef.current.scrollTo({
@@ -89,10 +88,10 @@ export const ChatRoomPage = () => {
 
     // 메시지 배열이 변경되거나(새 메시지 추가, 전송 중 상태 변경 등) 실패 메시지가 생길 때 스크롤 이동
     useEffect(() => {
-        if (messages.length > 0 || failedMessage) {
-            scrollToBottom(true);
+        if (messages.length > 0) {
+            scrollToBottom(false);
         }
-    }, [messages, failedMessage]);
+    }, [messages]);
 
     // 창 크기 변경(키보드 올라옴 등) 및 인풋 포커스 시 스크롤 조정 이벤트 등록
     useEffect(() => {
@@ -126,7 +125,6 @@ export const ChatRoomPage = () => {
 
         // UI 즉각 반응을 위해 입력창 비우고 에러 메시지 초기화
         setContent('');
-        setFailedMessage(null);
 
         // 백그라운드로 메시지 전송 요청 (내부적으로 로컬 DB 선저장되어 낙관적 업데이트 발동)
         sendMessage({ channelId, content: trimmed })
@@ -140,8 +138,37 @@ export const ChatRoomPage = () => {
             .catch(error => {
                 console.error('Failed to send message:', error);
                 // 실패 시 입력했던 텍스트를 복구할 수 있도록 상태 저장
-                setFailedMessage(trimmed);
                 toast({ title: t('chat.room.sendFailed'), variant: 'destructive' });
+            });
+    };
+
+    /**
+     * 메시지 삭제 처리 (실패한 메시지 삭제)
+     * @param messageId 타겟 메시지 아이디
+     */
+    const handleDeleteMessage = async (messageId?: string) => {
+        if (!channelId || !messageId) {
+            return;
+        }
+        await deleteMessage(messageId, channelId);
+    };
+
+    const handleRetryMessage = async (message: ClientChatView) => {
+        if (!channelId || !message.id) {
+            return;
+        }
+        handleDeleteMessage(message.id)
+            .then(() => {
+                return sendMessage({ channelId, content: message.content ?? '' });
+            })
+            .then(newChat => {
+                if (newChat && newChat.chatNo !== undefined) {
+                    lastReadChatNoRef.current = newChat.chatNo;
+                    readMessage({ channelId, chatNo: newChat.chatNo }).catch(console.error);
+                }
+            })
+            .catch(error => {
+                console.error('Failed to send message:', error);
             });
     };
 
@@ -162,14 +189,6 @@ export const ChatRoomPage = () => {
             e.preventDefault();
             handleSend();
         }
-    };
-
-    // 전송 실패한 메시지 재시도 핸들러
-    const handleRetry = () => {
-        if (!failedMessage) return;
-        setContent(failedMessage); // 입력창에 다시 세팅
-        setFailedMessage(null);
-        inputRef.current?.focus();
     };
 
     // 날짜 및 시간 포맷팅 헬퍼 함수
@@ -304,8 +323,6 @@ export const ChatRoomPage = () => {
                                 </div>
 
                                 {dateMessages.map(message => {
-                                    const isMine = message.ownerId === dynamicProfile?.uid;
-
                                     // 시스템 메시지 렌더링 (초대, 퇴장 등)
                                     if (message.isSystem) {
                                         const systemMatch = (message.content ?? '').match(/^(.+?)(님이.+)$/);
@@ -329,44 +346,56 @@ export const ChatRoomPage = () => {
                                     return (
                                         <div
                                             key={message.id}
-                                            className={`flex gap-1.5 ${isMine ? 'justify-end' : 'justify-start'} ${
+                                            className={`flex gap-1.5 ${message.isOwner ? 'justify-end' : 'justify-start'} ${
                                                 message.isPending ? 'opacity-60 transition-opacity' : ''
                                             }`}
                                         >
-                                            {!isMine && (
+                                            {!message.isOwner && (
                                                 <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
                                                     <User className="size-4 text-muted-foreground" />
                                                 </div>
                                             )}
                                             <div
-                                                className={`flex max-w-[75%] flex-col ${isMine ? 'items-end' : 'items-start'}`}
+                                                className={`flex max-w-[75%] flex-col ${message.isOwner ? 'items-end' : 'items-start'}`}
                                             >
-                                                {!isMine && (
+                                                {!message.isOwner && (
                                                     <span className="mb-1 text-xs text-muted-foreground">
                                                         {message.ownerName}
                                                     </span>
                                                 )}
                                                 <MessageBubble
                                                     content={message.content ?? ''}
-                                                    isMine={isMine}
-                                                    status={message.isPending ? 'pending' : undefined}
+                                                    isMine={message.isOwner}
+                                                    status={
+                                                        message.isFailed
+                                                            ? 'failed'
+                                                            : message.isPending
+                                                              ? 'pending'
+                                                              : undefined
+                                                    }
                                                     onViewAll={() =>
                                                         setExpandedMessage({
                                                             content: message.content ?? '',
                                                             ownerName: message.ownerName,
                                                         })
                                                     }
+                                                    onRetry={() => handleRetryMessage(message)}
+                                                    onDelete={() => handleDeleteMessage(message.id)}
                                                 />
                                                 <div
-                                                    className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${isMine ? 'flex-row-reverse' : ''}`}
+                                                    className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${message.isOwner ? 'flex-row-reverse' : ''}`}
                                                 >
                                                     <span className="text-muted-foreground">
                                                         {formatTime(message.timestamp)}
                                                     </span>
-                                                    <ReadStatus
-                                                        unreadCount={message.unreadCount ?? 0}
-                                                        memberNo={channel?.memberNo ?? 0}
-                                                    />
+                                                    {!message.isPending &&
+                                                        !message.isFailed &&
+                                                        message.chatNo !== undefined && (
+                                                            <ReadStatus
+                                                                unreadCount={message.unreadCount ?? 0}
+                                                                memberNo={channel?.memberNo ?? 0}
+                                                            />
+                                                        )}
                                                 </div>
                                             </div>
                                         </div>
@@ -374,15 +403,6 @@ export const ChatRoomPage = () => {
                                 })}
                             </div>
                         ))
-                )}
-
-                {/* 전송 실패 메시지 렌더링 */}
-                {failedMessage && (
-                    <div className="flex justify-end gap-1.5">
-                        <div className="flex max-w-[75%] flex-col items-end">
-                            <MessageBubble content={failedMessage} isMine status="failed" onViewAll={handleRetry} />
-                        </div>
-                    </div>
                 )}
             </div>
 
