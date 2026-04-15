@@ -1,4 +1,4 @@
-const MAX_CACHE_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MAX_CACHE_AGE_MS = 2 * 24 * 60 * 60 * 1000; // 48 hours
 
 let cacheWasConsumed = false;
 
@@ -33,8 +33,8 @@ export const getCachedInitData = (): CachedInitData | null => {
     };
 };
 
-/** Returns true when cache exists or was already consumed this session */
-export const hasCachedInitData = (): boolean => {
+/** Returns true when cache was consumed during this session (app was bootstrapped from cache) */
+export const wasBootstrappedFromCache = (): boolean => {
     if (cacheWasConsumed) return true;
     const timestamp = window.CHATIC_CACHED_TIMESTAMP;
     if (!timestamp) return false;

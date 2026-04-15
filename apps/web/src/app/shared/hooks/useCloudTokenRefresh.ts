@@ -15,6 +15,7 @@ export const useCloudTokenRefresh = () => {
     const { emit, isConnected } = useWebSocketV2();
     const { setServiceUnavailable } = useServiceStatusStore();
     const wssType = useWebSocketV2Store(s => s.wssType);
+    const isVerified = useWebSocketV2Store(s => s.isVerified);
 
     useEffect(() => {
         if (!isConnected || !isAuthenticated) {
@@ -62,5 +63,5 @@ export const useCloudTokenRefresh = () => {
 
         const id = setInterval(refresh, REFRESH_INTERVAL_MS);
         return () => clearInterval(id);
-    }, [wssType, isAuthenticated, isConnected, emit, setServiceUnavailable]);
+    }, [wssType, isAuthenticated, isConnected, isVerified, emit, setServiceUnavailable]);
 };

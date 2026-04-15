@@ -10,7 +10,13 @@ import { Toaster as SonnerToaster } from 'sonner';
 import { ErrorFallback, GlobalLoader, LoadingFallback, useVersionCheck, VersionUpdateBanner } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
-import { hasCachedInitData, reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
+import {
+    wasBootstrappedFromCache,
+    reportError,
+    useInitWebCore,
+    useTokenRefresh,
+    useWebCoreStore,
+} from '@chatic/web-core';
 import { initializeMessageListener } from '@chatic/app-messages';
 
 import { ServiceUnavailableOverlay, WebSocketV2Connection } from './components';
@@ -55,7 +61,9 @@ export function App() {
     const { isInitialized: isTokenInitialized, initStatus, refreshToken } = useTokenRefresh(isWebCoreReady);
     const canRenderApp =
         isWebCoreReady &&
-        (!isAuthenticated || hasCachedInitData() || (isTokenInitialized && (!!profile || initStatus === 'failed')));
+        (!isAuthenticated ||
+            wasBootstrappedFromCache() ||
+            (isTokenInitialized && (!!profile || initStatus === 'failed')));
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
     useDataSync();

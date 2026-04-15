@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useIssueCloudToken } from '@chatic/auth';
 import { useGlobalLoader } from '@chatic/shared';
 import { useClouds } from '@chatic/users';
-import { cloudCore, hasCachedInitData, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, wasBootstrappedFromCache, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 import { useTranslation } from 'react-i18next';
 
@@ -109,6 +109,6 @@ export const useAutoSelectCloud = () => {
 
         console.log('[useAutoSelectCloud] Selecting cloud:', activeCloud.id);
         autoSelectedRef.current = true;
-        void selectCloud(activeCloud.id as string, { silent: hasCachedInitData() });
+        void selectCloud(activeCloud.id as string, { silent: wasBootstrappedFromCache() });
     }, [clouds, isAuthenticated, isFetchingClouds]);
 };
