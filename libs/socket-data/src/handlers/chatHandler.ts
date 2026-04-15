@@ -37,17 +37,7 @@ export const chatHandler = async (
             if (meta?.ref) await chatRepo.deleteChat(meta?.ref);
             if (payload?.id) {
                 await chatRepo.saveChat(payload.id, payload);
-                if (channelId) {
-                    const existingChannel = await channelRepo.getChannel(channelId);
-                    if (existingChannel) {
-                        await channelRepo.saveChannel(channelId, {
-                            ...existingChannel,
-                            lastChat$: { ...existingChannel.lastChat$, ...payload },
-                        } as CacheChannelView);
-                    }
-                }
                 notifyAppUpdated({ domain: 'chat', action, cid: cloudId, targetId: channelId, payload });
-                notifyAppUpdated({ domain: 'channel', action, cid: cloudId, targetId: channelId, payload });
             }
             break;
         }
