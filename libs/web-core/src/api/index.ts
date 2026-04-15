@@ -6,7 +6,7 @@ const throwIfApiError = <T>(data: T & { error?: string }): T => {
     return data;
 };
 
-import type { UserProfile$ as UserProfile } from '@lemoncloud/chatic-backend-api';
+import type { UserProfile$ as UserProfile, UserTokenView } from '@lemoncloud/chatic-backend-api';
 import type { LemonRefreshTokenResult, VerifyNativeTokenBody } from '../types';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
 
@@ -159,7 +159,7 @@ export interface LoginInviteResponse {
  * @param code - Invite code (format: invt:<id>:<code>)
  * @returns Promise resolving to login response with identityToken
  */
-export const loginWithInviteCode = async (code: string, backend?: string): Promise<LoginInviteResponse> => {
+export const loginWithInviteCode = async (code: string, backend?: string): Promise<UserTokenView> => {
     const endpoint = backend ?? getDynamicDOUEndpoint();
     const { data } = await webCore
         .buildSignedRequest({
@@ -167,7 +167,7 @@ export const loginWithInviteCode = async (code: string, backend?: string): Promi
             baseURL: `${endpoint}/oauth/login-invite`,
         })
         .setBody({ code })
-        .execute<LoginInviteResponse & { error?: string }>();
+        .execute<UserTokenView & { error?: string }>();
 
     return throwIfApiError(data);
 };

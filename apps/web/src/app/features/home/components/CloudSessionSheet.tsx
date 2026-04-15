@@ -9,7 +9,7 @@ import { cn } from '@chatic/lib/utils';
 import { useInterval } from '@chatic/shared';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudCore, useLocalProfileStore, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
 import { cloudsKeys } from '@chatic/users';
 
@@ -31,21 +31,19 @@ const CLOUD_AVATAR_CLASS =
 
 const ProfileSection = () => {
     const { profile } = useWebCoreStore();
-    const localProfile = useLocalProfileStore();
-    const name = profile?.name ?? localProfile.name ?? '';
-    const imageUrl = localProfile.imageData ?? profile?.imageUrl;
+
+    const name = profile?.$user.name;
     const email = profile?.$user?.email ?? '';
+    const photo = profile?.$user?.photo;
 
     return (
         <div className="flex flex-col items-center gap-[9px] py-4">
-            <div className="rounded-full bg-gradient-to-br from-[#A855F7] to-[#6366F1] p-[2px]">
-                <div className="flex h-[54px] w-[54px] items-center justify-center overflow-hidden rounded-full border-2 border-background bg-secondary">
-                    {imageUrl ? (
-                        <img src={imageUrl} alt="Profile" className="h-full w-full object-cover" />
-                    ) : (
-                        <User size={20} className="text-placeholder" />
-                    )}
-                </div>
+            <div className="flex h-[54px] w-[54px] items-center justify-center overflow-hidden rounded-full border border-background bg-secondary">
+                {photo ? (
+                    <img src={photo} alt={name} className="h-full w-full object-cover" />
+                ) : (
+                    <User size={20} className="text-placeholder" />
+                )}
             </div>
             <div className="flex flex-col items-center gap-[2px]">
                 <span className="text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-foreground">

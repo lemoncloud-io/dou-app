@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import type { LoginInviteResponse } from '@chatic/web-core';
 import { cloudCore, loginWithInviteCode, setIsInvitedSession, useWebCoreStore, webCore } from '@chatic/web-core';
 import { LoadingFallback } from '@chatic/shared';
 
@@ -32,7 +31,7 @@ export const LoginPage = (): JSX.Element => {
 
     const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
-    const fetchInvite = useCallback(async (): Promise<LoginInviteResponse | null> => {
+    const fetchInvite = useCallback(async (): Promise<UserTokenView | null> => {
         const code = urlParams.get('code');
         const backend = urlParams.get('_backend') ?? undefined;
         if (!code) return null;
@@ -84,6 +83,14 @@ export const LoginPage = (): JSX.Element => {
 
     const handleAccept = async () => {
         if (isAccepting) return;
+
+        const backend = urlParams.get('_backend');
+        const wss = urlParams.get('_wss');
+        if (!backend || !wss) {
+            toast({ title: t('inviteAccept.missingServerInfo'), variant: 'destructive' });
+            return;
+        }
+
         setIsAccepting(true);
 
         try {
@@ -98,26 +105,22 @@ export const LoginPage = (): JSX.Element => {
             await webCore.buildCredentialsByToken(Token);
 
             // 2. Save delegation token
-            const backend = urlParams.get('_backend');
-            const wss = urlParams.get('_wss');
-            if (backend && wss) {
-                cloudCore.saveDelegationToken({ backend, wss } as CloudDelegationTokenView);
-            }
+            cloudCore.saveDelegationToken({ backend, wss } as CloudDelegationTokenView);
 
             // 3. Save cloud token
             cloudCore.saveCloudToken(data as unknown as UserTokenView);
 
             // 3-1. Save selected cloud ID
-            if (data.id) {
-                cloudCore.saveSelectedCloudId(data.id);
+            if (data.cloudId) {
+                cloudCore.saveSelectedCloudId(data.cloudId);
             }
 
             // 4. Save invite cloud to cache
-            if (data.id) {
+            if (data.cloudId) {
                 const { isOnMobileApp } = getMobileAppInfo();
                 if (isOnMobileApp) {
                     await saveInvite({
-                        id: data.id,
+                        id: data.cloudId,
                         name: data.name,
                         backend: backend ?? undefined,
                         wss: wss ?? undefined,

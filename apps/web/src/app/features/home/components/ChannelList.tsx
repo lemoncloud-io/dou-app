@@ -70,7 +70,7 @@ const ChannelItem = ({ channel }: { channel: ChannelView }) => {
                             </span>
                         )}
                         <span className="truncate text-[15px] font-semibold tracking-[-0.025em] text-foreground">
-                            {isSelf ? t('channelList.selfChannel') : channel.name || t('channelList.unnamedChannel')}
+                            {channel.name || (isSelf ? t('channelList.selfChannel') : t('channelList.unnamedChannel'))}
                         </span>
                     </div>
                     <p className="mt-1 truncate text-[13.5px] leading-[1.2] tracking-[-0.025em] text-muted-foreground">
@@ -183,12 +183,14 @@ export const ChannelList = ({
     }
 
     return (
-        <div>
+        <div className="flex min-h-0 flex-1 flex-col">
             {header}
-            <div className="flex flex-col gap-[18px] px-1">
-                {channels.map(channel => (
-                    <ChannelItem key={channel.id} channel={channel} />
-                ))}
+            <div className="flex-1 overflow-y-auto">
+                <div className="flex flex-col gap-[18px] px-1">
+                    {channels.map(channel => (
+                        <ChannelItem key={channel.id} channel={channel} />
+                    ))}
+                </div>
             </div>
         </div>
     );

@@ -19,6 +19,11 @@ let globalEmitFn: ((data: unknown) => void) | null = null;
 let globalEmitAuthenticatedFn: ((data: unknown) => void) | null = null;
 
 export const getSocketSend = () => globalSendFn;
+export const checkSocketHealth = () => {
+    if (globalWorkerRef) {
+        globalWorkerRef.postMessage({ type: 'check' });
+    }
+};
 
 export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
     const store = useWebSocketV2Store();
@@ -85,6 +90,11 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
 
                     if (message.type === 'status' && message.status === 'connected') {
                         store.setIsConnected(true);
+                    }
+
+                    if (message.type === 'status' && message.status === 'disconnected') {
+                        store.setIsConnected(false);
+                        store.setIsVerified(false);
                     }
                 };
             }

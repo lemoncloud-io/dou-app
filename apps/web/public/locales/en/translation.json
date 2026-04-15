@@ -260,8 +260,9 @@
     "homePage": {
         "places": "Places",
         "roomCreated": "Chat room created",
-        "cannotCreatePlace": "Can't create place in this cloud",
-        "noCloudsError": "No clouds available to configure"
+        "noCloudsError": "No clouds available to configure",
+        "selectCloud": "Select a cloud",
+        "cannotCreatePlace": "Can't create place in this cloud"
     },
     "cloudSessionSheet": {
         "title": "Select Cloud",
@@ -734,6 +735,7 @@
         "accepting": "Accepting...",
         "failed": "Failed to accept invitation",
         "invalidLink": "Invalid invite link",
+        "missingServerInfo": "Server information is missing from the invite link",
         "goBack": "Go Back",
         "decline": "Decline"
     },

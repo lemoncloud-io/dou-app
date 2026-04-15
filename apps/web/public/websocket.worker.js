@@ -8,9 +8,11 @@ let reconnectAttempts = 0;
 let syncInfoInterval = null;
 let syncInfoTimeout = null;
 let waitingForSyncInfo = false;
+let forceReconnectTimer = null;
 
 const SYNC_INFO_INTERVAL = 60000; // 60s
 const SYNC_INFO_TIMEOUT = 5000; // 5s
+const FORCE_RECONNECT_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours
 const MAX_QUEUE_SIZE = 100;
 let messageQueue = [];
 
@@ -121,6 +123,13 @@ const connectWebSocket = config => {
         }
 
         startSyncInfoHeartbeat();
+
+        // Force reconnect after 2 hours
+        if (forceReconnectTimer) clearTimeout(forceReconnectTimer);
+        forceReconnectTimer = setTimeout(() => {
+            self.postMessage({ type: 'log', message: 'Force reconnecting after 2 hours' });
+            if (ws) ws.close();
+        }, FORCE_RECONNECT_INTERVAL);
     };
 
     ws.onmessage = event => {
@@ -162,6 +171,10 @@ const connectWebSocket = config => {
             message: 'Disconnected: ' + event.code + ' ' + event.reason,
         });
         stopSyncInfoHeartbeat();
+        if (forceReconnectTimer) {
+            clearTimeout(forceReconnectTimer);
+            forceReconnectTimer = null;
+        }
         self.postMessage({ type: 'status', status: 'disconnected' });
 
         if (!isManualDisconnect) {
@@ -197,6 +210,10 @@ self.onmessage = e => {
                 clearTimeout(reconnectTimeout);
                 reconnectTimeout = null;
             }
+            if (forceReconnectTimer) {
+                clearTimeout(forceReconnectTimer);
+                forceReconnectTimer = null;
+            }
             stopSyncInfoHeartbeat();
             messageQueue = [];
             if (ws) {
@@ -227,6 +244,28 @@ self.onmessage = e => {
                     messageQueue.shift();
                     messageQueue.push(jsonData);
                 }
+            }
+            break;
+
+        case 'check':
+            // Foreground resume: check if socket is still alive
+            if (!ws || ws.readyState !== 1) {
+                self.postMessage({
+                    type: 'log',
+                    message: 'Check: socket dead (readyState: ' + (ws?.readyState ?? 'null') + '), reconnecting...',
+                });
+                self.postMessage({ type: 'status', status: 'disconnected' });
+                if (ws) {
+                    ws.close();
+                    ws = null;
+                }
+                if (currentConfig && !isManualDisconnect) {
+                    reconnectAttempts = 0;
+                    connectWebSocket(currentConfig);
+                }
+            } else {
+                self.postMessage({ type: 'log', message: 'Check: socket alive' });
+                self.postMessage({ type: 'status', status: 'connected' });
             }
             break;
     }
