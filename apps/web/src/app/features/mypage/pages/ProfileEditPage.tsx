@@ -1,5 +1,5 @@
 import { Camera, User } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -20,15 +20,24 @@ export const ProfileEditPage = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
 
-    const initialName = profile?.$user.name || '';
-    const initialImageUrl = profile?.$user.photo || '';
-
-    const [name, setName] = useState(initialName);
-    const [imageUrl, setImageUrl] = useState(initialImageUrl);
+    const initialRef = useRef({ name: '', imageUrl: '', initialized: false });
+    const [name, setName] = useState((profile?.$user.name || '').slice(0, 30));
+    const [imageUrl, setImageUrl] = useState(profile?.$user.photo || '');
     const [imageSizeError, setImageSizeError] = useState(false);
 
-    const hasChanges = name !== initialName || imageUrl !== initialImageUrl;
-    const isValid = name.trim().length > 0 && name.length <= 20;
+    // profile 로드 시 초기값 고정 및 state 동기화
+    useEffect(() => {
+        if (profile?.$user && !initialRef.current.initialized) {
+            const initName = profile.$user.name || '';
+            const initImage = profile.$user.photo || '';
+            initialRef.current = { name: initName, imageUrl: initImage, initialized: true };
+            if (!name && initName) setName(initName.slice(0, 30));
+            if (!imageUrl && initImage) setImageUrl(initImage);
+        }
+    }, [profile]);
+
+    const hasChanges = name !== initialRef.current.name || imageUrl !== initialRef.current.imageUrl;
+    const isValid = name.trim().length > 0 && name.length <= 30;
 
     const handleSave = async () => {
         if (!isValid || !hasChanges) return;
@@ -36,7 +45,7 @@ export const ProfileEditPage = () => {
         try {
             await updateProfile({
                 name: name.trim(),
-                photo: imageUrl !== initialImageUrl ? imageUrl : undefined,
+                photo: imageUrl !== initialRef.current.imageUrl ? imageUrl : undefined,
             });
 
             navigate(-1);
@@ -105,18 +114,16 @@ export const ProfileEditPage = () => {
                     <label className="mb-2 block text-[14px] font-semibold text-foreground">
                         {t('profileEdit.nameLabel')}
                     </label>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={e => setName(e.target.value.slice(0, 20))}
-                            className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-[15px] text-foreground outline-none transition-colors focus:border-foreground"
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[14px] text-muted-foreground">
-                            {name.length}/20
-                        </span>
+                    <input
+                        type="text"
+                        value={name}
+                        onChange={e => setName(e.target.value.slice(0, 30))}
+                        className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-[15px] text-foreground outline-none transition-colors focus:border-foreground"
+                    />
+                    <div className="mt-2 flex justify-between">
+                        <span className="text-[14px] text-muted-foreground">{t('profileEdit.nameHint')}</span>
+                        <span className="text-[14px] text-muted-foreground">{name.length}/30</span>
                     </div>
-                    <p className="mt-2 text-[14px] text-muted-foreground">{t('profileEdit.nameHint')}</p>
                 </div>
 
                 <div>

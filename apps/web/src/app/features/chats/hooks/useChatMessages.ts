@@ -38,10 +38,23 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
             const messageWithReadBy = { ...message, readBy: message.readBy ?? [message.ownerId] };
 
             if (effectiveChannelId === channelId) {
-                setMessages(prev => (prev.some(m => m.id === message.id) ? prev : [...prev, messageWithReadBy]));
+                setMessages(prev => {
+                    if (prev.some(m => m.id === message.id)) return prev;
+                    // real 메시지가 들어올 때 같은 content의 temp 메시지를 교체
+                    if (!message.id.startsWith('temp-')) {
+                        const tempIdx = prev.findIndex(m => m.id.startsWith('temp-') && m.content === message.content);
+                        if (tempIdx !== -1) {
+                            const next = [...prev];
+                            next[tempIdx] = messageWithReadBy;
+                            return next;
+                        }
+                    }
+                    return [...prev, messageWithReadBy];
+                });
             }
 
-            if (userId) {
+            // optimistic 메시지(temp-id)는 storage에 저장하지 않음
+            if (userId && !message.id.startsWith('temp-')) {
                 await storage.save(userId, effectiveChannelId, messageWithReadBy).catch(console.error);
             }
         },
@@ -89,7 +102,24 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
         [userId, channelId, storage]
     );
 
-    return { messages, addMessage, clearMessages, reloadMessages, markAllAsRead, applyReadEvent };
+    const updateMessage = useCallback((messageId: string, updater: (msg: ClientChatView) => ClientChatView) => {
+        setMessages(prev => prev.map(m => (m.id === messageId ? updater(m) : m)));
+    }, []);
+
+    const removeMessage = useCallback((messageId: string) => {
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+    }, []);
+
+    return {
+        messages,
+        addMessage,
+        updateMessage,
+        removeMessage,
+        clearMessages,
+        reloadMessages,
+        markAllAsRead,
+        applyReadEvent,
+    };
 };
 
 // storage 직접 접근이 필요한 외부 훅용 re-export

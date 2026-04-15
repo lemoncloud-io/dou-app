@@ -82,13 +82,21 @@ export const useListenMessage = () => {
         const isCurrentChannel = window.location.pathname.includes(channelId);
 
         setChannels(prev =>
-            prev.map(ch =>
-                ch.id === channelId
-                    ? { ...ch, lastChat$: { ...envelope.payload, id, content, createdAt: envelope.payload?.createdAt } }
-                    : ch
-            )
+            prev.map(ch => {
+                if (ch.id !== channelId) return ch;
+                const prevChatNo = (ch.lastChat$ as { chatNo?: number } | undefined)?.chatNo ?? 0;
+                if (chatNo && prevChatNo > chatNo) return ch;
+                return {
+                    ...ch,
+                    lastChat$: { ...envelope.payload, id, content, createdAt: envelope.payload?.createdAt },
+                };
+            })
         );
 
-        addMessage({ id, content, timestamp, ownerId, ownerName, chatNo, isRead: isCurrentChannel }, channelId);
+        const isMine = ownerId === profile?.uid;
+        addMessage(
+            { id, content, timestamp, ownerId, ownerName, chatNo, isRead: isCurrentChannel || isMine },
+            channelId
+        );
     }, [lastMessage, addMessage]);
 };
