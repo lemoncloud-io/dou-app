@@ -18,6 +18,11 @@ const listeners: Set<() => void> = new Set();
 let isBootstrapped = false;
 let isCacheLoaded = false;
 
+const BOOTSTRAP_TIMEOUT_MS = 10_000;
+const MAX_BOOTSTRAP_RETRIES = 2;
+let bootstrapRetryCount = 0;
+let bootstrapTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
 const notifyListeners = () => listeners.forEach(l => l());
 
 const getChannelSortTime = (channel: ChannelView): number => {
@@ -34,13 +39,11 @@ const setGlobalState = (channels: ChannelView[], isLoading: boolean, isError: bo
     globalIsError = isError;
     notifyListeners();
 
-    // Save to IndexedDB if not in React Native WebView and saveToDb is true
     if (saveToDb && globalProfileId && !isReactNativeWebView()) {
         IndexedDBChannelAdapter.saveAll(globalProfileId, channels).catch(console.error);
     }
 };
 
-// Load cached channels from IndexedDB
 const loadCachedChannels = async (userId: string) => {
     if (isCacheLoaded || isReactNativeWebView()) return;
     isCacheLoaded = true;
@@ -48,7 +51,6 @@ const loadCachedChannels = async (userId: string) => {
     try {
         const cachedChannels = await IndexedDBChannelAdapter.loadAll(userId);
         if (cachedChannels.length > 0 && globalIsLoading) {
-            // Only set cached channels if we're still loading (socket hasn't responded yet)
             globalChannels = sortChannelsByLatest(cachedChannels);
             notifyListeners();
         }
@@ -57,98 +59,113 @@ const loadCachedChannels = async (userId: string) => {
     }
 };
 
-// 훅 외부에서 싱글톤으로 소켓 메시지 처리
+const clearBootstrapTimeout = () => {
+    if (bootstrapTimeoutId) {
+        clearTimeout(bootstrapTimeoutId);
+        bootstrapTimeoutId = null;
+    }
+};
+
+const emitMineRequest = () => {
+    if (globalEmitAuthenticated) {
+        globalEmitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
+    }
+};
+
+const scheduleBootstrapTimeout = () => {
+    clearBootstrapTimeout();
+    bootstrapTimeoutId = setTimeout(() => {
+        if (!globalIsLoading) return;
+        if (bootstrapRetryCount < MAX_BOOTSTRAP_RETRIES) {
+            bootstrapRetryCount++;
+            console.log(
+                `[useMyChannels] Bootstrap timeout, retrying (${bootstrapRetryCount}/${MAX_BOOTSTRAP_RETRIES})`
+            );
+            emitMineRequest();
+            scheduleBootstrapTimeout();
+        } else {
+            setGlobalState(globalChannels.length > 0 ? globalChannels : [], false, true);
+        }
+    }, BOOTSTRAP_TIMEOUT_MS);
+};
+
 const bootstrap = (emitAuthenticated: (msg: object) => void, profileId: string) => {
     if (isBootstrapped) return;
     isBootstrapped = true;
+    bootstrapRetryCount = 0;
 
-    // Load cached channels first for instant UI (offline-first)
     loadCachedChannels(profileId);
-
-    // Ensure loading state is set (in case of reconnect with existing channels)
     setGlobalState(globalChannels, true, false);
 
-    setTimeout(() => {
-        emitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
-    }, 500);
-
-    let timeoutId: ReturnType<typeof setTimeout> | null = setTimeout(() => {
-        if (globalIsLoading) setGlobalState([], false, true);
-    }, 10000);
-
-    useWebSocketV2Store.subscribe(
-        s => s.lastMessage,
-        lastMessage => {
-            const envelope = lastMessage as WSSEnvelope<{
-                list: ChannelView[];
-                sourceType?: string;
-                userId?: string;
-                channelId?: string;
-            }> | null;
-            if (!envelope) return;
-
-            if (envelope.type === 'model' && envelope.action === 'delete' && envelope.payload?.sourceType === 'join') {
-                const { userId, channelId } = envelope.payload;
-                if (userId === profileId && channelId) {
-                    setGlobalState(
-                        globalChannels.filter(ch => ch.id !== channelId),
-                        false,
-                        false,
-                        true
-                    );
-                    // Also remove from IndexedDB directly
-                    if (!isReactNativeWebView()) {
-                        IndexedDBChannelAdapter.remove(profileId, channelId).catch(console.error);
-                    }
-                }
-                return;
-            }
-
-            if (
-                envelope.type === 'model' &&
-                envelope.action === 'update' &&
-                (envelope.payload as { reason?: string })?.reason === 'channel-deleted'
-            ) {
-                const channelId = (envelope.payload as { channelId?: string })?.channelId;
-                if (channelId) {
-                    setGlobalState(
-                        globalChannels.filter(ch => ch.id !== channelId),
-                        false,
-                        false,
-                        true
-                    );
-                    // Also remove from IndexedDB directly
-                    if (profileId && !isReactNativeWebView()) {
-                        IndexedDBChannelAdapter.remove(profileId, channelId).catch(console.error);
-                    }
-                }
-                return;
-            }
-
-            if (envelope.action === 'update' && envelope.payload?.sourceType === 'channel') {
-                setGlobalState(globalChannels, true, false);
-                emitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
-                return;
-            }
-
-            if (envelope.type !== 'chat') return;
-            if (envelope.action === 'error') {
-                if (timeoutId) {
-                    clearTimeout(timeoutId);
-                    timeoutId = null;
-                }
-                setGlobalState([], false, true);
-                return;
-            }
-            if (envelope.action !== 'mine') return;
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-                timeoutId = null;
-            }
-            setGlobalState(envelope.payload?.list ?? [], false, false, true);
-        }
-    );
+    setTimeout(emitMineRequest, 500);
+    scheduleBootstrapTimeout();
 };
+
+// Single message subscription (module-level, never duplicated)
+useWebSocketV2Store.subscribe(
+    s => s.lastMessage,
+    lastMessage => {
+        const envelope = lastMessage as WSSEnvelope<{
+            list: ChannelView[];
+            sourceType?: string;
+            userId?: string;
+            channelId?: string;
+        }> | null;
+        if (!envelope) return;
+
+        if (envelope.type === 'model' && envelope.action === 'delete' && envelope.payload?.sourceType === 'join') {
+            const { userId, channelId } = envelope.payload;
+            if (userId === globalProfileId && channelId) {
+                setGlobalState(
+                    globalChannels.filter(ch => ch.id !== channelId),
+                    false,
+                    false,
+                    true
+                );
+                if (!isReactNativeWebView()) {
+                    IndexedDBChannelAdapter.remove(globalProfileId, channelId).catch(console.error);
+                }
+            }
+            return;
+        }
+
+        if (
+            envelope.type === 'model' &&
+            envelope.action === 'update' &&
+            (envelope.payload as { reason?: string })?.reason === 'channel-deleted'
+        ) {
+            const channelId = (envelope.payload as { channelId?: string })?.channelId;
+            if (channelId) {
+                setGlobalState(
+                    globalChannels.filter(ch => ch.id !== channelId),
+                    false,
+                    false,
+                    true
+                );
+                if (globalProfileId && !isReactNativeWebView()) {
+                    IndexedDBChannelAdapter.remove(globalProfileId, channelId).catch(console.error);
+                }
+            }
+            return;
+        }
+
+        if (envelope.action === 'update' && envelope.payload?.sourceType === 'channel') {
+            setGlobalState(globalChannels, true, false);
+            emitMineRequest();
+            return;
+        }
+
+        if (envelope.type !== 'chat') return;
+        if (envelope.action === 'error') {
+            clearBootstrapTimeout();
+            setGlobalState([], false, true);
+            return;
+        }
+        if (envelope.action !== 'mine') return;
+        clearBootstrapTimeout();
+        setGlobalState(envelope.payload?.list ?? [], false, false, true);
+    }
+);
 
 const setChannels = (updater: ChannelView[] | ((prev: ChannelView[]) => ChannelView[])) => {
     const next = typeof updater === 'function' ? updater(globalChannels) : updater;
@@ -162,7 +179,6 @@ const removeChannel = (channelId: string) => {
         false,
         true
     );
-    // Also remove from IndexedDB directly
     if (globalProfileId && !isReactNativeWebView()) {
         IndexedDBChannelAdapter.remove(globalProfileId, channelId).catch(console.error);
     }
@@ -188,6 +204,7 @@ useWebSocketV2Store.subscribe(
         if (!isConnected) {
             isBootstrapped = false;
             isCacheLoaded = false;
+            clearBootstrapTimeout();
         }
     }
 );
@@ -225,10 +242,20 @@ if (typeof BroadcastChannel !== 'undefined' && !isReactNativeWebView()) {
     };
 }
 
+// Foreground resync: re-bootstrap when app returns from background
+if (typeof window !== 'undefined') {
+    window.addEventListener('foreground-resync', () => {
+        if (!globalEmitAuthenticated || !globalProfileId) return;
+        isBootstrapped = false;
+        isCacheLoaded = false;
+        bootstrap(globalEmitAuthenticated, globalProfileId);
+    });
+}
+
 const retryMine = () => {
     if (!globalEmitAuthenticated) return;
     setGlobalState([], true, false);
-    globalEmitAuthenticated({ type: 'chat', action: 'mine', payload: { detail: true } });
+    emitMineRequest();
 };
 
 export const useMyChannels = () => {

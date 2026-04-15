@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, LogOut, Mail, XCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, Mail, MessageSquare, XCircle } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -52,6 +52,17 @@ export const DebugPage = () => {
                                 <span className="text-[15px] font-medium text-foreground">
                                     {t('mypageLogin.title', { defaultValue: 'Email Login' })}
                                 </span>
+                            </div>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                        <div className="mx-4 border-t border-border" />
+                        <button
+                            onClick={() => navigate('/mypage/debug/dashboard')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <MessageSquare size={18} className="text-muted-foreground" />
+                                <span className="text-[15px] font-medium text-foreground">Chat Test Dashboard</span>
                             </div>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>

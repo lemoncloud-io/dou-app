@@ -11,32 +11,38 @@ import type { ClientChatView } from '../types';
  * 백그라운드에서 `chat:feed`를 통해 서버와 최신/과거 데이터를 동기화
  */
 export const useChats = (initialParams: ChatFeedPayload) => {
-    const targetChannelId = initialParams.channelId ?? 'default';
+    const targetChannelId = initialParams.channelId;
 
     const { emitAuthenticated, cloudId } = useWebSocketV2();
     const chatRepository = useChatRepository(cloudId);
     const joinRepository = useJoinRepository(cloudId);
 
     const [messages, setMessages] = useState<ClientChatView[]>([]);
+    const [status, setStatus] = useState({
+        isLoading: true,
+        isSyncing: false,
+        isError: false,
+    });
 
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSyncing, setIsSyncing] = useState(false);
-    const [isError, setIsError] = useState(false);
-
+    // 최신 파라미터 상태를 유지하기 위한 Ref
     const currentParamsRef = useRef<ChatFeedPayload>(initialParams);
+
     /**
      * 로컬 DB에서 데이터 패칭 및 ClientChatView로의 매핑/정렬/필터링
      */
     const requestFromLocal = useCallback(
         async (params?: ChatFeedPayload) => {
             try {
-                setIsError(false);
-
                 if (params) {
                     currentParamsRef.current = { ...currentParamsRef.current, ...params };
                 }
                 const activeParams = currentParamsRef.current;
                 const channelId = activeParams.channelId ?? targetChannelId;
+                if (!channelId) {
+                    setMessages([]);
+                    setStatus(prev => ({ ...prev, isLoading: false, isError: false }));
+                    return;
+                }
 
                 const [rawMsgs, activeJoins] = await Promise.all([
                     chatRepository.getChatsByChannel(channelId),
@@ -76,13 +82,15 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                     const page = activeParams.page ?? 0;
                     processedData = processedData.slice(-(limit * (page + 1)));
                 }
-
                 setMessages(processedData);
+                setStatus({
+                    isLoading: false,
+                    isSyncing: false,
+                    isError: false,
+                });
             } catch (error) {
                 console.error(`Failed to load chats for channel ${targetChannelId}:`, error);
-                setIsError(true);
-            } finally {
-                setIsLoading(false);
+                setStatus(prev => ({ ...prev, isLoading: false, isError: true }));
             }
         },
         [targetChannelId, chatRepository, joinRepository]
@@ -93,23 +101,25 @@ export const useChats = (initialParams: ChatFeedPayload) => {
      */
     const requestFromNetwork = useCallback(
         (params?: ChatFeedPayload) => {
-            if (targetChannelId === 'default') return; // 기본 상태일 땐 요청 방지
-
-            setIsSyncing(true);
-
             if (params) {
                 currentParamsRef.current = { ...currentParamsRef.current, ...params };
             }
             const activeParams = currentParamsRef.current;
-            if (!activeParams.channelId) activeParams.channelId = targetChannelId;
+            const channelId = activeParams.channelId ?? targetChannelId;
 
+            if (!channelId) return;
+
+            setStatus(prev => ({ ...prev, isSyncing: true }));
             emitAuthenticated({
                 type: 'chat',
                 action: 'feed',
-                payload: activeParams,
+                payload: {
+                    ...activeParams,
+                    channelId: channelId,
+                },
             });
 
-            setTimeout(() => setIsSyncing(false), 5000);
+            setTimeout(() => setStatus(prev => ({ ...prev, isSyncing: false })), 5000);
         },
         [targetChannelId, emitAuthenticated]
     );
@@ -118,9 +128,11 @@ export const useChats = (initialParams: ChatFeedPayload) => {
      * 초기 마운트 및 채널 변경 시 로드
      */
     useEffect(() => {
+        currentParamsRef.current = initialParams;
+        setStatus(prev => ({ ...prev, isLoading: true }));
         void requestFromLocal(initialParams);
         requestFromNetwork(initialParams);
-    }, [requestFromLocal, requestFromNetwork, initialParams]);
+    }, [targetChannelId, requestFromLocal, requestFromNetwork]);
 
     /**
      * 통합 이벤트 버스 구독
@@ -128,28 +140,21 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     useEffect(() => {
         const handleUpdate = (e: Event) => {
             const { detail } = e as CustomEvent<AppSyncDetail>;
-
-            const isRelevantDomain = detail.domain === 'chat' || detail.domain === 'join';
-            const isMyCloud = detail.cid === chatRepository.cloudId;
-            const isMyChannel = detail.targetId === targetChannelId;
-
-            if (isRelevantDomain && isMyCloud && isMyChannel) {
-                // 이벤트 수신 시에는 초기 렌더링 파라미터 기준 최신화
-                void requestFromLocal();
-                setIsSyncing(false);
+            if (detail.domain === 'chat' || detail.domain === 'join') {
+                if (detail.cid === chatRepository.cloudId && detail.targetId === targetChannelId) {
+                    void requestFromLocal();
+                }
             }
         };
-
         window.addEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
         return () => window.removeEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
     }, [targetChannelId, chatRepository.cloudId, requestFromLocal]);
 
     return {
         messages,
-        isLoading,
-        isSyncing,
-        isError,
+        ...status,
         refresh: (options?: ChatFeedPayload) => {
+            setStatus(prev => ({ ...prev, isLoading: true }));
             void requestFromLocal(options);
             requestFromNetwork(options);
         },

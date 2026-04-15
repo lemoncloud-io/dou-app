@@ -252,3 +252,11 @@ export interface AppleOAuthTokenResult extends BaseTokenResult {
 }
 
 export type OAuthTokenResult = GoogleOAuthTokenResult | AppleOAuthTokenResult;
+
+/**
+ * 앱 백그라운드/포그라운드 상태
+ * - active: 앱이 포그라운드에서 실행 중
+ * - background: 앱이 백그라운드에 숨겨짐
+ * - inactive: (iOS) 전화가 오거나 알림창을 내리는 등 전환 중인 상태
+ */
+export type AppBackgroundStatus = 'active' | 'background' | 'inactive';

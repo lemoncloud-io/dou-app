@@ -6,5 +6,11 @@
             "path": "./tsconfig.lib.json"
         }
     ],
-    "extends": "../../tsconfig.base.json"
+    "extends": "../../tsconfig.base.json",
+    "ts-node": {
+        "compilerOptions": {
+            "module": "commonjs",
+            "moduleResolution": "node"
+        }
+    }
 }

@@ -23,7 +23,8 @@ export const usePlaceRepository = (cloudId: string) => {
     const getPlacesByCloud = useCallback(async (targetCloudId: string): Promise<CacheSiteView[]> => {
         if (!targetCloudId) return [];
         const targetDB = createStorageAdapter<CacheSiteView>('site', targetCloudId);
-        return await targetDB.loadAll();
+        const places = await targetDB.loadAll();
+        return places.filter(place => place.cid === targetCloudId);
     }, []);
 
     /**
