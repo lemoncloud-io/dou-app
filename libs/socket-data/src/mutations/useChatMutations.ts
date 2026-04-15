@@ -3,13 +3,11 @@ import { useWebSocketV2 } from '@chatic/socket';
 import type { ChatView } from '@lemoncloud/chatic-socials-api';
 import { useDynamicProfile } from '@chatic/web-core';
 import type { AppSyncDetail } from '../sync-events';
-import { notifyAppUpdated } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import type { ChatReadPayload, ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
 import { useChatRepository } from '../repository';
-import type { CacheChatView } from '@chatic/app-messages';
 
-type ChatMutationAction = 'send' | 'read' | 'delete';
+type ChatMutationAction = 'send' | 'read';
 
 /**
  * 메시지 전송, 읽음 처리 등 채팅 상태를 변경하고 작업 진행 상태를 관리하는 훅
@@ -23,7 +21,6 @@ export const useChatMutations = () => {
     const [pendingStates, setPendingStates] = useState<Record<ChatMutationAction, boolean>>({
         send: false,
         read: false,
-        delete: false,
     });
 
     const cleanup = useCallback(
@@ -57,39 +54,19 @@ export const useChatMutations = () => {
                     }
                 };
 
+                const timeoutId = setTimeout(() => {
+                    cleanup(action, onUpdate, timeoutId);
+                    reject(new Error('Message send timeout.'));
+                }, 5000);
+
                 // 로컬 DB 선저장
-                const tempMessage: CacheChatView = {
+                const tempMessage = {
                     id: tempId,
                     channelId: payload.channelId,
                     content: payload.content,
                     ownerId: userId,
                     createdAt: Date.now(),
-                    isPending: true,
-                    isFailed: false,
-                };
-
-                // 소켓 통신 타임 아웃시, chat 캐싱 업데이트
-                const timeoutId = setTimeout(() => {
-                    cleanup(action, onUpdate, timeoutId);
-                    const failedMsg = {
-                        ...tempMessage,
-                        isPending: false,
-                        isFailed: true,
-                    };
-                    repository
-                        .saveChat(tempId, failedMsg)
-                        .then(() => {
-                            notifyAppUpdated({
-                                domain: 'chat',
-                                action: 'send',
-                                cid: cloudId,
-                                targetId: payload.channelId,
-                                payload: failedMsg,
-                            });
-                        })
-                        .catch(console.error);
-                    reject(new Error('Message send timeout.'));
-                }, 5000);
+                } as ChatView;
 
                 // DB 저장 완료 후 소켓 발송
                 repository.saveChat(tempId, tempMessage).then(() => {
@@ -104,38 +81,6 @@ export const useChatMutations = () => {
             });
         },
         [userId, repository, emitAuthenticated, cleanup]
-    );
-
-    /**
-     * 메시지 삭제
-     * 전송 실패한 메시지를 로컬에서 제거할때 사용
-     */
-    const deleteMessage = useCallback(
-        async (messageId: string, channelId: string): Promise<void> => {
-            if (!messageId) return Promise.reject(new Error('messageId is required'));
-
-            const action: ChatMutationAction = 'delete';
-            setPendingStates(prev => ({ ...prev, [action]: true }));
-
-            try {
-                // 1로컬 DB에서 메시지 삭제
-                await repository.deleteChat(messageId);
-
-                // UI 갱신을 위해 앱 전체에 동기화 알림 방출
-                notifyAppUpdated({
-                    domain: 'chat',
-                    action: 'delete',
-                    cid: cloudId,
-                    targetId: channelId,
-                });
-            } catch (error) {
-                console.error('Failed to delete chat:', error);
-                throw error;
-            } finally {
-                setPendingStates(prev => ({ ...prev, [action]: false }));
-            }
-        },
-        [repository, cloudId]
     );
 
     /**
@@ -179,6 +124,5 @@ export const useChatMutations = () => {
         isPending: pendingStates,
         sendMessage,
         readMessage,
-        deleteMessage,
     };
 };

@@ -1,8 +1,5 @@
-import { useMyChannels } from '../../../home/hooks/useMyChannels';
+import { useMyChannels } from '../../home/hooks/useMyChannels';
 
-/**
- * @deprecated deprecated by raine; 신규 훅으로 대체
- */
 export const useMyChannel = (channelId: string | null) => {
     const { channels, isLoading, isError } = useMyChannels();
 

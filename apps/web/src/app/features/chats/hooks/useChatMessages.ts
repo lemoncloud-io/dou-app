@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { BROADCAST_CHANNEL_NAME } from '../../storages';
+import { BROADCAST_CHANNEL_NAME } from '../storages';
 import { useDynamicStorage } from './useDynamicStorage';
 import type { ClientChatView } from '@chatic/chats';
 
-/**
- * @deprecated deprecated by raine; 신규 훅으로 대체
- */
 export const useChatMessages = (userId: string | null, channelId: string | null) => {
     const storage = useDynamicStorage();
     const [messages, setMessages] = useState<ClientChatView[]>([]);

@@ -8,9 +8,9 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/u
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import { useUpdateChannel } from '../hooks/useUpdateChannel';
+import { useMyChannel } from '../hooks/useMyChannel';
 import type { ChatStartBody } from '@lemoncloud/chatic-socials-api';
-
-import { useChannel, useChannelMutations } from '@chatic/socket-data';
 
 interface UpdateChannelDialogProps {
     open: boolean;
@@ -20,10 +20,9 @@ interface UpdateChannelDialogProps {
 
 export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateChannelDialogProps) => {
     const { t } = useTranslation();
+    const { updateChannel, isPending } = useUpdateChannel();
+    const { channel } = useMyChannel(channelId ?? null);
     const { toast } = useToast();
-
-    const { channel } = useChannel(channelId ?? null);
-    const { updateChannel, isPending } = useChannelMutations();
 
     const {
         register,
@@ -112,6 +111,42 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                                     )}
                                 </div>
                             </div>
+
+                            {/* Room Description Input */}
+                            {/* <div className="flex flex-col justify-center items-center gap-1.5 px-4 rounded-lg">
+                                <div className="flex flex-col gap-1.5 w-full">
+                                    <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-[#9FA2A7]">
+                                        방 설명
+                                    </Label>
+                                    <Input
+                                        {...register('desc')}
+                                        placeholder="예: UIUX 스터디를 위한 방입니다"
+                                        className="h-11 px-3.5 bg-surface border border-input-border rounded-[10px] text-[15px] font-medium leading-[1.45] tracking-[0.005em] placeholder:text-description"
+                                    />
+                                </div>
+                            </div> */}
+
+                            {/* Room Image Section */}
+                            {/* <div className="flex flex-col gap-1.5 px-[18px]">
+                                <Label className="text-[14px] font-semibold leading-[1.571] tracking-[0.005em] text-[#9FA2A7]">
+                                    방 이미지 [선택]
+                                </Label>
+                                <div className="flex flex-col justify-center items-center gap-1.5">
+                                    <div className="relative w-[114px] h-[114px]">
+                                        <div className="flex items-center justify-center w-[114px] h-[114px] bg-[#F7F7F7] rounded-[14px]">
+                                            <div className="w-14 h-14 rounded-full bg-[#53555B]" />
+                                        </div>
+                                        <div className="absolute bottom-0 right-0 flex items-center justify-center w-[34px] h-[34px] bg-[#B0EA10] rounded-full">
+                                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                                <path
+                                                    d="M0.833984 12.5L2.50065 10.8333L7.50065 15.8333L17.5007 5.83333L19.1673 7.5L7.50065 19.1667L0.833984 12.5Z"
+                                                    fill="white"
+                                                />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div> */}
                         </div>
                     </div>
 
@@ -120,10 +155,10 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                         <div className="flex flex-col gap-4 px-4 pt-5 pb-4">
                             <Button
                                 type="submit"
-                                disabled={isPending.update}
+                                disabled={isPending}
                                 className="flex items-center justify-center gap-1.5 h-[50px] px-6 py-3 bg-[#B0EA10] rounded-full text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-muted disabled:text-muted-foreground"
                             >
-                                {isPending.update ? t('updateChannel.updating') : t('updateChannel.done')}
+                                {isPending ? t('updateChannel.updating') : t('updateChannel.done')}
                             </Button>
                         </div>
                         <div

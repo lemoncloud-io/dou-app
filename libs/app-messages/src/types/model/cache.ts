@@ -1,5 +1,5 @@
 import type { ChannelView, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
-import type { CloudView, MyInviteView, MySiteView, UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type { CloudView, MyInviteView, MySiteView, SiteView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 export interface InviteCloudView extends MyInviteView {
     id: string;
@@ -20,9 +20,9 @@ export type PreferenceKey = 'isFirstRun' | 'theme' | 'language';
 interface CacheModelMap {
     channel: CacheChannelView;
     cloud: CloudView;
-    chat: CacheChatView;
+    chat: ChatView;
     user: UserView;
-    site: CacheSiteView;
+    site: SiteView;
     join: JoinView;
     usertoken: UserTokenView;
     invitecloud: InviteCloudView;
@@ -171,12 +171,4 @@ export interface CacheChannelView extends ChannelView {
  */
 export interface CacheSiteView extends MySiteView {
     cid: string;
-}
-
-/**
- * 캐싱 전용 채팅 타입
- */
-export interface CacheChatView extends ChatView {
-    isPending?: boolean;
-    isFailed?: boolean;
 }
