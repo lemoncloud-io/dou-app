@@ -1,6 +1,6 @@
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 
-import type { ChannelState } from './channelTypes';
+import type { ChannelLoadStatus, ChannelState } from './channelTypes';
 import { isReactNativeWebView, sortChannelsByLatest } from './channelTypes';
 import { IndexedDBChannelAdapter } from '../../chats/storages/IndexedDBChannelAdapter';
 
@@ -65,10 +65,27 @@ const removePersistedChannel = (userId: string, channelId: string) => {
  * Key invariant: once status is 'cached' or 'ready', isLoading never becomes true
  */
 
+const VALID_TRANSITIONS: Record<ChannelLoadStatus, ChannelLoadStatus[]> = {
+    idle: ['cached', 'loading'],
+    cached: ['ready', 'loading'],
+    loading: ['ready', 'error'],
+    ready: ['ready', 'loading'],
+    error: ['loading'],
+};
+
 export const transition = (next: Partial<ChannelState> & { channels?: ChannelView[] }, { saveToDb = false } = {}) => {
+    const nextStatus = next.status ?? state.status;
+
+    if (next.status && next.status !== state.status) {
+        const allowed = VALID_TRANSITIONS[state.status];
+        if (!allowed.includes(next.status)) {
+            console.warn(`[Channels] Invalid transition: ${state.status} → ${next.status}`);
+        }
+    }
+
     const channels = next.channels !== undefined ? sortChannelsByLatest(next.channels) : state.channels;
     state = {
-        status: next.status ?? state.status,
+        status: nextStatus,
         channels,
         retryCount: next.retryCount ?? state.retryCount,
     };
@@ -160,11 +177,13 @@ export const handleMineResponse = (channels: ChannelView[]) => {
 
 export const handleMineError = () => {
     clearBootstrapTimeout();
-    transition({ status: 'error', channels: [], retryCount: 0 });
+    // Preserve existing channels — stale data is better than empty screen
+    transition({ status: 'error', retryCount: 0 });
 };
 
 export const retryMine = () => {
     if (!globalEmitAuthenticated) return;
-    transition({ status: 'loading', channels: [], retryCount: 0 });
+    transition({ status: 'loading', retryCount: 0 });
     emitMineRequest();
+    scheduleBootstrapTimeout();
 };

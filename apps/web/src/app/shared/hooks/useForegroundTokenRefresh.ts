@@ -6,15 +6,11 @@ const DEBOUNCE_MS = 300;
 
 export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) => {
     const { isAuthenticated } = useWebCoreStore();
-    const lastHiddenAt = useRef<number>(0);
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         const handleVisibilityChange = () => {
-            if (document.visibilityState === 'hidden') {
-                lastHiddenAt.current = Date.now();
-                return;
-            }
+            if (document.visibilityState === 'hidden') return;
             if (document.visibilityState !== 'visible') return;
             if (!isAuthenticated) return;
 
@@ -26,13 +22,13 @@ export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) 
         };
 
         const handleForegroundResume = async () => {
-            // Check socket health and wait for result
-            const socketStatus = await checkSocketHealth().catch(() => 'reconnecting' as const);
+            // Socket health check and token refresh are independent — run in parallel
+            const [socketStatus] = await Promise.all([
+                checkSocketHealth().catch(() => 'reconnecting' as const),
+                refreshToken().catch(() => false),
+            ]);
 
-            // 1. webCore token refresh
-            await refreshToken();
-
-            // 2. Cloud token refresh (only when delegation token exists)
+            // Cloud token refresh (only when delegation token exists)
             if (cloudCore.getSelectedCloudId() && cloudCore.getDelegationToken()) {
                 try {
                     await cloudCore.refreshToken();
@@ -41,8 +37,7 @@ export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) 
                 }
             }
 
-            // 3. Re-send auth only if socket was alive (not reconnecting)
-            // If reconnecting, useCloudTokenRefresh handles auth on isConnected change
+            // Re-send auth only if socket was alive (not reconnecting)
             if (socketStatus === 'connected') {
                 const send = getSocketSend();
                 if (send) {
