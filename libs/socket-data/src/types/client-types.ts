@@ -35,6 +35,11 @@ export interface ClientChatView extends ChatView {
      * 메시지 작성자
      */
     ownerName: string;
+
+    /**
+     * 나의 채팅인지에 대한 여부
+     */
+    isOwner: boolean;
 }
 
 /**

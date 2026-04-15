@@ -3,9 +3,11 @@ import { useWebSocketV2 } from '@chatic/socket';
 import type { ChatView } from '@lemoncloud/chatic-socials-api';
 import { useDynamicProfile } from '@chatic/web-core';
 import type { AppSyncDetail } from '../sync-events';
+import { notifyAppUpdated } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import type { ChatReadPayload, ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
 import { useChatRepository } from '../repository';
+import type { CacheChatView } from '@chatic/app-messages';
 
 type ChatMutationAction = 'send' | 'read';
 
@@ -54,19 +56,39 @@ export const useChatMutations = () => {
                     }
                 };
 
-                const timeoutId = setTimeout(() => {
-                    cleanup(action, onUpdate, timeoutId);
-                    reject(new Error('Message send timeout.'));
-                }, 5000);
-
                 // 로컬 DB 선저장
-                const tempMessage = {
+                const tempMessage: CacheChatView = {
                     id: tempId,
                     channelId: payload.channelId,
                     content: payload.content,
                     ownerId: userId,
                     createdAt: Date.now(),
-                } as ChatView;
+                    isPending: true,
+                    isFailed: false,
+                };
+
+                // 소켓 통신 타임 아웃시, chat 캐싱 업데이트
+                const timeoutId = setTimeout(() => {
+                    cleanup(action, onUpdate, timeoutId);
+                    const failedMsg = {
+                        ...tempMessage,
+                        isPending: false,
+                        isFailed: true,
+                    };
+                    repository
+                        .saveChat(tempId, failedMsg)
+                        .then(() => {
+                            notifyAppUpdated({
+                                domain: 'chat',
+                                action: 'send',
+                                cid: cloudId,
+                                targetId: payload.channelId,
+                                payload: failedMsg,
+                            });
+                        })
+                        .catch(console.error);
+                    reject(new Error('Message send timeout.'));
+                }, 5000);
 
                 // DB 저장 완료 후 소켓 발송
                 repository.saveChat(tempId, tempMessage).then(() => {
