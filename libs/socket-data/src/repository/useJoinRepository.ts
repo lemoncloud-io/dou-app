@@ -21,7 +21,7 @@ export const useJoinRepository = (cloudId: string) => {
         async (channelId: string): Promise<JoinView[]> => {
             if (!joinDB) return [];
             const joins = await joinDB.loadAll();
-            return joins.filter(j => j.channelId === channelId);
+            return joins.filter(j => j.channelId === channelId && (j.joined === 1 || j.joined === undefined));
         },
         [joinDB]
     );
