@@ -135,8 +135,9 @@ export const ChatRoomPage = () => {
             sendMessage(targetChannelId, messageContent, {
                 tempId,
                 onSuccess: (tid, chatView) => {
-                    const resolved = { ...toClientChatView(chatView), isRead: true, status: undefined as const };
-                    updateMessage(tid, () => resolved);
+                    removeMessage(tid);
+                    const resolved = { ...toClientChatView(chatView), isRead: true };
+                    addMessage(resolved, targetChannelId);
 
                     const chatNo = chatView.chatNo;
                     if (chatNo && uid) {
@@ -145,19 +146,20 @@ export const ChatRoomPage = () => {
                     }
 
                     setChannels(prev =>
-                        prev.map(ch =>
-                            ch.id === targetChannelId
-                                ? {
-                                      ...ch,
-                                      lastChat$: {
-                                          ...chatView,
-                                          id: chatView.id || '0',
-                                          content: messageContent,
-                                          createdAt: chatView.createdAt,
-                                      },
-                                  }
-                                : ch
-                        )
+                        prev.map(ch => {
+                            if (ch.id !== targetChannelId) return ch;
+                            const prevChatNo = (ch.lastChat$ as { chatNo?: number } | undefined)?.chatNo ?? 0;
+                            if (chatNo && prevChatNo > chatNo) return ch;
+                            return {
+                                ...ch,
+                                lastChat$: {
+                                    ...chatView,
+                                    id: chatView.id || '0',
+                                    content: messageContent,
+                                    createdAt: chatView.createdAt,
+                                },
+                            };
+                        })
                     );
                 },
                 onError: tid => {
@@ -166,7 +168,18 @@ export const ChatRoomPage = () => {
                 },
             });
         },
-        [dynamicProfile, sendMessage, addMessage, updateMessage, emit, applyReadEvent, setChannels, toast, t]
+        [
+            dynamicProfile,
+            sendMessage,
+            addMessage,
+            removeMessage,
+            updateMessage,
+            emit,
+            applyReadEvent,
+            setChannels,
+            toast,
+            t,
+        ]
     );
 
     const handleSend = useCallback(

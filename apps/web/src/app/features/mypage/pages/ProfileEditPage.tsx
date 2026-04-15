@@ -1,5 +1,5 @@
 import { Camera, User } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -26,13 +26,15 @@ export const ProfileEditPage = () => {
     const [imageSizeError, setImageSizeError] = useState(false);
 
     // profile 로드 시 초기값 고정 및 state 동기화
-    if (profile?.$user && !initialRef.current.initialized) {
-        const initName = profile.$user.name || '';
-        const initImage = profile.$user.photo || '';
-        initialRef.current = { name: initName, imageUrl: initImage, initialized: true };
-        if (!name && initName) setName(initName.slice(0, 30));
-        if (!imageUrl && initImage) setImageUrl(initImage);
-    }
+    useEffect(() => {
+        if (profile?.$user && !initialRef.current.initialized) {
+            const initName = profile.$user.name || '';
+            const initImage = profile.$user.photo || '';
+            initialRef.current = { name: initName, imageUrl: initImage, initialized: true };
+            if (initName) setName(initName.slice(0, 30));
+            if (initImage) setImageUrl(initImage);
+        }
+    }, [profile]);
 
     const hasChanges = name !== initialRef.current.name || imageUrl !== initialRef.current.imageUrl;
     const isValid = name.trim().length > 0 && name.length <= 30;

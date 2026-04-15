@@ -107,7 +107,8 @@ export const IndexedDBStorageAdapter: ChatStorageAdapter = {
         return new Promise((resolve, reject) => {
             const request = index.getAll(getChatKey(userId, channelId));
             request.onerror = () => reject(request.error);
-            request.onsuccess = () => resolve(request.result.filter((m: StoredMessage) => m.isRead === false).length);
+            request.onsuccess = () =>
+                resolve(request.result.filter((m: StoredMessage) => m.isRead === false && m.ownerId !== userId).length);
         });
     },
 

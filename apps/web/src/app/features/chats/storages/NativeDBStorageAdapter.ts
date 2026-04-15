@@ -111,7 +111,7 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
      * @param userId join 정보를 찾기 위한 userId
      * @param channelId join 정보 찾기 및 메시지 정보를 조회하기 위해 사용
      */
-    countUnread: async (_userId, channelId) => {
+    countUnread: async (userId, channelId) => {
         const nonce = generateNonce();
         const response = await waitForAppMessage(
             'OnFetchAllCacheData',
@@ -123,7 +123,8 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
                     nonce,
                 })
         );
-        return (response.data.items as ChatView[]).filter(chat => !(chat as any).isRead).length;
+        return (response.data.items as ChatView[]).filter(chat => !(chat as any).isRead && chat.ownerId !== userId)
+            .length;
     },
 
     markAllRead: async (userId, channelId) => {

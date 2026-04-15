@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import type { ChatView } from '@lemoncloud/chatic-socials-api';
@@ -12,69 +12,62 @@ interface SendMessageOptions {
     onError: (tempId: string) => void;
 }
 
-interface QueueItem {
-    channelId: string;
+interface PendingItem {
+    tempId: string;
     content: string;
-    options: SendMessageOptions;
+    onSuccess: (tempId: string, chatView: ChatView) => void;
+    onError: (tempId: string) => void;
+    timer: ReturnType<typeof setTimeout>;
 }
 
 export const useSendMessage = () => {
     const { emitAuthenticated } = useWebSocketV2();
-    const queueRef = useRef<QueueItem[]>([]);
-    const processingRef = useRef(false);
+    const pendingRef = useRef<PendingItem[]>([]);
 
-    const processNext = useCallback(() => {
-        if (processingRef.current || queueRef.current.length === 0) return;
-
-        processingRef.current = true;
-        const { channelId, content, options } = queueRef.current[0];
-        const { tempId, onSuccess, onError } = options;
-
-        let settled = false;
-
-        const finish = () => {
-            settled = true;
-            unsub();
-            clearTimeout(timer);
-            queueRef.current.shift();
-            processingRef.current = false;
-            processNext();
-        };
-
+    useEffect(() => {
         const unsub = useWebSocketV2Store.subscribe(
             s => s.lastMessage,
             (envelope: WSSEnvelope<ChatView> | null) => {
-                if (settled || envelope?.type !== 'chat') return;
+                if (!envelope || envelope.type !== 'chat' || pendingRef.current.length === 0) return;
 
-                if (envelope.action === 'error') {
-                    finish();
-                    onError(tempId);
+                if (envelope.action === 'send') {
+                    const payload = envelope.payload as ChatView;
+                    const idx = pendingRef.current.findIndex(p => p.content === payload.content);
+                    if (idx === -1) return;
+                    const item = pendingRef.current[idx];
+                    pendingRef.current.splice(idx, 1);
+                    clearTimeout(item.timer);
+                    item.onSuccess(item.tempId, payload);
                     return;
                 }
 
-                if (envelope.action !== 'send') return;
-
-                finish();
-                onSuccess(tempId, envelope.payload as ChatView);
+                if (envelope.action === 'error') {
+                    const item = pendingRef.current.shift();
+                    if (!item) return;
+                    clearTimeout(item.timer);
+                    item.onError(item.tempId);
+                }
             }
         );
-
-        const timer = setTimeout(() => {
-            if (!settled) {
-                finish();
-                onError(tempId);
-            }
-        }, SEND_TIMEOUT_MS);
-
-        emitAuthenticated({ type: 'chat', action: 'send', payload: { channelId, content } });
-    }, [emitAuthenticated]);
+        return unsub;
+    }, []);
 
     const sendMessage = useCallback(
         (channelId: string, content: string, options: SendMessageOptions) => {
-            queueRef.current.push({ channelId, content, options });
-            processNext();
+            const { tempId, onSuccess, onError } = options;
+
+            const timer = setTimeout(() => {
+                const idx = pendingRef.current.findIndex(p => p.tempId === tempId);
+                if (idx !== -1) {
+                    pendingRef.current.splice(idx, 1);
+                    onError(tempId);
+                }
+            }, SEND_TIMEOUT_MS);
+
+            pendingRef.current.push({ tempId, content, onSuccess, onError, timer });
+            emitAuthenticated({ type: 'chat', action: 'send', payload: { channelId, content } });
         },
-        [processNext]
+        [emitAuthenticated]
     );
 
     return { sendMessage };
