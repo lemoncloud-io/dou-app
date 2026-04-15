@@ -19,10 +19,35 @@ let globalEmitFn: ((data: unknown) => void) | null = null;
 let globalEmitAuthenticatedFn: ((data: unknown) => void) | null = null;
 
 export const getSocketSend = () => globalSendFn;
-export const checkSocketHealth = () => {
-    if (globalWorkerRef) {
-        globalWorkerRef.postMessage({ type: 'check' });
-    }
+
+const HEALTH_CHECK_TIMEOUT_MS = 3_000;
+
+/** Check socket health via Worker. Returns 'connected' if alive, 'reconnecting' if dead/reconnecting. */
+export const checkSocketHealth = (): Promise<'connected' | 'reconnecting'> => {
+    if (!globalWorkerRef) return Promise.resolve('reconnecting');
+
+    return new Promise(resolve => {
+        let settled = false;
+        const worker = globalWorkerRef!;
+
+        const handler = (e: MessageEvent) => {
+            if (settled || e.data.type !== 'status') return;
+            settled = true;
+            worker.removeEventListener('message', handler);
+            clearTimeout(timer);
+            resolve(e.data.status === 'connected' ? 'connected' : 'reconnecting');
+        };
+
+        worker.addEventListener('message', handler);
+        worker.postMessage({ type: 'check' });
+
+        const timer = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            worker.removeEventListener('message', handler);
+            resolve('reconnecting');
+        }, HEALTH_CHECK_TIMEOUT_MS);
+    });
 };
 
 export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {

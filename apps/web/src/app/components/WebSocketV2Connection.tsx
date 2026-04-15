@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { useLoaderStore } from '@chatic/shared';
-import { cloudCore, useUserContext } from '@chatic/web-core';
+import { cloudCore, wasBootstrappedFromCache, useUserContext } from '@chatic/web-core';
 
 import { useListenMessage } from '../features/chats/hooks/useListenMessage';
 import { useMyChannels } from '../features/home/hooks/useMyChannels';
@@ -32,7 +32,7 @@ export const WebSocketV2Connection = () => {
     const isSocketConnecting = connectionStatus === 'connecting' || (connectionStatus === 'connected' && !isVerified);
 
     useEffect(() => {
-        if (isSocketConnecting) {
+        if (isSocketConnecting && !wasBootstrappedFromCache()) {
             setGlobalLoading(true);
         } else {
             setGlobalLoading(false);

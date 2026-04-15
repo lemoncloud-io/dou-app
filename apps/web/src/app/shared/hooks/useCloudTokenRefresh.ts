@@ -5,8 +5,10 @@ import { cloudCore, useServiceStatusStore, useWebCoreStore, webCore } from '@cha
 
 const REFRESH_INTERVAL_MS = 60_000;
 
+ 
 const isServerError = (error: unknown): boolean => {
-    const status = (error as any)?.status || (error as any)?.response?.status || (error as any)?.statusCode;
+    const err = error as any;
+    const status = err?.status || err?.response?.status || err?.statusCode;
     return status >= 500 && status < 600;
 };
 
@@ -15,30 +17,21 @@ export const useCloudTokenRefresh = () => {
     const { emit, isConnected } = useWebSocketV2();
     const { setServiceUnavailable } = useServiceStatusStore();
     const wssType = useWebSocketV2Store(s => s.wssType);
+    const isVerified = useWebSocketV2Store(s => s.isVerified);
 
     useEffect(() => {
-        if (!isConnected || !isAuthenticated) {
-            console.log(`[CloudTokenRefresh] Skip: isConnected=${isConnected}, isAuthenticated=${isAuthenticated}`);
-            return;
-        }
-
-        console.log(`[CloudTokenRefresh] Starting refresh cycle (wssType=${wssType})`);
+        if (!isConnected || !isAuthenticated) return;
 
         const refresh = async () => {
             if (wssType !== 'cloud') {
-                console.log('[CloudTokenRefresh] Relay mode - getting webCore token');
                 const token = (await webCore.getTokenSignature()).originToken?.identityToken;
                 if (token) {
-                    console.log('[CloudTokenRefresh] Sending relay auth token');
                     emit({ type: 'auth', action: 'update', payload: { token } });
-                } else {
-                    console.warn('[CloudTokenRefresh] No relay token available');
                 }
                 return;
             }
 
             try {
-                console.log('[CloudTokenRefresh] Cloud mode - refreshing cloud token');
                 await cloudCore.refreshToken();
                 setServiceUnavailable(false);
             } catch (e) {
@@ -51,10 +44,7 @@ export const useCloudTokenRefresh = () => {
 
             const token = cloudCore.getIdentityToken();
             if (token) {
-                console.log('[CloudTokenRefresh] Sending cloud auth token');
                 emit({ type: 'auth', action: 'update', payload: { token } });
-            } else {
-                console.warn('[CloudTokenRefresh] No cloud token available');
             }
         };
 
@@ -62,5 +52,5 @@ export const useCloudTokenRefresh = () => {
 
         const id = setInterval(refresh, REFRESH_INTERVAL_MS);
         return () => clearInterval(id);
-    }, [wssType, isAuthenticated, isConnected, emit, setServiceUnavailable]);
+    }, [wssType, isAuthenticated, isConnected, isVerified, emit, setServiceUnavailable]);
 };
