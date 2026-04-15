@@ -13,6 +13,8 @@ let forceReconnectTimer = null;
 const SYNC_INFO_INTERVAL = 60000; // 60s
 const SYNC_INFO_TIMEOUT = 5000; // 5s
 const FORCE_RECONNECT_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours
+const MAX_QUEUE_SIZE = 100;
+let messageQueue = [];
 
 const startSyncInfoHeartbeat = () => {
     if (syncInfoInterval) clearInterval(syncInfoInterval);
@@ -108,6 +110,18 @@ const connectWebSocket = config => {
         self.postMessage({ type: 'status', status: 'connected' });
         self.postMessage({ type: 'log', message: 'Connected' });
 
+        // Flush queued messages
+        if (messageQueue.length > 0) {
+            self.postMessage({ type: 'log', message: 'Flushing ' + messageQueue.length + ' queued messages' });
+            const queue = messageQueue;
+            messageQueue = [];
+            queue.forEach(msg => {
+                if (ws?.readyState === 1) {
+                    ws.send(msg);
+                }
+            });
+        }
+
         startSyncInfoHeartbeat();
 
         // Force reconnect after 2 hours
@@ -201,6 +215,7 @@ self.onmessage = e => {
                 forceReconnectTimer = null;
             }
             stopSyncInfoHeartbeat();
+            messageQueue = [];
             if (ws) {
                 ws.close();
                 ws = null;
@@ -216,10 +231,19 @@ self.onmessage = e => {
                 ws.send(jsonData);
                 self.postMessage({ type: 'log', message: 'Sent: ' + jsonData });
             } else {
-                self.postMessage({
-                    type: 'log',
-                    message: 'Cannot send - not connected (readyState: ' + (ws?.readyState ?? 'null') + ')',
-                });
+                // Queue message for delivery after reconnection
+                const jsonData = JSON.stringify(data);
+                if (messageQueue.length < MAX_QUEUE_SIZE) {
+                    messageQueue.push(jsonData);
+                    self.postMessage({
+                        type: 'log',
+                        message: 'Queued message (' + messageQueue.length + '/' + MAX_QUEUE_SIZE + ')',
+                    });
+                } else {
+                    self.postMessage({ type: 'log', message: 'Message queue full, dropping oldest message' });
+                    messageQueue.shift();
+                    messageQueue.push(jsonData);
+                }
             }
             break;
 

@@ -10,7 +10,7 @@ import { useInterval } from '@chatic/shared';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
-import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
+
 import { cloudsKeys } from '@chatic/users';
 
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
@@ -21,11 +21,18 @@ import { SubscriptionRequiredDialog } from './SubscriptionRequiredDialog';
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 import type { InviteCloudView } from '@chatic/app-messages';
 
+// --- Shared Styles ---
+
+const SELECTED_HIGHLIGHT = 'bg-[#F3F0FF] dark:bg-[#2D2640]';
+const CLOUD_AVATAR_CLASS =
+    'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-[#F4F5F5] bg-[rgba(0,43,126,0.04)] dark:border-[#3A3A3E] dark:bg-[rgba(255,255,255,0.06)]';
+
 // --- Profile Section ---
 
 const ProfileSection = () => {
     const { profile } = useWebCoreStore();
-    const name = profile?.$user?.name ?? '';
+
+    const name = profile?.$user.name;
     const email = profile?.$user?.email ?? '';
     const photo = profile?.$user?.photo;
 
@@ -106,7 +113,11 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick 
                 if (!disabled && cloud.id) onSelectCloud(cloud.id);
             }}
             disabled={isDisabled || !isActive}
-            className={cn('flex w-full items-center gap-[5px]', disabled && !isSelected && 'cursor-not-allowed')}
+            className={cn(
+                'flex w-full items-center gap-[5px] rounded-xl px-2 py-2 transition-colors',
+                isSelected && SELECTED_HIGHLIGHT,
+                disabled && !isSelected && 'cursor-not-allowed opacity-60'
+            )}
         >
             <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center">
                 {isProvisioning(cloud.status) ? (
@@ -114,14 +125,14 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick 
                 ) : isError ? (
                     <AlertCircle size={20} className="text-red-500" />
                 ) : (
-                    isSelected && <Check size={22} className="text-[#C139E3]" strokeWidth={1.5} />
+                    isSelected && <Check size={22} className="text-[#C139E3]" strokeWidth={2} />
                 )}
             </div>
-            <div className="flex flex-1 items-center gap-2 pr-[6px]">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-[#F4F5F5] bg-[rgba(0,43,126,0.04)]">
+            <div className="flex flex-1 items-center gap-3 pr-[6px]">
+                <div className={CLOUD_AVATAR_CLASS}>
                     <User size={16} className="text-placeholder" />
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-0.5">
                     {hasName ? (
                         <div className="flex items-center gap-[6px]">
                             <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
@@ -156,26 +167,35 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick 
 
 // --- Invite Cloud Item ---
 
-const InviteCloudItem = ({ inviteCloud, isSelected }: { inviteCloud: InviteCloudView; isSelected: boolean }) => (
-    <div className="flex items-center gap-[5px]">
-        <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center">
-            {isSelected && <Check size={22} className="text-[#C139E3]" strokeWidth={1.5} />}
-        </div>
-        <div className="flex flex-1 items-center gap-2 pr-[6px]">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-[#F4F5F5] bg-[rgba(0,43,126,0.04)]">
-                <User size={16} className="text-placeholder" />
+const InviteCloudItem = ({ inviteCloud, isSelected }: { inviteCloud: InviteCloudView; isSelected: boolean }) => {
+    const displayName = inviteCloud.name ?? inviteCloud.id ?? '';
+
+    return (
+        <div
+            className={cn(
+                'flex items-center gap-[5px] rounded-xl px-2 py-2 transition-colors',
+                isSelected && SELECTED_HIGHLIGHT
+            )}
+        >
+            <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center">
+                {isSelected && <Check size={22} className="text-[#C139E3]" strokeWidth={2} />}
             </div>
-            <div className="flex flex-col gap-1">
-                <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
-                    {inviteCloud.name ?? inviteCloud.id}
-                </span>
-                <span className="text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
-                    ID: {inviteCloud.id}
-                </span>
+            <div className="flex flex-1 items-center gap-3 pr-[6px]">
+                <div className={CLOUD_AVATAR_CLASS}>
+                    <User size={16} className="text-placeholder" />
+                </div>
+                <div className="flex flex-col gap-0.5">
+                    <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
+                        {displayName}
+                    </span>
+                    <span className="text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
+                        ID: {inviteCloud.id}
+                    </span>
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 // --- Add Account Button ---
 
@@ -204,14 +224,18 @@ type Tab = 'my' | 'invited';
 const TabBar = ({ tab, onChange, inviteCount }: { tab: Tab; onChange: (t: Tab) => void; inviteCount: number }) => {
     const { t } = useTranslation();
     return (
-        <div className="flex border-b border-border">
+        <div className="relative mx-4 flex rounded-lg bg-[#F4F5F5] p-[3px] dark:bg-[#2A2A2E]">
+            <div
+                className="absolute bottom-[3px] top-[3px] w-[calc(50%-3px)] rounded-md bg-white shadow-sm transition-transform duration-200 ease-out dark:bg-[#3A3A3E]"
+                style={{ transform: tab === 'my' ? 'translateX(3px)' : 'translateX(calc(100% + 3px))' }}
+            />
             {(['my', 'invited'] as Tab[]).map(key => (
                 <button
                     key={key}
                     onClick={() => onChange(key)}
                     className={cn(
-                        'flex-1 py-2.5 text-[14px] font-medium transition-colors',
-                        tab === key ? 'border-b-2 border-foreground text-foreground' : 'text-muted-foreground'
+                        'relative z-10 flex-1 py-2 text-[14px] font-medium transition-colors',
+                        tab === key ? 'text-foreground' : 'text-muted-foreground'
                     )}
                 >
                     {key === 'my'
@@ -237,9 +261,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const { selectCloud, isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
     const { inviteClouds } = useInviteClouds();
 
-    const { isAvailable: isSubscriptionAvailable } = useIsSubscriptionAvailable();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedCloudId());
-    const [isEmailVerifyOpen, setIsEmailVerifyOpen] = useState(false);
     const [isSubscriptionSelectOpen, setIsSubscriptionSelectOpen] = useState(false);
     const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
     const [tab, setTab] = useState<Tab>('my');
@@ -304,7 +326,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                     <div className="flex justify-end px-4 pt-[14px]">
                         <button
                             onClick={handleClose}
-                            className="flex h-7 w-7 items-center justify-center rounded-full bg-[#EAEAEC]"
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-[#EAEAEC] dark:bg-[#3A3A3E]"
                         >
                             <X size={14} className="text-foreground" strokeWidth={2} />
                         </button>
@@ -348,7 +370,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                                         {t('cloudSessionSheet.empty')}
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col gap-[15px] px-3">
+                                    <div className="flex flex-col gap-1 px-2">
                                         {clouds.map(cloud => (
                                             <CloudItem
                                                 key={cloud.id}
@@ -372,7 +394,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                                     {t('cloudSessionSheet.emptyInvited')}
                                 </div>
                             ) : (
-                                <div className="flex flex-col gap-[15px] px-3">
+                                <div className="flex flex-col gap-1 px-2">
                                     {inviteClouds.map(inviteCloud => (
                                         <InviteCloudItem
                                             key={inviteCloud.id}

@@ -37,6 +37,7 @@ export const WebMessageTypes = {
     FetchDeviceInfo: 'FetchDeviceInfo',
     FetchFcmToken: 'FetchFcmToken',
     FetchSafeArea: 'FetchSafeArea',
+    FetchBackgroundStatus: 'FetchBackgroundStatus',
     /**
      * IAP Event
      */
@@ -352,6 +353,7 @@ interface WebMessageMap {
      * Device Info Event
      */
     FetchSafeArea: WebDefaultMessage<'FetchSafeArea'>;
+    FetchBackgroundStatus: WebDefaultMessage<'FetchBackgroundStatus'>;
 
     /**
      * FCM Event

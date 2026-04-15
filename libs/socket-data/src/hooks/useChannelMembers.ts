@@ -9,9 +9,10 @@ import { APP_SYNC_EVENT_NAME } from '../sync-events';
 /**
  * 특정 채널의 멤버 목록을 로컬 DB에서 즉시 조회 및
  * 백그라운드에서 최신 데이터를 서버에 요청하여 동기화하는 훅
+ * detail true 설정 시, 참여정보 노출
  */
 export const useChannelMembers = (initialParams: ChatUsersPayload) => {
-    const targetChannelId = initialParams.channelId ?? 'default';
+    const targetChannelId = initialParams.channelId;
 
     const { emitAuthenticated, cloudId } = useWebSocketV2();
     const userRepository = useUserRepository(cloudId);
@@ -37,9 +38,16 @@ export const useChannelMembers = (initialParams: ChatUsersPayload) => {
                     currentParamsRef.current = { ...currentParamsRef.current, ...params };
                 }
                 const activeParams = currentParamsRef.current;
-                const cid = activeParams.channelId ?? targetChannelId;
+                const channelId = activeParams.channelId ?? targetChannelId;
 
-                const data = await userRepository.getUsersByChannel(cid);
+                if (!channelId) {
+                    setMembers([]);
+                    setTotal(0);
+                    setIsLoading(false);
+                    return;
+                }
+
+                const data = await userRepository.getUsersByChannel(channelId);
 
                 setMembers(data);
                 setTotal(data.length);
@@ -58,21 +66,23 @@ export const useChannelMembers = (initialParams: ChatUsersPayload) => {
      */
     const requestSync = useCallback(
         (params?: ChatUsersPayload) => {
-            if (targetChannelId === 'default') return;
-
-            setIsSyncing(true);
-
             if (params) {
                 currentParamsRef.current = { ...currentParamsRef.current, ...params };
             }
             const activeParams = currentParamsRef.current;
+            const finalChannelId = activeParams.channelId ?? targetChannelId;
 
-            if (!activeParams.channelId) activeParams.channelId = targetChannelId;
+            if (!finalChannelId || finalChannelId === 'default') return;
+
+            setIsSyncing(true);
 
             emitAuthenticated({
                 type: 'chat',
                 action: 'users',
-                payload: activeParams,
+                payload: {
+                    ...activeParams,
+                    channelId: finalChannelId,
+                },
             });
 
             setTimeout(() => setIsSyncing(false), 5000);
@@ -81,9 +91,12 @@ export const useChannelMembers = (initialParams: ChatUsersPayload) => {
     );
 
     useEffect(() => {
+        currentParamsRef.current = initialParams;
+
+        setIsLoading(true);
         void loadFromDb(initialParams);
         requestSync(initialParams);
-    }, [loadFromDb, requestSync, initialParams]);
+    }, [targetChannelId, loadFromDb, requestSync]);
 
     useEffect(() => {
         if (!userRepository.cloudId) return;
@@ -95,7 +108,6 @@ export const useChannelMembers = (initialParams: ChatUsersPayload) => {
                 detail.cid === userRepository.cloudId &&
                 detail.targetId === targetChannelId
             ) {
-                // 이제 최신 페이지네이션 값을 기억한 상태로 DB 조회를 수행합니다.
                 void loadFromDb();
                 setIsSyncing(false);
             }

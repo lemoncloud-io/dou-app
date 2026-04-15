@@ -6,6 +6,7 @@ import Config from 'react-native-config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getAppLanguage, getUserAgent } from '../utils';
+import { getVersionCheckResult } from '../hooks/useAppVersionCheck';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
 import { getConsoleOverrideScript, getDeviceInfoScript, getSafeAreaScript } from './utils/injectionScripts';
 import { firebaseInstallationService } from '../services/firebase/firebaseInstallationService';
@@ -21,8 +22,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     // 최초 1회: deviceInfo 주입 (비동기 초기화)
     useEffect(() => {
         const prepareWebView = async () => {
-            const [userAgent, installationId] = await Promise.all([
+            const [userAgent, uniqueId, installationId] = await Promise.all([
                 getUserAgent(),
+                DeviceInfo.getUniqueId(),
                 firebaseInstallationService.getFirebaseId(),
             ]);
 
@@ -31,16 +33,19 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
              * 디바이스 아이디 검증을 위해 임시로 uniqueId를 installationId로 교체하였음
              * 안정화 이후 `DeviceInfo.getUniqueId()` 사용할 것
              */
+            const versionCheck = getVersionCheckResult();
             const deviceInfoScript = getDeviceInfoScript({
                 platform: Platform.OS.toLowerCase(),
                 applicationName: DeviceInfo.getApplicationName(),
                 stage: Config.VITE_ENV || 'PROD',
-                uniqueId: installationId || '',
+                uniqueId: `${uniqueId || 'default'}:${installationId || 'default'}`,
                 deviceModel: DeviceInfo.getDeviceId() || '',
                 appVersion: DeviceInfo.getVersion(),
                 buildNumber: DeviceInfo.getBuildNumber(),
                 appLanguage: getAppLanguage(),
                 installationId: installationId || '',
+                latestVersion: versionCheck?.latestVersion ?? '',
+                shouldUpdate: versionCheck?.hasUpdate ?? false,
             });
 
             const injectionScript = `

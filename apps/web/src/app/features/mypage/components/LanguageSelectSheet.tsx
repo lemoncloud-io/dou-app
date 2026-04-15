@@ -26,7 +26,7 @@ export const LanguageSelectSheet = ({ isOpen, onClose }: LanguageSelectSheetProp
     return (
         <Sheet open={isOpen} onOpenChange={open => !open && onClose()}>
             <SheetContent side="bottom" className="rounded-t-2xl p-0 pb-safe-bottom" hideClose>
-                <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <div className="flex min-h-[48px] items-center justify-between border-b border-border px-4 py-3">
                     <SheetTitle className="text-lg font-semibold text-foreground">
                         {t('mypage.language.select')}
                     </SheetTitle>

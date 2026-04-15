@@ -10,6 +10,36 @@ import { getAppLanguage } from '../utils';
 const IOS_BUNDLE_ID = 'io.chatic.dou';
 const APP_STORE_LOOKUP_URL = `https://itunes.apple.com/lookup?bundleId=${IOS_BUNDLE_ID}`;
 
+/**
+ * Module-level cache for version check result.
+ * Accessible from outside the hook (e.g., AppWebView injection script).
+ */
+export interface VersionCheckResult {
+    hasUpdate: boolean;
+    latestVersion: string;
+}
+
+let versionCheckResult: VersionCheckResult | null = null;
+const listeners = new Set<(result: VersionCheckResult) => void>();
+
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+const noop = () => {};
+
+export const getVersionCheckResult = (): VersionCheckResult | null => versionCheckResult;
+
+/**
+ * Subscribe to version check completion. If already checked, fires immediately.
+ * @returns unsubscribe function
+ */
+export const onVersionCheckComplete = (listener: (result: VersionCheckResult) => void): (() => void) => {
+    if (versionCheckResult) {
+        listener(versionCheckResult);
+        return noop;
+    }
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+};
+
 interface AppStoreLookupResponse {
     resultCount: number;
     results: Array<{
@@ -101,7 +131,10 @@ export const useAppVersionCheck = (checkOnMount = true) => {
                 const latestVersion = data.results?.[0]?.version;
 
                 if (latestVersion && isNewerVersion(latestVersion, DeviceInfo.getVersion())) {
+                    const result: VersionCheckResult = { hasUpdate: true, latestVersion };
+                    versionCheckResult = result;
                     setHasUpdate(true);
+                    listeners.forEach(fn => fn(result));
                 }
             } catch {
                 // Silent fail - version check is not critical

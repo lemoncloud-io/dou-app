@@ -127,6 +127,7 @@ export default defineConfig({
         outDir: '../../dist/apps/web',
         emptyOutDir: true,
         reportCompressedSize: true,
+        license: { fileName: 'licenses.json' },
         commonjsOptions: {
             include: [/node_modules/],
             extensions: ['.js', '.cjs'],
