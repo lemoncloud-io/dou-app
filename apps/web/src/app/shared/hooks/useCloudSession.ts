@@ -43,7 +43,7 @@ export const useCloudSession = () => {
             const { Token: _Token, ...cloudProfile } = userToken;
             setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
         } catch (e) {
-            console.error('[useCloudSession] selectPlace failed:', e);
+            console.error('[useCloudSession] selectCloud failed:', e);
             throw e;
         } finally {
             setIsLoading(false);
@@ -59,28 +59,13 @@ export const useAutoSelectCloud = () => {
     const autoSelectedRef = useRef(false);
 
     useEffect(() => {
-        console.log('[useAutoSelectCloud] Check conditions:', {
-            autoSelectedRef: autoSelectedRef.current,
-            isAuthenticated,
-            hasCloudSession: !!getCloudSession(),
-            cloudsCount: clouds.length,
-            clouds,
-        });
-
-        if (autoSelectedRef.current) {
-            console.log('[useAutoSelectCloud] Skip: already selected');
-            return;
-        }
-        if (!isAuthenticated) {
-            console.log('[useAutoSelectCloud] Skip: not authenticated');
-            return;
-        }
+        if (autoSelectedRef.current) return;
+        if (!isAuthenticated) return;
 
         // If clouds fetch is done but list is empty, set default (only if no existing selection)
         if (!isFetchingClouds && clouds.length === 0) {
             const currentCloudId = cloudCore.getSelectedCloudId();
             if (!currentCloudId) {
-                console.log('[useAutoSelectCloud] No clouds found, setting default');
                 cloudCore.saveSelectedCloudId('default');
                 autoSelectedRef.current = true;
             }
@@ -88,26 +73,16 @@ export const useAutoSelectCloud = () => {
         }
 
         const activeCloud = clouds.find(c => c.status === 'active');
-        if (!activeCloud) {
-            console.log('[useAutoSelectCloud] Skip: no active cloud');
-            return;
-        }
+        if (!activeCloud) return;
 
         // Skip if user explicitly chose default (relay) mode
         const currentCloudId = cloudCore.getSelectedCloudId();
-        if (currentCloudId === 'default') {
-            console.log('[useAutoSelectCloud] Skip: user chose default (relay) mode');
-            return;
-        }
+        if (currentCloudId === 'default') return;
 
         // Skip if already selected the same cloud
         const existingSession = getCloudSession();
-        if (existingSession && currentCloudId === activeCloud.id) {
-            console.log('[useAutoSelectCloud] Skip: already selected this cloud', currentCloudId);
-            return;
-        }
+        if (existingSession && currentCloudId === activeCloud.id) return;
 
-        console.log('[useAutoSelectCloud] Selecting cloud:', activeCloud.id);
         autoSelectedRef.current = true;
         void selectCloud(activeCloud.id as string, { silent: wasBootstrappedFromCache() });
     }, [clouds, isAuthenticated, isFetchingClouds]);

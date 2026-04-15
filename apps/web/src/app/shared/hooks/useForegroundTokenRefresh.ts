@@ -26,11 +26,8 @@ export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) 
         };
 
         const handleForegroundResume = async () => {
-            const hiddenDuration = Date.now() - lastHiddenAt.current;
-            console.log(`[ForegroundRefresh] Resumed after ${Math.round(hiddenDuration / 1000)}s`);
-
-            // 0. Check socket health and wait for result
-            const socketStatus = await checkSocketHealth();
+            // Check socket health and wait for result
+            const socketStatus = await checkSocketHealth().catch(() => 'reconnecting' as const);
 
             // 1. webCore token refresh
             await refreshToken();
@@ -57,13 +54,11 @@ export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) 
                         token = (await webCore.getTokenSignature()).originToken?.identityToken;
                     }
                     if (token) {
-                        console.log('[ForegroundRefresh] Re-sending auth token');
                         send({ type: 'auth', action: 'update', payload: { token } });
                     }
                 }
-            } else {
-                console.log('[ForegroundRefresh] Socket reconnecting — auth will be handled on reconnect');
             }
+            // If reconnecting, useCloudTokenRefresh handles auth on isConnected change
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
