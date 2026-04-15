@@ -20,6 +20,9 @@ interface PendingItem {
     timer: ReturnType<typeof setTimeout>;
 }
 
+/**
+ * @deprecated deprecated by raine; 신규 훅으로 대체
+ */
 export const useSendMessage = () => {
     const { emitAuthenticated } = useWebSocketV2();
     const pendingRef = useRef<PendingItem[]>([]);

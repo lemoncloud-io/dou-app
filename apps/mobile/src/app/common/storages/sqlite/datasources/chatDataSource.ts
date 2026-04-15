@@ -1,9 +1,9 @@
-import type { ChatView } from '@lemoncloud/chatic-socials-api';
 import { database } from '../core';
 import { TABLES } from '../core';
 import { createScopedDataSource } from './factory';
+import type { CacheChatView } from '@chatic/app-messages';
 
-const baseChatDataSource = createScopedDataSource<ChatView>(TABLES.CHATS);
+const baseChatDataSource = createScopedDataSource<CacheChatView>(TABLES.CHATS);
 
 /**
  * Data source specifically tailored for the Chat domain.
@@ -16,7 +16,7 @@ export const chatDataSource = {
     /**
      * Overrides the default save method to extract 'channel_id', 'chat_no', 'created_at', and 'content'.
      */
-    save: async (id: string, item: ChatView, cid: string): Promise<void> => {
+    save: async (id: string, item: CacheChatView, cid: string): Promise<void> => {
         const query = `INSERT OR REPLACE INTO chats (cid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?)`;
         const content = (item as any).text || (item as any).content || '';
         const params = [
@@ -34,7 +34,7 @@ export const chatDataSource = {
     /**
      * Overrides the default saveAll method for batch insertions.
      */
-    saveAll: async (items: { id: string; data: ChatView }[], cid: string): Promise<void> => {
+    saveAll: async (items: { id: string; data: CacheChatView }[], cid: string): Promise<void> => {
         const query = `INSERT OR REPLACE INTO chats (cid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?)`;
         const commands: [string, any[]][] = items.map(item => [
             query,
@@ -68,7 +68,7 @@ export const chatDataSource = {
         channelId?: string,
         sort?: 'asc' | 'desc',
         keyword?: string
-    ): Promise<ChatView[]> => {
+    ): Promise<CacheChatView[]> => {
         let query = `SELECT data FROM chats`;
         const params: (string | number)[] = [];
         const conditions: string[] = [];
@@ -100,11 +100,11 @@ export const chatDataSource = {
         return rows
             .map((row: any) => {
                 try {
-                    return JSON.parse(row.data as string) as ChatView;
+                    return JSON.parse(row.data as string) as CacheChatView;
                 } catch {
                     return null;
                 }
             })
-            .filter((item: ChatView | null): item is ChatView => item !== null);
+            .filter((item: CacheChatView | null): item is CacheChatView => item !== null);
     },
 };

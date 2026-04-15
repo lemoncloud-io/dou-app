@@ -2,13 +2,13 @@ import { useTranslation } from 'react-i18next';
 
 interface ReadStatusProps {
     memberNo: number;
-    readCount: number;
+    unreadCount: number;
 }
 
-export const ReadStatus = ({ memberNo, readCount }: ReadStatusProps) => {
+export const ReadStatus = ({ memberNo, unreadCount }: ReadStatusProps) => {
     const { t } = useTranslation();
-    const otherMemberNo = memberNo - 1; // 본인 제외
-    const unreadCount = otherMemberNo - readCount;
+
+    const readCount = Math.max(0, memberNo - unreadCount);
 
     if (memberNo <= 1) return null;
 
@@ -16,7 +16,7 @@ export const ReadStatus = ({ memberNo, readCount }: ReadStatusProps) => {
     if (memberNo <= 2) {
         return (
             <span className="font-medium text-foreground">
-                {readCount > 0 ? t('chat.room.read') : t('chat.room.unread')}
+                {unreadCount === 0 ? t('chat.room.read') : t('chat.room.unread')}
             </span>
         );
     }

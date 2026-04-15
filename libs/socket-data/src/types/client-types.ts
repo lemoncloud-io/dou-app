@@ -1,4 +1,4 @@
-import type { ChatView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelView, ChatView } from '@lemoncloud/chatic-socials-api';
 
 /**
  * 서버의 ChatView 모델을 확장한 클라이언트 전용 채팅 모델입니다.
@@ -35,4 +35,24 @@ export interface ClientChatView extends ChatView {
      * 메시지 작성자
      */
     ownerName: string;
+
+    /**
+     * 나의 채팅인지에 대한 여부
+     */
+    isOwner: boolean;
+}
+
+/**
+ * 서버의 ChannelView 모델을 확장한 클라이언트 전용 채널 모델입니다.
+ * UI 렌더링에 자주 쓰이는 파생 상태들을 미리 계산하여 포함합니다.
+ */
+export interface ClientChannelView extends ChannelView {
+    /** 현재 로그인한 사용자가 방장인지 여부 */
+    isOwner: boolean;
+    /** 나와의 채팅방(self)인지 여부 */
+    isSelfChat: boolean;
+    /** 채널 참여 인원 수 */
+    memberCount: number;
+    /** 읽지 않은 채팅 개수 */
+    unreadCount: number;
 }

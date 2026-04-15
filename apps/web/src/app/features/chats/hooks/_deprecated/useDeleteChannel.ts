@@ -4,14 +4,15 @@ import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
-export const useInviteChannel = () => {
+/**
+ * @deprecated deprecated by raine; 신규 훅으로 대체
+ */
+export const useDeleteChannel = () => {
     const { emitAuthenticated } = useWebSocketV2();
     const [isPending, setIsPending] = useState(false);
-    const [isError, setIsError] = useState(false);
 
-    const inviteChannel = (channelId: string, userIds: string[]): Promise<ChannelView> => {
+    const deleteChannel = (channelId: string): Promise<ChannelView> => {
         setIsPending(true);
-        setIsError(false);
 
         return new Promise((resolve, reject) => {
             const unsub = useWebSocketV2Store.subscribe(
@@ -20,20 +21,19 @@ export const useInviteChannel = () => {
                     if (envelope?.type !== 'chat') return;
                     if (envelope.action === 'error') {
                         unsub();
-                        setIsError(true);
                         setIsPending(false);
-                        reject(new Error('chat/invite error'));
+                        reject(new Error('chat/delete-channel error'));
                         return;
                     }
-                    if (envelope.action !== 'invite') return;
+                    if (envelope.action !== 'delete-channel') return;
                     unsub();
                     setIsPending(false);
                     resolve(envelope.payload as ChannelView);
                 }
             );
-            emitAuthenticated({ type: 'chat', action: 'invite', payload: { channelId, userIds } });
+            emitAuthenticated({ type: 'chat', action: 'delete-channel', payload: { channelId } });
         });
     };
 
-    return { inviteChannel, isPending, isError };
+    return { deleteChannel, isPending };
 };

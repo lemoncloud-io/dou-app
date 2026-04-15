@@ -184,7 +184,7 @@ export const useChannelMutations = () => {
     );
 
     /**
-     * 채널에 유저 초대
+     * 채널에 기가입된 유저 초대
      */
     const inviteChannel = useCallback(
         (payload: ChatInvitePayload): Promise<void> => {
