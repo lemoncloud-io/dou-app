@@ -24,26 +24,33 @@ const parseCodeFromLocation = (location: string): string | null => {
     return match ? match[1] : location.split('/').pop() || null;
 };
 
+/**
+ * 외부 유저 초대를 위한 딥링크(Deeplink) 생성 전용 커스텀 훅
+ */
 export const useCreateInvite = () => {
     const { data: cloudsData } = useClouds();
     const { requestInvite, isPending: isMutationPending } = useUserMutations();
 
+    // 파이어베이스 API 통신 전용 로딩 상태
     const [isFirebasePending, setIsFirebasePending] = useState(false);
     const [error, setError] = useState<Error | null>(null);
 
+    /**
+     * 연락처 정보를 기반으로 최종 딥링크 URL을 생성하여 반환
+     */
     const createInvite = async (params: CreateInviteParams): Promise<CreateInviteResult> => {
         setIsFirebasePending(true);
         setError(null);
 
         try {
-            // 소켓 서버에 초대 생성 요청 및 응답 대기
+            //소켓 서버에 초대 생성 요청 및 응답 대기 ('user:invite' 이벤트)
             const payload = (await requestInvite({
                 channelId: params.channelId,
                 name: params.name,
                 phone: params.phone,
             })) as MyInviteView & { Location?: string };
 
-            // 초대 코드 파싱 및 데이터 보정
+            // 초대 코드 파싱 및 데이터 수정
             let code = payload?.code;
             if (!code && payload?.Location) {
                 code = parseCodeFromLocation(payload.Location) ?? undefined;
@@ -53,6 +60,7 @@ export const useCreateInvite = () => {
                 throw new Error('Failed to get invite code from response');
             }
 
+            // 현재 선택된 클라우드 정보 가져오기
             const selectedCloudId = cloudCore.getSelectedCloudId();
             const selectedCloud = cloudsData?.list?.find(c => c.id === selectedCloudId);
 
@@ -65,6 +73,7 @@ export const useCreateInvite = () => {
                     : {}),
             };
 
+            // Firebase 딥링크 서비스를 통한 딥링크 url 생성
             const deeplinkUrl = await firebaseDeeplinkService.createDeeplink(invite);
 
             setIsFirebasePending(false);
