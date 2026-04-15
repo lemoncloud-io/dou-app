@@ -5,8 +5,6 @@ import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
 import { useChatRepository, useJoinRepository } from '../repository';
 import type { ClientChatView } from '../types';
-import { ChatMapper } from '../types/mapper';
-import { useDynamicProfile } from '@chatic/web-core';
 
 /**
  * 특정 채널의 메시지 목록을 조회하고 가공하여 상태로 관리하는 훅
@@ -16,8 +14,6 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     const targetChannelId = initialParams.channelId;
 
     const { emitAuthenticated, cloudId } = useWebSocketV2();
-    const dynamicProfile = useDynamicProfile();
-    const userId = dynamicProfile?.uid;
     const chatRepository = useChatRepository(cloudId);
     const joinRepository = useJoinRepository(cloudId);
 
@@ -65,8 +61,12 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                         return noA - noB;
                     })
                     .map((msg): ClientChatView => {
-                        // 안읽음 수 계산 수행
                         let unreadCount = 0;
+                        const isPending = !msg.chatNo;
+                        const timestamp = msg?.createdAt ? new Date(msg.createdAt) : new Date();
+                        const isSystem = msg.stereo === 'system';
+                        const ownerName = msg.owner$?.name || '...';
+
                         if (msg.chatNo !== undefined) {
                             const readCount = activeJoins.filter(join => (join.chatNo || 0) >= msg.chatNo!).length;
                             unreadCount = Math.max(0, totalActiveMembers - readCount);
@@ -74,7 +74,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                             unreadCount = Math.max(0, totalActiveMembers - 1);
                         }
 
-                        return ChatMapper.toClient(msg, unreadCount, userId);
+                        return { ...msg, unreadCount, isPending, timestamp, isSystem, ownerName };
                     });
 
                 if (activeParams.limit) {
@@ -93,7 +93,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 setStatus(prev => ({ ...prev, isLoading: false, isError: true }));
             }
         },
-        [targetChannelId, chatRepository, joinRepository, userId]
+        [targetChannelId, chatRepository, joinRepository]
     );
 
     /**

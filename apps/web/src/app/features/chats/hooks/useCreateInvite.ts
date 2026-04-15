@@ -1,11 +1,13 @@
 import { useState } from 'react';
+
+import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore } from '@chatic/web-core';
 import { useClouds } from '@chatic/users';
 
 import { firebaseDeeplinkService } from '../apis/firebase-service';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
-import { useUserMutations } from '@chatic/socket-data';
+import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
 interface CreateInviteParams {
     channelId: string;
@@ -24,72 +26,109 @@ const parseCodeFromLocation = (location: string): string | null => {
     return match ? match[1] : location.split('/').pop() || null;
 };
 
-/**
- * 외부 유저 초대를 위한 딥링크(Deeplink) 생성 전용 커스텀 훅
- */
 export const useCreateInvite = () => {
+    const { emitAuthenticated } = useWebSocketV2();
     const { data: cloudsData } = useClouds();
-    const { requestInvite, isPending: isMutationPending } = useUserMutations();
-
-    // 파이어베이스 API 통신 전용 로딩 상태
-    const [isFirebasePending, setIsFirebasePending] = useState(false);
+    const [isPending, setIsPending] = useState(false);
     const [error, setError] = useState<Error | null>(null);
 
-    /**
-     * 연락처 정보를 기반으로 최종 딥링크 URL을 생성하여 반환
-     */
-    const createInvite = async (params: CreateInviteParams): Promise<CreateInviteResult> => {
-        setIsFirebasePending(true);
+    const createInvite = (params: CreateInviteParams): Promise<CreateInviteResult> => {
+        setIsPending(true);
         setError(null);
 
-        try {
-            //소켓 서버에 초대 생성 요청 및 응답 대기 ('user:invite' 이벤트)
-            const payload = (await requestInvite({
-                channelId: params.channelId,
-                name: params.name,
-                phone: params.phone,
-            })) as MyInviteView & { Location?: string };
+        return new Promise((resolve, reject) => {
+            let timeoutId: ReturnType<typeof setTimeout> | null = null;
+            let settled = false;
 
-            // 초대 코드 파싱 및 데이터 수정
-            let code = payload?.code;
-            if (!code && payload?.Location) {
-                code = parseCodeFromLocation(payload.Location) ?? undefined;
-            }
-
-            if (!code) {
-                throw new Error('Failed to get invite code from response');
-            }
-
-            // 현재 선택된 클라우드 정보 가져오기
-            const selectedCloudId = cloudCore.getSelectedCloudId();
-            const selectedCloud = cloudsData?.list?.find(c => c.id === selectedCloudId);
-
-            const invite: MyInviteView = {
-                ...payload,
-                code,
-                ...(!payload.siteId && selectedCloudId ? { siteId: selectedCloudId } : {}),
-                ...(!payload.site$ && selectedCloud
-                    ? { site$: { id: selectedCloud.id, name: selectedCloud.name ?? undefined } }
-                    : {}),
+            const cleanup = () => {
+                unsub();
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
             };
 
-            // Firebase 딥링크 서비스를 통한 딥링크 url 생성
-            const deeplinkUrl = await firebaseDeeplinkService.createDeeplink(invite);
+            const safeReject = (err: Error) => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                setIsPending(false);
+                setError(err);
+                reject(err);
+            };
 
-            setIsFirebasePending(false);
-            return { invite, deeplinkUrl };
-        } catch (err) {
-            setIsFirebasePending(false);
-            const parsedError = err instanceof Error ? err : new Error(String(err));
-            setError(parsedError);
-            throw parsedError;
-        }
+            const unsub = useWebSocketV2Store.subscribe(
+                s => s.lastMessage,
+                (envelope: WSSEnvelope<MyInviteView> | null) => {
+                    if (settled) return;
+                    if (envelope?.type !== 'user') return;
+
+                    if (envelope.action === 'error') {
+                        safeReject(
+                            new Error((envelope.payload as { message?: string })?.message || 'user/invite error')
+                        );
+                        return;
+                    }
+
+                    if (envelope.action !== 'invite') return;
+
+                    const payload = envelope.payload as MyInviteView & { Location?: string };
+
+                    // Try to get code from multiple sources
+                    let code = payload?.code;
+                    if (!code && payload?.Location) {
+                        code = parseCodeFromLocation(payload.Location) ?? undefined;
+                    }
+
+                    if (!code) {
+                        safeReject(new Error('Failed to get invite code from response'));
+                        return;
+                    }
+
+                    const selectedCloudId = cloudCore.getSelectedCloudId();
+                    const selectedCloud = cloudsData?.list?.find(c => c.id === selectedCloudId);
+
+                    const invite: MyInviteView = {
+                        ...payload,
+                        code,
+                        ...(!payload.siteId && selectedCloudId ? { siteId: selectedCloudId } : {}),
+                        ...(!payload.site$ && selectedCloud
+                            ? { site$: { id: selectedCloud.id, name: selectedCloud.name ?? undefined } }
+                            : {}),
+                    };
+
+                    // Create deeplink in Firebase
+                    firebaseDeeplinkService
+                        .createDeeplink(invite)
+                        .then(deeplinkUrl => {
+                            if (settled) return;
+                            settled = true;
+                            cleanup();
+                            setIsPending(false);
+                            resolve({ invite, deeplinkUrl });
+                        })
+                        .catch(err => {
+                            safeReject(err);
+                        });
+                }
+            );
+
+            // Timeout: auto-reject after 15 seconds
+            timeoutId = setTimeout(() => {
+                safeReject(new Error('Invite request timed out'));
+            }, 15000);
+
+            emitAuthenticated({
+                type: 'user',
+                action: 'invite',
+                payload: {
+                    channelId: params.channelId,
+                    name: params.name,
+                    phone: params.phone,
+                },
+            });
+        });
     };
 
-    return {
-        createInvite,
-        isPending: isMutationPending.invite || isFirebasePending,
-        isError: error !== null,
-        error,
-    };
+    return { createInvite, isPending, isError: error !== null, error };
 };

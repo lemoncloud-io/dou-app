@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ChannelView, JoinView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { CacheChannelView } from '@chatic/app-messages';
 import { useWebSocketV2 } from '@chatic/socket';
-import { useDynamicProfile } from '@chatic/web-core';
 import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
-import { useChannelRepository, useJoinRepository } from '../repository';
-import type { ClientChannelView, ClientChatMinePayload } from '../types';
+import { useChannelRepository } from '../repository';
+import type { ClientChatMinePayload } from '../types';
 
 /**
  * 특정 워크스페이스(Place)의 채널 목록을 로컬 DB에서 즉시 조회
@@ -16,19 +15,15 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     const targetPlaceId = initialParams.placeId;
     const { emitAuthenticated, cloudId } = useWebSocketV2();
     const repository = useChannelRepository(cloudId);
-    const joinRepo = useJoinRepository(cloudId);
 
-    // 현재 접속 중인 내 프로필 정보
-    const profile = useDynamicProfile();
-    const [channels, setChannels] = useState<ClientChannelView[]>([]);
+    const [channels, setChannels] = useState<ChannelView[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isError, setIsError] = useState(false);
 
     const currentParamsRef = useRef<ClientChatMinePayload>(initialParams);
-
     /**
-     * 로컬 DB에서 채널 목록 읽어오기 및 정렬
+     *  로컬 DB에서 채널 목록 읽어오기 및 정렬
      */
     const requestFromLocal = useCallback(
         async (params?: ClientChatMinePayload) => {
@@ -54,41 +49,14 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                     return timeB - timeA;
                 });
 
-                let targetChannels = sortedChannels;
+                let resultChannels = sortedChannels.map(({ sid, ...rest }) => rest as ChannelView);
+
                 if (activeParams.limit) {
                     const limit = activeParams.limit;
                     const page = activeParams.page ?? 0;
                     const startIndex = page * limit;
-                    targetChannels = sortedChannels.slice(startIndex, startIndex + limit);
+                    resultChannels = resultChannels.slice(startIndex, startIndex + limit);
                 }
-
-                // 각 채널 마다 getJoinsByChannel 호출 후 내 읽음 상태 매핑
-                const resultChannels: ClientChannelView[] = await Promise.all(
-                    targetChannels.map(async ({ sid, ...rest }) => {
-                        const baseChannel = rest as ChannelView;
-                        let unreadCount = 0;
-
-                        if (profile?.uid && baseChannel.id) {
-                            // 해당 채널의 모든 join 정보 가져오기
-                            const joins = await joinRepo.getJoinsByChannel(baseChannel.id);
-                            // 내 UID와 일치하는 Join 찾기
-                            const myJoin = (joins as JoinView[]).find(j => j.userId === profile.uid);
-
-                            // 차이 계산
-                            const lastChatNo = baseChannel.lastChat$?.chatNo || 0;
-                            const myReadNo = myJoin?.chatNo || 0;
-                            unreadCount = Math.max(0, lastChatNo - myReadNo);
-                        }
-
-                        return {
-                            ...baseChannel,
-                            isOwner: baseChannel.ownerId === profile?.uid,
-                            isSelfChat: baseChannel.stereo === 'self',
-                            memberCount: baseChannel.memberNo || 0,
-                            unreadCount,
-                        };
-                    })
-                );
 
                 setChannels(resultChannels);
             } catch (error) {
@@ -98,7 +66,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                 setIsLoading(false);
             }
         },
-        [repository, joinRepo, profile?.uid]
+        [repository]
     );
 
     /**
@@ -126,9 +94,9 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         [emitAuthenticated]
     );
 
-    // 초기 마운트 및 channelId 변경 시 로컬 DB 조회
     useEffect(() => {
         currentParamsRef.current = initialParams;
+
         setIsLoading(true);
         void requestFromLocal(initialParams);
         requestFromNetwork(initialParams);
@@ -138,16 +106,11 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         if (!repository.cloudId) return;
 
         const handleUpdate = (e: Event) => {
-            // channel, chat, join 이벤트 발생 시 목록 동기화
             const { detail } = e as CustomEvent<AppSyncDetail>;
-            if (
-                (detail.domain === 'channel' || detail.domain === 'chat' || detail.domain === 'join') &&
-                detail.cid === repository.cloudId
-            ) {
+
+            if ((detail.domain === 'channel' || detail.domain === 'chat') && detail.cid === repository.cloudId) {
                 void requestFromLocal();
-                if (detail.domain === 'channel' || detail.domain === 'chat') {
-                    setIsSyncing(false);
-                }
+                setIsSyncing(false);
             }
         };
 

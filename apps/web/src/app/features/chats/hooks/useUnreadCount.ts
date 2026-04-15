@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import { BROADCAST_CHANNEL_NAME } from '../storages/IndexedDBStorageAdapter';
-import { useDynamicStorage } from './_deprecated/useDynamicStorage';
+import { useDynamicStorage } from './useDynamicStorage';
 
-/**
- * TODO: will be migrate by Raine
- */
 export const useUnreadCount = (userId: string | null, channelId: string) => {
     const [unreadCount, setUnreadCount] = useState(0);
     const storage = useDynamicStorage();

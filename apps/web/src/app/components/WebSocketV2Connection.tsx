@@ -4,7 +4,7 @@ import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { useLoaderStore } from '@chatic/shared';
 import { cloudCore, wasBootstrappedFromCache, useUserContext } from '@chatic/web-core';
 
-import { useListenMessage } from '../features/chats/hooks/_deprecated/useListenMessage';
+import { useListenMessage } from '../features/chats/hooks/useListenMessage';
 import { useMyChannels } from '../features/home/hooks/useMyChannels';
 import { useDynamicDeviceId } from '../shared/hooks/useDynamicDeviceId';
 import { useCloudTokenRefresh } from '../shared/hooks/useCloudTokenRefresh';
