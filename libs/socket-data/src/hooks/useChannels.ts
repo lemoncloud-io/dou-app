@@ -12,7 +12,6 @@ import type { ClientChatMinePayload } from '../types';
  * 백그라운드에서 최신 데이터를 서버에 요청하여 동기화하는 Query 훅
  */
 export const useChannels = (initialParams: ClientChatMinePayload) => {
-    const targetPlaceId = initialParams.placeId;
     const { emitAuthenticated, cloudId } = useWebSocketV2();
     const repository = useChannelRepository(cloudId);
 
@@ -33,15 +32,8 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                     currentParamsRef.current = { ...currentParamsRef.current, ...params };
                 }
                 const activeParams = currentParamsRef.current;
-                const placeId = activeParams.placeId;
 
-                if (!placeId) {
-                    setChannels([]);
-                    setIsLoading(false);
-                    return;
-                }
-
-                const channelsData: CacheChannelView[] = await repository.getChannelsByPlace(placeId);
+                const channelsData: CacheChannelView[] = await repository.getChannelsByPlace(initialParams.placeId);
 
                 const sortedChannels = channelsData.sort((a, b) => {
                     const timeA = new Date(a.lastChat$?.createdAt ?? a.updatedAt ?? 0).getTime();
@@ -74,15 +66,14 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
      */
     const requestFromNetwork = useCallback(
         (params?: ClientChatMinePayload) => {
+            setIsSyncing(true);
+
+            // 초기 파라미터와 새로 들어온 파라미터 병합
             if (params) {
                 currentParamsRef.current = { ...currentParamsRef.current, ...params };
             }
             const activeParams = currentParamsRef.current;
-            const placeId = activeParams.placeId;
 
-            if (!placeId) return;
-
-            setIsSyncing(true);
             emitAuthenticated({
                 type: 'chat',
                 action: 'mine',
@@ -95,12 +86,9 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     );
 
     useEffect(() => {
-        currentParamsRef.current = initialParams;
-
-        setIsLoading(true);
-        void requestFromLocal(initialParams);
-        requestFromNetwork(initialParams);
-    }, [targetPlaceId, requestFromLocal, requestFromNetwork]);
+        void requestFromLocal();
+        requestFromNetwork();
+    }, [requestFromLocal, requestFromNetwork, initialParams]);
 
     useEffect(() => {
         if (!repository.cloudId) return;

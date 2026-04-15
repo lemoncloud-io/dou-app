@@ -28,7 +28,6 @@ This library was generated with [Nx](https://nx.dev).
 | `OpenPhotoLibrary`           | `{ selectionLimit?: number; mediaType?: ... }`                                        | 갤러리(사진첩)를 엽니다.                                                                                                                                      | `OnOpenPhotoLibrary`          |
 | `FetchFcmToken`              | -                                                                                     | FCM 푸시 토큰을 요청합니다.                                                                                                                                   | `OnFetchFcmToken`             |
 | `FetchSafeArea`              | -                                                                                     | 기기의 Safe Area(Notch 등) 정보를 요청합니다.                                                                                                                 | `OnFetchSafeArea`             |
-| `FetchBackgroundStatus`      | -                                                                                     | 앱의 현재 백그라운드/포그라운드 상태를 요청합니다.                                                                                                            | `OnBackgroundStatusChanged`   |
 | `FetchProducts`              |                                                                                       | 스토어에 등록된 구독 상품 목록을 요청합니다.                                                                                                                  | `OnFetchProducts`             |
 | `FetchCurrentPurchases`      | -                                                                                     | 현재 사용자가 보유 중인 구독 내역을 요청합니다.                                                                                                               | `OnFetchCurrentPurchases`     |
 | `Purchase`                   | `{ sku: string; offerToken?: string; oldPlanId?: string; newPlanId?: string; }`       | 특정 상품의 구독 결제를 시작합니다. ;sku: 부모 상품 ID ;offerToken: (Android 필수) 결제할 오퍼 토큰; oldPlanId / newPlanId: (Android) 업/다운그레이드 시 필요 | `OnPurchase`                  |
@@ -69,12 +68,6 @@ This library was generated with [Nx](https://nx.dev).
 | :---------------- | :-------------------------------------------- | :------------------------------------------------ |
 | `OnFetchSafeArea` | Safe Area 정보가 갱신되었을 때 전달           | `{ top: 47, bottom: 34, left: 0, right: 0 }`      |
 | `OnAppLog`        | 네이티브에서 발생한 에러나 로그를 웹으로 전달 | `{ level: "error", message: "Network Error..." }` |
-
-### App Status
-
-| Message Type                | Description                                        | Data Structure (Example)                                            |
-| :-------------------------- | :------------------------------------------------- | :------------------------------------------------------------------ |
-| `OnBackgroundStatusChanged` | 앱의 상태가 백그라운드/포그라운드로 변경될 때 전달 | `{ status: "background", isForeground: true, isBackground: false }` |
 
 ### Notification
 

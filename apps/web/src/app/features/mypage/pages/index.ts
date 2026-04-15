@@ -1,6 +1,5 @@
 export * from './AccountInfoPage';
 export * from './AccountManagePage';
-export * from './LicensesPage';
 export * from './DebugLoginPage';
 export * from './DebugPage';
 export * from './LoginPage';

@@ -17,7 +17,6 @@ import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
 import type { WebViewBridge } from '../../../common';
 import type { MainScreenProps } from '../navigation';
-import { useAppStateHandler } from '../../../common/webview/hooks/useAppStateHandler';
 
 /**
  * Props for the useWebMessageRouter hook.
@@ -45,7 +44,6 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
 
     // --- Domain-specific Handlers ---
     const { fetchSafeAreaInfo } = useSafeAreaHandler(bridge);
-    const { syncAppStateToWeb } = useAppStateHandler(bridge);
     const { fetchFcmToken } = useFcmHandler(bridge);
     const {
         fetchProducts,
@@ -108,9 +106,6 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
                         break;
                     case 'FetchSafeArea':
                         fetchSafeAreaInfo();
-                        break;
-                    case 'FetchBackgroundStatus':
-                        syncAppStateToWeb();
                         break;
                     // -- In-App Purchases (IAP) --
 
@@ -230,7 +225,6 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
         handleCloseModal,
         fetchFcmToken,
         fetchSafeAreaInfo,
-        syncAppStateToWeb,
         fetchProducts,
         fetchCurrentPurchases,
         handlePurchaseSubscription,

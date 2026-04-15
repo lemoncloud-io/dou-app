@@ -30,13 +30,6 @@ export const PolicyListPage = () => {
                         <span className="text-[15px] font-medium text-foreground">{t('mypage.policy.privacy')}</span>
                         <ChevronRight size={18} className="text-muted-foreground" />
                     </button>
-                    <button
-                        onClick={() => navigate('/mypage/policy/licenses')}
-                        className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                    >
-                        <span className="text-[15px] font-medium text-foreground">{t('mypage.policy.licenses')}</span>
-                        <ChevronRight size={18} className="text-muted-foreground" />
-                    </button>
                 </div>
             </div>
         </div>

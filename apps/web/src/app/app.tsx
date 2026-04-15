@@ -18,7 +18,6 @@ import { Router } from './routes';
 import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
 import { useAutoSelectCloud } from './shared/hooks/useCloudSession';
 import { useForegroundTokenRefresh } from './shared/hooks/useForegroundTokenRefresh';
-import { useForegroundResync } from './shared/hooks/useForegroundResync';
 import i18n from '../i18n';
 import { useDataSync } from '@chatic/socket-data';
 
@@ -58,7 +57,6 @@ export function App() {
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
     useDataSync();
-    useForegroundResync(refreshToken);
 
     useEffect(() => {
         const cleanup = initializeMessageListener();

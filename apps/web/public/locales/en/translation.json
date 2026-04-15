@@ -1,13 +1,33 @@
 {
+    "app": {
+        "exitDialog": {
+            "title": "Exit App",
+            "message": "Do you want to exit the app?",
+            "cancel": "Cancel",
+            "confirm": "Exit"
+        }
+    },
     "common": {
         "signout": "Sign Out",
         "cancel": "Cancel",
+        "close": "Close",
         "save": "Save Changes",
-        "saving": "Saving..."
+        "saving": "Saving...",
+        "comingSoon": "This feature is coming soon 🛠️",
+        "retry": "Retry"
     },
     "nav": {
+        "home": "Home",
         "authTest": "Auth Test",
         "pointerTest": "Pointer Test"
+    },
+    "version": {
+        "updateAvailable": "Web Update",
+        "newVersionReleased": "Version {{latestVersion}} has been released. Current version: {{currentVersion}}",
+        "currentVersion": "Current: v{{version}}",
+        "refresh": "Update",
+        "later": "Later",
+        "unknown": "Unknown"
     },
     "oauth": {
         "signing": "Signing in...",
@@ -21,12 +41,40 @@
         "theme": "Theme",
         "language": "Language"
     },
+    "login": {
+        "title": "Account Login",
+        "emailPrompt": "Please enter your email address",
+        "emailLabel": "Email",
+        "emailDescription": "Please enter in email format",
+        "passwordLabel": "Password",
+        "passwordDescription": "Please enter at least 6 characters",
+        "next": "Next",
+        "loggingIn": "Logging in...",
+        "error": "Login Failed",
+        "errorDescription": "Please check your email or password",
+        "tokenPrompt": "Please enter your token",
+        "tokenLabel": "Token",
+        "tokenDescription": "Please enter JWT token",
+        "tokenError": "Invalid token",
+        "subtitle": "Sign in to your account",
+        "google": "Sign in with Google",
+        "kakao": "Sign in with Kakao"
+    },
     "home": {
         "welcome": "Welcome",
         "subtitle": "Manage your settings below",
         "settings": "Settings",
+        "theme": "Theme",
+        "lightMode": "Light Mode",
+        "darkMode": "Dark Mode",
+        "toDark": "Dark",
+        "toLight": "Light",
+        "language": "Language",
         "logout": "Logout",
         "logoutInvited": "Logout Invited Account",
+        "logoutDesc": "Sign out of your account",
+        "loggingOut": "Logging out...",
+        "logoutSuccess": "Logged out successfully",
         "logoutFailed": "Logout failed"
     },
     "profile": {
@@ -142,14 +190,21 @@
         }
     },
     "mypage": {
+        "title": "My Page",
         "loginPrompt": "Sign in",
         "loginDescription": "Sign in to safely manage your conversations.",
+        "edit": "Edit",
+        "notifications": "Notifications",
+        "workspaceSettings": "Workspace Settings",
         "darkMode": "Dark Mode",
         "languageSettings": "Language",
         "viewOnboarding": "View Onboarding Again",
         "logout": "Logout",
+        "version": "DoU v{{version}}",
         "appVersion": "Version",
+        "updateRequired": "Update Required",
         "updateAvailable": "Update Available",
+        "goToStore": "Go to Store",
         "language": {
             "ko": "한국어",
             "en": "English",
@@ -163,51 +218,77 @@
         "subscription": {
             "title": "Subscription",
             "currentPlan": "Current Plan",
+            "planActive": "{{count}} Subscriptions Active",
+            "changePlan": "Change Plan",
             "period": "Period",
             "currentPayment": "Current Payment",
             "nextPayment": "Next Payment",
             "pricePerMonth": "{{price}}/mo",
             "vatIncluded": "(VAT incl.)",
+            "viewDetail": "View Details",
             "empty": "No active subscriptions",
             "emptyDescription": "Check out our subscription plans",
             "viewPlans": "View Plans",
             "plans": "Plans",
+            "popular": "Popular",
             "subscribe": "Subscribe",
             "mobileOnly": "Subscriptions are only available in the app",
             "noProducts": "Failed to load subscription plans",
             "purchasing": "Processing payment...",
+            "validating": "Verifying...",
+            "finishing": "Completing...",
             "purchaseSuccess": "Subscription completed",
             "purchaseSuccessDescription": "Cloud setup may take up to 10 minutes",
             "purchaseFailed": "Payment failed",
+            "validateFailed": "Payment verification failed",
             "notice": "Please note",
             "notice1": "Plan changes take effect immediately, and additional charges may apply based on the remaining period.",
             "notice2": "Downgrading will take effect from the next renewal date.",
             "notice3": "Manage subscriptions in iPhone Settings > Apple ID > Subscriptions or App Store subscription management.",
             "noticeTerms": "For details on purchase policies, please refer to our <terms>Terms of Service</terms>.",
             "platform": "Platform",
+            "purchaseDate": "Purchased",
+            "startDate": "Start Date",
+            "expiresAt": "Expires",
+            "autoRenew": "Auto Renew",
+            "autoRenewOn": "On",
+            "autoRenewOff": "Off",
             "canceledNotice": "Subscription will end on {{date}}",
             "pendingChange": "Plan will change to {{product}} on next renewal",
+            "otherReceipts": "{{count}} other receipt(s)",
             "manageSubscription": "Manage Subscription",
             "status": "Status",
             "statusActive": "Active",
             "statusCanceled": "Canceled",
             "statusExpired": "Expired",
+            "statusExpired": "Expired",
+            "expired": "This subscription has expired",
             "restore": "Restore",
             "restoreSuccess": "{{count}} purchase(s) restored",
             "restoreEmpty": "No purchases to restore",
             "restoreFailed": "Restore failed",
+            "renewedAt": "Renewed",
             "canceledAt": "Canceled",
+            "lastSyncAt": "Last synced",
+            "receiptId": "Receipt ID",
             "renewal": "Renewal",
             "renewal_auto": "Auto renew",
             "renewal_pending_cancel": "Pending cancel",
             "renewal_canceled": "Canceled",
+            "period_day": "{{count}} day",
+            "period_week": "{{count}} week",
+            "period_month": "{{count}} month",
+            "period_year": "{{count}} year",
             "autoRenewNotice": "This is an auto-renewable subscription. It will automatically renew at the same price at the end of each subscription period. You will be charged unless you cancel at least 24 hours before the end of the current period.",
             "termsOfService": "Terms of Service",
             "privacyPolicy": "Privacy Policy"
         },
         "accountManage": {
             "title": "Account Management",
+            "currentAccount": "Current Account",
+            "cloudAccounts": "Cloud Accounts",
             "noAccounts": "No cloud accounts registered",
+            "deleteAccount": "Delete Account",
             "delete": "Delete",
             "deleteConfirmTitle": "Delete account?",
             "deleteConfirmDesc": "{{name}} will be permanently deleted.",
@@ -221,13 +302,7 @@
             "terms": "Terms of Service",
             "privacy": "Privacy Policy",
             "child": "Child Policy",
-            "effectiveDate": "Effective Date",
-            "licenses": "Open Source Licenses",
-            "licensesDescription": "This app uses the following open source libraries",
-            "openSourceHero": "DoU is an open source project",
-            "openSourceDescription": "Check out the source code and contribute on GitHub",
-            "viewOnGithub": "View on GitHub",
-            "licensesEmpty": "No license data available"
+            "effectiveDate": "Effective Date"
         },
         "logoutDialog": {
             "title": "Are you sure you want to logout?",
@@ -251,18 +326,22 @@
     },
     "notifications": {
         "title": "Notifications",
+        "markAllRead": "Mark all read",
         "empty": "No notifications"
     },
     "globalLoader": {
         "switchingCloud": "Switching cloud...",
         "switchingPlace": "Switching place..."
     },
+    "socket": {
+        "connecting": "Connecting to server..."
+    },
     "homePage": {
         "places": "Places",
         "roomCreated": "Chat room created",
         "noCloudsError": "No clouds available to configure",
         "selectCloud": "Select a cloud",
-        "cannotCreatePlace": "Can't create place in this cloud"
+        "cannotCreatePlace": "Only the cloud owner can create places"
     },
     "cloudSessionSheet": {
         "title": "Select Cloud",
@@ -306,6 +385,11 @@
         "empty": "No places",
         "settings": "Settings",
         "delete": "Delete",
+        "deleteConfirmTitle": "Delete account?",
+        "deleteConfirmDesc": "{{name}} will be permanently deleted.",
+        "deleteSuccess": "Account deleted",
+        "deleteFailed": "Failed to delete account",
+        "deleteSelectedCloudWarning": "This is your current account. The app will refresh after deletion.",
         "leave": "Leave",
         "deleteDialog": {
             "title": "Delete Place",
@@ -324,7 +408,8 @@
         "retry": "Retry",
         "empty": "No channels yet. Create a new chat room!",
         "unnamedChannel": "Unnamed Channel",
-        "selfChannel": "My Chat"
+        "selfChannel": "My Chat",
+        "selectPlaceFirst": "Please select a place above first"
     },
     "bottomNav": {
         "chat": "Chat",
@@ -378,10 +463,7 @@
             "readCount": "Read {{count}}",
             "unreadCount": "Unread {{count}}",
             "viewAll": "View All",
-            "messageDetail": "Full Message",
-            "sending": "Sending...",
-            "sendFailed": "Failed to send message",
-            "tapToRetry": "Tap to retry"
+            "messageDetail": "Full Message"
         },
         "settings": {
             "title": "Room Settings",
@@ -389,11 +471,17 @@
             "error": "Unable to load channel info",
             "goBack": "Go Back",
             "edit": "Edit",
+            "public": "Public",
+            "private": "Private",
+            "inviteCode": "Chat room invite code",
             "inviteFriends": "Invite Friends",
             "notifications": "Notifications",
             "deleteRoom": "Delete Room",
             "leaveRoom": "Leave Room",
             "roomMembers": "Room Members",
+            "host": "Host",
+            "leaveConfirm": "Are you sure you want to leave this room?",
+            "deleteConfirm": "Are you sure you want to delete this room? This action cannot be undone.",
             "leftRoom": "Left the room",
             "leaveFailed": "Failed to leave the room",
             "deletedRoom": "Room deleted",
@@ -447,8 +535,15 @@
     "placeInfo": {
         "title": "Place Information",
         "createdDate": "Created Date",
+        "owner": "Place Owner",
         "confirm": "Done",
+        "unnamed": "Unnamed Place",
+        "unknownOwner": "Unknown",
         "notFound": "Place not found",
+        "myPlace": "My Place",
+        "visibility": "Visibility",
+        "public": "Public",
+        "private": "Private",
         "nameLabel": "Edit Name",
         "namePlaceholder": "Enter place name",
         "nameDescription": "Please enter up to 20 characters.",
@@ -463,7 +558,12 @@
             "mine": "My Workspaces",
             "friends": "Friend's Workspaces",
             "settings": "Settings",
-            "delete": "Delete"
+            "delete": "Delete",
+            "deleteConfirmTitle": "Delete account?",
+            "deleteConfirmDesc": "{{name}} will be permanently deleted.",
+            "deleteSuccess": "Account deleted",
+            "deleteFailed": "Failed to delete account",
+            "deleteSelectedCloudWarning": "This is your current account. The app will refresh after deletion."
         },
         "detail": {
             "private": "Private",
@@ -565,8 +665,6 @@
         "continueWithGoogle": "Continue with Google",
         "continueWithApple": "Continue with Apple",
         "oauthFailed": "Social login failed.",
-        "mobileOnly": "Please use the mobile app to sign in.",
-        "termsAgreement": "By continuing, you agree\nto our Terms & Privacy Policy",
         "signup": "Sign Up",
         "forgotPassword": "Forgot Password"
     },
@@ -590,9 +688,6 @@
         "passwordMismatch": "Passwords do not match",
         "complete": "Complete",
         "success": "Password has been changed",
-        "changeFailed": "Failed to change password",
-        "sendCodeFailed": "Failed to send verification code",
-        "resendFailed": "Failed to resend code",
         "accountNotFound": "Account not found"
     },
     "signup": {
@@ -614,18 +709,18 @@
         "passwordMismatch": "Passwords do not match",
         "complete": "Complete",
         "verifyFailed": "Invalid verification code",
-        "signupSuccess": "Sign up completed",
-        "signupFailed": "Sign up failed",
-        "sendCodeFailed": "Failed to send verification code",
-        "resendFailed": "Failed to resend code"
+        "signupSuccess": "Sign up completed"
     },
     "createPlace": {
         "title": "Create Place",
         "subtitle1": "Set up your personal",
         "subtitle2": "place",
+        "hint": "About your place...",
         "nameLabel": "Place Name",
         "namePlaceholder": "e.g., My Space, Book Club",
         "nameHint": "Please enter up to 20 characters.",
+        "photoLabel": "Place Photo",
+        "photoOptional": "[Optional]",
         "done": "Done"
     },
     "createChannel": {
@@ -637,6 +732,9 @@
         "nameRequired": "Please enter a room name",
         "nameMinLength": "Please enter at least 2 characters",
         "nameMaxLength": "Maximum 20 characters allowed",
+        "descLabel": "Room Description",
+        "descPlaceholder": "e.g., A room for UIUX study",
+        "imageLabel": "Room Image [Optional]",
         "done": "Done"
     },
     "visibility": {
@@ -645,7 +743,9 @@
     },
     "inviteFriends": {
         "title": "Invite Friends",
+        "copyLink": "Copy Link",
         "addFriend": "Add Friend",
+        "qrCode": "QR Code",
         "searchPlaceholder": "Search friends",
         "invite": "Invite",
         "noSearchResults": "No results found.",
@@ -664,8 +764,10 @@
         "subtitle2": "the friend to invite",
         "nameLabel": "Name",
         "namePlaceholder": "Enter friend's name",
+        "nameHint": "Please enter up to 20 characters.",
         "phoneLabel": "Phone Number",
         "phonePlaceholder": "Enter phone number",
+        "phoneHint": "Please enter up to 20 characters.",
         "phoneInvalidFormat": "Invalid phone number format",
         "share": "Share"
     },
@@ -683,6 +785,9 @@
         "nameRequired": "Please enter a room name",
         "nameMinLength": "Please enter at least 2 characters",
         "nameMaxLength": "Maximum 20 characters allowed",
+        "descLabel": "Room Description",
+        "descPlaceholder": "e.g., A room for UIUX study",
+        "imageLabel": "Room Image [Optional]",
         "updating": "Updating...",
         "done": "Done",
         "success": "Channel updated successfully",
@@ -753,6 +858,44 @@
         "confirm": "OK"
     },
     "error": {
+        "network": {
+            "title": "Connection Error",
+            "description": "Unable to connect to server. Please check your internet connection.",
+            "retry": "Retry",
+            "refresh": "Refresh"
+        },
+        "auth": {
+            "title": "Authentication Error",
+            "description": "Your session has expired. Please log in again.",
+            "login": "Login",
+            "home": "Home"
+        },
+        "server": {
+            "title": "Server Error",
+            "description": "A server error occurred. Please try again later.",
+            "retry": "Retry",
+            "home": "Home"
+        },
+        "client": {
+            "title": "Request Error",
+            "description": "There was a problem with your request. Please try again.",
+            "retry": "Retry",
+            "home": "Home"
+        },
+        "unknown": {
+            "title": "Error Occurred",
+            "description": "An unexpected error occurred.",
+            "retry": "Retry",
+            "home": "Home"
+        },
+        "notFound": {
+            "title": "Page Not Found",
+            "description": "The page you requested does not exist or has been moved.",
+            "home": "Home",
+            "back": "Go Back"
+        },
+        "goHome": "Home",
+        "retrying": "Retrying...",
         "unknownError": "An unknown error occurred"
     },
     "serviceUnavailable": {
@@ -775,6 +918,7 @@
         "resend": "Resend",
         "resendFailed": "Failed to resend code",
         "complete": "Confirm",
+        "verifyFailed": "Verification failed",
         "codeError": "Please enter the correct verification code",
         "success": "Account added successfully",
         "tooltip": "If you didn't receive the email,\nplease check your spam folder",

@@ -1,7 +1,6 @@
 import { notifyAppUpdated } from '../sync-events';
 import type { WSSChatActionType, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { CacheChannelView } from '@chatic/app-messages';
-import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 
 /**
  * chatHandler
@@ -20,7 +19,7 @@ import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 export const chatHandler = async (
     envelope: WSSEnvelope,
     cloudId: string,
-    placeId: string | null,
+    placeId: string,
     myUserId: string,
     chatRepo: any,
     channelRepo: any,
@@ -81,9 +80,10 @@ export const chatHandler = async (
         case 'mine': {
             const channelList = payload?.list || [];
             if (channelList.length > 0) {
-                const sid = (channelList?.[0] as ChannelView)?.$?.sid || placeId || '';
                 await Promise.all(
-                    channelList.map((ch: any) => channelRepo.saveChannel(ch.id, { ...ch, sid } as CacheChannelView))
+                    channelList.map((ch: any) =>
+                        channelRepo.saveChannel(ch.id, { ...ch, sid: placeId } as CacheChannelView)
+                    )
                 );
                 notifyAppUpdated({ domain: 'channel', action, cid: cloudId, payload });
             }
@@ -94,7 +94,7 @@ export const chatHandler = async (
         case 'update-channel':
         case 'invite': {
             if (channelId && payload) {
-                await channelRepo.saveChannel(channelId, { ...payload } as CacheChannelView);
+                await channelRepo.saveChannel(channelId, { ...payload, sid: placeId } as CacheChannelView);
                 notifyAppUpdated({ domain: 'channel', action, cid: cloudId, targetId: channelId, payload });
             }
             break;
@@ -106,7 +106,7 @@ export const chatHandler = async (
             const isKicked = targetUserId && targetUserId !== myUserId;
 
             if (isKicked) {
-                await channelRepo.saveChannel(channelId, { ...payload } as CacheChannelView);
+                await channelRepo.saveChannel(channelId, { ...payload, sid: placeId } as CacheChannelView);
             } else {
                 await channelRepo.deleteChannel(channelId);
             }

@@ -32,7 +32,7 @@ export const useChannelMutations = () => {
 
     const cleanup = useCallback((action: MutationAction, handler: (e: Event) => void, timeoutId: NodeJS.Timeout) => {
         setPendingStates(prev => ({ ...prev, [action]: false }));
-        window.removeEventListener(APP_SYNC_EVENT_NAME, handler);
+        window.removeEventListener('local-db-updated', handler);
         clearTimeout(timeoutId);
     }, []);
 

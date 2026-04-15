@@ -9,7 +9,15 @@ import {
     useUserRepository,
 } from '../repository';
 
-import { authHandler, channelHandler, chatHandler, syncHandler, systemHandler, userHandler } from '../handlers';
+import {
+    authHandler,
+    channelHandler,
+    chatHandler,
+    modelHandler,
+    syncHandler,
+    systemHandler,
+    userHandler,
+} from '../handlers';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
 export const useGlobalSocketRouter = () => {
@@ -25,7 +33,7 @@ export const useGlobalSocketRouter = () => {
      * 서버에서 `$: { sid: ... }` 와 같이 응답 페이로드로 값을 내려주는 것이 확인된다면,
      * 응답페이로드의 값을 활용하여 sid 주입하기; 현재 sid 주입 방식은 정확한 sid 전달 보장안됨
      */
-    const selectedPlaceId = cloudCore.getSelectedPlaceId();
+    const selectedPlaceId: string = cloudCore.getSelectedPlaceId() ?? 'default';
     const profile = useDynamicProfile();
     const myUserId = profile?.uid ?? '';
 
@@ -53,6 +61,9 @@ export const useGlobalSocketRouter = () => {
                         break;
                     case 'user':
                         await userHandler(envelope, cloudId, userRepo, placeRepo);
+                        break;
+                    case 'model':
+                        await modelHandler(envelope, cloudId, chatRepo, channelRepo);
                         break;
                     case 'auth':
                         await authHandler(envelope, cloudId);

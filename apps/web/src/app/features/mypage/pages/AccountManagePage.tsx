@@ -52,11 +52,12 @@ export const AccountManagePage = () => {
 
     return (
         <div className="flex min-h-screen flex-col bg-background">
-            <header className="relative flex min-h-[48px] items-center justify-center px-4 py-3 pt-safe-top">
-                <button onClick={() => navigate(-1)} className="absolute left-4 p-2" aria-label="Back">
-                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
+            <header className="flex items-center px-[6px] pt-safe-top">
+                <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
+                    <ChevronLeft size={26} strokeWidth={2} />
                 </button>
-                <h1 className="text-[17px] font-semibold text-foreground">{t('mypage.accountManage.title')}</h1>
+                <h1 className="flex-1 text-center text-[16px] font-semibold">{t('mypage.accountManage.title')}</h1>
+                <div className="w-[44px]" />
             </header>
 
             <div className="flex flex-col px-4 pt-4">
