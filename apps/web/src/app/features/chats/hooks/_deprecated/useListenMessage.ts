@@ -5,12 +5,15 @@ import { useWebSocketV2 } from '@chatic/socket';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chats/model';
 
-import { useChatMessages } from './useChatMessages';
-import { useMyChannels } from '../../home/hooks/useMyChannels';
+import { useMyChannels } from '../../../home/hooks/useMyChannels';
 import { useDynamicProfile } from '@chatic/web-core';
 import { cloudsKeys } from '@chatic/users';
 import { membershipKeys, subscriptionKeys } from '@chatic/subscriptions';
+import { useChatMessages } from './useChatMessages';
 
+/**
+ * @deprecated deprecated by raine; 신규 훅으로 대체
+ */
 export const useListenMessage = () => {
     const { lastMessage } = useWebSocketV2();
     const profile = useDynamicProfile();

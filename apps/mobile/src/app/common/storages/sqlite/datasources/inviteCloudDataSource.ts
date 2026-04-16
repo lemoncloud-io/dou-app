@@ -1,6 +1,6 @@
 import type { InviteCloudView } from '@chatic/app-messages';
 import { TABLES } from '../core';
-import { database } from '../core/database';
+import { database } from '../core';
 
 export const inviteCloudDataSource = {
     fetch: async (id: string): Promise<InviteCloudView | null> => {

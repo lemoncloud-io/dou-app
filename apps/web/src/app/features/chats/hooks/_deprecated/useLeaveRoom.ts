@@ -3,19 +3,16 @@ import { useState } from 'react';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
-import { useMyChannels } from '../../home/hooks/useMyChannels';
+import { useMyChannels } from '../../../home/hooks/useMyChannels';
 
-interface ChatUpdateChannelPayload {
-    channelId: string;
-    name: string;
-}
-
-export const useUpdateChannel = () => {
+/**
+ * @deprecated deprecated by raine; 신규 훅으로 대체
+ */
+export const useLeaveRoom = () => {
     const { emitAuthenticated } = useWebSocketV2();
-    const { setChannels } = useMyChannels();
     const [isPending, setIsPending] = useState(false);
-
-    const updateChannel = (payload: ChatUpdateChannelPayload): Promise<ChannelView> => {
+    const { setChannels } = useMyChannels();
+    const leaveRoom = (channelId: string, userId?: string, reason?: string): Promise<ChannelView> => {
         setIsPending(true);
 
         return new Promise((resolve, reject) => {
@@ -26,28 +23,24 @@ export const useUpdateChannel = () => {
                     if (envelope.action === 'error') {
                         unsub();
                         setIsPending(false);
-                        reject(new Error('chat/update error'));
+                        reject(new Error('chat/leave error'));
                         return;
                     }
-
-                    if (envelope.action !== 'update-channel') return;
+                    if (envelope.action !== 'leave') return;
                     unsub();
                     setIsPending(false);
-
                     const channel = envelope.payload as ChannelView;
-                    setChannels(prev => prev.map(ch => (ch.id === channel.id ? channel : ch)));
-                    // Update the global channels list with the updated channel
-
+                    setChannels(prev => prev.filter(ch => ch.id !== channel.id));
                     resolve(channel);
                 }
             );
             emitAuthenticated({
                 type: 'chat',
-                action: 'update-channel',
-                payload,
+                action: 'leave',
+                payload: { channelId, ...(userId && { userId }), ...(reason && { reason }) },
             });
         });
     };
 
-    return { updateChannel, isPending };
+    return { leaveRoom, isPending };
 };

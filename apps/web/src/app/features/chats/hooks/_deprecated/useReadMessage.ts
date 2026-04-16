@@ -7,6 +7,9 @@ import type { ChatModel } from '@lemoncloud/chatic-socials-api/dist/modules/chat
 import { useMyChannel } from './useMyChannel';
 import { useDynamicStorage } from './useDynamicStorage';
 
+/**
+ * @deprecated deprecated by raine; 신규 훅으로 대체
+ */
 export const useReadMessage = (
     channelId: string | undefined,
     messages: { chatNo?: number }[] = [],
