@@ -9,7 +9,15 @@ import {
     useUserRepository,
 } from '../repository';
 
-import { authHandler, channelHandler, chatHandler, syncHandler, systemHandler, userHandler } from '../handlers';
+import {
+    authHandler,
+    channelHandler,
+    chatHandler,
+    modelHandler,
+    syncHandler,
+    systemHandler,
+    userHandler,
+} from '../handlers';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
 export const useGlobalSocketRouter = () => {
@@ -39,6 +47,9 @@ export const useGlobalSocketRouter = () => {
 
             try {
                 switch (envelope.type) {
+                    case 'model':
+                        await modelHandler(envelope, cloudId, chatRepo, channelRepo, joinRepo);
+                        break;
                     case 'chat':
                         await chatHandler(
                             envelope,
