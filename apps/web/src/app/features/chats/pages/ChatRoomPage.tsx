@@ -86,6 +86,41 @@ export const ChatRoomPage = () => {
         }, 50);
     };
 
+    // 채팅 길이가 변할 때 최신 메시지 자동 읽음 처리
+    useEffect(() => {
+        if (!channelId || messages.length === 0) return;
+
+        const handleAutoRead = () => {
+            // 웹 브라우저나 앱이 완전히 백그라운드에 있을 때는 무시
+            if (document.visibilityState === 'hidden') return;
+
+            // 목록의 가장 마지막 메시지 추출
+            const latestMessage = messages[messages.length - 1];
+            const latestChatNo = latestMessage?.chatNo;
+
+            // 서버에서 확정된 번호가 있고, 내가 마지막으로 읽은 번호보다 최신일 때만 실행
+            if (
+                latestChatNo !== undefined &&
+                (lastReadChatNoRef.current === null || latestChatNo > lastReadChatNoRef.current)
+            ) {
+                lastReadChatNoRef.current = latestChatNo;
+                readMessage({ channelId, chatNo: latestChatNo }).catch(console.error);
+            }
+        };
+
+        // 새 메시지가 도착했을 때 즉시 체크
+        handleAutoRead();
+        // PC 웹 / 모바일 브라우저 탭 활성화 대응
+        document.addEventListener('visibilitychange', handleAutoRead);
+        // 모바일 네이티브 앱(웹뷰) 포그라운드 복귀 대응 (useForegroundResync 연동)
+        window.addEventListener('foreground-resync', handleAutoRead);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleAutoRead);
+            window.removeEventListener('foreground-resync', handleAutoRead);
+        };
+    }, [messages.length, channelId, readMessage]);
+
     // 메시지 배열이 변경되거나(새 메시지 추가, 전송 중 상태 변경 등) 실패 메시지가 생길 때 스크롤 이동
     useEffect(() => {
         if (messages.length > 0) {
