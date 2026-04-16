@@ -11,6 +11,7 @@ import { useDynamicProfile } from '@chatic/web-core';
 /**
  * 특정 채널의 메시지 목록을 조회하고 가공하여 상태로 관리하는 훅
  * 백그라운드에서 `chat:feed`를 통해 서버와 최신/과거 데이터를 동기화
+ * TODO 이후 msg 커서를 활용한 페이징 추가 필요 @Raine
  */
 export const useChats = (initialParams: ChatFeedPayload) => {
     const targetChannelId = initialParams.channelId;
@@ -37,11 +38,10 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     const requestFromLocal = useCallback(
         async (params?: ChatFeedPayload) => {
             try {
-                if (params) {
-                    currentParamsRef.current = { ...currentParamsRef.current, ...params };
-                }
+                if (params) currentParamsRef.current = { ...currentParamsRef.current, ...params };
                 const activeParams = currentParamsRef.current;
                 const channelId = activeParams.channelId ?? targetChannelId;
+
                 if (!channelId) {
                     setMessages([]);
                     setStatus(prev => ({ ...prev, isLoading: false, isError: false }));
@@ -55,17 +55,15 @@ export const useChats = (initialParams: ChatFeedPayload) => {
 
                 const totalActiveMembers = activeJoins.length;
 
-                let processedData = rawMsgs
+                // 로컬 데이터는 limit 상관없이 전체 매핑 및 정렬
+                const processedData = rawMsgs
                     .sort((a, b) => {
-                        const noA = a.chatNo ?? Number.MAX_SAFE_INTEGER;
-                        const noB = b.chatNo ?? Number.MAX_SAFE_INTEGER;
-                        if (noA === noB && a.createdAt && b.createdAt) {
-                            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-                        }
-                        return noA - noB;
+                        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+
+                        return timeA - timeB;
                     })
                     .map((msg): ClientChatView => {
-                        // 안읽음 수 계산 수행
                         let unreadCount = 0;
                         if (msg.chatNo !== undefined) {
                             const readCount = activeJoins.filter(join => (join.chatNo || 0) >= msg.chatNo!).length;
@@ -77,11 +75,6 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                         return ChatMapper.toClient(msg, unreadCount, userId);
                     });
 
-                if (activeParams.limit) {
-                    const limit = activeParams.limit;
-                    const page = activeParams.page ?? 0;
-                    processedData = processedData.slice(-(limit * (page + 1)));
-                }
                 setMessages(processedData);
                 setStatus({
                     isLoading: false,
