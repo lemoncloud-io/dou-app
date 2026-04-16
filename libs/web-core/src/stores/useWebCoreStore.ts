@@ -16,13 +16,45 @@ interface UserViewExtended {
 
 const INVITED_SESSION_KEY = 'chatic-is-invited';
 const OAUTH_PROVIDER_KEY = 'chatic-oauth-provider';
+const PROFILE_CACHE_KEY = 'chatic-profile-cache';
 
-export const getIsInvited = (): boolean => coreStorage.get(INVITED_SESSION_KEY) === 'true';
+/**
+ * Read invited flag.
+ *
+ * Stored in both coreStorage (sessionStorage on web, localStorage on RN
+ * WebView) AND localStorage directly, so the flag survives tab close/reopen
+ * on web and matches the profile cache lifetime (localStorage). Reads either
+ * side and treats a 'true' on either as invited.
+ */
+export const getIsInvited = (): boolean => {
+    try {
+        if (localStorage.getItem(INVITED_SESSION_KEY) === 'true') return true;
+    } catch {
+        // ignore
+    }
+    return coreStorage.get(INVITED_SESSION_KEY) === 'true';
+};
+
+/**
+ * Write invited flag to both coreStorage (web: sessionStorage, RN WebView:
+ * localStorage) and localStorage directly. Matches `clearTokensOnLogout`
+ * which already clears both sides.
+ */
 export const setIsInvitedSession = (value: boolean): void => {
     if (value) {
         coreStorage.set(INVITED_SESSION_KEY, 'true');
+        try {
+            localStorage.setItem(INVITED_SESSION_KEY, 'true');
+        } catch {
+            // ignore
+        }
     } else {
         coreStorage.remove(INVITED_SESSION_KEY);
+        try {
+            localStorage.removeItem(INVITED_SESSION_KEY);
+        } catch {
+            // ignore
+        }
     }
 };
 
@@ -71,18 +103,37 @@ const logoutCallbacks = new Set<() => void>();
 
 /**
  * Initial state configuration for the web core store
+ *
+ * Hydrates profile/isInvited and their derived flags from persisted storage
+ * so the first render matches the post-`setProfile` state. Without this,
+ * `useUserContext` briefly computes the wrong userType on app boot.
  */
-const initialState: Pick<WebCoreStore, keyof WebCoreState> = {
-    isInitialized: false,
-    isAuthenticated: false,
-    isOnMobileApp: false,
-    isGuest: false,
-    isInvited: false,
-    isCloudUser: false,
-    error: null,
-    profile: null,
-    userName: '',
-};
+const initialState: Pick<WebCoreStore, keyof WebCoreState> = (() => {
+    let profile: UserProfile$ | null = null;
+    try {
+        const cached = localStorage.getItem(PROFILE_CACHE_KEY);
+        profile = cached ? (JSON.parse(cached) as UserProfile$) : null;
+    } catch {
+        profile = null;
+    }
+
+    const isInvited = getIsInvited();
+    const userRole = (profile?.$user as UserViewExtended | undefined)?.userRole;
+    const isGuest = userRole === 'guest' && !isInvited;
+    const isCloudUser = isInvited || userRole === 'user';
+
+    return {
+        isInitialized: false,
+        isAuthenticated: false,
+        isOnMobileApp: false,
+        isGuest,
+        isInvited,
+        isCloudUser,
+        error: null,
+        profile,
+        userName: profile ? profile['$user']?.name || 'Unknown' : '',
+    };
+})();
 
 /**
  * Zustand store for managing web core state and actions
@@ -151,6 +202,11 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         localStorage.removeItem('chatic-device-token');
 
         set({ isAuthenticated: false, profile: null, userName: '', isGuest: false, isInvited: false });
+        try {
+            localStorage.removeItem(PROFILE_CACHE_KEY);
+        } catch {
+            /* ignore */
+        }
 
         if (options?.preserveUrl) {
             const params = new URLSearchParams(searchBeforeCleanup);
@@ -177,6 +233,11 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      * @param profile - User profile data
      */
     setProfile: (profile: UserProfile$) => {
+        try {
+            localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
+        } catch {
+            // ignore
+        }
         const userRoleGuest = (profile.$user as UserViewExtended)?.userRole === 'guest';
         const isInvited = getIsInvited();
 

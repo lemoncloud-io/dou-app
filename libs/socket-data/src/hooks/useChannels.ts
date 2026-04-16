@@ -7,6 +7,7 @@ import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import { useChannelRepository, useJoinRepository } from '../repository';
 import type { ClientChannelView, ClientChatMinePayload } from '../types';
+import { shouldEmit } from '../requestDedup';
 
 /**
  * 특정 워크스페이스(Place)의 채널 목록을 로컬 DB에서 즉시 조회
@@ -113,6 +114,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
             const placeId = activeParams.placeId;
 
             if (!placeId) return;
+            if (!shouldEmit(`chat:mine:${placeId}`)) return;
 
             setIsSyncing(true);
             emitAuthenticated({

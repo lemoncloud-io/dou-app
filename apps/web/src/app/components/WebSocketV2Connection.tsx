@@ -1,11 +1,8 @@
 import { useEffect } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
-import { useLoaderStore } from '@chatic/shared';
-import { cloudCore, wasBootstrappedFromCache, useUserContext } from '@chatic/web-core';
+import { cloudCore, useUserContext } from '@chatic/web-core';
 
-import { useListenMessage } from '../features/chats/hooks/_deprecated/useListenMessage';
-import { useMyChannels } from '../features/home/hooks/useMyChannels';
 import { useDynamicDeviceId } from '../shared/hooks/useDynamicDeviceId';
 import { useCloudTokenRefresh } from '../shared/hooks/useCloudTokenRefresh';
 import { useCloudSession } from '../shared/hooks/useCloudSession';
@@ -21,27 +18,14 @@ export const WebSocketV2Connection = () => {
     // cloudId 설정 (cloud WSS 사용 시만 실제 cloudId, 아니면 'default')
     const selectedCloudId = currentWSS === 'cloud' ? cloudCore.getSelectedCloudId() || 'default' : 'default';
 
-    const connectionStatus = useWebSocketV2Store(s => s.connectionStatus);
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
-    const setGlobalLoading = useLoaderStore(s => s.setIsLoading);
-
     useEffect(() => {
         useWebSocketV2Store.getState().setCloudId(selectedCloudId);
     }, [selectedCloudId]);
 
-    const isSocketConnecting = connectionStatus === 'connecting' || (connectionStatus === 'connected' && !isVerified);
-
-    useEffect(() => {
-        if (isSocketConnecting && !wasBootstrappedFromCache()) {
-            setGlobalLoading(true);
-        } else {
-            setGlobalLoading(false);
-        }
-        return () => {
-            setGlobalLoading(false);
-        };
-    }, [isSocketConnecting, setGlobalLoading]);
-
+    // NOTE: Socket connection runs entirely in the background. We never block the
+    // UI on `connectionStatus` / `isVerified` — previous implementation toggled a
+    // global loader during connecting/verifying which made the app feel like it
+    // was waiting on the socket. Per product rule: "소켓연결은 무조건 기다리면 안돼".
     useWebSocketV2({
         endpoint,
         connectParams: { deviceId },
@@ -49,8 +33,6 @@ export const WebSocketV2Connection = () => {
         wssType: currentWSS,
     });
 
-    useListenMessage();
-    useMyChannels();
     useCloudTokenRefresh();
 
     return null;

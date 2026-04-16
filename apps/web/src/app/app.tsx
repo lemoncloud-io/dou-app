@@ -59,11 +59,18 @@ export function App() {
     const isWebCoreReady = useInitWebCore();
     const { isAuthenticated, profile } = useWebCoreStore();
     const { isInitialized: isTokenInitialized, initStatus, refreshToken } = useTokenRefresh(isWebCoreReady);
+    // Render immediately whenever we have something to show:
+    // - Unauthenticated users: public routes
+    // - Mobile WebView bootstrap cache: explicit opt-in
+    // - Cached profile in localStorage: render app, let token refresh / profile
+    //   fetch run in the background (do NOT block UI on network work)
+    // - Token init explicitly failed: avoid infinite loading (logout path handles the rest)
     const canRenderApp =
         isWebCoreReady &&
         (!isAuthenticated ||
             wasBootstrappedFromCache() ||
-            (isTokenInitialized && (!!profile || initStatus === 'failed')));
+            !!profile ||
+            (isTokenInitialized && initStatus === 'failed'));
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
     useDataSync();

@@ -6,7 +6,7 @@ import { getDeepLinkManager } from '@chatic/deeplinks';
 import { logger, useDeepLinkStore } from '../../index';
 import { WEBVIEW_URL } from '../utils/constants';
 
-const webviewBaseUrl = new URL(WEBVIEW_URL);
+const webviewBaseUrl = new URL('http://192.168.1.13:5003');
 const toLocalUrl = (url: string): string => {
     try {
         const parsed = new URL(url);

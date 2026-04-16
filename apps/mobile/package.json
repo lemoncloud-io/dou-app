@@ -88,7 +88,8 @@
         "@react-native-firebase/app": "*",
         "@react-native-firebase/installations": "*",
         "@react-native-firebase/messaging": "*",
-        "@react-native-firebase/auth": "*"
+        "@react-native-firebase/auth": "*",
+        "@testing-library/react": "*"
     },
     "devDependencies": {}
 }

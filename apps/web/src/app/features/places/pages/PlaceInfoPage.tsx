@@ -10,7 +10,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';
-import { useMyPlaces } from '../../home/hooks/useMyPlaces';
+import { usePlaces } from '@chatic/socket-data';
 import { useUpdateMyPlace } from '../../home/hooks/useUpdateMyPlace';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
@@ -23,7 +23,7 @@ export const PlaceInfoPage = () => {
     const navigate = useNavigateWithTransition();
     const { toast } = useToast();
     const { placeId } = useParams<{ placeId: string }>();
-    const { places } = useMyPlaces();
+    const { places } = usePlaces();
     const { updatePlace, isPending } = useUpdateMyPlace();
     const fileInputRef = useRef<HTMLInputElement>(null);
 

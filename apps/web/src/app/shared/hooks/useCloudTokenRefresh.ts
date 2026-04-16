@@ -5,7 +5,6 @@ import { cloudCore, useServiceStatusStore, useWebCoreStore, webCore } from '@cha
 
 const REFRESH_INTERVAL_MS = 60_000;
 
- 
 const isServerError = (error: unknown): boolean => {
     const err = error as any;
     const status = err?.status || err?.response?.status || err?.statusCode;
@@ -17,7 +16,6 @@ export const useCloudTokenRefresh = () => {
     const { emit, isConnected } = useWebSocketV2();
     const { setServiceUnavailable } = useServiceStatusStore();
     const wssType = useWebSocketV2Store(s => s.wssType);
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
 
     useEffect(() => {
         if (!isConnected || !isAuthenticated) return;
@@ -52,5 +50,5 @@ export const useCloudTokenRefresh = () => {
 
         const id = setInterval(refresh, REFRESH_INTERVAL_MS);
         return () => clearInterval(id);
-    }, [wssType, isAuthenticated, isConnected, isVerified, emit, setServiceUnavailable]);
+    }, [wssType, isAuthenticated, isConnected, emit, setServiceUnavailable]);
 };

@@ -1,46 +1,26 @@
 import { useState } from 'react';
 
-import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
-import type { ChannelBody, ChannelView } from '@lemoncloud/chatic-socials-api';
-import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
-import { useMyChannels } from './useMyChannels';
+import { useChannelMutations } from '@chatic/socket-data';
+
+import type { ChannelView } from '@lemoncloud/chatic-socials-api';
+import type { ChatStartPayload } from '@lemoncloud/chatic-sockets-api';
 
 export const useCreateChannel = () => {
-    const { emitAuthenticated } = useWebSocketV2();
-    const [isLoading, setIsLoading] = useState(false);
+    const { createChannel: socketCreateChannel, isPending } = useChannelMutations();
     const [isError, setIsError] = useState(false);
     const [channel, setChannel] = useState<ChannelView | null>(null);
 
-    const { setChannels } = useMyChannels();
-
-    const createChannel = (payload: ChannelBody): Promise<ChannelView> => {
-        setIsLoading(true);
+    const createChannel = async (payload: ChatStartPayload): Promise<ChannelView> => {
         setIsError(false);
-
-        return new Promise((resolve, reject) => {
-            const unsub = useWebSocketV2Store.subscribe(
-                s => s.lastMessage,
-                (envelope: WSSEnvelope<ChannelView> | null) => {
-                    if (envelope?.type !== 'chat') return;
-                    if (envelope.action === 'error') {
-                        unsub();
-                        setIsError(true);
-                        setIsLoading(false);
-                        reject(new Error('chat/start error'));
-                        return;
-                    }
-                    if (envelope.action !== 'start') return;
-                    unsub();
-                    const newChannel = envelope.payload as ChannelView;
-                    setChannel(newChannel);
-                    setIsLoading(false);
-                    setChannels(prev => [...prev, newChannel]);
-                    resolve(newChannel);
-                }
-            );
-            emitAuthenticated({ type: 'chat', action: 'start', payload });
-        });
+        try {
+            const newChannel = await socketCreateChannel(payload);
+            setChannel(newChannel);
+            return newChannel;
+        } catch (error) {
+            setIsError(true);
+            throw error;
+        }
     };
 
-    return { createChannel, isLoading, isError, channel };
+    return { createChannel, isLoading: isPending.start, isError, channel };
 };

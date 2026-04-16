@@ -1,10 +1,10 @@
-import { useUserContext } from '@chatic/web-core';
-
-import { useMyChannels } from '../../features/home/hooks/useMyChannels';
+import { cloudCore, useUserContext } from '@chatic/web-core';
+import { useChannels } from '@chatic/socket-data';
 
 export const useCanCreateChannel = () => {
     const { permissions } = useUserContext();
-    const { channels, isLoading } = useMyChannels();
+    const placeId = cloudCore.getSelectedPlaceId() || '';
+    const { channels, isLoading } = useChannels({ placeId });
 
     const currentCount = channels.length;
     const maxCount = permissions.maxChannels;

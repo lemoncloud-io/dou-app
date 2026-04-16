@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { useDynamicProfile } from '@chatic/web-core';
+import { cloudCore, useDynamicProfile } from '@chatic/web-core';
+import { usePlaces, useChannels } from '@chatic/socket-data';
 
 import { IndexedDBChannelAdapter } from '../../chats/storages/IndexedDBChannelAdapter';
 import { IndexedDBStorageAdapter } from '../../chats/storages/IndexedDBStorageAdapter';
-import { useMyChannels } from '../../home/hooks/useMyChannels';
-import { useMyPlaces } from '../../home/hooks/useMyPlaces';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
@@ -26,8 +25,9 @@ export const useSearch = (query: string) => {
     const profile = useDynamicProfile();
     const userId = profile?.uid ?? '';
 
-    const { places: apiPlaces } = useMyPlaces();
-    const { channels: apiChannels } = useMyChannels();
+    const { places: apiPlaces } = usePlaces();
+    const searchPlaceId = cloudCore.getSelectedPlaceId() || '';
+    const { channels: apiChannels } = useChannels({ placeId: searchPlaceId });
 
     const [results, setResults] = useState<SearchResults>({ places: [], chats: [] });
     const [isSearching, setIsSearching] = useState(false);

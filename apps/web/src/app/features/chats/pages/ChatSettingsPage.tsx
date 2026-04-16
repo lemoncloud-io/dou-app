@@ -8,15 +8,12 @@ import { LoadingFallback, useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useDynamicProfile, UserType, useUserContext } from '@chatic/web-core';
 
-import { PageHeader } from '../../../shared';
-import {
-    ConfirmDialog,
-    InviteFriendsDialog,
-    MemberListItem,
-    ReportMemberDialog,
-    UpdateChannelDialog,
-} from '../components';
-
+import { PageHeader } from '../../../shared/components';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
+import { MemberListItem } from '../components/MemberListItem';
+import { ReportMemberDialog } from '../components/ReportMemberDialog';
+import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
 import { useChannel, useChannelMembers, useChannelMutations } from '@chatic/socket-data';
 
 type DialogType = 'invite' | 'update' | 'delete' | 'leave' | 'report' | 'block' | null;
@@ -61,6 +58,7 @@ export const ChatSettingsPage = () => {
     const { channelId } = useParams<{ channelId: string }>();
     const [activeDialog, setActiveDialog] = useState<DialogType>(null);
     const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
+
     const { toast } = useToast();
 
     const profile = useDynamicProfile();
@@ -96,7 +94,6 @@ export const ChatSettingsPage = () => {
 
         try {
             await leaveChannel({ channelId });
-
             closeDialog();
             toast({ title: t('chat.settings.leftRoom') });
             navigate('/', { replace: true });

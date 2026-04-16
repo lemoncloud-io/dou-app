@@ -381,7 +381,8 @@
             "messageDetail": "Full Message",
             "sending": "Sending...",
             "sendFailed": "Failed to send message",
-            "tapToRetry": "Tap to retry"
+            "tapToRetry": "Tap to retry",
+            "newMessages": "{{count}} new messages"
         },
         "settings": {
             "title": "Room Settings",
