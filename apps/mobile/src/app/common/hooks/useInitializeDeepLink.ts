@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import type { DeepLinkSource, ServiceEndpoints, InviteSiteInfo } from '@chatic/deeplinks';
+import type { DeepLinkSource, InviteCloudInfo, InviteSiteInfo, ServiceEndpoints } from '@chatic/deeplinks';
 import { getDeepLinkManager } from '@chatic/deeplinks';
 import { useDeepLinkStore } from '../stores';
 import { logger } from '../services';
@@ -16,12 +16,18 @@ export const useInitializeDeepLink = () => {
 
         // Register callback and initialize listener to be executed upon receiving a deep link
         manager.initialize({
-            handleDeepLink: (url: string, source: DeepLinkSource, envs?: ServiceEndpoints, site?: InviteSiteInfo) => {
+            handleDeepLink: (
+                url: string,
+                source: DeepLinkSource,
+                envs?: ServiceEndpoints,
+                site?: InviteSiteInfo,
+                cloud?: InviteCloudInfo
+            ) => {
                 logger.info(
                     'DEEPLINK',
-                    `[App] Deep link received: ${url}, source: ${source}, envs: ${JSON.stringify(envs)}, site: ${JSON.stringify(site)}`
+                    `[App] Deep link received: ${url}, source: ${source}, envs: ${JSON.stringify(envs)}, site: ${JSON.stringify(site)}, cloud: ${JSON.stringify(cloud)}`
                 );
-                useDeepLinkStore.getState().setPendingUrl(url, source, envs, site);
+                useDeepLinkStore.getState().setPendingUrl(url, source, envs, site, cloud);
             },
             handleError: (reason: string) => {
                 logger.error('DEEPLINK', `[App] Deep link processing failed: ${reason}`);

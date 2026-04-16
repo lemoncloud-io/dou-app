@@ -19,7 +19,7 @@ import { retrieveDeferredLinkFromFirestore } from './firestoreDeferred';
 import { isShortUrl, isValidDeepLink } from './parser';
 import { convertDeepLinkToFrontendUrl, convertShortUrlWithEnvs, needsConversion } from './urlConverter';
 
-import type { InviteSiteInfo, ServiceEndpoints } from './urlConverter';
+import type { InviteCloudInfo, InviteSiteInfo, ServiceEndpoints } from './urlConverter';
 import type { DeepLinkConfig, DeepLinkSource, WebViewHandler } from './types';
 
 /** Time to wait for a late-arriving Universal Link URL after getInitialURL returns null */
@@ -266,11 +266,13 @@ export class DeepLinkManager {
 
         // 3. Expand short URL (/s/xxx) after domain conversion
         let site: InviteSiteInfo | undefined;
+        let cloud: InviteCloudInfo | undefined;
         try {
             const result = await convertShortUrlWithEnvs(processedUrl);
             processedUrl = result.url;
             envs = result.envs;
             site = result.site;
+            cloud = result.cloud;
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
             console.error('[DeepLinkManager] Error expanding short URL:', message);
@@ -299,9 +301,11 @@ export class DeepLinkManager {
             'envs:',
             envs,
             'site:',
-            site
+            site,
+            'cloud:',
+            cloud
         );
-        this.webViewHandler.handleDeepLink(processedUrl, source, envs, site);
+        this.webViewHandler.handleDeepLink(processedUrl, source, envs, site, cloud);
     }
 
     /**

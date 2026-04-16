@@ -91,6 +91,9 @@ export const LoginPage = (): JSX.Element => {
             return;
         }
 
+        const urlCloudId = urlParams.get('_cloudId') ?? undefined;
+        const urlCloudName = urlParams.get('_cloudName') ?? undefined;
+
         setIsAccepting(true);
 
         try {
@@ -110,18 +113,19 @@ export const LoginPage = (): JSX.Element => {
             // 3. Save cloud token
             cloudCore.saveCloudToken(data as unknown as UserTokenView);
 
-            // 3-1. Save selected cloud ID
-            if (data.cloudId) {
-                cloudCore.saveSelectedCloudId(data.cloudId);
+            // 3-1. Save selected cloud ID (prefer URL param over server response)
+            const effectiveCloudId = urlCloudId ?? data.cloudId;
+            if (effectiveCloudId) {
+                cloudCore.saveSelectedCloudId(effectiveCloudId);
             }
 
             // 4. Save invite cloud to cache
-            if (data.cloudId) {
+            if (effectiveCloudId) {
                 const { isOnMobileApp } = getMobileAppInfo();
                 if (isOnMobileApp) {
                     await saveInvite({
-                        id: data.cloudId,
-                        name: data.name,
+                        id: effectiveCloudId,
+                        name: urlCloudName ?? data.name,
                         backend: backend ?? undefined,
                         wss: wss ?? undefined,
                     });
