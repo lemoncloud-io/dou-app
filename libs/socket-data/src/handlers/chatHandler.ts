@@ -37,6 +37,21 @@ export const chatHandler = async (
             if (meta?.ref) await chatRepo.deleteChat(meta?.ref);
             if (payload?.id) {
                 await chatRepo.saveChat(payload.id, payload);
+
+                if (channelId) {
+                    const existingChannel = await channelRepo.getChannel(channelId);
+                    if (existingChannel) {
+                        // 본인 메시지면 unreadCount 0, 타인 메시지면 +1 (A-1 단순 방식)
+                        const isMine = payload?.ownerId === myUserId;
+                        const prevUnread = existingChannel.unreadCount ?? 0;
+                        const nextUnread = isMine ? 0 : prevUnread + 1;
+                        await channelRepo.saveChannel(channelId, {
+                            ...existingChannel,
+                            lastChat$: { ...existingChannel.lastChat$, ...payload },
+                            unreadCount: nextUnread,
+                        } as CacheChannelView);
+                    }
+                }
                 notifyAppUpdated({ domain: 'chat', action, cid: cloudId, targetId: channelId, payload });
             }
             break;
@@ -46,8 +61,9 @@ export const chatHandler = async (
             const chatList = payload?.list || [];
             if (chatList.length > 0) {
                 await Promise.all(chatList.map((chat: any) => chatRepo.saveChat(chat.id, chat)));
-                notifyAppUpdated({ domain: 'chat', action, cid: cloudId, targetId: channelId, payload });
             }
+            // 항상 notify — list 비어도 cursorNo 전달 필요
+            notifyAppUpdated({ domain: 'chat', action, cid: cloudId, targetId: channelId, payload });
             break;
         }
 
@@ -63,6 +79,23 @@ export const chatHandler = async (
             const joinView = payload?.joinView || payload;
             if (joinView && joinView.id) {
                 await joinRepo.saveJoin(joinView.id, joinView);
+
+                // 채널 캐시의 unreadCount 업데이트
+                const readChannelId = joinView.channelId;
+                if (readChannelId) {
+                    const existingChannel = await channelRepo.getChannel(readChannelId);
+                    if (existingChannel) {
+                        const lastChatNo = existingChannel.lastChat$?.chatNo ?? 0;
+                        const readChatNo = joinView.chatNo ?? 0;
+                        const newUnreadCount = readChatNo >= lastChatNo ? 0 : Math.max(0, lastChatNo - readChatNo);
+                        await channelRepo.saveChannel(readChannelId, {
+                            ...existingChannel,
+                            unreadCount: newUnreadCount,
+                        } as CacheChannelView);
+                        notifyAppUpdated({ domain: 'channel', action, cid: cloudId, targetId: readChannelId, payload });
+                    }
+                }
+
                 notifyAppUpdated({ domain: 'join', action, cid: cloudId, targetId: joinView.channelId, payload });
             }
             break;

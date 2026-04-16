@@ -17,7 +17,7 @@ import {
 import { useLoaderStore } from '@chatic/shared';
 import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
-import { useMyPlaces } from '../hooks/useMyPlaces';
+import { usePlaces } from '@chatic/socket-data';
 
 const DEFAULT_PLACE: MySiteView = { id: 'default', name: 'defaultPlace', stereo: 'work' } as MySiteView;
 
@@ -98,7 +98,7 @@ export const PlaceList = ({
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
     const [isPending, setIsPending] = useState(false);
     const [filter, setFilter] = useState<PlaceFilter>('all');
-    const { places, isLoading, isError, retry } = useMyPlaces();
+    const { places, isLoading, isError, refresh } = usePlaces();
     const setGlobalLoading = useLoaderStore(s => s.setIsLoading);
 
     const profileId = cloudCore.getCloudToken()?.id;
@@ -286,7 +286,7 @@ export const PlaceList = ({
                 {header}
                 <div className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
                     <span>{t('placeList.errorLoading')}</span>
-                    <button onClick={retry} className="flex items-center gap-1 text-foreground">
+                    <button onClick={() => refresh()} className="flex items-center gap-1 text-foreground">
                         <RefreshCw size={14} />
                         <span>{t('placeList.retry')}</span>
                     </button>

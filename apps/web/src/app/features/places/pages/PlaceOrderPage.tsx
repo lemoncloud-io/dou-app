@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -17,10 +17,10 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { cloudCore } from '@chatic/web-core';
+import { usePlaces } from '@chatic/socket-data';
 
 import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../../chats/components/ConfirmDialog';
-import { useMyPlaces } from '../../home/hooks/useMyPlaces';
 import { SortablePlaceItem } from '../components';
 
 import type { DragEndEvent } from '@dnd-kit/core';
@@ -29,7 +29,12 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 export const PlaceOrderPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const { places, setPlaces } = useMyPlaces();
+    const { places: serverPlaces } = usePlaces();
+    const [places, setPlaces] = useState<MySiteView[]>(serverPlaces);
+
+    useEffect(() => {
+        setPlaces(serverPlaces);
+    }, [serverPlaces]);
 
     const myId = cloudCore.getCloudToken()?.id;
     const [deleteTarget, setDeleteTarget] = useState<MySiteView | null>(null);

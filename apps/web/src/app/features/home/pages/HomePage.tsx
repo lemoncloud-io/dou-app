@@ -35,6 +35,7 @@ export const HomePage = () => {
     const { t } = useTranslation();
     const profile = useWebCoreStore(s => s.profile);
     const { userType } = useUserContext();
+
     const isInvited = userType === UserType.INVITED || userType === UserType.INVITED_WITH_CLOUD;
     const { mutate: logout } = useLogout();
     const navigate = useNavigateWithTransition();

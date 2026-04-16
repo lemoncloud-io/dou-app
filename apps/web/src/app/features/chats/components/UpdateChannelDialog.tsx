@@ -8,9 +8,8 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/u
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import type { ChatStartBody } from '@lemoncloud/chatic-socials-api';
-
 import { useChannel, useChannelMutations } from '@chatic/socket-data';
+import type { ChatStartBody } from '@lemoncloud/chatic-socials-api';
 
 interface UpdateChannelDialogProps {
     open: boolean;
@@ -20,10 +19,9 @@ interface UpdateChannelDialogProps {
 
 export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateChannelDialogProps) => {
     const { t } = useTranslation();
-    const { toast } = useToast();
-
+    const { updateChannel, isPending: mutationPending } = useChannelMutations();
     const { channel } = useChannel(channelId ?? null);
-    const { updateChannel, isPending } = useChannelMutations();
+    const { toast } = useToast();
 
     const {
         register,
@@ -120,10 +118,10 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                         <div className="flex flex-col gap-4 px-4 pt-5 pb-4">
                             <Button
                                 type="submit"
-                                disabled={isPending.update}
+                                disabled={mutationPending.update}
                                 className="flex items-center justify-center gap-1.5 h-[50px] px-6 py-3 bg-[#B0EA10] rounded-full text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-muted disabled:text-muted-foreground"
                             >
-                                {isPending.update ? t('updateChannel.updating') : t('updateChannel.done')}
+                                {mutationPending.update ? t('updateChannel.updating') : t('updateChannel.done')}
                             </Button>
                         </div>
                         <div

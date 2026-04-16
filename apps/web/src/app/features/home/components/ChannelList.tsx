@@ -5,10 +5,8 @@ import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { cloudCore, useDynamicProfile } from '@chatic/web-core';
-
-import { useUnreadCount } from '../../chats/hooks/useUnreadCount';
-import { useMyChannels } from '../hooks/useMyChannels';
+import { cloudCore } from '@chatic/web-core';
+import { useChannels } from '@chatic/socket-data';
 
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 
@@ -25,8 +23,7 @@ const ChannelSkeleton = () => (
 const ChannelItem = ({ channel }: { channel: ChannelView }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const profile = useDynamicProfile();
-    const unreadCount = useUnreadCount(profile?.uid ?? null, channel.id ?? '');
+    const unreadCount = channel.unreadCount ?? 0;
     const isSelf = channel.memberNo === 1;
 
     const formatTime = (dateValue?: string | number) => {
@@ -103,14 +100,16 @@ interface ChannelListProps {
 }
 
 export const ChannelList = ({
-    workspaceId: _workspaceId,
+    workspaceId,
     showCreateButton,
     isChannelsLoading: _isChannelsLoading,
     onCreateChannel,
     channelLimit,
 }: ChannelListProps) => {
     const { t } = useTranslation();
-    const { channels, isLoading, isError, retry } = useMyChannels();
+    const placeId = workspaceId || cloudCore.getSelectedPlaceId() || '';
+    const { channels, isLoading, isError, refresh } = useChannels({ placeId, detail: true });
+
     const wssType = useWebSocketV2Store(s => s.wssType);
     const hasSelectedPlace = wssType !== 'cloud' || !!cloudCore.getSelectedPlaceId();
 
@@ -166,7 +165,7 @@ export const ChannelList = ({
             <div className="flex flex-col items-center gap-2 py-8">
                 {header}
                 <p className="text-sm text-destructive">{t('channelList.errorLoading')}</p>
-                <button onClick={retry} className="text-sm text-primary underline">
+                <button onClick={() => refresh()} className="text-sm text-primary underline">
                     {t('channelList.retry')}
                 </button>
             </div>

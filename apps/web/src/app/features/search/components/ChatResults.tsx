@@ -1,11 +1,7 @@
 import { MessageCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { useDynamicProfile } from '@chatic/web-core';
-
 import { useNavigateWithTransition } from '@chatic/shared';
-
-import { useUnreadCount } from '../../chats/hooks/useUnreadCount';
 
 import type { ChatSearchResult } from '../hooks/useSearch';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
@@ -27,8 +23,7 @@ const ChatItem = ({ channel, matchCount, onSelect }: ChatItemProps) => {
             navigate(`/chats/${channel.id}/room`);
         }
     };
-    const profile = useDynamicProfile();
-    const unreadCount = useUnreadCount(profile?.uid ?? null, channel.id ?? '');
+    const unreadCount = channel.unreadCount ?? 0;
 
     const formatTime = (dateValue?: string | number) => {
         if (!dateValue) return '';

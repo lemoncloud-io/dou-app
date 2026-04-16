@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usePlaceRepository } from '../repository';
 import { useWebSocketV2 } from '@chatic/socket';
+import { cloudCore } from '@chatic/web-core';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import type { CacheSiteView } from '@chatic/app-messages';
 import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
+import { shouldEmit } from '../requestDedup';
 
 /**
  * 플레이스(Site) 목록 상태를 관리하고, 최신 데이터를 서버와 동기화하는 Query 훅
  */
 export const usePlaces = () => {
-    const { emitAuthenticated, cloudId } = useWebSocketV2();
+    const { emitAuthenticated, cloudId: socketCloudId } = useWebSocketV2();
+    const cloudId = cloudCore.getSelectedCloudId() || socketCloudId || 'default';
     const repository = usePlaceRepository(cloudId);
 
     const [places, setPlaces] = useState<MySiteView[]>([]);
@@ -25,6 +28,7 @@ export const usePlaces = () => {
         try {
             setIsError(false);
             const data = await repository.getPlacesByCloud(cloudId);
+            console.log('[usePlaces] requestFromLocal cloudId:', cloudId, 'data:', data.length);
 
             const uiPlaces = data.map(place => {
                 const { cid, ...rest } = place as CacheSiteView;
@@ -44,6 +48,8 @@ export const usePlaces = () => {
      * 서버에 최신 플레이스 목록 동기화 요청
      */
     const requestFromNetwork = useCallback(() => {
+        if (!shouldEmit('user:my-site')) return;
+
         setIsSyncing(true);
         emitAuthenticated({
             type: 'user',

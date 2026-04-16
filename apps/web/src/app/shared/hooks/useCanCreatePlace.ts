@@ -1,12 +1,12 @@
 import { cloudCore, useUserContext, useWebCoreStore } from '@chatic/web-core';
+import { usePlaces } from '@chatic/socket-data';
 
-import { useMyPlaces } from '../../features/home/hooks/useMyPlaces';
 import { useCloudSession } from './useCloudSession';
 import { MAX_PLACES } from '../consts/limits';
 
 export const useCanCreatePlace = () => {
     const { permissions } = useUserContext();
-    const { places, isLoading } = useMyPlaces();
+    const { places, isLoading } = usePlaces();
     const { clouds } = useCloudSession();
     const { profile } = useWebCoreStore();
 

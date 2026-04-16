@@ -381,7 +381,8 @@
             "messageDetail": "메시지 전체보기",
             "sending": "전송 중...",
             "sendFailed": "메시지 전송에 실패했습니다",
-            "tapToRetry": "탭하여 다시 보내기"
+            "tapToRetry": "탭하여 다시 보내기",
+            "newMessages": "새 메시지 {{count}}개"
         },
         "settings": {
             "title": "방 설정",

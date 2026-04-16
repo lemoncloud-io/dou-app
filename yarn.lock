@@ -2684,10 +2684,10 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-sockets-api@^0.26.126":
-  version "0.26.126"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.126.tgz#29c550e02e1e8babab1d2625b19c974e66f76d28"
-  integrity sha512-P05/Zjujner4o9zHM9djxdkibtzQiZ0vvPCO9sF6zMUr3ktUfaR8AbLwl8MZA+dpyjkYcedb0o6cBFc+d+71Eg==
+"@lemoncloud/chatic-sockets-api@^0.26.401":
+  version "0.26.401"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.401.tgz#07b9ff530a768288596cc5434bd8db2fd53707f4"
+  integrity sha512-I5NKeL/MBD50svLszh+4CaOWOfftzR+CTG+Sv1ahsKhoXXstqffJqj4lXKo2mK5VBH8glQoOFZHpZfSHY0MDBQ==
   dependencies:
     lemon-model "^1.1.1"
 

@@ -25,6 +25,7 @@ export const userHandler = async (envelope: WSSEnvelope, cloudId: string, userRe
             const siteList = payload?.list as MySiteView[];
             if (siteList?.length > 0) {
                 const cacheSiteList = siteList.map(site => ({ ...site, cid: cloudId }) as CacheSiteView);
+                console.log('[userHandler] saving places with cloudId:', cloudId, 'count:', cacheSiteList.length);
                 await placeRepo.savePlaces(cacheSiteList);
                 notifyAppUpdated({ domain: 'site', action, cid: cloudId, payload });
             }
