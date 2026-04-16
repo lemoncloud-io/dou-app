@@ -7,7 +7,7 @@ import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useCreateInvite } from '../hooks/useCreateInvite';
+import { useCreateInvite } from '../hooks';
 
 import { AddFriendSheet } from './AddFriendSheet';
 import { ContactListItem } from './ContactListItem';

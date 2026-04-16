@@ -6,7 +6,7 @@ import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
 import { Sheet, SheetContent } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useCreateInvite } from '../hooks/useCreateInvite';
+import { useCreateInvite } from '../hooks';
 
 interface AddFriendSheetProps {
     open: boolean;

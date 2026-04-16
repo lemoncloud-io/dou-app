@@ -20,7 +20,9 @@ interface UseChannelMembersOptions {
     page?: number;
     detail?: boolean;
 }
-
+/**
+ * @deprecated deprecated by raine; 신규 훅으로 대체
+ */
 export const useChannelMembers = (channelId: string | null, options: UseChannelMembersOptions = {}) => {
     const { emitAuthenticated } = useWebSocketV2();
     const [members, setMembers] = useState<ChannelMemberView[]>([]);

@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, RotateCcw, XIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const MAX_MESSAGE_LENGTH = 200;
@@ -11,10 +11,12 @@ interface MessageBubbleProps {
     content: string;
     isMine: boolean;
     onViewAll?: () => void;
+    onRetry?: () => void;
+    onDelete?: () => void;
     status?: 'pending' | 'failed';
 }
 
-export const MessageBubble = ({ content, isMine, onViewAll, status }: MessageBubbleProps) => {
+export const MessageBubble = ({ content, isMine, onViewAll, status, onRetry, onDelete }: MessageBubbleProps) => {
     const { t } = useTranslation();
     const isLongMessage = !status && content.length > MAX_MESSAGE_LENGTH;
 
@@ -33,23 +35,48 @@ export const MessageBubble = ({ content, isMine, onViewAll, status }: MessageBub
     })();
 
     return (
-        <div className={bubbleClassName}>
-            {isLongMessage ? (
-                <>
-                    {content.slice(0, MAX_MESSAGE_LENGTH)}...
+        <div className="group relative flex items-center gap-2">
+            {status === 'failed' && isMine && (
+                <div className="flex items-center gap-1.5">
                     <button
-                        onClick={onViewAll}
-                        className={`ml-auto mt-1 flex items-center gap-0.5 text-[14px] font-medium ${
-                            isMine ? 'text-bubble-mine-foreground/80' : 'text-muted-foreground'
-                        }`}
+                        onClick={e => {
+                            e.stopPropagation();
+                            onDelete?.();
+                        }}
+                        className="flex size-6 items-center justify-center rounded-full bg-muted text-muted-foreground transition-transform active:scale-90"
                     >
-                        {t('chat.room.viewAll')}
-                        <ChevronRight size={16} />
+                        <XIcon size={14} />
                     </button>
-                </>
-            ) : (
-                content
+                    <button
+                        onClick={e => {
+                            e.stopPropagation();
+                            onRetry?.();
+                        }}
+                        className="flex size-6 items-center justify-center rounded-full bg-destructive text-white transition-transform active:scale-90"
+                    >
+                        <RotateCcw size={14} />
+                    </button>
+                </div>
             )}
+
+            <div className={bubbleClassName}>
+                {isLongMessage ? (
+                    <>
+                        {content.slice(0, MAX_MESSAGE_LENGTH)}...
+                        <button
+                            onClick={onViewAll}
+                            className={`ml-auto mt-1 flex items-center gap-0.5 text-[14px] font-medium ${
+                                isMine ? 'text-bubble-mine-foreground/80' : 'text-muted-foreground'
+                            }`}
+                        >
+                            {t('chat.room.viewAll')}
+                            <ChevronRight size={16} />
+                        </button>
+                    </>
+                ) : (
+                    content
+                )}
+            </div>
         </div>
     );
 };
