@@ -3,7 +3,7 @@ import { postMessage, useAppMessageStore } from '@chatic/app-messages';
 import { BROADCAST_CHANNEL_NAME } from './IndexedDBStorageAdapter';
 import type { ChatStorageAdapter } from './ChatStorageAdapter';
 import type { AppMessageType, AppMessage } from '@chatic/app-messages';
-import { toChatView, toClientChatView } from '@chatic/chats';
+import { toClientChatView } from '@chatic/chats';
 import type { ChatView } from '@lemoncloud/chatic-socials-api';
 
 const defaultCloudId = 'default';
@@ -25,23 +25,27 @@ const waitForAppMessage = <T extends AppMessageType>(
     });
 
 export const NativeDBStorageAdapter: ChatStorageAdapter = {
+    /**
+     * @deprecated Deprecated by Raine
+     */
     save: async (userId, channelId, message) => {
-        const chatView = { ...toChatView(message), channelId };
-        const nonce = generateNonce();
-        await waitForAppMessage(
-            'OnSaveCacheData',
-            m => m.nonce === nonce,
-            () =>
-                postMessage({
-                    type: 'SaveCacheData',
-                    data: { type: 'chat', id: message.id, item: chatView, cid: defaultCloudId },
-                    nonce,
-                })
-        );
-
-        const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
-        bc.postMessage({ type: 'message-added', userId, channelId, message });
-        bc.close();
+        // const chatView = { ...toChatView(message), channelId };
+        // const nonce = generateNonce();
+        // await waitForAppMessage(
+        //     'OnSaveCacheData',
+        //     m => m.nonce === nonce,
+        //     () =>
+        //         postMessage({
+        //             type: 'SaveCacheData',
+        //             data: { type: 'chat', id: message.id, item: chatView, cid: defaultCloudId },
+        //             nonce,
+        //         })
+        // );
+        //
+        // const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+        // bc.postMessage({ type: 'message-added', userId, channelId, message });
+        // bc.close();
+        return;
     },
 
     load: async (_userId, channelId) => {
@@ -72,28 +76,30 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
                 })
         );
         const chats = response.data.items as ChatView[];
+        /**
+         * @deprecated Deprecated by Raine
+         */
         await Promise.all(
-            chats
-                .filter(chat => (chat as any).chatNo <= chatNo && !(chat as any).readBy?.includes(readerUserId))
-                .map(chat => {
-                    const saveNonce = generateNonce();
-                    const updatedReadBy = [...((chat as any).readBy ?? []), readerUserId];
-                    return waitForAppMessage(
-                        'OnSaveCacheData',
-                        m => m.nonce === saveNonce,
-                        () =>
-                            postMessage({
-                                type: 'SaveCacheData',
-                                data: {
-                                    type: 'chat',
-                                    id: chat.id!,
-                                    item: { ...chat, readBy: updatedReadBy },
-                                    cid: defaultCloudId,
-                                },
-                                nonce: saveNonce,
-                            })
-                    );
-                })
+            chats.filter(chat => (chat as any).chatNo <= chatNo && !(chat as any).readBy?.includes(readerUserId))
+            // .map(chat => {
+            //     const saveNonce = generateNonce();
+            //     const updatedReadBy = [...((chat as any).readBy ?? []), readerUserId];
+            //     return waitForAppMessage(
+            //         'OnSaveCacheData',
+            //         m => m.nonce === saveNonce,
+            //         () =>
+            //             postMessage({
+            //                 type: 'SaveCacheData',
+            //                 data: {
+            //                     type: 'chat',
+            //                     id: chat.id!,
+            //                     item: { ...chat, readBy: updatedReadBy },
+            //                     cid: defaultCloudId,
+            //                 },
+            //                 nonce: saveNonce,
+            //             })
+            //     );
+            // })
         );
     },
 
@@ -144,22 +150,7 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
             chats
                 .filter(chat => !(chat as any).isRead)
                 .map(chat => {
-                    const saveNonce = generateNonce();
-                    return waitForAppMessage(
-                        'OnSaveCacheData',
-                        m => m.nonce === saveNonce,
-                        () =>
-                            postMessage({
-                                type: 'SaveCacheData',
-                                data: {
-                                    type: 'chat',
-                                    id: chat.id!,
-                                    item: { ...chat, isRead: true },
-                                    cid: defaultCloudId,
-                                },
-                                nonce: saveNonce,
-                            })
-                    );
+                    return;
                 })
         );
 
