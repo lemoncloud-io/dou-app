@@ -4,7 +4,7 @@
  * Type definitions for native deep linking implementation
  */
 
-import type { ServiceEndpoints, InviteSiteInfo } from './urlConverter';
+import type { ServiceEndpoints, InviteSiteInfo, InviteCloudInfo } from './urlConverter';
 
 export type DeepLinkSource = 'cold_start' | 'warm_start' | 'deferred';
 
@@ -28,7 +28,8 @@ export interface WebViewHandler {
         url: string,
         source: DeepLinkSource,
         envs?: ServiceEndpoints,
-        site?: InviteSiteInfo
+        site?: InviteSiteInfo,
+        cloud?: InviteCloudInfo
     ) => void | Promise<void>;
     /**
      * Handle deep link processing error

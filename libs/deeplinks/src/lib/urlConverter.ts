@@ -86,12 +86,21 @@ export interface InviteSiteInfo {
 }
 
 /**
+ * Cloud info from invite.cloud
+ */
+export interface InviteCloudInfo {
+    id?: string;
+    name?: string;
+}
+
+/**
  * Result of converting short URL with environment info
  */
 export interface ConvertedUrlResult {
     url: string;
     envs?: ServiceEndpoints;
     site?: InviteSiteInfo;
+    cloud?: InviteCloudInfo;
 }
 
 /**
@@ -148,24 +157,27 @@ export const convertShortUrlWithEnvs = async (url: string): Promise<ConvertedUrl
                 $envs?: ServiceEndpoints;
                 site$?: InviteSiteInfo;
                 siteId?: string;
+                cloud?: InviteCloudInfo;
             };
 
             const site: InviteSiteInfo | undefined =
                 invite.site$ ?? (invite.siteId ? { id: invite.siteId } : undefined);
+
+            const cloud: InviteCloudInfo | undefined = invite.cloud;
 
             if (invite.Location) {
                 const pathAndSearch = extractPathFromLocation(invite.Location);
                 if (pathAndSearch) {
                     const expandedUrl = `${FRONTEND_BASE_URL}${pathAndSearch}`;
                     console.log('[UrlConverter] Short URL expanded with envs:', url, '→', expandedUrl);
-                    return { url: expandedUrl, envs: invite.$envs, site };
+                    return { url: expandedUrl, envs: invite.$envs, site, cloud };
                 }
             }
 
             if (invite.userId) {
                 const expandedUrl = `${FRONTEND_BASE_URL}/users/${invite.userId}`;
                 console.log('[UrlConverter] Short URL expanded from userId with envs:', url, '→', expandedUrl);
-                return { url: expandedUrl, envs: invite.$envs, site };
+                return { url: expandedUrl, envs: invite.$envs, site, cloud };
             }
 
             // invite exists but has neither Location nor userId

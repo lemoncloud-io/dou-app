@@ -6,7 +6,7 @@ import { getDeepLinkManager } from '@chatic/deeplinks';
 import { logger, useDeepLinkStore } from '../../index';
 import { WEBVIEW_URL } from '../utils/constants';
 
-const webviewBaseUrl = new URL(WEBVIEW_URL);
+const webviewBaseUrl = new URL('http://192.168.219.100:5003');
 const toLocalUrl = (url: string): string => {
     try {
         const parsed = new URL(url);
@@ -21,7 +21,8 @@ const toLocalUrl = (url: string): string => {
 const buildTargetUrl = (
     url: string,
     envs?: { backend?: string; wss?: string } | null,
-    site?: { id?: string; name?: string } | null
+    site?: { id?: string; name?: string } | null,
+    cloud?: { id?: string; name?: string } | null
 ): string => {
     let targetUrl = toLocalUrl(url);
     if (envs?.backend || envs?.wss) {
@@ -36,6 +37,12 @@ const buildTargetUrl = (
         if (site.name) urlObj.searchParams.set('_siteName', site.name);
         targetUrl = urlObj.toString();
     }
+    if (cloud?.id || cloud?.name) {
+        const urlObj = new URL(targetUrl);
+        if (cloud.id) urlObj.searchParams.set('_cloudId', cloud.id);
+        if (cloud.name) urlObj.searchParams.set('_cloudName', cloud.name);
+        targetUrl = urlObj.toString();
+    }
     return targetUrl;
 };
 
@@ -47,6 +54,7 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
         pendingUrl,
         pendingEnvs,
         pendingSite,
+        pendingCloud,
         source,
         deepLinkError,
         deepLinkErrorReason,
@@ -70,7 +78,12 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
                     return;
                 }
                 if (state.pendingUrl) {
-                    const targetUrl = buildTargetUrl(state.pendingUrl, state.pendingEnvs, state.pendingSite);
+                    const targetUrl = buildTargetUrl(
+                        state.pendingUrl,
+                        state.pendingEnvs,
+                        state.pendingSite,
+                        state.pendingCloud
+                    );
                     coldStartUrlRef.current = targetUrl;
                     logger.info('DEEPLINK', `Cold start URL captured (source: ${state.source}): ${targetUrl}`);
                     state.clearPendingUrl();
@@ -106,7 +119,7 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
         }
 
         logger.info('DEEPLINK', `Injecting deep link URL: ${pendingUrl}`, pendingEnvs);
-        const targetUrl = buildTargetUrl(pendingUrl, pendingEnvs, pendingSite);
+        const targetUrl = buildTargetUrl(pendingUrl, pendingEnvs, pendingSite, pendingCloud);
         // Add timestamp to prevent WebView from ignoring navigation to the same URL
         const urlWithCacheBust = new URL(targetUrl);
         urlWithCacheBust.searchParams.set('_t', Date.now().toString());
@@ -114,7 +127,7 @@ export const useWebViewDeepLink = (webViewRef: React.RefObject<WebView | null>) 
         const script = `window.location.href = '${finalUrl}';\ntrue;`;
         webViewRef.current.injectJavaScript(script);
         clearPendingUrl();
-    }, [pendingUrl, pendingEnvs, pendingSite, source, isWebViewLoaded, clearPendingUrl, webViewRef]);
+    }, [pendingUrl, pendingEnvs, pendingSite, pendingCloud, source, isWebViewLoaded, clearPendingUrl, webViewRef]);
 
     const handleDismissError = useCallback(() => {
         setDeepLinkError(false);

@@ -48,7 +48,7 @@ export const useCreateInvite = () => {
                 channelId: params.channelId,
                 name: params.name,
                 phone: params.phone,
-            })) as MyInviteView & { Location?: string };
+            })) as MyInviteView & { Location?: string; cloud?: { id?: string; name?: string } };
 
             // 초대 코드 파싱 및 데이터 수정
             let code = payload?.code;
@@ -64,12 +64,15 @@ export const useCreateInvite = () => {
             const selectedCloudId = cloudCore.getSelectedCloudId();
             const selectedCloud = cloudsData?.list?.find(c => c.id === selectedCloudId);
 
-            const invite: MyInviteView = {
+            const invite: MyInviteView & { cloud?: { id?: string; name?: string } } = {
                 ...payload,
                 code,
                 ...(!payload.siteId && selectedCloudId ? { siteId: selectedCloudId } : {}),
                 ...(!payload.site$ && selectedCloud
                     ? { site$: { id: selectedCloud.id, name: selectedCloud.name ?? undefined } }
+                    : {}),
+                ...(!payload.cloud && selectedCloud
+                    ? { cloud: { id: selectedCloud.id, name: selectedCloud.name ?? undefined } }
                     : {}),
             };
 
