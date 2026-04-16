@@ -26,8 +26,8 @@ export const MyPage = () => {
     const { deviceInfo, versionInfo } = useDeviceInfo();
     const { resetOnboarding } = useOnboardingStore();
 
-    const displayName = profile?.$user.name;
-    const displayImageUrl = profile?.$user.photo;
+    const displayName = profile?.$user?.name;
+    const displayImageUrl = profile?.$user?.photo;
     const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
     const [isDebugMode, setIsDebugMode] = useState(() => sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true');

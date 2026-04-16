@@ -55,8 +55,8 @@ export const HomePage = () => {
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const { isCloudsError } = useCloudSession();
 
-    const displayName = profile?.$user.name ?? '-';
-    const displayImageUrl = profile?.$user.photo;
+    const displayName = profile?.$user?.name ?? '-';
+    const displayImageUrl = profile?.$user?.photo;
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);

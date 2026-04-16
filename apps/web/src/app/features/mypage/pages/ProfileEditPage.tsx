@@ -21,8 +21,8 @@ export const ProfileEditPage = () => {
     const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
 
     const initialRef = useRef({ name: '', imageUrl: '', initialized: false });
-    const [name, setName] = useState((profile?.$user.name || '').slice(0, 30));
-    const [imageUrl, setImageUrl] = useState(profile?.$user.photo || '');
+    const [name, setName] = useState((profile?.$user?.name || '').slice(0, 30));
+    const [imageUrl, setImageUrl] = useState(profile?.$user?.photo || '');
     const [imageSizeError, setImageSizeError] = useState(false);
 
     // profile 로드 시 초기값 고정 및 state 동기화
