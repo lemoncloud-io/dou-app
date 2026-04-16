@@ -4,7 +4,7 @@ import type { WSSEnvelope, WSSModelActionType } from '@lemoncloud/chatic-sockets
 /**
  * modelHandler
  * 서버의 웹소켓 Model 이벤트를 수신하여 로컬 DB를 즉시 갱신하고 앱 전체에 상태 변화를 알립니다.
- * * @param envelope 소켓 응답 페이로드
+ * @param envelope 소켓 응답 페이로드
  * @param cloudId 현재 연결된 클라우드/워크스페이스 ID
  * @param chatRepo 메시지 로컬 저장소
  * @param channelRepo 채널 로컬 저장소
@@ -31,7 +31,6 @@ export const modelHandler = async (
             case 'create': {
                 switch (type) {
                     case 'chat':
-                        // 서버에서 확정된 일반 채팅 메시지 저장
                         await chatRepo.saveChat(payload.id, {
                             ...payload,
                             isPending: false,
@@ -46,14 +45,12 @@ export const modelHandler = async (
                             await joinRepo.saveJoin(payload.id, payload);
                         }
 
-                        // 입장/퇴장 시스템 메시지 생성 및 저장
-                        if (channelId) {
-                            const isEntry = (payload.joined ?? 0) >= 1;
+                        if (channelId && payload.joined === 1) {
                             const sysId = mid ?? String(Date.now());
                             const systemChat = {
                                 id: sysId,
                                 channelId,
-                                content: `${payload.nick ?? '알 수 없음'}님이 ${isEntry ? '들어왔습니다.' : '나갔습니다.'}`,
+                                content: `${payload.nick ?? '알 수 없음'}'}님이 들어왔습니다.`,
                                 createdAt: Date.now(),
                                 ownerId: 'system',
                                 stereo: 'system',
@@ -62,7 +59,6 @@ export const modelHandler = async (
                             };
                             await chatRepo.saveChat(sysId, systemChat);
 
-                            // 시스템 메시지가 화면에 즉시 렌더링되도록 chat 이벤트 방출
                             notifyAppUpdated({
                                 domain: 'chat',
                                 action,
@@ -72,7 +68,6 @@ export const modelHandler = async (
                             });
                         }
 
-                        // UI 갱신을 위한 도메인 이벤트 방출
                         notifyAppUpdated({ domain: 'join', action, cid: cloudId, targetId: channelId, payload });
                         notifyAppUpdated({ domain: 'user', action, cid: cloudId, targetId: channelId, payload });
                         break;
@@ -111,8 +106,6 @@ export const modelHandler = async (
                     case 'channel':
                         if (payload.reason === 'channel-deleted') {
                             await channelRepo.deleteChannel(payload.id ?? channelId);
-                        } else {
-                            // 필요 시 채널 데이터 갱신 로직 추가
                         }
                         notifyAppUpdated({ domain: 'channel', action, cid: cloudId, targetId: channelId, payload });
                         break;
@@ -138,7 +131,36 @@ export const modelHandler = async (
                         break;
 
                     case 'join':
-                        // 필요 시 참여 정보 삭제 로직 추가 (await joinRepo.deleteJoin...)
+                        // 로컬 DB에서 참여 정보 삭제
+                        if (payload.id) {
+                            await joinRepo.deleteJoin(payload.id);
+                        }
+
+                        // 퇴장 시스템 메시지 생성 및 저장
+                        if (channelId) {
+                            const sysId = mid ?? String(Date.now());
+                            const systemChat = {
+                                id: sysId,
+                                channelId,
+                                content: `${payload.nick ?? '알 수 없음'}님이 나갔습니다.`,
+                                createdAt: Date.now(),
+                                ownerId: 'system',
+                                stereo: 'system',
+                                isPending: false,
+                                isFailed: false,
+                            };
+                            await chatRepo.saveChat(sysId, systemChat);
+
+                            // 화면 렌더링을 위해 chat 도메인으로도 이벤트 방출
+                            notifyAppUpdated({
+                                domain: 'chat',
+                                action,
+                                cid: cloudId,
+                                targetId: channelId,
+                                payload: systemChat,
+                            });
+                        }
+
                         notifyAppUpdated({ domain: 'join', action, cid: cloudId, targetId: channelId, payload });
                         notifyAppUpdated({ domain: 'user', action, cid: cloudId, targetId: channelId, payload });
                         break;
