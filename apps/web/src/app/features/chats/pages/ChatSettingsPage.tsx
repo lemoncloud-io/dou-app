@@ -227,8 +227,7 @@ export const ChatSettingsPage = () => {
                             ) : members.length > 0 ? (
                                 members.map(member => {
                                     const memberId = member.id ?? '';
-                                    const memberName =
-                                        member.$join?.nick || member.nick || memberId || t('chat.settings.unknownUser');
+                                    const memberName = member.name || memberId || t('chat.settings.unknownUser');
 
                                     const isMember = memberId === profile?.uid;
 

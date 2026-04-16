@@ -44,7 +44,6 @@ export const MessageBubble = ({ content, isMine, onViewAll, status, onRetry, onD
                             onDelete?.();
                         }}
                         className="flex size-6 items-center justify-center rounded-full bg-muted text-muted-foreground transition-transform active:scale-90"
-                        title={t('chat.delete')}
                     >
                         <XIcon size={14} />
                     </button>
@@ -54,7 +53,6 @@ export const MessageBubble = ({ content, isMine, onViewAll, status, onRetry, onD
                             onRetry?.();
                         }}
                         className="flex size-6 items-center justify-center rounded-full bg-destructive text-white transition-transform active:scale-90"
-                        title={t('chat.retry')}
                     >
                         <RotateCcw size={14} />
                     </button>
