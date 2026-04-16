@@ -27,25 +27,29 @@ const waitForAppMessage = <T extends AppMessageType>(
     });
 
 export const NativeDBChannelAdapter: ChannelStorageAdapter = {
+    /**
+     * @deprecated Deprecated by Raine
+     */
     saveAll: async (userId, channels) => {
-        if (channels.length === 0) return;
-
-        const nonce = generateNonce();
-        postMessage({
-            type: 'SaveAllCacheData',
-            nonce,
-            data: {
-                type: 'channel',
-                items: channels,
-                cid: defaultCloudId,
-            },
-        });
-
-        await waitForAppMessage('OnSaveAllCacheData', m => m.nonce === nonce);
-
-        const bc = new BroadcastChannel(CHANNELS_BROADCAST_CHANNEL_NAME);
-        bc.postMessage({ type: 'channels-updated', userId, channels });
-        bc.close();
+        // if (channels.length === 0) return;
+        //
+        // const nonce = generateNonce();
+        // postMessage({
+        //     type: 'SaveAllCacheData',
+        //     nonce,
+        //     data: {
+        //         type: 'channel',
+        //         items: channels,
+        //         cid: defaultCloudId,
+        //     },
+        // });
+        //
+        // await waitForAppMessage('OnSaveAllCacheData', m => m.nonce === nonce);
+        //
+        // const bc = new BroadcastChannel(CHANNELS_BROADCAST_CHANNEL_NAME);
+        // bc.postMessage({ type: 'channels-updated', userId, channels });
+        // bc.close();
+        return;
     },
 
     loadAll: async () => {
@@ -63,24 +67,28 @@ export const NativeDBChannelAdapter: ChannelStorageAdapter = {
         return response.data.items as ChannelView[];
     },
 
+    /**
+     * @deprecated Deprecated by Raine
+     */
     save: async (userId, channel) => {
-        const nonce = generateNonce();
-        postMessage({
-            type: 'SaveCacheData',
-            nonce,
-            data: {
-                type: 'channel',
-                id: channel.id ?? '', //TODO: need to change!
-                item: channel,
-                cid: defaultCloudId,
-            },
-        });
-
-        await waitForAppMessage('OnSaveCacheData', m => m.nonce === nonce);
-
-        const bc = new BroadcastChannel(CHANNELS_BROADCAST_CHANNEL_NAME);
-        bc.postMessage({ type: 'channel-saved', userId, channel });
-        bc.close();
+        // const nonce = generateNonce();
+        // postMessage({
+        //     type: 'SaveCacheData',
+        //     nonce,
+        //     data: {
+        //         type: 'channel',
+        //         id: channel.id ?? '', //TODO: need to change!
+        //         item: channel,
+        //         cid: defaultCloudId,
+        //     },
+        // });
+        //
+        // await waitForAppMessage('OnSaveCacheData', m => m.nonce === nonce);
+        //
+        // const bc = new BroadcastChannel(CHANNELS_BROADCAST_CHANNEL_NAME);
+        // bc.postMessage({ type: 'channel-saved', userId, channel });
+        // bc.close();
+        return;
     },
 
     remove: async (userId, channelId) => {
