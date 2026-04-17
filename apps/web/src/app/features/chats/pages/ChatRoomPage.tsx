@@ -19,7 +19,13 @@ import { InviteFriendsDialog } from '../components';
 import { MessageBubble } from '../components/MessageBubble';
 import { ReadStatus } from '../components/ReadStatus';
 import type { ClientChatView } from '@chatic/socket-data';
-import { useChannelMembers, useChannel, useChatMutations, useChats } from '@chatic/socket-data';
+import {
+    useChannelMembers,
+    useChannel,
+    useChatMutations,
+    useChats,
+    FOREGROUND_RESYNC_EVENT_NAME,
+} from '@chatic/socket-data';
 
 // 입력 가능한 최대 글자 수
 const MAX_INPUT_LENGTH = 5000;
@@ -110,11 +116,11 @@ export const ChatRoomPage = () => {
         // PC 웹 / 모바일 브라우저 탭 활성화 대응
         document.addEventListener('visibilitychange', handleAutoRead);
         // 모바일 네이티브 앱(웹뷰) 포그라운드 복귀 대응 (useForegroundResync 연동)
-        window.addEventListener('foreground-resync', handleAutoRead);
+        window.addEventListener(FOREGROUND_RESYNC_EVENT_NAME, handleAutoRead);
 
         return () => {
             document.removeEventListener('visibilitychange', handleAutoRead);
-            window.removeEventListener('foreground-resync', handleAutoRead);
+            window.removeEventListener(FOREGROUND_RESYNC_EVENT_NAME, handleAutoRead);
         };
     }, [messages.length, channelId, readMessage]);
 
