@@ -96,7 +96,10 @@ export const SubscriptionPlansPage = () => {
         try {
             const nativeProducts = await fetchNativeProducts();
             const matched = nativeProducts.find(p =>
-                isIOS ? p.id === selectedProduct.id?.replace('#', '') : p.basePlanId === selectedProduct.planId
+                // 서버에서 가져오는 id 필드에는 basePlanId 정보가 포함되어있음
+                isIOS
+                    ? p.id === selectedProduct.id?.replace('#', '')
+                    : p.basePlanId === selectedProduct.id?.replace('#', '')
             );
             if (!matched) {
                 toast({

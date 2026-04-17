@@ -4,6 +4,13 @@
  */
 import type {
     AppBackgroundStatus,
+    OnFetchCurrentPurchasesPayload,
+    OnFetchProductsPayload,
+    OnFinishPurchaseTransactionPayload,
+    OnPurchaseErrorPayload,
+    OnPurchaseSuccessPayload,
+} from './model';
+import type {
     AppLogInfo,
     AppPermissionType,
     ContactInfo,
@@ -15,10 +22,9 @@ import type {
     OAuthTokenResult,
     OnDeleteAllCacheDataPayload,
     OnDeleteCacheDataPayload,
+    OnExecuteGlobalSearchPayload,
     OnFetchAllCacheDataPayload,
     OnFetchCacheDataPayload,
-    OnFetchCurrentPurchasesPayload,
-    OnFetchProductsPayload,
     OnSaveAllCacheDataPayload,
     OnSaveCacheDataPayload,
     PermissionStatus,
@@ -33,6 +39,7 @@ export const AppMessageTypes = {
     OnUpdateDeviceInfo: 'OnUpdateDeviceInfo',
     OnCloseModal: 'OnCloseModal',
     OnOpenShareSheet: 'OnOpenShareSheet',
+    OnBackPressed: 'OnBackPressed',
     OnOpenDocument: 'OnOpenDocument',
     OnGetContacts: 'OnGetContacts',
     OnOpenCamera: 'OnOpenCamera',
@@ -42,23 +49,35 @@ export const AppMessageTypes = {
     OnAppLog: 'OnAppLog',
     OnReceiveNotification: 'OnReceiveNotification',
     OnOpenNotification: 'OnOpenNotification',
-    OnSuccessPurchase: 'OnSuccessPurchase',
-    OnFetchProductSubscriptions: 'OnFetchProductSubscriptions',
-    OnFetchPurchases: 'OnFetchPurchases',
+    OnBackgroundStatusChanged: 'OnBackgroundStatusChanged',
+    /**
+     * IAP Event
+     */
+    OnFetchCurrentPurchases: 'OnFetchCurrentPurchases',
+    OnFetchProducts: 'OnFetchProducts',
+    OnPurchaseSuccess: `OnPurchaseSuccess`,
+    OnPurchaseError: `OnPurchaseError`,
+    OnFinishPurchaseTransaction: 'OnFinishPurchaseTransaction',
+    /**
+     * Cache Event
+     */
     OnFetchAllCacheData: 'OnFetchAllCacheData',
     OnFetchCacheData: 'OnFetchCacheData',
     OnSaveCacheData: 'OnSaveCacheData',
     OnSaveAllCacheData: 'OnSaveAllCacheData',
     OnDeleteCacheData: 'OnDeleteCacheData',
     OnDeleteAllCacheData: 'OnDeleteAllCacheData',
-    OnRequestPermission: 'OnRequestPermission',
-    OnSetWsEndpoint: 'OnSetWsEndpoint',
-    OnOAuthLogin: 'OnOAuthLogin',
-    OnOAuthLogout: 'OnOAuthLogout',
+    OnExecuteGlobalSearch: 'OnExecuteGlobalSearch',
     OnFetchPreference: 'OnFetchPreference',
     OnSavePreference: 'OnSavePreference',
     OnDeletePreference: 'OnDeletePreference',
-    OnBackgroundStatusChanged: 'OnBackgroundStatusChanged',
+    /**
+     * OAuth Event
+     */
+    OnOAuthLogin: 'OnOAuthLogin',
+    OnOAuthLogout: 'OnOAuthLogout',
+    OnRequestPermission: 'OnRequestPermission',
+    OnSetWsEndpoint: 'OnSetWsEndpoint',
 } as const;
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
 
@@ -78,6 +97,8 @@ export interface OnUpdateDeviceInfo extends AppDefaultMessage<'OnUpdateDeviceInf
 export interface OnOpenShareSheet extends AppDefaultMessage<'OnOpenShareSheet'> {
     data: ShareInfo;
 }
+
+export interface OnBackPressed extends AppDefaultMessage<'OnBackPressed'> {}
 
 export interface OnOpenDocument extends AppDefaultMessage<'OnOpenDocument'> {
     data: {
@@ -123,14 +144,6 @@ export interface OnOpenNotification extends AppDefaultMessage<'OnOpenNotificatio
     data: NotificationInfo;
 }
 
-export interface OnFetchProductSubscriptions extends AppDefaultMessage<'OnFetchProductSubscriptions'> {
-    data: OnFetchProductsPayload;
-}
-
-export interface OnFetchPurchases extends AppDefaultMessage<'OnFetchPurchases'> {
-    data: OnFetchCurrentPurchasesPayload;
-}
-
 export interface OnSetWsEndpoint extends AppDefaultMessage<'OnSetWsEndpoint'> {
     data: { wss: string };
 }
@@ -154,6 +167,28 @@ export interface OnOAuthLogout extends AppDefaultMessage<'OnOAuthLogout'> {
     };
 }
 
+// IAP
+export interface OnFetchCurrentPurchases extends AppDefaultMessage<'OnFetchCurrentPurchases'> {
+    data: OnFetchCurrentPurchasesPayload;
+}
+
+export interface OnFetchProducts extends AppDefaultMessage<'OnFetchProducts'> {
+    data: OnFetchProductsPayload;
+}
+
+export interface OnPurchaseSuccess extends AppDefaultMessage<'OnPurchaseSuccess'> {
+    data: OnPurchaseSuccessPayload;
+}
+
+export interface OnPurchaseError extends AppDefaultMessage<'OnPurchaseError'> {
+    data: OnPurchaseErrorPayload;
+}
+
+export interface OnFinishPurchaseTransaction extends AppDefaultMessage<'OnFinishPurchaseTransaction'> {
+    data: OnFinishPurchaseTransactionPayload;
+}
+
+// Cache
 /** 다수 캐시 데이터 반환 */
 export interface OnFetchAllCacheData extends AppDefaultMessage<'OnFetchAllCacheData'> {
     data: OnFetchAllCacheDataPayload;
@@ -184,6 +219,12 @@ export interface OnDeleteAllCacheData extends AppDefaultMessage<'OnDeleteAllCach
     data: OnDeleteAllCacheDataPayload;
 }
 
+// Preference
+/** 전역 통합 검색 결과 반환 */
+export interface OnExecuteGlobalSearch extends AppDefaultMessage<'OnExecuteGlobalSearch'> {
+    data: OnExecuteGlobalSearchPayload;
+}
+
 // ----------------------------------------------------------------------
 // Preference Messages
 // ----------------------------------------------------------------------
@@ -209,10 +250,16 @@ export interface OnDeletePreference extends AppDefaultMessage<'OnDeletePreferenc
     };
 }
 
+/**
+ * 앱 백그라운드/포그라운드 상태 변경 이벤트
+ */
 export interface OnBackgroundStatusChanged extends AppDefaultMessage<'OnBackgroundStatusChanged'> {
     data: {
+        /** 현재 앱 상태 원본 ('active' | 'background' | 'inactive') */
         status: AppBackgroundStatus;
+        /** 앱이 현재 사용자와 상호작용 중인 포그라운드 상태인지 여부 */
         isForeground: boolean;
+        /** 앱이 백그라운드에 숨겨져 있는지 여부 */
         isBackground: boolean;
     };
 }
@@ -230,6 +277,7 @@ export interface AppMessageMap {
      */
     OnCloseModal: AppDefaultMessage<'OnCloseModal'>;
     OnOpenShareSheet: OnOpenShareSheet;
+    OnBackPressed: OnBackPressed;
     OnOpenDocument: OnOpenDocument;
     OnGetContacts: OnGetContacts;
     OnOpenCamera: OnOpenCamera;
@@ -240,6 +288,7 @@ export interface AppMessageMap {
      * Device Info Event
      */
     OnFetchSafeArea: OnFetchSafeArea;
+    OnBackgroundStatusChanged: OnBackgroundStatusChanged;
 
     /**
      * Notification Event
@@ -256,9 +305,11 @@ export interface AppMessageMap {
     /**
      * IAP Event
      */
-    OnFetchProductSubscriptions: OnFetchProductSubscriptions;
-    OnFetchPurchases: OnFetchPurchases;
-    OnSuccessPurchase: AppDefaultMessage<'OnSuccessPurchase'>;
+    OnFetchProducts: OnFetchProducts;
+    OnFetchCurrentPurchases: OnFetchCurrentPurchases;
+    OnPurchaseSuccess: OnPurchaseSuccess;
+    OnPurchaseError: OnPurchaseError;
+    OnFinishPurchaseTransaction: OnFinishPurchaseTransaction;
 
     /**
      * Cache Event
@@ -269,6 +320,7 @@ export interface AppMessageMap {
     OnSaveAllCacheData: OnSaveAllCacheData;
     OnDeleteCacheData: OnDeleteCacheData;
     OnDeleteAllCacheData: OnDeleteAllCacheData;
+    OnExecuteGlobalSearch: OnExecuteGlobalSearch;
     OnSetWsEndpoint: OnSetWsEndpoint;
 
     /**
@@ -283,11 +335,6 @@ export interface AppMessageMap {
      */
     OnOAuthLogin: OnOAuthLogin;
     OnOAuthLogout: OnOAuthLogout;
-
-    /**
-     * App Status Event
-     */
-    OnBackgroundStatusChanged: OnBackgroundStatusChanged;
 }
 
 export type AppMessageData<T extends AppMessageType> = AppMessageMap[T];
