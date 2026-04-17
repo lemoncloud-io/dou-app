@@ -29,12 +29,20 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
     const currentParamsRef = useRef<ClientChatMinePayload>(initialParams);
 
+    // cloudId가 유효한지 확인 (빈 문자열이면 무효 — stale 캐시 접근 방지)
+    // 'default'는 중계서버(relay WSS) 케이스에서 정상 사용됨
+    const isValidCloudId = !!cloudId;
+
     /**
      * 로컬 DB에서 채널 목록 읽어오기 및 정렬
      */
     const requestFromLocal = useCallback(
         async (params?: ClientChatMinePayload) => {
             try {
+                if (!isValidCloudId) {
+                    setIsLoading(false);
+                    return;
+                }
                 setIsError(false);
                 if (params) {
                     currentParamsRef.current = { ...currentParamsRef.current, ...params };
@@ -106,7 +114,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                 setIsLoading(false);
             }
         },
-        [repository, joinRepo, profile?.uid]
+        [repository, joinRepo, profile?.uid, isValidCloudId]
     );
 
     /**
@@ -114,6 +122,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
      */
     const requestFromNetwork = useCallback(
         (params?: ClientChatMinePayload) => {
+            if (!isValidCloudId) return;
             if (params) {
                 currentParamsRef.current = { ...currentParamsRef.current, ...params };
             }
@@ -137,10 +146,10 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
             setTimeout(() => setIsSyncing(false), 5000);
         },
-        [emitAuthenticated]
+        [emitAuthenticated, isValidCloudId]
     );
 
-    // 초기 마운트 및 channelId 변경 시 로컬 DB 조회
+    // 초기 마운트 및 placeId 변경 시 로컬 DB 조회
     useEffect(() => {
         currentParamsRef.current = initialParams;
         setIsLoading(true);
@@ -148,12 +157,11 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         requestFromNetwork(initialParams);
     }, [targetPlaceId, requestFromLocal, requestFromNetwork]);
 
-    // ref로 최신 함수 참조 ��지 → 이벤트 리스너 재등록 없이 항상 최신 함수 호출
     const requestFromLocalRef = useRef(requestFromLocal);
     requestFromLocalRef.current = requestFromLocal;
 
     useEffect(() => {
-        if (!repository.cloudId) return;
+        if (!isValidCloudId) return;
 
         const handleUpdate = (e: Event) => {
             // channel, chat, join 이벤트 발생 시 목록 동기화
@@ -171,7 +179,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
         window.addEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
         return () => window.removeEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
-    }, [repository.cloudId]);
+    }, [isValidCloudId, repository.cloudId]);
 
     // 포그라운드 복귀 + WebSocket 재연결 완료 시 데이터 재동기화
     useConnectionRecoverySync(requestFromLocal, requestFromNetwork);

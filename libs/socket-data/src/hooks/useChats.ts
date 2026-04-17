@@ -33,6 +33,10 @@ export const useChats = (initialParams: ChatFeedPayload) => {
 
     const currentParamsRef = useRef<ChatFeedPayload>(initialParams);
 
+    // cloudId가 유효한지 확인 (빈 문자열이면 무효 — stale 캐시 접근 방지)
+    // 'default'는 중계서버(relay WSS) 케이스에서 정상 사용됨
+    const isValidCloudId = !!cloudId;
+
     /**
      * 로컬 DB에서 데이터 패칭 및 ClientChatView로의 매핑/정렬/필터링
      * @param cleanPending true면 orphaned pending 메시지를 DB에서 삭제 (마운트 시 1회)
@@ -40,6 +44,10 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     const requestFromLocal = useCallback(
         async (params?: ChatFeedPayload, cleanPending = false) => {
             try {
+                if (!isValidCloudId) {
+                    setStatus(prev => ({ ...prev, isLoading: false, isError: false }));
+                    return;
+                }
                 if (params) currentParamsRef.current = { ...currentParamsRef.current, ...params };
                 const activeParams = currentParamsRef.current;
                 const channelId = activeParams.channelId ?? targetChannelId;
@@ -116,7 +124,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 setStatus(prev => ({ ...prev, isLoading: false, isError: true }));
             }
         },
-        [targetChannelId, chatRepository, joinRepository, userRepository, userId]
+        [targetChannelId, chatRepository, joinRepository, userRepository, userId, isValidCloudId]
     );
 
     /**
@@ -124,6 +132,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
      */
     const requestFromNetwork = useCallback(
         (params?: Partial<ChatFeedPayload>) => {
+            if (!isValidCloudId) return;
             const channelId = params?.channelId ?? targetChannelId;
             if (!channelId) return;
 
@@ -137,7 +146,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 payload: feedPayload,
             });
         },
-        [targetChannelId, emitAuthenticated]
+        [targetChannelId, emitAuthenticated, isValidCloudId]
     );
 
     /**
@@ -169,7 +178,6 @@ export const useChats = (initialParams: ChatFeedPayload) => {
         };
     }, []);
 
-    // ref로 최신 함수 참조 유지 → 이벤트 리스너 재등록 없이 항상 최신 함수 호출
     const debouncedRequestFromLocalRef = useRef(debouncedRequestFromLocal);
     debouncedRequestFromLocalRef.current = debouncedRequestFromLocal;
 
@@ -180,6 +188,8 @@ export const useChats = (initialParams: ChatFeedPayload) => {
      * model handler로 넘어온 join정보를 구독하기 위해 `detail.domain !== 'join'` 를 적용
      */
     useEffect(() => {
+        if (!isValidCloudId) return;
+
         const handleUpdate = (e: Event) => {
             const { detail } = e as CustomEvent<AppSyncDetail>;
             if (detail.cid !== cloudId) return;
@@ -198,7 +208,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
 
         window.addEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
         return () => window.removeEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
-    }, [targetChannelId, cloudId]);
+    }, [targetChannelId, cloudId, isValidCloudId]);
 
     // 포그라운드 복귀 + WebSocket 재연결 완료 시 데이터 재동기화
     useConnectionRecoverySync(requestFromLocal, requestFromNetwork);
