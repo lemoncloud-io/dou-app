@@ -177,13 +177,14 @@ export const useChats = (initialParams: ChatFeedPayload) => {
      * 통합 이벤트 버스 구독
      * chatHandler/modelHandler가 로컬 DB 저장 후 이벤트를 발행하므로,
      * requestFromLocal()로 DB에서 재조회하여 isOwner/ownerName을 올바르게 매핑
+     * model handler로 넘어온 join정보를 구독하기 위해 `detail.domain !== 'join'` 를 적용
      */
     useEffect(() => {
         const handleUpdate = (e: Event) => {
             const { detail } = e as CustomEvent<AppSyncDetail>;
             if (detail.cid !== cloudId) return;
             if (detail.targetId !== targetChannelId) return;
-            if (detail.domain !== 'chat') return;
+            if (detail.domain !== 'chat' && detail.domain !== 'join') return;
 
             if (detail.action === 'feed') {
                 const cursorNo: number | undefined = detail.payload?.cursorNo;

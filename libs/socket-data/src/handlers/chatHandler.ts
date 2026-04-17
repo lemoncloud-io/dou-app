@@ -86,22 +86,6 @@ export const chatHandler = async (
             if (joinView && joinView.id) {
                 await joinRepo.saveJoin(joinView.id, joinView);
 
-                // 채널 캐시의 unreadCount 업데이트
-                const readChannelId = joinView.channelId;
-                if (readChannelId) {
-                    const existingChannel = await channelRepo.getChannel(readChannelId);
-                    if (existingChannel) {
-                        const lastChatNo = existingChannel.lastChat$?.chatNo ?? 0;
-                        const readChatNo = joinView.chatNo ?? 0;
-                        const newUnreadCount = readChatNo >= lastChatNo ? 0 : Math.max(0, lastChatNo - readChatNo);
-                        await channelRepo.saveChannel(readChannelId, {
-                            ...existingChannel,
-                            unreadCount: newUnreadCount,
-                        } as CacheChannelView);
-                        notifyAppUpdated({ domain: 'channel', action, cid: cloudId, targetId: readChannelId, payload });
-                    }
-                }
-
                 notifyAppUpdated({ domain: 'join', action, cid: cloudId, targetId: joinView.channelId, payload });
             }
             break;
