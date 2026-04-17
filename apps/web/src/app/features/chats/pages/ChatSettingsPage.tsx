@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
-import { LoadingFallback, useNavigateWithTransition } from '@chatic/shared';
+import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useDynamicProfile, UserType, useUserContext } from '@chatic/web-core';
 
@@ -64,7 +64,7 @@ export const ChatSettingsPage = () => {
     const profile = useDynamicProfile();
     const { userType } = useUserContext();
 
-    const { channel, isLoading, isError } = useChannel(channelId ?? null);
+    const { channel, isError } = useChannel(channelId ?? null);
 
     const {
         members,
@@ -136,10 +136,6 @@ export const ChatSettingsPage = () => {
         closeDialog();
         toast({ title: t('chat.settings.blockSuccess') });
     };
-
-    if (isLoading) {
-        return <LoadingFallback message={t('chat.settings.loading')} />;
-    }
 
     if (isError) {
         return (

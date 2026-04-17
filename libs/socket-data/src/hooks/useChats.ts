@@ -126,17 +126,18 @@ export const useChats = (initialParams: ChatFeedPayload) => {
 
     /**
      * 초기 마운트 및 채널 변경 시 로드
+     * 로컬 DB에서 먼저 조회하여 즉시 표시하고, 네트워크 sync는 병렬로 진행
      */
     useEffect(() => {
-        setMessages([]);
         setFeedCursorNo(undefined);
-        setStatus({ isLoading: true, isSyncing: false, isLoadingMore: false, isError: false });
+        setStatus(prev => ({ ...prev, isSyncing: true, isLoadingMore: false, isError: false }));
+        void requestFromLocal({ channelId: targetChannelId });
         requestFromNetwork({ channelId: targetChannelId });
     }, [targetChannelId]);
 
     /**
      * 통합 이벤트 버스 구독
-     * chatHandler가 로컬 DB 저장 후 이벤트를 발행하므로,
+     * chatHandler/modelHandler가 로컬 DB 저장 후 이벤트를 발행하므로,
      * requestFromLocal()로 DB에서 재조회하여 isOwner/ownerName을 올바르게 매핑
      */
     useEffect(() => {
@@ -144,18 +145,17 @@ export const useChats = (initialParams: ChatFeedPayload) => {
             const { detail } = e as CustomEvent<AppSyncDetail>;
             if (detail.cid !== cloudId) return;
             if (detail.targetId !== targetChannelId) return;
+            if (detail.domain !== 'chat') return;
 
-            if (detail.domain === 'chat' && detail.action === 'feed') {
+            if (detail.action === 'feed') {
                 const cursorNo: number | undefined = detail.payload?.cursorNo;
                 if (cursorNo !== undefined) {
                     setFeedCursorNo(cursorNo);
                 }
-                void requestFromLocal();
             }
 
-            if (detail.domain === 'chat' && (detail.action === 'send' || detail.action === 'delete')) {
-                void requestFromLocal();
-            }
+            // feed/send/delete/create/update 모든 chat 이벤트에서 로컬 DB 재조회
+            void requestFromLocal();
         };
 
         window.addEventListener(APP_SYNC_EVENT_NAME, handleUpdate);

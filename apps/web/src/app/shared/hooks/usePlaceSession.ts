@@ -1,5 +1,4 @@
 import { useIssueCloudToken } from '@chatic/auth';
-import { useGlobalLoader } from '@chatic/shared';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 
 export const getPlaceSession = () => {
@@ -17,22 +16,16 @@ export const clearPlaceSession = (): void => {
 export const usePlaceSession = () => {
     const { mutateAsync: issueCloudToken, isPending } = useIssueCloudToken();
     const { setProfile } = useWebCoreStore();
-    const { setIsLoading } = useGlobalLoader();
 
     const selectPlace = async (placeId: string) => {
-        setIsLoading(true);
-        try {
-            const { cloudDelegationToken, userToken } = await issueCloudToken(placeId);
+        const { cloudDelegationToken, userToken } = await issueCloudToken(placeId);
 
-            cloudCore.saveDelegationToken(cloudDelegationToken);
-            cloudCore.saveCloudToken(userToken);
-            cloudCore.saveSelectedCloudId(placeId);
+        cloudCore.saveDelegationToken(cloudDelegationToken);
+        cloudCore.saveCloudToken(userToken);
+        cloudCore.saveSelectedCloudId(placeId);
 
-            const { Token, ...profile } = userToken;
-            setProfile(profile);
-        } finally {
-            setIsLoading(false);
-        }
+        const { Token, ...profile } = userToken;
+        setProfile(profile);
     };
 
     return { selectPlace, isPending };

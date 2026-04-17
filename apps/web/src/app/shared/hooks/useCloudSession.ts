@@ -1,10 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useIssueCloudToken } from '@chatic/auth';
-import { useGlobalLoader } from '@chatic/shared';
+
 import { useClouds } from '@chatic/users';
-import { cloudCore, wasBootstrappedFromCache, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
-import { useTranslation } from 'react-i18next';
 
 export const getCloudSession = () => {
     const wss = cloudCore.getWss();
@@ -19,19 +18,14 @@ export const clearCloudSession = (): void => {
 };
 
 export const useCloudSession = () => {
-    const { t } = useTranslation();
     const { mutateAsync: issueCloudToken, isPending } = useIssueCloudToken();
     const { isAuthenticated, setProfile } = useWebCoreStore();
-    const { setIsLoading } = useGlobalLoader();
     const { data, isError: isFetchError, isFetching, refetch } = useClouds({ limit: -1, enabled: isAuthenticated });
 
     const clouds = data?.list ?? [];
     const isCloudsError = !isFetching && isFetchError;
 
-    const selectCloud = async (cloudId: string, { silent = false } = {}) => {
-        if (!silent) {
-            setIsLoading(true, t('globalLoader.switchingCloud'));
-        }
+    const selectCloud = async (cloudId: string) => {
         try {
             const { cloudDelegationToken, userToken } = await issueCloudToken(cloudId);
 
@@ -45,8 +39,6 @@ export const useCloudSession = () => {
         } catch (e) {
             console.error('[useCloudSession] selectCloud failed:', e);
             throw e;
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -84,6 +76,6 @@ export const useAutoSelectCloud = () => {
         if (existingSession && currentCloudId === activeCloud.id) return;
 
         autoSelectedRef.current = true;
-        void selectCloud(activeCloud.id as string, { silent: wasBootstrappedFromCache() });
+        void selectCloud(activeCloud.id as string);
     }, [clouds, isAuthenticated, isFetchingClouds]);
 };
