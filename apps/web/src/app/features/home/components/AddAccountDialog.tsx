@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ChevronLeft, HelpCircle, Loader2, X, XCircle } from 'lucide-react';
@@ -129,6 +129,12 @@ export const AddAccountDialog = ({ open, onOpenChange }: AddAccountDialogProps) 
             setLoadingState('idle');
         }
     };
+
+    useEffect(() => {
+        if (isCodeComplete && loadingState === 'idle' && timeLeft > 0) {
+            handleVerifyCode();
+        }
+    }, [isCodeComplete]);  
 
     const handleVerifyCode = async () => {
         setLoadingState('verifying');
