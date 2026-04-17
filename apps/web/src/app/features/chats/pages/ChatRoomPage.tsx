@@ -71,20 +71,16 @@ export const ChatRoomPage = () => {
         }
     }, [channel, isChannelLoading, isChannelError, navigate]);
 
-    /**
-     * 스크롤을 최하단으로 이동시키는 함수
-     * @param smooth - true: 부드럽게 스크롤, false: 즉시 스크롤
-     * DOM 렌더링(새 메시지 추가, 텍스트박스 축소 등)이 완료될 시간을 주기 위해 setTimeout(50) 사용
-     */
+    // column-reverse 컨테이너에서 scrollTop=0이 최하단(최신 메시지)
     const scrollToBottom = (smooth = false) => {
-        setTimeout(() => {
+        requestAnimationFrame(() => {
             if (messagesEndRef.current) {
                 messagesEndRef.current.scrollTo({
-                    top: messagesEndRef.current.scrollHeight,
+                    top: 0,
                     behavior: smooth ? 'smooth' : 'auto',
                 });
             }
-        }, 50);
+        });
     };
 
     // 채팅 길이가 변할 때 최신 메시지 자동 읽음 처리
@@ -122,24 +118,27 @@ export const ChatRoomPage = () => {
         };
     }, [messages.length, channelId, readMessage]);
 
-    // 메시지 배열이 변경되거나(새 메시지 추가, 전송 중 상태 변경 등) 실패 메시지가 생길 때 스크롤 이동
+    // 새 메시지 추가 시에만 스크롤 (초기 로드는 column-reverse가 자동 처리)
+    const prevMessageCountRef = useRef(messages.length);
     useEffect(() => {
-        if (messages.length > 0) {
+        if (messages.length > prevMessageCountRef.current) {
             scrollToBottom(false);
         }
-    }, [messages]);
+        prevMessageCountRef.current = messages.length;
+    }, [messages.length]);
 
     // 창 크기 변경(키보드 올라옴 등) 및 인풋 포커스 시 스크롤 조정 이벤트 등록
     useEffect(() => {
-        const handleResize = () => setTimeout(scrollToBottom, 100);
-        const handleFocus = () => setTimeout(scrollToBottom, 300);
+        // 키보드 애니메이션(~300ms) 완료 후 스크롤 보정
+        const handleScrollAdjust = () => setTimeout(() => scrollToBottom(), 150);
+        const input = inputRef.current;
 
-        window.addEventListener('resize', handleResize);
-        inputRef.current?.addEventListener('focus', handleFocus);
+        window.addEventListener('resize', handleScrollAdjust);
+        input?.addEventListener('focus', handleScrollAdjust);
 
         return () => {
-            window.removeEventListener('resize', handleResize);
-            inputRef.current?.removeEventListener('focus', handleFocus);
+            window.removeEventListener('resize', handleScrollAdjust);
+            input?.removeEventListener('focus', handleScrollAdjust);
         };
     }, []);
 
@@ -307,135 +306,136 @@ export const ChatRoomPage = () => {
                 </DropdownMenu>
             </header>
 
-            {/* 메시지 목록 렌더링 영역 */}
-            <div
-                ref={messagesEndRef}
-                className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 pt-2 overscroll-none"
-            >
-                {messages.length === 0 && !isChatLoading ? (
-                    // 메시지가 없을 때 보여지는 빈 화면 (Empty State)
-                    <div className="relative flex flex-1 flex-col items-center justify-center">
-                        <div className="absolute left-0 right-0 top-2 text-center">
-                            <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
-                                {formatDateSeparator(new Date())}
-                            </span>
-                        </div>
-                        <div className="flex flex-col items-center gap-4">
-                            {channel?.ownerId === dynamicProfile?.uid && (
-                                <>
-                                    <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
-                                        <p>{t('chat.room.emptyState.line1')}</p>
-                                        <p>{t('chat.room.emptyState.line2')}</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setInviteDialogOpen(true)}
-                                        className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
-                                    >
-                                        <Plus size={20} />
-                                        <span className="text-[16px] font-semibold">
-                                            {t('chat.room.emptyState.inviteButton')}
-                                        </span>
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    // 날짜별로 그룹화된 메시지 렌더링
-                    Object.entries(groupedMessages)
-                        .sort(([a], [b]) => a.localeCompare(b))
-                        .map(([dateKey, dateMessages]) => (
-                            <div key={dateKey} className="flex flex-col gap-3">
-                                {/* 날짜 구분선 */}
-                                <div className="py-2 text-center">
-                                    <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
-                                        {formatDateSeparator(dateMessages[0].timestamp)}
-                                    </span>
-                                </div>
-
-                                {dateMessages.map(message => {
-                                    // 시스템 메시지 렌더링 (초대, 퇴장 등)
-                                    if (message.isSystem) {
-                                        const systemMatch = (message.content ?? '').match(/^(.+?)(님이.+)$/);
-                                        return (
-                                            <div key={message.id} className="flex justify-center py-1">
-                                                <span className="rounded-full bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground">
-                                                    {systemMatch ? (
-                                                        <>
-                                                            <span className="font-semibold">{systemMatch[1]}</span>
-                                                            {systemMatch[2]}
-                                                        </>
-                                                    ) : (
-                                                        message.content
-                                                    )}
-                                                </span>
-                                            </div>
-                                        );
-                                    }
-
-                                    // 일반 메시지 렌더링
-                                    return (
-                                        <div
-                                            key={message.id}
-                                            className={`flex gap-1.5 ${message.isOwner ? 'justify-end' : 'justify-start'} ${
-                                                message.isPending ? 'opacity-60 transition-opacity' : ''
-                                            }`}
+            {/* 메시지 목록 렌더링 영역 — column-reverse로 초기 스크롤 위치를 하단에 고정 */}
+            <div ref={messagesEndRef} className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-none">
+                <div
+                    className={`flex flex-col gap-3 px-4 pb-4 pt-2 ${messages.length === 0 && !isChatLoading ? 'min-h-full' : ''}`}
+                >
+                    {messages.length === 0 && !isChatLoading ? (
+                        // 메시지가 없을 때 보여지는 빈 화면 (Empty State)
+                        <div className="relative flex flex-1 flex-col items-center justify-center">
+                            <div className="absolute left-0 right-0 top-2 text-center">
+                                <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
+                                    {formatDateSeparator(new Date())}
+                                </span>
+                            </div>
+                            <div className="flex flex-col items-center gap-4">
+                                {channel?.ownerId === dynamicProfile?.uid && (
+                                    <>
+                                        <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
+                                            <p>{t('chat.room.emptyState.line1')}</p>
+                                            <p>{t('chat.room.emptyState.line2')}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setInviteDialogOpen(true)}
+                                            className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
                                         >
-                                            {!message.isOwner && (
-                                                <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
-                                                    <User className="size-4 text-muted-foreground" />
+                                            <Plus size={20} />
+                                            <span className="text-[16px] font-semibold">
+                                                {t('chat.room.emptyState.inviteButton')}
+                                            </span>
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        // 날짜별로 그룹화된 메시지 렌더링
+                        Object.entries(groupedMessages)
+                            .sort(([a], [b]) => a.localeCompare(b))
+                            .map(([dateKey, dateMessages]) => (
+                                <div key={dateKey} className="flex flex-col gap-3">
+                                    {/* 날짜 구분선 */}
+                                    <div className="py-2 text-center">
+                                        <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
+                                            {formatDateSeparator(dateMessages[0].timestamp)}
+                                        </span>
+                                    </div>
+
+                                    {dateMessages.map(message => {
+                                        // 시스템 메시지 렌더링 (초대, 퇴장 등)
+                                        if (message.isSystem) {
+                                            const systemMatch = (message.content ?? '').match(/^(.+?)(님이.+)$/);
+                                            return (
+                                                <div key={message.id} className="flex justify-center py-1">
+                                                    <span className="rounded-full bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground">
+                                                        {systemMatch ? (
+                                                            <>
+                                                                <span className="font-semibold">{systemMatch[1]}</span>
+                                                                {systemMatch[2]}
+                                                            </>
+                                                        ) : (
+                                                            message.content
+                                                        )}
+                                                    </span>
                                                 </div>
-                                            )}
+                                            );
+                                        }
+
+                                        // 일반 메시지 렌더링
+                                        return (
                                             <div
-                                                className={`flex max-w-[75%] flex-col ${message.isOwner ? 'items-end' : 'items-start'}`}
+                                                key={message.id}
+                                                className={`flex gap-1.5 ${message.isOwner ? 'justify-end' : 'justify-start'} ${
+                                                    message.isPending ? 'opacity-60 transition-opacity' : ''
+                                                }`}
                                             >
                                                 {!message.isOwner && (
-                                                    <span className="mb-1 text-xs text-muted-foreground">
-                                                        {message.ownerName}
-                                                    </span>
-                                                )}
-                                                <MessageBubble
-                                                    content={message.content ?? ''}
-                                                    isMine={message.isOwner}
-                                                    status={
-                                                        message.isFailed
-                                                            ? 'failed'
-                                                            : message.isPending
-                                                              ? 'pending'
-                                                              : undefined
-                                                    }
-                                                    onAction={
-                                                        message.isFailed
-                                                            ? () => handleRetryMessage(message)
-                                                            : () =>
-                                                                  setExpandedMessage({
-                                                                      content: message.content ?? '',
-                                                                      ownerName: message.ownerName,
-                                                                  })
-                                                    }
-                                                />
-                                                {!message.isPending && (
-                                                    <div
-                                                        className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${message.isOwner ? 'flex-row-reverse' : ''}`}
-                                                    >
-                                                        <span className="text-muted-foreground">
-                                                            {formatTime(message.timestamp)}
-                                                        </span>
-                                                        {!message.isFailed && message.chatNo !== undefined && (
-                                                            <ReadStatus
-                                                                unreadCount={message.unreadCount ?? 0}
-                                                                memberNo={channel?.memberNo ?? 0}
-                                                            />
-                                                        )}
+                                                    <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                                                        <User className="size-4 text-muted-foreground" />
                                                     </div>
                                                 )}
+                                                <div
+                                                    className={`flex max-w-[75%] flex-col ${message.isOwner ? 'items-end' : 'items-start'}`}
+                                                >
+                                                    {!message.isOwner && (
+                                                        <span className="mb-1 text-xs text-muted-foreground">
+                                                            {message.ownerName}
+                                                        </span>
+                                                    )}
+                                                    <MessageBubble
+                                                        content={message.content ?? ''}
+                                                        isMine={message.isOwner}
+                                                        status={
+                                                            message.isFailed
+                                                                ? 'failed'
+                                                                : message.isPending
+                                                                  ? 'pending'
+                                                                  : undefined
+                                                        }
+                                                        onAction={
+                                                            message.isFailed
+                                                                ? () => handleRetryMessage(message)
+                                                                : () =>
+                                                                      setExpandedMessage({
+                                                                          content: message.content ?? '',
+                                                                          ownerName: message.ownerName,
+                                                                      })
+                                                        }
+                                                    />
+                                                    {!message.isPending && (
+                                                        <div
+                                                            className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${message.isOwner ? 'flex-row-reverse' : ''}`}
+                                                        >
+                                                            <span className="text-muted-foreground">
+                                                                {formatTime(message.timestamp)}
+                                                            </span>
+                                                            {!message.isFailed && message.chatNo !== undefined && (
+                                                                <ReadStatus
+                                                                    unreadCount={message.unreadCount ?? 0}
+                                                                    memberNo={channel?.memberNo ?? 0}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ))
-                )}
+                                        );
+                                    })}
+                                </div>
+                            ))
+                    )}
+                </div>
             </div>
 
             {/* 초대 모달 */}
