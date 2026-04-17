@@ -404,7 +404,7 @@ export const ChatRoomPage = () => {
                                                               ? 'pending'
                                                               : undefined
                                                     }
-                                                    onViewAll={
+                                                    onAction={
                                                         message.isFailed
                                                             ? () => handleRetryMessage(message)
                                                             : () =>

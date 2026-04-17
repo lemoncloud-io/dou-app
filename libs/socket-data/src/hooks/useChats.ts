@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWebSocketV2 } from '@chatic/socket';
 import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
@@ -129,13 +129,46 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     /**
      * 초기 마운트 및 채널 변경 시 로드
      * 로컬 DB에서 먼저 조회하여 즉시 표시하고, 네트워크 sync는 병렬로 진행
+     *
+     * 마운트 시 orphaned pending 메시지를 DB에서 삭제:
+     * 새로고침/재진입 후에는 in-memory promise/timeout이 사라져 pending → confirmed 전환이 불가능.
+     * feed 응답이 confirmed 메시지를 가져오므로 temp 삭제해도 데이터 손실 없음.
      */
     useEffect(() => {
-        setFeedCursorNo(undefined);
-        setStatus(prev => ({ ...prev, isSyncing: true, isLoadingMore: false, isError: false }));
-        void requestFromLocal({ channelId: targetChannelId });
-        requestFromNetwork({ channelId: targetChannelId });
+        const init = async () => {
+            setFeedCursorNo(undefined);
+            setStatus(prev => ({ ...prev, isSyncing: true, isLoadingMore: false, isError: false }));
+
+            // orphaned pending 메시지 정리 (새로고침 시 temp + confirmed 중복 방지)
+            const allChats = await chatRepository.getChatsByChannel(targetChannelId);
+            const pendingChats = allChats.filter(m => m.isPending);
+            if (pendingChats.length > 0) {
+                await Promise.all(pendingChats.map(m => chatRepository.deleteChat(m.id!)));
+            }
+
+            void requestFromLocal({ channelId: targetChannelId });
+            requestFromNetwork({ channelId: targetChannelId });
+        };
+        void init();
     }, [targetChannelId]);
+
+    // 연속 이벤트(낙관적 업데이트 + 서버 응답) 시 DB 재조회를 1회로 병합
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const debouncedRequestFromLocal = useMemo(
+        () => () => {
+            if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = setTimeout(() => {
+                void requestFromLocal();
+            }, 50);
+        },
+        [requestFromLocal]
+    );
+
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        };
+    }, []);
 
     /**
      * 통합 이벤트 버스 구독
@@ -156,13 +189,12 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 }
             }
 
-            // feed/send/delete/create/update 모든 chat 이벤트에서 로컬 DB 재조회
-            void requestFromLocal();
+            debouncedRequestFromLocal();
         };
 
         window.addEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
         return () => window.removeEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
-    }, [targetChannelId, cloudId, requestFromLocal]);
+    }, [targetChannelId, cloudId, debouncedRequestFromLocal]);
 
     /**
      * 이전 메시지 로드 (역방향 페이지네이션)

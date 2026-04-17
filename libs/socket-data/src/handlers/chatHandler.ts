@@ -51,7 +51,14 @@ export const chatHandler = async (
                         } as CacheChannelView);
                     }
                 }
-                notifyAppUpdated({ domain: 'chat', action, cid: cloudId, targetId: channelId, payload });
+                notifyAppUpdated({
+                    domain: 'chat',
+                    action,
+                    cid: cloudId,
+                    targetId: channelId,
+                    payload,
+                    ref: meta?.ref,
+                });
             }
             break;
         }

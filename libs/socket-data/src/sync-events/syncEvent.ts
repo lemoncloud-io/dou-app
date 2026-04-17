@@ -44,6 +44,11 @@ export interface AppSyncDetail<T = any> {
      * 응답으로 전달받은 데이터
      */
     payload?: T;
+    /**
+     * 낙관적 업데이트 임시 메시지 참조 ID (meta.ref)
+     * send 응답을 특정 temp 메시지와 정확히 매칭하기 위해 사용
+     */
+    ref?: string;
 }
 
 /**

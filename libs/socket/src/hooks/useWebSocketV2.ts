@@ -55,14 +55,29 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
     const isConnected = useWebSocketV2Store(s => s.isConnected);
     const workerRef = useRef<Worker | null>(null);
 
-    // If no config provided, return current state and send function
+    // Stable lazy proxies — check globals at CALL TIME, not render time.
+    // Prevents race condition: consumer mounts before socket provider sets globals,
+    // then requestDedup blocks subsequent retry attempts.
+    const sendProxy = useCallback((data: unknown) => {
+        if (globalSendFn) globalSendFn(data);
+        else console.warn('[WebSocketV2] Not initialized');
+    }, []);
+    const emitProxy = useCallback((data: unknown) => {
+        if (globalEmitFn) globalEmitFn(data);
+        else console.warn('[WebSocketV2] Not initialized');
+    }, []);
+    const emitAuthenticatedProxy = useCallback((data: unknown) => {
+        if (globalEmitAuthenticatedFn) globalEmitAuthenticatedFn(data);
+        else console.warn('[WebSocketV2] Not initialized');
+    }, []);
+
     if (!config) {
         return {
             ...store,
             isConnected,
-            send: globalSendFn || (() => console.warn('[WebSocketV2] Not initialized')),
-            emit: globalEmitFn || (() => console.warn('[WebSocketV2] Not initialized')),
-            emitAuthenticated: globalEmitAuthenticatedFn || (() => console.warn('[WebSocketV2] Not initialized')),
+            send: sendProxy,
+            emit: emitProxy,
+            emitAuthenticated: emitAuthenticatedProxy,
         };
     }
 

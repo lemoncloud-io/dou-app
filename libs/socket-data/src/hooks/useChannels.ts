@@ -47,7 +47,11 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                     return;
                 }
 
-                const channelsData: CacheChannelView[] = await repository.getChannelsByPlace(placeId);
+                // 'default' placeId는 sid 필터 없이 전체 채널 로드
+                const channelsData: CacheChannelView[] =
+                    placeId === 'default'
+                        ? await repository.getChannels()
+                        : await repository.getChannelsByPlace(placeId);
 
                 const sortedChannels = channelsData.sort((a, b) => {
                     const timeA = new Date(a.lastChat$?.createdAt ?? a.updatedAt ?? 0).getTime();
@@ -119,10 +123,15 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
             if (!shouldEmit(`chat:mine:${placeId}`)) return;
 
             setIsSyncing(true);
+
+            // 'default' placeId는 서버에 전달하지 않음 — 서버가 전체 채널 반환
+            const { placeId: _pid, ...restParams } = activeParams;
+            const networkPayload = placeId === 'default' ? restParams : activeParams;
+
             emitAuthenticated({
                 type: 'chat',
                 action: 'mine',
-                payload: activeParams,
+                payload: networkPayload,
             });
 
             setTimeout(() => setIsSyncing(false), 5000);
