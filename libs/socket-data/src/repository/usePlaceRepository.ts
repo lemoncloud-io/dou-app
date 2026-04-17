@@ -63,6 +63,18 @@ export const usePlaceRepository = (cloudId: string) => {
     );
 
     /**
+     * 서버 응답으로 전체 교체 (stale 데이터 제거)
+     * my-site 응답 시 기존 캐시를 삭제하고 새 데이터로 원자적 대체
+     */
+    const replacePlaces = useCallback(
+        async (places: CacheSiteView[]): Promise<void> => {
+            if (!placeDB) return;
+            await placeDB.replaceAll(places);
+        },
+        [placeDB]
+    );
+
+    /**
      * 특정 Place 삭제
      */
     const deletePlace = useCallback(
@@ -80,8 +92,9 @@ export const usePlaceRepository = (cloudId: string) => {
             getPlace,
             savePlace,
             savePlaces,
+            replacePlaces,
             deletePlace,
         }),
-        [cloudId, getPlaces, getPlacesByCloud, getPlace, savePlace, savePlaces, deletePlace]
+        [cloudId, getPlaces, getPlacesByCloud, getPlace, savePlace, savePlaces, replacePlaces, deletePlace]
     );
 };

@@ -47,24 +47,27 @@ export const usePlaces = () => {
     /**
      * 서버에 최신 플레이스 목록 동기화 요청
      */
-    const requestFromNetwork = useCallback(() => {
-        if (!shouldEmit('user:my-site')) return;
+    const requestFromNetwork = useCallback(
+        (force = false) => {
+            if (!force && !shouldEmit('user:my-site')) return;
 
-        setIsSyncing(true);
-        emitAuthenticated({
-            type: 'user',
-            action: 'my-site',
-        });
+            setIsSyncing(true);
+            emitAuthenticated({
+                type: 'user',
+                action: 'my-site',
+            });
 
-        setTimeout(() => setIsSyncing(false), 5000);
-    }, [emitAuthenticated]);
+            setTimeout(() => setIsSyncing(false), 5000);
+        },
+        [emitAuthenticated]
+    );
 
     /**
      *  초기 마운트 시 동시 요청
      */
     useEffect(() => {
         void requestFromLocal();
-        requestFromNetwork();
+        requestFromNetwork(true);
     }, [requestFromLocal, requestFromNetwork]);
 
     /**
