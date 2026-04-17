@@ -8,6 +8,7 @@ import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import { useChannelRepository, useJoinRepository } from '../repository';
 import type { ClientChannelView, ClientChatMinePayload } from '../types';
 import { shouldEmit } from '../requestDedup';
+import { useConnectionRecoverySync } from './useConnectionRecoverySync';
 
 /**
  * 특정 워크스페이스(Place)의 채널 목록을 로컬 DB에서 즉시 조회
@@ -147,6 +148,10 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         requestFromNetwork(initialParams);
     }, [targetPlaceId, requestFromLocal, requestFromNetwork]);
 
+    // ref로 최신 함수 참조 ��지 → 이벤트 리스너 재등록 없이 항상 최신 함수 호출
+    const requestFromLocalRef = useRef(requestFromLocal);
+    requestFromLocalRef.current = requestFromLocal;
+
     useEffect(() => {
         if (!repository.cloudId) return;
 
@@ -157,7 +162,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                 (detail.domain === 'channel' || detail.domain === 'chat' || detail.domain === 'join') &&
                 detail.cid === repository.cloudId
             ) {
-                void requestFromLocal();
+                void requestFromLocalRef.current();
                 if (detail.domain === 'channel' || detail.domain === 'chat') {
                     setIsSyncing(false);
                 }
@@ -166,7 +171,10 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
         window.addEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
         return () => window.removeEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
-    }, [repository.cloudId, requestFromLocal]);
+    }, [repository.cloudId]);
+
+    // 포그라운드 복귀 + WebSocket 재연결 완료 시 데이터 재동기화
+    useConnectionRecoverySync(requestFromLocal, requestFromNetwork);
 
     return {
         channels,
