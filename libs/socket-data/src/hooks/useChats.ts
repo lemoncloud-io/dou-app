@@ -75,9 +75,10 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 // 로컬 데이터는 limit 상관없이 전체 매핑 및 정렬
                 const processedData = rawMsgs
                     .sort((a, b) => {
+                        if (a.isPending && !b.isPending) return 1;
+                        if (!a.isPending && b.isPending) return -1;
                         const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
                         const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-
                         return timeA - timeB;
                     })
                     .map((msg): ClientChatView => {
