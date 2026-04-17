@@ -71,9 +71,10 @@ export const createIndexedDBAdapter = <T extends { id?: string }>(type: CacheTyp
          * 단일 아이템을 저장하거나 업데이트합니다.
          */
         async save(id: string, item: T): Promise<void> {
-            const { store } = await getStore('readwrite');
+            const { store, transaction } = await getStore('readwrite');
             const data: CacheSchema<T> = { key: generateKey(id), type, cid, id, data: item };
-            await promisifyRequest(store.put(data));
+            store.put(data);
+            await promisifyTransaction(transaction);
         },
 
         /**
@@ -117,8 +118,9 @@ export const createIndexedDBAdapter = <T extends { id?: string }>(type: CacheTyp
          * ID를 통해 단일 데이터를 삭제합니다.
          */
         async delete(id: string): Promise<void> {
-            const { store } = await getStore('readwrite');
-            await promisifyRequest(store.delete(generateKey(id)));
+            const { store, transaction } = await getStore('readwrite');
+            store.delete(generateKey(id));
+            await promisifyTransaction(transaction);
         },
 
         /**
