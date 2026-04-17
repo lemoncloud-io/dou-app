@@ -70,6 +70,12 @@ export const VerifyCodePage = ({ translationPrefix, onVerify, onResend }: Verify
 
     const isComplete = code.length === VERIFICATION_CODE_LENGTH;
 
+    useEffect(() => {
+        if (isComplete && loadingState === 'idle') {
+            handleComplete();
+        }
+    }, [isComplete]);  
+
     return (
         <KeyboardAwareLayout
             header={
