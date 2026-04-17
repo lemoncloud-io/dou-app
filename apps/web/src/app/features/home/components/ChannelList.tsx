@@ -6,9 +6,8 @@ import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { cloudCore } from '@chatic/web-core';
+import type { ClientChannelView } from '@chatic/socket-data';
 import { useChannels } from '@chatic/socket-data';
-
-import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 
 const ChannelSkeleton = () => (
     <div className="flex items-start gap-2 rounded-[6px] px-[2px] py-2">
@@ -20,7 +19,7 @@ const ChannelSkeleton = () => (
     </div>
 );
 
-const ChannelItem = ({ channel }: { channel: ChannelView }) => {
+const ChannelItem = ({ channel }: { channel: ClientChannelView }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const unreadCount = channel.unreadCount ?? 0;
@@ -115,6 +114,8 @@ export const ChannelList = ({
 
     if (!hasSelectedPlace) return null;
 
+    console.log(JSON.stringify(channels));
+
     const header = (
         <div className="mb-[18px] flex items-center justify-between">
             <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">Chat</span>
@@ -186,7 +187,7 @@ export const ChannelList = ({
             {header}
             <div className="flex-1 overflow-y-auto">
                 <div className="flex flex-col gap-[18px] px-1">
-                    {channels.map(channel => (
+                    {channels.map((channel: ClientChannelView) => (
                         <ChannelItem key={channel.id} channel={channel} />
                     ))}
                 </div>

@@ -4,7 +4,7 @@ import { useChannels } from '@chatic/socket-data';
 export const useCanCreateChannel = () => {
     const { permissions } = useUserContext();
     const placeId = cloudCore.getSelectedPlaceId() || '';
-    const { channels, isLoading } = useChannels({ placeId });
+    const { channels, isLoading } = useChannels({ placeId, detail: true });
 
     const currentCount = channels.length;
     const maxCount = permissions.maxChannels;
