@@ -34,9 +34,10 @@ export const useChats = (initialParams: ChatFeedPayload) => {
 
     /**
      * 로컬 DB에서 데이터 패칭 및 ClientChatView로의 매핑/정렬/필터링
+     * @param cleanPending true면 orphaned pending 메시지를 DB에서 삭제 (마운트 시 1회)
      */
     const requestFromLocal = useCallback(
-        async (params?: ChatFeedPayload) => {
+        async (params?: ChatFeedPayload, cleanPending = false) => {
             try {
                 if (params) currentParamsRef.current = { ...currentParamsRef.current, ...params };
                 const activeParams = currentParamsRef.current;
@@ -48,10 +49,21 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                     return;
                 }
 
-                const [rawMsgs, activeJoins] = await Promise.all([
+                const [rawMsgsFromDB, activeJoins] = await Promise.all([
                     chatRepository.getChatsByChannel(channelId),
                     joinRepository.getActiveJoinsByChannel(channelId),
                 ]);
+
+                // 마운트 시 orphaned pending 메시지 정리
+                // 새로고침/재진입 후 in-memory promise/timeout이 없어 pending → confirmed 전환 불가
+                let rawMsgs = rawMsgsFromDB;
+                if (cleanPending) {
+                    const pendingMsgs = rawMsgsFromDB.filter(m => m.isPending);
+                    if (pendingMsgs.length > 0) {
+                        await Promise.all(pendingMsgs.map(m => chatRepository.deleteChat(m.id!)));
+                        rawMsgs = rawMsgsFromDB.filter(m => !m.isPending);
+                    }
+                }
 
                 // owner$ 없는 메시지를 위해 user repository에서 이름 조회
                 const ownerIds = [...new Set(rawMsgs.map(m => m.ownerId).filter(Boolean))] as string[];
@@ -129,27 +141,12 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     /**
      * 초기 마운트 및 채널 변경 시 로드
      * 로컬 DB에서 먼저 조회하여 즉시 표시하고, 네트워크 sync는 병렬로 진행
-     *
-     * 마운트 시 orphaned pending 메시지를 DB에서 삭제:
-     * 새로고침/재진입 후에는 in-memory promise/timeout이 사라져 pending → confirmed 전환이 불가능.
-     * feed 응답이 confirmed 메시지를 가져오므로 temp 삭제해도 데이터 손실 없음.
      */
     useEffect(() => {
-        const init = async () => {
-            setFeedCursorNo(undefined);
-            setStatus(prev => ({ ...prev, isSyncing: true, isLoadingMore: false, isError: false }));
-
-            // orphaned pending 메시지 정리 (새로고침 시 temp + confirmed 중복 방지)
-            const allChats = await chatRepository.getChatsByChannel(targetChannelId);
-            const pendingChats = allChats.filter(m => m.isPending);
-            if (pendingChats.length > 0) {
-                await Promise.all(pendingChats.map(m => chatRepository.deleteChat(m.id!)));
-            }
-
-            void requestFromLocal({ channelId: targetChannelId });
-            requestFromNetwork({ channelId: targetChannelId });
-        };
-        void init();
+        setFeedCursorNo(undefined);
+        setStatus(prev => ({ ...prev, isSyncing: true, isLoadingMore: false, isError: false }));
+        requestFromNetwork({ channelId: targetChannelId });
+        void requestFromLocal({ channelId: targetChannelId }, true);
     }, [targetChannelId]);
 
     // 연속 이벤트(낙관적 업데이트 + 서버 응답) 시 DB 재조회를 1회로 병합
