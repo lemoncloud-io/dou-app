@@ -71,7 +71,9 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                     .map((msg): ClientChatView => {
                         let unreadCount = 0;
                         if (msg.chatNo !== undefined) {
-                            const readCount = activeJoins.filter(join => (join.chatNo || 0) >= msg.chatNo!).length;
+                            let readCount = activeJoins.filter(join => (join.chatNo || 0) >= msg.chatNo!).length;
+                            // 내 메시지는 본인이 최소 1명으로 읽은 것으로 보장
+                            if (msg.ownerId === userId && readCount === 0) readCount = 1;
                             unreadCount = Math.max(0, totalActiveMembers - readCount);
                         } else {
                             unreadCount = Math.max(0, totalActiveMembers - 1);

@@ -1,10 +1,10 @@
-import { ArrowUp, ChevronLeft, MoreHorizontal, Plus, Settings, User, X } from 'lucide-react';
+import { ArrowUp, ChevronLeft, Loader2, MoreHorizontal, Plus, Settings, User, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useUserContext, UserType } from '@chatic/web-core';
+import { useDynamicProfile, useUserContext, UserType } from '@chatic/web-core';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
@@ -42,6 +42,7 @@ export const ChatRoomPage = () => {
     // 중복 읽음 처리(read 요청)를 방지하기 위해 마지막으로 읽음 처리한 메시지 번호를 저장
     const lastReadChatNoRef = useRef<number | null>(null);
 
+    const dynamicProfile = useDynamicProfile();
     const { userType } = useUserContext();
     const { isIOS } = useAppChecker();
 
@@ -58,7 +59,8 @@ export const ChatRoomPage = () => {
     });
 
     // 메시지 전송 및 읽음 처리 관련 Mutation
-    const { sendMessage, readMessage, deleteMessage } = useChatMutations();
+    const { isPending, sendMessage, readMessage, deleteMessage } = useChatMutations();
+    const isSending = isPending.send;
 
     useEffect(() => {
         // 채널 정보를 불러오는 중이면 대기
@@ -319,22 +321,22 @@ export const ChatRoomPage = () => {
                             </span>
                         </div>
                         <div className="flex flex-col items-center gap-4">
-                            {userType !== UserType.TEMP_ACCOUNT && (
-                                <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
-                                    <p>{t('chat.room.emptyState.line1')}</p>
-                                    <p>{t('chat.room.emptyState.line2')}</p>
-                                </div>
-                            )}
-                            {userType !== UserType.TEMP_ACCOUNT && (
-                                <button
-                                    onClick={() => setInviteDialogOpen(true)}
-                                    className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
-                                >
-                                    <Plus size={20} />
-                                    <span className="text-[16px] font-semibold">
-                                        {t('chat.room.emptyState.inviteButton')}
-                                    </span>
-                                </button>
+                            {channel?.ownerId === dynamicProfile?.uid && (
+                                <>
+                                    <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
+                                        <p>{t('chat.room.emptyState.line1')}</p>
+                                        <p>{t('chat.room.emptyState.line2')}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setInviteDialogOpen(true)}
+                                        className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
+                                    >
+                                        <Plus size={20} />
+                                        <span className="text-[16px] font-semibold">
+                                            {t('chat.room.emptyState.inviteButton')}
+                                        </span>
+                                    </button>
+                                </>
                             )}
                         </div>
                     </div>
@@ -402,30 +404,31 @@ export const ChatRoomPage = () => {
                                                               ? 'pending'
                                                               : undefined
                                                     }
-                                                    onViewAll={() =>
-                                                        setExpandedMessage({
-                                                            content: message.content ?? '',
-                                                            ownerName: message.ownerName,
-                                                        })
+                                                    onViewAll={
+                                                        message.isFailed
+                                                            ? () => handleRetryMessage(message)
+                                                            : () =>
+                                                                  setExpandedMessage({
+                                                                      content: message.content ?? '',
+                                                                      ownerName: message.ownerName,
+                                                                  })
                                                     }
-                                                    onRetry={() => handleRetryMessage(message)}
-                                                    onDelete={() => handleDeleteMessage(message.id)}
                                                 />
-                                                <div
-                                                    className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${message.isOwner ? 'flex-row-reverse' : ''}`}
-                                                >
-                                                    <span className="text-muted-foreground">
-                                                        {formatTime(message.timestamp)}
-                                                    </span>
-                                                    {!message.isPending &&
-                                                        !message.isFailed &&
-                                                        message.chatNo !== undefined && (
+                                                {!message.isPending && (
+                                                    <div
+                                                        className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${message.isOwner ? 'flex-row-reverse' : ''}`}
+                                                    >
+                                                        <span className="text-muted-foreground">
+                                                            {formatTime(message.timestamp)}
+                                                        </span>
+                                                        {!message.isFailed && message.chatNo !== undefined && (
                                                             <ReadStatus
                                                                 unreadCount={message.unreadCount ?? 0}
                                                                 memberNo={channel?.memberNo ?? 0}
                                                             />
                                                         )}
-                                                </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     );
@@ -464,14 +467,18 @@ export const ChatRoomPage = () => {
                         onMouseDown={e => e.preventDefault()}
                         onTouchStart={e => e.preventDefault()}
                         onClick={handleSend}
-                        disabled={!content.trim()}
+                        disabled={isSending || !content.trim()}
                         className={`flex size-8 flex-shrink-0 items-center justify-center rounded-full transition-colors ${
-                            content.trim()
+                            content.trim() && !isSending
                                 ? 'bg-foreground text-background'
                                 : 'bg-muted-foreground/20 text-muted-foreground'
                         }`}
                     >
-                        <ArrowUp size={18} />
+                        {isSending ? (
+                            <Loader2 size={16} className="animate-spin text-muted-foreground" />
+                        ) : (
+                            <ArrowUp size={18} />
+                        )}
                     </button>
                 </div>
             </div>

@@ -77,7 +77,9 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
                             // 차이 계산
                             const lastChatNo = baseChannel.lastChat$?.chatNo || 0;
-                            const myReadNo = myJoin?.chatNo || 0;
+                            // 마지막 메시지가 내 것이면 이미 읽은 것으로 간주
+                            const lastMsgIsMine = baseChannel.lastChat$?.ownerId === profile.uid;
+                            const myReadNo = lastMsgIsMine ? lastChatNo : myJoin?.chatNo || 0;
                             unreadCount = Math.max(0, lastChatNo - myReadNo);
                         }
 

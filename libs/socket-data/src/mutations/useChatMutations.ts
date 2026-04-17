@@ -91,8 +91,17 @@ export const useChatMutations = () => {
                     reject(new Error('Message send timeout.'));
                 }, 5000);
 
-                // DB 저장 완료 후 소켓 발송
+                // DB 저장 완료 후 UI 즉시 갱신 → 소켓 발송
                 repository.saveChat(tempId, tempMessage).then(() => {
+                    // 낙관적 업데이트: 임시 메시지를 UI에 즉시 반영
+                    notifyAppUpdated({
+                        domain: 'chat',
+                        action: 'send',
+                        cid: cloudId,
+                        targetId: payload.channelId,
+                        payload: tempMessage,
+                    });
+
                     window.addEventListener(APP_SYNC_EVENT_NAME, onUpdate);
                     emitAuthenticated({
                         type: 'chat',
