@@ -7,6 +7,7 @@ import { useChatRepository, useJoinRepository, useUserRepository } from '../repo
 import type { ClientChatView } from '../types';
 import { ChatMapper } from '../types/mapper';
 import { useDynamicProfile } from '@chatic/web-core';
+import { useConnectionRecoverySync } from './useConnectionRecoverySync';
 
 /**
  * 특정 채널의 메시지 목록을 서버 feed 응답에서 직접 누적하여 관리하는 훅
@@ -168,6 +169,10 @@ export const useChats = (initialParams: ChatFeedPayload) => {
         };
     }, []);
 
+    // ref로 최신 함수 참조 유지 → 이벤트 리스너 재등록 없이 항상 최신 함수 호출
+    const debouncedRequestFromLocalRef = useRef(debouncedRequestFromLocal);
+    debouncedRequestFromLocalRef.current = debouncedRequestFromLocal;
+
     /**
      * 통합 이벤트 버스 구독
      * chatHandler/modelHandler가 로컬 DB 저장 후 이벤트를 발행하므로,
@@ -187,12 +192,15 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 }
             }
 
-            debouncedRequestFromLocal();
+            debouncedRequestFromLocalRef.current();
         };
 
         window.addEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
         return () => window.removeEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
-    }, [targetChannelId, cloudId, debouncedRequestFromLocal]);
+    }, [targetChannelId, cloudId]);
+
+    // 포그라운드 복귀 + WebSocket 재연결 완료 시 데이터 재동기화
+    useConnectionRecoverySync(requestFromLocal, requestFromNetwork);
 
     /**
      * 이전 메시지 로드 (역방향 페이지네이션)
