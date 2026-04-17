@@ -7,6 +7,7 @@ import { useChatRepository, useJoinRepository, useUserRepository } from '../repo
 import type { ClientChatView } from '../types';
 import { ChatMapper } from '../types/mapper';
 import { useDynamicProfile } from '@chatic/web-core';
+import { useConnectionRecoverySync } from './useConnectionRecoverySync';
 
 /**
  * 특정 채널의 메시지 목록을 서버 feed 응답에서 직접 누적하여 관리하는 훅
@@ -32,6 +33,9 @@ export const useChats = (initialParams: ChatFeedPayload) => {
 
     const currentParamsRef = useRef<ChatFeedPayload>(initialParams);
 
+    // cloudId가 유효한지 확인 ('default' 또는 빈 문자열이면 무효 — stale 캐시 접근 방지)
+    const isValidCloudId = !!cloudId && cloudId !== 'default';
+
     /**
      * 로컬 DB에서 데이터 패칭 및 ClientChatView로의 매핑/정렬/필터링
      * @param cleanPending true면 orphaned pending 메시지를 DB에서 삭제 (마운트 시 1회)
@@ -39,6 +43,10 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     const requestFromLocal = useCallback(
         async (params?: ChatFeedPayload, cleanPending = false) => {
             try {
+                if (!isValidCloudId) {
+                    setStatus(prev => ({ ...prev, isLoading: false, isError: false }));
+                    return;
+                }
                 if (params) currentParamsRef.current = { ...currentParamsRef.current, ...params };
                 const activeParams = currentParamsRef.current;
                 const channelId = activeParams.channelId ?? targetChannelId;
@@ -115,7 +123,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 setStatus(prev => ({ ...prev, isLoading: false, isError: true }));
             }
         },
-        [targetChannelId, chatRepository, joinRepository, userRepository, userId]
+        [targetChannelId, chatRepository, joinRepository, userRepository, userId, isValidCloudId]
     );
 
     /**
@@ -123,6 +131,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
      */
     const requestFromNetwork = useCallback(
         (params?: Partial<ChatFeedPayload>) => {
+            if (!isValidCloudId) return;
             const channelId = params?.channelId ?? targetChannelId;
             if (!channelId) return;
 
@@ -136,7 +145,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 payload: feedPayload,
             });
         },
-        [targetChannelId, emitAuthenticated]
+        [targetChannelId, emitAuthenticated, isValidCloudId]
     );
 
     /**
@@ -168,12 +177,17 @@ export const useChats = (initialParams: ChatFeedPayload) => {
         };
     }, []);
 
+    const debouncedRequestFromLocalRef = useRef(debouncedRequestFromLocal);
+    debouncedRequestFromLocalRef.current = debouncedRequestFromLocal;
+
     /**
      * 통합 이벤트 버스 구독
      * chatHandler/modelHandler가 로컬 DB 저장 후 이벤트를 발행하므로,
      * requestFromLocal()로 DB에서 재조회하여 isOwner/ownerName을 올바르게 매핑
      */
     useEffect(() => {
+        if (!isValidCloudId) return;
+
         const handleUpdate = (e: Event) => {
             const { detail } = e as CustomEvent<AppSyncDetail>;
             if (detail.cid !== cloudId) return;
@@ -187,12 +201,15 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 }
             }
 
-            debouncedRequestFromLocal();
+            debouncedRequestFromLocalRef.current();
         };
 
         window.addEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
         return () => window.removeEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
-    }, [targetChannelId, cloudId, debouncedRequestFromLocal]);
+    }, [targetChannelId, cloudId, isValidCloudId]);
+
+    // 포그라운드 복귀 + WebSocket 재연결 완료 시 데이터 재동기화
+    useConnectionRecoverySync(requestFromLocal, requestFromNetwork);
 
     /**
      * 이전 메시지 로드 (역방향 페이지네이션)

@@ -3,6 +3,7 @@ import type { WSSActionType } from '@lemoncloud/chatic-sockets-api';
 
 export const APP_SYNC_EVENT_NAME = 'app-sync-updated';
 export const APP_SYNC_CHANNEL_NAME = 'app-sync-channel';
+export const FOREGROUND_RESYNC_EVENT_NAME = 'foreground-resync';
 
 /**
  * 앱 전역 상태 도메인 (DB 테이블에 없는 상태들)
