@@ -33,8 +33,9 @@ export const useChats = (initialParams: ChatFeedPayload) => {
 
     const currentParamsRef = useRef<ChatFeedPayload>(initialParams);
 
-    // cloudId가 유효한지 확인 ('default' 또는 빈 문자열이면 무효 — stale 캐시 접근 방지)
-    const isValidCloudId = !!cloudId && cloudId !== 'default';
+    // cloudId가 유효한지 확인 (빈 문자열이면 무효 — stale 캐시 접근 방지)
+    // 'default'는 중계서버(relay WSS) 케이스에서 정상 사용됨
+    const isValidCloudId = !!cloudId;
 
     /**
      * 로컬 DB에서 데이터 패칭 및 ClientChatView로의 매핑/정렬/필터링

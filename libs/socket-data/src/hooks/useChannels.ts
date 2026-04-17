@@ -29,8 +29,9 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
     const currentParamsRef = useRef<ClientChatMinePayload>(initialParams);
 
-    // cloudId가 유효한지 확인 ('default' 또는 빈 문자열이면 무효 — stale 캐시 접근 방지)
-    const isValidCloudId = !!cloudId && cloudId !== 'default';
+    // cloudId가 유효한지 확인 (빈 문자열이면 무효 — stale 캐시 접근 방지)
+    // 'default'는 중계서버(relay WSS) 케이스에서 정상 사용됨
+    const isValidCloudId = !!cloudId;
 
     /**
      * 로컬 DB에서 채널 목록 읽어오기 및 정렬
