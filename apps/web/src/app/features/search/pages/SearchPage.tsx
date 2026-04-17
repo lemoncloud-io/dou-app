@@ -14,7 +14,7 @@ export const SearchPage = () => {
 
     const { places } = usePlaces();
     const placeId = cloudCore.getSelectedPlaceId() || '';
-    const { channels } = useChannels({ placeId });
+    const { channels } = useChannels({ placeId, detail: true });
 
     const lowerQuery = query.toLowerCase();
     const filteredPlaces = places.filter(p => p.name?.toLowerCase().includes(lowerQuery));

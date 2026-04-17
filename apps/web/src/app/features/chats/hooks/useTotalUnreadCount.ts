@@ -5,7 +5,7 @@ import { cloudCore } from '@chatic/web-core';
 
 export const useTotalUnreadCount = () => {
     const placeId = cloudCore.getSelectedPlaceId() || '';
-    const { channels } = useChannels({ placeId });
+    const { channels } = useChannels({ placeId, detail: true });
 
     return useMemo(() => {
         return channels.reduce((sum: number, ch) => sum + ((ch.unreadCount as number) ?? 0), 0);
