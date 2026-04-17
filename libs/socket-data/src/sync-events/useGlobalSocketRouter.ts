@@ -77,28 +77,6 @@ export const useGlobalSocketRouter = () => {
                     case 'system':
                         await systemHandler(envelope, cloudId);
                         break;
-                    case 'model': {
-                        // 서버가 model:create 로 chat 을 내려주는 경로 → chat:send 로 재라우팅
-                        // (channel.lastChat$ 갱신 + chat 저장 + unreadCount 반영)
-                        const payloadType = (envelope.payload as { type?: string } | undefined)?.type;
-                        if (envelope.action === 'create' && payloadType === 'chat') {
-                            await chatHandler(
-                                { ...envelope, type: 'chat', action: 'send' } as WSSEnvelope,
-                                cloudId,
-                                selectedPlaceId,
-                                myUserId,
-                                chatRepo,
-                                channelRepo,
-                                joinRepo,
-                                userRepo
-                            );
-                        } else {
-                            console.warn(
-                                `[Socket Router] Unhandled model action: ${envelope.action} (payload.type=${payloadType})`
-                            );
-                        }
-                        break;
-                    }
                     default:
                         console.warn(`[Socket Router] Unhandled domain: ${envelope.type}`);
                 }
