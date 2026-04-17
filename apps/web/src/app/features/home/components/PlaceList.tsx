@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Check, ChevronDown, Home, RefreshCw, SlidersHorizontal, Users } from 'lucide-react';
@@ -164,6 +164,21 @@ export const PlaceList = ({
         }
     };
 
+    // 이전 세션에서 선택된 place가 있거나, default 모드일 때 초기 placeId 전달
+    const initialPlaceNotifiedRef = useRef(false);
+    useEffect(() => {
+        if (initialPlaceNotifiedRef.current) return;
+        const savedPlaceId = cloudCore.getSelectedPlaceId();
+        if (savedPlaceId) {
+            initialPlaceNotifiedRef.current = true;
+            onPlaceSelected?.(savedPlaceId);
+        } else if (isDefaultMode || userType === UserType.TEMP_ACCOUNT) {
+            initialPlaceNotifiedRef.current = true;
+            onPlaceSelected?.('default');
+        }
+    }, [isDefaultMode, userType]);
+
+    // place 목록 로드 후 auto-selection
     useEffect(() => {
         const hasSelected = !!cloudCore.getSelectedPlaceId();
         if (hasSelected || filteredPlaces.length === 0) return;

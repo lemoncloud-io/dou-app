@@ -52,6 +52,10 @@ export const useChatMutations = () => {
                     const { detail } = e as CustomEvent<AppSyncDetail>;
 
                     if (detail.domain === 'chat' && detail.action === 'send' && detail.targetId === payload.channelId) {
+                        // 낙관적 업데이트 이벤트(isPending)는 무시, 서버 확정 응답만 처리
+                        if (detail.payload?.isPending) return;
+                        // ref가 있으면 내 temp 메시지와 정확히 매칭, 다른 메시지/유저의 이벤트 무시
+                        if (detail.ref && detail.ref !== tempId) return;
                         cleanup(action, onUpdate, timeoutId);
                         resolve(detail.payload);
                     }
@@ -91,9 +95,20 @@ export const useChatMutations = () => {
                     reject(new Error('Message send timeout.'));
                 }, 5000);
 
-                // DB 저장 완료 후 소켓 발송
+                // DB 저장 완료 후 UI 즉시 갱신 → 소켓 발송
                 repository.saveChat(tempId, tempMessage).then(() => {
+                    // 서버 응답 리스너를 먼저 등록해야 notifyAppUpdated와 서버 응답 사이 race condition 방지
                     window.addEventListener(APP_SYNC_EVENT_NAME, onUpdate);
+
+                    // 낙관적 업데이트: 임시 메시지를 UI에 즉시 반영
+                    notifyAppUpdated({
+                        domain: 'chat',
+                        action: 'send',
+                        cid: cloudId,
+                        targetId: payload.channelId,
+                        payload: tempMessage,
+                    });
+
                     emitAuthenticated({
                         type: 'chat',
                         action: 'send',

@@ -41,7 +41,6 @@ export const chatHandler = async (
                 if (channelId) {
                     const existingChannel = await channelRepo.getChannel(channelId);
                     if (existingChannel) {
-                        // 본인 메시지면 unreadCount 0, 타인 메시지면 +1 (A-1 단순 방식)
                         const isMine = payload?.ownerId === myUserId;
                         const prevUnread = existingChannel.unreadCount ?? 0;
                         const nextUnread = isMine ? 0 : prevUnread + 1;
@@ -52,7 +51,14 @@ export const chatHandler = async (
                         } as CacheChannelView);
                     }
                 }
-                notifyAppUpdated({ domain: 'chat', action, cid: cloudId, targetId: channelId, payload });
+                notifyAppUpdated({
+                    domain: 'chat',
+                    action,
+                    cid: cloudId,
+                    targetId: channelId,
+                    payload,
+                    ref: meta?.ref,
+                });
             }
             break;
         }

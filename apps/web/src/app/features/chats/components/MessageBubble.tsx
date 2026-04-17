@@ -1,4 +1,4 @@
-import { ChevronRight, RotateCcw, XIcon } from 'lucide-react';
+import { ChevronRight, Loader2, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const MAX_MESSAGE_LENGTH = 200;
@@ -10,13 +10,11 @@ const BUBBLE_OTHER_SHAPE = 'rounded-bl-[14px] rounded-br-[14px] rounded-tr-[14px
 interface MessageBubbleProps {
     content: string;
     isMine: boolean;
-    onViewAll?: () => void;
-    onRetry?: () => void;
-    onDelete?: () => void;
+    onAction?: () => void;
     status?: 'pending' | 'failed';
 }
 
-export const MessageBubble = ({ content, isMine, onViewAll, status, onRetry, onDelete }: MessageBubbleProps) => {
+export const MessageBubble = ({ content, isMine, onAction, status }: MessageBubbleProps) => {
     const { t } = useTranslation();
     const isLongMessage = !status && content.length > MAX_MESSAGE_LENGTH;
 
@@ -35,36 +33,13 @@ export const MessageBubble = ({ content, isMine, onViewAll, status, onRetry, onD
     })();
 
     return (
-        <div className="group relative flex items-center gap-2">
-            {status === 'failed' && isMine && (
-                <div className="flex items-center gap-1.5">
-                    <button
-                        onClick={e => {
-                            e.stopPropagation();
-                            onDelete?.();
-                        }}
-                        className="flex size-6 items-center justify-center rounded-full bg-muted text-muted-foreground transition-transform active:scale-90"
-                    >
-                        <XIcon size={14} />
-                    </button>
-                    <button
-                        onClick={e => {
-                            e.stopPropagation();
-                            onRetry?.();
-                        }}
-                        className="flex size-6 items-center justify-center rounded-full bg-destructive text-white transition-transform active:scale-90"
-                    >
-                        <RotateCcw size={14} />
-                    </button>
-                </div>
-            )}
-
+        <>
             <div className={bubbleClassName}>
                 {isLongMessage ? (
                     <>
                         {content.slice(0, MAX_MESSAGE_LENGTH)}...
                         <button
-                            onClick={onViewAll}
+                            onClick={onAction}
                             className={`ml-auto mt-1 flex items-center gap-0.5 text-[14px] font-medium ${
                                 isMine ? 'text-bubble-mine-foreground/80' : 'text-muted-foreground'
                             }`}
@@ -77,6 +52,18 @@ export const MessageBubble = ({ content, isMine, onViewAll, status, onRetry, onD
                     content
                 )}
             </div>
-        </div>
+            {status === 'pending' && (
+                <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Loader2 size={12} className="animate-spin" />
+                    <span>{t('chat.room.sending')}</span>
+                </div>
+            )}
+            {status === 'failed' && (
+                <button onClick={onAction} className="mt-1 flex items-center gap-1 text-[11px] text-destructive">
+                    <RotateCcw size={12} />
+                    <span>{t('chat.room.tapToRetry')}</span>
+                </button>
+            )}
+        </>
     );
 };
