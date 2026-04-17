@@ -3,25 +3,10 @@ import { useWebSocketV2 } from '@chatic/socket';
 import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
-import { useChatRepository, useJoinRepository } from '../repository';
+import { useChatRepository, useJoinRepository, useUserRepository } from '../repository';
 import type { ClientChatView } from '../types';
 import { ChatMapper } from '../types/mapper';
 import { useDynamicProfile } from '@chatic/web-core';
-
-/**
- * 특정 채널의 메시지 목록을 조회하고 가공하여 상태로 관리하는 훅
- * 백그라운드에서 `chat:feed`를 통해 서버와 최신/과거 데이터를 동기화
- * TODO 이후 msg 커서를 활용한 페이징 추가 필요 @Raine
- * 서버 ChatView → ClientChatView 변환
- */
-const toClientChatView = (chat: any): ClientChatView => ({
-    ...chat,
-    isPending: false,
-    timestamp: chat.createdAt ? new Date(chat.createdAt) : new Date(),
-    isSystem: chat.stereo === 'system',
-    ownerName: chat.owner$?.name || '...',
-    unreadCount: 0,
-});
 
 /**
  * 특정 채널의 메시지 목록을 서버 feed 응답에서 직접 누적하여 관리하는 훅
@@ -34,6 +19,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     const userId = dynamicProfile?.uid;
     const chatRepository = useChatRepository(cloudId);
     const joinRepository = useJoinRepository(cloudId);
+    const userRepository = useUserRepository(cloudId);
 
     const [messages, setMessages] = useState<ClientChatView[]>([]);
     const [feedCursorNo, setFeedCursorNo] = useState<number | undefined>(undefined);
@@ -67,6 +53,11 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                     joinRepository.getActiveJoinsByChannel(channelId),
                 ]);
 
+                // owner$ 없는 메시지를 위해 user repository에서 이름 조회
+                const ownerIds = [...new Set(rawMsgs.map(m => m.ownerId).filter(Boolean))] as string[];
+                const users = await userRepository.getUsers(ownerIds);
+                const userNameMap = new Map(users.map(u => [u.id, u.name]));
+
                 const totalActiveMembers = activeJoins.length;
 
                 // 로컬 데이터는 limit 상관없이 전체 매핑 및 정렬
@@ -86,7 +77,15 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                             unreadCount = Math.max(0, totalActiveMembers - 1);
                         }
 
-                        return ChatMapper.toClient(msg, unreadCount, userId);
+                        const mapped = ChatMapper.toClient(msg, unreadCount, userId);
+                        // owner$가 없는 경우 user repository에서 조회한 이름으로 보강
+                        if (mapped.ownerName === '...' && msg.ownerId) {
+                            const resolvedName = userNameMap.get(msg.ownerId);
+                            if (resolvedName) {
+                                return { ...mapped, ownerName: resolvedName };
+                            }
+                        }
+                        return mapped;
                     });
 
                 setMessages(processedData);
@@ -101,7 +100,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 setStatus(prev => ({ ...prev, isLoading: false, isError: true }));
             }
         },
-        [targetChannelId, chatRepository, joinRepository, userId]
+        [targetChannelId, chatRepository, joinRepository, userRepository, userId]
     );
 
     /**
@@ -127,71 +126,41 @@ export const useChats = (initialParams: ChatFeedPayload) => {
 
     /**
      * 초기 마운트 및 채널 변경 시 로드
+     * 로컬 DB에서 먼저 조회하여 즉시 표시하고, 네트워크 sync는 병렬로 진행
      */
     useEffect(() => {
-        setMessages([]);
         setFeedCursorNo(undefined);
-        setStatus({ isLoading: true, isSyncing: false, isLoadingMore: false, isError: false });
+        setStatus(prev => ({ ...prev, isSyncing: true, isLoadingMore: false, isError: false }));
+        void requestFromLocal({ channelId: targetChannelId });
         requestFromNetwork({ channelId: targetChannelId });
     }, [targetChannelId]);
 
     /**
      * 통합 이벤트 버스 구독
+     * chatHandler/modelHandler가 로컬 DB 저장 후 이벤트를 발행하므로,
+     * requestFromLocal()로 DB에서 재조회하여 isOwner/ownerName을 올바르게 매핑
      */
     useEffect(() => {
         const handleUpdate = (e: Event) => {
             const { detail } = e as CustomEvent<AppSyncDetail>;
             if (detail.cid !== cloudId) return;
             if (detail.targetId !== targetChannelId) return;
+            if (detail.domain !== 'chat') return;
 
-            // feed 이벤트: payload.list → ClientChatView 변환 → 기존 messages 앞에 prepend
-            if (detail.domain === 'chat' && detail.action === 'feed') {
-                const payload = detail.payload;
-                const chatList: any[] = payload?.list || [];
-                const cursorNo: number | undefined = payload?.cursorNo;
-
-                const newMessages = chatList.map(toClientChatView).sort((a, b) => {
-                    const noA = a.chatNo ?? Number.MAX_SAFE_INTEGER;
-                    const noB = b.chatNo ?? Number.MAX_SAFE_INTEGER;
-                    return noA - noB;
-                });
-
-                setMessages(prev => {
-                    const existingIds = new Set(prev.map(m => m.id));
-                    const unique = newMessages.filter(m => !existingIds.has(m.id));
-                    if (unique.length === 0 && chatList.length === 0) return prev;
-                    return [...unique, ...prev];
-                });
-
+            if (detail.action === 'feed') {
+                const cursorNo: number | undefined = detail.payload?.cursorNo;
                 if (cursorNo !== undefined) {
                     setFeedCursorNo(cursorNo);
                 }
-
-                setStatus(prev => ({
-                    ...prev,
-                    isLoading: false,
-                    isSyncing: false,
-                    isLoadingMore: false,
-                }));
             }
 
-            // send 이벤트: 서버 확인된 메시지를 뒤에 append
-            if (detail.domain === 'chat' && detail.action === 'send') {
-                const payload = detail.payload;
-                if (payload?.id) {
-                    const newMsg = toClientChatView(payload);
-                    setMessages(prev => {
-                        const existingIds = new Set(prev.map(m => m.id));
-                        if (existingIds.has(newMsg.id)) return prev;
-                        return [...prev, newMsg];
-                    });
-                }
-            }
+            // feed/send/delete/create/update 모든 chat 이벤트에서 로컬 DB 재조회
+            void requestFromLocal();
         };
 
         window.addEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
         return () => window.removeEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
-    }, [targetChannelId, cloudId]);
+    }, [targetChannelId, cloudId, requestFromLocal]);
 
     /**
      * 이전 메시지 로드 (역방향 페이지네이션)

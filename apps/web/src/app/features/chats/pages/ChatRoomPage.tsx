@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { LoadingFallback } from '@chatic/shared';
 import { useUserContext, UserType } from '@chatic/web-core';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -261,11 +260,6 @@ export const ChatRoomPage = () => {
         {} as Record<string, typeof messages>
     );
 
-    // 로딩 처리
-    if (isChannelLoading || isChatLoading) {
-        return <LoadingFallback message={t('chat.room.loading')} />;
-    }
-
     // 에러 처리
     if (isChannelError || isChatError) {
         return (
@@ -316,7 +310,7 @@ export const ChatRoomPage = () => {
                 ref={messagesEndRef}
                 className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 pt-2 overscroll-none"
             >
-                {messages.length === 0 ? (
+                {messages.length === 0 && !isChatLoading ? (
                     // 메시지가 없을 때 보여지는 빈 화면 (Empty State)
                     <div className="relative flex flex-1 flex-col items-center justify-center">
                         <div className="absolute left-0 right-0 top-2 text-center">

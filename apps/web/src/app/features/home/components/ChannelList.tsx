@@ -108,7 +108,7 @@ export const ChannelList = ({
 }: ChannelListProps) => {
     const { t } = useTranslation();
     const placeId = workspaceId || cloudCore.getSelectedPlaceId() || '';
-    const { channels, isLoading, isError, refresh } = useChannels({ placeId, detail: true });
+    const { channels, isLoading, isSyncing, isError, refresh } = useChannels({ placeId, detail: true });
 
     const wssType = useWebSocketV2Store(s => s.wssType);
     const hasSelectedPlace = wssType !== 'cloud' || !!cloudCore.getSelectedPlaceId();
@@ -149,17 +149,6 @@ export const ChannelList = ({
         </div>
     );
 
-    if (isLoading) {
-        return (
-            <div className="space-y-0">
-                {header}
-                <ChannelSkeleton />
-                <ChannelSkeleton />
-                <ChannelSkeleton />
-            </div>
-        );
-    }
-
     if (isError) {
         return (
             <div className="flex flex-col items-center gap-2 py-8">
@@ -168,6 +157,17 @@ export const ChannelList = ({
                 <button onClick={() => refresh()} className="text-sm text-primary underline">
                     {t('channelList.retry')}
                 </button>
+            </div>
+        );
+    }
+
+    if (!channels.length && (isLoading || isSyncing)) {
+        return (
+            <div className="space-y-0">
+                {header}
+                <ChannelSkeleton />
+                <ChannelSkeleton />
+                <ChannelSkeleton />
             </div>
         );
     }

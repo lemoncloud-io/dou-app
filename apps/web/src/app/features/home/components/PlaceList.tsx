@@ -14,7 +14,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
-import { useLoaderStore } from '@chatic/shared';
 import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 import { usePlaces } from '@chatic/socket-data';
@@ -99,7 +98,6 @@ export const PlaceList = ({
     const [isPending, setIsPending] = useState(false);
     const [filter, setFilter] = useState<PlaceFilter>('all');
     const { places, isLoading, isError, refresh } = usePlaces();
-    const setGlobalLoading = useLoaderStore(s => s.setIsLoading);
 
     const profileId = cloudCore.getCloudToken()?.id;
     const selectedCloudId = cloudCore.getSelectedCloudId();
@@ -129,7 +127,6 @@ export const PlaceList = ({
         if (!uid) return;
 
         setIsPending(true);
-        setGlobalLoading(true, t('globalLoader.switchingPlace'));
         try {
             const target = `${uid}@${placeId}`;
             const refreshed = await cloudCore.refreshToken(target);
@@ -151,13 +148,11 @@ export const PlaceList = ({
             console.error('Failed to select place:', e);
         } finally {
             setIsPending(false);
-            setGlobalLoading(false);
         }
     };
 
     const handleSelectDefaultPlace = async () => {
         setIsPending(true);
-        setGlobalLoading(true, t('globalLoader.switchingPlace'));
         try {
             cloudCore.clearDelegationToken();
             useWebSocketV2Store.getState().setIsVerified(false);
@@ -166,7 +161,6 @@ export const PlaceList = ({
             console.error('Failed to switch to default place:', e);
         } finally {
             setIsPending(false);
-            setGlobalLoading(false);
         }
     };
 
