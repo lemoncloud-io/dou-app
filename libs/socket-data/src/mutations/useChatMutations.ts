@@ -39,7 +39,7 @@ export const useChatMutations = () => {
      * 메시지 전송
      */
     const sendMessage = useCallback(
-        (payload: ChatSendPayload, tempId: string = Date.now().toString()): Promise<ChatView> => {
+        (payload: ChatSendPayload, tempId: string = crypto.randomUUID()): Promise<ChatView> => {
             if (!userId) return Promise.reject(new Error('User is not authenticated'));
             if (!payload.channelId) return Promise.reject(new Error('channelId is required'));
             if (!payload.content) return Promise.reject(new Error('content is required'));

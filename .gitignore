@@ -21,6 +21,7 @@ apps/web/public/licenses.json
 dist
 tmp
 out-tsc
+*.tsbuildinfo
 
 # dependencies
 node_modules

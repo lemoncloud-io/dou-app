@@ -75,7 +75,7 @@ export const createNativeDBAdapter = <T>(type: CacheType, cid: string): CacheSto
             postMessage({
                 type: 'FetchAllCacheData',
                 nonce,
-                data: { type, query } as any,
+                data: { type, query: { ...query, cid } } as any,
             });
             const response = await waitForAppMessage('OnFetchAllCacheData', m => m.nonce === nonce);
             return (response.data.items as T[]) || [];
