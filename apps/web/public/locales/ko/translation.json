@@ -371,7 +371,9 @@
             "emptyState": {
                 "line1": "친구를 초대하여",
                 "line2": "채팅을 시작해 보세요.",
-                "inviteButton": "친구초대하기"
+                "inviteButton": "친구초대하기",
+                "selfLine1": "나만의 공간이에요.",
+                "selfLine2": "메모, 링크, 아이디어를 저장해 보세요."
             },
             "read": "읽음",
             "unread": "안읽음",

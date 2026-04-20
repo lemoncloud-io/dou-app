@@ -1,4 +1,4 @@
-import { ArrowUp, ChevronLeft, Loader2, MoreHorizontal, Plus, Settings, User, X } from 'lucide-react';
+import { ArrowUp, ChevronLeft, Loader2, MoreHorizontal, PenLine, Plus, Settings, User, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -294,22 +294,24 @@ export const ChatRoomPage = () => {
                         <span className="ml-1.5 text-sm font-normal text-muted-foreground">{channel.memberNo}</span>
                     )}
                 </h1>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <button className="absolute right-4 p-1">
-                            <MoreHorizontal size={22} className="text-foreground" />
-                        </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                            onClick={() => navigate(`/chats/${channelId}/settings`)}
-                            className="cursor-pointer gap-2"
-                        >
-                            <Settings size={16} />
-                            <span>{t('home.settings')}</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                {!channel?.isSelfChat && (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button className="absolute right-4 p-1">
+                                <MoreHorizontal size={22} className="text-foreground" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                                onClick={() => navigate(`/chats/${channelId}/settings`)}
+                                className="cursor-pointer gap-2"
+                            >
+                                <Settings size={16} />
+                                <span>{t('home.settings')}</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
             </header>
 
             {/* 메시지 목록 렌더링 영역 — column-reverse로 초기 스크롤 위치를 하단에 고정 */}
@@ -326,22 +328,34 @@ export const ChatRoomPage = () => {
                                 </span>
                             </div>
                             <div className="flex flex-col items-center gap-4">
-                                {channel?.ownerId === dynamicProfile?.uid && (
+                                {channel?.isSelfChat ? (
                                     <>
-                                        <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
-                                            <p>{t('chat.room.emptyState.line1')}</p>
-                                            <p>{t('chat.room.emptyState.line2')}</p>
+                                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                                            <PenLine size={24} className="text-muted-foreground" />
                                         </div>
-                                        <button
-                                            onClick={() => setInviteDialogOpen(true)}
-                                            className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
-                                        >
-                                            <Plus size={20} />
-                                            <span className="text-[16px] font-semibold">
-                                                {t('chat.room.emptyState.inviteButton')}
-                                            </span>
-                                        </button>
+                                        <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
+                                            <p>{t('chat.room.emptyState.selfLine1')}</p>
+                                            <p>{t('chat.room.emptyState.selfLine2')}</p>
+                                        </div>
                                     </>
+                                ) : (
+                                    channel?.ownerId === dynamicProfile?.uid && (
+                                        <>
+                                            <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
+                                                <p>{t('chat.room.emptyState.line1')}</p>
+                                                <p>{t('chat.room.emptyState.line2')}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => setInviteDialogOpen(true)}
+                                                className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
+                                            >
+                                                <Plus size={20} />
+                                                <span className="text-[16px] font-semibold">
+                                                    {t('chat.room.emptyState.inviteButton')}
+                                                </span>
+                                            </button>
+                                        </>
+                                    )
                                 )}
                             </div>
                         </div>
@@ -445,7 +459,7 @@ export const ChatRoomPage = () => {
             </div>
 
             {/* 초대 모달 */}
-            {userType !== UserType.TEMP_ACCOUNT && (
+            {userType !== UserType.TEMP_ACCOUNT && !channel?.isSelfChat && (
                 <InviteFriendsDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} channelId={channelId} />
             )}
 
