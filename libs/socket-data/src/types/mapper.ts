@@ -13,7 +13,7 @@ export const ChatMapper = {
      */
     toClient(cache: CacheChatView, unreadCount = 0, myUserId?: string): ClientChatView {
         const now = Date.now();
-        const createdAt = cache?.createdAt || now;
+        const createdAt = cache?.createdAt ?? now;
         const timestamp = new Date(createdAt);
 
         // pending 상태인데 생성된 지 1분(60,000ms)이 지났다면 실패로 간주
