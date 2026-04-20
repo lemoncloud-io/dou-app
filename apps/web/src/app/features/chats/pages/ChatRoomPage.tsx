@@ -1,4 +1,17 @@
-import { ArrowUp, ChevronLeft, Loader2, MoreHorizontal, PenLine, Plus, Settings, User, X } from 'lucide-react';
+import {
+    AlertCircle,
+    ArrowUp,
+    ChevronLeft,
+    Clock,
+    Loader2,
+    MoreHorizontal,
+    PenLine,
+    Plus,
+    RotateCcw,
+    Settings,
+    User,
+    X,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -241,7 +254,16 @@ export const ChatRoomPage = () => {
         return `${period} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
     };
 
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
     const formatDateSeparator = (date: Date) => {
+        const targetStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+        const diffDays = Math.floor((todayStart - targetStart) / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) return t('chat.room.today');
+        if (diffDays === 1) return t('chat.room.yesterday');
+
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
@@ -289,8 +311,8 @@ export const ChatRoomPage = () => {
                     <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
                 </button>
                 <h1 className="text-[17px] font-semibold text-foreground">
-                    {channel?.stereo === 'self' ? t('channelList.selfChannel') : channel?.name || t('chat.room.title')}
-                    {channel?.stereo !== 'self' && channel?.memberNo && (
+                    {channel?.isSelfChat ? t('channelList.selfChannel') : channel?.name || t('chat.room.title')}
+                    {!channel?.isSelfChat && channel?.memberNo && (
                         <span className="ml-1.5 text-sm font-normal text-muted-foreground">{channel.memberNo}</span>
                     )}
                 </h1>
@@ -396,9 +418,7 @@ export const ChatRoomPage = () => {
                                         return (
                                             <div
                                                 key={message.id}
-                                                className={`flex gap-1.5 ${message.isOwner ? 'justify-end' : 'justify-start'} ${
-                                                    message.isPending ? 'opacity-60 transition-opacity' : ''
-                                                }`}
+                                                className={`flex gap-1.5 ${message.isOwner ? 'justify-end' : 'justify-start'}`}
                                             >
                                                 {!message.isOwner && (
                                                     <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
@@ -413,41 +433,70 @@ export const ChatRoomPage = () => {
                                                             {message.ownerName}
                                                         </span>
                                                     )}
-                                                    <MessageBubble
-                                                        content={message.content ?? ''}
-                                                        isMine={message.isOwner}
-                                                        status={
-                                                            message.isFailed
-                                                                ? 'failed'
-                                                                : message.isPending
-                                                                  ? 'pending'
-                                                                  : undefined
-                                                        }
-                                                        onAction={
-                                                            message.isFailed
-                                                                ? () => handleRetryMessage(message)
-                                                                : () =>
-                                                                      setExpandedMessage({
-                                                                          content: message.content ?? '',
-                                                                          ownerName: message.ownerName,
-                                                                      })
-                                                        }
-                                                    />
-                                                    {!message.isPending && (
-                                                        <div
-                                                            className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${message.isOwner ? 'flex-row-reverse' : ''}`}
-                                                        >
-                                                            <span className="text-muted-foreground">
-                                                                {formatTime(message.timestamp)}
+                                                    {/* 실패 시: AlertCircle + 버블을 가로로 나란히 배치 */}
+                                                    <div
+                                                        className={`flex items-center gap-1.5 ${message.isOwner ? 'flex-row' : ''}`}
+                                                    >
+                                                        {message.isFailed && message.isOwner && (
+                                                            <button
+                                                                onClick={() => handleRetryMessage(message)}
+                                                                className="flex flex-shrink-0 items-center"
+                                                            >
+                                                                <AlertCircle size={20} className="text-destructive" />
+                                                            </button>
+                                                        )}
+                                                        <MessageBubble
+                                                            content={message.content ?? ''}
+                                                            isMine={message.isOwner}
+                                                            status={
+                                                                message.isFailed
+                                                                    ? 'failed'
+                                                                    : message.isPending
+                                                                      ? 'pending'
+                                                                      : undefined
+                                                            }
+                                                            onAction={
+                                                                message.isFailed
+                                                                    ? () => handleRetryMessage(message)
+                                                                    : () =>
+                                                                          setExpandedMessage({
+                                                                              content: message.content ?? '',
+                                                                              ownerName: message.ownerName,
+                                                                          })
+                                                            }
+                                                        />
+                                                    </div>
+                                                    {/* 상태 표시 영역: 전송 중 / 실패 / 정상 */}
+                                                    <div
+                                                        className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${message.isOwner ? 'flex-row-reverse' : ''}`}
+                                                    >
+                                                        {message.isPending ? (
+                                                            <span className="flex items-center gap-1 text-muted-foreground/70">
+                                                                <Clock size={11} />
+                                                                <span>{t('chat.room.sending')}</span>
                                                             </span>
-                                                            {!message.isFailed && message.chatNo !== undefined && (
-                                                                <ReadStatus
-                                                                    unreadCount={message.unreadCount ?? 0}
-                                                                    memberNo={channel?.memberNo ?? 0}
-                                                                />
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                        ) : message.isFailed ? (
+                                                            <button
+                                                                onClick={() => handleRetryMessage(message)}
+                                                                className="flex items-center gap-1 text-destructive"
+                                                            >
+                                                                <RotateCcw size={11} />
+                                                                <span>{t('chat.room.tapToRetry')}</span>
+                                                            </button>
+                                                        ) : (
+                                                            <>
+                                                                <span className="text-muted-foreground">
+                                                                    {formatTime(message.timestamp)}
+                                                                </span>
+                                                                {message.chatNo !== undefined && (
+                                                                    <ReadStatus
+                                                                        unreadCount={message.unreadCount ?? 0}
+                                                                        memberNo={channel?.memberNo ?? 0}
+                                                                    />
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         );

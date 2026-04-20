@@ -368,6 +368,8 @@
                 "saturday": "Saturday"
             },
             "dateFormat": "{{month}}/{{day}}/{{year}} {{weekday}}",
+            "today": "Today",
+            "yesterday": "Yesterday",
             "emptyState": {
                 "line1": "Invite friends to",
                 "line2": "start chatting.",

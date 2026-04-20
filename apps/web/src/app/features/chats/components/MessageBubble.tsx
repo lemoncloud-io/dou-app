@@ -1,4 +1,4 @@
-import { ChevronRight, Loader2, RotateCcw } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const MAX_MESSAGE_LENGTH = 200;
@@ -19,9 +19,6 @@ export const MessageBubble = ({ content, isMine, onAction, status }: MessageBubb
     const isLongMessage = !status && content.length > MAX_MESSAGE_LENGTH;
 
     const bubbleClassName = (() => {
-        if (status === 'pending') {
-            return `${BUBBLE_BASE} ${BUBBLE_MINE_SHAPE} bg-bubble-mine text-bubble-mine-foreground opacity-50`;
-        }
         if (status === 'failed') {
             return `${BUBBLE_BASE} ${BUBBLE_MINE_SHAPE} border border-destructive/30 bg-destructive/10 text-destructive`;
         }
@@ -33,37 +30,23 @@ export const MessageBubble = ({ content, isMine, onAction, status }: MessageBubb
     })();
 
     return (
-        <>
-            <div className={bubbleClassName}>
-                {isLongMessage ? (
-                    <>
-                        {content.slice(0, MAX_MESSAGE_LENGTH)}...
-                        <button
-                            onClick={onAction}
-                            className={`ml-auto mt-1 flex items-center gap-0.5 text-[14px] font-medium ${
-                                isMine ? 'text-bubble-mine-foreground/80' : 'text-muted-foreground'
-                            }`}
-                        >
-                            {t('chat.room.viewAll')}
-                            <ChevronRight size={16} />
-                        </button>
-                    </>
-                ) : (
-                    content
-                )}
-            </div>
-            {status === 'pending' && (
-                <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Loader2 size={12} className="animate-spin" />
-                    <span>{t('chat.room.sending')}</span>
-                </div>
+        <div className={bubbleClassName}>
+            {isLongMessage ? (
+                <>
+                    {content.slice(0, MAX_MESSAGE_LENGTH)}...
+                    <button
+                        onClick={onAction}
+                        className={`ml-auto mt-1 flex items-center gap-0.5 text-[14px] font-medium ${
+                            isMine ? 'text-bubble-mine-foreground/80' : 'text-muted-foreground'
+                        }`}
+                    >
+                        {t('chat.room.viewAll')}
+                        <ChevronRight size={16} />
+                    </button>
+                </>
+            ) : (
+                content
             )}
-            {status === 'failed' && (
-                <button onClick={onAction} className="mt-1 flex items-center gap-1 text-[11px] text-destructive">
-                    <RotateCcw size={12} />
-                    <span>{t('chat.room.tapToRetry')}</span>
-                </button>
-            )}
-        </>
+        </div>
     );
 };
