@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { cloudCore, useDynamicProfile } from '@chatic/web-core';
-import { usePlaces, useChannels } from '@chatic/socket-data';
+import { usePlaces, useChannels } from '@chatic/data';
 
 import { IndexedDBChannelAdapter } from '../../chats/storages/IndexedDBChannelAdapter';
 import { IndexedDBStorageAdapter } from '../../chats/storages/IndexedDBStorageAdapter';

@@ -1,4 +1,4 @@
-// libs/socket-data/src/hooks/useUserMutations.test.ts
+// libs/data/src/hooks/useUserMutations.test.ts
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useWebSocketV2 } from '@chatic/socket';
 import { useDynamicProfile, useWebCoreStore } from '@chatic/web-core';

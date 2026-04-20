@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { getMobileAppInfo } from '@chatic/app-messages';
-import { useInviteClouds as useBaseInviteClouds } from '@chatic/socket-data';
+import { useInviteClouds as useBaseInviteClouds } from '@chatic/data';
 
 export const useInviteClouds = () => {
     const { isOnMobileApp } = getMobileAppInfo();

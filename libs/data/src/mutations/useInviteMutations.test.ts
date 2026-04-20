@@ -1,4 +1,4 @@
-// libs/socket-data/src/hooks/useInviteMutations.test.ts
+// libs/data/src/hooks/useInviteMutations.test.ts
 import { renderHook, act } from '@testing-library/react';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useInviteRepository } from '../repository';

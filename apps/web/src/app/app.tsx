@@ -26,7 +26,7 @@ import { useAutoSelectCloud } from './shared/hooks/useCloudSession';
 import { useForegroundTokenRefresh } from './shared/hooks/useForegroundTokenRefresh';
 import { useForegroundResync } from './shared/hooks/useForegroundResync';
 import i18n from '../i18n';
-import { useDataSync } from '@chatic/socket-data';
+import { useDataSync } from '@chatic/data';
 
 const mutationCache = new MutationCache({
     onError: (error: Error): void => {

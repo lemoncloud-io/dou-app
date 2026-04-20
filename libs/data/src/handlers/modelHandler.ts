@@ -45,12 +45,13 @@ export const modelHandler = async (
                             await joinRepo.saveJoin(payload.id, payload);
                         }
 
+                        //TODO: owner name 으로 변경 필요; 해당 페이로드에서 owner name 불러올 수 없음
                         if (channelId && payload.joined === 1) {
                             const sysId = mid ?? String(Date.now());
                             const systemChat = {
                                 id: sysId,
                                 channelId,
-                                content: `${payload.nick ?? '알 수 없음'}'}님이 들어왔습니다.`,
+                                content: `${payload.nick ?? '알 수 없음'}님이 들어왔습니다.`,
                                 createdAt: Date.now(),
                                 ownerId: 'system',
                                 stereo: 'system',

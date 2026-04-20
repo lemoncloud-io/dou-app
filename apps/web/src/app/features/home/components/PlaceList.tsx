@@ -16,7 +16,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
-import { usePlaces } from '@chatic/socket-data';
+import { usePlaces } from '@chatic/data';
 
 const DEFAULT_PLACE: MySiteView = { id: 'default', name: 'defaultPlace', stereo: 'work' } as MySiteView;
 

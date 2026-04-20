@@ -1,4 +1,4 @@
-// libs/socket-data/src/hooks/useInviteClouds.test.ts
+// libs/data/src/hooks/useInviteClouds.test.ts
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { getMobileAppInfo } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
