@@ -1,4 +1,4 @@
-// libs/socket-data/src/hooks/useChannelMutations.test.ts
+// libs/data/src/hooks/useChannelMutations.test.ts
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useWebSocketV2 } from '@chatic/socket';
 import { useChannelRepository } from '../repository';

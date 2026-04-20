@@ -67,7 +67,7 @@
             "path": "./libs/policy-content"
         },
         {
-            "path": "./libs/socket-data"
+            "path": "./libs/data"
         }
     ]
 }

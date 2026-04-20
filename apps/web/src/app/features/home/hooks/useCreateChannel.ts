@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { useChannelMutations } from '@chatic/socket-data';
+import { useChannelMutations } from '@chatic/data';
 
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { ChatStartPayload } from '@lemoncloud/chatic-sockets-api';

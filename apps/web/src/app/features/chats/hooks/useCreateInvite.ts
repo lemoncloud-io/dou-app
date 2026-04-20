@@ -5,7 +5,7 @@ import { useClouds } from '@chatic/users';
 import { firebaseDeeplinkService } from '../apis/firebase-service';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
-import { useUserMutations } from '@chatic/socket-data';
+import { useUserMutations } from '@chatic/data';
 
 interface CreateInviteParams {
     channelId: string;

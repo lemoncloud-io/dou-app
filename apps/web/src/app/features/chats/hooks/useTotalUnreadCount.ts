@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { useChannels } from '@chatic/socket-data';
+import { useChannels } from '@chatic/data';
 import { cloudCore } from '@chatic/web-core';
 
 export const useTotalUnreadCount = () => {

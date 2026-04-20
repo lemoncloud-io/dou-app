@@ -1,4 +1,4 @@
-// libs/socket-data/src/hooks/usePlaceMutations.test.ts
+// libs/data/src/hooks/usePlaceMutations.test.ts
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useWebSocketV2 } from '@chatic/socket';
 import { usePlaceRepository } from '../repository';

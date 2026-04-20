@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import { useHandleAppMessage } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { FOREGROUND_RESYNC_EVENT_NAME } from '@chatic/socket-data';
+import { FOREGROUND_RESYNC_EVENT_NAME } from '@chatic/data';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 
 const MIN_HIDDEN_MS = 5_000;

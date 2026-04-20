@@ -9,7 +9,7 @@ import {
     usePlaceMutations,
     usePlaces,
     useUserMutations,
-} from '@chatic/socket-data';
+} from '@chatic/data';
 import { useWebSocketV2Store, getSocketSend } from '@chatic/socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { ChatStartPayload } from '@lemoncloud/chatic-sockets-api';

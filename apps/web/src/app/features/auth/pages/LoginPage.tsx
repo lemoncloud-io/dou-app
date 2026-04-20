@@ -13,7 +13,7 @@ import type { CloudDelegationTokenView, UserProfile$, UserTokenView } from '@lem
 
 import { useRegisterDevice } from '@chatic/auth';
 import { useDynamicDeviceId } from '../../../shared/hooks/useDynamicDeviceId';
-import { useInviteMutations } from '@chatic/socket-data';
+import { useInviteMutations } from '@chatic/data';
 
 export const LoginPage = (): JSX.Element => {
     const { t } = useTranslation();

@@ -1,5 +1,5 @@
 import { cloudCore, useUserContext, useWebCoreStore } from '@chatic/web-core';
-import { usePlaces } from '@chatic/socket-data';
+import { usePlaces } from '@chatic/data';
 
 import { useCloudSession } from './useCloudSession';
 import { MAX_PLACES } from '../consts/limits';

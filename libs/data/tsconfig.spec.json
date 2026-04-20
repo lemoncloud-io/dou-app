@@ -1,4 +1,4 @@
-// libs/socket-data/tsconfig.spec.json
+// libs/data/tsconfig.spec.json
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
