@@ -170,7 +170,7 @@ export const ChatSettingsPage = () => {
 
                     {/* Action Buttons */}
                     <div className="flex items-start justify-center gap-6">
-                        {channel?.isOwner && userType !== UserType.TEMP_ACCOUNT && (
+                        {channel?.isOwner && !channel?.isSelfChat && userType !== UserType.TEMP_ACCOUNT && (
                             <ActionButton
                                 icon={UserPlus}
                                 label={t('chat.settings.inviteFriends')}

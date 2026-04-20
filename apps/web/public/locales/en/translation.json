@@ -368,10 +368,14 @@
                 "saturday": "Saturday"
             },
             "dateFormat": "{{month}}/{{day}}/{{year}} {{weekday}}",
+            "today": "Today",
+            "yesterday": "Yesterday",
             "emptyState": {
                 "line1": "Invite friends to",
                 "line2": "start chatting.",
-                "inviteButton": "Invite Friends"
+                "inviteButton": "Invite Friends",
+                "selfLine1": "Your personal space.",
+                "selfLine2": "Save notes, links, or ideas."
             },
             "read": "Read",
             "unread": "Unread",
