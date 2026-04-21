@@ -159,6 +159,8 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
     const requestFromLocalRef = useRef(requestFromLocal);
     requestFromLocalRef.current = requestFromLocal;
+    const requestFromNetworkRef = useRef(requestFromNetwork);
+    requestFromNetworkRef.current = requestFromNetwork;
 
     useEffect(() => {
         if (!isValidCloudId) return;
@@ -173,6 +175,12 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                 void requestFromLocalRef.current();
                 if (detail.domain === 'channel' || detail.domain === 'chat') {
                     setIsSyncing(false);
+                }
+                // 채팅 이벤트(send, model:create 등) 수신 시 서버에서 최신 채널 목록을 다시 가져옴
+                // model:create:chat은 채널 데이터(lastChat$, unreadCount)를 로컬에 갱신하지 않으므로
+                // 서버에 chat:mine을 재요청하여 정확한 채널 상태를 동기화
+                if (detail.domain === 'chat') {
+                    requestFromNetworkRef.current({ ...currentParamsRef.current, limit: 100 });
                 }
             }
         };
