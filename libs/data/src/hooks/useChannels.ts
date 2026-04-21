@@ -157,7 +157,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         setIsLoading(true);
         void requestFromLocal(initialParams);
         requestFromNetwork({ ...initialParams, limit: 100 });
-    }, [targetPlaceId, requestFromLocal, requestFromNetwork, initialParams, cloudId, profile?.uid]);
+    }, [targetPlaceId, requestFromLocal, requestFromNetwork]);
 
     const requestFromLocalRef = useRef(requestFromLocal);
     requestFromLocalRef.current = requestFromLocal;
