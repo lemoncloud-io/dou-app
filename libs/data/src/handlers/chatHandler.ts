@@ -103,11 +103,48 @@ export const chatHandler = async (
             break;
         }
 
-        case 'start':
-        case 'update-channel':
+        case 'start': {
+            // start 응답은 payload.id가 새 채널 ID (channelId/meta.channel 없음)
+            const newChannelId = channelId || payload?.id;
+            if (newChannelId && payload) {
+                const sid = payload?.$?.sid || placeId || '';
+                await channelRepo.saveChannel(newChannelId, {
+                    ...payload,
+                    sid,
+                } as CacheChannelView);
+
+                // $joins 배열이 포함된 경우 join 정보도 저장
+                const joins = payload?.$joins || [];
+                if (joins.length > 0) {
+                    await Promise.all(joins.map((join: any) => joinRepo.saveJoin(join.id, join)));
+                }
+
+                notifyAppUpdated({ domain: 'channel', action, cid: cloudId, targetId: newChannelId, payload });
+            }
+            break;
+        }
+
+        case 'update-channel': {
+            if (channelId && payload) {
+                const existingChannel = await channelRepo.getChannel(channelId);
+                await channelRepo.saveChannel(channelId, {
+                    ...(existingChannel || {}),
+                    ...payload,
+                } as CacheChannelView);
+                notifyAppUpdated({ domain: 'channel', action, cid: cloudId, targetId: channelId, payload });
+            }
+            break;
+        }
+
         case 'invite': {
             if (channelId && payload) {
-                await channelRepo.saveChannel(channelId, { ...payload } as CacheChannelView);
+                const existingChannel = await channelRepo.getChannel(channelId);
+                const prevMemberNo = existingChannel?.memberNo ?? 0;
+                await channelRepo.saveChannel(channelId, {
+                    ...(existingChannel || {}),
+                    ...payload,
+                    memberNo: payload.memberNo ?? prevMemberNo + 1,
+                } as CacheChannelView);
                 notifyAppUpdated({ domain: 'channel', action, cid: cloudId, targetId: channelId, payload });
             }
             break;
