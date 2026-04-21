@@ -8,6 +8,7 @@ import type {
     UserBody,
     UserTokenView,
     UserView,
+    UserLogoutResult,
 } from '@lemoncloud/chatic-backend-api';
 
 import type { FindAliasBody, FindAliasView, VerifyAliasBody, VerifyAliasView } from '../types';
@@ -112,5 +113,16 @@ export const verifyAlias = async (body: VerifyAliasBody): Promise<VerifyAliasVie
         .setBody(body)
         .execute<VerifyAliasView & { error?: string }>();
 
+    return throwIfApiError(data);
+};
+
+export const logout = async (): Promise<UserLogoutResult> => {
+    const { data } = await webCore
+        .buildRequest({
+            method: 'POST',
+            baseURL: `${DOU_ENDPOINT}/users/logout`,
+        })
+        .setBody({})
+        .execute<UserLogoutResult>();
     return throwIfApiError(data);
 };
