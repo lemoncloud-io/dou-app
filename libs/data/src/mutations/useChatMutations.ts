@@ -8,6 +8,7 @@ import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import type { ChatReadPayload, ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
 import { useChatRepository } from '../repository';
 import type { CacheChatView } from '@chatic/app-messages';
+import { v4 as uuid } from 'uuid';
 
 type ChatMutationAction = 'send' | 'read' | 'delete';
 
@@ -39,7 +40,7 @@ export const useChatMutations = () => {
      * 메시지 전송
      */
     const sendMessage = useCallback(
-        (payload: ChatSendPayload, tempId: string = crypto.randomUUID()): Promise<ChatView> => {
+        (payload: ChatSendPayload, tempId: string = uuid()): Promise<ChatView> => {
             if (!userId) return Promise.reject(new Error('User is not authenticated'));
             if (!payload.channelId) return Promise.reject(new Error('channelId is required'));
             if (!payload.content) return Promise.reject(new Error('content is required'));
