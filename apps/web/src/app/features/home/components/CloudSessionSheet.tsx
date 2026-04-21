@@ -167,14 +167,27 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick 
 
 // --- Invite Cloud Item ---
 
-const InviteCloudItem = ({ inviteCloud, isSelected }: { inviteCloud: InviteCloudView; isSelected: boolean }) => {
+interface InviteCloudItemProps {
+    inviteCloud: InviteCloudView;
+    isSelected: boolean;
+    isDisabled: boolean;
+    onSelectCloud: (cloudId: string) => void;
+}
+
+const InviteCloudItem = ({ inviteCloud, isSelected, isDisabled, onSelectCloud }: InviteCloudItemProps) => {
     const displayName = inviteCloud.name ?? inviteCloud.id ?? '';
+    const disabled = isDisabled || isSelected;
 
     return (
-        <div
+        <button
+            onClick={() => {
+                if (!disabled && inviteCloud.id) onSelectCloud(inviteCloud.id);
+            }}
+            disabled={disabled}
             className={cn(
-                'flex items-center gap-[5px] rounded-xl px-2 py-2 transition-colors',
-                isSelected && SELECTED_HIGHLIGHT
+                'flex w-full items-center gap-[5px] rounded-xl px-2 py-2 transition-colors',
+                isSelected && SELECTED_HIGHLIGHT,
+                disabled && !isSelected && 'cursor-not-allowed opacity-60'
             )}
         >
             <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center">
@@ -193,7 +206,7 @@ const InviteCloudItem = ({ inviteCloud, isSelected }: { inviteCloud: InviteCloud
                     </span>
                 </div>
             </div>
-        </div>
+        </button>
     );
 };
 
@@ -402,6 +415,8 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                                             key={inviteCloud.id}
                                             inviteCloud={inviteCloud}
                                             isSelected={selectedId === inviteCloud.id}
+                                            isDisabled={isPending}
+                                            onSelectCloud={handleSelectCloud}
                                         />
                                     ))}
                                 </div>

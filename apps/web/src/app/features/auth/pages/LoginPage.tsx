@@ -4,7 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudCore, loginWithInviteCode, setIsInvitedSession, useWebCoreStore, webCore } from '@chatic/web-core';
+import {
+    cloudCore,
+    loginWithInviteCode,
+    setIsInvitedSession,
+    useDynamicProfile,
+    useWebCoreStore,
+    webCore,
+} from '@chatic/web-core';
 import { LoadingFallback } from '@chatic/shared';
 
 import { getMobileAppInfo } from '@chatic/app-messages';
@@ -28,22 +35,23 @@ export const LoginPage = (): JSX.Element => {
     const { mutateAsync: registerDevice, isPending: isRegisteringDevice } = useRegisterDevice();
     const { deviceId, isReady } = useDynamicDeviceId();
     const { saveInvite } = useInviteMutations();
+    const profile = useDynamicProfile();
 
     const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
     const fetchInvite = useCallback(async (): Promise<UserTokenView | null> => {
         const code = urlParams.get('code');
         const backend = urlParams.get('_backend') ?? undefined;
-        if (!code) return null;
+        if (!code || !profile?.uid) return null;
         try {
-            return await loginWithInviteCode(code, backend);
+            return await loginWithInviteCode(code, profile.$auth.linkUserId as string, backend);
         } catch (error) {
             console.error('[LoginPage] Fetch invite data failed:', error);
             toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
             setInviteError(true);
             return null;
         }
-    }, [urlParams, toast, t]);
+    }, [urlParams, toast, t, profile?.uid]);
     const handleDeviceRegistration = useCallback(async () => {
         try {
             const { Token, ...rest } = await registerDevice(deviceId);
@@ -103,9 +111,13 @@ export const LoginPage = (): JSX.Element => {
             const identityToken = data.Token?.identityToken;
             if (!identityToken) throw new Error('No identityToken');
 
-            // 1. Register device
-            const { Token, ...rest } = await registerDevice(deviceId);
-            await webCore.buildCredentialsByToken(Token);
+            // 1. Register device only if not already authenticated (guest flow)
+            const isAlreadyAuthenticated = useWebCoreStore.getState().isAuthenticated;
+            if (!isAlreadyAuthenticated) {
+                const { Token, ...rest } = await registerDevice(deviceId);
+                await webCore.buildCredentialsByToken(Token);
+                setProfile(rest as unknown as UserProfile$);
+            }
 
             // 2. Save delegation token
             cloudCore.saveDelegationToken({ backend, wss } as CloudDelegationTokenView);
@@ -138,8 +150,7 @@ export const LoginPage = (): JSX.Element => {
             // 6. Reset selected place
             cloudCore.clearSelectedPlace();
 
-            // 7. Set profile & authenticate
-            setProfile(rest as unknown as UserProfile$);
+            // 7. Authenticate
             setIsAuthenticated(true);
             toast({ title: t('auth.loginSuccess') });
             window.location.href = '/';
