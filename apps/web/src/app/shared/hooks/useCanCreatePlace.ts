@@ -12,10 +12,21 @@ export const useCanCreatePlace = () => {
 
     const selectedCloudId = cloudCore.getSelectedCloudId();
     const selectedCloud = clouds.find(c => c.id === selectedCloudId);
-    const myUserId = profile?.id;
+    const myUserId = profile?.uid;
 
     // Can only create place if the selected cloud is owned by me
     const isMyCloud = selectedCloud ? selectedCloud.ownerId === myUserId : false;
+
+    console.log('[useCanCreatePlace]', {
+        selectedCloudId,
+        selectedCloud: selectedCloud ? { id: selectedCloud.id, ownerId: selectedCloud.ownerId } : null,
+        myUserId,
+        isMyCloud,
+        cloudsCount: clouds.length,
+        canCreatePlace: permissions.canCreatePlace,
+        placesCount: places.length,
+        isLoading,
+    });
 
     const currentCount = places.length;
     const canCreate = permissions.canCreatePlace && !isLoading && currentCount < MAX_PLACES && isMyCloud;
