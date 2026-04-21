@@ -94,9 +94,11 @@ export const chatHandler = async (
         case 'mine': {
             const channelList = payload?.list || [];
             if (channelList.length > 0) {
-                const sid = (channelList?.[0] as ChannelView)?.$?.sid || placeId || '';
                 await Promise.all(
-                    channelList.map((ch: any) => channelRepo.saveChannel(ch.id, { ...ch, sid } as CacheChannelView))
+                    channelList.map((ch: any) => {
+                        const sid = (ch as ChannelView)?.$?.sid || placeId || '';
+                        return channelRepo.saveChannel(ch.id, { ...ch, sid } as CacheChannelView);
+                    })
                 );
                 notifyAppUpdated({ domain: 'channel', action, cid: cloudId, payload });
             }
