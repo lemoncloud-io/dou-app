@@ -3,9 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 
-import { useWebSocketV2Store } from '@chatic/socket';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { cloudCore } from '@chatic/web-core';
 import type { ClientChannelView } from '@chatic/data';
 import { useChannels } from '@chatic/data';
 
@@ -106,13 +104,10 @@ export const ChannelList = ({
     channelLimit,
 }: ChannelListProps) => {
     const { t } = useTranslation();
-    const placeId = workspaceId || cloudCore.getSelectedPlaceId() || '';
+    const placeId = workspaceId || '';
     const { channels, isLoading, isSyncing, isError, refresh } = useChannels({ placeId, detail: true });
 
-    const wssType = useWebSocketV2Store(s => s.wssType);
-    const hasSelectedPlace = wssType !== 'cloud' || !!cloudCore.getSelectedPlaceId();
-
-    if (!hasSelectedPlace) return null;
+    if (!placeId) return null;
     const header = (
         <div className="mb-[18px] flex items-center justify-between">
             <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">Chat</span>

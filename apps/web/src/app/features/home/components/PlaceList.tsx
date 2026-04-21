@@ -157,6 +157,7 @@ export const PlaceList = ({
             cloudCore.clearDelegationToken();
             useWebSocketV2Store.getState().setIsVerified(false);
             setSelectedId('default');
+            onPlaceSelected?.('default');
         } catch (e) {
             console.error('Failed to switch to default place:', e);
         } finally {
@@ -308,8 +309,15 @@ export const PlaceList = ({
         return (
             <div>
                 {header}
-                <div className="flex items-center gap-[14px] px-4 py-2">
-                    <p className="text-sm text-muted-foreground">{t('placeList.empty')}</p>
+                <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
+                    {wssType === 'cloud' && (
+                        <PlaceItem
+                            place={DEFAULT_PLACE}
+                            isSelected={selectedId === 'default'}
+                            isDisabled={isPending}
+                            onSelectPlace={handleSelectPlace}
+                        />
+                    )}
                     {!isGuest && onCreatePlace && (
                         <button
                             onClick={onCreatePlace}

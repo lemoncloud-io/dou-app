@@ -44,7 +44,8 @@ export const LoginPage = (): JSX.Element => {
         const backend = urlParams.get('_backend') ?? undefined;
         if (!code || !profile?.uid) return null;
         try {
-            return await loginWithInviteCode(code, profile.$auth.linkUserId as string, backend);
+            const delegatorId = (profile.$auth as any).linkUserId ?? profile.$auth.userId;
+            return await loginWithInviteCode(code, delegatorId, backend);
         } catch (error) {
             console.error('[LoginPage] Fetch invite data failed:', error);
             toast({ title: t('inviteAccept.failed'), variant: 'destructive' });

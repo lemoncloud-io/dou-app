@@ -25,7 +25,11 @@ export const userHandler = async (envelope: WSSEnvelope, cloudId: string, userRe
             const siteList = payload?.list as MySiteView[];
             if (siteList) {
                 const cacheSiteList = siteList.map(site => ({ ...site, cid: cloudId }) as CacheSiteView);
-                console.log('[userHandler] replacing places with cloudId:', cloudId, 'count:', cacheSiteList.length);
+                console.log('[userHandler] my-site response:', {
+                    cloudId,
+                    count: cacheSiteList.length,
+                    places: cacheSiteList.map(s => ({ id: s.id, name: s.name, stereo: s.stereo, status: s.status })),
+                });
                 await placeRepo.replacePlaces(cacheSiteList);
                 notifyAppUpdated({ domain: 'site', action, cid: cloudId, payload });
             }

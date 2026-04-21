@@ -28,6 +28,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     const [isError, setIsError] = useState(false);
 
     const currentParamsRef = useRef<ClientChatMinePayload>(initialParams);
+    const isSyncingRef = useRef(false);
 
     // cloudId가 유효한지 확인 (빈 문자열이면 무효 — stale 캐시 접근 방지)
     // 'default'는 중계서버(relay WSS) 케이스에서 정상 사용됨
@@ -123,8 +124,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
      */
     const requestFromNetwork = useCallback(
         (params?: ClientChatMinePayload) => {
-            // 이미 동기화 중이거나 클라우드 아이디 일치하지 않으면 요청 금지
-            if (isSyncing || !isValidCloudId) return;
+            if (isSyncingRef.current || !isValidCloudId) return;
             if (params) {
                 currentParamsRef.current = { ...currentParamsRef.current, ...params };
             }
@@ -134,6 +134,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
             if (!placeId) return;
             if (!shouldEmit(`chat:mine:${placeId}`)) return;
 
+            isSyncingRef.current = true;
             setIsSyncing(true);
 
             // 'default' placeId는 서버에 전달하지 않음 — 서버가 전체 채널 반환
@@ -146,23 +147,28 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                 payload: networkPayload,
             });
 
-            setTimeout(() => setIsSyncing(false), 5000);
+            setTimeout(() => {
+                isSyncingRef.current = false;
+                setIsSyncing(false);
+            }, 5000);
         },
-        [emitAuthenticated, isValidCloudId, isSyncing]
+        [emitAuthenticated, isValidCloudId]
     );
-
-    // 초기 마운트 및 placeId 변경 시 로컬 DB 조회
-    useEffect(() => {
-        currentParamsRef.current = initialParams;
-        setIsLoading(true);
-        void requestFromLocal(initialParams);
-        requestFromNetwork({ ...initialParams, limit: 100 });
-    }, [targetPlaceId, requestFromLocal, requestFromNetwork]);
 
     const requestFromLocalRef = useRef(requestFromLocal);
     requestFromLocalRef.current = requestFromLocal;
     const requestFromNetworkRef = useRef(requestFromNetwork);
     requestFromNetworkRef.current = requestFromNetwork;
+
+    // 초기 마운트 및 placeId 변경 시 로컬 DB 조회
+    useEffect(() => {
+        currentParamsRef.current = initialParams;
+        isSyncingRef.current = false;
+        setChannels([]); // 즉시 이전 채널 제거 → 스켈레톤 표시
+        setIsLoading(true);
+        void requestFromLocalRef.current(initialParams);
+        requestFromNetworkRef.current({ ...initialParams, limit: 100 });
+    }, [targetPlaceId]);
 
     useEffect(() => {
         // cloudId나 Repository가 준비되지 않았다면 리스너를 등록하지 않음
@@ -176,13 +182,14 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
             if (isTargetDomain && isMatchingCloud) {
                 // 모든 타겟 도메인에 대해 로컬 DB 즉시 로드
-                void requestFromLocal();
+                void requestFromLocalRef.current();
 
                 if (detail.domain === 'join') {
                     // 'join' 도메인일 경우에만 서버 동기화(원격) 요청 수행; (domain:model; action:update; type:join)
-                    requestFromNetwork();
+                    requestFromNetworkRef.current();
                 } else {
                     // 'channel', 'chat' 등 나머지는 로컬 로드만 수행 후 동기화 상태 해제
+                    isSyncingRef.current = false;
                     setIsSyncing(false);
                 }
                 // 채팅 이벤트(send, model:create 등) 수신 시 서버에서 최신 채널 목록을 다시 가져옴
