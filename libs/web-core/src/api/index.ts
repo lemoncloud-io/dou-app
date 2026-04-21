@@ -151,22 +151,29 @@ export interface LoginInviteResponse {
  * Login with invite code
  * - Uses POST /oauth/login-invite endpoint
  * - Code format: invt:<id>:<code>
+ * - Sends { code, delegatorId } in request body
  * - Returns response with Token.identityToken for JWT-based auth
  *
  * NOTE: Uses getDynamicDOUEndpoint() instead of static DOU_ENDPOINT
  * to support deeplink flows where _backend param is set after module load.
  *
  * @param code - Invite code (format: invt:<id>:<code>)
+ * @param delegatorId - UID of the user accepting the invite (profile.uid)
+ * @param backend - Optional backend endpoint override from deeplink
  * @returns Promise resolving to login response with identityToken
  */
-export const loginWithInviteCode = async (code: string, backend?: string): Promise<UserTokenView> => {
+export const loginWithInviteCode = async (
+    code: string,
+    delegatorId: string,
+    backend?: string
+): Promise<UserTokenView> => {
     const endpoint = backend ?? getDynamicDOUEndpoint();
     const { data } = await webCore
         .buildSignedRequest({
             method: 'POST',
             baseURL: `${endpoint}/oauth/login-invite`,
         })
-        .setBody({ code })
+        .setBody({ code, delegatorId })
         .execute<UserTokenView & { error?: string }>();
 
     return throwIfApiError(data);

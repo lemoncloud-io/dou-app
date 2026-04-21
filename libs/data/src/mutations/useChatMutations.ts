@@ -17,9 +17,9 @@ type ChatMutationAction = 'send' | 'read' | 'delete';
  */
 export const useChatMutations = () => {
     const { emitAuthenticated, cloudId } = useWebSocketV2();
-    const repository = useChatRepository(cloudId);
     const dynamicProfile = useDynamicProfile();
     const userId = dynamicProfile?.uid;
+    const repository = useChatRepository(cloudId, userId);
 
     const [pendingStates, setPendingStates] = useState<Record<ChatMutationAction, boolean>>({
         send: false,

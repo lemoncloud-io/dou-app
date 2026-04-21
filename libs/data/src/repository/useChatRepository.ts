@@ -5,9 +5,11 @@ import type { CacheChatView } from '@chatic/app-messages';
 /**
  * 채팅 메시지 및 참여 상태(ReadNo 등)의 영속성을 관리하는 리포지토리
  * 서버와의 연동 없이 로컬 DB(IndexedDB 등)와의 직접적인 입출력을 전담
+ * @param profileUid 유저별 캐시 파티셔닝용 — default(중계서버) 모드에서만 유저별 캐시 분리
  */
-export const useChatRepository = (cloudId: string) => {
-    const chatDB = useMemo(() => (cloudId ? createStorageAdapter<CacheChatView>('chat', cloudId) : null), [cloudId]);
+export const useChatRepository = (cloudId: string, profileUid?: string) => {
+    const cid = cloudId === 'default' && profileUid ? `${cloudId}:${profileUid}` : cloudId;
+    const chatDB = useMemo(() => (cloudId ? createStorageAdapter<CacheChatView>('chat', cid) : null), [cloudId, cid]);
 
     const getChats = useCallback(async (): Promise<CacheChatView[]> => {
         if (!chatDB) return [];

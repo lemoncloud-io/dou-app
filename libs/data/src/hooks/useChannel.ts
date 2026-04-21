@@ -13,9 +13,9 @@ import { useDynamicProfile } from '@chatic/web-core';
  */
 export const useChannel = (channelId: string | null) => {
     const { cloudId } = useWebSocketV2();
-    const repository = useChannelRepository(cloudId);
-    const joinRepo = useJoinRepository(cloudId);
     const profile = useDynamicProfile();
+    const repository = useChannelRepository(cloudId, profile?.uid);
+    const joinRepo = useJoinRepository(cloudId, profile?.uid);
 
     const [channel, setChannel] = useState<ClientChannelView | null>(null);
     const [isLoading, setIsLoading] = useState(true);

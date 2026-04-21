@@ -22,10 +22,12 @@ import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
 export const useGlobalSocketRouter = () => {
     const cloudId = useWebSocketV2Store(s => s.cloudId) ?? 'default';
-    const chatRepo = useChatRepository(cloudId);
-    const channelRepo = useChannelRepository(cloudId);
-    const joinRepo = useJoinRepository(cloudId);
-    const userRepo = useUserRepository(cloudId);
+    const profile = useDynamicProfile();
+    const profileUid = profile?.uid;
+    const chatRepo = useChatRepository(cloudId, profileUid);
+    const channelRepo = useChannelRepository(cloudId, profileUid);
+    const joinRepo = useJoinRepository(cloudId, profileUid);
+    const userRepo = useUserRepository(cloudId, profileUid);
     const placeRepo = usePlaceRepository(cloudId);
 
     /**
@@ -34,8 +36,7 @@ export const useGlobalSocketRouter = () => {
      * 응답페이로드의 값을 활용하여 sid 주입하기; 현재 sid 주입 방식은 정확한 sid 전달 보장안됨
      */
     const selectedPlaceId = cloudCore.getSelectedPlaceId();
-    const profile = useDynamicProfile();
-    const myUserId = profile?.uid ?? '';
+    const myUserId = profileUid ?? '';
 
     useEffect(() => {
         const handleSyncMessage = async (rawMessage: any) => {

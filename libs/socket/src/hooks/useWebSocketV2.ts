@@ -216,6 +216,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                 console.warn(`${logPrefix} Cannot emitAuthenticated - worker not initialized`);
                 return;
             }
+            console.log(`${logPrefix} Emit:`, data);
             if (useWebSocketV2Store.getState().isVerified) {
                 worker.postMessage({ type: 'send', data });
                 return;
@@ -225,6 +226,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                 verified => {
                     if (!verified) return;
                     unsub();
+                    console.log(`${logPrefix} Emit (deferred):`, data);
                     (workerRef.current || globalWorkerRef)?.postMessage({ type: 'send', data });
                 }
             );

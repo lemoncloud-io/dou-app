@@ -2,7 +2,8 @@ import { User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useLogout, useWebCoreStore } from '@chatic/web-core';
+import { useWebCoreStore } from '@chatic/web-core';
+import { useLogout } from '@chatic/auth';
 
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';

@@ -12,7 +12,8 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useLogout, useOnboardingStore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
+import { useOnboardingStore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
+import { useLogout } from '@chatic/auth';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useWebSocketV2 } from '@chatic/socket';
+import { useDynamicProfile } from '@chatic/web-core';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type {
     ChatDeleteChannelPayload,
@@ -20,7 +21,8 @@ type MutationAction = 'leave' | 'delete' | 'start' | 'update' | 'invite';
  */
 export const useChannelMutations = () => {
     const { emitAuthenticated, cloudId } = useWebSocketV2();
-    const repository = useChannelRepository(cloudId);
+    const dynamicProfile = useDynamicProfile();
+    const repository = useChannelRepository(cloudId, dynamicProfile?.uid);
 
     const [pendingStates, setPendingStates] = useState<Record<MutationAction, boolean>>({
         leave: false,

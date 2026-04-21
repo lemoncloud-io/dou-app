@@ -6,13 +6,15 @@ import type { JoinView } from '@lemoncloud/chatic-socials-api';
 /**
  * 채널 데이터의 영속성(Persistence)을 관리하는 리포지토리 훅
  * 로컬 DB(IndexedDB 등)와의 직접적인 CRUD 작업을 담당
+ * @param profileUid 유저별 캐시 파티셔닝용 — default(중계서버) 모드에서만 유저별 캐시 분리
  */
-export const useChannelRepository = (cloudId: string) => {
+export const useChannelRepository = (cloudId: string, profileUid?: string) => {
+    const cid = cloudId === 'default' && profileUid ? `${cloudId}:${profileUid}` : cloudId;
     const channelDB = useMemo(
-        () => (cloudId ? createStorageAdapter<CacheChannelView>('channel', cloudId) : null),
-        [cloudId]
+        () => (cloudId ? createStorageAdapter<CacheChannelView>('channel', cid) : null),
+        [cloudId, cid]
     );
-    const joinDB = useMemo(() => (cloudId ? createStorageAdapter<JoinView>('join', cloudId) : null), [cloudId]);
+    const joinDB = useMemo(() => (cloudId ? createStorageAdapter<JoinView>('join', cid) : null), [cloudId, cid]);
 
     /**
      * 모든 채널 목록을 로드

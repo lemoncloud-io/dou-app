@@ -18,9 +18,9 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     const { emitAuthenticated, cloudId } = useWebSocketV2();
     const dynamicProfile = useDynamicProfile();
     const userId = dynamicProfile?.uid;
-    const chatRepository = useChatRepository(cloudId);
-    const joinRepository = useJoinRepository(cloudId);
-    const userRepository = useUserRepository(cloudId);
+    const chatRepository = useChatRepository(cloudId, userId);
+    const joinRepository = useJoinRepository(cloudId, userId);
+    const userRepository = useUserRepository(cloudId, userId);
 
     const [messages, setMessages] = useState<ClientChatView[]>([]);
     const [feedCursorNo, setFeedCursorNo] = useState<number | undefined>(undefined);
@@ -194,7 +194,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
             const { detail } = e as CustomEvent<AppSyncDetail>;
             if (detail.cid !== cloudId) return;
             if (detail.targetId !== targetChannelId) return;
-            if (detail.domain !== 'chat' && detail.domain !== 'join') return;
+            if (detail.domain !== 'chat' && detail.domain !== 'join' && detail.domain !== 'channel') return;
 
             if (detail.action === 'feed') {
                 const cursorNo: number | undefined = detail.payload?.cursorNo;

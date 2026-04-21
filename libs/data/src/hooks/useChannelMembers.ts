@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { useWebSocketV2 } from '@chatic/socket';
+import { useDynamicProfile } from '@chatic/web-core';
 import { useUserRepository } from '../repository';
 import type { UserView } from '@lemoncloud/chatic-socials-api';
 import type { ChatUsersPayload } from '@lemoncloud/chatic-sockets-api';
@@ -15,7 +16,8 @@ export const useChannelMembers = (initialParams: ChatUsersPayload) => {
     const targetChannelId = initialParams.channelId;
 
     const { emitAuthenticated, cloudId } = useWebSocketV2();
-    const userRepository = useUserRepository(cloudId);
+    const dynamicProfile = useDynamicProfile();
+    const userRepository = useUserRepository(cloudId, dynamicProfile?.uid);
 
     const [members, setMembers] = useState<UserView[]>([]);
     const [total, setTotal] = useState<number>(0);

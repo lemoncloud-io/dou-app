@@ -2,7 +2,16 @@ import { useMutation } from '@tanstack/react-query';
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 
-import { findAlias, issueCloudToken, login, registerDevice, registerUser, registerUserV2, verifyAlias } from '../apis';
+import {
+    findAlias,
+    issueCloudToken,
+    login,
+    logout,
+    registerDevice,
+    registerUser,
+    registerUserV2,
+    verifyAlias,
+} from '../apis';
 
 import type {
     CloudDelegationTokenView,
@@ -88,3 +97,14 @@ export const useRefreshCloudToken = () => {
 export const useFindAlias = () => useCustomMutation<FindAliasView, AxiosError, FindAliasBody>(findAlias);
 
 export const useVerifyAlias = () => useCustomMutation<VerifyAliasView, AxiosError, VerifyAliasBody>(verifyAlias);
+
+export const useLogout = () => {
+    const storeLogout = useWebCoreStore(s => s.logout);
+
+    return useCustomMutation<void, string, void>(async () => {
+        // 1. 서버 로그아웃 (실패해도 로컬 정리는 진행)
+        await logout().catch(err => console.error('[useLogout] Server logout failed:', err));
+        // 2. 로컬 상태 정리 + 리다이렉트
+        await storeLogout();
+    });
+};

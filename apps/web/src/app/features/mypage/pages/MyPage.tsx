@@ -9,7 +9,8 @@ import { useDeviceInfo } from '@chatic/device-utils';
 import { getStoreUrl } from '@chatic/shared';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
-import { useLogout, useOnboardingStore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
+import { useOnboardingStore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
+import { useLogout } from '@chatic/auth';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { LanguageSelectSheet, LogoutDialog } from '../components';
@@ -256,7 +257,17 @@ export const MyPage = () => {
                     )}
                 </div>
 
-                {/* Logout Card - hidden for now */}
+                {/* Logout */}
+                {userType !== UserType.TEMP_ACCOUNT && userType !== UserType.INVITED && (
+                    <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
+                        <button
+                            onClick={() => setIsLogoutDialogOpen(true)}
+                            className="flex w-full items-center py-3 pl-4 pr-3"
+                        >
+                            <span className="text-[15px] font-medium text-destructive">{t('mypage.logout')}</span>
+                        </button>
+                    </div>
+                )}
             </div>
 
             <BottomNavigation />

@@ -17,11 +17,11 @@ import { useConnectionRecoverySync } from './useConnectionRecoverySync';
 export const useChannels = (initialParams: ClientChatMinePayload) => {
     const targetPlaceId = initialParams.placeId;
     const { emitAuthenticated, cloudId } = useWebSocketV2();
-    const channelRepository = useChannelRepository(cloudId);
-    const joinRepository = useJoinRepository(cloudId);
 
     // 현재 접속 중인 내 프로필 정보
     const profile = useDynamicProfile();
+    const channelRepository = useChannelRepository(cloudId, profile?.uid);
+    const joinRepository = useJoinRepository(cloudId, profile?.uid);
     const [channels, setChannels] = useState<ClientChannelView[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
@@ -156,11 +156,13 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         currentParamsRef.current = initialParams;
         setIsLoading(true);
         void requestFromLocal(initialParams);
-        requestFromNetwork(initialParams);
-    }, [targetPlaceId]);
+        requestFromNetwork({ ...initialParams, limit: 100 });
+    }, [targetPlaceId, requestFromLocal, requestFromNetwork, initialParams, cloudId, profile?.uid]);
 
     const requestFromLocalRef = useRef(requestFromLocal);
     requestFromLocalRef.current = requestFromLocal;
+    const requestFromNetworkRef = useRef(requestFromNetwork);
+    requestFromNetworkRef.current = requestFromNetwork;
 
     useEffect(() => {
         // cloudId나 Repository가 준비되지 않았다면 리스너를 등록하지 않음
@@ -182,6 +184,12 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                 } else {
                     // 'channel', 'chat' 등 나머지는 로컬 로드만 수행 후 동기화 상태 해제
                     setIsSyncing(false);
+                }
+                // 채팅 이벤트(send, model:create 등) 수신 시 서버에서 최신 채널 목록을 다시 가져옴
+                // model:create:chat은 채널 데이터(lastChat$, unreadCount)를 로컬에 갱신하지 않으므로
+                // 서버에 chat:mine을 재요청하여 정확한 채널 상태를 동기화
+                if (detail.domain === 'chat') {
+                    requestFromNetworkRef.current({ ...currentParamsRef.current, limit: 100 });
                 }
             }
         };

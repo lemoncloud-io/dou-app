@@ -71,9 +71,10 @@ export const useAutoSelectCloud = () => {
         const currentCloudId = cloudCore.getSelectedCloudId();
         if (currentCloudId === 'default') return;
 
-        // Skip if already selected the same cloud
+        // Skip if already have a valid cloud session with a cloud that still exists
         const existingSession = getCloudSession();
-        if (existingSession && currentCloudId === activeCloud.id) return;
+        const currentCloudExists = clouds.some(c => c.id === currentCloudId);
+        if (existingSession && currentCloudId && currentCloudExists) return;
 
         autoSelectedRef.current = true;
         void selectCloud(activeCloud.id as string);
