@@ -6,13 +6,15 @@ import type { CacheChannelView } from '@chatic/app-messages';
 /**
  * 사용자 데이터의 영속성을 관리하는 리포지토리
  * 서버와의 연동 없이 로컬 DB(IndexedDB 등)와의 직접적인 입출력을 전담
+ * @param profileUid 유저별 캐시 파티셔닝용 — default(중계서버) 모드에서만 유저별 캐시 분리
  */
-export const useUserRepository = (cloudId: string) => {
-    const userDB = useMemo(() => (cloudId ? createStorageAdapter<UserView>('user', cloudId) : null), [cloudId]);
-    const joinDB = useMemo(() => (cloudId ? createStorageAdapter<JoinView>('join', cloudId) : null), [cloudId]);
+export const useUserRepository = (cloudId: string, profileUid?: string) => {
+    const cid = cloudId === 'default' && profileUid ? `${cloudId}:${profileUid}` : cloudId;
+    const userDB = useMemo(() => (cloudId ? createStorageAdapter<UserView>('user', cid) : null), [cloudId, cid]);
+    const joinDB = useMemo(() => (cloudId ? createStorageAdapter<JoinView>('join', cid) : null), [cloudId, cid]);
     const channelDB = useMemo(
-        () => (cloudId ? createStorageAdapter<CacheChannelView>('channel', cloudId) : null),
-        [cloudId]
+        () => (cloudId ? createStorageAdapter<CacheChannelView>('channel', cid) : null),
+        [cloudId, cid]
     );
 
     /**

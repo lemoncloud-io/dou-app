@@ -17,11 +17,10 @@ import { useConnectionRecoverySync } from './useConnectionRecoverySync';
 export const useChannels = (initialParams: ClientChatMinePayload) => {
     const targetPlaceId = initialParams.placeId;
     const { emitAuthenticated, cloudId } = useWebSocketV2();
-    const repository = useChannelRepository(cloudId);
-    const joinRepo = useJoinRepository(cloudId);
-
     // 현재 접속 중인 내 프로필 정보
     const profile = useDynamicProfile();
+    const repository = useChannelRepository(cloudId, profile?.uid);
+    const joinRepo = useJoinRepository(cloudId, profile?.uid);
     const [channels, setChannels] = useState<ClientChannelView[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
@@ -151,10 +150,15 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
     // 초기 마운트 및 placeId 변경 시 로컬 DB 조회
     useEffect(() => {
+        console.log('[useChannels] mount/placeId changed:', {
+            placeId: initialParams.placeId,
+            cloudId,
+            profileUid: profile?.uid,
+        });
         currentParamsRef.current = initialParams;
         setIsLoading(true);
         void requestFromLocal(initialParams);
-        requestFromNetwork(initialParams);
+        requestFromNetwork({ ...initialParams, limit: 100 });
     }, [targetPlaceId, requestFromLocal, requestFromNetwork]);
 
     const requestFromLocalRef = useRef(requestFromLocal);
