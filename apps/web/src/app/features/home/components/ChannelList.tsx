@@ -113,9 +113,6 @@ export const ChannelList = ({
     const hasSelectedPlace = wssType !== 'cloud' || !!cloudCore.getSelectedPlaceId();
 
     if (!hasSelectedPlace) return null;
-
-    console.log(JSON.stringify(channels));
-
     const header = (
         <div className="mb-[18px] flex items-center justify-between">
             <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">Chat</span>
