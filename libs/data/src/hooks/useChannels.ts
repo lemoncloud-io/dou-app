@@ -168,13 +168,21 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
         const handleUpdate = (e: Event) => {
             const { detail } = e as CustomEvent<AppSyncDetail>;
-            // 동기화 대상 도메인 및 Cloud ID 일치 여부 확인;
+
             const isTargetDomain = ['channel', 'chat', 'join'].includes(detail.domain);
             const isMatchingCloud = detail.cid === joinRepository.cloudId;
 
             if (isTargetDomain && isMatchingCloud) {
+                // 모든 타겟 도메인에 대해 로컬 DB 즉시 로드
                 void requestFromLocal();
-                requestFromNetwork();
+
+                if (detail.domain === 'join') {
+                    // 'join' 도메인일 경우에만 서버 동기화(원격) 요청 수행; (domain:model; action:update; type:join)
+                    requestFromNetwork();
+                } else {
+                    // 'channel', 'chat' 등 나머지는 로컬 로드만 수행 후 동기화 상태 해제
+                    setIsSyncing(false);
+                }
             }
         };
 
