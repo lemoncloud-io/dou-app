@@ -100,8 +100,9 @@ export const chatHandler = async (
                         return channelRepo.saveChannel(ch.id, { ...ch, sid } as CacheChannelView);
                     })
                 );
-                notifyAppUpdated({ domain: 'channel', action, cid: cloudId, payload });
             }
+            // 항상 notify — list 비어도 confirmed channel IDs 갱신 필요
+            notifyAppUpdated({ domain: 'channel', action, cid: cloudId, payload });
             break;
         }
 
@@ -147,7 +148,16 @@ export const chatHandler = async (
                     ...payload,
                     memberNo: payload.memberNo ?? prevMemberNo + 1,
                 } as CacheChannelView);
+
+                // $joins 배열이 포함된 경우 join 정보도 개별 저장 (start case와 동일 패턴)
+                const joins = payload?.$joins || [];
+                if (joins.length > 0) {
+                    await Promise.all(joins.map((join: any) => joinRepo.saveJoin(join.id, join)));
+                }
+
                 notifyAppUpdated({ domain: 'channel', action, cid: cloudId, targetId: channelId, payload });
+                // useChats가 새 멤버 기준으로 unreadCount를 재계산하도록 join 도메인도 알림
+                notifyAppUpdated({ domain: 'join', action, cid: cloudId, targetId: channelId, payload });
             }
             break;
         }
@@ -158,11 +168,17 @@ export const chatHandler = async (
             const isKicked = targetUserId && targetUserId !== myUserId;
 
             if (isKicked) {
-                await channelRepo.saveChannel(channelId, { ...payload } as CacheChannelView);
+                const existingChannel = await channelRepo.getChannel(channelId);
+                await channelRepo.saveChannel(channelId, {
+                    ...(existingChannel || {}),
+                    ...payload,
+                } as CacheChannelView);
             } else {
                 await channelRepo.deleteChannel(channelId);
             }
             notifyAppUpdated({ domain: 'channel', action, cid: cloudId, targetId: channelId, payload });
+            // useChats가 멤버 변경 기준으로 unreadCount를 재계산하도록 join 도메인도 알림
+            notifyAppUpdated({ domain: 'join', action, cid: cloudId, targetId: channelId, payload });
             break;
         }
 

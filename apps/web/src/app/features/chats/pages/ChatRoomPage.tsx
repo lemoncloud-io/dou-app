@@ -12,7 +12,7 @@ import {
     User,
     X,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
@@ -65,7 +65,10 @@ export const ChatRoomPage = () => {
     const {
         messages,
         isLoading: isChatLoading,
+        isLoadingMore,
         isError: isChatError,
+        hasMore,
+        loadMore,
     } = useChats({
         channelId: channelId || '',
         limit: 100,
@@ -131,12 +134,17 @@ export const ChatRoomPage = () => {
         };
     }, [messages.length, channelId, readMessage]);
 
-    // 새 메시지 추가 시에만 스크롤 (초기 로드는 column-reverse가 자동 처리)
+    // 새 메시지(전송/수신)가 추가될 때만 스크롤 — loadMore(오래된 메시지)는 스크롤하지 않음
     const prevMessageCountRef = useRef(messages.length);
+    const prevLastMessageIdRef = useRef<string | undefined>(undefined);
     useEffect(() => {
-        if (messages.length > prevMessageCountRef.current) {
+        const lastMessage = messages[messages.length - 1];
+        // 최신 메시지 ID가 바뀌었고 + 메시지 수가 증가한 경우에만 하단 스크롤
+        // loadMore는 오래된 메시지만 추가하므로 최신 메시지 ID는 동일 → 스크롤 안 함
+        if (messages.length > prevMessageCountRef.current && lastMessage?.id !== prevLastMessageIdRef.current) {
             scrollToBottom(false);
         }
+        prevLastMessageIdRef.current = lastMessage?.id;
         prevMessageCountRef.current = messages.length;
     }, [messages.length]);
 
@@ -239,6 +247,19 @@ export const ChatRoomPage = () => {
         }
     };
 
+    // 스크롤이 상단(과거 메시지 방향)에 가까워지면 이전 메시지 로드
+    const handleScroll = useCallback(() => {
+        const el = messagesEndRef.current;
+        if (!el || !hasMore || isLoadingMore) return;
+
+        // flex-col-reverse: scrollTop은 0(하단)에서 음수(상단)로 이동
+        // 상단 도달 판정: 전체 스크롤 영역과 현재 위치의 차이가 임계값 이하
+        const distanceFromTop = el.scrollHeight - el.clientHeight - Math.abs(el.scrollTop);
+        if (distanceFromTop < 200) {
+            loadMore();
+        }
+    }, [hasMore, isLoadingMore, loadMore]);
+
     // 날짜 및 시간 포맷팅 헬퍼 함수
     const formatTime = (date: Date) => {
         const hours = date.getHours();
@@ -331,11 +352,27 @@ export const ChatRoomPage = () => {
             </header>
 
             {/* 메시지 목록 렌더링 영역 — column-reverse로 초기 스크롤 위치를 하단에 고정 */}
-            <div ref={messagesEndRef} className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-none">
+            <div
+                ref={messagesEndRef}
+                onScroll={handleScroll}
+                className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-none"
+            >
                 <div
-                    className={`flex flex-col gap-3 px-4 pb-4 pt-2 ${messages.length === 0 && !isChatLoading ? 'min-h-full' : ''}`}
+                    className={`flex flex-col gap-3 px-4 pb-4 pt-2 ${isChatLoading || messages.length === 0 ? 'min-h-full' : ''}`}
                 >
-                    {messages.length === 0 && !isChatLoading ? (
+                    {/* 이전 메시지 로딩 인디케이터 */}
+                    {isLoadingMore && (
+                        <div className="flex justify-center py-3">
+                            <Loader2 size={20} className="animate-spin text-muted-foreground" />
+                        </div>
+                    )}
+
+                    {isChatLoading ? (
+                        // 초기 메시지 로딩 중
+                        <div className="flex min-h-full items-center justify-center">
+                            <Loader2 size={24} className="animate-spin text-muted-foreground" />
+                        </div>
+                    ) : messages.length === 0 ? (
                         // 메시지가 없을 때 보여지는 빈 화면 (Empty State)
                         <div className="relative flex flex-1 flex-col items-center justify-center">
                             <div className="absolute left-0 right-0 top-2 text-center">
