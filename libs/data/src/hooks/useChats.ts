@@ -37,6 +37,10 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     // 'default'는 중계서버(relay WSS) 케이스에서 정상 사용됨
     const isValidCloudId = !!cloudId;
 
+    // feed 응답 기준 최소 chatNo — 이전 세션 캐시와의 갭(gap) 방지용 필터
+    // Infinity: feed 도착 전까지 이전 캐시 표시 안 함 / feed 도착 후 범위 내만 표시
+    const feedMinChatNoRef = useRef<number>(Infinity);
+
     /**
      * 로컬 DB에서 데이터 패칭 및 ClientChatView로의 매핑/정렬/필터링
      * @param cleanPending true면 orphaned pending 메시지를 DB에서 삭제 (마운트 시 1회)
@@ -73,6 +77,13 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                         rawMsgs = rawMsgsFromDB.filter(m => !m.isPending);
                     }
                 }
+
+                // feed 범위 밖의 이전 세션 캐시를 필터링하여 갭(gap) 방지
+                rawMsgs = rawMsgs.filter(m => {
+                    if (m.isPending || m.isFailed) return true;
+                    if (m.chatNo === undefined) return true;
+                    return m.chatNo >= feedMinChatNoRef.current;
+                });
 
                 // owner$ 없는 메시지를 위해 user repository에서 이름 조회
                 const ownerIds = [...new Set(rawMsgs.map(m => m.ownerId).filter(Boolean))] as string[];
@@ -151,13 +162,28 @@ export const useChats = (initialParams: ChatFeedPayload) => {
 
     /**
      * 초기 마운트 및 채널 변경 시 로드
-     * 로컬 DB에서 먼저 조회하여 즉시 표시하고, 네트워크 sync는 병렬로 진행
+     * feed 응답 후 이벤트 → requestFromLocal 자동 호출되므로 마운트 시 직접 호출하지 않음
      */
     useEffect(() => {
+        setMessages([]);
         setFeedCursorNo(undefined);
-        setStatus(prev => ({ ...prev, isSyncing: true, isLoadingMore: false, isError: false }));
-        requestFromNetwork({ channelId: targetChannelId });
-        void requestFromLocal({ channelId: targetChannelId }, true);
+        feedMinChatNoRef.current = Infinity;
+        setStatus({ isLoading: true, isSyncing: true, isLoadingMore: false, isError: false });
+
+        // orphaned pending 메시지 DB 정리 (백그라운드)
+        if (isValidCloudId && targetChannelId) {
+            chatRepository
+                .getChatsByChannel(targetChannelId)
+                .then(msgs => {
+                    const pending = msgs.filter(m => m.isPending);
+                    if (pending.length > 0) {
+                        return Promise.all(pending.map(m => chatRepository.deleteChat(m.id!)));
+                    }
+                })
+                .catch(console.error);
+        }
+
+        requestFromNetwork({ channelId: targetChannelId, limit: initialParams.limit });
     }, [targetChannelId]);
 
     // 연속 이벤트(낙관적 업데이트 + 서버 응답) 시 DB 재조회를 1회로 병합
@@ -167,7 +193,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
             if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
             debounceTimerRef.current = setTimeout(() => {
                 void requestFromLocal();
-            }, 50);
+            }, 100);
         },
         [requestFromLocal]
     );
@@ -201,6 +227,16 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 if (cursorNo !== undefined) {
                     setFeedCursorNo(cursorNo);
                 }
+
+                // feed 결과의 최소 chatNo로 필터 범위 확장 (loadMore 시 점차 넓어짐)
+                const feedList = detail.payload?.list || [];
+                if (feedList.length > 0) {
+                    const minChatNo = Math.min(...feedList.map((m: { chatNo?: number }) => m.chatNo ?? Infinity));
+                    feedMinChatNoRef.current = Math.min(feedMinChatNoRef.current, minChatNo);
+                } else if (feedMinChatNoRef.current === Infinity) {
+                    // 빈 채널(메시지 없음): 이후 새 메시지가 필터에 걸리지 않도록 0으로 해제
+                    feedMinChatNoRef.current = 0;
+                }
             }
 
             debouncedRequestFromLocalRef.current();
@@ -230,8 +266,9 @@ export const useChats = (initialParams: ChatFeedPayload) => {
         refresh: () => {
             setMessages([]);
             setFeedCursorNo(undefined);
+            feedMinChatNoRef.current = Infinity;
             setStatus(prev => ({ ...prev, isLoading: true }));
-            requestFromNetwork({ channelId: targetChannelId });
+            requestFromNetwork({ channelId: targetChannelId, limit: initialParams.limit });
         },
         sync: () => requestFromNetwork({ channelId: targetChannelId }),
     };

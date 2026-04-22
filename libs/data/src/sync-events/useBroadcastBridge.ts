@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { AppSyncDetail } from './syncEvent';
-import { APP_SYNC_CHANNEL_NAME, APP_SYNC_EVENT_NAME } from './syncEvent';
+import { APP_SYNC_CHANNEL_NAME, APP_SYNC_EVENT_NAME, getTabId } from './syncEvent';
 
 /**
  * 다른 브라우저 탭에서 발생한 동기화 이벤트를 수신하여
@@ -10,9 +10,13 @@ import { APP_SYNC_CHANNEL_NAME, APP_SYNC_EVENT_NAME } from './syncEvent';
 export const useBroadcastBridge = () => {
     useEffect(() => {
         const bc = new BroadcastChannel(APP_SYNC_CHANNEL_NAME);
-        bc.onmessage = (event: MessageEvent<AppSyncDetail>) => {
-            console.debug(`[Broadcast Bridge] Received other tab message:`, event.data);
-            window.dispatchEvent(new CustomEvent(APP_SYNC_EVENT_NAME, { detail: event.data }));
+        const myTabId = getTabId();
+        bc.onmessage = (event: MessageEvent<AppSyncDetail & { _originTabId?: string }>) => {
+            // 같은 탭에서 발신한 메시지는 무시 (이미 window.dispatchEvent로 직접 전달됨)
+            if (event.data._originTabId === myTabId) return;
+            const { _originTabId: _, ...detail } = event.data;
+            console.debug(`[Broadcast Bridge] Received other tab message:`, detail);
+            window.dispatchEvent(new CustomEvent(APP_SYNC_EVENT_NAME, { detail }));
         };
 
         return () => {

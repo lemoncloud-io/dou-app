@@ -30,6 +30,9 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     const currentParamsRef = useRef<ClientChatMinePayload>(initialParams);
     const isSyncingRef = useRef(false);
 
+    // 서버 chat:mine 응답으로 확인된 채널 ID 목록. null은 아직 서버 응답 없음(로딩 중)을 의미.
+    const confirmedChannelIdsRef = useRef<Set<string> | null>(null);
+
     // cloudId가 유효한지 확인 (빈 문자열이면 무효 — stale 캐시 접근 방지)
     // 'default'는 중계서버(relay WSS) 케이스에서 정상 사용됨
     const isValidCloudId = !!cloudId;
@@ -44,6 +47,12 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                     setIsLoading(false);
                     return;
                 }
+
+                // 서버 응답 전이면 로딩 상태 유지 (stale 캐시 표시 방지)
+                if (confirmedChannelIdsRef.current === null) {
+                    return;
+                }
+
                 setIsError(false);
                 if (params) {
                     currentParamsRef.current = { ...currentParamsRef.current, ...params };
@@ -63,7 +72,11 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                         ? await channelRepository.getChannels()
                         : await channelRepository.getChannelsByPlace(placeId);
 
-                const sortedChannels = channelsData.sort((a, b) => {
+                // 서버가 확인한 채널 ID로 필터링하여 stale 채널 제거
+                const confirmedIds = confirmedChannelIdsRef.current;
+                const filteredChannels = channelsData.filter(ch => ch.id && confirmedIds.has(ch.id));
+
+                const sortedChannels = filteredChannels.sort((a, b) => {
                     const timeA = new Date(a.lastChat$?.createdAt ?? a.updatedAt ?? 0).getTime();
                     const timeB = new Date(b.lastChat$?.createdAt ?? b.updatedAt ?? 0).getTime();
                     return timeB - timeA;
@@ -132,7 +145,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
             const placeId = activeParams.placeId;
 
             if (!placeId) return;
-            if (!shouldEmit(`chat:mine:${placeId}`)) return;
+            if (!shouldEmit(`chat:mine:${placeId}:${cloudId}`)) return;
 
             isSyncingRef.current = true;
             setIsSyncing(true);
@@ -152,7 +165,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                 setIsSyncing(false);
             }, 5000);
         },
-        [emitAuthenticated, isValidCloudId]
+        [emitAuthenticated, isValidCloudId, cloudId]
     );
 
     const requestFromLocalRef = useRef(requestFromLocal);
@@ -160,15 +173,17 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     const requestFromNetworkRef = useRef(requestFromNetwork);
     requestFromNetworkRef.current = requestFromNetwork;
 
-    // 초기 마운트 및 placeId 변경 시 로컬 DB 조회
+    // 초기 마운트 및 placeId/cloudId 변경 시 서버에서 채널 목록 요청
+    // cloudId dep: cloud 전환 시 store의 cloudId가 비동기로 갱신되므로,
+    // 안정화된 cloudId로 재요청하여 isMatchingCloud 불일치 방지
     useEffect(() => {
         currentParamsRef.current = initialParams;
         isSyncingRef.current = false;
+        confirmedChannelIdsRef.current = null; // 서버 응답 전까지 로딩 상태 유지
         setChannels([]); // 즉시 이전 채널 제거 → 스켈레톤 표시
         setIsLoading(true);
-        void requestFromLocalRef.current(initialParams);
         requestFromNetworkRef.current({ ...initialParams, limit: 100 });
-    }, [targetPlaceId]);
+    }, [targetPlaceId, cloudId]);
 
     useEffect(() => {
         // cloudId나 Repository가 준비되지 않았다면 리스너를 등록하지 않음
@@ -181,6 +196,24 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
             const isMatchingCloud = detail.cid === joinRepository.cloudId;
 
             if (isTargetDomain && isMatchingCloud) {
+                // confirmed channel IDs 갱신
+                if (detail.domain === 'channel') {
+                    if (detail.action === 'mine') {
+                        // 서버 chat:mine 응답 → confirmed set 전체 교체
+                        const list = detail.payload?.list || [];
+                        confirmedChannelIdsRef.current = new Set(list.map((ch: any) => ch.id));
+                    } else if (detail.action === 'start' && detail.targetId) {
+                        // 새 채널 생성 → confirmed set에 추가
+                        confirmedChannelIdsRef.current?.add(detail.targetId);
+                    } else if (detail.action === 'delete-channel' && detail.targetId) {
+                        // 채널 삭제 → confirmed set에서 제거
+                        confirmedChannelIdsRef.current?.delete(detail.targetId);
+                    } else if (detail.action === 'leave' && detail.targetId) {
+                        // 채널 나가기 → confirmed set에서 제거
+                        confirmedChannelIdsRef.current?.delete(detail.targetId);
+                    }
+                }
+
                 // 모든 타겟 도메인에 대해 로컬 DB 즉시 로드
                 void requestFromLocalRef.current();
 

@@ -41,7 +41,12 @@ export const useChannel = (channelId: string | null) => {
             if (channelData) {
                 const { sid, ...rest } = channelData as any;
                 const baseChannel = rest as ChannelView;
-                const myJoin = (joins as JoinView[]).find(j => j.userId === profile?.uid);
+                const allJoins = joins as JoinView[];
+                const myJoin = allJoins.find(j => j.userId === profile?.uid);
+
+                // active joins 기반으로 memberNo 계산 (modelHandler가 join만 저장하고 channel.memberNo를 갱신하지 않는 경우 대응)
+                const activeJoinCount = allJoins.filter(j => j.joined === 1 || j.joined === undefined).length;
+                const memberNo = activeJoinCount > 0 ? activeJoinCount : baseChannel.memberNo || 0;
 
                 const lastChatNo = baseChannel.lastChat$?.chatNo || 0;
                 const myReadNo = myJoin?.chatNo || 0;
@@ -49,9 +54,10 @@ export const useChannel = (channelId: string | null) => {
 
                 const clientChannel: ClientChannelView = {
                     ...baseChannel,
+                    memberNo,
                     isOwner: baseChannel.ownerId === profile?.uid,
                     isSelfChat: baseChannel.stereo === 'self',
-                    memberCount: baseChannel.memberNo || 0,
+                    memberCount: memberNo,
                     unreadCount,
                 };
                 setChannel(clientChannel);

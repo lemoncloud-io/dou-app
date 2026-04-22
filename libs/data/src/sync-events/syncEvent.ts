@@ -53,11 +53,17 @@ export interface AppSyncDetail<T = any> {
 }
 
 /**
+ * 현재 탭 고유 식별자 — 같은 탭의 BroadcastChannel 에코를 필터링하기 위해 사용
+ */
+const TAB_ID = `tab-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+export const getTabId = () => TAB_ID;
+
+/**
  * 통합 앱 동기화 알림 함수
  */
 export const notifyAppUpdated = <T>(detail: AppSyncDetail<T>) => {
     window.dispatchEvent(new CustomEvent(APP_SYNC_EVENT_NAME, { detail }));
     const bc = new BroadcastChannel(APP_SYNC_CHANNEL_NAME);
-    bc.postMessage(detail);
+    bc.postMessage({ ...detail, _originTabId: TAB_ID });
     bc.close();
 };

@@ -7,7 +7,6 @@ import { resizeImageToBase64 } from '@chatic/shared';
 
 import { cn } from '@chatic/lib/utils';
 import { useWebCoreStore, useUpdateProfile } from '@chatic/web-core';
-
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';
 

@@ -4,14 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import {
-    cloudCore,
-    loginWithInviteCode,
-    setIsInvitedSession,
-    useDynamicProfile,
-    useWebCoreStore,
-    webCore,
-} from '@chatic/web-core';
+import { cloudCore, loginWithInviteCode, setIsInvitedSession, useWebCoreStore, webCore } from '@chatic/web-core';
 import { LoadingFallback } from '@chatic/shared';
 
 import { getMobileAppInfo } from '@chatic/app-messages';
@@ -35,7 +28,7 @@ export const LoginPage = (): JSX.Element => {
     const { mutateAsync: registerDevice, isPending: isRegisteringDevice } = useRegisterDevice();
     const { deviceId, isReady } = useDynamicDeviceId();
     const { saveInvite } = useInviteMutations();
-    const profile = useDynamicProfile();
+    const profile = useWebCoreStore(state => state.profile);
 
     const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
@@ -44,8 +37,8 @@ export const LoginPage = (): JSX.Element => {
         const backend = urlParams.get('_backend') ?? undefined;
         if (!code || !profile?.uid) return null;
         try {
-            const delegatorId = (profile.$auth as any).linkUserId ?? profile.$auth.userId;
-            return await loginWithInviteCode(code, delegatorId, backend);
+            const delegatorId = profile.$auth.linkUserId ?? profile.$auth.userId;
+            return await loginWithInviteCode(code, delegatorId as string, backend);
         } catch (error) {
             console.error('[LoginPage] Fetch invite data failed:', error);
             toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
