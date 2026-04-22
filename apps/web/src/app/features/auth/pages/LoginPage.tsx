@@ -54,12 +54,12 @@ export const LoginPage = (): JSX.Element => {
             await webCore.buildCredentialsByToken(Token);
             setProfile(rest as Parameters<typeof setProfile>[0]);
             setIsAuthenticated(true);
-            window.location.href = '/';
+            window.location.replace('/');
         } catch (error) {
             console.error('[LoginPage] Device registration failed:', error);
             toast({ title: t('auth.loginFailed'), variant: 'destructive' });
             // Navigate to home to prevent permanent stuck on "preparing app"
-            window.location.href = '/';
+            window.location.replace('/');
         }
     }, [deviceId, registerDevice, setProfile, setIsAuthenticated, toast, t]);
 
@@ -147,7 +147,7 @@ export const LoginPage = (): JSX.Element => {
             // 7. Authenticate
             setIsAuthenticated(true);
             toast({ title: t('auth.loginSuccess') });
-            window.location.href = '/';
+            window.location.replace('/');
         } catch (error) {
             console.error('[LoginPage] Accept invite failed:', error);
             toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
@@ -166,7 +166,7 @@ export const LoginPage = (): JSX.Element => {
                         </p>
                         <button
                             onClick={() => {
-                                window.location.href = '/auth/login';
+                                window.location.replace('/auth/login');
                             }}
                             className="w-full max-w-[200px] h-[42px] rounded-full bg-[#b0ea10] text-[14px] font-semibold text-[#222325]"
                         >
@@ -209,7 +209,7 @@ export const LoginPage = (): JSX.Element => {
                             </button>
                             <button
                                 onClick={() => {
-                                    window.location.href = '/auth/login';
+                                    window.location.replace('/auth/login');
                                 }}
                                 disabled={isAccepting}
                                 className="w-full h-[50px] rounded-full  text-[16px] font-semibold leading-[22px] tracking-[0.08px] text-[#84888f] disabled:opacity-50"

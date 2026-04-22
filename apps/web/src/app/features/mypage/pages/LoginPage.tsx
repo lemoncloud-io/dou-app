@@ -71,7 +71,7 @@ export const LoginPage = () => {
             setOAuthProvider(result.provider);
             setProfile(rest as Parameters<typeof setProfile>[0]);
             setIsAuthenticated(true);
-            window.location.href = '/';
+            window.location.replace('/');
         } catch (e) {
             console.error('[LoginPage] OAuth login failed:', e);
             toast({

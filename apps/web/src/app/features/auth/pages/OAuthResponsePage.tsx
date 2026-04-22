@@ -51,7 +51,7 @@ export const OAuthResponsePage = () => {
             }
 
             toast(t('oauth.error.general'));
-            navigate('/auth/login');
+            navigate('/auth/login', { replace: true });
         };
 
         checkLoginResult();

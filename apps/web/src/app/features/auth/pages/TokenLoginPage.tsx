@@ -85,7 +85,7 @@ export const TokenLoginPage = () => {
         return (
             <div className="flex h-full items-center justify-center">
                 <p className="text-[16px] text-[#FF4C35]">{t('auth.invalidAccess')}</p>
-                <Button onClick={() => navigate('/auth/login')}>{t('auth.goToLogin')}</Button>
+                <Button onClick={() => navigate('/auth/login', { replace: true })}>{t('auth.goToLogin')}</Button>
             </div>
         );
     }
