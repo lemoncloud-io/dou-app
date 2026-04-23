@@ -166,7 +166,7 @@ export const LoginPage = (): JSX.Element => {
                         </p>
                         <button
                             onClick={() => {
-                                window.location.replace('/auth/login');
+                                window.location.replace('/');
                             }}
                             className="w-full max-w-[200px] h-[42px] rounded-full bg-[#b0ea10] text-[14px] font-semibold text-[#222325]"
                         >
@@ -209,7 +209,7 @@ export const LoginPage = (): JSX.Element => {
                             </button>
                             <button
                                 onClick={() => {
-                                    window.location.replace('/auth/login');
+                                    window.location.replace('/');
                                 }}
                                 disabled={isAccepting}
                                 className="w-full h-[50px] rounded-full  text-[16px] font-semibold leading-[22px] tracking-[0.08px] text-[#84888f] disabled:opacity-50"
