@@ -165,7 +165,6 @@ export const createIndexedDBAdapter = <T extends { id?: string }>(type: CacheTyp
             const index = store.index('type_cid');
             const range = IDBKeyRange.bound([type], [type, []]);
 
-            //
             const keys = await promisifyRequest<IDBValidKey[]>(index.getAllKeys(range));
             keys.forEach(key => store.delete(key));
 
