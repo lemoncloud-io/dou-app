@@ -33,6 +33,7 @@ export const useCloudSession = () => {
             cloudCore.saveDelegationToken(cloudDelegationToken);
             cloudCore.saveCloudToken(userToken);
             cloudCore.saveSelectedCloudId(cloudId);
+            cloudCore.clearSelectedPlace();
 
             const currentProfile = useWebCoreStore.getState().profile;
             const { Token: _Token, ...cloudProfile } = userToken;
@@ -58,7 +59,7 @@ export const useCloudSession = () => {
 
 export const useAutoSelectCloud = () => {
     const { clouds, selectCloud, isFetchingClouds } = useCloudSession();
-    const { isAuthenticated } = useWebCoreStore();
+    const { isAuthenticated, isInvited } = useWebCoreStore();
     const autoSelectedRef = useRef(false);
 
     useEffect(() => {
@@ -83,11 +84,12 @@ export const useAutoSelectCloud = () => {
         if (currentCloudId === 'default') return;
 
         // Skip if already have a valid cloud session with a cloud that still exists
+        // 초대 유저의 경우 초대 cloud가 내 clouds 목록에 없으므로 isInvited도 체크
         const existingSession = getCloudSession();
         const currentCloudExists = clouds.some(c => c.id === currentCloudId);
-        if (existingSession && currentCloudId && currentCloudExists) return;
+        if (existingSession && currentCloudId && (currentCloudExists || isInvited)) return;
 
         autoSelectedRef.current = true;
         void selectCloud(activeCloud.id as string);
-    }, [clouds, isAuthenticated, isFetchingClouds]);
+    }, [clouds, isAuthenticated, isFetchingClouds, isInvited]);
 };

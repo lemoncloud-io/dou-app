@@ -29,6 +29,8 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
     const currentParamsRef = useRef<ClientChatMinePayload>(initialParams);
     const isSyncingRef = useRef(false);
+    const profileRef = useRef(profile);
+    profileRef.current = profile;
 
     // 서버 chat:mine 응답으로 확인된 채널 ID 목록. null은 아직 서버 응답 없음(로딩 중)을 의미.
     const confirmedChannelIdsRef = useRef<Set<string> | null>(null);
@@ -202,6 +204,37 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                         // 서버 chat:mine 응답 → confirmed set 전체 교체
                         const list = detail.payload?.list || [];
                         confirmedChannelIdsRef.current = new Set(list.map((ch: any) => ch.id));
+
+                        // Fast path: 서버 payload로 즉시 채널 표시 (DB round-trip 스킵)
+                        const uid = profileRef.current?.uid;
+                        if (list.length > 0) {
+                            const sorted = [...list].sort((a: any, b: any) => {
+                                const timeA = new Date(a.lastChat$?.createdAt ?? a.updatedAt ?? 0).getTime();
+                                const timeB = new Date(b.lastChat$?.createdAt ?? b.updatedAt ?? 0).getTime();
+                                return timeB - timeA;
+                            });
+                            setChannels(
+                                sorted.map((ch: any) => {
+                                    const lastChatNo = ch.lastChat$?.chatNo || 0;
+                                    const lastMsgIsMine = ch.lastChat$?.ownerId === uid;
+                                    const myReadNo = lastMsgIsMine ? lastChatNo : ch.$join?.chatNo || 0;
+                                    return {
+                                        ...ch,
+                                        isOwner: ch.ownerId === uid,
+                                        isSelfChat: ch.stereo === 'self',
+                                        memberCount: ch.memberNo || 0,
+                                        unreadCount: Math.max(0, lastChatNo - myReadNo),
+                                    };
+                                })
+                            );
+                        } else {
+                            setChannels([]);
+                        }
+                        setIsLoading(false);
+                        isSyncingRef.current = false;
+                        setIsSyncing(false);
+                        // mine은 fast path에서 완전 처리 — requestFromLocal()이 sid 불일치로 덮어쓰는 것 방지
+                        return;
                     } else if (detail.action === 'start' && detail.targetId) {
                         // 새 채널 생성 → confirmed set에 추가
                         confirmedChannelIdsRef.current?.add(detail.targetId);
@@ -239,7 +272,12 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     }, [isValidCloudId, joinRepository.cloudId]);
 
     // 포그라운드 복귀 + WebSocket 재연결 완료 시 데이터 재동기화
-    useConnectionRecoverySync(requestFromLocal, requestFromNetwork);
+    // Recovery 시 isSyncingRef를 리셋하여 이전 실패/대기 중인 요청이 retry를 차단하지 않도록 함
+    const requestFromNetworkForRecovery = useCallback(() => {
+        isSyncingRef.current = false;
+        requestFromNetwork();
+    }, [requestFromNetwork]);
+    useConnectionRecoverySync(requestFromLocal, requestFromNetworkForRecovery);
 
     return {
         channels,

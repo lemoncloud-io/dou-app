@@ -77,17 +77,17 @@ const clearTokensOnLogout = (): void => {
         if (params.get('logout') !== '1') return;
 
         const storage = isReactNativeWebView() ? localStorage : sessionStorage;
+        // 로그아웃 후에도 유지해야 하는 키: 언어 설정, 초대 상태
+        const languageKeySuffix = `.${LANGUAGE_KEY}`;
         const keysToRemove: string[] = [];
         for (let i = 0; i < storage.length; i++) {
             const key = storage.key(i);
-            if (key?.startsWith('@')) keysToRemove.push(key);
+            if (key?.startsWith('@') && !key.endsWith(languageKeySuffix)) keysToRemove.push(key);
         }
         keysToRemove.forEach(key => storage.removeItem(key));
         // Clear oauth provider from both storages to handle RN WebView case
         sessionStorage.removeItem('chatic-oauth-provider');
         localStorage.removeItem('chatic-oauth-provider');
-        sessionStorage.removeItem('chatic-is-invited');
-        localStorage.removeItem('chatic-is-invited');
     } catch {
         // Ignore errors
     }

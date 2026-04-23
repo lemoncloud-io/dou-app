@@ -71,7 +71,22 @@ export const LoginPage = () => {
             setOAuthProvider(result.provider);
             setProfile(rest as Parameters<typeof setProfile>[0]);
             setIsAuthenticated(true);
-            window.location.replace('/');
+
+            // history 전체 정리: [/, /mypage, /mypage/login] → [/]
+            // 첫 엔트리까지 돌아간 뒤 replace하면 뒤로갈 history가 없음
+            const stepsBack = window.history.length - 1;
+            if (stepsBack > 0) {
+                window.addEventListener(
+                    'popstate',
+                    () => {
+                        window.location.replace('/');
+                    },
+                    { once: true }
+                );
+                window.history.go(-stepsBack);
+            } else {
+                window.location.replace('/');
+            }
         } catch (e) {
             console.error('[LoginPage] OAuth login failed:', e);
             toast({

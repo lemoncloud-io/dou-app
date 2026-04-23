@@ -198,16 +198,20 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
 
         await webCore.logout();
         cloudCore.clearSession();
-        setIsInvitedSession(false);
+        // isInvited는 유지 — 로그아웃 후 재로그인 시 초대 상태 복원에 필요
         localStorage.removeItem('chatic-device-token');
 
-        set({ isAuthenticated: false, profile: null, userName: '', isGuest: false, isInvited: false });
+        set({ isAuthenticated: false, profile: null, userName: '', isGuest: false });
         try {
             localStorage.removeItem(PROFILE_CACHE_KEY);
         } catch {
             /* ignore */
         }
 
+        // history 전체 정리 후 login 페이지로 이동
+        // window.location.href는 history에 엔트리를 추가하므로, 로그아웃 후 스와이프 백으로
+        // 이전 페이지에 접근하는 것을 방지하기 위해 history를 전부 비운 뒤 replace 사용
+        let targetUrl = '/auth/login?logout=1';
         if (options?.preserveUrl) {
             const params = new URLSearchParams(searchBeforeCleanup);
             const loginUrl = new URL('/auth/login', window.location.origin);
@@ -216,9 +220,21 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
                 if (value) loginUrl.searchParams.set(key, value);
             }
             loginUrl.searchParams.set('logout', '1');
-            window.location.href = loginUrl.toString();
+            targetUrl = loginUrl.toString();
+        }
+
+        const stepsBack = window.history.length - 1;
+        if (stepsBack > 0) {
+            window.addEventListener(
+                'popstate',
+                () => {
+                    window.location.replace(targetUrl);
+                },
+                { once: true }
+            );
+            window.history.go(-stepsBack);
         } else {
-            window.location.href = '/auth/login?logout=1';
+            window.location.replace(targetUrl);
         }
     },
 
