@@ -7,7 +7,7 @@ import type { CacheSiteView } from '@chatic/app-messages';
  * 서버와의 연동 없이 로컬 DB(IndexedDB 등)와의 직접적인 입출력을 전담
  */
 export const usePlaceRepository = (cloudId: string) => {
-    const placeDB = useMemo(() => (cloudId ? createStorageAdapter<CacheSiteView>('site', cloudId) : null), [cloudId]);
+    const placeDB = useMemo(() => (cloudId ? createStorageAdapter('site', cloudId) : null), [cloudId]);
 
     /**
      * 전체 Place 목록 조회
@@ -22,7 +22,7 @@ export const usePlaceRepository = (cloudId: string) => {
      */
     const getPlacesByCloud = useCallback(async (targetCloudId: string): Promise<CacheSiteView[]> => {
         if (!targetCloudId) return [];
-        const targetDB = createStorageAdapter<CacheSiteView>('site', targetCloudId);
+        const targetDB = createStorageAdapter('site', targetCloudId);
         const places: CacheSiteView[] = await targetDB.loadAll();
         return places?.filter((place: CacheSiteView) => place.cid === targetCloudId) ?? [];
     }, []);
@@ -63,18 +63,6 @@ export const usePlaceRepository = (cloudId: string) => {
     );
 
     /**
-     * 서버 응답으로 전체 교체 (stale 데이터 제거)
-     * my-site 응답 시 기존 캐시를 삭제하고 새 데이터로 원자적 대체
-     */
-    const replacePlaces = useCallback(
-        async (places: CacheSiteView[]): Promise<void> => {
-            if (!placeDB) return;
-            await placeDB.replaceAll(places);
-        },
-        [placeDB]
-    );
-
-    /**
      * 특정 Place 삭제
      */
     const deletePlace = useCallback(
@@ -92,9 +80,8 @@ export const usePlaceRepository = (cloudId: string) => {
             getPlace,
             savePlace,
             savePlaces,
-            replacePlaces,
             deletePlace,
         }),
-        [cloudId, getPlaces, getPlacesByCloud, getPlace, savePlace, savePlaces, replacePlaces, deletePlace]
+        [cloudId, getPlaces, getPlacesByCloud, getPlace, savePlace, savePlaces, deletePlace]
     );
 };

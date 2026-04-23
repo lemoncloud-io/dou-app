@@ -1,4 +1,4 @@
-import type { CacheType } from '@chatic/app-messages';
+import type { CacheType, CacheModelMap } from '@chatic/app-messages';
 import type { CacheStorage, CacheSchema } from './cacheStorage';
 
 // IndexedDB 설정 상수
@@ -52,7 +52,9 @@ const openDB = (): Promise<IDBDatabase> => {
  * 웹 환경을 위한 CacheStorage의 IndexedDB 구현체입니다.
  * [type + cid] 복합 인덱스를 사용하여 단일 오브젝트 스토어 내에서 데이터를 관리합니다.
  */
-export const createIndexedDBAdapter = <T extends { id?: string }>(type: CacheType, cid: string): CacheStorage<T> => {
+export const createIndexedDBAdapter = <TType extends CacheType>(type: TType, cid: string): CacheStorage<TType> => {
+    type Model = CacheModelMap[TType];
+
     // 저장소 내에서 고유성을 보장하기 위한 복합 키 생성 함수
     const generateKey = (id: string) => `${type}:${cid}:${id}`;
 
@@ -70,73 +72,55 @@ export const createIndexedDBAdapter = <T extends { id?: string }>(type: CacheTyp
         /**
          * 단일 아이템을 저장하거나 업데이트합니다.
          */
-        async save(id: string, item: T): Promise<void> {
+        async save(id: string, item: Model): Promise<Model> {
             const { store, transaction } = await getStore('readwrite');
-            const data: CacheSchema<T> = { key: generateKey(id), type, cid, id, data: item };
+            const data: CacheSchema<Model> = { key: generateKey(id), type, cid, id, data: item };
             store.put(data);
             await promisifyTransaction(transaction);
+            return item;
         },
 
         /**
          * 여러 아이템을 하나의 트랜잭션 내에서 원자적으로 저장합니다.
          */
-        async saveAll(items: T[]): Promise<void> {
+        async saveAll(items: Model[]): Promise<Model[]> {
             const { store, transaction } = await getStore('readwrite');
 
             items.forEach(item => {
-                const itemId = item.id;
+                const itemId = (item as { id?: string }).id;
                 if (!itemId) return;
-                const data: CacheSchema<T> = { key: generateKey(itemId), type, cid, id: itemId, data: item };
+                const data: CacheSchema<Model> = { key: generateKey(itemId), type, cid, id: itemId, data: item };
                 store.put(data); // 루프 내에서는 개별 Promise를 기다리지 않고 큐에 삽입
             });
 
             // 모든 작업이 포함된 트랜잭션이 최종 완료될 때까지 대기
-            return promisifyTransaction(transaction);
-        },
-
-        /**
-         * 기존 데이터를 모두 삭제하고 새 데이터로 교체합니다. (단일 트랜잭션)
-         * 서버 응답으로 전체 동기화 시 stale 데이터를 원자적으로 제거합니다.
-         */
-        async replaceAll(items: T[]): Promise<void> {
-            const { store, transaction } = await getStore('readwrite');
-            const index = store.index('type_cid');
-            const existingKeys = await promisifyRequest<IDBValidKey[]>(index.getAllKeys([type, cid]));
-
-            existingKeys.forEach(key => store.delete(key));
-
-            items.forEach(item => {
-                const itemId = item.id;
-                if (!itemId) return;
-                const data: CacheSchema<T> = { key: generateKey(itemId), type, cid, id: itemId, data: item };
-                store.put(data);
-            });
-
-            return promisifyTransaction(transaction);
+            await promisifyTransaction(transaction);
+            return items;
         },
 
         /**
          * ID를 통해 단일 데이터를 로드합니다.
          */
-        async load(id: string): Promise<T | null> {
+        async load(id: string): Promise<Model | null> {
             const { store } = await getStore('readonly');
-            const result = await promisifyRequest<CacheSchema<T>>(store.get(generateKey(id)));
+            const result = await promisifyRequest<CacheSchema<Model>>(store.get(generateKey(id)));
             return result ? result.data : null;
         },
 
         /**
-         * 인덱스를 사용하여 특정 도메인(type, cid)에 속한 모든 데이터를 배열로 반환합니다.
+         * 인덱스를 사용하여 특정 도메인(type, cid)에 속한 데이터를 전체 조회합니다.
+         * 도메인별 필터/정렬은 상위(repository) 레이어에서 수행합니다.
          */
-        async loadAll(): Promise<T[]> {
+        async loadAll(): Promise<Model[]> {
             const { store } = await getStore('readonly');
             const index = store.index('type_cid');
-            // 복합 인덱스 검색을 통해 관련 데이터만 효율적으로 조회
-            const results = await promisifyRequest<CacheSchema<T>[]>(index.getAll([type, cid]));
+            const results = await promisifyRequest<CacheSchema<Model>[]>(index.getAll([type, cid]));
             return results.map(r => r.data);
         },
 
         /**
          * ID를 통해 단일 데이터를 삭제합니다.
+         * 대상이 없어도 예외 없이 완료됩니다.
          */
         async delete(id: string): Promise<void> {
             const { store, transaction } = await getStore('readwrite');
@@ -148,13 +132,10 @@ export const createIndexedDBAdapter = <T extends { id?: string }>(type: CacheTyp
          * 여러 ID를 하나의 트랜잭션 내에서 일괄 삭제합니다.
          */
         async deleteAll(ids: string[]): Promise<void> {
+            if (ids.length === 0) return;
             const { store, transaction } = await getStore('readwrite');
-
-            ids.forEach(id => {
-                store.delete(generateKey(id));
-            });
-
-            return promisifyTransaction(transaction);
+            ids.forEach(id => store.delete(generateKey(id)));
+            await promisifyTransaction(transaction);
         },
     };
 };

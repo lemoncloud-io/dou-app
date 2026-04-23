@@ -1,13 +1,12 @@
 import { createNativeDBAdapter } from './nativeDBAdapter';
 import { createIndexedDBAdapter } from './indexedDBAdapter';
-import type { CacheType } from '@chatic/app-messages';
+import type { CacheType, CacheModelMap } from '@chatic/app-messages';
 
-export interface CacheStorage<T> {
-    save(id: string, item: T): Promise<void>;
-    saveAll(items: T[]): Promise<void>;
-    replaceAll(items: T[]): Promise<void>;
-    load(id: string): Promise<T | null>;
-    loadAll(query?: any): Promise<T[]>;
+export interface CacheStorage<TType extends CacheType> {
+    save(id: string, item: CacheModelMap[TType]): Promise<CacheModelMap[TType]>;
+    saveAll(items: CacheModelMap[TType][]): Promise<CacheModelMap[TType][]>;
+    load(id: string): Promise<CacheModelMap[TType] | null>;
+    loadAll(): Promise<CacheModelMap[TType][]>;
     delete(id: string): Promise<void>;
     deleteAll(ids: string[]): Promise<void>;
 }
@@ -24,6 +23,6 @@ export const isNativeApp = (): boolean => {
     return typeof window !== 'undefined' && window.ReactNativeWebView !== undefined;
 };
 
-export const createStorageAdapter = <T extends { id?: string }>(type: CacheType, cid: string): CacheStorage<T> => {
-    return isNativeApp() ? createNativeDBAdapter<T>(type, cid) : createIndexedDBAdapter<T>(type, cid);
+export const createStorageAdapter = <TType extends CacheType>(type: TType, cid: string): CacheStorage<TType> => {
+    return isNativeApp() ? createNativeDBAdapter(type, cid) : createIndexedDBAdapter(type, cid);
 };

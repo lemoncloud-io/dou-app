@@ -9,7 +9,7 @@ import type { CacheChatView } from '@chatic/app-messages';
  */
 export const useChatRepository = (cloudId: string, profileUid?: string) => {
     const cid = cloudId === 'default' && profileUid ? `${cloudId}:${profileUid}` : cloudId;
-    const chatDB = useMemo(() => (cloudId ? createStorageAdapter<CacheChatView>('chat', cid) : null), [cloudId, cid]);
+    const chatDB = useMemo(() => (cloudId ? createStorageAdapter('chat', cid) : null), [cloudId, cid]);
 
     const getChats = useCallback(async (): Promise<CacheChatView[]> => {
         if (!chatDB) return [];

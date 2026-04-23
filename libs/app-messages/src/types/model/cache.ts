@@ -17,7 +17,7 @@ export type CacheType = 'channel' | 'cloud' | 'chat' | 'user' | 'join' | 'site' 
  */
 export type PreferenceKey = 'isFirstRun' | 'theme' | 'language';
 
-interface CacheModelMap {
+export interface CacheModelMap {
     channel: CacheChannelView;
     cloud: CloudView;
     chat: CacheChatView;
@@ -28,7 +28,7 @@ interface CacheModelMap {
     invitecloud: InviteCloudView;
 }
 
-interface CacheQueryMap {
+export interface CacheQueryMap {
     channel: { query?: ChannelQueryOptions };
     cloud: { query?: CloudQueryOptions };
     chat: { query?: ChatQueryOptions };

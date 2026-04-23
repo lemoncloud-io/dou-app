@@ -1,4 +1,4 @@
-import type { AppMessage, AppMessageType, CacheType } from '@chatic/app-messages';
+import type { AppMessage, AppMessageType, CacheType, CacheModelMap } from '@chatic/app-messages';
 import { postMessage, useAppMessageStore } from '@chatic/app-messages';
 import type { CacheStorage } from './cacheStorage';
 
@@ -34,11 +34,13 @@ const waitForAppMessage = <T extends AppMessageType>(
 
 /**
  * @param type 저장소 도메인 타입 (예: 'chat', 'channel')
- * @param cid 특정 도메인에서 요구하는 고유 식별자 (Optional)
+ * @param cid 특정 도메인에서 요구하는 고유 식별자
  */
-export const createNativeDBAdapter = <T>(type: CacheType, cid: string): CacheStorage<T> => {
+export const createNativeDBAdapter = <TType extends CacheType>(type: TType, cid: string): CacheStorage<TType> => {
+    type Model = CacheModelMap[TType];
+
     return {
-        save: async (id: string, item: T): Promise<void> => {
+        save: async (id: string, item: Model): Promise<Model> => {
             const nonce = generateNonce();
             postMessage({
                 type: 'SaveCacheData',
@@ -46,10 +48,11 @@ export const createNativeDBAdapter = <T>(type: CacheType, cid: string): CacheSto
                 data: { type, id, item: item as any, cid } as any,
             });
             await waitForAppMessage('OnSaveCacheData', m => m.nonce === nonce);
+            return item;
         },
 
-        saveAll: async (items: T[]): Promise<void> => {
-            if (items.length === 0) return;
+        saveAll: async (items: Model[]): Promise<Model[]> => {
+            if (items.length === 0) return [];
             const nonce = generateNonce();
             postMessage({
                 type: 'SaveAllCacheData',
@@ -57,9 +60,10 @@ export const createNativeDBAdapter = <T>(type: CacheType, cid: string): CacheSto
                 data: { type, items: items as any[], cid } as any,
             });
             await waitForAppMessage('OnSaveAllCacheData', m => m.nonce === nonce);
+            return items;
         },
 
-        load: async (id: string): Promise<T | null> => {
+        load: async (id: string): Promise<Model | null> => {
             const nonce = generateNonce();
             postMessage({
                 type: 'FetchCacheData',
@@ -67,18 +71,18 @@ export const createNativeDBAdapter = <T>(type: CacheType, cid: string): CacheSto
                 data: { type, id, cid } as any,
             });
             const response = await waitForAppMessage('OnFetchCacheData', m => m.nonce === nonce);
-            return (response.data.item as T) || null;
+            return (response.data.item as Model) || null;
         },
 
-        loadAll: async (query?: any): Promise<T[]> => {
+        loadAll: async (): Promise<Model[]> => {
             const nonce = generateNonce();
             postMessage({
                 type: 'FetchAllCacheData',
                 nonce,
-                data: { type, query: { ...query, cid } } as any,
+                data: { type, query: { cid } } as any,
             });
             const response = await waitForAppMessage('OnFetchAllCacheData', m => m.nonce === nonce);
-            return (response.data.items as T[]) || [];
+            return (response.data.items as Model[]) || [];
         },
 
         delete: async (id: string): Promise<void> => {
@@ -89,36 +93,6 @@ export const createNativeDBAdapter = <T>(type: CacheType, cid: string): CacheSto
                 data: { type, id, cid } as any,
             });
             await waitForAppMessage('OnDeleteCacheData', m => m.nonce === nonce);
-        },
-
-        replaceAll: async (items: T[]): Promise<void> => {
-            const nonce = generateNonce();
-            postMessage({
-                type: 'FetchAllCacheData',
-                nonce,
-                data: { type, query: { cid } } as any,
-            });
-            const response = await waitForAppMessage('OnFetchAllCacheData', m => m.nonce === nonce);
-            const existing = (response.data.items as any[]) || [];
-            const existingIds = existing.map((item: any) => item.id).filter(Boolean);
-            if (existingIds.length > 0) {
-                const deleteNonce = generateNonce();
-                postMessage({
-                    type: 'DeleteAllCacheData',
-                    nonce: deleteNonce,
-                    data: { type, ids: existingIds, cid } as any,
-                });
-                await waitForAppMessage('OnDeleteAllCacheData', m => m.nonce === deleteNonce);
-            }
-            if (items.length > 0) {
-                const saveNonce = generateNonce();
-                postMessage({
-                    type: 'SaveAllCacheData',
-                    nonce: saveNonce,
-                    data: { type, items: items as any[], cid } as any,
-                });
-                await waitForAppMessage('OnSaveAllCacheData', m => m.nonce === saveNonce);
-            }
         },
 
         deleteAll: async (ids: string[]): Promise<void> => {
