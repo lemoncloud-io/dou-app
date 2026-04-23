@@ -272,7 +272,12 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     }, [isValidCloudId, joinRepository.cloudId]);
 
     // 포그라운드 복귀 + WebSocket 재연결 완료 시 데이터 재동기화
-    useConnectionRecoverySync(requestFromLocal, requestFromNetwork);
+    // Recovery 시 isSyncingRef를 리셋하여 이전 실패/대기 중인 요청이 retry를 차단하지 않도록 함
+    const requestFromNetworkForRecovery = useCallback(() => {
+        isSyncingRef.current = false;
+        requestFromNetwork();
+    }, [requestFromNetwork]);
+    useConnectionRecoverySync(requestFromLocal, requestFromNetworkForRecovery);
 
     return {
         channels,
