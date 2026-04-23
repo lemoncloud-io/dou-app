@@ -9,6 +9,7 @@ import type {
     SaveAllCacheDataPayload,
     SaveCacheDataPayload,
     ExecuteGlobalSearchPayload,
+    ClearCacheDataPayload,
 } from './model';
 import type { FinishPurchaseTransactionPayload, PurchasePayload } from './model/iap';
 
@@ -56,6 +57,7 @@ export const WebMessageTypes = {
     DeleteCacheData: 'DeleteCacheData',
     DeleteAllCacheData: 'DeleteAllCacheData',
     ExecuteGlobalSearch: 'ExecuteGlobalSearch',
+    ClearCacheData: 'ClearCacheData',
     FetchPreference: 'FetchPreference',
     SavePreference: 'SavePreference',
     DeletePreference: 'DeletePreference',
@@ -282,6 +284,10 @@ export interface ExecuteGlobalSearch extends WebDefaultMessage<'ExecuteGlobalSea
     data: ExecuteGlobalSearchPayload;
 }
 
+export interface ClearCacheData extends WebDefaultMessage<'ClearCacheData'> {
+    data: ClearCacheDataPayload;
+}
+
 /** Preference 조회 */
 export interface FetchPreference extends WebDefaultMessage<'FetchPreference'> {
     data: {
@@ -378,6 +384,7 @@ interface WebMessageMap {
     SaveAllCacheData: SaveAllCacheData;
     DeleteCacheData: DeleteCacheData;
     DeleteAllCacheData: DeleteAllCacheData;
+    ClearCacheData: ClearCacheData;
 
     /**
      * Search Event

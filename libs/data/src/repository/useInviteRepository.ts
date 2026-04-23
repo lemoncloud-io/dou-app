@@ -50,6 +50,10 @@ export const useInviteRepository = (cloudId: string) => {
         [inviteDB]
     );
 
+    const clearAll = useCallback(async (): Promise<void> => {
+        inviteDB?.clearAll();
+    }, [inviteDB]);
+
     return useMemo(
         () => ({
             cloudId,
@@ -57,7 +61,8 @@ export const useInviteRepository = (cloudId: string) => {
             getInvite,
             getInvites,
             deleteInvite,
+            clearAll,
         }),
-        [cloudId, saveInvite, getInvite, getInvites, deleteInvite]
+        [cloudId, saveInvite, getInvite, getInvites, deleteInvite, clearAll]
     );
 };

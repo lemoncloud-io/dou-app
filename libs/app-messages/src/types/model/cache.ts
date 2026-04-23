@@ -148,6 +148,16 @@ export type OnDeleteAllCacheDataPayload = {
     [K in CacheType]: { type: K; ids: string[]; cid: string };
 }[CacheType];
 
+/** [요청] 특정 타입(도메인)의 모든 데이터 클리어 (cid 관계없이 전체 삭제) */
+export type ClearCacheDataPayload = {
+    [K in CacheType]: { type: K };
+}[CacheType];
+
+/** [응답] 특정 타입(도메인)의 모든 데이터 클리어 처리 결과 */
+export type OnClearCacheDataPayload = {
+    [K in CacheType]: { type: K };
+}[CacheType];
+
 /** [요청] 전역 통합 검색 실행 */
 export interface ExecuteGlobalSearchPayload {
     keyword: string;

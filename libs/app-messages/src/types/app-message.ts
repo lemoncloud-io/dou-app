@@ -4,6 +4,7 @@
  */
 import type {
     AppBackgroundStatus,
+    OnClearCacheDataPayload,
     OnFetchCurrentPurchasesPayload,
     OnFetchProductsPayload,
     OnFinishPurchaseTransactionPayload,
@@ -67,6 +68,7 @@ export const AppMessageTypes = {
     OnSaveAllCacheData: 'OnSaveAllCacheData',
     OnDeleteCacheData: 'OnDeleteCacheData',
     OnDeleteAllCacheData: 'OnDeleteAllCacheData',
+    OnClearCacheData: 'OnClearCacheData',
     OnExecuteGlobalSearch: 'OnExecuteGlobalSearch',
     OnFetchPreference: 'OnFetchPreference',
     OnSavePreference: 'OnSavePreference',
@@ -219,10 +221,13 @@ export interface OnDeleteAllCacheData extends AppDefaultMessage<'OnDeleteAllCach
     data: OnDeleteAllCacheDataPayload;
 }
 
-// Preference
 /** 전역 통합 검색 결과 반환 */
 export interface OnExecuteGlobalSearch extends AppDefaultMessage<'OnExecuteGlobalSearch'> {
     data: OnExecuteGlobalSearchPayload;
+}
+
+export interface OnClearCacheData extends AppDefaultMessage<'OnClearCacheData'> {
+    data: OnClearCacheDataPayload;
 }
 
 // ----------------------------------------------------------------------
@@ -321,6 +326,8 @@ export interface AppMessageMap {
     OnDeleteCacheData: OnDeleteCacheData;
     OnDeleteAllCacheData: OnDeleteAllCacheData;
     OnExecuteGlobalSearch: OnExecuteGlobalSearch;
+    OnClearCacheData: OnClearCacheData;
+
     OnSetWsEndpoint: OnSetWsEndpoint;
 
     /**

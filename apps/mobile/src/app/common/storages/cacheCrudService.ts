@@ -112,4 +112,18 @@ export const cacheCrudService = {
         await ds.removeAll(payload.ids, payload.cid);
         return payload.ids;
     },
+
+    /**
+     * 특정 도메인(type)의 모든 캐시 데이터를 삭제합니다.
+     */
+    clear: async (payload: { type: CacheType }) => {
+        const ds = DS_MAP[payload.type];
+        if (!ds) return;
+
+        if (typeof ds.clear === 'function') {
+            await ds.clear();
+        } else {
+            console.warn(`clear method not implemented in dataSource for ${payload.type}`);
+        }
+    },
 };

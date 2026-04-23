@@ -9,23 +9,27 @@ import { useDeviceInfo } from '@chatic/device-utils';
 import { getStoreUrl } from '@chatic/shared';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
-import { useOnboardingStore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
+import { useOnboardingStore, useWebCoreStore, useUserContext, UserType, cloudCore } from '@chatic/web-core';
 import { useLogout } from '@chatic/auth';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { LanguageSelectSheet, LogoutDialog } from '../components';
 import { DEBUG_STORAGE_KEY } from '../consts';
+import { useCacheMutations } from '@chatic/data';
 
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
     const { userType } = useUserContext();
     const profile = useWebCoreStore(s => s.profile);
+    const selectedCloudId = cloudCore.getSelectedCloudId() ?? 'default';
+
     const { mutate: logout } = useLogout();
     const registerLogoutCallback = useWebCoreStore(s => s.registerLogoutCallback);
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();
     const { resetOnboarding } = useOnboardingStore();
+    const { clearAllCache } = useCacheMutations(selectedCloudId, profile?.uid);
 
     const displayName = profile?.$user?.name;
     const displayImageUrl = profile?.$user?.photo;
@@ -48,6 +52,7 @@ export const MyPage = () => {
     const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
 
     const handleLogout = () => {
+        void clearAllCache();
         logout();
     };
 

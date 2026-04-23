@@ -156,5 +156,19 @@ export const createIndexedDBAdapter = <T extends { id?: string }>(type: CacheTyp
 
             return promisifyTransaction(transaction);
         },
+
+        /**
+         * 추출된 모든 키(도메인 내 모든 cid 포함)를 삭제합니다.
+         */
+        async clearAll(): Promise<void> {
+            const { store, transaction } = await getStore('readwrite');
+            const index = store.index('type_cid');
+            const range = IDBKeyRange.bound([type], [type, []]);
+
+            const keys = await promisifyRequest<IDBValidKey[]>(index.getAllKeys(range));
+            keys.forEach(key => store.delete(key));
+
+            return promisifyTransaction(transaction);
+        },
     };
 };
