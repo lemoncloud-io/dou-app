@@ -44,5 +44,3 @@ const storage = createStorageAdapter('chat', cid);
 - `id`는 필수입니다. 빈 값이나 누락된 값을 넘기지 않습니다.
 - `load()`는 데이터가 없으면 `null`을 반환합니다.
 - 네이티브 `replaceAll()`은 현재 `fetch -> delete -> save` 순서로 동작하며 아직 원자적이지 않습니다. saveAll() 사용을 추천합니다.
-- 실제 브라우저 IndexedDB 스모크 테스트:
-  `npx playwright test e2e/web/indexeddb.smoke.spec.ts`
