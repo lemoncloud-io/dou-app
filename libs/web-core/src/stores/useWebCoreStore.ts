@@ -198,10 +198,10 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
 
         await webCore.logout();
         cloudCore.clearSession();
-        setIsInvitedSession(false);
+        // isInvited는 유지 — 로그아웃 후 재로그인 시 초대 상태 복원에 필요
         localStorage.removeItem('chatic-device-token');
 
-        set({ isAuthenticated: false, profile: null, userName: '', isGuest: false, isInvited: false });
+        set({ isAuthenticated: false, profile: null, userName: '', isGuest: false });
         try {
             localStorage.removeItem(PROFILE_CACHE_KEY);
         } catch {
