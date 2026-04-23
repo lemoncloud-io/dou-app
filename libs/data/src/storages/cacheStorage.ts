@@ -10,6 +10,7 @@ export interface CacheStorage<T> {
     loadAll(query?: any): Promise<T[]>;
     delete(id: string): Promise<void>;
     deleteAll(ids: string[]): Promise<void>;
+    clearAll(): Promise<void>;
 }
 
 export interface CacheSchema<T> {

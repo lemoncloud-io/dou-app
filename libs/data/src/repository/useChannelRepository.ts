@@ -86,6 +86,10 @@ export const useChannelRepository = (cloudId: string, profileUid?: string) => {
         [channelDB, joinDB]
     );
 
+    const clearAll = useCallback(async (): Promise<void> => {
+        channelDB?.clearAll();
+    }, [channelDB]);
+
     return useMemo(
         () => ({
             cloudId,
@@ -94,7 +98,8 @@ export const useChannelRepository = (cloudId: string, profileUid?: string) => {
             saveChannel,
             getChannelsByPlace,
             deleteChannel,
+            clearAll,
         }),
-        [cloudId, getChannels, getChannelsByPlace, getChannel, saveChannel, deleteChannel]
+        [cloudId, getChannels, getChannelsByPlace, getChannel, saveChannel, deleteChannel, clearAll]
     );
 };

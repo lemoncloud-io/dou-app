@@ -49,6 +49,10 @@ export const useChatRepository = (cloudId: string, profileUid?: string) => {
         [chatDB]
     );
 
+    const clearAll = useCallback(async (): Promise<void> => {
+        chatDB?.clearAll();
+    }, [chatDB]);
+
     return useMemo(
         () => ({
             cloudId,
@@ -56,7 +60,8 @@ export const useChatRepository = (cloudId: string, profileUid?: string) => {
             getChatsByChannel,
             saveChat,
             deleteChat,
+            clearAll,
         }),
-        [cloudId, getChats, getChatsByChannel, saveChat, deleteChat]
+        [cloudId, getChats, getChatsByChannel, saveChat, deleteChat, clearAll]
     );
 };

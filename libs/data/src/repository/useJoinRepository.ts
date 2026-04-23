@@ -85,6 +85,10 @@ export const useJoinRepository = (cloudId: string, profileUid?: string) => {
         [joinDB]
     );
 
+    const clearAll = useCallback(async (): Promise<void> => {
+        joinDB?.clearAll();
+    }, [joinDB]);
+
     return useMemo(
         () => ({
             cloudId,
@@ -95,7 +99,18 @@ export const useJoinRepository = (cloudId: string, profileUid?: string) => {
             saveJoin,
             saveJoins,
             deleteJoin,
+            clearAll,
         }),
-        [cloudId, getJoins, getJoin, getActiveJoinsByChannel, getJoinsByChannel, saveJoin, saveJoins, deleteJoin]
+        [
+            cloudId,
+            getJoins,
+            getJoin,
+            getActiveJoinsByChannel,
+            getJoinsByChannel,
+            saveJoin,
+            saveJoins,
+            deleteJoin,
+            clearAll,
+        ]
     );
 };

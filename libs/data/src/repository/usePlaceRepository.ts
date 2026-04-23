@@ -84,6 +84,10 @@ export const usePlaceRepository = (cloudId: string) => {
         [placeDB]
     );
 
+    const clearAll = useCallback(async (): Promise<void> => {
+        placeDB?.clearAll();
+    }, [placeDB]);
+
     return useMemo(
         () => ({
             cloudId,
@@ -94,7 +98,8 @@ export const usePlaceRepository = (cloudId: string) => {
             savePlaces,
             replacePlaces,
             deletePlace,
+            clearAll,
         }),
-        [cloudId, getPlaces, getPlacesByCloud, getPlace, savePlace, savePlaces, replacePlaces, deletePlace]
+        [cloudId, getPlaces, getPlacesByCloud, getPlace, savePlace, savePlaces, replacePlaces, deletePlace, clearAll]
     );
 };

@@ -116,6 +116,10 @@ export const useUserRepository = (cloudId: string, profileUid?: string) => {
         [userDB, joinDB]
     );
 
+    const clearAll = useCallback(async (): Promise<void> => {
+        userDB?.clearAll();
+    }, [userDB]);
+
     return useMemo(
         () => ({
             cloudId,
@@ -124,7 +128,8 @@ export const useUserRepository = (cloudId: string, profileUid?: string) => {
             getUsersByChannel,
             saveUser,
             saveUsers,
+            clearAll,
         }),
-        [cloudId, getUser, getUsers, getUsersByChannel, saveUser, saveUsers]
+        [cloudId, getUser, getUsers, getUsersByChannel, saveUser, saveUsers, clearAll]
     );
 };

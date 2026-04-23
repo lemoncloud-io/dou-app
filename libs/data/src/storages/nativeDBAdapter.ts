@@ -131,5 +131,8 @@ export const createNativeDBAdapter = <T>(type: CacheType, cid: string): CacheSto
             });
             await waitForAppMessage('OnDeleteAllCacheData', m => m.nonce === nonce);
         },
+        clearAll(): Promise<void> {
+            return Promise.resolve(undefined);
+        },
     };
 };
