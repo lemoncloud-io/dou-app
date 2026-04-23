@@ -181,9 +181,16 @@ export const PlaceList = ({
     }, [isDefaultMode, userType]);
 
     // cloud 전환 시 이전 place 선택 초기화
+    // 단, handleSelectDefaultPlace에서 이미 selectedId='default'로 설정한 경우는 스��
+    // (clearDelegationToken → setCloudId('default') 순서로 cloudId가 변경되지만,
+    //  이미 default place가 선택된 상태이므로 리셋하면 안 됨)
     const prevCloudIdRef = useRef(cloudId);
     useEffect(() => {
         if (prevCloudIdRef.current && prevCloudIdRef.current !== cloudId) {
+            if (cloudId === 'default' && selectedId === 'default') {
+                prevCloudIdRef.current = cloudId;
+                return;
+            }
             setSelectedId(null);
             initialPlaceNotifiedRef.current = false;
             onPlaceSelected?.('');
