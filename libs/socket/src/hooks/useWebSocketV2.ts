@@ -263,9 +263,13 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
             if (globalWorkerRef) {
                 globalWorkerRef.terminate();
                 globalWorkerRef = null;
-                globalSendFn = null;
-                globalEmitFn = null;
-                globalEmitAuthenticatedFn = null;
+                // NOTE: Don't null globalSendFn/globalEmitFn/globalEmitAuthenticatedFn here.
+                // These functions access workerRef.current/globalWorkerRef at CALL time (not closure time).
+                // After the new worker is created (same effect), refs point to the new worker.
+                // emitAuthenticated/emit use subscriptions to defer until ready (isVerified/isConnected),
+                // so messages won't be lost during the brief reconnection gap.
+                // Nulling them caused emitAuthenticatedProxy to silently drop requests
+                // when useChannels' effect ran between cleanup and the next render.
             }
         };
     }, [enabled, endpoint]);
