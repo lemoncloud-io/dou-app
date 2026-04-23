@@ -99,6 +99,28 @@ export const createIndexedDBAdapter = <TType extends CacheType>(type: TType, cid
         },
 
         /**
+         * 기존 [type, cid] 스코프 데이터를 모두 삭제하고 새 items로 교체합니다. (단일 readwrite 트랜잭션)
+         * 서버 전체 동기화 시 stale 데이터를 원자적으로 제거합니다.
+         */
+        async replaceAll(items: Model[]): Promise<Model[]> {
+            const { store, transaction } = await getStore('readwrite');
+            const index = store.index('type_cid');
+            const existingKeys = await promisifyRequest<IDBValidKey[]>(index.getAllKeys([type, cid]));
+
+            existingKeys.forEach(key => store.delete(key));
+
+            items.forEach(item => {
+                const itemId = (item as { id?: string }).id;
+                if (!itemId) return;
+                const data: CacheSchema<Model> = { key: generateKey(itemId), type, cid, id: itemId, data: item };
+                store.put(data);
+            });
+
+            await promisifyTransaction(transaction);
+            return items;
+        },
+
+        /**
          * ID를 통해 단일 데이터를 로드합니다.
          */
         async load(id: string): Promise<Model | null> {

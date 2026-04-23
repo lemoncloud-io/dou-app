@@ -5,6 +5,7 @@ import type { CacheType, CacheModelMap } from '@chatic/app-messages';
 export interface CacheStorage<TType extends CacheType> {
     save(id: string, item: CacheModelMap[TType]): Promise<CacheModelMap[TType]>;
     saveAll(items: CacheModelMap[TType][]): Promise<CacheModelMap[TType][]>;
+    replaceAll(items: CacheModelMap[TType][]): Promise<CacheModelMap[TType][]>;
     load(id: string): Promise<CacheModelMap[TType] | null>;
     loadAll(): Promise<CacheModelMap[TType][]>;
     delete(id: string): Promise<void>;

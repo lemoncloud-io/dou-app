@@ -85,6 +85,40 @@ export const createNativeDBAdapter = <TType extends CacheType>(type: TType, cid:
             return (response.data.items as Model[]) || [];
         },
 
+        // TODO: 원자적 `ReplaceAllCacheData` 브릿지 메시지 도입은 후속 PR. 현재는 FetchAll→DeleteAll→SaveAll 3단계.
+        replaceAll: async (items: Model[]): Promise<Model[]> => {
+            const fetchNonce = generateNonce();
+            postMessage({
+                type: 'FetchAllCacheData',
+                nonce: fetchNonce,
+                data: { type, query: { cid } } as any,
+            });
+            const fetchResponse = await waitForAppMessage('OnFetchAllCacheData', m => m.nonce === fetchNonce);
+            const existing = (fetchResponse.data.items as any[]) || [];
+            const existingIds = existing.map((item: any) => item?.id).filter(Boolean);
+
+            if (existingIds.length > 0) {
+                const deleteNonce = generateNonce();
+                postMessage({
+                    type: 'DeleteAllCacheData',
+                    nonce: deleteNonce,
+                    data: { type, ids: existingIds, cid } as any,
+                });
+                await waitForAppMessage('OnDeleteAllCacheData', m => m.nonce === deleteNonce);
+            }
+
+            if (items.length > 0) {
+                const saveNonce = generateNonce();
+                postMessage({
+                    type: 'SaveAllCacheData',
+                    nonce: saveNonce,
+                    data: { type, items: items as any[], cid } as any,
+                });
+                await waitForAppMessage('OnSaveAllCacheData', m => m.nonce === saveNonce);
+            }
+            return items;
+        },
+
         delete: async (id: string): Promise<void> => {
             const nonce = generateNonce();
             postMessage({

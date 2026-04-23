@@ -86,6 +86,29 @@ describe('createIndexedDBAdapter', () => {
         expect(await otherUserDB.loadAll()).toEqual([user('KEEP-TYPE', { name: 'keep-other-type' })]);
     });
 
+    it('should pass replaceAll operations', async () => {
+        // replaceAll은 현재 [type, cid] scope만 통째로 교체하고, 다른 scope 데이터는 유지해야 한다.
+        const cid = nextCid('replace');
+        const chatDB = createIndexedDBAdapter('chat', cid);
+        const otherChatDB = createIndexedDBAdapter('chat', `${cid}-other`);
+        const otherUserDB = createIndexedDBAdapter('user', cid);
+
+        await chatDB.saveAll([chat('R00001', { text: 'old-1' }), chat('R00002', { text: 'old-2' })] as any);
+        await otherChatDB.save('KEEP-CID', chat('KEEP-CID', { text: 'keep-other-cid' }) as any);
+        await otherUserDB.save('KEEP-TYPE', user('KEEP-TYPE', { name: 'keep-other-type' }) as any);
+
+        const replaced = [chat('R00003', { text: 'new-3' }), chat('R00004', { text: 'new-4' })];
+        expect(await chatDB.replaceAll(replaced as any)).toEqual(replaced);
+
+        expect(sortById(await chatDB.loadAll())).toEqual(sortById(replaced));
+        expect(await otherChatDB.loadAll()).toEqual([chat('KEEP-CID', { text: 'keep-other-cid' })]);
+        expect(await otherUserDB.loadAll()).toEqual([user('KEEP-TYPE', { name: 'keep-other-type' })]);
+
+        // 빈 배열로 교체하면 scope를 비워야 한다.
+        expect(await chatDB.replaceAll([])).toEqual([]);
+        expect(await chatDB.loadAll()).toEqual([]);
+    });
+
     it('should pass delete operations', async () => {
         // delete/deleteAll은 스토리지에서 해당 키를 제거하고, 없는 id는 조용히 무시해야 한다.
         const cid = nextCid('delete');

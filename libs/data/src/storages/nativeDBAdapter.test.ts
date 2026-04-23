@@ -235,6 +235,32 @@ describe('createNativeDBAdapter', () => {
         }
     });
 
+    it('should pass replaceAll operations through bridge', async () => {
+        // native replaceAll은 FetchAll→DeleteAll→SaveAll 3단계로 현재 scope 전체를 교체해야 한다.
+        const cid = nextCid('replace');
+        const chatDB = createNativeDBAdapter('chat', cid);
+        const otherChatDB = createNativeDBAdapter('chat', `${cid}-other`);
+        const harness = createBridgeHarness();
+
+        try {
+            await chatDB.saveAll([chat('R00001', { text: 'old-1' }), chat('R00002', { text: 'old-2' })] as any);
+            await otherChatDB.save('KEEP', chat('KEEP', { text: 'keep-other-cid' }) as any);
+
+            const replaced = [chat('R00003', { text: 'new-3' }), chat('R00004', { text: 'new-4' })];
+            expect(await chatDB.replaceAll(replaced as any)).toEqual(replaced);
+
+            expect(sortById(await chatDB.loadAll())).toEqual(sortById(replaced));
+            expect(await otherChatDB.loadAll()).toEqual([chat('KEEP', { text: 'keep-other-cid' })]);
+
+            const types = harness.messages.map(m => m.type);
+            expect(types).toContain('FetchAllCacheData');
+            expect(types).toContain('DeleteAllCacheData');
+            expect(types).toContain('SaveAllCacheData');
+        } finally {
+            harness.cleanup();
+        }
+    });
+
     it('should pass delete operations through bridge', async () => {
         // native bridge 삭제는 반환값 없이 응답만 확인하고 상태를 제거해야 한다.
         const cid = nextCid('delete');
