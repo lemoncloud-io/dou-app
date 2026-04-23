@@ -33,6 +33,7 @@ export const useCloudSession = () => {
             cloudCore.saveDelegationToken(cloudDelegationToken);
             cloudCore.saveCloudToken(userToken);
             cloudCore.saveSelectedCloudId(cloudId);
+            cloudCore.clearSelectedPlace();
 
             const currentProfile = useWebCoreStore.getState().profile;
             const { Token: _Token, ...cloudProfile } = userToken;

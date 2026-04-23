@@ -94,6 +94,7 @@ export const PlaceList = ({
     const { userType } = useUserContext();
     const isInvited = userType === UserType.INVITED || userType === UserType.INVITED_WITH_CLOUD;
     const wssType = useWebSocketV2Store(s => s.wssType);
+    const cloudId = useWebSocketV2Store(s => s.cloudId);
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
     const [isPending, setIsPending] = useState(false);
     const [filter, setFilter] = useState<PlaceFilter>('all');
@@ -178,6 +179,17 @@ export const PlaceList = ({
             onPlaceSelected?.('default');
         }
     }, [isDefaultMode, userType]);
+
+    // cloud 전환 시 이전 place 선택 초기화
+    const prevCloudIdRef = useRef(cloudId);
+    useEffect(() => {
+        if (prevCloudIdRef.current && prevCloudIdRef.current !== cloudId) {
+            setSelectedId(null);
+            initialPlaceNotifiedRef.current = false;
+            onPlaceSelected?.('');
+        }
+        prevCloudIdRef.current = cloudId;
+    }, [cloudId]);
 
     // place 목록 로드 후 auto-selection
     useEffect(() => {
