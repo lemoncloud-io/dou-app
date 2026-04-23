@@ -4,6 +4,7 @@ import { logger } from '../../services';
 import type { WebViewBridge } from './useBaseBridge';
 import type {
     AppMessageData,
+    ClearCacheData,
     DeleteAllCacheData,
     DeleteCacheData,
     FetchAllCacheData,
@@ -150,6 +151,25 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
+    const handleClearCacheData = useCallback(
+        async (message: ClearCacheData) => {
+            try {
+                await cacheCrudService.clear(message.data);
+                const response: AppMessageData<'OnClearCacheData'> = {
+                    type: 'OnClearCacheData',
+                    nonce: message.nonce,
+                    data: {
+                        type: message.data.type,
+                    } as any,
+                };
+                bridge.post(response);
+            } catch (e) {
+                logger.error('CACHE', `Clear error: ${message.data.type}`, e);
+            }
+        },
+        [bridge]
+    );
+
     return {
         handleFetchAllCacheData,
         handleFetchCacheData,
@@ -157,5 +177,6 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
         handleSaveAllCacheData,
         handleDeleteCacheData,
         handleDeleteAllCacheData,
+        handleClearCacheData,
     };
 };

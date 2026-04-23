@@ -63,6 +63,7 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
         handleSaveAllCacheData,
         handleDeleteCacheData,
         handleDeleteAllCacheData,
+        handleClearCacheData,
     } = useCrudCacheHandler(bridge);
 
     const { handleFetchPreference, handleSavePreference, handleDeletePreference } = usePreferenceCacheHandler(bridge);
@@ -160,6 +161,9 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
                     case `ExecuteGlobalSearch`:
                         void handleExecuteGlobalSearch(message);
                         break;
+                    case 'ClearCacheData':
+                        void handleClearCacheData(message);
+                        break;
                     // -- Preference Management --
                     case 'FetchPreference':
                         void handleFetchPreference(message);
@@ -207,10 +211,8 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
                             const m = message as any;
                             if (m.level === 'error') {
                                 logger.error('WEBVIEW', m.msg, m.data);
-                                console.error(m.msg);
                             } else {
                                 logger.info('WEBVIEW', m.msg, m.data);
-                                console.info(m.msg);
                             }
                         } else {
                             console.error(`Failed received error. : ${message.type}`);

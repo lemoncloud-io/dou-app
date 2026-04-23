@@ -33,6 +33,9 @@ export interface ScopedCacheDataSource<T> {
 
     /** Batch deletes multiple items by their IDs. CID is strictly required. */
     removeAll: (ids: string[], cid: string) => Promise<void>;
+
+    /* Clear All Items */
+    clear: () => Promise<void>;
 }
 
 /**
@@ -107,5 +110,10 @@ export const createScopedDataSource = <T>(tableName: string): ScopedCacheDataSou
         await database.executeBatch(commands);
     };
 
-    return { tableName, fetch, fetchAll, save, saveAll, remove, removeAll };
+    const clear = async (): Promise<void> => {
+        const query = `DELETE FROM ${tableName}`;
+        await database.execute(query, []);
+    };
+
+    return { tableName, fetch, fetchAll, save, saveAll, remove, removeAll, clear };
 };
