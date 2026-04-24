@@ -1,5 +1,5 @@
 import { renderHook } from '@testing-library/react';
-import { useChannelRepository } from './useChannelRepository';
+import { useChannelLocalDataSource } from './useChannelLocalDataSource';
 import { createStorageAdapter } from '../storages';
 
 jest.mock('../storages', () => ({
@@ -34,7 +34,7 @@ describe('useChannelRepository', () => {
     });
 
     it('cloudId가 없으면 DB 어댑터를 생성하지 않는다', () => {
-        renderHook(() => useChannelRepository(''));
+        renderHook(() => useChannelLocalDataSource(''));
         expect(createStorageAdapter).not.toHaveBeenCalled();
     });
 
@@ -42,7 +42,7 @@ describe('useChannelRepository', () => {
         const mockData = [{ id: 'ch1' }, { id: 'ch2' }];
         mockChannelDB.loadAll.mockResolvedValue(mockData);
 
-        const { result } = renderHook(() => useChannelRepository(mockCloudId));
+        const { result } = renderHook(() => useChannelLocalDataSource(mockCloudId));
         const channels = await result.current.getChannels();
 
         expect(mockChannelDB.loadAll).toHaveBeenCalledTimes(1);
@@ -57,7 +57,7 @@ describe('useChannelRepository', () => {
         ];
         mockChannelDB.loadAll.mockResolvedValue(mockData);
 
-        const { result } = renderHook(() => useChannelRepository(mockCloudId));
+        const { result } = renderHook(() => useChannelLocalDataSource(mockCloudId));
         const channels = await result.current.getChannelsByPlace('place-A');
 
         expect(channels).toHaveLength(2);
@@ -68,7 +68,7 @@ describe('useChannelRepository', () => {
         const mockData = { id: 'ch1', sid: 'place-A' };
         mockChannelDB.load.mockResolvedValue(mockData);
 
-        const { result } = renderHook(() => useChannelRepository(mockCloudId));
+        const { result } = renderHook(() => useChannelLocalDataSource(mockCloudId));
         const channel = await result.current.getChannel('ch1');
 
         expect(mockChannelDB.load).toHaveBeenCalledWith('ch1');
@@ -77,7 +77,7 @@ describe('useChannelRepository', () => {
 
     describe('saveChannel', () => {
         it('$join 정보가 없을 경우 channelDB에만 저장한다', async () => {
-            const { result } = renderHook(() => useChannelRepository(mockCloudId));
+            const { result } = renderHook(() => useChannelLocalDataSource(mockCloudId));
             const mockChannel = { id: 'ch1', sid: 'place-A' } as any;
 
             await result.current.saveChannel('ch1', mockChannel);
@@ -87,7 +87,7 @@ describe('useChannelRepository', () => {
         });
 
         it('$join 정보가 있을 경우 channelDB와 joinDB 모두에 저장한다', async () => {
-            const { result } = renderHook(() => useChannelRepository(mockCloudId));
+            const { result } = renderHook(() => useChannelLocalDataSource(mockCloudId));
             const mockJoin = { id: 'join1' };
             const mockChannel = { id: 'ch1', sid: 'place-A', $join: mockJoin } as any;
 
@@ -100,7 +100,7 @@ describe('useChannelRepository', () => {
 
     describe('deleteChannel', () => {
         it('채널에 연관된 $join 정보가 없으면 channelDB에서만 삭제한다', async () => {
-            const { result } = renderHook(() => useChannelRepository(mockCloudId));
+            const { result } = renderHook(() => useChannelLocalDataSource(mockCloudId));
             mockChannelDB.load.mockResolvedValue({ id: 'ch1' });
 
             await result.current.deleteChannel('ch1');
@@ -111,7 +111,7 @@ describe('useChannelRepository', () => {
         });
 
         it('채널에 연관된 $join 정보가 있으면 channelDB와 joinDB에서 모두 삭제한다', async () => {
-            const { result } = renderHook(() => useChannelRepository(mockCloudId));
+            const { result } = renderHook(() => useChannelLocalDataSource(mockCloudId));
             mockChannelDB.load.mockResolvedValue({ id: 'ch1', $join: { id: 'join1' } });
 
             await result.current.deleteChannel('ch1');

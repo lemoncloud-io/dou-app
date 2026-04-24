@@ -11,7 +11,7 @@ import type {
 } from '@lemoncloud/chatic-sockets-api';
 import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
-import { useChannelRepository } from '../repository';
+import { useChannelLocalDataSource } from '../local/data-sources';
 
 type MutationAction = 'leave' | 'delete' | 'start' | 'update' | 'invite';
 
@@ -22,7 +22,7 @@ type MutationAction = 'leave' | 'delete' | 'start' | 'update' | 'invite';
 export const useChannelMutations = () => {
     const { emitAuthenticated, cloudId } = useWebSocketV2();
     const dynamicProfile = useDynamicProfile();
-    const repository = useChannelRepository(cloudId, dynamicProfile?.uid);
+    const repository = useChannelLocalDataSource(cloudId, dynamicProfile?.uid);
 
     const [pendingStates, setPendingStates] = useState<Record<MutationAction, boolean>>({
         leave: false,

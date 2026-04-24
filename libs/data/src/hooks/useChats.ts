@@ -3,7 +3,7 @@ import { useWebSocketV2 } from '@chatic/socket';
 import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
-import { useChatRepository, useJoinRepository, useUserRepository } from '../repository';
+import { useChatLocalDataSource, useJoinLocalDataSource, useUserLocalDataSource } from '../local/data-sources';
 import type { ClientChatView } from '../types';
 import { ChatMapper } from '../types/mapper';
 import { useDynamicProfile } from '@chatic/web-core';
@@ -18,9 +18,9 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     const { emitAuthenticated, cloudId } = useWebSocketV2();
     const dynamicProfile = useDynamicProfile();
     const userId = dynamicProfile?.uid;
-    const chatRepository = useChatRepository(cloudId, userId);
-    const joinRepository = useJoinRepository(cloudId, userId);
-    const userRepository = useUserRepository(cloudId, userId);
+    const chatRepository = useChatLocalDataSource(cloudId, userId);
+    const joinRepository = useJoinLocalDataSource(cloudId, userId);
+    const userRepository = useUserLocalDataSource(cloudId, userId);
 
     const [messages, setMessages] = useState<ClientChatView[]>([]);
     const [feedCursorNo, setFeedCursorNo] = useState<number | undefined>(undefined);

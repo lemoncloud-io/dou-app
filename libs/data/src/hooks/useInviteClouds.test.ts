@@ -2,13 +2,13 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { getMobileAppInfo } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { useInviteRepository } from '../repository';
+import { useInviteLocalDataSource } from '../local/data-sources';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import { useInviteClouds } from './useInviteClouds';
 
 jest.mock('@chatic/app-messages', () => ({ getMobileAppInfo: jest.fn() }));
 jest.mock('@chatic/socket', () => ({ useWebSocketV2Store: jest.fn() }));
-jest.mock('../repository', () => ({ useInviteRepository: jest.fn() }));
+jest.mock('../local/data-sources', () => ({ useInviteRepository: jest.fn() }));
 jest.mock('@chatic/web-core', () => ({
     useDynamicProfile: jest.fn(() => ({ uid: 'test-user' })),
     cloudCore: {
@@ -27,7 +27,7 @@ describe('useInviteClouds', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         (useWebSocketV2Store as unknown as jest.Mock).mockReturnValue({ cloudId: mockCloudId });
-        (useInviteRepository as jest.Mock).mockReturnValue(mockRepoInstance);
+        (useInviteLocalDataSource as jest.Mock).mockReturnValue(mockRepoInstance);
     });
 
     it('모바일 앱 환경이 아니면 데이터를 로드하지 않는다', async () => {

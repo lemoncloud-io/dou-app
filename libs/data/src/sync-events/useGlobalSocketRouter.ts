@@ -2,12 +2,12 @@ import { useEffect } from 'react';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useDynamicProfile } from '@chatic/web-core';
 import {
-    useChannelRepository,
-    useChatRepository,
-    useJoinRepository,
-    usePlaceRepository,
-    useUserRepository,
-} from '../repository';
+    useChannelLocalDataSource,
+    useChatLocalDataSource,
+    useJoinLocalDataSource,
+    usePlaceLocalDataSource,
+    useUserLocalDataSource,
+} from '../local/data-sources';
 
 import {
     authHandler,
@@ -24,11 +24,11 @@ export const useGlobalSocketRouter = () => {
     const cloudId = useWebSocketV2Store(s => s.cloudId) ?? 'default';
     const profile = useDynamicProfile();
     const profileUid = profile?.uid;
-    const chatRepo = useChatRepository(cloudId, profileUid);
-    const channelRepo = useChannelRepository(cloudId, profileUid);
-    const joinRepo = useJoinRepository(cloudId, profileUid);
-    const userRepo = useUserRepository(cloudId, profileUid);
-    const placeRepo = usePlaceRepository(cloudId);
+    const chatRepo = useChatLocalDataSource(cloudId, profileUid);
+    const channelRepo = useChannelLocalDataSource(cloudId, profileUid);
+    const joinRepo = useJoinLocalDataSource(cloudId, profileUid);
+    const userRepo = useUserLocalDataSource(cloudId, profileUid);
+    const placeRepo = usePlaceLocalDataSource(cloudId);
 
     /**
      * TODO

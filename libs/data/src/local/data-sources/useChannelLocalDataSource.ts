@@ -7,7 +7,7 @@ import type { CacheChannelView } from '@chatic/app-messages';
  * 로컬 DB(IndexedDB 등)와의 직접적인 CRUD 작업을 담당
  * @param profileUid 유저별 캐시 파티셔닝용 — default(중계서버) 모드에서만 유저별 캐시 분리
  */
-export const useChannelRepository = (cloudId: string, profileUid?: string) => {
+export const useChannelLocalDataSource = (cloudId: string, profileUid?: string) => {
     const cid = cloudId === 'default' && profileUid ? `${cloudId}:${profileUid}` : cloudId;
     const channelDB = useMemo(() => (cloudId ? createStorageAdapter('channel', cid) : null), [cloudId, cid]);
     const joinDB = useMemo(() => (cloudId ? createStorageAdapter('join', cid) : null), [cloudId, cid]);

@@ -1,7 +1,7 @@
 // libs/data/src/hooks/usePlaceMutations.test.ts
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useWebSocketV2 } from '@chatic/socket';
-import { usePlaceRepository } from '../repository';
+import { usePlaceLocalDataSource } from '../local/data-sources';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import { usePlaceMutations } from './usePlaceMutations';
 
@@ -9,7 +9,7 @@ jest.mock('@chatic/web-core', () => ({
     cloudCore: { getSelectedCloudId: jest.fn(() => 'test-cloud') },
 }));
 jest.mock('@chatic/socket', () => ({ useWebSocketV2: jest.fn() }));
-jest.mock('../repository', () => ({ usePlaceRepository: jest.fn() }));
+jest.mock('../local/data-sources', () => ({ usePlaceRepository: jest.fn() }));
 
 describe('usePlaceMutations', () => {
     const mockEmitAuthenticated = jest.fn();
@@ -22,7 +22,7 @@ describe('usePlaceMutations', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         (useWebSocketV2 as unknown as jest.Mock).mockReturnValue({ emitAuthenticated: mockEmitAuthenticated });
-        (usePlaceRepository as unknown as jest.Mock).mockReturnValue(mockRepoInstance);
+        (usePlaceLocalDataSource as unknown as jest.Mock).mockReturnValue(mockRepoInstance);
     });
 
     it('makeSite: 이벤트 수신 시 DB에서 플레이스를 조회하여 반환한다', async () => {

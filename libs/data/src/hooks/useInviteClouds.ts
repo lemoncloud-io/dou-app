@@ -4,7 +4,7 @@ import type { InviteCloudView } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import type { AppSyncDetail } from '../sync-events';
-import { useInviteRepository } from '../repository';
+import { useInviteLocalDataSource } from '../local/data-sources';
 
 export const useInviteClouds = () => {
     const [inviteClouds, setInviteClouds] = useState<InviteCloudView[]>([]);
@@ -12,7 +12,7 @@ export const useInviteClouds = () => {
 
     const { isOnMobileApp } = getMobileAppInfo();
     const { cloudId } = useWebSocketV2Store();
-    const inviteRepository = useInviteRepository(cloudId);
+    const inviteRepository = useInviteLocalDataSource(cloudId);
 
     const loadInvites = useCallback(async () => {
         if (!isOnMobileApp) return;

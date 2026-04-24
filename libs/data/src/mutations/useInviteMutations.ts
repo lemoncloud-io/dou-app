@@ -4,14 +4,14 @@ import { cloudCore } from '@chatic/web-core';
 import type { InviteCloudView } from '@chatic/app-messages';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import type { AppSyncDetail } from '../sync-events';
-import { useInviteRepository } from '../repository';
+import { useInviteLocalDataSource } from '../local/data-sources';
 
 export const useInviteMutations = () => {
     const cloudIdFromStore = useWebSocketV2Store(s => s.cloudId);
     // Fallback: during invite acceptance, WebSocket may be unconnected (cloudId=null).
     // cloudCore.getSelectedCloudId() holds the value set synchronously during handleAccept.
     const cloudId = cloudIdFromStore || cloudCore.getSelectedCloudId() || 'default';
-    const repository = useInviteRepository(cloudId);
+    const repository = useInviteLocalDataSource(cloudId);
 
     const [isSaving, setIsSaving] = useState(false);
 

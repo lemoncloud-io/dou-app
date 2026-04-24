@@ -1,7 +1,7 @@
 // libs/data/src/hooks/usePlaces.test.ts
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useWebSocketV2 } from '@chatic/socket';
-import { usePlaceRepository } from '../repository';
+import { usePlaceLocalDataSource } from '../local/data-sources';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import { usePlaces } from './usePlaces';
 
@@ -12,7 +12,7 @@ jest.mock('@chatic/web-core', () => ({
     },
 }));
 jest.mock('@chatic/socket', () => ({ useWebSocketV2: jest.fn() }));
-jest.mock('../repository', () => ({ usePlaceRepository: jest.fn() }));
+jest.mock('../local/data-sources', () => ({ usePlaceRepository: jest.fn() }));
 
 describe('usePlaces', () => {
     const mockEmitAuthenticated = jest.fn();
@@ -29,7 +29,7 @@ describe('usePlaces', () => {
             emitAuthenticated: mockEmitAuthenticated,
             cloudId: mockCloudId,
         });
-        (usePlaceRepository as jest.Mock).mockReturnValue(mockRepoInstance);
+        (usePlaceLocalDataSource as jest.Mock).mockReturnValue(mockRepoInstance);
     });
 
     it('DB 데이터를 로드하고 네트워크 동기화를 요청한다', async () => {

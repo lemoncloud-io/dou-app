@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePlaceRepository } from '../repository';
+import { usePlaceLocalDataSource } from '../local/data-sources';
 import { useWebSocketV2 } from '@chatic/socket';
 import { cloudCore } from '@chatic/web-core';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
@@ -15,7 +15,7 @@ import { useConnectionRecoverySync } from './useConnectionRecoverySync';
 export const usePlaces = () => {
     const { emitAuthenticated, cloudId: socketCloudId } = useWebSocketV2();
     const cloudId = cloudCore.getSelectedCloudId() || socketCloudId || 'default';
-    const repository = usePlaceRepository(cloudId);
+    const repository = usePlaceLocalDataSource(cloudId);
 
     const [places, setPlaces] = useState<MySiteView[]>([]);
     const [isLoading, setIsLoading] = useState(true);

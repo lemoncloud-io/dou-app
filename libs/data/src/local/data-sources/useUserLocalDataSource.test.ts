@@ -1,5 +1,5 @@
 import { renderHook } from '@testing-library/react';
-import { useUserRepository } from './useUserRepository';
+import { useUserLocalDataSource } from './useUserLocalDataSource';
 import { createStorageAdapter } from '../storages';
 
 jest.mock('../storages', () => ({
@@ -24,7 +24,7 @@ describe('useUserRepository', () => {
     });
 
     it('saveUser: $join 정보가 있으면 userDB와 joinDB 양쪽에 저장한다', async () => {
-        const { result } = renderHook(() => useUserRepository(mockCloudId));
+        const { result } = renderHook(() => useUserLocalDataSource(mockCloudId));
         const mockUser = { id: 'u1', name: 'Alice', $join: { id: 'join1' } } as any;
 
         await result.current.saveUser(mockUser);
@@ -47,7 +47,7 @@ describe('useUserRepository', () => {
         ];
         mockJoinDB.loadAll.mockResolvedValue(joinData);
 
-        const { result } = renderHook(() => useUserRepository(mockCloudId));
+        const { result } = renderHook(() => useUserLocalDataSource(mockCloudId));
         const users = await result.current.getUsersByChannel('ch1');
 
         expect(users).toHaveLength(2);

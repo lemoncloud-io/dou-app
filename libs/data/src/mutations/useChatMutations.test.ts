@@ -2,12 +2,12 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useChatMutations } from './useChatMutations';
 import { useWebSocketV2 } from '@chatic/socket';
 import { useDynamicProfile } from '@chatic/web-core';
-import { useChatRepository } from '../repository';
+import { useChatLocalDataSource } from '../local/data-sources';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 
 jest.mock('@chatic/socket', () => ({ useWebSocketV2: jest.fn() }));
 jest.mock('@chatic/web-core', () => ({ useDynamicProfile: jest.fn() }));
-jest.mock('../repository', () => ({ useChatRepository: jest.fn() }));
+jest.mock('../local/data-sources', () => ({ useChatRepository: jest.fn() }));
 
 describe('useChatMutations', () => {
     const mockEmitAuthenticated = jest.fn();
@@ -20,7 +20,7 @@ describe('useChatMutations', () => {
             cloudId: 'test-cloud',
         });
         (useDynamicProfile as jest.Mock).mockReturnValue({ uid: 'user-1' });
-        (useChatRepository as jest.Mock).mockReturnValue({ saveChat: mockSaveChat });
+        (useChatLocalDataSource as jest.Mock).mockReturnValue({ saveChat: mockSaveChat });
         mockSaveChat.mockResolvedValue(undefined);
     });
 
