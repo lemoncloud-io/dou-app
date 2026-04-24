@@ -1,7 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import { createStorageAdapter } from '../storages';
 import type { CacheChannelView } from '@chatic/app-messages';
-import type { JoinView } from '@lemoncloud/chatic-socials-api';
 
 /**
  * 채널 데이터의 영속성(Persistence)을 관리하는 리포지토리 훅
@@ -10,11 +9,8 @@ import type { JoinView } from '@lemoncloud/chatic-socials-api';
  */
 export const useChannelRepository = (cloudId: string, profileUid?: string) => {
     const cid = cloudId === 'default' && profileUid ? `${cloudId}:${profileUid}` : cloudId;
-    const channelDB = useMemo(
-        () => (cloudId ? createStorageAdapter<CacheChannelView>('channel', cid) : null),
-        [cloudId, cid]
-    );
-    const joinDB = useMemo(() => (cloudId ? createStorageAdapter<JoinView>('join', cid) : null), [cloudId, cid]);
+    const channelDB = useMemo(() => (cloudId ? createStorageAdapter('channel', cid) : null), [cloudId, cid]);
+    const joinDB = useMemo(() => (cloudId ? createStorageAdapter('join', cid) : null), [cloudId, cid]);
 
     /**
      * 모든 채널 목록을 로드
@@ -55,7 +51,7 @@ export const useChannelRepository = (cloudId: string, profileUid?: string) => {
         async (id: string, channel: CacheChannelView): Promise<void> => {
             if (!channelDB) return;
 
-            const tasks: Promise<void>[] = [channelDB.save(id, channel)];
+            const tasks: Promise<unknown>[] = [channelDB.save(id, channel)];
 
             // $join 정보가 포함된 경우 joinDB에 별도 기록하여 업데이트 처리
             if (joinDB && channel.$join?.id) {

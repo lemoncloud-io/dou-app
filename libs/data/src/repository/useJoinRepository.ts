@@ -9,7 +9,7 @@ import type { JoinView } from '@lemoncloud/chatic-socials-api';
  */
 export const useJoinRepository = (cloudId: string, profileUid?: string) => {
     const cid = cloudId === 'default' && profileUid ? `${cloudId}:${profileUid}` : cloudId;
-    const joinDB = useMemo(() => (cloudId ? createStorageAdapter<JoinView>('join', cid) : null), [cloudId, cid]);
+    const joinDB = useMemo(() => (cloudId ? createStorageAdapter('join', cid) : null), [cloudId, cid]);
 
     const getJoins = useCallback(async (): Promise<JoinView[]> => {
         if (!joinDB) return [];
