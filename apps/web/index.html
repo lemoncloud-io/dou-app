@@ -12,12 +12,10 @@
             (function () {
                 var storageKey = 'vite-ui-theme';
                 var theme = localStorage.getItem(storageKey);
-                // Match ThemeProvider logic: default to 'light' when no theme is stored
                 var isDark =
                     theme === 'dark' ||
                     (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
-                // Set CSS custom property for splash background
                 var bgColor = isDark ? '#121212' : '#ffffff';
                 document.documentElement.style.setProperty('--splash-bg', bgColor);
 
@@ -39,81 +37,78 @@
         <link rel="stylesheet" href="/src/styles.css" />
     </head>
     <body>
-        <div id="root">
-            <!-- Initial splash screen (shown before React loads) -->
-            <div
-                id="initial-splash"
-                style="
-                    position: fixed;
-                    inset: 0;
-                    z-index: 9999;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    background-color: var(--splash-bg, #ffffff);
-                "
-            >
-                <img
-                    src="/logo.png"
-                    alt="DoU"
-                    style="width: 96px; height: 96px; object-fit: contain; animation: pulse 2s ease-in-out infinite"
-                />
-                <div style="margin-top: 32px; display: flex; align-items: center; gap: 4px">
-                    <div
-                        style="
-                            width: 8px;
-                            height: 8px;
-                            border-radius: 50%;
-                            background-color: #b0ea10;
-                            animation: bounce 1s ease-in-out infinite;
-                            animation-delay: -0.3s;
-                        "
-                    ></div>
-                    <div
-                        style="
-                            width: 8px;
-                            height: 8px;
-                            border-radius: 50%;
-                            background-color: #b0ea10;
-                            animation: bounce 1s ease-in-out infinite;
-                            animation-delay: -0.15s;
-                        "
-                    ></div>
-                    <div
-                        style="
-                            width: 8px;
-                            height: 8px;
-                            border-radius: 50%;
-                            background-color: #b0ea10;
-                            animation: bounce 1s ease-in-out infinite;
-                        "
-                    ></div>
-                </div>
-            </div>
-            <style>
-                @keyframes pulse {
-                    0%,
-                    100% {
-                        opacity: 1;
-                        transform: scale(1);
-                    }
-                    50% {
-                        opacity: 0.8;
-                        transform: scale(0.95);
-                    }
-                }
-                @keyframes bounce {
-                    0%,
-                    100% {
-                        transform: translateY(0);
-                    }
-                    50% {
-                        transform: translateY(-6px);
-                    }
-                }
-            </style>
+        <!-- Splash screen (OUTSIDE #root so React doesn't destroy it) -->
+        <div
+            id="initial-splash"
+            style="
+                position: fixed;
+                inset: 0;
+                z-index: 9999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background-color: var(--splash-bg, #ffffff);
+            "
+        >
+            <div id="splash-lottie" style="width: 75%; max-width: 400px; aspect-ratio: 1 / 1"></div>
         </div>
+
+        <div id="root"></div>
+
+        <!-- Lottie light player -->
+        <script src="/lottie_light.min.js"></script>
+        <script>
+            (function () {
+                // 세션 내 스플래시 1회만 표시 (앱 구동 시 한 번)
+                try {
+                    if (sessionStorage.getItem('chatic-splash-shown') === 'true') {
+                        var el = document.getElementById('initial-splash');
+                        if (el) el.remove();
+                        return;
+                    }
+                } catch (e) {}
+
+                window.__splash = { animDone: false, appReady: false };
+
+                var container = document.getElementById('splash-lottie');
+                if (container && typeof lottie !== 'undefined') {
+                    fetch('/lottie.json')
+                        .then(function (res) {
+                            return res.json();
+                        })
+                        .then(function (data) {
+                            var anim = lottie.loadAnimation({
+                                container: container,
+                                renderer: 'svg',
+                                loop: false,
+                                autoplay: true,
+                                animationData: data,
+                            });
+
+                            anim.addEventListener('complete', function () {
+                                window.__splash.animDone = true;
+                                window.__tryRemoveSplash();
+                            });
+                        });
+                }
+
+                window.__tryRemoveSplash = function () {
+                    if (window.__splash.animDone && window.__splash.appReady) {
+                        var el = document.getElementById('initial-splash');
+                        if (el) {
+                            el.style.transition = 'opacity 0.4s ease-out';
+                            el.style.opacity = '0';
+                            setTimeout(function () {
+                                el.remove();
+                                try {
+                                    sessionStorage.setItem('chatic-splash-shown', 'true');
+                                } catch (e) {}
+                            }, 400);
+                        }
+                    }
+                };
+            })();
+        </script>
         <script type="module" src="/src/main.tsx"></script>
     </body>
 </html>
