@@ -6,7 +6,7 @@ import type { InviteCloudView } from '@chatic/app-messages';
  * 초대 데이터의 로컬 영속성을 관리하는 리포지토리
  * 서버와의 연동 없이 로컬 DB(IndexedDB 등)와의 직접적인 입출력을 전담
  */
-export const useInviteRepository = (cloudId: string) => {
+export const useInviteLocalDataSource = (cloudId: string) => {
     const inviteDB = useMemo(() => (cloudId ? createStorageAdapter('invitecloud', cloudId) : null), [cloudId]);
 
     /**
