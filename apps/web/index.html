@@ -55,9 +55,10 @@
 
         <div id="root"></div>
 
-        <!-- Lottie light player -->
-        <script src="/lottie_light.min.js"></script>
-        <script>
+        <!-- Splash bootstrap (uses installed lottie-web, Vite resolves the import) -->
+        <script type="module">
+            import lottie from 'lottie-web/build/player/lottie_light';
+
             (function () {
                 // 세션 내 스플래시 1회만 표시 (앱 구동 시 한 번)
                 try {
@@ -71,7 +72,7 @@
                 window.__splash = { animDone: false, appReady: false };
 
                 var container = document.getElementById('splash-lottie');
-                if (container && typeof lottie !== 'undefined') {
+                if (container) {
                     fetch('/lottie.json')
                         .then(function (res) {
                             return res.json();
