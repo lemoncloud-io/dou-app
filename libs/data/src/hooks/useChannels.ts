@@ -5,7 +5,7 @@ import { useWebSocketV2 } from '@chatic/socket';
 import { useDynamicProfile } from '@chatic/web-core';
 import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
-import { useChannelRepository, useJoinRepository } from '../repository';
+import { useChannelLocalDataSource, useJoinLocalDataSource } from '../local/data-sources';
 import type { ClientChannelView, ClientChatMinePayload } from '../types';
 import { shouldEmit } from '../requestDedup';
 import { useConnectionRecoverySync } from './useConnectionRecoverySync';
@@ -20,8 +20,8 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
     // 현재 접속 중인 내 프로필 정보
     const profile = useDynamicProfile();
-    const channelRepository = useChannelRepository(cloudId, profile?.uid);
-    const joinRepository = useJoinRepository(cloudId, profile?.uid);
+    const channelRepository = useChannelLocalDataSource(cloudId, profile?.uid);
+    const joinRepository = useJoinLocalDataSource(cloudId, profile?.uid);
     const [channels, setChannels] = useState<ClientChannelView[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);

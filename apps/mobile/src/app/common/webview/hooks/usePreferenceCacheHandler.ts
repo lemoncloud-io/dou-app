@@ -4,6 +4,7 @@ import { logger } from '../../services';
 import type { WebViewBridge } from './useBaseBridge';
 import type { AppMessageData, DeletePreference, FetchPreference, SavePreference } from '@chatic/app-messages';
 import { cachePreferenceService } from '../../storages';
+import { useLanguageStore, useThemeStore } from '../../stores';
 
 export const usePreferenceCacheHandler = (bridge: WebViewBridge) => {
     const handleFetchPreference = useCallback(
@@ -33,23 +34,34 @@ export const usePreferenceCacheHandler = (bridge: WebViewBridge) => {
 
     const handleSavePreference = useCallback(
         async (message: SavePreference) => {
+            const { key, value } = message.data;
+
             try {
-                await cachePreferenceService.savePreference(message.data.key, message.data.value);
+                switch (key) {
+                    case 'theme': {
+                        useThemeStore.getState().setTheme(value);
+                        break;
+                    }
+                    case 'language': {
+                        useLanguageStore.getState().setLanguage(value);
+                        break;
+                    }
+                    default:
+                        await cachePreferenceService.savePreference(key, value);
+                }
+
                 const response: AppMessageData<'OnSavePreference'> = {
                     type: 'OnSavePreference',
                     nonce: message.nonce,
-                    data: {
-                        key: message.data.key,
-                        success: true,
-                    },
+                    data: { key, success: true },
                 };
                 bridge.post(response);
             } catch (e) {
-                logger.error('CACHE', `SavePreference error: ${message.data.key}`, e);
+                logger.error('CACHE', `SavePreference error: ${key}`, e);
                 bridge.post({
                     type: 'OnSavePreference',
                     nonce: message.nonce,
-                    data: { key: message.data.key, success: false },
+                    data: { key, success: false },
                 });
             }
         },

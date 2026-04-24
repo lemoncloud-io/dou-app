@@ -1,5 +1,5 @@
 import { renderHook } from '@testing-library/react';
-import { useChatRepository } from './useChatRepository';
+import { useChatLocalDataSource } from './useChatLocalDataSource';
 import { createStorageAdapter } from '../storages';
 
 jest.mock('../storages', () => ({
@@ -17,7 +17,7 @@ describe('useChatRepository', () => {
 
     it('getChats: 모든 채팅을 반환한다', async () => {
         mockChatDB.loadAll.mockResolvedValue([{ id: 'msg1' }]);
-        const { result } = renderHook(() => useChatRepository(mockCloudId));
+        const { result } = renderHook(() => useChatLocalDataSource(mockCloudId));
         const chats = await result.current.getChats();
         expect(chats).toHaveLength(1);
     });
@@ -28,7 +28,7 @@ describe('useChatRepository', () => {
             { id: 'msg2', channelId: 'ch2' },
             { id: 'msg3', channelId: 'ch1' },
         ]);
-        const { result } = renderHook(() => useChatRepository(mockCloudId));
+        const { result } = renderHook(() => useChatLocalDataSource(mockCloudId));
         const chats = await result.current.getChatsByChannel('ch1');
 
         expect(chats).toHaveLength(2);
@@ -36,7 +36,7 @@ describe('useChatRepository', () => {
     });
 
     it('saveChat & deleteChat이 정상 호출된다', async () => {
-        const { result } = renderHook(() => useChatRepository(mockCloudId));
+        const { result } = renderHook(() => useChatLocalDataSource(mockCloudId));
         const mockData = { id: 'msg1', content: 'hello' } as any;
 
         await result.current.saveChat('msg1', mockData);

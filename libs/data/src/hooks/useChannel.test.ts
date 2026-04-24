@@ -2,7 +2,7 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { useChannel } from './useChannel';
 import { useWebSocketV2 } from '@chatic/socket';
 import { useDynamicProfile } from '@chatic/web-core';
-import { useChannelRepository, useJoinRepository } from '../repository'; // useJoinRepository 추가
+import { useChannelLocalDataSource, useJoinLocalDataSource } from '../local/data-sources'; // useJoinRepository 추가
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 
 // 의존성 모킹
@@ -14,7 +14,7 @@ jest.mock('@chatic/web-core', () => ({
     useDynamicProfile: jest.fn(),
 }));
 
-jest.mock('../repository', () => ({
+jest.mock('../local/data-sources', () => ({
     useChannelRepository: jest.fn(),
     useJoinRepository: jest.fn(), // 추가
 }));
@@ -29,11 +29,11 @@ describe('useChannel Hook', () => {
         jest.clearAllMocks();
         (useWebSocketV2 as jest.Mock).mockReturnValue({ cloudId: mockCloudId });
         (useDynamicProfile as jest.Mock).mockReturnValue({ uid: mockUid });
-        (useChannelRepository as jest.Mock).mockReturnValue({
+        (useChannelLocalDataSource as jest.Mock).mockReturnValue({
             cloudId: mockCloudId,
             getChannel: mockGetChannel,
         });
-        (useJoinRepository as jest.Mock).mockReturnValue({
+        (useJoinLocalDataSource as jest.Mock).mockReturnValue({
             getJoinsByChannel: mockGetJoins,
         });
     });

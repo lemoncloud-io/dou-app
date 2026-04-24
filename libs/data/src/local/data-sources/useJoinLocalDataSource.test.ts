@@ -1,5 +1,5 @@
 import { renderHook } from '@testing-library/react';
-import { useJoinRepository } from './useJoinRepository';
+import { useJoinLocalDataSource } from './useJoinLocalDataSource';
 import { createStorageAdapter } from '../storages';
 
 jest.mock('../storages', () => ({
@@ -22,7 +22,7 @@ describe('useJoinRepository', () => {
             { id: 'j3', channelId: 'ch1', joined: undefined }, // 기본값 (참여 중)
             { id: 'j4', channelId: 'ch2', joined: 1 }, // 다른 채널
         ]);
-        const { result } = renderHook(() => useJoinRepository(mockCloudId));
+        const { result } = renderHook(() => useJoinLocalDataSource(mockCloudId));
         const activeJoins = await result.current.getActiveJoinsByChannel('ch1');
 
         expect(activeJoins).toHaveLength(2);
@@ -30,7 +30,7 @@ describe('useJoinRepository', () => {
     });
 
     it('saveJoins: 배열 내의 모든 항목을 병렬로 저장한다', async () => {
-        const { result } = renderHook(() => useJoinRepository(mockCloudId));
+        const { result } = renderHook(() => useJoinLocalDataSource(mockCloudId));
         const mockJoins = [{ id: 'j1' }, { id: 'j2' }] as any[];
 
         await result.current.saveJoins(mockJoins);

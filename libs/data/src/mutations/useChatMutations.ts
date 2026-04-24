@@ -6,7 +6,7 @@ import type { AppSyncDetail } from '../sync-events';
 import { notifyAppUpdated } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import type { ChatReadPayload, ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
-import { useChatRepository } from '../repository';
+import { useChatLocalDataSource } from '../local/data-sources';
 import type { CacheChatView } from '@chatic/app-messages';
 import { v4 as uuid } from 'uuid';
 
@@ -19,7 +19,7 @@ export const useChatMutations = () => {
     const { emitAuthenticated, cloudId } = useWebSocketV2();
     const dynamicProfile = useDynamicProfile();
     const userId = dynamicProfile?.uid;
-    const repository = useChatRepository(cloudId, userId);
+    const repository = useChatLocalDataSource(cloudId, userId);
 
     const [pendingStates, setPendingStates] = useState<Record<ChatMutationAction, boolean>>({
         send: false,
