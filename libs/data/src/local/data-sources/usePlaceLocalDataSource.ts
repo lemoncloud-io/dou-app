@@ -6,7 +6,7 @@ import type { CacheSiteView } from '@chatic/app-messages';
  * 플레이스(Site) 데이터 관리 레퍼지토리
  * 서버와의 연동 없이 로컬 DB(IndexedDB 등)와의 직접적인 입출력을 전담
  */
-export const usePlaceRepository = (cloudId: string) => {
+export const usePlaceLocalDataSource = (cloudId: string) => {
     const placeDB = useMemo(() => (cloudId ? createStorageAdapter('site', cloudId) : null), [cloudId]);
 
     /**
