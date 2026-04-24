@@ -166,14 +166,14 @@ export const PlaceList = ({
         }
     };
 
-    // 이전 세션에서 선택된 place가 있거나, default 모드일 때 초기 placeId 전달
+    // 이전 세션에서 선택된 place 복원 (token refresh + channels fetch 포함)
     const initialPlaceNotifiedRef = useRef(false);
     useEffect(() => {
         if (initialPlaceNotifiedRef.current) return;
         const savedPlaceId = cloudCore.getSelectedPlaceId();
         if (savedPlaceId) {
             initialPlaceNotifiedRef.current = true;
-            onPlaceSelected?.(savedPlaceId);
+            void handleSelectPlace(savedPlaceId);
         } else if (isDefaultMode || userType === UserType.TEMP_ACCOUNT) {
             initialPlaceNotifiedRef.current = true;
             onPlaceSelected?.('default');

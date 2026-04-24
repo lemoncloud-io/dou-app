@@ -47,6 +47,7 @@ export const HomePage = () => {
         isLimitReached: isChannelLimitReached,
         isLoading: isChannelsLoading,
         maxCount: maxChannels,
+        isMyCloud: isMyCloudForChannel,
     } = useCanCreateChannel();
     const {
         isLimitReached: isPlaceLimitReached,
@@ -189,7 +190,10 @@ export const HomePage = () => {
                 <ChannelList
                     workspaceId={selectedPlaceId ?? ''}
                     showCreateButton={
-                        userType !== UserType.TEMP_ACCOUNT && !isInvited && !isChannelsLoading && !isDefaultCloud
+                        userType !== UserType.TEMP_ACCOUNT &&
+                        !isChannelsLoading &&
+                        !isDefaultCloud &&
+                        (isMyCloudForChannel || !isInvited)
                     }
                     isChannelsLoading={isChannelsLoading}
                     onCreateChannel={handleCreateChannel}
