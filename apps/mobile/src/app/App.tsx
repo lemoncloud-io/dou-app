@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar, useColorScheme, View } from 'react-native';
 import Config from 'react-native-config';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -9,14 +9,11 @@ import { FloatingMenu, useAppVersionCheck, useInitializeDeepLink, useThemeStore 
 import { getDeepLinkManager } from '@chatic/deeplinks';
 import type { RootStackParamList } from './navigation';
 import { RootNavigator } from './navigation';
-import { SplashScreen } from './features/main';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 const SHOW_DEBUG_MENU = __DEV__ || Config.VITE_ENV !== 'PROD';
 
 export const App = () => {
-    const [isSplashVisible, setIsSplashVisible] = useState(true);
-
     const systemColorScheme = useColorScheme();
     const theme = useThemeStore(state => state.theme);
     const isDarkMode = theme === 'dark' || (theme === 'system' && systemColorScheme === 'dark');
@@ -25,6 +22,11 @@ export const App = () => {
 
     // Initialize deep link listeners early (captures URLs immediately)
     useInitializeDeepLink();
+
+    // Signal that Firebase is ready for deep link processing immediately
+    useEffect(() => {
+        getDeepLinkManager().setAppReady();
+    }, []);
 
     // Show update alert when update is available
     useEffect(() => {
@@ -46,22 +48,12 @@ export const App = () => {
                 backgroundColor="transparent"
                 translucent={true}
             />
-            {isSplashVisible ? (
-                <SplashScreen
-                    onFinish={() => {
-                        setIsSplashVisible(false);
-                        // Signal that Firebase is ready for deep link processing
-                        getDeepLinkManager().setAppReady();
-                    }}
-                />
-            ) : (
-                <NavigationContainer ref={navigationRef}>
-                    <View style={{ flex: 1 }}>
-                        <RootNavigator />
-                        {SHOW_DEBUG_MENU && <FloatingMenu onNavigate={handleNavigate} />}
-                    </View>
-                </NavigationContainer>
-            )}
+            <NavigationContainer ref={navigationRef}>
+                <View style={{ flex: 1 }}>
+                    <RootNavigator />
+                    {SHOW_DEBUG_MENU && <FloatingMenu onNavigate={handleNavigate} />}
+                </View>
+            </NavigationContainer>
         </SafeAreaProvider>
     );
 };
