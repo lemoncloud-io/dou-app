@@ -2642,10 +2642,10 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-backend-api@^0.26.401":
-  version "0.26.401"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-backend-api/-/chatic-backend-api-0.26.401.tgz#b9f8740dd2875e84a8e4a2ee2fd58766ad38cb8a"
-  integrity sha512-3xrBNHmgw6S5tprWSEEGx1LQqq4bt/t/1CqUK8czgYACC5Y/8PZ98+4vv5czyO3WyB3e6N+9GjWL8heig7nxwg==
+"@lemoncloud/chatic-backend-api@^0.26.402":
+  version "0.26.402"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-backend-api/-/chatic-backend-api-0.26.402.tgz#be1387a249bba408e5be2c95a43edffb5b9ab1e0"
+  integrity sha512-yM5R9oQlbVBIZ6J3vBC9Ggqr+bNJQbwzb2da0+TIf2DuVtMKqkZC357osJ02+Xc5ejBGyjiZGacgXsNDgKT1Ew==
   dependencies:
     lemon-model "^1.1.1"
 
@@ -12392,6 +12392,11 @@ lottie-react-native@*, lottie-react-native@^7.3.6:
   version "7.3.6"
   resolved "https://registry.yarnpkg.com/lottie-react-native/-/lottie-react-native-7.3.6.tgz#b5ab46bff3ec9e48d5efa8d31166dd53758a1aa9"
   integrity sha512-TevFHRvFURh6GlaqLKrSNXuKAxvBvFCiXfS7FXQI1K/ikOStgAwWLFPGjW0i1qB2/VzPACKmRs+535VjHUZZZQ==
+
+lottie-web@^5.13.0:
+  version "5.13.0"
+  resolved "https://registry.yarnpkg.com/lottie-web/-/lottie-web-5.13.0.tgz#441d3df217cc8ba302338c3f168e1a3af0f221d3"
+  integrity sha512-+gfBXl6sxXMPe8tKQm7qzLnUy5DUPJPKIyRHwtpCpyUEYjHYRJC/5gjUvdkuO2c3JllrPtHXH5UJJK8LRYl5yQ==
 
 lower-case@^2.0.2:
   version "2.0.2"
