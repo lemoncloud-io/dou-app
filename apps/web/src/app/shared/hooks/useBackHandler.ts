@@ -28,8 +28,11 @@ export const useBackHandler = () => {
         if (!isOnMobileApp) return;
 
         postMessage({
-            type: 'SetLanguage',
-            data: { language: i18n.language },
+            type: 'SavePreference',
+            data: {
+                key: 'language',
+                value: i18n.language,
+            },
         });
     }, [i18n.language, isOnMobileApp]);
 
