@@ -132,8 +132,10 @@ export const MyPage = () => {
 
             {/* Menu Cards Container */}
             <div className="flex flex-col gap-[18px] px-4 pt-4">
-                {/* My Info Card - Cloud user only */}
-                {(userType === UserType.SOCIAL_WITH_CLOUD || userType === UserType.INVITED_WITH_CLOUD) && (
+                {/* My Info Card */}
+                {(userType === UserType.SOCIAL_WITH_CLOUD ||
+                    userType === UserType.INVITED_WITH_CLOUD ||
+                    userType === UserType.SOCIAL_NO_CLOUD) && (
                     <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => navigate('/mypage/account')}
