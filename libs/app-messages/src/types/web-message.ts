@@ -313,14 +313,6 @@ export interface OpenURL extends WebDefaultMessage<'OpenURL'> {
 
 interface WebMessageMap {
     /**
-     * 언어 설정 동기화
-     */
-    SetLanguage: SetLanguageData;
-    /**
-     * 테마 설정 동기화
-     */
-    SetTheme: SetThemeData;
-    /**
      * TODO: Not Implement
      * @author dev@example.com
      */
