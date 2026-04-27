@@ -9,7 +9,14 @@ import { useDeviceInfo } from '@chatic/device-utils';
 import { getStoreUrl } from '@chatic/shared';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
-import { useOnboardingStore, useWebCoreStore, useUserContext, UserType, cloudCore } from '@chatic/web-core';
+import {
+    useOnboardingStore,
+    useWebCoreStore,
+    useDynamicProfile,
+    useUserContext,
+    UserType,
+    cloudCore,
+} from '@chatic/web-core';
 import { useLogout } from '@chatic/auth';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
@@ -21,7 +28,7 @@ export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
     const { userType } = useUserContext();
-    const profile = useWebCoreStore(s => s.profile);
+    const profile = useDynamicProfile();
     const selectedCloudId = cloudCore.getSelectedCloudId() ?? 'default';
 
     const { mutate: logout } = useLogout();

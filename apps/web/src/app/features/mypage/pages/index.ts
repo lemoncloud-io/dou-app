@@ -1,5 +1,6 @@
 export * from './AccountInfoPage';
 export * from './AccountManagePage';
+export * from './CloudProfileEditPage';
 export * from './LicensesPage';
 export * from './DebugLoginPage';
 export * from './DebugPage';

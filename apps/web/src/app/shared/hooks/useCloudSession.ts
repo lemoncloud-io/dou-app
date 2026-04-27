@@ -32,7 +32,11 @@ export const useCloudSession = () => {
             const { cloudDelegationToken, userToken } = await issueCloudToken(cloudId);
 
             cloudCore.saveDelegationToken(cloudDelegationToken);
-            cloudCore.saveCloudToken(userToken);
+            // 같은 cloud 재선택 시 로컬 커스텀 필드(thumbnail 등) 보존
+            const existingToken = previousCloudId === cloudId ? cloudCore.getCloudToken() : null;
+            cloudCore.saveCloudToken(
+                existingToken ? ({ ...existingToken, ...userToken } as typeof userToken) : userToken
+            );
             cloudCore.saveSelectedCloudId(cloudId);
 
             // cloud가 변경된 경우에만 place 초기화 (같은 cloud 재선택 시 place 유지)

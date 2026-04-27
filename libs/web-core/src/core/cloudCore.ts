@@ -138,8 +138,11 @@ export const cloudCore: CloudCore = {
             .setBody({ current, signature, ...(target && { target }) })
             .execute<UserTokenView>();
 
-        cloudCore.saveCloudToken(refreshed);
-        return refreshed;
+        // 서버가 반환하지 않는 로컬 커스텀 필드(thumbnail 등)를 보존
+        const existing = cloudCore.getCloudToken();
+        const merged = { ...existing, ...refreshed } as UserTokenView;
+        cloudCore.saveCloudToken(merged);
+        return merged;
     },
 
     buildRequest: (config: AxiosRequestConfig): RequestBuilder => {

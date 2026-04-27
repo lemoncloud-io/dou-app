@@ -9,7 +9,7 @@ import { cn } from '@chatic/lib/utils';
 import { useInterval } from '@chatic/shared';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, useDynamicProfile } from '@chatic/web-core';
 import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
 import { cloudsKeys } from '@chatic/users';
 
@@ -30,7 +30,7 @@ const CLOUD_AVATAR_CLASS =
 // --- Profile Section ---
 
 const ProfileSection = () => {
-    const { profile } = useWebCoreStore();
+    const profile = useDynamicProfile();
 
     const name = profile?.$user?.name;
     const email = profile?.$user?.email ?? '';
