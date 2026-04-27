@@ -44,7 +44,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
      * NOTE: 현재 사용하지 않음 — stale 캐시 노출 방지를 위해 서버 fast path로 대체됨
      * 추후 오프라인 모드 등에서 필요할 수 있어 함수는 보존
      */
-     
+
     const requestFromLocal = useCallback(
         async (params?: ClientChatMinePayload) => {
             try {
@@ -150,7 +150,8 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
             const placeId = activeParams.placeId;
 
             if (!placeId) return;
-            if (!shouldEmit(`chat:mine:${placeId}:${cloudId}`)) return;
+            // cloudId를 dedup key에서 제외 — 초기 'default'→실제 cloudId 전환 시 동일 placeId 요청이 중복 발송되는 것 방지
+            if (!shouldEmit(`chat:mine:${placeId}`)) return;
 
             isSyncingRef.current = true;
             setIsSyncing(true);
