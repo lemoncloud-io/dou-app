@@ -135,7 +135,7 @@ export const HomePage = () => {
                         </DropdownMenuContent>
                     </DropdownMenu>
                 ) : (
-                    <div className="flex items-center gap-[9px]">
+                    <button onClick={() => navigate('/mypage/edit')} className="flex items-center gap-[9px]">
                         <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                             {displayImageUrl ? (
                                 <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
@@ -146,7 +146,7 @@ export const HomePage = () => {
                         <span className="max-w-[160px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
                             {displayName}
                         </span>
-                    </div>
+                    </button>
                 )}
                 <div className="flex items-center gap-4">
                     {userType !== UserType.TEMP_ACCOUNT && (
