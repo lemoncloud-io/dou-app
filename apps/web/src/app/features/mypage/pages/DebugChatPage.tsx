@@ -149,21 +149,21 @@ export const DebugChatPage = () => {
                 <h1 className="text-[17px] font-semibold">테스트 대시보드</h1>
             </header>
 
-            {/* Segmented Control (Tabs) */}
-            <div className="flex border-b border-border">
-                {['PLACES', 'CHAT', 'USER', 'STATE'].map(tab => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab as any)}
-                        className={`flex-1 py-3 text-[14px] font-medium transition-colors ${
-                            activeTab === tab
-                                ? 'border-b-2 border-foreground text-foreground'
-                                : 'text-muted-foreground active:bg-muted'
-                        }`}
-                    >
-                        {tab}
-                    </button>
-                ))}
+            {/* Tabs */}
+            <div className="px-4 py-2">
+                <div className="flex gap-1 rounded-xl bg-muted p-1">
+                    {['PLACES', 'CHAT', 'USER', 'STATE'].map(tab => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab as any)}
+                            className={`flex-1 rounded-lg py-1.5 text-[13px] font-medium transition-colors ${
+                                activeTab === tab ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'
+                            }`}
+                        >
+                            {tab}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Content Area */}

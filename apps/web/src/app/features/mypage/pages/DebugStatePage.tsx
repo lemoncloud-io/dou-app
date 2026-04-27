@@ -2,7 +2,7 @@ import { ChevronLeft } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useDeviceInfo } from '@chatic/device-utils';
-import { useDynamicProfile, useWebCoreStore, useUserContext, cloudCore } from '@chatic/web-core';
+import { useDelegatorId, useDynamicProfile, useWebCoreStore, useUserContext, cloudCore } from '@chatic/web-core';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useClouds } from '@chatic/users';
 import { useChannels, usePlaces } from '@chatic/data';
@@ -33,7 +33,8 @@ export const DebugStatePage = () => {
     const { versionInfo, deviceInfo } = useDeviceInfo();
 
     const profile = useDynamicProfile();
-    const { userType, isGuest, isInvited, isCloudUser } = useUserContext();
+    const { userType } = useUserContext();
+    const delegatorId = useDelegatorId();
     const { isAuthenticated, isInitialized, isOnMobileApp } = useWebCoreStore();
     const selectedCloudId = cloudCore.getSelectedCloudId() ?? 'default';
     const cloudToken = cloudCore.getCloudToken();
@@ -77,10 +78,9 @@ export const DebugStatePage = () => {
                         <Row label="isInitialized" value={isInitialized} />
                         <Row label="isAuthenticated" value={isAuthenticated} />
                         <Row label="isOnMobileApp" value={isOnMobileApp} />
-                        <Row label="isGuest" value={isGuest} />
-                        <Row label="isInvited" value={isInvited} />
-                        <Row label="isCloudUser" value={isCloudUser} />
+
                         <Row label="userType" value={userType} />
+                        <Row label="delegatorId" value={delegatorId} />
                     </Section>
 
                     {/* Profile */}
@@ -150,7 +150,6 @@ export const DebugStatePage = () => {
                         <Row label="selectedCloudId" value={selectedCloudId} />
                         <Row label="id" value={selectedCloud?.id} />
                         <Row label="name" value={selectedCloud?.name} />
-                        <Row label="nick" value={selectedCloud?.nick} />
                         <Row label="stereo" value={selectedCloud?.stereo} />
                         <Row label="ownerId" value={selectedCloud?.ownerId} />
                         <Row label="createdAt" value={selectedCloud?.createdAt} />

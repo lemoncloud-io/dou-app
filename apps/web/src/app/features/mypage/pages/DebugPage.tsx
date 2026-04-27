@@ -55,7 +55,6 @@ export const DebugPage = () => {
                             </div>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
-                        <div className="mx-4 border-t border-border" />
                         <button
                             onClick={() => navigate('/mypage/debug/dashboard')}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
@@ -66,7 +65,6 @@ export const DebugPage = () => {
                             </div>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
-                        <div className="mx-4 border-t border-border" />
                         <button
                             onClick={() => navigate('/mypage/debug/state')}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
@@ -77,7 +75,6 @@ export const DebugPage = () => {
                             </div>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
-                        <div className="mx-4 border-t border-border" />
                         <button
                             onClick={() => logout()}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
