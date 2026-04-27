@@ -16,9 +16,6 @@ export const useCanCreateChannel = () => {
     const selectedCloud = clouds.find(c => c.id === selectedCloudId);
     const isMyCloud = selectedCloud ? selectedCloud.ownerId === profile?.uid : false;
 
-    const selectedCloud = clouds.find(c => c.id === selectedCloudId);
-    const isMyCloud = selectedCloud ? selectedCloud.ownerId === profile?.uid : false;
-
     const currentCount = channels.length;
     const maxCount = permissions.maxChannels;
     const canCreate = permissions.canCreateChannel && !isLoading && currentCount < maxCount && !isDefaultCloud;

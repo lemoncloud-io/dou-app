@@ -36,7 +36,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     // 최초 1회: deviceInfo 주입 (비동기 초기화 - getUserAgent 제거로 더 빠름)
     useEffect(() => {
         const prepareWebView = async () => {
-            const [uniqueId, installationId, cachedChannels, cachedClouds] = await Promise.all([
+            const [uniqueId, installationId, cachedClouds] = await Promise.all([
                 DeviceInfo.getUniqueId(),
                 firebaseInstallationService.getFirebaseId(),
                 // NOTE: channels 캐시는 stale 데이터 노출 방지를 위해 제거 — 서버 fast path로 대체
