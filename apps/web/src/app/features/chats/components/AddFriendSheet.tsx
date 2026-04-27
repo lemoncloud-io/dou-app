@@ -113,11 +113,8 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
 
             const { isOnMobileApp } = getMobileAppInfo();
 
-            // Copy to clipboard first
-            await copyToClipboard(deeplinkUrl);
-
-            // Mobile app: also open native share sheet
             if (isOnMobileApp) {
+                // Mobile: use native share sheet (clipboard API is restricted in WebView)
                 postMessage({
                     type: 'OpenShareSheet',
                     data: {
@@ -125,6 +122,9 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                         message: `${t('inviteFriends.shareMessage')}\n${deeplinkUrl}`,
                     },
                 });
+            } else {
+                // Web: copy to clipboard
+                await copyToClipboard(deeplinkUrl);
             }
 
             resetAndClose();
