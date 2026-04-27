@@ -81,7 +81,7 @@ export const CloudProfileEditPage = () => {
         }
         setImageSizeError(false);
         try {
-            const base64 = await resizeImageToBase64(file, 50);
+            const base64 = await resizeImageToBase64(file, 150);
             setThumbnail(base64);
         } catch {
             setImageSizeError(true);

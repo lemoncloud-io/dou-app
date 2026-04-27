@@ -92,7 +92,7 @@ export const PlaceInfoPage = () => {
         setImageSizeError(false);
 
         try {
-            const base64 = await resizeImageToBase64(file, 50);
+            const base64 = await resizeImageToBase64(file, 150);
             setImageUrl(base64);
         } catch {
             setImageSizeError(true);
