@@ -739,7 +739,8 @@
         "goToLogin": "로그인하러 가기",
         "loggingIn": "로그인 중...",
         "loginSuccess": "로그인 되었습니다",
-        "loginFailed": "로그인 실패"
+        "loginFailed": "로그인 실패",
+        "logout": "로그아웃"
     },
     "inviteAccept": {
         "title": "채팅에 초대되었습니다",
@@ -749,6 +750,7 @@
         "failed": "초대 수락에 실패했습니다",
         "invalidLink": "유효하지 않은 초대 링크입니다",
         "missingServerInfo": "초대 링크에 서버 정보가 누락되었습니다",
+        "missingDelegator": "기기 인증 정보를 찾을 수 없습니다.\n로그아웃 후 다시 시도해 주세요.",
         "goBack": "돌아가기",
         "decline": "거절하기"
     },

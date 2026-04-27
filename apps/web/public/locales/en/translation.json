@@ -739,7 +739,8 @@
         "goToLogin": "Go to Login",
         "loggingIn": "Logging in...",
         "loginSuccess": "Logged in successfully",
-        "loginFailed": "Login failed"
+        "loginFailed": "Login failed",
+        "logout": "Log out"
     },
     "inviteAccept": {
         "title": "You've been invited to chat",
@@ -749,6 +750,7 @@
         "failed": "Failed to accept invitation",
         "invalidLink": "Invalid invite link",
         "missingServerInfo": "Server information is missing from the invite link",
+        "missingDelegator": "Device authentication not found.\nPlease log out and try again.",
         "goBack": "Go Back",
         "decline": "Decline"
     },
