@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
-import { Image, Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { WebView, type WebViewProps } from 'react-native-webview';
 import DeviceInfo from 'react-native-device-info';
 import Config from 'react-native-config';
@@ -117,13 +117,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         [propsOnLoad]
     );
 
-    // injectionScript가 없으면 WebView를 렌더링할 수 없음 (로고만 표시)
+    // injectionScript가 없으면 WebView를 렌더링할 수 없음 - 흰 화면
     if (!injectionScript) {
-        return (
-            <View style={styles.loadingContainer}>
-                <Image source={require('../../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-            </View>
-        );
+        return <View style={styles.loadingContainer}></View>;
     }
 
     return (
@@ -149,12 +145,6 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 {...restProps}
                 onLoad={handleWebViewLoad}
             />
-            {/* WebView HTML 로드 완료까지 로고 오버레이 유지 → 갭 제거 */}
-            {!isWebViewLoaded && (
-                <View style={styles.logoOverlay}>
-                    <Image source={require('../../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-                </View>
-            )}
         </View>
     );
 });
