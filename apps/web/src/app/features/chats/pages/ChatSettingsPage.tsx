@@ -170,13 +170,16 @@ export const ChatSettingsPage = () => {
 
                     {/* Action Buttons */}
                     <div className="flex items-start justify-center gap-6">
-                        {channel?.isOwner && !channel?.isSelfChat && userType !== UserType.TEMP_ACCOUNT && (
-                            <ActionButton
-                                icon={UserPlus}
-                                label={t('chat.settings.inviteFriends')}
-                                onClick={() => openDialog('invite')}
-                            />
-                        )}
+                        {channel?.isOwner &&
+                            !channel?.isSelfChat &&
+                            userType !== UserType.TEMP_ACCOUNT &&
+                            userType !== UserType.SOCIAL_NO_CLOUD && (
+                                <ActionButton
+                                    icon={UserPlus}
+                                    label={t('chat.settings.inviteFriends')}
+                                    onClick={() => openDialog('invite')}
+                                />
+                            )}
                         <ActionButton
                             icon={Bell}
                             label={t('chat.settings.notifications')}
@@ -256,7 +259,7 @@ export const ChatSettingsPage = () => {
             </div>
 
             {/* Dialogs */}
-            {userType !== UserType.TEMP_ACCOUNT && (
+            {userType !== UserType.TEMP_ACCOUNT && userType !== UserType.SOCIAL_NO_CLOUD && (
                 <InviteFriendsDialog
                     open={activeDialog === 'invite'}
                     onOpenChange={open => (open ? openDialog('invite') : closeDialog())}
