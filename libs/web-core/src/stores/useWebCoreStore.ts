@@ -17,6 +17,7 @@ interface UserViewExtended {
 const INVITED_SESSION_KEY = 'chatic-is-invited';
 const OAUTH_PROVIDER_KEY = 'chatic-oauth-provider';
 const PROFILE_CACHE_KEY = 'chatic-profile-cache';
+const DELEGATOR_ID_KEY = 'chatic-delegator-id';
 
 /**
  * Read invited flag.
@@ -69,6 +70,18 @@ export const setOAuthProvider = (provider: OAuthLoginProvider | null): void => {
     }
 };
 
+export const getDelegatorId = (): string | null => {
+    return coreStorage.get(DELEGATOR_ID_KEY);
+};
+
+export const setDelegatorId = (value: string | null): void => {
+    if (value) {
+        coreStorage.set(DELEGATOR_ID_KEY, value);
+    } else {
+        coreStorage.remove(DELEGATOR_ID_KEY);
+    }
+};
+
 export interface WebCoreState {
     isInitialized: boolean;
     isAuthenticated: boolean;
@@ -76,6 +89,7 @@ export interface WebCoreState {
     isGuest: boolean;
     isInvited: boolean;
     isCloudUser: boolean;
+    delegatorId: string | null;
     error: Error | null;
     profile: UserProfile$ | null;
     userName: string;
@@ -121,6 +135,7 @@ const initialState: Pick<WebCoreStore, keyof WebCoreState> = (() => {
     const userRole = (profile?.$user as UserViewExtended | undefined)?.userRole;
     const isGuest = userRole === 'guest' && !isInvited;
     const isCloudUser = isInvited || userRole === 'user';
+    const delegatorId = getDelegatorId() ?? (userRole === 'guest' && profile?.uid ? profile.uid : null);
 
     return {
         isInitialized: false,
@@ -129,6 +144,7 @@ const initialState: Pick<WebCoreStore, keyof WebCoreState> = (() => {
         isGuest,
         isInvited,
         isCloudUser,
+        delegatorId,
         error: null,
         profile,
         userName: profile ? profile['$user']?.name || 'Unknown' : '',
@@ -260,11 +276,20 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         // Treat as guest if: role is guest, OR (not invited, no cloud, no active social login)
         const isGuest = userRoleGuest && !isInvited;
         const isCloudUser = isInvited || (profile.$user as UserViewExtended)?.userRole === 'user';
+
+        // Cache delegatorId: guest profile.uid is the stable delegator identity.
+        // On guest→invited transition, preserve the previously cached value.
+        const newDelegatorId = userRoleGuest && profile.uid ? profile.uid : getDelegatorId();
+        if (userRoleGuest && profile.uid) {
+            setDelegatorId(profile.uid);
+        }
+
         return set({
             profile,
             isGuest,
             isInvited,
             isCloudUser,
+            delegatorId: newDelegatorId,
             userName: profile['$user']?.name || 'Unknown',
         });
     },

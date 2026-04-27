@@ -4,3 +4,4 @@ export * from './useProfile';
 export * from './useDynamicProfile';
 export * from './useUserContext';
 export * from './useUpdateProfile';
+export * from './useDelegatorId';
