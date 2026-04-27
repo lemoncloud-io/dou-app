@@ -72,8 +72,11 @@
                 window.__splash = { animDone: false, appReady: false };
 
                 var container = document.getElementById('splash-lottie');
+                var lottieFile = document.documentElement.classList.contains('dark')
+                    ? '/lottie-dark.json'
+                    : '/lottie.json';
                 if (container) {
-                    fetch('/lottie.json')
+                    fetch(lottieFile)
                         .then(function (res) {
                             return res.json();
                         })
