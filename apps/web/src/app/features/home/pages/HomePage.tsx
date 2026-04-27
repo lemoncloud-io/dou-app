@@ -48,6 +48,7 @@ export const HomePage = () => {
         isLoading: isChannelsLoading,
         currentCount: channelCount,
         maxCount: maxChannels,
+        isMyCloud: isMyCloudForChannel,
     } = useCanCreateChannel();
     const {
         isLimitReached: isPlaceLimitReached,

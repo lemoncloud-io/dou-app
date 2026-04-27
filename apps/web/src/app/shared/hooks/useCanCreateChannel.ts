@@ -5,8 +5,9 @@ import { useCloudSession } from './useCloudSession';
 
 export const useCanCreateChannel = () => {
     const { permissions } = useUserContext();
-    const { clouds } = useCloudSession();
     const { profile } = useWebCoreStore();
+    const { clouds } = useCloudSession();
+
     const placeId = cloudCore.getSelectedPlaceId() || '';
     const { channels, isLoading } = useChannels({ placeId, detail: true });
 

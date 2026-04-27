@@ -4,7 +4,7 @@ import { AppWebView, DeepLinkErrorView, FullScreenLoader, t } from '../../../com
 import { useAppBridge, useVersionCheckHandler } from '../../../common/webview/hooks';
 import type { WebView } from 'react-native-webview';
 import type { MainScreenProps } from '../navigation';
-import { ActivityIndicator, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 
 import { useWebViewDeepLink } from '../../../common/webview/hooks/useWebViewDeepLink';
 import { useWebMessageRouter } from '../hooks/useWebMessageRouter';
@@ -34,8 +34,12 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
 
     if (!isColdStartReady || !initialSource) {
         return (
-            <View style={{ flex: 1, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="small" color="#888" />
+            <View style={loadingStyles.container}>
+                <Image
+                    source={require('../../../../assets/logo.png')}
+                    style={loadingStyles.logo}
+                    resizeMode="contain"
+                />
             </View>
         );
     }
@@ -60,3 +64,16 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         </View>
     );
 };
+
+const loadingStyles = StyleSheet.create({
+    container: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#ffffff',
+    },
+    logo: {
+        width: 80,
+        height: 80,
+    },
+});

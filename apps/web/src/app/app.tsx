@@ -1,5 +1,5 @@
 import type { ErrorInfo } from 'react';
-import { Suspense, useCallback, useEffect } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { HelmetProvider } from 'react-helmet-async';
 import { I18nextProvider } from 'react-i18next';
@@ -10,10 +10,18 @@ import { Toaster as SonnerToaster } from 'sonner';
 import { ErrorFallback, GlobalLoader, LoadingFallback, useVersionCheck, VersionUpdateBanner } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
-import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
+import {
+    wasBootstrappedFromCache,
+    reportError,
+    useInitWebCore,
+    useTokenRefresh,
+    useWebCoreStore,
+    useSplashStore,
+} from '@chatic/web-core';
+
 import { initializeMessageListener } from '@chatic/app-messages';
 
-import { ServiceUnavailableOverlay, WebSocketV2Connection } from './components';
+import { ServiceUnavailableOverlay, SplashOverlay, WebSocketV2Connection } from './components';
 import { Router } from './routes';
 import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
 import { useAutoSelectCloud } from './shared/hooks/useCloudSession';
@@ -63,6 +71,15 @@ export function App() {
         isWebCoreReady && (!isAuthenticated || !!profile || (isTokenInitialized && initStatus === 'failed'));
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
+    // 세션 내 스플래시가 이미 표시된 경우 즉시 렌더링 (1.5s 딜레이 스킵)
+    const { isShown: splashAlreadyShown } = useSplashStore();
+    const [isSplashReady, setIsSplashReady] = useState(splashAlreadyShown);
+    useEffect(() => {
+        if (!canRenderApp || splashAlreadyShown) return;
+        const timer = setTimeout(() => setIsSplashReady(true), 1500);
+        return () => clearTimeout(timer);
+    }, [canRenderApp]);
+
     useDataSync();
     useForegroundResync(refreshToken);
 
@@ -81,39 +98,40 @@ export function App() {
         [profile?.uid]
     );
 
-    if (!canRenderApp) {
-        return <LoadingFallback />;
-    }
-
     return (
-        <I18nextProvider i18n={i18n}>
-            <VersionUpdateBanner
-                isVisible={hasUpdate}
-                currentVersion={currentVersion}
-                latestVersion={latestVersion}
-                onDismiss={dismissUpdate}
-            />
-            <Suspense fallback={<LoadingFallback />}>
-                <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
-                    <HelmetProvider>
-                        <QueryClientProvider client={queryClient}>
-                            <ThemeProvider>
-                                <AutoSelectCloud />
-                                <ForegroundTokenRefresh refreshToken={refreshToken} />
-                                {isAuthenticated && <WebSocketV2Connection />}
-                                <ServiceUnavailableOverlay />
-                                <DeviceTokenRegistration />
-                                <Router />
-                                <GlobalLoader />
-                                <SonnerToaster />
-                                <Toaster />
-                            </ThemeProvider>
-                            {/*{process.env.NODE_ENV !== 'prod' && <ReactQueryDevtools buttonPosition="bottom-left" />}*/}
-                        </QueryClientProvider>
-                    </HelmetProvider>
-                </ErrorBoundary>
-            </Suspense>
-        </I18nextProvider>
+        <>
+            <SplashOverlay isAppReady={isSplashReady} />
+            {canRenderApp && (
+                <I18nextProvider i18n={i18n}>
+                    <VersionUpdateBanner
+                        isVisible={hasUpdate}
+                        currentVersion={currentVersion}
+                        latestVersion={latestVersion}
+                        onDismiss={dismissUpdate}
+                    />
+                    <Suspense fallback={<LoadingFallback />}>
+                        <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
+                            <HelmetProvider>
+                                <QueryClientProvider client={queryClient}>
+                                    <ThemeProvider>
+                                        <AutoSelectCloud />
+                                        <ForegroundTokenRefresh refreshToken={refreshToken} />
+                                        {isAuthenticated && <WebSocketV2Connection />}
+                                        <ServiceUnavailableOverlay />
+                                        <DeviceTokenRegistration />
+                                        <Router />
+                                        <GlobalLoader />
+                                        <SonnerToaster />
+                                        <Toaster />
+                                    </ThemeProvider>
+                                    {/*{process.env.NODE_ENV !== 'prod' && <ReactQueryDevtools buttonPosition="bottom-left" />}*/}
+                                </QueryClientProvider>
+                            </HelmetProvider>
+                        </ErrorBoundary>
+                    </Suspense>
+                </I18nextProvider>
+            )}
+        </>
     );
 }
 

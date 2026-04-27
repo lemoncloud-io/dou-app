@@ -1,11 +1,11 @@
 import React, { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { Image, Platform, StyleSheet, View } from 'react-native';
 import { WebView, type WebViewProps } from 'react-native-webview';
 import DeviceInfo from 'react-native-device-info';
 import Config from 'react-native-config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getAppLanguage, getUserAgent } from '../utils';
+import { APP_USER_AGENT_PREFIX, getAppLanguage } from '../utils';
 import { getVersionCheckResult } from '../hooks/useAppVersionCheck';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
 import {
@@ -19,17 +19,24 @@ import { cacheCrudService } from '../storages/cacheCrudService';
 
 interface AppWebViewProps extends WebViewProps {}
 
+// User agent suffix (sync) - appended to default system UA via applicationNameForUserAgent
+const appName = Config.VIEW_APP_NAME ?? '';
+const appVersion = DeviceInfo.getVersion();
+const buildNumber = DeviceInfo.getBuildNumber();
+const platformName = Platform.OS === 'ios' ? 'iOS' : 'Android';
+const userAgentSuffix = `(${APP_USER_AGENT_PREFIX}; ${appName}/${appVersion}; ${platformName}; Build:${buildNumber})`;
+
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
-    const [initData, setInitData] = useState<{ userAgent: string; script: string } | null>(null);
+    const [injectionScript, setInjectionScript] = useState<string | null>(null);
+    const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
     const insets = useSafeAreaInsets();
     const keyboardHeight = useKeyboardHeight();
     const webViewRef = useRef<WebView | null>(null);
 
-    // 최초 1회: deviceInfo 주입 (비동기 초기화)
+    // 최초 1회: deviceInfo 주입 (비동기 초기화 - getUserAgent 제거로 더 빠름)
     useEffect(() => {
         const prepareWebView = async () => {
-            const [userAgent, uniqueId, installationId, cachedClouds] = await Promise.all([
-                getUserAgent(),
+            const [uniqueId, installationId, cachedClouds] = await Promise.all([
                 DeviceInfo.getUniqueId(),
                 firebaseInstallationService.getFirebaseId(),
                 // NOTE: channels 캐시는 stale 데이터 노출 방지를 위해 제거 — 서버 fast path로 대체
@@ -71,14 +78,14 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 timestamp: Date.now(),
             });
 
-            const injectionScript = `
+            const script = `
                 ${getSafeAreaScript(insets, keyboardHeight)}
                 ${deviceInfoScript}
                 ${cachedDataScript}
                 ${getConsoleOverrideScript()}
             `;
 
-            setInitData({ userAgent, script: injectionScript });
+            setInjectionScript(script);
         };
         void prepareWebView();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,9 +93,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
 
     // insets 변경 시 명령형으로 재주입
     useEffect(() => {
-        if (!webViewRef.current || !initData) return;
+        if (!webViewRef.current || !injectionScript) return;
         webViewRef.current.injectJavaScript(getSafeAreaScript(insets, keyboardHeight));
-    }, [insets, keyboardHeight, initData]);
+    }, [insets, keyboardHeight, injectionScript]);
 
     // 깔끔한 다중 Ref 동기화
     const setRefs = useCallback(
@@ -100,43 +107,76 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         [ref]
     );
 
-    if (!initData) {
+    // onLoad를 가로채서 로고 오버레이 해제 + 부모 핸들러 호출
+    const { onLoad: propsOnLoad, ...restProps } = props;
+    const handleWebViewLoad = useCallback(
+        (event: Parameters<NonNullable<WebViewProps['onLoad']>>[0]) => {
+            setIsWebViewLoaded(true);
+            propsOnLoad?.(event);
+        },
+        [propsOnLoad]
+    );
+
+    // injectionScript가 없으면 WebView를 렌더링할 수 없음 (로고만 표시)
+    if (!injectionScript) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#888" />
+                <Image source={require('../../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
             </View>
         );
     }
 
     return (
-        <WebView
-            ref={setRefs}
-            style={{ backgroundColor: '#ffffff' }}
-            startInLoadingState={true}
-            showsVerticalScrollIndicator={false}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-            allowsBackForwardNavigationGestures={true}
-            userAgent={initData.userAgent}
-            injectedJavaScript={initData.script}
-            injectedJavaScriptBeforeContentLoaded={initData.script}
-            hideKeyboardAccessoryView={true}
-            forceDarkOn={false}
-            originWhitelist={['*']}
-            allowFileAccess={true}
-            allowFileAccessFromFileURLs={true}
-            allowUniversalAccessFromFileURLs={true}
-            mixedContentMode="always"
-            {...props}
-        />
+        <View style={styles.webViewContainer}>
+            <WebView
+                ref={setRefs}
+                style={{ backgroundColor: '#ffffff' }}
+                startInLoadingState={false}
+                showsVerticalScrollIndicator={false}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                allowsBackForwardNavigationGestures={true}
+                applicationNameForUserAgent={userAgentSuffix}
+                injectedJavaScript={injectionScript}
+                injectedJavaScriptBeforeContentLoaded={injectionScript}
+                hideKeyboardAccessoryView={true}
+                forceDarkOn={false}
+                originWhitelist={['*']}
+                allowFileAccess={true}
+                allowFileAccessFromFileURLs={true}
+                allowUniversalAccessFromFileURLs={true}
+                mixedContentMode="always"
+                {...restProps}
+                onLoad={handleWebViewLoad}
+            />
+            {/* WebView HTML 로드 완료까지 로고 오버레이 유지 → 갭 제거 */}
+            {!isWebViewLoaded && (
+                <View style={styles.logoOverlay}>
+                    <Image source={require('../../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+                </View>
+            )}
+        </View>
     );
 });
 
 const styles = StyleSheet.create({
+    webViewContainer: {
+        flex: 1,
+    },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: '#fff',
+    },
+    logoOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+    },
+    logo: {
+        width: 80,
+        height: 80,
     },
 });

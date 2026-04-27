@@ -28,12 +28,17 @@ export const useCloudSession = () => {
 
     const selectCloud = async (cloudId: string) => {
         try {
+            const previousCloudId = cloudCore.getSelectedCloudId();
             const { cloudDelegationToken, userToken } = await issueCloudToken(cloudId);
 
             cloudCore.saveDelegationToken(cloudDelegationToken);
             cloudCore.saveCloudToken(userToken);
             cloudCore.saveSelectedCloudId(cloudId);
-            cloudCore.clearSelectedPlace();
+
+            // cloud가 변경된 경우에만 place 초기화 (같은 cloud 재선택 시 place 유지)
+            if (previousCloudId !== cloudId) {
+                cloudCore.clearSelectedPlace();
+            }
 
             const currentProfile = useWebCoreStore.getState().profile;
             const { Token: _Token, ...cloudProfile } = userToken;
