@@ -6,6 +6,7 @@ import {
     CloudProfileEditPage,
     DebugLoginPage,
     DebugPage,
+    DebugStatePage,
     LicensesPage,
     LoginPage,
     MyPage,
@@ -30,6 +31,7 @@ export const MyPageRoutes = () => {
             <Route path="debug" element={<DebugPage />} />
             <Route path="debug/login" element={<DebugLoginPage />} />
             <Route path="debug/dashboard" element={<DebugChatPage />} />
+            <Route path="debug/state" element={<DebugStatePage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="policy" element={<PolicyListPage />} />
             <Route path="policy/terms" element={<TermsPage />} />

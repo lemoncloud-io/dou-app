@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, LogOut, Mail, MessageSquare, XCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, Mail, MessageSquare, Database, XCircle } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -35,7 +35,7 @@ export const DebugPage = () => {
             </header>
 
             <div className="flex-1 overflow-y-auto overscroll-none px-4 pb-safe-bottom">
-                <div className="mt-6 mb-6">
+                <div className="mb-6 mt-6">
                     <h1 className="text-[20px] font-semibold leading-[1.35]">Debug Mode</h1>
                     <p className="mt-1 text-[13px] text-muted-foreground">v{versionInfo?.webVersion ?? '?'}</p>
                 </div>
@@ -63,6 +63,17 @@ export const DebugPage = () => {
                             <div className="flex items-center gap-3">
                                 <MessageSquare size={18} className="text-muted-foreground" />
                                 <span className="text-[15px] font-medium text-foreground">Chat Test Dashboard</span>
+                            </div>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                        <div className="mx-4 border-t border-border" />
+                        <button
+                            onClick={() => navigate('/mypage/debug/state')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Database size={18} className="text-muted-foreground" />
+                                <span className="text-[15px] font-medium text-foreground">State Info</span>
                             </div>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>

@@ -99,7 +99,7 @@ export const MyPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pb-32 pt-4">
+        <div className="flex min-h-screen flex-col bg-background pb-32 pt-4 overflow-y-auto">
             {/* Profile Section */}
             <div className="px-5 pb-3 pt-safe-top">
                 {userType === UserType.TEMP_ACCOUNT || userType === UserType.INVITED ? (
@@ -261,13 +261,15 @@ export const MyPage = () => {
                         </button>
                     )}
                     {isDebugMode && (
-                        <button
-                            onClick={() => navigate('/mypage/debug')}
-                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                        >
-                            <span className="text-[15px] font-medium text-destructive">Debug Mode</span>
-                            <ChevronRight size={18} className="text-destructive" />
-                        </button>
+                        <>
+                            <button
+                                onClick={() => navigate('/mypage/debug')}
+                                className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                            >
+                                <span className="text-[15px] font-medium text-destructive">Debug Mode</span>
+                                <ChevronRight size={18} className="text-destructive" />
+                            </button>
+                        </>
                     )}
                 </div>
 

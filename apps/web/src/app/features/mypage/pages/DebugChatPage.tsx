@@ -14,13 +14,14 @@ import { useWebSocketV2Store, getSocketSend } from '@chatic/socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { ChatStartPayload } from '@lemoncloud/chatic-sockets-api';
 import { ChevronRight, Loader2, Send } from 'lucide-react';
+import { DebugStatePage } from './DebugStatePage';
 
 /**
  * TODO 캐싱 마이그레이션 및 테스트 완료 이후 제거할 것
  */
 export const DebugChatPage = () => {
     // UI 상태 관리
-    const [activeTab, setActiveTab] = useState<'PLACES' | 'CHAT' | 'USER'>('PLACES');
+    const [activeTab, setActiveTab] = useState<'PLACES' | 'CHAT' | 'USER' | 'STATE'>('PLACES');
     const [selectedPlaceId, setSelectedPlaceId] = useState<string>('');
     const [selectedChannelId, setSelectedChannelId] = useState<string>('');
 
@@ -150,7 +151,7 @@ export const DebugChatPage = () => {
 
             {/* Segmented Control (Tabs) */}
             <div className="flex border-b border-border">
-                {['PLACES', 'CHAT', 'USER'].map(tab => (
+                {['PLACES', 'CHAT', 'USER', 'STATE'].map(tab => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab as any)}
@@ -397,6 +398,7 @@ export const DebugChatPage = () => {
                         </section>
                     </div>
                 )}
+                {activeTab === 'STATE' && <DebugStatePage />}
             </div>
         </div>
     );
