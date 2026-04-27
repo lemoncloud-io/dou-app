@@ -3,7 +3,7 @@ import type { ChannelView, JoinView } from '@lemoncloud/chatic-socials-api';
 import { useWebSocketV2 } from '@chatic/socket';
 import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
-import { useChannelRepository, useJoinRepository } from '../repository';
+import { useChannelLocalDataSource, useJoinLocalDataSource } from '../local/data-sources';
 import type { ClientChannelView } from '../types';
 import { useDynamicProfile } from '@chatic/web-core';
 
@@ -14,8 +14,8 @@ import { useDynamicProfile } from '@chatic/web-core';
 export const useChannel = (channelId: string | null) => {
     const { cloudId } = useWebSocketV2();
     const profile = useDynamicProfile();
-    const repository = useChannelRepository(cloudId, profile?.uid);
-    const joinRepo = useJoinRepository(cloudId, profile?.uid);
+    const repository = useChannelLocalDataSource(cloudId, profile?.uid);
+    const joinRepo = useJoinLocalDataSource(cloudId, profile?.uid);
 
     const [channel, setChannel] = useState<ClientChannelView | null>(null);
     const [isLoading, setIsLoading] = useState(true);

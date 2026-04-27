@@ -1,21 +1,17 @@
 import { useCallback, useMemo } from 'react';
 import { createStorageAdapter } from '../storages';
-import type { JoinView, UserView } from '@lemoncloud/chatic-socials-api';
-import type { CacheChannelView } from '@chatic/app-messages';
+import type { UserView } from '@lemoncloud/chatic-socials-api';
 
 /**
  * 사용자 데이터의 영속성을 관리하는 리포지토리
  * 서버와의 연동 없이 로컬 DB(IndexedDB 등)와의 직접적인 입출력을 전담
  * @param profileUid 유저별 캐시 파티셔닝용 — default(중계서버) 모드에서만 유저별 캐시 분리
  */
-export const useUserRepository = (cloudId: string, profileUid?: string) => {
+export const useUserLocalDataSource = (cloudId: string, profileUid?: string) => {
     const cid = cloudId === 'default' && profileUid ? `${cloudId}:${profileUid}` : cloudId;
-    const userDB = useMemo(() => (cloudId ? createStorageAdapter<UserView>('user', cid) : null), [cloudId, cid]);
-    const joinDB = useMemo(() => (cloudId ? createStorageAdapter<JoinView>('join', cid) : null), [cloudId, cid]);
-    const channelDB = useMemo(
-        () => (cloudId ? createStorageAdapter<CacheChannelView>('channel', cid) : null),
-        [cloudId, cid]
-    );
+    const userDB = useMemo(() => (cloudId ? createStorageAdapter('user', cid) : null), [cloudId, cid]);
+    const joinDB = useMemo(() => (cloudId ? createStorageAdapter('join', cid) : null), [cloudId, cid]);
+    const channelDB = useMemo(() => (cloudId ? createStorageAdapter('channel', cid) : null), [cloudId, cid]);
 
     /**
      * 단일 유저 조회
@@ -81,7 +77,7 @@ export const useUserRepository = (cloudId: string, profileUid?: string) => {
         async (user: UserView): Promise<void> => {
             if (!userDB || !user.id) return;
 
-            const tasks: Promise<void>[] = [userDB.save(user.id, user)];
+            const tasks: Promise<unknown>[] = [userDB.save(user.id, user)];
 
             if (joinDB && user.$join?.id) {
                 tasks.push(joinDB.save(user.$join.id, user.$join));
@@ -99,7 +95,7 @@ export const useUserRepository = (cloudId: string, profileUid?: string) => {
         async (users: UserView[]): Promise<void> => {
             if (!userDB || !users.length) return;
 
-            const tasks: Promise<void>[] = [];
+            const tasks: Promise<unknown>[] = [];
 
             for (const user of users) {
                 if (user.id) {

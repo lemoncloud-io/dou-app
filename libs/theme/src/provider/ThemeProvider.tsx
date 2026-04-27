@@ -51,8 +51,11 @@ export function ThemeProvider({
         if (!isOnMobileApp) return;
 
         postMessage({
-            type: 'SetTheme',
-            data: { theme },
+            type: 'SavePreference',
+            data: {
+                key: 'theme',
+                value: theme,
+            },
         });
     }, [theme]);
 

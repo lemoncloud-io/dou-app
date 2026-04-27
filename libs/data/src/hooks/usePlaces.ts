@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePlaceRepository } from '../repository';
+import { usePlaceLocalDataSource } from '../local/data-sources';
 import { useWebSocketV2 } from '@chatic/socket';
 import { cloudCore } from '@chatic/web-core';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
@@ -15,13 +15,15 @@ import { useConnectionRecoverySync } from './useConnectionRecoverySync';
 export const usePlaces = () => {
     const { emitAuthenticated, cloudId: socketCloudId } = useWebSocketV2();
     const cloudId = cloudCore.getSelectedCloudId() || socketCloudId || 'default';
-    const repository = usePlaceRepository(cloudId);
+    const repository = usePlaceLocalDataSource(cloudId);
 
     const [places, setPlaces] = useState<MySiteView[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isError, setIsError] = useState(false);
     const isSyncingRef = useRef(false);
+    const requestFromLocalRef = useRef<() => Promise<void>>();
+    const requestFromNetworkRef = useRef<(force?: boolean) => void>();
 
     /**
      *  로컬 DB에서 데이터 읽어오기
@@ -73,14 +75,17 @@ export const usePlaces = () => {
         [emitAuthenticated]
     );
 
+    requestFromLocalRef.current = requestFromLocal;
+    requestFromNetworkRef.current = requestFromNetwork;
+
     /**
-     *  초기 마운트 시 동시 요청
+     *  초기 마운트 시 및 cloudId 변경 시 동시 요청
      */
     useEffect(() => {
         setIsLoading(true);
-        void requestFromLocal();
-        requestFromNetwork(true);
-    }, [requestFromLocal, requestFromNetwork]);
+        void requestFromLocalRef.current?.();
+        requestFromNetworkRef.current?.();
+    }, [cloudId]);
 
     /**
      * 통합 이벤트 버스 구독
@@ -93,13 +98,13 @@ export const usePlaces = () => {
             if (detail.domain === 'site' && detail.cid === cloudId) {
                 isSyncingRef.current = false;
                 setIsSyncing(false);
-                void requestFromLocal();
+                void requestFromLocalRef.current?.();
             }
         };
 
         window.addEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
         return () => window.removeEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
-    }, [cloudId, requestFromLocal]);
+    }, [cloudId]);
 
     // WebSocket 재연결 완료(isVerified: false→true) 시 서버에 places 재요청
     useConnectionRecoverySync(requestFromLocal, requestFromNetwork);

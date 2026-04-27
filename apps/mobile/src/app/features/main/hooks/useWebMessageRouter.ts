@@ -94,12 +94,6 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
             (message: WebMessageData<WebMessageType>) => {
                 switch (message.type) {
                     // -- App Settings & UI State --
-                    case 'SetLanguage':
-                        setLanguage(message.data.language);
-                        break;
-                    case 'SetTheme':
-                        setTheme(message.data.theme);
-                        break;
                     case 'SetCanGoBack':
                         setWebCanGoBack(message.data.canGoBack);
                         break;

@@ -6,8 +6,8 @@ import type { CacheSiteView } from '@chatic/app-messages';
  * 플레이스(Site) 데이터 관리 레퍼지토리
  * 서버와의 연동 없이 로컬 DB(IndexedDB 등)와의 직접적인 입출력을 전담
  */
-export const usePlaceRepository = (cloudId: string) => {
-    const placeDB = useMemo(() => (cloudId ? createStorageAdapter<CacheSiteView>('site', cloudId) : null), [cloudId]);
+export const usePlaceLocalDataSource = (cloudId: string) => {
+    const placeDB = useMemo(() => (cloudId ? createStorageAdapter('site', cloudId) : null), [cloudId]);
 
     /**
      * 전체 Place 목록 조회
@@ -22,7 +22,7 @@ export const usePlaceRepository = (cloudId: string) => {
      */
     const getPlacesByCloud = useCallback(async (targetCloudId: string): Promise<CacheSiteView[]> => {
         if (!targetCloudId) return [];
-        const targetDB = createStorageAdapter<CacheSiteView>('site', targetCloudId);
+        const targetDB = createStorageAdapter('site', targetCloudId);
         const places: CacheSiteView[] = await targetDB.loadAll();
         return places?.filter((place: CacheSiteView) => place.cid === targetCloudId) ?? [];
     }, []);

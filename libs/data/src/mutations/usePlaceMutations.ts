@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useWebSocketV2 } from '@chatic/socket';
-import { usePlaceRepository } from '../repository';
+import { usePlaceLocalDataSource } from '../local/data-sources';
 import { cloudCore } from '@chatic/web-core';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import type { AppSyncDetail } from '../sync-events';
@@ -15,7 +15,7 @@ type PlaceMutationAction = 'make-site' | 'update-site';
 export const usePlaceMutations = () => {
     const cloudId = cloudCore.getSelectedCloudId() ?? 'default';
     const { emitAuthenticated } = useWebSocketV2();
-    const repository = usePlaceRepository(cloudId);
+    const repository = usePlaceLocalDataSource(cloudId);
 
     const [pendingStates, setPendingStates] = useState<Record<PlaceMutationAction, boolean>>({
         'make-site': false,

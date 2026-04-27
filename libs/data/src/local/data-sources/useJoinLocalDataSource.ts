@@ -7,9 +7,9 @@ import type { JoinView } from '@lemoncloud/chatic-socials-api';
  * 서버와의 연동 없이 로컬 DB(IndexedDB 등)와의 직접적인 입출력을 전담
  * @param profileUid 유저별 캐시 파티셔닝용 — default(중계서버) 모드에서만 유저별 캐시 분리
  */
-export const useJoinRepository = (cloudId: string, profileUid?: string) => {
+export const useJoinLocalDataSource = (cloudId: string, profileUid?: string) => {
     const cid = cloudId === 'default' && profileUid ? `${cloudId}:${profileUid}` : cloudId;
-    const joinDB = useMemo(() => (cloudId ? createStorageAdapter<JoinView>('join', cid) : null), [cloudId, cid]);
+    const joinDB = useMemo(() => (cloudId ? createStorageAdapter('join', cid) : null), [cloudId, cid]);
 
     const getJoins = useCallback(async (): Promise<JoinView[]> => {
         if (!joinDB) return [];

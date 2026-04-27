@@ -28,7 +28,8 @@ export const useConnectionRecoverySync = (
     // 단, place/cloud 전환에 의한 in-session auth 갱신(소켓 연결 유지)은 제외
     useEffect(() => {
         let prevVerified = useWebSocketV2Store.getState().isVerified;
-        let hadDisconnection = !useWebSocketV2Store.getState().isConnected;
+        // 초기값 false: 최초 연결은 recovery가 아님 — 실제 끊김(true→false) 발생 후에만 recovery 트리거
+        let hadDisconnection = false;
 
         // 소켓 연결 끊김 추적 — 실제 재연결과 in-session auth 갱신을 구분하기 위함
         const unsubConnected = useWebSocketV2Store.subscribe(

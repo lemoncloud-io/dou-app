@@ -39,7 +39,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             const [uniqueId, installationId, cachedChannels, cachedClouds] = await Promise.all([
                 DeviceInfo.getUniqueId(),
                 firebaseInstallationService.getFirebaseId(),
-                cacheCrudService.fetchAll({ type: 'channel' }).catch(() => []),
+                // NOTE: channels 캐시는 stale 데이터 노출 방지를 위해 제거 — 서버 fast path로 대체
                 cacheCrudService.fetchAll({ type: 'cloud' }).catch(() => []),
             ]);
 
@@ -73,7 +73,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             };
 
             const cachedDataScript = getCachedDataScript({
-                channels: dedup(cachedChannels as { id?: string }[]),
+                channels: [],
                 clouds: dedup(cachedClouds as { id?: string }[]),
                 timestamp: Date.now(),
             });

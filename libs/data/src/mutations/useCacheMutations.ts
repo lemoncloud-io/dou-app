@@ -1,13 +1,13 @@
 import { useCallback, useState } from 'react';
 import type { CacheType } from '@chatic/app-messages';
 import {
-    useChannelRepository,
-    useChatRepository,
-    useInviteRepository,
-    useJoinRepository,
-    usePlaceRepository,
-    useUserRepository,
-} from '../repository';
+    useChannelLocalDataSource,
+    useChatLocalDataSource,
+    useInviteLocalDataSource,
+    useJoinLocalDataSource,
+    usePlaceLocalDataSource,
+    useUserLocalDataSource,
+} from '../local/data-sources';
 
 type CacheMutationAction = 'clear-cache' | 'clear-all-cache';
 
@@ -17,12 +17,12 @@ export const useCacheMutations = (cloudId: string, profileUid?: string) => {
         'clear-all-cache': false,
     });
 
-    const channelRepo = useChannelRepository(cloudId, profileUid);
-    const chatRepo = useChatRepository(cloudId, profileUid);
-    const inviteCloudRepo = useInviteRepository(cloudId);
-    const joinRepo = useJoinRepository(cloudId, profileUid);
-    const siteRepo = usePlaceRepository(cloudId);
-    const userRepo = useUserRepository(cloudId, profileUid);
+    const channelRepo = useChannelLocalDataSource(cloudId, profileUid);
+    const chatRepo = useChatLocalDataSource(cloudId, profileUid);
+    const inviteCloudRepo = useInviteLocalDataSource(cloudId);
+    const joinRepo = useJoinLocalDataSource(cloudId, profileUid);
+    const siteRepo = usePlaceLocalDataSource(cloudId);
+    const userRepo = useUserLocalDataSource(cloudId, profileUid);
 
     const getClearAction = useCallback(
         (type: CacheType): (() => Promise<void>) => {

@@ -1,10 +1,10 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { useWebSocketV2 } from '@chatic/socket';
-import { useUserRepository } from '../repository';
+import { useUserLocalDataSource } from '../local/data-sources';
 import { useChannelMembers } from './useChannelMembers';
 
 jest.mock('@chatic/socket', () => ({ useWebSocketV2: jest.fn() }));
-jest.mock('../repository', () => ({ useUserRepository: jest.fn() }));
+jest.mock('../local/data-sources', () => ({ useUserRepository: jest.fn() }));
 jest.mock('@chatic/web-core', () => ({
     useDynamicProfile: jest.fn(() => ({ uid: 'test-user' })),
     cloudCore: {
@@ -32,7 +32,7 @@ describe('useChannelMembers', () => {
             cloudId: mockCloudId,
         });
 
-        (useUserRepository as jest.Mock).mockReturnValue(mockUserRepoInstance);
+        (useUserLocalDataSource as jest.Mock).mockReturnValue(mockUserRepoInstance);
     });
 
     it('마운트 시 로컬 DB 조회 및 네트워크(users) 동기화 요청을 수행하고 상태를 업데이트한다', async () => {

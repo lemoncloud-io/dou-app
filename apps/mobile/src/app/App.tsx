@@ -22,11 +22,12 @@ export const App = () => {
 
     // Initialize deep link listeners early (captures URLs immediately)
     useInitializeDeepLink();
-
+  
     // Signal that Firebase is ready for deep link processing immediately
     useEffect(() => {
         getDeepLinkManager().setAppReady();
     }, []);
+
 
     // Show update alert when update is available
     useEffect(() => {

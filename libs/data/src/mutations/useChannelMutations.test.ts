@@ -1,12 +1,12 @@
 // libs/data/src/hooks/useChannelMutations.test.ts
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useWebSocketV2 } from '@chatic/socket';
-import { useChannelRepository } from '../repository';
+import { useChannelLocalDataSource } from '../local/data-sources';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import { useChannelMutations } from '../mutations';
 
 jest.mock('@chatic/socket', () => ({ useWebSocketV2: jest.fn() }));
-jest.mock('../repository', () => ({ useChannelRepository: jest.fn() }));
+jest.mock('../local/data-sources', () => ({ useChannelRepository: jest.fn() }));
 jest.mock('@chatic/web-core', () => ({
     useDynamicProfile: jest.fn(() => ({ uid: 'test-user' })),
     cloudCore: {
@@ -30,7 +30,7 @@ describe('useChannelMutations', () => {
             emitAuthenticated: mockEmitAuthenticated,
             cloudId: mockCloudId,
         });
-        (useChannelRepository as unknown as jest.Mock).mockReturnValue(mockRepoInstance);
+        (useChannelLocalDataSource as unknown as jest.Mock).mockReturnValue(mockRepoInstance);
     });
 
     it('createChannel: 이벤트 수신 시 DB에서 채널을 조회하고 반환한다', async () => {

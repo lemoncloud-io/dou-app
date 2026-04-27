@@ -7,11 +7,14 @@ export const useCanCreateChannel = () => {
     const { permissions } = useUserContext();
     const { profile } = useWebCoreStore();
     const { clouds } = useCloudSession();
+
     const placeId = cloudCore.getSelectedPlaceId() || '';
     const { channels, isLoading } = useChannels({ placeId, detail: true });
 
     const selectedCloudId = cloudCore.getSelectedCloudId();
     const isDefaultCloud = !selectedCloudId || selectedCloudId === 'default';
+    const selectedCloud = clouds.find(c => c.id === selectedCloudId);
+    const isMyCloud = selectedCloud ? selectedCloud.ownerId === profile?.uid : false;
 
     const selectedCloud = clouds.find(c => c.id === selectedCloudId);
     const isMyCloud = selectedCloud ? selectedCloud.ownerId === profile?.uid : false;

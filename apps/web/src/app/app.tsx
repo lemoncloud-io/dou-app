@@ -18,6 +18,7 @@ import {
     useWebCoreStore,
     useSplashStore,
 } from '@chatic/web-core';
+
 import { initializeMessageListener } from '@chatic/app-messages';
 
 import { ServiceUnavailableOverlay, SplashOverlay, WebSocketV2Connection } from './components';
@@ -67,11 +68,7 @@ export function App() {
     //   fetch run in the background (do NOT block UI on network work)
     // - Token init explicitly failed: avoid infinite loading (logout path handles the rest)
     const canRenderApp =
-        isWebCoreReady &&
-        (!isAuthenticated ||
-            wasBootstrappedFromCache() ||
-            !!profile ||
-            (isTokenInitialized && initStatus === 'failed'));
+        isWebCoreReady && (!isAuthenticated || !!profile || (isTokenInitialized && initStatus === 'failed'));
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
     // 세션 내 스플래시가 이미 표시된 경우 즉시 렌더링 (1.5s 딜레이 스킵)
