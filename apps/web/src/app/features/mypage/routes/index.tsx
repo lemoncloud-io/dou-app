@@ -3,8 +3,10 @@ import { Route, Routes } from 'react-router-dom';
 import {
     AccountInfoPage,
     AccountManagePage,
+    CloudProfileEditPage,
     DebugLoginPage,
     DebugPage,
+    DebugStatePage,
     LicensesPage,
     LoginPage,
     MyPage,
@@ -25,9 +27,11 @@ export const MyPageRoutes = () => {
             <Route path="account" element={<AccountInfoPage />} />
             <Route path="account-manage" element={<AccountManagePage />} />
             <Route path="edit" element={<ProfileEditPage />} />
+            <Route path="cloud-profile" element={<CloudProfileEditPage />} />
             <Route path="debug" element={<DebugPage />} />
             <Route path="debug/login" element={<DebugLoginPage />} />
             <Route path="debug/dashboard" element={<DebugChatPage />} />
+            <Route path="debug/state" element={<DebugStatePage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="policy" element={<PolicyListPage />} />
             <Route path="policy/terms" element={<TermsPage />} />

@@ -30,7 +30,7 @@ const CLOUD_AVATAR_CLASS =
 // --- Profile Section ---
 
 const ProfileSection = () => {
-    const { profile } = useWebCoreStore();
+    const profile = useWebCoreStore(s => s.profile);
 
     const name = profile?.$user?.name;
     const email = profile?.$user?.email ?? '';

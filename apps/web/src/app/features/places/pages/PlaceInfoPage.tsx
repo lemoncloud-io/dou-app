@@ -16,7 +16,7 @@ import { useUpdateMyPlace } from '../../home/hooks/useUpdateMyPlace';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 const MAX_NAME_LENGTH = 20;
-const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export const PlaceInfoPage = () => {
     const { t, i18n } = useTranslation();
@@ -92,7 +92,7 @@ export const PlaceInfoPage = () => {
         setImageSizeError(false);
 
         try {
-            const base64 = await resizeImageToBase64(file, 50);
+            const base64 = await resizeImageToBase64(file, 150);
             setImageUrl(base64);
         } catch {
             setImageSizeError(true);

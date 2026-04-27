@@ -1,95 +1,106 @@
 import { Camera, User } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { resizeImageToBase64 } from '@chatic/shared';
 
+import { useUserMutations } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
-import { useWebCoreStore, useUpdateProfile } from '@chatic/web-core';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';
 
+import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
+
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
-export const ProfileEditPage = () => {
+export const CloudProfileEditPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
-    const profile = useWebCoreStore(s => s.profile);
+    const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
+    const { updateProfile, isPending } = useUserMutations();
 
-    const initialRef = useRef({ name: '', imageUrl: '', initialized: false });
-    const [name, setName] = useState((profile?.$user?.name || '').slice(0, 30));
-    const [imageUrl, setImageUrl] = useState(profile?.$user?.photo || '');
+    // cloudToken에서 직접 읽어야 relay photo가 섞이지 않음
+    const cloudToken = cloudCore.getCloudToken();
+    const cloudName = cloudToken?.name || '';
+    const cloudThumbnail = ((cloudToken as Record<string, unknown>)?.thumbnail as string) || '';
+
+    const initialRef = useRef({ name: cloudName, thumbnail: cloudThumbnail, initialized: !!cloudToken });
+    const [name, setName] = useState(cloudName.slice(0, 30));
+    const [thumbnail, setThumbnail] = useState(cloudThumbnail);
     const [imageSizeError, setImageSizeError] = useState(false);
 
-    // profile 로드 시 초기값 고정 및 state 동기화
-    useEffect(() => {
-        if (profile?.$user && !initialRef.current.initialized) {
-            const initName = profile.$user.name || '';
-            const initImage = profile.$user.photo || '';
-            initialRef.current = { name: initName, imageUrl: initImage, initialized: true };
-            if (!name && initName) setName(initName.slice(0, 30));
-            if (!imageUrl && initImage) setImageUrl(initImage);
-        }
-    }, [profile]);
-
-    const hasChanges = name !== initialRef.current.name || imageUrl !== initialRef.current.imageUrl;
+    const hasChanges = name !== initialRef.current.name || thumbnail !== initialRef.current.thumbnail;
     const isValid = name.trim().length > 0 && name.length <= 30;
 
     const handleSave = async () => {
         if (!isValid || !hasChanges) return;
-
         try {
             await updateProfile({
                 name: name.trim(),
-                photo: imageUrl !== initialRef.current.imageUrl ? imageUrl : undefined,
+                thumbnail: thumbnail !== initialRef.current.thumbnail ? thumbnail : undefined,
             });
 
+            // Sync cloudCore token so useDynamicProfile reads updated values
+            const currentToken = cloudCore.getCloudToken();
+            if (currentToken) {
+                cloudCore.saveCloudToken({
+                    ...currentToken,
+                    name: name.trim(),
+                    ...(thumbnail !== initialRef.current.thumbnail ? { thumbnail } : {}),
+                } as typeof currentToken);
+            }
+
+            // Sync webCoreStore to trigger re-render
+            const currentProfile = useWebCoreStore.getState().profile;
+            if (currentProfile) {
+                useWebCoreStore.getState().setProfile({
+                    ...currentProfile,
+                } as UserProfile$);
+            }
+
+            toast({ title: t('profileEdit.cloudSaveSuccess') });
             navigate(-1);
         } catch (error) {
-            console.error('Failed to update profile:', error);
+            console.error('Failed to update cloud profile:', error);
+            toast({ title: t('profileEdit.cloudSaveError'), variant: 'destructive' });
         }
     };
 
-    const handleImageClick = () => {
-        fileInputRef.current?.click();
-    };
+    const handleImageClick = () => fileInputRef.current?.click();
 
     const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
-
         if (file.size > MAX_IMAGE_SIZE) {
             setImageSizeError(true);
             return;
         }
-
         setImageSizeError(false);
-
         try {
             const base64 = await resizeImageToBase64(file, 150);
-            setImageUrl(base64);
+            setThumbnail(base64);
         } catch {
             setImageSizeError(true);
         }
-
         event.target.value = '';
     };
 
     return (
         <KeyboardAwareLayout
             className="fixed inset-0 overflow-hidden"
-            header={<PageHeader title={t('profileEdit.title')} />}
+            header={<PageHeader title={t('profileEdit.tabCloud')} />}
             footer={
                 <div className="border-t border-border/50 bg-background px-5 py-4">
                     <button
                         onClick={handleSave}
-                        disabled={!isValid || !hasChanges || isPending}
+                        disabled={!isValid || !hasChanges || isPending['update-profile']}
                         className={cn(
                             'w-full rounded-2xl py-4 text-[15px] font-semibold transition-all',
-                            isValid && hasChanges && !isPending
+                            isValid && hasChanges && !isPending['update-profile']
                                 ? 'bg-[#B0EA10] text-foreground active:scale-[0.98]'
                                 : 'bg-muted text-muted-foreground'
                         )}
@@ -102,10 +113,10 @@ export const ProfileEditPage = () => {
             <div className="px-5 pt-4">
                 <div className="mb-8">
                     <p className="text-[22px] font-bold leading-tight text-foreground">
-                        {t('profileEdit.description1')}
+                        {t('profileEdit.cloudDescription1')}
                     </p>
                     <p className="text-[22px] font-bold leading-tight text-foreground">
-                        {t('profileEdit.description2')}
+                        {t('profileEdit.cloudDescription2')}
                     </p>
                 </div>
 
@@ -127,14 +138,14 @@ export const ProfileEditPage = () => {
 
                 <div>
                     <label className="mb-2 block text-[14px] font-semibold text-foreground">
-                        {t('profileEdit.photoLabel')}{' '}
+                        {t('profileEdit.thumbnailLabel')}{' '}
                         <span className="font-normal text-muted-foreground">{t('profileEdit.photoOptional')}</span>
                     </label>
                     <div className="relative inline-block">
                         <div className="flex h-[82px] w-[82px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                            {imageUrl ? (
+                            {thumbnail ? (
                                 <img
-                                    src={imageUrl}
+                                    src={thumbnail}
                                     alt="Profile"
                                     loading="lazy"
                                     decoding="async"

@@ -113,11 +113,8 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
 
             const { isOnMobileApp } = getMobileAppInfo();
 
-            // Copy to clipboard first
-            await copyToClipboard(deeplinkUrl);
-
-            // Mobile app: also open native share sheet
             if (isOnMobileApp) {
+                // Mobile: use native share sheet (clipboard API is restricted in WebView)
                 postMessage({
                     type: 'OpenShareSheet',
                     data: {
@@ -125,6 +122,9 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                         message: `${t('inviteFriends.shareMessage')}\n${deeplinkUrl}`,
                     },
                 });
+            } else {
+                // Web: copy to clipboard
+                await copyToClipboard(deeplinkUrl);
             }
 
             resetAndClose();
@@ -148,6 +148,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                 side="bottom"
                 className="rounded-t-[20px] p-0 border-0 bg-background max-h-[85dvh] flex flex-col"
                 hideClose
+                style={{ transform: 'translateY(calc(-1 * var(--keyboard-height, 0px)))' }}
             >
                 <div className="shrink-0 flex items-center justify-between px-4 py-[14px]">
                     <span className="text-[16px] font-medium leading-[1.5] tracking-[-0.02em] text-foreground">
@@ -217,7 +218,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                     </div>
                     <div
                         className="shrink-0 touch-none bg-background"
-                        style={{ height: 'calc(var(--safe-bottom, 0px) + var(--keyboard-height, 0px))' }}
+                        style={{ height: 'var(--safe-bottom, 0px)' }}
                         onTouchMove={e => e.preventDefault()}
                     />
                 </div>

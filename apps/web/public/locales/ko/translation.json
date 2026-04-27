@@ -158,6 +158,7 @@
         "accountInfo": {
             "title": "내 정보",
             "profileEdit": "프로필 수정",
+            "cloudProfileEdit": "Cloud 프로필 수정",
             "withdrawal": "탈퇴"
         },
         "subscription": {
@@ -552,7 +553,14 @@
         "photoLabel": "프로필 사진",
         "photoOptional": "[선택]",
         "save": "완료",
-        "imageSizeError": "이미지는 2MB 이하여야 합니다"
+        "imageSizeError": "이미지는 2MB 이하여야 합니다",
+        "tabBasic": "기본 프로필",
+        "tabCloud": "Cloud 프로필",
+        "cloudDescription1": "Cloud에서 사용할 이름과",
+        "cloudDescription2": "사진을 설정해 주세요",
+        "thumbnailLabel": "프로필 이미지",
+        "cloudSaveSuccess": "Cloud 프로필이 수정되었습니다.",
+        "cloudSaveError": "Cloud 프로필 수정에 실패했습니다."
     },
     "mypageLogin": {
         "title": "로그인하기",
@@ -731,7 +739,8 @@
         "goToLogin": "로그인하러 가기",
         "loggingIn": "로그인 중...",
         "loginSuccess": "로그인 되었습니다",
-        "loginFailed": "로그인 실패"
+        "loginFailed": "로그인 실패",
+        "logout": "로그아웃"
     },
     "inviteAccept": {
         "title": "채팅에 초대되었습니다",
@@ -741,6 +750,7 @@
         "failed": "초대 수락에 실패했습니다",
         "invalidLink": "유효하지 않은 초대 링크입니다",
         "missingServerInfo": "초대 링크에 서버 정보가 누락되었습니다",
+        "missingDelegator": "기기 인증 정보를 찾을 수 없습니다.\n로그아웃 후 다시 시도해 주세요.",
         "goBack": "돌아가기",
         "decline": "거절하기"
     },

@@ -158,6 +158,7 @@
         "accountInfo": {
             "title": "My Info",
             "profileEdit": "Edit Profile",
+            "cloudProfileEdit": "Edit Cloud Profile",
             "withdrawal": "Delete Account"
         },
         "subscription": {
@@ -552,7 +553,14 @@
         "photoLabel": "Profile Photo",
         "photoOptional": "[Optional]",
         "save": "Done",
-        "imageSizeError": "Image must be less than 2MB"
+        "imageSizeError": "Image must be less than 2MB",
+        "tabBasic": "Basic Profile",
+        "tabCloud": "Cloud Profile",
+        "cloudDescription1": "Set your name and photo",
+        "cloudDescription2": "for Cloud",
+        "thumbnailLabel": "Profile Image",
+        "cloudSaveSuccess": "Cloud profile updated.",
+        "cloudSaveError": "Failed to update Cloud profile."
     },
     "mypageLogin": {
         "title": "Sign In",
@@ -731,7 +739,8 @@
         "goToLogin": "Go to Login",
         "loggingIn": "Logging in...",
         "loginSuccess": "Logged in successfully",
-        "loginFailed": "Login failed"
+        "loginFailed": "Login failed",
+        "logout": "Log out"
     },
     "inviteAccept": {
         "title": "You've been invited to chat",
@@ -741,6 +750,7 @@
         "failed": "Failed to accept invitation",
         "invalidLink": "Invalid invite link",
         "missingServerInfo": "Server information is missing from the invite link",
+        "missingDelegator": "Device authentication not found.\nPlease log out and try again.",
         "goBack": "Go Back",
         "decline": "Decline"
     },

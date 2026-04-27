@@ -10,14 +10,7 @@ import { Toaster as SonnerToaster } from 'sonner';
 import { ErrorFallback, GlobalLoader, LoadingFallback, useVersionCheck, VersionUpdateBanner } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
-import {
-    wasBootstrappedFromCache,
-    reportError,
-    useInitWebCore,
-    useTokenRefresh,
-    useWebCoreStore,
-    useSplashStore,
-} from '@chatic/web-core';
+import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore, useSplashStore } from '@chatic/web-core';
 
 import { initializeMessageListener } from '@chatic/app-messages';
 

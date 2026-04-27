@@ -4,7 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudCore, loginWithInviteCode, setIsInvitedSession, useWebCoreStore, webCore } from '@chatic/web-core';
+import {
+    cloudCore,
+    getDelegatorId,
+    loginWithInviteCode,
+    setIsInvitedSession,
+    useWebCoreStore,
+    webCore,
+} from '@chatic/web-core';
 import { LoadingFallback } from '@chatic/shared';
 
 import { getMobileAppInfo } from '@chatic/app-messages';
@@ -18,12 +25,13 @@ import { useInviteMutations } from '@chatic/data';
 export const LoginPage = (): JSX.Element => {
     const { t } = useTranslation();
     const location = useLocation();
-    const { setIsAuthenticated, setProfile } = useWebCoreStore();
+    const { setIsAuthenticated, setProfile, logout } = useWebCoreStore();
     const { toast } = useToast();
     const [isInviteLogin, setIsInviteLogin] = useState(false);
     const [siteInfo, setSiteInfo] = useState<{ id: string; name: string } | null>(null);
     const [isAccepting, setIsAccepting] = useState(false);
     const [inviteError, setInviteError] = useState(false);
+    const [missingDelegator, setMissingDelegator] = useState(false);
     const loginCalled = useRef(false);
     const { mutateAsync: registerDevice, isPending: isRegisteringDevice } = useRegisterDevice();
     const { deviceId, isReady } = useDynamicDeviceId();
@@ -37,8 +45,13 @@ export const LoginPage = (): JSX.Element => {
         const backend = urlParams.get('_backend') ?? undefined;
         if (!code || !profile?.uid) return null;
         try {
-            const delegatorId = profile.$auth.linkUserId ?? profile.$auth.userId;
-            return await loginWithInviteCode(code, delegatorId as string, backend);
+            const delegatorId = getDelegatorId();
+            if (!delegatorId) {
+                console.error('[LoginPage] delegatorId not found in storage');
+                setMissingDelegator(true);
+                return null;
+            }
+            return await loginWithInviteCode(code, delegatorId, backend);
         } catch (error) {
             console.error('[LoginPage] Fetch invite data failed:', error);
             toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
@@ -100,7 +113,10 @@ export const LoginPage = (): JSX.Element => {
 
         try {
             const data = await fetchInvite();
-            if (!data) return;
+            if (!data) {
+                setIsAccepting(false);
+                return;
+            }
 
             const identityToken = data.Token?.identityToken;
             if (!identityToken) throw new Error('No identityToken');
@@ -141,8 +157,12 @@ export const LoginPage = (): JSX.Element => {
             // 5. Mark as invited
             setIsInvitedSession(true);
 
-            // 6. Reset selected place
+            // 6. Reset selected place, then pre-select the invited place
             cloudCore.clearSelectedPlace();
+            const invitedSiteId = urlParams.get('_siteId');
+            if (invitedSiteId) {
+                cloudCore.saveSelectedSiteId(invitedSiteId);
+            }
 
             // 7. Authenticate
             setIsAuthenticated(true);
@@ -171,6 +191,27 @@ export const LoginPage = (): JSX.Element => {
                             className="w-full max-w-[200px] h-[42px] rounded-full bg-[#b0ea10] text-[14px] font-semibold text-[#222325]"
                         >
                             {t('inviteAccept.goBack')}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Show missing delegatorId error with logout action
+    if (isInviteLogin && missingDelegator) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-[rgba(41,41,58,0.23)]">
+                <div className="relative mx-4 w-full max-w-[308px] rounded-[18px] bg-white/80 backdrop-blur-[4px] shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] px-[10px] pt-[26px] pb-[14px]">
+                    <div className="flex flex-col items-center pt-4 w-full gap-4">
+                        <p className="text-center text-[16px] font-medium text-[#84888f] whitespace-pre-line">
+                            {t('inviteAccept.missingDelegator')}
+                        </p>
+                        <button
+                            onClick={() => logout({ preserveUrl: true })}
+                            className="w-full max-w-[200px] h-[42px] rounded-full bg-[#b0ea10] text-[14px] font-semibold text-[#222325]"
+                        >
+                            {t('auth.logout')}
                         </button>
                     </div>
                 </div>

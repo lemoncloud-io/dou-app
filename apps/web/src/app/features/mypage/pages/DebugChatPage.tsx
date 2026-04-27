@@ -14,13 +14,14 @@ import { useWebSocketV2Store, getSocketSend } from '@chatic/socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { ChatStartPayload } from '@lemoncloud/chatic-sockets-api';
 import { ChevronRight, Loader2, Send } from 'lucide-react';
+import { DebugStatePage } from './DebugStatePage';
 
 /**
  * TODO 캐싱 마이그레이션 및 테스트 완료 이후 제거할 것
  */
 export const DebugChatPage = () => {
     // UI 상태 관리
-    const [activeTab, setActiveTab] = useState<'PLACES' | 'CHAT' | 'USER'>('PLACES');
+    const [activeTab, setActiveTab] = useState<'PLACES' | 'CHAT' | 'USER' | 'STATE'>('PLACES');
     const [selectedPlaceId, setSelectedPlaceId] = useState<string>('');
     const [selectedChannelId, setSelectedChannelId] = useState<string>('');
 
@@ -148,21 +149,21 @@ export const DebugChatPage = () => {
                 <h1 className="text-[17px] font-semibold">테스트 대시보드</h1>
             </header>
 
-            {/* Segmented Control (Tabs) */}
-            <div className="flex border-b border-border">
-                {['PLACES', 'CHAT', 'USER'].map(tab => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab as any)}
-                        className={`flex-1 py-3 text-[14px] font-medium transition-colors ${
-                            activeTab === tab
-                                ? 'border-b-2 border-foreground text-foreground'
-                                : 'text-muted-foreground active:bg-muted'
-                        }`}
-                    >
-                        {tab}
-                    </button>
-                ))}
+            {/* Tabs */}
+            <div className="px-4 py-2">
+                <div className="flex gap-1 rounded-xl bg-muted p-1">
+                    {['PLACES', 'CHAT', 'USER', 'STATE'].map(tab => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab as any)}
+                            className={`flex-1 rounded-lg py-1.5 text-[13px] font-medium transition-colors ${
+                                activeTab === tab ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'
+                            }`}
+                        >
+                            {tab}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Content Area */}
@@ -397,6 +398,7 @@ export const DebugChatPage = () => {
                         </section>
                     </div>
                 )}
+                {activeTab === 'STATE' && <DebugStatePage />}
             </div>
         </div>
     );

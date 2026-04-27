@@ -4,7 +4,7 @@ import { AppWebView, DeepLinkErrorView, FullScreenLoader, t } from '../../../com
 import { useAppBridge, useVersionCheckHandler } from '../../../common/webview/hooks';
 import type { WebView } from 'react-native-webview';
 import type { MainScreenProps } from '../navigation';
-import { Image, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useWebViewDeepLink } from '../../../common/webview/hooks/useWebViewDeepLink';
 import { useWebMessageRouter } from '../hooks/useWebMessageRouter';
@@ -33,15 +33,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     });
 
     if (!isColdStartReady || !initialSource) {
-        return (
-            <View style={loadingStyles.container}>
-                <Image
-                    source={require('../../../../assets/logo.png')}
-                    style={loadingStyles.logo}
-                    resizeMode="contain"
-                />
-            </View>
-        );
+        return <View style={loadingStyles.container}></View>;
     }
 
     if (deepLinkError) {

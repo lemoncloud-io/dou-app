@@ -392,7 +392,9 @@ export const ChatRoomPage = () => {
                                         </div>
                                     </>
                                 ) : (
-                                    channel?.ownerId === dynamicProfile?.uid && (
+                                    channel?.ownerId === dynamicProfile?.uid &&
+                                    userType !== UserType.TEMP_ACCOUNT &&
+                                    userType !== UserType.SOCIAL_NO_CLOUD && (
                                         <>
                                             <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
                                                 <p>{t('chat.room.emptyState.line1')}</p>
@@ -539,7 +541,7 @@ export const ChatRoomPage = () => {
             </div>
 
             {/* 초대 모달 */}
-            {userType !== UserType.TEMP_ACCOUNT && !channel?.isSelfChat && (
+            {userType !== UserType.TEMP_ACCOUNT && userType !== UserType.SOCIAL_NO_CLOUD && !channel?.isSelfChat && (
                 <InviteFriendsDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} channelId={channelId} />
             )}
 
