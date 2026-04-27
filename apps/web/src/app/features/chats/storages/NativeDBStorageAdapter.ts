@@ -1,8 +1,8 @@
+import type { AppMessage, AppMessageType } from '@chatic/app-messages';
 import { postMessage, useAppMessageStore } from '@chatic/app-messages';
 
 import { BROADCAST_CHANNEL_NAME } from './IndexedDBStorageAdapter';
 import type { ChatStorageAdapter } from './ChatStorageAdapter';
-import type { AppMessageType, AppMessage } from '@chatic/app-messages';
 import { toClientChatView } from '@chatic/chats';
 import type { ChatView } from '@lemoncloud/chatic-socials-api';
 
@@ -32,11 +32,11 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
         // const chatView = { ...toChatView(message), channelId };
         // const nonce = generateNonce();
         // await waitForAppMessage(
-        //     'OnSaveCacheData',
+        //     'OnSaveCache',
         //     m => m.nonce === nonce,
         //     () =>
         //         postMessage({
-        //             type: 'SaveCacheData',
+        //             type: 'SaveCache',
         //             data: { type: 'chat', id: message.id, item: chatView, cid: defaultCloudId },
         //             nonce,
         //         })
@@ -51,12 +51,12 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
     load: async (_userId, channelId) => {
         const nonce = generateNonce();
         const response = await waitForAppMessage(
-            'OnFetchAllCacheData',
+            'OnFetchAllCache',
             m => m.nonce === nonce,
             () =>
                 postMessage({
-                    type: 'FetchAllCacheData',
-                    data: { type: 'chat', query: { channelId, cid: defaultCloudId } },
+                    type: 'FetchAllCache',
+                    data: { type: 'chat', cid: defaultCloudId, query: { channelId, cid: defaultCloudId } },
                     nonce,
                 })
         );
@@ -66,12 +66,12 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
     update: async (_userId, channelId, chatNo, readerUserId) => {
         const nonce = generateNonce();
         const response = await waitForAppMessage(
-            'OnFetchAllCacheData',
+            'OnFetchAllCache',
             m => m.nonce === nonce,
             () =>
                 postMessage({
-                    type: 'FetchAllCacheData',
-                    data: { type: 'chat', query: { channelId, cid: defaultCloudId } },
+                    type: 'FetchAllCache',
+                    data: { type: 'chat', cid: defaultCloudId, query: { channelId, cid: defaultCloudId } },
                     nonce,
                 })
         );
@@ -85,11 +85,11 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
             //     const saveNonce = generateNonce();
             //     const updatedReadBy = [...((chat as any).readBy ?? []), readerUserId];
             //     return waitForAppMessage(
-            //         'OnSaveCacheData',
+            //         'OnSaveCache',
             //         m => m.nonce === saveNonce,
             //         () =>
             //             postMessage({
-            //                 type: 'SaveCacheData',
+            //                 type: 'SaveCache',
             //                 data: {
             //                     type: 'chat',
             //                     id: chat.id!,
@@ -120,12 +120,12 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
     countUnread: async (userId, channelId) => {
         const nonce = generateNonce();
         const response = await waitForAppMessage(
-            'OnFetchAllCacheData',
+            'OnFetchAllCache',
             m => m.nonce === nonce,
             () =>
                 postMessage({
-                    type: 'FetchAllCacheData',
-                    data: { type: 'chat', query: { channelId, cid: defaultCloudId } },
+                    type: 'FetchAllCache',
+                    data: { type: 'chat', cid: defaultCloudId, query: { channelId, cid: defaultCloudId } },
                     nonce,
                 })
         );
@@ -136,12 +136,12 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
     markAllRead: async (userId, channelId) => {
         const nonce = generateNonce();
         const response = await waitForAppMessage(
-            'OnFetchAllCacheData',
+            'OnFetchAllCache',
             m => m.nonce === nonce,
             () =>
                 postMessage({
-                    type: 'FetchAllCacheData',
-                    data: { type: 'chat', query: { channelId, cid: defaultCloudId } },
+                    type: 'FetchAllCache',
+                    data: { type: 'chat', cid: defaultCloudId, query: { channelId, cid: defaultCloudId } },
                     nonce,
                 })
         );

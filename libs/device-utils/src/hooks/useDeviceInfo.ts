@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
 
+import type { OnUpdateDeviceInfo } from '@chatic/app-messages';
 import { useAppMessageStore } from '@chatic/app-messages';
 
 import { useDeviceInfoStore } from '../stores';
-
-import type { OnUpdateDeviceInfo } from '@chatic/app-messages';
 
 export const useDeviceInfo = () => {
     const { deviceInfo, versionInfo, syncDeviceAndVersionInfo } = useDeviceInfoStore();

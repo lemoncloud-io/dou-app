@@ -19,7 +19,7 @@ import { SubscriptionSelectDialog } from './SubscriptionSelectDialog';
 import { SubscriptionRequiredDialog } from './SubscriptionRequiredDialog';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
-import type { InviteCloudView } from '@chatic/app-messages';
+import type { CacheSiteView } from '@chatic/app-messages';
 
 // --- Shared Styles ---
 
@@ -168,7 +168,7 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick 
 // --- Invite Cloud Item ---
 
 interface InviteCloudItemProps {
-    inviteCloud: InviteCloudView;
+    inviteCloud: CacheSiteView;
     isSelected: boolean;
     isDisabled: boolean;
     onSelectCloud: (cloudId: string) => void;

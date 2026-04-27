@@ -7,7 +7,7 @@ const generateNonce = () => Math.random().toString(36).substring(2, 15) + Math.r
 /**
  * 네이티브 앱(App)으로부터 특정 타입의 메시지가 도착할 때까지 대기합니다.
  *
- * @param type 대기할 메시지 타입 (예: 'OnSaveCacheData')
+ * @param type 대기할 메시지 타입 (예: 'OnSaveCache')
  * @param predicate 특정 조건(예: nonce 일치 여부)을 검사하는 필터 함수
  * @param timeout 타임아웃 밀리초 (기본값 5초)
  * @returns 조건에 맞는 메시지 객체를 반환하는 Promise
@@ -43,11 +43,11 @@ export const createNativeDBAdapter = <TType extends CacheType>(type: TType, cid:
         save: async (id: string, item: Model): Promise<Model> => {
             const nonce = generateNonce();
             postMessage({
-                type: 'SaveCacheData',
+                type: 'SaveCache',
                 nonce,
                 data: { type, id, item: item as any, cid } as any,
             });
-            await waitForAppMessage('OnSaveCacheData', m => m.nonce === nonce);
+            await waitForAppMessage('OnSaveCache', m => m.nonce === nonce);
             return item;
         },
 
@@ -55,66 +55,66 @@ export const createNativeDBAdapter = <TType extends CacheType>(type: TType, cid:
             if (items.length === 0) return [];
             const nonce = generateNonce();
             postMessage({
-                type: 'SaveAllCacheData',
+                type: 'SaveAllCache',
                 nonce,
                 data: { type, items: items as any[], cid } as any,
             });
-            await waitForAppMessage('OnSaveAllCacheData', m => m.nonce === nonce);
+            await waitForAppMessage('OnSaveAllCache', m => m.nonce === nonce);
             return items;
         },
 
         load: async (id: string): Promise<Model | null> => {
             const nonce = generateNonce();
             postMessage({
-                type: 'FetchCacheData',
+                type: 'FetchCache',
                 nonce,
                 data: { type, id, cid } as any,
             });
-            const response = await waitForAppMessage('OnFetchCacheData', m => m.nonce === nonce);
+            const response = await waitForAppMessage('OnFetchCache', m => m.nonce === nonce);
             return (response.data.item as Model) || null;
         },
 
         loadAll: async (): Promise<Model[]> => {
             const nonce = generateNonce();
             postMessage({
-                type: 'FetchAllCacheData',
+                type: 'FetchAllCache',
                 nonce,
                 data: { type, query: { cid } } as any,
             });
-            const response = await waitForAppMessage('OnFetchAllCacheData', m => m.nonce === nonce);
+            const response = await waitForAppMessage('OnFetchAllCache', m => m.nonce === nonce);
             return (response.data.items as Model[]) || [];
         },
 
-        // TODO: 원자적 `ReplaceAllCacheData` 브릿지 메시지 도입은 후속 PR. 현재는 FetchAll→DeleteAll→SaveAll 3단계.
+        // TODO: 원자적 `ReplaceAllCache` 브릿지 메시지 도입은 후속 PR. 현재는 FetchAll→DeleteAll→SaveAll 3단계.
         replaceAll: async (items: Model[]): Promise<Model[]> => {
             const fetchNonce = generateNonce();
             postMessage({
-                type: 'FetchAllCacheData',
+                type: 'FetchAllCache',
                 nonce: fetchNonce,
                 data: { type, query: { cid } } as any,
             });
-            const fetchResponse = await waitForAppMessage('OnFetchAllCacheData', m => m.nonce === fetchNonce);
+            const fetchResponse = await waitForAppMessage('OnFetchAllCache', m => m.nonce === fetchNonce);
             const existing = (fetchResponse.data.items as any[]) || [];
             const existingIds = existing.map((item: any) => item?.id).filter(Boolean);
 
             if (existingIds.length > 0) {
                 const deleteNonce = generateNonce();
                 postMessage({
-                    type: 'DeleteAllCacheData',
+                    type: 'DeleteAllCache',
                     nonce: deleteNonce,
                     data: { type, ids: existingIds, cid } as any,
                 });
-                await waitForAppMessage('OnDeleteAllCacheData', m => m.nonce === deleteNonce);
+                await waitForAppMessage('OnDeleteAllCache', m => m.nonce === deleteNonce);
             }
 
             if (items.length > 0) {
                 const saveNonce = generateNonce();
                 postMessage({
-                    type: 'SaveAllCacheData',
+                    type: 'SaveAllCache',
                     nonce: saveNonce,
                     data: { type, items: items as any[], cid } as any,
                 });
-                await waitForAppMessage('OnSaveAllCacheData', m => m.nonce === saveNonce);
+                await waitForAppMessage('OnSaveAllCache', m => m.nonce === saveNonce);
             }
             return items;
         },
@@ -122,32 +122,32 @@ export const createNativeDBAdapter = <TType extends CacheType>(type: TType, cid:
         delete: async (id: string): Promise<void> => {
             const nonce = generateNonce();
             postMessage({
-                type: 'DeleteCacheData',
+                type: 'DeleteCache',
                 nonce,
                 data: { type, id, cid } as any,
             });
-            await waitForAppMessage('OnDeleteCacheData', m => m.nonce === nonce);
+            await waitForAppMessage('OnDeleteCache', m => m.nonce === nonce);
         },
 
         deleteAll: async (ids: string[]): Promise<void> => {
             if (ids.length === 0) return;
             const nonce = generateNonce();
             postMessage({
-                type: 'DeleteAllCacheData',
+                type: 'DeleteAllCache',
                 nonce,
                 data: { type, ids, cid } as any,
             });
-            await waitForAppMessage('OnDeleteAllCacheData', m => m.nonce === nonce);
+            await waitForAppMessage('OnDeleteAllCache', m => m.nonce === nonce);
         },
 
         clearAll: async () => {
             const nonce = generateNonce();
             postMessage({
-                type: 'ClearCacheData',
+                type: 'ClearCache',
                 nonce,
                 data: { type } as any,
             });
-            await waitForAppMessage('OnClearCacheData', m => m.nonce === nonce);
+            await waitForAppMessage('OnClearCache', m => m.nonce === nonce);
         },
     };
 };

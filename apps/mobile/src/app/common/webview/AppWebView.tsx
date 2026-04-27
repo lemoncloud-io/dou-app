@@ -40,7 +40,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 DeviceInfo.getUniqueId(),
                 firebaseInstallationService.getFirebaseId(),
                 // NOTE: channels 캐시는 stale 데이터 노출 방지를 위해 제거 — 서버 fast path로 대체
-                cacheCrudService.fetchAll({ type: 'cloud' }).catch(() => []),
+                cacheCrudService.fetchAll({ type: 'invitecloud' }).catch(() => []),
             ]);
 
             /**

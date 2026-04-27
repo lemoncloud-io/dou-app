@@ -55,15 +55,16 @@ export const NativeDBChannelAdapter: ChannelStorageAdapter = {
     loadAll: async () => {
         const nonce = generateNonce();
         postMessage({
-            type: 'FetchAllCacheData',
+            type: 'FetchAllCache',
             nonce,
             data: {
+                cid: defaultCloudId,
                 type: 'channel',
                 query: { cid: defaultCloudId },
             },
         });
 
-        const response = await waitForAppMessage('OnFetchAllCacheData', m => m.nonce === nonce);
+        const response = await waitForAppMessage('OnFetchAllCache', m => m.nonce === nonce);
         return response.data.items as ChannelView[];
     },
 
@@ -73,7 +74,7 @@ export const NativeDBChannelAdapter: ChannelStorageAdapter = {
     save: async (userId, channel) => {
         // const nonce = generateNonce();
         // postMessage({
-        //     type: 'SaveCacheData',
+        //     type: 'SaveCache',
         //     nonce,
         //     data: {
         //         type: 'channel',
@@ -83,7 +84,7 @@ export const NativeDBChannelAdapter: ChannelStorageAdapter = {
         //     },
         // });
         //
-        // await waitForAppMessage('OnSaveCacheData', m => m.nonce === nonce);
+        // await waitForAppMessage('OnSaveCache', m => m.nonce === nonce);
         //
         // const bc = new BroadcastChannel(CHANNELS_BROADCAST_CHANNEL_NAME);
         // bc.postMessage({ type: 'channel-saved', userId, channel });
@@ -94,7 +95,7 @@ export const NativeDBChannelAdapter: ChannelStorageAdapter = {
     remove: async (userId, channelId) => {
         const nonce = generateNonce();
         postMessage({
-            type: 'DeleteCacheData',
+            type: 'DeleteCache',
             nonce,
             data: {
                 type: 'channel',
@@ -103,7 +104,7 @@ export const NativeDBChannelAdapter: ChannelStorageAdapter = {
             },
         });
 
-        await waitForAppMessage('OnDeleteCacheData', m => m.nonce === nonce);
+        await waitForAppMessage('OnDeleteCache', m => m.nonce === nonce);
 
         const bc = new BroadcastChannel(CHANNELS_BROADCAST_CHANNEL_NAME);
         bc.postMessage({ type: 'channel-removed', userId, channelId });

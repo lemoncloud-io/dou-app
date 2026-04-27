@@ -4,23 +4,23 @@ import { logger } from '../../services';
 import type { WebViewBridge } from './useBaseBridge';
 import type {
     AppMessageData,
-    ClearCacheData,
-    DeleteAllCacheData,
-    DeleteCacheData,
-    FetchAllCacheData,
-    FetchCacheData,
-    SaveAllCacheData,
-    SaveCacheData,
+    ClearCache,
+    DeleteAllCache,
+    DeleteCache,
+    FetchAllCache,
+    FetchCache,
+    SaveAllCache,
+    SaveCache,
 } from '@chatic/app-messages';
 import { cacheCrudService } from '../../storages';
 
 export const useCrudCacheHandler = (bridge: WebViewBridge) => {
-    const handleFetchAllCacheData = useCallback(
-        async (message: FetchAllCacheData) => {
+    const handleFetchAllCache = useCallback(
+        async (message: FetchAllCache) => {
             try {
                 const items = await cacheCrudService.fetchAll(message.data);
-                const response: AppMessageData<'OnFetchAllCacheData'> = {
-                    type: 'OnFetchAllCacheData',
+                const response: AppMessageData<'OnFetchAllCache'> = {
+                    type: 'OnFetchAllCache',
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
@@ -35,12 +35,12 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleFetchCacheData = useCallback(
-        async (message: FetchCacheData) => {
+    const handleFetchCache = useCallback(
+        async (message: FetchCache) => {
             try {
                 const item = await cacheCrudService.fetch(message.data);
-                const response: AppMessageData<'OnFetchCacheData'> = {
-                    type: 'OnFetchCacheData',
+                const response: AppMessageData<'OnFetchCache'> = {
+                    type: 'OnFetchCache',
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
@@ -52,7 +52,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
             } catch (e) {
                 logger.error('CACHE', `Fetch error: ${message.data.type} ${message.data.id}`, e);
                 bridge.post({
-                    type: 'OnFetchCacheData',
+                    type: 'OnFetchCache',
                     nonce: message.nonce,
                     data: { type: message.data.type, id: message.data.id, item: null } as any,
                 });
@@ -61,12 +61,12 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleSaveCacheData = useCallback(
-        async (message: SaveCacheData) => {
+    const handleSaveCache = useCallback(
+        async (message: SaveCache) => {
             try {
                 const savedId = await cacheCrudService.save(message.data);
-                const response: AppMessageData<'OnSaveCacheData'> = {
-                    type: 'OnSaveCacheData',
+                const response: AppMessageData<'OnSaveCache'> = {
+                    type: 'OnSaveCache',
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
@@ -77,7 +77,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
             } catch (e) {
                 logger.error('CACHE', `Save error: ${message.data.type} ${message.data.id}`, e);
                 bridge.post({
-                    type: 'OnSaveCacheData',
+                    type: 'OnSaveCache',
                     nonce: message.nonce,
                     data: { type: message.data.type, id: null } as any,
                 });
@@ -86,12 +86,12 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleSaveAllCacheData = useCallback(
-        async (message: SaveAllCacheData) => {
+    const handleSaveAllCache = useCallback(
+        async (message: SaveAllCache) => {
             try {
                 const savedIds = await cacheCrudService.saveAll(message.data);
-                const response: AppMessageData<'OnSaveAllCacheData'> = {
-                    type: 'OnSaveAllCacheData',
+                const response: AppMessageData<'OnSaveAllCache'> = {
+                    type: 'OnSaveAllCache',
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
@@ -106,12 +106,12 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleDeleteCacheData = useCallback(
-        async (message: DeleteCacheData) => {
+    const handleDeleteCache = useCallback(
+        async (message: DeleteCache) => {
             try {
                 const deletedId = await cacheCrudService.delete(message.data);
-                const response: AppMessageData<'OnDeleteCacheData'> = {
-                    type: 'OnDeleteCacheData',
+                const response: AppMessageData<'OnDeleteCache'> = {
+                    type: 'OnDeleteCache',
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
@@ -122,7 +122,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
             } catch (e) {
                 logger.error('CACHE', `Delete error: ${message.data.type} ${message.data.id}`, e);
                 bridge.post({
-                    type: 'OnDeleteCacheData',
+                    type: 'OnDeleteCache',
                     nonce: message.nonce,
                     data: { type: message.data.type, id: null } as any,
                 });
@@ -131,12 +131,12 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleDeleteAllCacheData = useCallback(
-        async (message: DeleteAllCacheData) => {
+    const handleDeleteAllCache = useCallback(
+        async (message: DeleteAllCache) => {
             try {
                 const deletedIds = await cacheCrudService.deleteAll(message.data);
-                const response: AppMessageData<'OnDeleteAllCacheData'> = {
-                    type: 'OnDeleteAllCacheData',
+                const response: AppMessageData<'OnDeleteAllCache'> = {
+                    type: 'OnDeleteAllCache',
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
@@ -151,12 +151,12 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleClearCacheData = useCallback(
-        async (message: ClearCacheData) => {
+    const handleClearCache = useCallback(
+        async (message: ClearCache) => {
             try {
                 await cacheCrudService.clear(message.data);
-                const response: AppMessageData<'OnClearCacheData'> = {
-                    type: 'OnClearCacheData',
+                const response: AppMessageData<'OnClearCache'> = {
+                    type: 'OnClearCache',
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
@@ -171,12 +171,12 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
     );
 
     return {
-        handleFetchAllCacheData,
-        handleFetchCacheData,
-        handleSaveCacheData,
-        handleSaveAllCacheData,
-        handleDeleteCacheData,
-        handleDeleteAllCacheData,
-        handleClearCacheData,
+        handleFetchAllCache,
+        handleFetchCache,
+        handleSaveCache,
+        handleSaveAllCache,
+        handleDeleteCache,
+        handleDeleteAllCache,
+        handleClearCache,
     };
 };

@@ -46,9 +46,11 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
             const message: AppMessageData<'OnReceiveNotification'> = {
                 type: 'OnReceiveNotification',
                 data: {
-                    title: remoteMessage.notification?.title,
-                    body: remoteMessage.notification?.body,
-                    data: remoteMessage.data,
+                    notification: {
+                        title: remoteMessage.notification?.title,
+                        body: remoteMessage.notification?.body,
+                        data: remoteMessage.data,
+                    },
                 },
             };
             bridge.post(message);
@@ -73,7 +75,9 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
                 setTimeout(() => {
                     const message: AppMessageData<'OnOpenNotification'> = {
                         type: 'OnOpenNotification',
-                        data: remoteMessage.data || {},
+                        data: {
+                            notification: remoteMessage.data || {},
+                        },
                     };
                     bridge.post(message);
                 }, 1000);

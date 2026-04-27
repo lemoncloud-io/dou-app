@@ -2,17 +2,16 @@ import { useCallback } from 'react';
 import { Linking } from 'react-native';
 import RNFS from 'react-native-fs';
 
-import { deviceService } from '../../services';
-import { logger } from '../../services';
+import { deviceService, logger } from '../../services';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type {
     AppMessageData,
+    GetContacts,
     OpenCamera,
+    OpenDocument,
     OpenPhotoLibrary,
     OpenShareSheet,
-    OpenDocument,
-    GetContacts,
     OpenURL,
 } from '@chatic/app-messages';
 import type { Asset, CameraOptions, ImageLibraryOptions } from 'react-native-image-picker';
