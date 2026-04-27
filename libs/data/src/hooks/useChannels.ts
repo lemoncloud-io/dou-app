@@ -41,7 +41,10 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
     /**
      * 로컬 DB에서 채널 목록 읽어오기 및 정렬
+     * NOTE: 현재 사용하지 않음 — stale 캐시 노출 방지를 위해 서버 fast path로 대체됨
+     * 추후 오프라인 모드 등에서 필요할 수 있어 함수는 보존
      */
+     
     const requestFromLocal = useCallback(
         async (params?: ClientChatMinePayload) => {
             try {
@@ -170,6 +173,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         [emitAuthenticated, isValidCloudId, cloudId]
     );
 
+    // NOTE: requestFromLocal은 현재 미사용 — ref도 보존만 (호출 X)
     const requestFromLocalRef = useRef(requestFromLocal);
     requestFromLocalRef.current = requestFromLocal;
     const requestFromNetworkRef = useRef(requestFromNetwork);
@@ -247,23 +251,9 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                     }
                 }
 
-                // 모든 타겟 도메인에 대해 로컬 DB 즉시 로드
-                void requestFromLocalRef.current();
-
-                if (detail.domain === 'join') {
-                    // 'join' 도메인일 경우에만 서버 동기화(원격) 요청 수행; (domain:model; action:update; type:join)
-                    requestFromNetworkRef.current();
-                } else {
-                    // 'channel', 'chat' 등 나머지는 로컬 로드만 수행 후 동기화 상태 해제
-                    isSyncingRef.current = false;
-                    setIsSyncing(false);
-                }
-                // 채팅 이벤트(send, model:create 등) 수신 시 서버에서 최신 채널 목록을 다시 가져옴
-                // model:create:chat은 채널 데이터(lastChat$, unreadCount)를 로컬에 갱신하지 않으므로
-                // 서버에 chat:mine을 재요청하여 정확한 채널 상태를 동기화
-                if (detail.domain === 'chat') {
-                    requestFromNetworkRef.current({ ...currentParamsRef.current, limit: 100 });
-                }
+                // channel(start/delete/leave), chat, join 이벤트 → 서버에 재요청
+                isSyncingRef.current = false;
+                requestFromNetworkRef.current({ ...currentParamsRef.current, limit: 100 });
             }
         };
 
@@ -277,7 +267,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         isSyncingRef.current = false;
         requestFromNetwork();
     }, [requestFromNetwork]);
-    useConnectionRecoverySync(requestFromLocal, requestFromNetworkForRecovery);
+    useConnectionRecoverySync(requestFromNetworkForRecovery, requestFromNetworkForRecovery);
 
     return {
         channels,
@@ -285,7 +275,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         isSyncing,
         isError,
         refresh: (options?: ClientChatMinePayload) => {
-            void requestFromLocal(options);
+            isSyncingRef.current = false;
             requestFromNetwork(options);
         },
         sync: (options?: ClientChatMinePayload) => requestFromNetwork(options),
