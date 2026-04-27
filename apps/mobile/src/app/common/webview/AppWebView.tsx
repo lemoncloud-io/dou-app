@@ -28,11 +28,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     // 최초 1회: deviceInfo 주입 (비동기 초기화)
     useEffect(() => {
         const prepareWebView = async () => {
-            const [userAgent, uniqueId, installationId, cachedChannels, cachedClouds] = await Promise.all([
+            const [userAgent, uniqueId, installationId, cachedClouds] = await Promise.all([
                 getUserAgent(),
                 DeviceInfo.getUniqueId(),
                 firebaseInstallationService.getFirebaseId(),
-                cacheCrudService.fetchAll({ type: 'channel' }).catch(() => []),
+                // NOTE: channels 캐시는 stale 데이터 노출 방지를 위해 제거 — 서버 fast path로 대체
                 cacheCrudService.fetchAll({ type: 'cloud' }).catch(() => []),
             ]);
 
@@ -66,7 +66,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             };
 
             const cachedDataScript = getCachedDataScript({
-                channels: dedup(cachedChannels as { id?: string }[]),
+                channels: [],
                 clouds: dedup(cachedClouds as { id?: string }[]),
                 timestamp: Date.now(),
             });
