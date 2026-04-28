@@ -1,44 +1,56 @@
-import type { CacheSiteView } from '@chatic/app-messages';
-import { TABLES } from '../core';
-import { database } from '../core';
+// src/storages/sqlite/inviteCloudDataSource.ts
+import { database, TABLES } from '../core';
+import type { ICacheDataSource } from './ICacheDataSource';
+import type { CacheCloudView, InviteCloudQueryOptions } from '@chatic/app-messages';
+import { logger } from '../../../services';
 
-export const inviteCloudDataSource = {
-    fetch: async (id: string): Promise<CacheSiteView | null> => {
+/**
+ * 초대 클라우드(Invite Cloud) 도메인 전용 데이터 소스입니다.
+ * 이 테이블은 시스템 전역(Global) 데이터를 보관하므로, 다른 도메인과 달리 cid(클라우드 ID)를 통한 데이터 격리 쿼리를 수행하지 않습니다.
+ * (파라미터로 넘어온 _cid는 인터페이스 규격을 맞추기 위한 것이며 무시됩니다)
+ */
+export const inviteCloudDataSource: ICacheDataSource<CacheCloudView, InviteCloudQueryOptions> = {
+    fetch: async (id, _cid) => {
         const result = await database.execute(`SELECT data FROM ${TABLES.INVITE_CLOUDS} WHERE id = ?`, [id]);
-        const rows = result.rows || [];
-        if (rows.length === 0) return null;
-        try {
-            return JSON.parse(rows[0].data as string) as CacheSiteView;
-        } catch {
-            return null;
-        }
+        if (result.rows && result.rows.length > 0) return JSON.parse(result.rows[0].data as string) as CacheCloudView;
+        return null;
     },
 
-    fetchAll: async (): Promise<CacheSiteView[]> => {
+    fetchAll: async (_cid, _query) => {
         const result = await database.execute(`SELECT data FROM ${TABLES.INVITE_CLOUDS}`);
-        const rows = result.rows || [];
-        return rows.reduce<CacheSiteView[]>((acc, row) => {
+        return (result.rows || []).reduce<CacheCloudView[]>((acc, row) => {
             try {
-                acc.push(JSON.parse(row.data as string) as CacheSiteView);
-            } catch {
-                // skip invalid
+                acc.push(JSON.parse(row.data as string) as CacheCloudView);
+            } catch (e) {
+                logger.warn('CACHE', `InviteCloudDataSource: Json Parse Error ${e}`);
             }
             return acc;
         }, []);
     },
 
-    save: async (id: string, item: CacheSiteView): Promise<void> => {
+    save: async (id, item, _cid) => {
         await database.execute(`INSERT OR REPLACE INTO ${TABLES.INVITE_CLOUDS} (id, data) VALUES (?, ?)`, [
             id,
             JSON.stringify(item),
         ]);
     },
 
-    remove: async (id: string): Promise<void> => {
+    saveAll: async (items, _cid) => {
+        if (items.length === 0) return;
+        const sql = `INSERT OR REPLACE INTO ${TABLES.INVITE_CLOUDS} (id, data) VALUES (?, ?)`;
+        await database.executeBatch(items.map(i => [sql, [i.id, JSON.stringify(i.data)]]));
+    },
+
+    remove: async (id, _cid) => {
         await database.execute(`DELETE FROM ${TABLES.INVITE_CLOUDS} WHERE id = ?`, [id]);
     },
 
-    removeAll: async (): Promise<void> => {
+    removeAll: async (ids, _cid) => {
+        if (ids.length === 0) return;
+        await database.executeBatch(ids.map(id => [`DELETE FROM ${TABLES.INVITE_CLOUDS} WHERE id = ?`, [id]]));
+    },
+
+    clear: async () => {
         await database.execute(`DELETE FROM ${TABLES.INVITE_CLOUDS}`);
     },
 };

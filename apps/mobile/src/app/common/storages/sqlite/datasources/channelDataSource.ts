@@ -1,101 +1,117 @@
+// src/storages/sqlite/channelDataSource.ts
 import { database, TABLES } from '../core';
-import { createScopedDataSource } from './factory';
-import type { CacheChannelView } from '@chatic/app-messages';
-
-const baseChannelDataSource = createScopedDataSource<CacheChannelView>(TABLES.CHANNELS);
+import type { ICacheDataSource } from './ICacheDataSource';
+import type { CacheChannelView, ChannelQueryOptions } from '@chatic/app-messages';
 
 /**
- * Extract 'sid' safely from the item.
- * Using 'any' here because the base CacheChannelView type might not explicitly define 'sid' yet.
+ * 채널 객체에서(sid)를 안전하게 추출합니다.
  */
-const extractSid = (item: any): string => {
-    return item?.sid ? String(item.sid) : '';
-};
-
-/** Extract 'name' safely for searching */
-const extractName = (item: any): string => {
-    return item?.name ? String(item.name) : '';
-};
+const extractSid = (item: any): string => (item?.sid ? String(item.sid) : 'default');
 
 /**
- * Data source specifically tailored for the Channel domain.
- * Extends the base ScopedCacheDataSource with custom implementations to
- * extract and index 'sid' (Site ID) for optimized querying.
+ * 채널 객체에서 채널명(name)을 안전하게 추출합니다.
  */
-export const channelDataSource = {
-    ...baseChannelDataSource,
+const extractName = (item: any): string => (item?.name ? String(item.name) : '');
 
+/**
+ * 채널 도메인 전용 데이터 소스 구현체
+ * 기본 CRUD 외에 사이트별 채널 목록 조회 및 키워드 검색 기능을 제공합니다.
+ */
+export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryOptions> = {
     /**
-     * Overrides the default save method to extract 'sid' and 'name'.
-     * This allows SQLite to index this column for fast site filtering.
+     * 단일 채널 정보를 조회합니다.
+     * @param id 채널 고유 식별자
+     * @param cid 클라우드 식별자
      */
-    save: async (id: string, item: CacheChannelView, cid: string): Promise<void> => {
-        const query = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, id, sid, name, data) VALUES (?, ?, ?, ?, ?)`;
-        const params = [cid, id, extractSid(item), extractName(item), JSON.stringify(item)];
-        await database.execute(query, params);
+    fetch: async (id, cid) => {
+        const query = cid
+            ? `SELECT data FROM ${TABLES.CHANNELS} WHERE id = ? AND cid = ?`
+            : `SELECT data FROM ${TABLES.CHANNELS} WHERE id = ?`;
+        const params = cid ? [id, cid] : [id];
+
+        const result = await database.execute(query, params);
+        if (result.rows && result.rows.length > 0) {
+            return JSON.parse(result.rows[0].data as string) as CacheChannelView;
+        }
+        return null;
     },
 
     /**
-     * Overrides the default saveAll method for batch insertions.
-     * Extracts 'sid' for each item to maintain index integrity.
+     * 조건에 맞는 채널 목록을 조회합니다.
+     * @param cid 클라우드 식별자
+     * @param query 사이트 ID(sid) 필터링 및 이름(keyword) 검색 조건
      */
-    saveAll: async (items: { id: string; data: CacheChannelView }[], cid: string): Promise<void> => {
-        if (items.length === 0) return;
-
-        const query = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, id, sid, name, data) VALUES (?, ?, ?, ?, ?)`;
-
-        // Using any[] for commands due to op-sqlite's executeBatch tuple requirement
-        const commands: [string, any[]][] = items.map(item => [
-            query,
-            [cid, item.id, extractSid(item.data), extractName(item.data), JSON.stringify(item.data)],
-        ]);
-
-        await database.executeBatch(commands);
-    },
-
-    /**
-     * Fetches channels belonging to a specific cloud (cid) and optionally filters by site (sid).
-     *
-     * @param cid Optional Cloud ID to scope the query. If omitted, fetches across all clouds.
-     * @param sid Optional Site ID to filter channels.
-     * @param keyword Optional. Keyword to perform a text search across the channel data.
-     * @returns A promise that resolves to an array of parsed CacheChannelView objects.
-     */
-    fetchChannels: async (cid?: string, sid?: string, keyword?: string): Promise<CacheChannelView[]> => {
-        let query = `SELECT data FROM ${TABLES.CHANNELS}`;
+    fetchAll: async (cid, query) => {
+        let sql = `SELECT data FROM ${TABLES.CHANNELS}`;
         const params: (string | number)[] = [];
         const conditions: string[] = [];
 
+        // 클라우드별 격리 필터링
         if (cid) {
             conditions.push(`cid = ?`);
             params.push(cid);
         }
-        if (sid) {
+        // 특정 사이트에 속한 채널 필터링
+        if (query?.sid) {
             conditions.push(`sid = ?`);
-            params.push(sid);
+            params.push(query.sid);
         }
-        if (keyword) {
+        // 채널명 키워드 검색 (name 컬럼 활용)
+        if (query?.keyword) {
             conditions.push(`name LIKE ?`);
-            params.push(`%${keyword}%`);
+            params.push(`%${query.keyword}%`);
         }
 
         if (conditions.length > 0) {
-            query += ` WHERE ` + conditions.join(' AND ');
+            sql += ` WHERE ` + conditions.join(' AND ');
         }
 
-        const result = await database.execute(query, params);
-        const rows = result.rows || [];
+        const result = await database.execute(sql, params);
+        return (result.rows || []).map(row => JSON.parse(row.data as string) as CacheChannelView);
+    },
 
-        return rows
-            .map(row => {
-                try {
-                    // Using any cast to safely access 'data' from op-sqlite's Record result
-                    const dataString = (row as any).data as string;
-                    return JSON.parse(dataString) as CacheChannelView;
-                } catch {
-                    return null;
-                }
-            })
-            .filter((item: CacheChannelView | null): item is CacheChannelView => item !== null);
+    /**
+     * 채널 정보를 저장하거나 업데이트합니다.
+     * 원본 JSON 데이터 외에 sid, name을 개별 컬럼으로 추출하여 인덱싱 성능을 확보합니다.
+     */
+    save: async (id, item, cid) => {
+        const sql = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, id, sid, name, data) VALUES (?, ?, ?, ?, ?)`;
+        await database.execute(sql, [cid, id, extractSid(item), extractName(item), JSON.stringify(item)]);
+    },
+
+    /**
+     * 다수의 채널 정보를 일괄 저장합니다.
+     */
+    saveAll: async (items, cid) => {
+        if (items.length === 0) return;
+        const sql = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, id, sid, name, data) VALUES (?, ?, ?, ?, ?)`;
+        const commands: [string, any[]][] = items.map(item => [
+            sql,
+            [cid, item.id, extractSid(item.data), extractName(item.data), JSON.stringify(item.data)],
+        ]);
+        await database.executeBatch(commands);
+    },
+
+    /**
+     *  단일 채널 삭제
+     */
+    remove: async (id, cid) => {
+        await database.execute(`DELETE FROM ${TABLES.CHANNELS} WHERE id = ? AND cid = ?`, [id, cid]);
+    },
+
+    /**
+     *  다수 채널 일괄 삭제
+     */
+    removeAll: async (ids, cid) => {
+        if (ids.length === 0) return;
+        const sql = `DELETE FROM ${TABLES.CHANNELS} WHERE id = ? AND cid = ?`;
+        await database.executeBatch(ids.map(id => [sql, [id, cid]]));
+    },
+
+    /**
+     *  채널 테이블 전체 초기화
+     */
+    clear: async () => {
+        await database.execute(`DELETE FROM ${TABLES.CHANNELS}`);
     },
 };
