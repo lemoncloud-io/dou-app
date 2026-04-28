@@ -2,7 +2,7 @@
 import { database, TABLES } from '../core';
 import type { ICacheDataSource } from './ICacheDataSource';
 import type { CacheCloudView, InviteCloudQueryOptions } from '@chatic/app-messages';
-import { logger } from '../../../services';
+import { logger } from '../../../../services';
 
 /**
  * 초대 클라우드(Invite Cloud) 도메인 전용 데이터 소스입니다.

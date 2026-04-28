@@ -34,23 +34,23 @@ export const chatDataSource: ICacheDataSource<CacheChatView, ChatQueryOptions> =
         const params: (string | number)[] = [];
         const conditions: string[] = [];
 
-        // 클라우드별 데이터 격리
         if (cid) {
             conditions.push(`cid = ?`);
             params.push(cid);
         }
-        // 특정 채널의 메시지만 필터링 (channel_id 컬럼 활용)
         if (query?.channelId) {
             conditions.push(`channel_id = ?`);
             params.push(query.channelId);
         }
 
+        if ((query as any)?.keyword) {
+            conditions.push(`content LIKE ?`);
+            params.push(`%${(query as any).keyword}%`);
+        }
+
         if (conditions.length > 0) sql += ` WHERE ` + conditions.join(' AND ');
 
-        // 메시지 번호 기반 정렬 (chat_no 컬럼 활용)
-        if (query?.sort) {
-            sql += ` ORDER BY chat_no ${query.sort.toUpperCase()}`;
-        }
+        if (query?.sort) sql += ` ORDER BY chat_no ${query.sort.toUpperCase()}`;
 
         const result = await database.execute(sql, params);
         return (result.rows || []).map(row => JSON.parse(row.data as string) as CacheChatView);

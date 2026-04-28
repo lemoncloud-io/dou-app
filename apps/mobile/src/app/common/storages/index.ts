@@ -1,3 +1,2 @@
-export * from './cacheCrudService';
-export * from './cacheSearchService';
-export * from './cachePreferenceService';
+export * from './cache';
+export * from './preference';

@@ -17,7 +17,6 @@ export const siteDataSource: ICacheDataSource<CacheSiteView, SiteQueryOptions> =
     },
 
     fetchAll: async (cid, _query) => {
-        // ✨ 시그니처 매칭
         const query = cid ? `SELECT data FROM ${TABLES.SITES} WHERE cid = ?` : `SELECT data FROM ${TABLES.SITES}`;
         const params = cid ? [cid] : [];
         const result = await database.execute(query, params);
