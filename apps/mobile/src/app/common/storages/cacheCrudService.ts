@@ -1,125 +1,223 @@
+import type { CacheModelMap, CacheQueryMap, CacheType } from '@chatic/app-messages';
 import {
     channelDataSource,
     chatDataSource,
+    inviteCloudDataSource,
     joinDataSource,
     siteDataSource,
     userDataSource,
-    inviteCloudDataSource,
 } from './sqlite';
-import type { CacheType } from '@chatic/app-messages';
 
-/**
- * Registry mapping each CacheType to its specific SQLite Data Source instance.
- */
-const DS_MAP: Record<CacheType, any> = {
-    chat: chatDataSource,
-    channel: channelDataSource,
-    user: userDataSource,
-    join: joinDataSource,
-    site: siteDataSource,
-    invitecloud: inviteCloudDataSource,
-};
-
-/**
- * The central Facade for all local storage operations in the app.
- * Routes requests to either synchronous asynchronous SQLite (for domain data).
- * Enforces strict validation for `cid` (Cloud ID) based on whether the data type is scoped or default.
- */
 export const cacheCrudService = {
     /**
-     * Retrieves a single cached item.
-     * Automatically handles the `cid` parameter depending on whether the domain is scoped or default.
+     * [조회] 단건 캐시 데이터 조회
      */
-    fetch: async (payload: { type: CacheType; id: string; cid?: string }) => {
-        const ds = DS_MAP[payload.type];
-        if (!ds) return null;
-
-        return ds.fetch(payload.id, payload.cid);
-    },
-
-    /**
-     * Retrieves multiple cached items.
-     * Includes domain-specific logic to apply query filters (e.g., channelId, userId, sort) before fetching.
-     */
-    fetchAll: async (payload: { type: CacheType; query?: any }) => {
-        const ds = DS_MAP[payload.type];
-        if (!ds) return [];
-
-        const { cid, channelId, userId, sort, sid } = payload.query || {};
-
-        if (payload.type === 'chat' && (channelId || sort)) {
-            return chatDataSource.fetchChats(cid, channelId, sort);
+    fetch: async <K extends CacheType>(payload: {
+        type: K;
+        id: string;
+        cid?: string;
+    }): Promise<CacheModelMap[K] | null> => {
+        const { type, id, cid } = payload;
+        switch (type) {
+            case 'chat':
+                return (await chatDataSource.fetch(id, cid)) as CacheModelMap[K] | null;
+            case 'channel':
+                return (await channelDataSource.fetch(id, cid)) as CacheModelMap[K] | null;
+            case 'join':
+                return (await joinDataSource.fetch(id, cid)) as CacheModelMap[K] | null;
+            case 'site':
+                return (await siteDataSource.fetch(id, cid)) as CacheModelMap[K] | null;
+            case 'user':
+                return (await userDataSource.fetch(id, cid)) as CacheModelMap[K] | null;
+            case 'invitecloud':
+                return (await inviteCloudDataSource.fetch(id, cid)) as CacheModelMap[K] | null;
+            default:
+                return null;
         }
-        if (payload.type === 'join' && (channelId || userId)) {
-            return joinDataSource.fetchJoins(cid, { channelId, userId });
+    },
+
+    /**
+     * [조회] 다수/페이징 캐시 조회
+     */
+    fetchAll: async <K extends CacheType>(payload: {
+        type: K;
+        query?: CacheQueryMap[K];
+        cid?: string;
+    }): Promise<CacheModelMap[K][]> => {
+        const { type, query, cid } = payload;
+        switch (type) {
+            case 'chat':
+                return (await chatDataSource.fetchAll(cid, query as CacheQueryMap['chat'])) as CacheModelMap[K][];
+            case 'channel':
+                return (await channelDataSource.fetchAll(cid, query as CacheQueryMap['channel'])) as CacheModelMap[K][];
+            case 'join':
+                return (await joinDataSource.fetchAll(cid, query as CacheQueryMap['join'])) as CacheModelMap[K][];
+            case 'site':
+                return (await siteDataSource.fetchAll(cid, query as CacheQueryMap['site'])) as CacheModelMap[K][];
+            case 'user':
+                return (await userDataSource.fetchAll(cid, query as CacheQueryMap['user'])) as CacheModelMap[K][];
+            case 'invitecloud':
+                return (await inviteCloudDataSource.fetchAll(
+                    cid,
+                    query as CacheQueryMap['invitecloud']
+                )) as CacheModelMap[K][];
+            default:
+                return [];
         }
-        if (payload.type === 'channel' && sid) {
-            return channelDataSource.fetchChannels(cid, sid);
+    },
+
+    /**
+     * [저장] 단일 아이템 저장
+     */
+    save: async <K extends CacheType>(payload: {
+        type: K;
+        id: string;
+        item: CacheModelMap[K];
+        cid: string;
+    }): Promise<string> => {
+        const { type, id, item, cid } = payload;
+        switch (type) {
+            case 'chat':
+                await chatDataSource.save(id, item as CacheModelMap['chat'], cid);
+                break;
+            case 'channel':
+                await channelDataSource.save(id, item as CacheModelMap['channel'], cid);
+                break;
+            case 'join':
+                await joinDataSource.save(id, item as CacheModelMap['join'], cid);
+                break;
+            case 'site':
+                await siteDataSource.save(id, item as CacheModelMap['site'], cid);
+                break;
+            case 'user':
+                await userDataSource.save(id, item as CacheModelMap['user'], cid);
+                break;
+            case 'invitecloud':
+                await inviteCloudDataSource.save(id, item as CacheModelMap['invitecloud'], cid);
+                break;
         }
-
-        return ds.fetchAll(cid);
+        return id;
     },
 
     /**
-     * Saves a single item to the cache.
+     * [저장] 다수 아이템 일괄 저장
      */
-    save: async (payload: { type: CacheType; id: string; item: any; cid: string }) => {
-        const ds = DS_MAP[payload.type];
-        if (!ds) return payload.id;
+    saveAll: async <K extends CacheType>(payload: {
+        type: K;
+        items: CacheModelMap[K][];
+        cid: string;
+    }): Promise<string[]> => {
+        const { type, items, cid } = payload;
 
-        await ds.save(payload.id, payload.item, payload.cid);
-        return payload.id;
+        // 공통 ID 추출 헬퍼
+        const formatItems = <T extends { id?: string }>(dataList: T[]) =>
+            dataList.map(item => ({
+                id: item.id || 'unknown',
+                data: item,
+            }));
+
+        switch (type) {
+            case 'chat':
+                await chatDataSource.saveAll(formatItems(items as CacheModelMap['chat'][]), cid);
+                break;
+            case 'channel':
+                await channelDataSource.saveAll(formatItems(items as CacheModelMap['channel'][]), cid);
+                break;
+            case 'join':
+                await joinDataSource.saveAll(formatItems(items as CacheModelMap['join'][]), cid);
+                break;
+            case 'site':
+                await siteDataSource.saveAll(formatItems(items as CacheModelMap['site'][]), cid);
+                break;
+            case 'user':
+                await userDataSource.saveAll(formatItems(items as CacheModelMap['user'][]), cid);
+                break;
+            case 'invitecloud':
+                await inviteCloudDataSource.saveAll(formatItems(items as CacheModelMap['invitecloud'][]), cid);
+                break;
+        }
+        return items.map((i: any) => i.id);
     },
 
     /**
-     * Batch saves multiple items to the cache for optimal insertion performance.
+     * [삭제] 단일 아이템 삭제
      */
-    saveAll: async (payload: { type: CacheType; items: any[]; cid: string }) => {
-        const ds = DS_MAP[payload.type];
-        if (!ds) return [];
-
-        const formattedItems = payload.items.map(item => ({
-            id: item.id,
-            data: item,
-        }));
-
-        await ds.saveAll(formattedItems, payload.cid);
-        return payload.items.map(i => i.id);
+    delete: async <K extends CacheType>(payload: { type: K; id: string; cid: string }): Promise<string> => {
+        const { type, id, cid } = payload;
+        switch (type) {
+            case 'chat':
+                await chatDataSource.remove(id, cid);
+                break;
+            case 'channel':
+                await channelDataSource.remove(id, cid);
+                break;
+            case 'join':
+                await joinDataSource.remove(id, cid);
+                break;
+            case 'site':
+                await siteDataSource.remove(id, cid);
+                break;
+            case 'user':
+                await userDataSource.remove(id, cid);
+                break;
+            case 'invitecloud':
+                await inviteCloudDataSource.remove(id, cid);
+                break;
+        }
+        return id;
     },
 
     /**
-     * Deletes a single item from the cache.
+     * [삭제] 다수 아이템 일괄 삭제
      */
-    delete: async (payload: { type: CacheType; id: string; cid: string }) => {
-        const ds = DS_MAP[payload.type];
-        if (!ds) return payload.id;
-
-        await ds.remove(payload.id, payload.cid);
-        return payload.id;
+    deleteAll: async <K extends CacheType>(payload: { type: K; ids: string[]; cid: string }): Promise<string[]> => {
+        const { type, ids, cid } = payload;
+        switch (type) {
+            case 'chat':
+                await chatDataSource.removeAll(ids, cid);
+                break;
+            case 'channel':
+                await channelDataSource.removeAll(ids, cid);
+                break;
+            case 'join':
+                await joinDataSource.removeAll(ids, cid);
+                break;
+            case 'site':
+                await siteDataSource.removeAll(ids, cid);
+                break;
+            case 'user':
+                await userDataSource.removeAll(ids, cid);
+                break;
+            case 'invitecloud':
+                await inviteCloudDataSource.removeAll(ids, cid);
+                break;
+        }
+        return ids;
     },
 
     /**
-     * Batch deletes multiple items from the cache for optimal performance.
+     * [초기화] 특정 도메인 전체 삭제
      */
-    deleteAll: async (payload: { type: CacheType; ids: string[]; cid: string }) => {
-        const ds = DS_MAP[payload.type];
-        if (!ds) return [];
-
-        await ds.removeAll(payload.ids, payload.cid);
-        return payload.ids;
-    },
-
-    /**
-     * 특정 도메인(type)의 모든 캐시 데이터를 삭제합니다.
-     */
-    clear: async (payload: { type: CacheType }) => {
-        const ds = DS_MAP[payload.type];
-        if (!ds) return;
-
-        if (typeof ds.clear === 'function') {
-            await ds.clear();
-        } else {
-            console.warn(`clear method not implemented in dataSource for ${payload.type}`);
+    clear: async <K extends CacheType>(payload: { type: K }): Promise<void> => {
+        switch (payload.type) {
+            case 'chat':
+                await chatDataSource.clear();
+                break;
+            case 'channel':
+                await channelDataSource.clear();
+                break;
+            case 'join':
+                await joinDataSource.clear();
+                break;
+            case 'site':
+                await siteDataSource.clear();
+                break;
+            case 'user':
+                await userDataSource.clear();
+                break;
+            case 'invitecloud':
+                await inviteCloudDataSource.clear();
+                break;
         }
     },
 };
