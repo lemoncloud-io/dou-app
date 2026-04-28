@@ -2,19 +2,6 @@ import { TABLES } from './tables';
 
 export const SQL_SCHEMAS = [
     /**
-     * Cloud
-     * - key
-     *  - id : id
-     *  - cid : cloud id
-     */
-    `CREATE TABLE IF NOT EXISTS ${TABLES.CLOUDS} (
-        cid TEXT NOT NULL,
-        id TEXT NOT NULL,
-        data TEXT NOT NULL,
-        PRIMARY KEY (cid, id)
-    );`,
-
-    /**
      * Channel
      * - key
      *  - id : channel id
@@ -91,23 +78,10 @@ export const SQL_SCHEMAS = [
     );`,
 
     /**
-     * UserToken
-     *  - key
-     *   - id: user id
-     *   - cid: cloud id
-     */
-    `CREATE TABLE IF NOT EXISTS ${TABLES.USER_TOKENS} (
-        cid TEXT NOT NULL,
-        id TEXT NOT NULL,
-        data TEXT NOT NULL,
-        PRIMARY KEY (cid, id)
-    );`,
-
-    /**
      * InviteCloud
      * - cid 없이 초대된 cloud 정보 저장
-     *  - key
-     *   - id: site id
+     * - key
+     * - id: site id
      */
     `CREATE TABLE IF NOT EXISTS ${TABLES.INVITE_CLOUDS} (
         id TEXT NOT NULL PRIMARY KEY,
