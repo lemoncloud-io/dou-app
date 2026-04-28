@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { postMessage } from '@chatic/app-messages';
 
-import { fetchProfile, refreshAuthToken } from '../api';
+import { fetchProfile, refreshAuthToken, reportError } from '../api';
 import { useWebCoreStore } from '../stores';
-import { classifyError } from '../utils';
+import { classifyError, toError } from '../utils';
 
 import type { ErrorClassification } from '../utils';
 
@@ -54,6 +54,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             return true;
         } catch (error) {
             console.error('❌ Token refresh failed:', error);
+            reportError(toError(error));
             const errorClassification: ErrorClassification = classifyError(error);
             if (errorClassification.shouldLogout) {
                 console.log('🚪 Token completely expired or invalid - logging out...');
@@ -107,6 +108,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             setInitStatus('success');
         } catch (error: unknown) {
             console.error('❌ Profile fetch failed:', error);
+            reportError(toError(error));
 
             const errorClassification: ErrorClassification = classifyError(error);
 

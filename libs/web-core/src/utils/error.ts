@@ -1,3 +1,5 @@
+export const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
+
 export enum ErrorType {
     AUTHENTICATION = 'authentication', // 403 - 로그아웃 필요
     NETWORK = 'network', // 네트워크 연결 문제 - 재시도
