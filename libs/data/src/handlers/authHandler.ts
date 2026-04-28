@@ -1,4 +1,5 @@
 import type { AuthPayload, WSSAuthActionType, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
+import { reportError } from '@chatic/web-core';
 import { notifyAppUpdated } from '../sync-events';
 
 /**
@@ -19,6 +20,7 @@ export const authHandler = async (envelope: WSSEnvelope, cid: string) => {
          */
         case 'update': {
             if (payload.error) {
+                reportError(new Error(`[WS:auth] ${payload.error}`));
                 notifyAppUpdated({ domain: 'error', cid, action, payload });
                 break;
             }

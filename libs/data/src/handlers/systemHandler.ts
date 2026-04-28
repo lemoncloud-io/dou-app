@@ -1,4 +1,5 @@
 import type { SystemPayload, WSSEnvelope, WSSSystemActionType } from '@lemoncloud/chatic-sockets-api';
+import { reportError } from '@chatic/web-core';
 import { notifyAppUpdated } from '../sync-events';
 
 export const systemHandler = async (envelope: WSSEnvelope, cid: string) => {
@@ -43,6 +44,7 @@ export const systemHandler = async (envelope: WSSEnvelope, cid: string) => {
          * 시스템 레벨 에러 발생
          */
         case 'error': {
+            reportError(new Error(`[WS:system] ${(payload as any)?.error ?? 'Unknown system error'}`));
             notifyAppUpdated({ domain: 'error', cid, action, payload });
             break;
         }

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { cloudCore, useDynamicProfile } from '@chatic/web-core';
+import { cloudCore, useDynamicProfile, reportError } from '@chatic/web-core';
 import {
     useChannelLocalDataSource,
     useChatLocalDataSource,
@@ -83,6 +83,7 @@ export const useGlobalSocketRouter = () => {
                 }
             } catch (error) {
                 console.error(`[Socket Router] Error in domain ${envelope.type}:`, error);
+                reportError(error instanceof Error ? error : new Error(String(error)));
             }
         };
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { useWebSocketV2Store } from '../stores';
+import { reportError } from '@chatic/web-core';
 
 import type { WSSConnectParam, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
@@ -120,6 +121,11 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                         ) {
                             store.setIsVerified(true);
                         }
+                    }
+
+                    if (message.type === 'error') {
+                        console.error(`${logPrefix} Worker error:`, message.error);
+                        reportError(new Error(`[WebSocket Worker] ${message.error}`));
                     }
 
                     if (message.type === 'connectionId') {
