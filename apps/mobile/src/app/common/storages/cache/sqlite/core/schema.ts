@@ -104,5 +104,12 @@ export const MIGRATIONS: Record<number, string[]> = {
     );`,
     ],
     1: [`ALTER TABLE ${TABLES.SITES} ADD COLUMN name TEXT;`],
+    2: [
+        `CREATE INDEX IF NOT EXISTS idx_chats_cid_channel_chatno ON chats (cid, channel_id, chat_no DESC);`,
+        `CREATE INDEX IF NOT EXISTS idx_channels_cid_sid ON channels (cid, sid);`,
+        `CREATE INDEX IF NOT EXISTS idx_joins_cid_channel ON joins (cid, channel_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_joins_cid_user ON joins (cid, user_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_metas_type_cid_key ON metas (type, cid, key);`,
+    ],
 };
 export const TARGET_VERSION = Math.max(0, ...Object.keys(MIGRATIONS).map(Number)) + 1;
