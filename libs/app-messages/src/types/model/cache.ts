@@ -119,18 +119,15 @@ export type OnFetchCacheDataPayload = {
 /** [요청] 다수/페이징 데이터 조회 (query와 meta를 조합하여 캐시 키 생성) */
 export type FetchAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
-        parentId?: string; // 상위 컨텍스트 ID
-        query?: CacheQueryMap[K]; // 검색/필터 조건
-        meta?: PagingMeta; // 페이지 정보
+        query?: CacheQueryMap[K] & PagingMeta;
     };
 }[CacheType];
 
 /** [응답] 다수 데이터 반환 */
 export type OnFetchAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
-        parentId?: string;
         items: CacheModelMap[K][] | null;
-        meta?: PagingMeta;
+        query?: CacheQueryMap[K] & PagingMeta;
     };
 }[CacheType];
 
@@ -147,20 +144,17 @@ export type OnSaveCacheDataPayload = {
 /** [요청] 다수 데이터 저장 (페이징 인덱싱 포함) */
 export type SaveAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
-        parentId?: string;
-        query?: CacheQueryMap[K];
-        meta?: PagingMeta;
-        items: CacheModelMap[K][]; // 저장할 실제 엔티티 리스트
+        query?: CacheQueryMap[K] & PagingMeta;
+        items: CacheModelMap[K][];
     };
 }[CacheType];
 
 /** [응답] 다수 저장 결과 */
 export type OnSaveAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
-        parentId?: string;
-        ids: string[]; // 저장된 아이템 ID 목록
+        ids: string[];
         success: boolean;
-        meta?: PagingMeta; // 처리된 페이징 메타
+        query?: CacheQueryMap[K] & PagingMeta;
     };
 }[CacheType];
 
