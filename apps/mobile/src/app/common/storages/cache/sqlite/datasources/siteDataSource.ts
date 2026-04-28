@@ -16,25 +16,40 @@ export const siteDataSource: ICacheDataSource<CacheSiteView, SiteQueryOptions> =
         return null;
     },
 
-    fetchAll: async (cid, _query) => {
-        const query = cid ? `SELECT data FROM ${TABLES.SITES} WHERE cid = ?` : `SELECT data FROM ${TABLES.SITES}`;
-        const params = cid ? [cid] : [];
-        const result = await database.execute(query, params);
+    fetchAll: async (cid, query) => {
+        let sql = `SELECT data FROM ${TABLES.SITES}`;
+        const params: (string | number)[] = [];
+        const conditions: string[] = [];
+
+        if (cid) {
+            conditions.push(`cid = ?`);
+            params.push(cid);
+        }
+
+        if (query?.keyword) {
+            conditions.push(`name LIKE ?`);
+            params.push(`%${query.keyword}%`);
+        }
+
+        if (conditions.length > 0) sql += ` WHERE ` + conditions.join(' AND ');
+
+        const result = await database.execute(sql, params);
         return (result.rows || []).map(row => JSON.parse(row.data as string) as CacheSiteView);
     },
 
     save: async (id, item, cid) => {
-        await database.execute(`INSERT OR REPLACE INTO ${TABLES.SITES} (cid, id, data) VALUES (?, ?, ?)`, [
-            cid,
-            id,
-            JSON.stringify(item),
-        ]);
+        const sql = `INSERT OR REPLACE INTO ${TABLES.SITES} (cid, id, name, data) VALUES (?, ?, ?, ?)`;
+        await database.execute(sql, [cid, id, item.name || '', JSON.stringify(item)]);
     },
 
     saveAll: async (items, cid) => {
         if (items.length === 0) return;
-        const sql = `INSERT OR REPLACE INTO ${TABLES.SITES} (cid, id, data) VALUES (?, ?, ?)`;
-        await database.executeBatch(items.map(i => [sql, [cid, i.id, JSON.stringify(i.data)]]));
+        const sql = `INSERT OR REPLACE INTO ${TABLES.SITES} (cid, id, name, data) VALUES (?, ?, ?, ?)`;
+        const commands: [string, any[]][] = items.map(i => [
+            sql,
+            [cid, i.id, i.data.name || '', JSON.stringify(i.data)],
+        ]);
+        await database.executeBatch(commands);
     },
 
     remove: async (id, cid) => {
