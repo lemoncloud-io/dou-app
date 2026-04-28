@@ -9,7 +9,7 @@ const throwIfApiError = <T>(data: T & { error?: string }): T => {
     return data;
 };
 
-import type { UserProfile$ as UserProfile, UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type { UserProfile$ as UserProfile, UserTokenView, SlackReportBody } from '@lemoncloud/chatic-backend-api';
 import type { LemonRefreshTokenResult, VerifyNativeTokenBody } from '../types';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
 
@@ -71,15 +71,6 @@ export interface ErrorReportPayload {
     };
 }
 
-/**
- * POST /d1/hello/report Body
- * @see SlackReportBody from clipbiz-backend-api
- */
-interface SlackReportBody {
-    title?: string;
-    message: string;
-}
-
 // TODO: chatic 백엔드에 /d1/hello/report 엔드포인트 구현 후 OAUTH_ENDPOINT 교체 필요
 const ERROR_REPORT_ENDPOINT = `${DOU_ENDPOINT}/hello/report`;
 
@@ -88,11 +79,6 @@ const THROTTLE_WINDOW_MS = 60_000;
 const recentErrors = new Map<string, number>();
 
 export const reportError = async (error: Error, errorInfo?: { componentStack?: string }): Promise<void> => {
-    if (ENV !== 'prod') {
-        console.warn('[ErrorReport] Skipped in local environment:', error.message);
-        return;
-    }
-
     const throttleKey = error.message;
     const now = Date.now();
     const lastReported = recentErrors.get(throttleKey);
@@ -181,6 +167,8 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
         const body: SlackReportBody = {
             title: `[${app}] error`,
             message: JSON.stringify(payload, null, 2),
+            silent: ENV === 'dev',
+            save: true,
         };
 
         await webCore
@@ -192,6 +180,63 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
             .execute();
     } catch (reportingError) {
         console.error('Failed to report error:', reportingError);
+    }
+};
+
+/**
+ * 사용자가 직접 이슈를 보고하는 함수
+ * reportError와 달리 스로틀링 없음 (사용자 의도적 액션)
+ */
+export const reportIssue = async (title: string, message: string): Promise<void> => {
+    try {
+        const { isOnMobileApp } = getMobileAppInfo();
+        const app: AppType = isOnMobileApp ? 'mobile' : 'web';
+
+        const state = useWebCoreStore.getState();
+        const userRole = (state.profile?.$user as any)?.userRole;
+
+        const cloudToken = cloudCore.getCloudToken();
+        const backend = cloudCore.getBackend();
+        const hasCloud = !!cloudToken && !!backend;
+
+        const payload = {
+            title,
+            message,
+            app,
+            env: ENV,
+            url: window.location.href,
+            timestamp: new Date().toISOString(),
+            user: {
+                uid: state.profile?.uid,
+                name: state.profile?.$user?.name,
+                role: userRole,
+                isAuthenticated: state.isAuthenticated,
+            },
+            cloud: {
+                connected: hasCloud,
+                cloudId: hasCloud ? (cloudCore.getSelectedCloudId() ?? undefined) : undefined,
+                name: hasCloud ? (cloudToken?.name ?? undefined) : undefined,
+                placeId: cloudCore.getSelectedPlaceId() ?? undefined,
+            },
+        };
+
+        const body: SlackReportBody = {
+            title: `[${app}] issue: ${title}`,
+            message: JSON.stringify(payload, null, 2),
+            silent: ENV !== 'prod',
+            save: true,
+        };
+
+        await webCore
+            .buildSignedRequest({
+                method: 'POST',
+                baseURL: ERROR_REPORT_ENDPOINT,
+            })
+            .setBody(body)
+            .execute();
+    } catch (reportingError) {
+        console.error('Failed to report issue:', reportingError);
+        throw reportingError;
     }
 };
 
