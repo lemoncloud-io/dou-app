@@ -20,14 +20,14 @@ import type {
     OnPurchaseSuccessPayload,
     OnPurchaseErrorPayload,
     OnFinishPurchaseTransactionPayload,
-    OnFetchAllCachePayload,
-    OnFetchCachePayload,
-    OnSaveCachePayload,
-    OnSaveAllCachePayload,
-    OnDeleteCachePayload,
-    OnDeleteAllCachePayload,
-    OnClearCachePayload,
-    OnSearchGlobalCachePayload,
+    OnFetchAllCacheDataPayload,
+    OnFetchCacheDataPayload,
+    OnSaveCacheDataPayload,
+    OnSaveAllCacheDataPayload,
+    OnDeleteCacheDataPayload,
+    OnDeleteAllCacheDataPayload,
+    OnClearCacheDataPayload,
+    OnSearchGlobalCacheDataPayload,
     OnFetchPreferencePayload,
     OnSavePreferencePayload,
     OnDeletePreferencePayload,
@@ -66,15 +66,15 @@ export const AppMessageTypes = {
     OnPurchaseError: 'OnPurchaseError',
     OnFinishPurchaseTransaction: 'OnFinishPurchaseTransaction',
 
-    // 4. Cache
-    OnFetchAllCache: 'OnFetchAllCache',
-    OnFetchCache: 'OnFetchCache',
-    OnSaveCache: 'OnSaveCache',
-    OnSaveAllCache: 'OnSaveAllCache',
-    OnDeleteCache: 'OnDeleteCache',
-    OnDeleteAllCache: 'OnDeleteAllCache',
-    OnClearCache: 'OnClearCache',
-    OnSearchGlobalCache: 'OnSearchGlobalCache',
+    // 4. CacheData
+    OnFetchAllCacheData: 'OnFetchAllCacheData',
+    OnFetchCacheData: 'OnFetchCacheData',
+    OnSaveCacheData: 'OnSaveCacheData',
+    OnSaveAllCacheData: 'OnSaveAllCacheData',
+    OnDeleteCacheData: 'OnDeleteCacheData',
+    OnDeleteAllCacheData: 'OnDeleteAllCacheData',
+    OnClearCacheData: 'OnClearCacheData',
+    OnSearchGlobalCacheData: 'OnSearchGlobalCacheData',
 
     // 5. Preference
     OnFetchPreference: 'OnFetchPreference',
@@ -122,14 +122,14 @@ export interface AppMessageMap {
     OnFinishPurchaseTransaction: OnFinishPurchaseTransaction;
 
     // 4. Cache
-    OnFetchAllCache: OnFetchAllCache;
-    OnFetchCache: OnFetchCache;
-    OnSaveCache: OnSaveCache;
-    OnSaveAllCache: OnSaveAllCache;
-    OnDeleteCache: OnDeleteCache;
-    OnDeleteAllCache: OnDeleteAllCache;
-    OnClearCache: OnClearCache;
-    OnSearchGlobalCache: OnSearchGlobalCache;
+    OnFetchAllCacheData: OnFetchAllCacheData;
+    OnFetchCacheData: OnFetchCacheData;
+    OnSaveCacheData: OnSaveCacheData;
+    OnSaveAllCacheData: OnSaveAllCacheData;
+    OnDeleteCacheData: OnDeleteCacheData;
+    OnDeleteAllCacheData: OnDeleteAllCacheData;
+    OnClearCacheData: OnClearCacheData;
+    OnSearchGlobalCacheData: OnSearchGlobalCacheData;
 
     // 5. Preference
     OnFetchPreference: OnFetchPreference;
@@ -241,36 +241,36 @@ export interface OnFinishPurchaseTransaction extends AppDefaultMessage<'OnFinish
 // 4. Cache Interfaces
 // ======================================================================
 /** 다수 캐시 데이터 조회 반환 */
-export interface OnFetchAllCache extends AppDefaultMessage<'OnFetchAllCache'> {
-    data: OnFetchAllCachePayload;
+export interface OnFetchAllCacheData extends AppDefaultMessage<'OnFetchAllCacheData'> {
+    data: OnFetchAllCacheDataPayload;
 }
 /** 단일 캐시 데이터 조회 반환 */
-export interface OnFetchCache extends AppDefaultMessage<'OnFetchCache'> {
-    data: OnFetchCachePayload;
+export interface OnFetchCacheData extends AppDefaultMessage<'OnFetchCacheData'> {
+    data: OnFetchCacheDataPayload;
 }
 /** 단일 캐시 데이터 저장 완료 (실패 시 id: null) */
-export interface OnSaveCache extends AppDefaultMessage<'OnSaveCache'> {
-    data: OnSaveCachePayload;
+export interface OnSaveCacheData extends AppDefaultMessage<'OnSaveCacheData'> {
+    data: OnSaveCacheDataPayload;
 }
 /** 다수 캐시 데이터 저장 완료 (성공한 ids 반환) */
-export interface OnSaveAllCache extends AppDefaultMessage<'OnSaveAllCache'> {
-    data: OnSaveAllCachePayload;
+export interface OnSaveAllCacheData extends AppDefaultMessage<'OnSaveAllCacheData'> {
+    data: OnSaveAllCacheDataPayload;
 }
 /** 단일 캐시 데이터 삭제 완료 */
-export interface OnDeleteCache extends AppDefaultMessage<'OnDeleteCache'> {
-    data: OnDeleteCachePayload;
+export interface OnDeleteCacheData extends AppDefaultMessage<'OnDeleteCacheData'> {
+    data: OnDeleteCacheDataPayload;
 }
 /** 다수 캐시 데이터 삭제 완료 */
-export interface OnDeleteAllCache extends AppDefaultMessage<'OnDeleteAllCache'> {
-    data: OnDeleteAllCachePayload;
+export interface OnDeleteAllCacheData extends AppDefaultMessage<'OnDeleteAllCacheData'> {
+    data: OnDeleteAllCacheDataPayload;
 }
 /** 특정 도메인 전체 데이터 초기화 완료 */
-export interface OnClearCache extends AppDefaultMessage<'OnClearCache'> {
-    data: OnClearCachePayload;
+export interface OnClearCacheData extends AppDefaultMessage<'OnClearCacheData'> {
+    data: OnClearCacheDataPayload;
 }
 /** 전역 통합 검색 결과 반환 */
-export interface OnSearchGlobalCache extends AppDefaultMessage<'OnSearchGlobalCache'> {
-    data: OnSearchGlobalCachePayload;
+export interface OnSearchGlobalCacheData extends AppDefaultMessage<'OnSearchGlobalCacheData'> {
+    data: OnSearchGlobalCacheDataPayload;
 }
 
 // ======================================================================

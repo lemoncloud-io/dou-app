@@ -51,11 +51,11 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
     load: async (_userId, channelId) => {
         const nonce = generateNonce();
         const response = await waitForAppMessage(
-            'OnFetchAllCache',
+            'OnFetchAllCacheData',
             m => m.nonce === nonce,
             () =>
                 postMessage({
-                    type: 'FetchAllCache',
+                    type: 'FetchAllCacheData',
                     data: { type: 'chat', cid: defaultCloudId, query: { channelId, cid: defaultCloudId } },
                     nonce,
                 })
@@ -66,11 +66,11 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
     update: async (_userId, channelId, chatNo, readerUserId) => {
         const nonce = generateNonce();
         const response = await waitForAppMessage(
-            'OnFetchAllCache',
+            'OnFetchAllCacheData',
             m => m.nonce === nonce,
             () =>
                 postMessage({
-                    type: 'FetchAllCache',
+                    type: 'FetchAllCacheData',
                     data: { type: 'chat', cid: defaultCloudId, query: { channelId, cid: defaultCloudId } },
                     nonce,
                 })
@@ -120,11 +120,11 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
     countUnread: async (userId, channelId) => {
         const nonce = generateNonce();
         const response = await waitForAppMessage(
-            'OnFetchAllCache',
+            'OnFetchAllCacheData',
             m => m.nonce === nonce,
             () =>
                 postMessage({
-                    type: 'FetchAllCache',
+                    type: 'FetchAllCacheData',
                     data: { type: 'chat', cid: defaultCloudId, query: { channelId, cid: defaultCloudId } },
                     nonce,
                 })
@@ -136,11 +136,11 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
     markAllRead: async (userId, channelId) => {
         const nonce = generateNonce();
         const response = await waitForAppMessage(
-            'OnFetchAllCache',
+            'OnFetchAllCacheData',
             m => m.nonce === nonce,
             () =>
                 postMessage({
-                    type: 'FetchAllCache',
+                    type: 'FetchAllCacheData',
                     data: { type: 'chat', cid: defaultCloudId, query: { channelId, cid: defaultCloudId } },
                     nonce,
                 })

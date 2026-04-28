@@ -95,17 +95,17 @@ export interface CacheQueryMap {
 }
 
 /** [요청] ID 기반 단일 데이터 조회 */
-export type FetchCachePayload = {
+export type FetchCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string };
 }[CacheType];
 
 /** [응답] 단일 데이터 반환 (없으면 item은 null) */
-export type OnFetchCachePayload = {
+export type OnFetchCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string; item: CacheModelMap[K] | null };
 }[CacheType];
 
 /** [요청] 다수/페이징 데이터 조회 (query와 meta를 조합하여 캐시 키 생성) */
-export type FetchAllCachePayload = {
+export type FetchAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
         parentId?: string; // 상위 컨텍스트 ID
         query?: CacheQueryMap[K]; // 검색/필터 조건
@@ -114,7 +114,7 @@ export type FetchAllCachePayload = {
 }[CacheType];
 
 /** [응답] 다수 데이터 반환 */
-export type OnFetchAllCachePayload = {
+export type OnFetchAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
         parentId?: string;
         items: CacheModelMap[K][] | null;
@@ -123,17 +123,17 @@ export type OnFetchAllCachePayload = {
 }[CacheType];
 
 /** [요청] 단일 데이터 저장 */
-export type SaveCachePayload = {
+export type SaveCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string; item: CacheModelMap[K] };
 }[CacheType];
 
 /** [응답] 단일 저장 결과 */
-export type OnSaveCachePayload = {
+export type OnSaveCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string | null; success: boolean };
 }[CacheType];
 
 /** [요청] 다수 데이터 저장 (페이징 인덱싱 포함) */
-export type SaveAllCachePayload = {
+export type SaveAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
         parentId?: string;
         query?: CacheQueryMap[K];
@@ -143,7 +143,7 @@ export type SaveAllCachePayload = {
 }[CacheType];
 
 /** [응답] 다수 저장 결과 */
-export type OnSaveAllCachePayload = {
+export type OnSaveAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
         parentId?: string;
         ids: string[]; // 저장된 아이템 ID 목록
@@ -153,42 +153,42 @@ export type OnSaveAllCachePayload = {
 }[CacheType];
 
 /** [요청] 단일 삭제 */
-export type DeleteCachePayload = {
+export type DeleteCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string };
 }[CacheType];
 
 /** [응답] 단일 삭제 결과 */
-export type OnDeleteCachePayload = {
+export type OnDeleteCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string | null; success: boolean };
 }[CacheType];
 
 /** [요청] 다수 ID 기반 삭제 */
-export type DeleteAllCachePayload = {
+export type DeleteAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { ids: string[] };
 }[CacheType];
 
 /** [응답] 다수 삭제 결과 */
-export type OnDeleteAllCachePayload = {
+export type OnDeleteAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { ids: string[]; success: boolean };
 }[CacheType];
 
 /** [요청] 특정 도메인 테이블 전체 삭제 */
-export type ClearCachePayload = {
+export type ClearCacheDataPayload = {
     [K in CacheType]: { type: K };
 }[CacheType];
 
 /** [응답] 초기화 결과 */
-export type OnClearCachePayload = {
+export type OnClearCacheDataPayload = {
     [K in CacheType]: { type: K; success: boolean };
 }[CacheType];
 
 /** [요청] 키워드 기반 전역 검색 */
-export interface SearchGlobalCachePayload {
+export interface SearchGlobalCacheDataPayload {
     keyword: string;
     cid?: string;
 }
 
 /** [응답] 전역 검색 결과 리스트 */
-export interface OnSearchGlobalCachePayload {
+export interface OnSearchGlobalCacheDataPayload {
     items: (CacheChatView | CacheChannelView | CacheSiteView)[];
 }

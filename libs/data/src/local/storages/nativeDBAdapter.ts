@@ -43,11 +43,11 @@ export const createNativeDBAdapter = <TType extends CacheType>(type: TType, cid:
         save: async (id: string, item: Model): Promise<Model> => {
             const nonce = generateNonce();
             postMessage({
-                type: 'SaveCache',
+                type: 'SaveCacheData',
                 nonce,
                 data: { type, id, item: item as any, cid } as any,
             });
-            await waitForAppMessage('OnSaveCache', m => m.nonce === nonce);
+            await waitForAppMessage('OnSaveCacheData', m => m.nonce === nonce);
             return item;
         },
 
@@ -55,33 +55,33 @@ export const createNativeDBAdapter = <TType extends CacheType>(type: TType, cid:
             if (items.length === 0) return [];
             const nonce = generateNonce();
             postMessage({
-                type: 'SaveAllCache',
+                type: 'SaveAllCacheData',
                 nonce,
                 data: { type, items: items as any[], cid } as any,
             });
-            await waitForAppMessage('OnSaveAllCache', m => m.nonce === nonce);
+            await waitForAppMessage('OnSaveAllCacheData', m => m.nonce === nonce);
             return items;
         },
 
         load: async (id: string): Promise<Model | null> => {
             const nonce = generateNonce();
             postMessage({
-                type: 'FetchCache',
+                type: 'FetchCacheData',
                 nonce,
                 data: { type, id, cid } as any,
             });
-            const response = await waitForAppMessage('OnFetchCache', m => m.nonce === nonce);
+            const response = await waitForAppMessage('OnFetchCacheData', m => m.nonce === nonce);
             return (response.data.item as Model) || null;
         },
 
         loadAll: async (): Promise<Model[]> => {
             const nonce = generateNonce();
             postMessage({
-                type: 'FetchAllCache',
+                type: 'FetchAllCacheData',
                 nonce,
                 data: { type, query: { cid } } as any,
             });
-            const response = await waitForAppMessage('OnFetchAllCache', m => m.nonce === nonce);
+            const response = await waitForAppMessage('OnFetchAllCacheData', m => m.nonce === nonce);
             return (response.data.items as Model[]) || [];
         },
 
@@ -89,32 +89,32 @@ export const createNativeDBAdapter = <TType extends CacheType>(type: TType, cid:
         replaceAll: async (items: Model[]): Promise<Model[]> => {
             const fetchNonce = generateNonce();
             postMessage({
-                type: 'FetchAllCache',
+                type: 'FetchAllCacheData',
                 nonce: fetchNonce,
                 data: { type, query: { cid } } as any,
             });
-            const fetchResponse = await waitForAppMessage('OnFetchAllCache', m => m.nonce === fetchNonce);
+            const fetchResponse = await waitForAppMessage('OnFetchAllCacheData', m => m.nonce === fetchNonce);
             const existing = (fetchResponse.data.items as any[]) || [];
             const existingIds = existing.map((item: any) => item?.id).filter(Boolean);
 
             if (existingIds.length > 0) {
                 const deleteNonce = generateNonce();
                 postMessage({
-                    type: 'DeleteAllCache',
+                    type: 'DeleteAllCacheData',
                     nonce: deleteNonce,
                     data: { type, ids: existingIds, cid } as any,
                 });
-                await waitForAppMessage('OnDeleteAllCache', m => m.nonce === deleteNonce);
+                await waitForAppMessage('OnDeleteAllCacheData', m => m.nonce === deleteNonce);
             }
 
             if (items.length > 0) {
                 const saveNonce = generateNonce();
                 postMessage({
-                    type: 'SaveAllCache',
+                    type: 'SaveAllCacheData',
                     nonce: saveNonce,
                     data: { type, items: items as any[], cid } as any,
                 });
-                await waitForAppMessage('OnSaveAllCache', m => m.nonce === saveNonce);
+                await waitForAppMessage('OnSaveAllCacheData', m => m.nonce === saveNonce);
             }
             return items;
         },
@@ -122,32 +122,32 @@ export const createNativeDBAdapter = <TType extends CacheType>(type: TType, cid:
         delete: async (id: string): Promise<void> => {
             const nonce = generateNonce();
             postMessage({
-                type: 'DeleteCache',
+                type: 'DeleteCacheData',
                 nonce,
                 data: { type, id, cid } as any,
             });
-            await waitForAppMessage('OnDeleteCache', m => m.nonce === nonce);
+            await waitForAppMessage('OnDeleteCacheData', m => m.nonce === nonce);
         },
 
         deleteAll: async (ids: string[]): Promise<void> => {
             if (ids.length === 0) return;
             const nonce = generateNonce();
             postMessage({
-                type: 'DeleteAllCache',
+                type: 'DeleteAllCacheData',
                 nonce,
                 data: { type, ids, cid } as any,
             });
-            await waitForAppMessage('OnDeleteAllCache', m => m.nonce === nonce);
+            await waitForAppMessage('OnDeleteAllCacheData', m => m.nonce === nonce);
         },
 
         clearAll: async () => {
             const nonce = generateNonce();
             postMessage({
-                type: 'ClearCache',
+                type: 'ClearCacheData',
                 nonce,
                 data: { type } as any,
             });
-            await waitForAppMessage('OnClearCache', m => m.nonce === nonce);
+            await waitForAppMessage('OnClearCacheData', m => m.nonce === nonce);
         },
     };
 };

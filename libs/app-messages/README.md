@@ -52,18 +52,18 @@ This library was generated with [Nx](https://nx.dev).
 | `FinishPurchaseTransaction`  | `{ purchase: { ... } }`                    | 서버 검증을 마친 영수증을 스토어에서 완료 처리합니다. | `OnFinishPurchaseTransaction` |
 | `OpenSubscriptionManagement` | -                                          | 기기 OS에 맞는 스토어 구독 관리 페이지로 이동합니다.  | -                             |
 
-### Cache
+### CacheData
 
-| Message Type        | Payload (Data Example)                        | Description                                             | Expected Response     |
-| :------------------ | :-------------------------------------------- | :------------------------------------------------------ | :-------------------- |
-| `FetchCache`        | `{ type: 'user', id: '123' }`                 | 로컬 캐시의 특정 단건 데이터를 요청합니다.              | `OnFetchCache`        |
-| `FetchAllCache`     | `{ type: 'chat', query: {...}, meta: {...} }` | 특정 도메인의 다수/페이징 목록을 요청합니다.            | `OnFetchAllCache`     |
-| `SaveCache`         | `{ type: 'user', id: '123', item: {...} }`    | 단일 데이터를 로컬 캐시에 저장(Upsert)합니다.           | `OnSaveCache`         |
-| `SaveAllCache`      | `{ type: 'chat', items: [{...}, {...}] }`     | 다수의 데이터를 페이징 인덱싱과 함께 일괄 저장합니다.   | `OnSaveAllCache`      |
-| `DeleteCache`       | `{ type: 'user', id: '123' }`                 | 로컬 캐시의 특정 단건 데이터를 삭제합니다.              | `OnDeleteCache`       |
-| `DeleteAllCache`    | `{ type: 'chat', ids: ['1', '2'] }`           | 로컬 캐시의 다수 데이터를 일괄 삭제합니다.              | `OnDeleteAllCache`    |
-| `ClearCache`        | `{ type: 'chat' }`                            | 특정 도메인의 캐시 테이블을 완전히 초기화합니다.        | `OnClearCache`        |
-| `SearchGlobalCache` | `{ keyword: 'hello' }`                        | 다중 도메인(채널, 채팅 등) 대상 전역 검색을 실행합니다. | `OnSearchGlobalCache` |
+| Message Type            | Payload (Data Example)                        | Description                                             | Expected Response     |
+| :---------------------- | :-------------------------------------------- | :------------------------------------------------------ | :-------------------- |
+| `FetchCacheData`        | `{ type: 'user', id: '123' }`                 | 로컬 캐시의 특정 단건 데이터를 요청합니다.              | `OnFetchCache`        |
+| `FetchAllCacheData`     | `{ type: 'chat', query: {...}, meta: {...} }` | 특정 도메인의 다수/페이징 목록을 요청합니다.            | `OnFetchAllCache`     |
+| `SaveCacheData`         | `{ type: 'user', id: '123', item: {...} }`    | 단일 데이터를 로컬 캐시에 저장(Upsert)합니다.           | `OnSaveCache`         |
+| `SaveAllCacheData`      | `{ type: 'chat', items: [{...}, {...}] }`     | 다수의 데이터를 페이징 인덱싱과 함께 일괄 저장합니다.   | `OnSaveAllCache`      |
+| `DeleteCacheData`       | `{ type: 'user', id: '123' }`                 | 로컬 캐시의 특정 단건 데이터를 삭제합니다.              | `OnDeleteCache`       |
+| `DeleteAllCacheData`    | `{ type: 'chat', ids: ['1', '2'] }`           | 로컬 캐시의 다수 데이터를 일괄 삭제합니다.              | `OnDeleteAllCache`    |
+| `ClearCacheData`        | `{ type: 'chat' }`                            | 특정 도메인의 캐시 테이블을 완전히 초기화합니다.        | `OnClearCache`        |
+| `SearchGlobalCacheData` | `{ keyword: 'hello' }`                        | 다중 도메인(채널, 채팅 등) 대상 전역 검색을 실행합니다. | `OnSearchGlobalCache` |
 
 ### Preference & Auth
 
@@ -118,16 +118,16 @@ This library was generated with [Nx](https://nx.dev).
 
 ### Cache
 
-| Message Type          | Description                                 | Data Structure (Example)                               |
-| :-------------------- | :------------------------------------------ | :----------------------------------------------------- |
-| `OnFetchCache`        | 단건 캐시 조회 결과 반환 (없으면 null)      | `{ type: 'user', id: '123', item: {...} }`             |
-| `OnFetchAllCache`     | 다수/페이징 캐시 목록 반환                  | `{ type: 'chat', items: [{...}, {...}], meta: {...} }` |
-| `OnSaveCache`         | 단건 캐시 데이터 저장 완료                  | `{ type: 'user', id: '123', success: true }`           |
-| `OnSaveAllCache`      | 다수 캐시 데이터 저장 완료 (성공한 ID 목록) | `{ type: 'chat', ids: ['1', '2'], success: true }`     |
-| `OnDeleteCache`       | 단건 캐시 데이터 삭제 완료                  | `{ type: 'user', id: '123', success: true }`           |
-| `OnDeleteAllCache`    | 다수 캐시 데이터 삭제 완료                  | `{ type: 'chat', ids: ['1', '2'], success: true }`     |
-| `OnClearCache`        | 캐시 초기화 완료 여부 반환                  | `{ type: 'chat', success: true }`                      |
-| `OnSearchGlobalCache` | 다중 도메인 통합 검색 결과 반환             | `{ items: [{ ... }] }`                                 |
+| Message Type              | Description                                 | Data Structure (Example)                               |
+| :------------------------ | :------------------------------------------ | :----------------------------------------------------- |
+| `OnFetchCacheData`        | 단건 캐시 조회 결과 반환 (없으면 null)      | `{ type: 'user', id: '123', item: {...} }`             |
+| `OnFetchAllCacheData`     | 다수/페이징 캐시 목록 반환                  | `{ type: 'chat', items: [{...}, {...}], meta: {...} }` |
+| `OnSaveCacheData`         | 단건 캐시 데이터 저장 완료                  | `{ type: 'user', id: '123', success: true }`           |
+| `OnSaveAllCacheData`      | 다수 캐시 데이터 저장 완료 (성공한 ID 목록) | `{ type: 'chat', ids: ['1', '2'], success: true }`     |
+| `OnDeleteCacheData`       | 단건 캐시 데이터 삭제 완료                  | `{ type: 'user', id: '123', success: true }`           |
+| `OnDeleteAllCacheData`    | 다수 캐시 데이터 삭제 완료                  | `{ type: 'chat', ids: ['1', '2'], success: true }`     |
+| `OnClearCacheData`        | 캐시 초기화 완료 여부 반환                  | `{ type: 'chat', success: true }`                      |
+| `OnSearchGlobalCacheData` | 다중 도메인 통합 검색 결과 반환             | `{ items: [{ ... }] }`                                 |
 
 ### Preference & Auth
 

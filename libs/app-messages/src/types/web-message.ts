@@ -13,14 +13,16 @@ import type {
     // 3. IAP
     PurchasePayload,
     FinishPurchaseTransactionPayload,
-    FetchCachePayload,
-    FetchAllCachePayload,
-    SaveCachePayload,
-    SaveAllCachePayload,
-    DeleteCachePayload,
-    DeleteAllCachePayload,
-    ClearCachePayload,
-    SearchGlobalCachePayload,
+
+    // 4. Cache
+    FetchCacheDataPayload,
+    FetchAllCacheDataPayload,
+    SaveCacheDataPayload,
+    SaveAllCacheDataPayload,
+    DeleteCacheDataPayload,
+    DeleteAllCacheDataPayload,
+    ClearCacheDataPayload,
+    SearchGlobalCacheDataPayload,
 
     // 5. Preference
     FetchPreferencePayload,
@@ -60,15 +62,15 @@ export const WebMessageTypes = {
     FinishPurchaseTransaction: 'FinishPurchaseTransaction',
     OpenSubscriptionManagement: 'OpenSubscriptionManagement',
 
-    // 4. Cache
-    FetchCache: 'FetchCache',
-    FetchAllCache: 'FetchAllCache',
-    SaveCache: 'SaveCache',
-    SaveAllCache: 'SaveAllCache',
-    DeleteCache: 'DeleteCache',
-    DeleteAllCache: 'DeleteAllCache',
-    ClearCache: 'ClearCache',
-    SearchGlobalCache: 'SearchGlobalCache',
+    // 4. CacheData
+    FetchCacheData: 'FetchCacheData',
+    FetchAllCacheData: 'FetchAllCacheData',
+    SaveCacheData: 'SaveCacheData',
+    SaveAllCacheData: 'SaveAllCacheData',
+    DeleteCacheData: 'DeleteCacheData',
+    DeleteAllCacheData: 'DeleteAllCacheData',
+    ClearCacheData: 'ClearCacheData',
+    SearchGlobalCacheData: 'SearchGlobalCacheData',
 
     // 5. Preference
     FetchPreference: 'FetchPreference',
@@ -117,14 +119,14 @@ export interface WebMessageMap {
     OpenSubscriptionManagement: WebDefaultMessage<'OpenSubscriptionManagement'>;
 
     // 4. Cache
-    FetchCache: FetchCache;
-    FetchAllCache: FetchAllCache;
-    SaveCache: SaveCache;
-    SaveAllCache: SaveAllCache;
-    DeleteCache: DeleteCache;
-    DeleteAllCache: DeleteAllCache;
-    ClearCache: ClearCache;
-    SearchGlobalCache: SearchGlobalCache;
+    FetchCacheData: FetchCacheData;
+    FetchAllCacheData: FetchAllCacheData;
+    SaveCacheData: SaveCacheData;
+    SaveAllCacheData: SaveAllCacheData;
+    DeleteCacheData: DeleteCacheData;
+    DeleteAllCacheData: DeleteAllCacheData;
+    ClearCacheData: ClearCacheData;
+    SearchGlobalCacheData: SearchGlobalCacheData;
 
     // 5. Preference
     FetchPreference: FetchPreference;
@@ -197,29 +199,29 @@ export interface FinishPurchaseTransaction extends WebDefaultMessage<'FinishPurc
 // ----------------------------------------------------------------------
 // 4. Cache Interfaces
 // ----------------------------------------------------------------------
-export interface FetchCache extends WebDefaultMessage<'FetchCache'> {
-    data: FetchCachePayload;
+export interface FetchCacheData extends WebDefaultMessage<'FetchCacheData'> {
+    data: FetchCacheDataPayload;
 }
-export interface FetchAllCache extends WebDefaultMessage<'FetchAllCache'> {
-    data: FetchAllCachePayload;
+export interface FetchAllCacheData extends WebDefaultMessage<'FetchAllCacheData'> {
+    data: FetchAllCacheDataPayload;
 }
-export interface SaveCache extends WebDefaultMessage<'SaveCache'> {
-    data: SaveCachePayload;
+export interface SaveCacheData extends WebDefaultMessage<'SaveCacheData'> {
+    data: SaveCacheDataPayload;
 }
-export interface SaveAllCache extends WebDefaultMessage<'SaveAllCache'> {
-    data: SaveAllCachePayload;
+export interface SaveAllCacheData extends WebDefaultMessage<'SaveAllCacheData'> {
+    data: SaveAllCacheDataPayload;
 }
-export interface DeleteCache extends WebDefaultMessage<'DeleteCache'> {
-    data: DeleteCachePayload;
+export interface DeleteCacheData extends WebDefaultMessage<'DeleteCacheData'> {
+    data: DeleteCacheDataPayload;
 }
-export interface DeleteAllCache extends WebDefaultMessage<'DeleteAllCache'> {
-    data: DeleteAllCachePayload;
+export interface DeleteAllCacheData extends WebDefaultMessage<'DeleteAllCacheData'> {
+    data: DeleteAllCacheDataPayload;
 }
-export interface ClearCache extends WebDefaultMessage<'ClearCache'> {
-    data: ClearCachePayload;
+export interface ClearCacheData extends WebDefaultMessage<'ClearCacheData'> {
+    data: ClearCacheDataPayload;
 }
-export interface SearchGlobalCache extends WebDefaultMessage<'SearchGlobalCache'> {
-    data: SearchGlobalCachePayload;
+export interface SearchGlobalCacheData extends WebDefaultMessage<'SearchGlobalCacheData'> {
+    data: SearchGlobalCacheDataPayload;
 }
 
 // ----------------------------------------------------------------------

@@ -55,7 +55,7 @@ export const NativeDBChannelAdapter: ChannelStorageAdapter = {
     loadAll: async () => {
         const nonce = generateNonce();
         postMessage({
-            type: 'FetchAllCache',
+            type: 'FetchAllCacheData',
             nonce,
             data: {
                 cid: defaultCloudId,
@@ -64,7 +64,7 @@ export const NativeDBChannelAdapter: ChannelStorageAdapter = {
             },
         });
 
-        const response = await waitForAppMessage('OnFetchAllCache', m => m.nonce === nonce);
+        const response = await waitForAppMessage('OnFetchAllCacheData', m => m.nonce === nonce);
         return response.data.items as ChannelView[];
     },
 
@@ -95,7 +95,7 @@ export const NativeDBChannelAdapter: ChannelStorageAdapter = {
     remove: async (userId, channelId) => {
         const nonce = generateNonce();
         postMessage({
-            type: 'DeleteCache',
+            type: 'DeleteCacheData',
             nonce,
             data: {
                 type: 'channel',
@@ -104,7 +104,7 @@ export const NativeDBChannelAdapter: ChannelStorageAdapter = {
             },
         });
 
-        await waitForAppMessage('OnDeleteCache', m => m.nonce === nonce);
+        await waitForAppMessage('OnDeleteCacheData', m => m.nonce === nonce);
 
         const bc = new BroadcastChannel(CHANNELS_BROADCAST_CHANNEL_NAME);
         bc.postMessage({ type: 'channel-removed', userId, channelId });

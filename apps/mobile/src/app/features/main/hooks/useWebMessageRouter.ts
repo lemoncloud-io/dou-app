@@ -134,28 +134,28 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
                         handleCloseModal();
                         break;
                     // -- Cache Management --
-                    case 'FetchCache':
+                    case 'FetchCacheData':
                         void handleFetchCache(message);
                         break;
-                    case 'FetchAllCache':
+                    case 'FetchAllCacheData':
                         void handleFetchAllCache(message);
                         break;
-                    case 'SaveCache':
+                    case 'SaveCacheData':
                         void handleSaveCache(message);
                         break;
-                    case 'SaveAllCache':
+                    case 'SaveAllCacheData':
                         void handleSaveAllCache(message);
                         break;
-                    case 'DeleteCache':
+                    case 'DeleteCacheData':
                         void handleDeleteCache(message);
                         break;
-                    case 'DeleteAllCache':
+                    case 'DeleteAllCacheData':
                         void handleDeleteAllCache(message);
                         break;
-                    case `SearchGlobalCache`:
+                    case `SearchGlobalCacheData`:
                         void handleSearchGlobalCache(message);
                         break;
-                    case 'ClearCache':
+                    case 'ClearCacheData':
                         void handleClearCache(message);
                         break;
                     // -- Preference Management --
