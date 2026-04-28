@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RNFS from 'react-native-fs';
 import { cacheCrudService } from '../../../common/storages';
-import { database } from '../../../common/storages/sqlite';
+import { database } from '../../../common/storages/cache/sqlite';
 import type { CacheType } from '@chatic/app-messages';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -46,12 +46,9 @@ export const StorageTestScreen = () => {
         setResultLog(`[${title} - ERROR] ${message}`);
     };
 
-    // --- Repository Action Handlers ---
-
     const fetchItems = useCallback(async () => {
         try {
-            const query = { sort: 'desc' };
-            const res = await cacheCrudService.fetchAll({ type: dataType, query });
+            const res = await cacheCrudService.fetchAll({ type: dataType, cid: undefined });
             setItems(res || []);
             logResult('FetchAll', `Loaded ${res?.length || 0} items for ${dataType}.`);
         } catch (e) {
@@ -59,11 +56,21 @@ export const StorageTestScreen = () => {
         }
     }, [dataType]);
 
+    const handleClear = async () => {
+        try {
+            await cacheCrudService.clear({ type: dataType });
+            logResult('Clear', `Successfully cleared all data in ${dataType}.`);
+            await fetchItems();
+        } catch (e) {
+            logError('Clear Error', e);
+        }
+    };
+
     const handleBackup = async () => {
         try {
             const backupPath = `${RNFS.DocumentDirectoryPath}/dou_backup.sqlite`;
             if (await RNFS.exists(backupPath)) {
-                await RNFS.unlink(backupPath); // 기존 백업 파일 덮어쓰기를 위해 삭제
+                await RNFS.unlink(backupPath);
             }
             await database.backup(backupPath);
             logResult('Backup', `DB backed up safely to:\n${backupPath}`);
@@ -99,7 +106,7 @@ export const StorageTestScreen = () => {
                     {item.id}]
                 </Text>
             </View>
-            <Text style={styles.logData}>{item.text || JSON.stringify(item)}</Text>
+            <Text style={styles.logData}>{item.content || item.name || item.text || JSON.stringify(item)}</Text>
         </View>
     );
 
@@ -182,13 +189,25 @@ export const StorageTestScreen = () => {
                     >
                         <Text style={styles.buttonText}>Refresh</Text>
                     </TouchableOpacity>
+
                     <View style={styles.divider} />
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#E74C3C' }]}
+                        onPress={handleClear}
+                    >
+                        <Text style={styles.buttonText}>Clear</Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.divider} />
+
                     <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: '#8E44AD' }]}
                         onPress={handleBackup}
                     >
                         <Text style={styles.buttonText}>Backup</Text>
                     </TouchableOpacity>
+
                     <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: '#9B59B6' }]}
                         onPress={handleRestore}
@@ -202,143 +221,44 @@ export const StorageTestScreen = () => {
 };
 
 const styles = StyleSheet.create({
-    screen: {
-        flex: 1,
-        backgroundColor: '#121212',
-    },
-    controlPanel: {
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#333',
-        backgroundColor: '#1E1E1E',
-    },
-    panelHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    statusRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    dot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        marginRight: 8,
-    },
-    statusText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    toggleIcon: {
-        color: '#888',
-        fontSize: 12,
-    },
-    infoContainer: {
-        marginTop: 4,
-    },
-    dividerHorizontal: {
-        height: 1,
-        backgroundColor: '#333',
-        marginVertical: 12,
-    },
-    infoRow: {
-        flexDirection: 'row',
-        marginBottom: 8,
-    },
-    infoLabel: {
-        color: '#888',
-        fontSize: 12,
-        width: 80,
-    },
-    infoValue: {
-        color: '#FFFFFF',
-        fontSize: 12,
-        fontWeight: 'bold',
-        flex: 1,
-    },
-    cidPill: {
-        paddingVertical: 4,
-        paddingHorizontal: 12,
-        borderRadius: 16,
-        backgroundColor: '#333',
-    },
-    cidPillSelected: {
-        backgroundColor: '#50E3C2',
-    },
-    cidPillText: {
-        color: '#AAA',
-        fontSize: 11,
-        fontWeight: '600',
-    },
-    cidPillTextSelected: {
-        color: '#000',
-    },
-    logList: {
-        flex: 1,
-        backgroundColor: '#000000',
-    },
-    logContent: {
-        padding: 16,
-    },
-    logRow: {
-        marginBottom: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#222',
-        paddingBottom: 8,
-    },
-    logHeader: {
-        flexDirection: 'row',
-        marginBottom: 4,
-        alignItems: 'center',
-    },
+    screen: { flex: 1, backgroundColor: '#121212' },
+    controlPanel: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#333', backgroundColor: '#1E1E1E' },
+    panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    statusRow: { flexDirection: 'row', alignItems: 'center' },
+    dot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
+    statusText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+    toggleIcon: { color: '#888', fontSize: 12 },
+    infoContainer: { marginTop: 4 },
+    dividerHorizontal: { height: 1, backgroundColor: '#333', marginVertical: 12 },
+    infoRow: { flexDirection: 'row', marginBottom: 8 },
+    infoLabel: { color: '#888', fontSize: 12, width: 80 },
+    infoValue: { color: '#FFFFFF', fontSize: 12, fontWeight: 'bold', flex: 1 },
+    cidPill: { paddingVertical: 4, paddingHorizontal: 12, borderRadius: 16, backgroundColor: '#333' },
+    cidPillSelected: { backgroundColor: '#50E3C2' },
+    cidPillText: { color: '#AAA', fontSize: 11, fontWeight: '600' },
+    cidPillTextSelected: { color: '#000' },
+    logList: { flex: 1, backgroundColor: '#000000' },
+    logContent: { padding: 16 },
+    logRow: { marginBottom: 12, borderBottomWidth: 1, borderBottomColor: '#222', paddingBottom: 8 },
+    logHeader: { flexDirection: 'row', marginBottom: 4, alignItems: 'center' },
     logTime: {
         color: '#4A90E2',
         fontSize: 11,
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
         fontWeight: 'bold',
     },
-    logData: {
-        color: '#888',
-        fontSize: 11,
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-        marginLeft: 4,
-    },
-    emptyText: {
-        color: '#444',
-        textAlign: 'center',
-        marginTop: 20,
-    },
-    bottomContainer: {
-        backgroundColor: '#1E1E1E',
-        borderTopWidth: 1,
-        borderTopColor: '#333',
-        paddingVertical: 12,
-    },
-    actionContainer: {
-        paddingHorizontal: 16,
-        alignItems: 'center',
-        gap: 8,
-    },
+    logData: { color: '#888', fontSize: 11, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', marginLeft: 4 },
+    emptyText: { color: '#444', textAlign: 'center', marginTop: 20 },
+    bottomContainer: { backgroundColor: '#1E1E1E', borderTopWidth: 1, borderTopColor: '#333', paddingVertical: 12 },
+    actionContainer: { paddingHorizontal: 16, alignItems: 'center', gap: 8 },
     actionButton: {
         height: 44,
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
         justifyContent: 'center',
         alignItems: 'center',
         borderRadius: 8,
         opacity: 0.9,
     },
-    divider: {
-        width: 1,
-        height: 24,
-        backgroundColor: '#444',
-        marginHorizontal: 4,
-    },
-    buttonText: {
-        color: '#FFFFFF',
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
+    divider: { width: 1, height: 24, backgroundColor: '#444', marginHorizontal: 4 },
+    buttonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 },
 });
