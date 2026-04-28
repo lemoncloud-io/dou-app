@@ -62,17 +62,21 @@ export const chatDataSource: ICacheDataSource<CacheChatView, ChatQueryOptions> =
      */
     save: async (id, item, cid) => {
         const sql = `INSERT OR REPLACE INTO ${TABLES.CHATS} (cid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-        const content = item.content || ''; // 검색용 텍스트 추출
+        const channelId = item.channelId || '';
+        const chatNo = item.chatNo || 0;
+        const createdAt = item.createdAt || 0;
+        const content = item.content || '';
 
-        await database.execute(sql, [
-            cid,
+        const dataToSave = JSON.stringify({
+            ...item,
             id,
-            item.channelId || '',
-            item.chatNo || 0,
-            item.createdAt || 0,
-            content,
-            JSON.stringify({ ...item, cid }),
-        ]);
+            cid,
+            channelId,
+            chatNo,
+            createdAt,
+        });
+
+        await database.execute(sql, [cid, id, channelId, chatNo, createdAt, content, dataToSave]);
     },
 
     /**
@@ -82,18 +86,27 @@ export const chatDataSource: ICacheDataSource<CacheChatView, ChatQueryOptions> =
         if (items.length === 0) return;
         const sql = `INSERT OR REPLACE INTO ${TABLES.CHATS} (cid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?)`;
 
-        const commands: [string, any[]][] = items.map(item => [
-            sql,
-            [
+        const commands: [string, any[]][] = items.map(item => {
+            const id = item.id;
+            const chatData = item.data;
+
+            const channelId = chatData.channelId || '';
+            const chatNo = chatData.chatNo || 0;
+            const createdAt = chatData.createdAt || 0;
+            const content = chatData.content || '';
+
+            const dataToSave = JSON.stringify({
+                ...chatData,
+                id,
                 cid,
-                item.id,
-                item.data.channelId || '',
-                item.data.chatNo || 0,
-                item.data.createdAt || 0,
-                item.data.content || '',
-                JSON.stringify({ ...item.data, cid }),
-            ],
-        ]);
+                channelId,
+                chatNo,
+                createdAt,
+            });
+
+            return [sql, [cid, id, channelId, chatNo, createdAt, content, dataToSave]];
+        });
+
         await database.executeBatch(commands);
     },
 

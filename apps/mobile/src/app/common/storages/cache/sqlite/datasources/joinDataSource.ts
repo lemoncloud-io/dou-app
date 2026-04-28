@@ -54,29 +54,42 @@ export const joinDataSource: ICacheDataSource<CacheJoinView, JoinQueryOptions> =
     /** 검색 최적화를 위해 channel_id와 user_id를 별도 컬럼으로 분리하여 저장합니다. */
     save: async (id, item, cid) => {
         const sql = `INSERT OR REPLACE INTO ${TABLES.JOINS} (cid, id, channel_id, user_id, data) VALUES (?, ?, ?, ?, ?)`;
-        await database.execute(sql, [
-            cid,
+        const channelId = item.channelId || '';
+        const userId = item.userId || '';
+
+        const dataToSave = JSON.stringify({
+            ...item,
             id,
-            item.channelId || '',
-            item.userId || '',
-            JSON.stringify({ ...item, cid }),
-        ]);
+            cid,
+            channelId,
+            userId,
+        });
+
+        await database.execute(sql, [cid, id, channelId, userId, dataToSave]);
     },
 
     /** 다수의 참여 정보를 트랜잭션으로 일괄 저장합니다. */
     saveAll: async (items, cid) => {
         if (items.length === 0) return;
         const sql = `INSERT OR REPLACE INTO ${TABLES.JOINS} (cid, id, channel_id, user_id, data) VALUES (?, ?, ?, ?, ?)`;
-        const commands: [string, any[]][] = items.map(item => [
-            sql,
-            [
-                cid,
-                item.id,
-                item.data.channelId || '',
-                item.data.userId || '',
-                JSON.stringify(JSON.stringify({ ...item.data, cid })),
-            ],
-        ]);
+
+        const commands: [string, any[]][] = items.map(item => {
+            const id = item.id;
+            const data = item.data;
+            const channelId = data.channelId || '';
+            const userId = data.userId || '';
+
+            return [
+                sql,
+                [
+                    cid,
+                    id,
+                    channelId,
+                    userId,
+                    JSON.stringify({ ...data, id, cid, channelId, userId }), // ✨ 이중 stringify 제거 및 패치
+                ],
+            ];
+        });
         await database.executeBatch(commands);
     },
 

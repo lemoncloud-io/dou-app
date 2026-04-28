@@ -39,16 +39,27 @@ export const siteDataSource: ICacheDataSource<CacheSiteView, SiteQueryOptions> =
 
     save: async (id, item, cid) => {
         const sql = `INSERT OR REPLACE INTO ${TABLES.SITES} (cid, id, name, data) VALUES (?, ?, ?, ?)`;
-        await database.execute(sql, [cid, id, item.name || '', JSON.stringify({ ...item, cid })]);
+        const name = item.name || '';
+
+        const dataToSave = JSON.stringify({
+            ...item,
+            id,
+            cid,
+            name,
+        });
+
+        await database.execute(sql, [cid, id, name, dataToSave]);
     },
 
     saveAll: async (items, cid) => {
         if (items.length === 0) return;
         const sql = `INSERT OR REPLACE INTO ${TABLES.SITES} (cid, id, name, data) VALUES (?, ?, ?, ?)`;
-        const commands: [string, any[]][] = items.map(item => [
-            sql,
-            [cid, item.id, item.data.name || '', JSON.stringify({ ...item.data, cid })],
-        ]);
+
+        const commands: [string, any[]][] = items.map(item => {
+            const id = item.id;
+            const name = item.data.name || '';
+            return [sql, [cid, id, name, JSON.stringify({ ...item.data, id, cid, name })]];
+        });
         await database.executeBatch(commands);
     },
 

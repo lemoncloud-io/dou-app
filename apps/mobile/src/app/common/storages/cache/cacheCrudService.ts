@@ -169,6 +169,7 @@ export const cacheCrudService = {
             const metaKey = generateMetaKey(query);
             await metaDataSource.save(type, cid, metaKey, {
                 ids: ids,
+                cid: cid,
                 meta: query,
             });
         }

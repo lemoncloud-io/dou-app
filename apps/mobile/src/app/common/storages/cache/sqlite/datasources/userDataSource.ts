@@ -21,7 +21,6 @@ export const userDataSource: ICacheDataSource<CacheUserView, UserQueryOptions> =
      * 특정 클라우드 내의 전체 유저 목록을 조회합니다.
      */
     fetchAll: async (cid, _query) => {
-        // ✨ 개선: ICacheDataSource 규격에 맞게 _query 추가
         const query = cid ? `SELECT data FROM ${TABLES.USERS} WHERE cid = ?` : `SELECT data FROM ${TABLES.USERS}`;
         const params = cid ? [cid] : [];
 
@@ -30,17 +29,20 @@ export const userDataSource: ICacheDataSource<CacheUserView, UserQueryOptions> =
     },
 
     save: async (id, item, cid) => {
-        await database.execute(`INSERT OR REPLACE INTO ${TABLES.USERS} (cid, id, data) VALUES (?, ?, ?)`, [
-            cid,
-            id,
-            JSON.stringify({ ...item, cid }),
-        ]);
+        const sql = `INSERT OR REPLACE INTO ${TABLES.USERS} (cid, id, data) VALUES (?, ?, ?)`;
+        const dataToSave = JSON.stringify({ ...item, id, cid });
+        await database.execute(sql, [cid, id, dataToSave]);
     },
 
     saveAll: async (items, cid) => {
         if (items.length === 0) return;
         const sql = `INSERT OR REPLACE INTO ${TABLES.USERS} (cid, id, data) VALUES (?, ?, ?)`;
-        await database.executeBatch(items.map(item => [sql, [cid, item.id, JSON.stringify({ ...item.data, cid })]]));
+
+        const commands: [string, any[]][] = items.map(item => [
+            sql,
+            [cid, item.id, JSON.stringify({ ...item.data, id: item.id, cid })],
+        ]);
+        await database.executeBatch(commands);
     },
 
     remove: async (id, cid) => {

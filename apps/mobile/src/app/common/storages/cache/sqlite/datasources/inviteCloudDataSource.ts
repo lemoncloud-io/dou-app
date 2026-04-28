@@ -1,8 +1,6 @@
-// src/storages/sqlite/inviteCloudDataSource.ts
 import { database, TABLES } from '../core';
 import type { ICacheDataSource } from './ICacheDataSource';
 import type { CacheCloudView, InviteCloudQueryOptions } from '@chatic/app-messages';
-import { logger } from '../../../../services';
 
 /**
  * 초대 클라우드(Invite Cloud) 도메인 전용 데이터 소스입니다.
@@ -21,8 +19,8 @@ export const inviteCloudDataSource: ICacheDataSource<CacheCloudView, InviteCloud
         return (result.rows || []).reduce<CacheCloudView[]>((acc, row) => {
             try {
                 acc.push(JSON.parse(row.data as string) as CacheCloudView);
-            } catch (e) {
-                logger.warn('CACHE', `InviteCloudDataSource: Json Parse Error ${e}`);
+            } catch {
+                return [];
             }
             return acc;
         }, []);
@@ -31,14 +29,14 @@ export const inviteCloudDataSource: ICacheDataSource<CacheCloudView, InviteCloud
     save: async (id, item, _cid) => {
         await database.execute(`INSERT OR REPLACE INTO ${TABLES.INVITE_CLOUDS} (id, data) VALUES (?, ?)`, [
             id,
-            JSON.stringify({ item, _cid }),
+            JSON.stringify({ ...item, id }),
         ]);
     },
 
     saveAll: async (items, _cid) => {
         if (items.length === 0) return;
         const sql = `INSERT OR REPLACE INTO ${TABLES.INVITE_CLOUDS} (id, data) VALUES (?, ?)`;
-        await database.executeBatch(items.map(item => [sql, [item.id, JSON.stringify({ ...item.data, _cid })]]));
+        await database.executeBatch(items.map(item => [sql, [item.id, JSON.stringify({ ...item.data, id: item.id })]]));
     },
 
     remove: async (id, _cid) => {
