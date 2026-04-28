@@ -85,7 +85,7 @@ export const createNativeDBAdapter = <TType extends CacheType>(type: TType, cid:
             return (response.data.items as Model[]) || [];
         },
 
-        // TODO: 원자적 `ReplaceAllCache` 브릿지 메시지 도입은 후속 PR. 현재는 FetchAll→DeleteAll→SaveAll 3단계.
+        // TODO: 원자적 `ReplaceAllCacheData` 브릿지 메시지 도입은 후속 PR. 현재는 FetchAll→DeleteAll→SaveAll 3단계.
         replaceAll: async (items: Model[]): Promise<Model[]> => {
             const fetchNonce = generateNonce();
             postMessage({
