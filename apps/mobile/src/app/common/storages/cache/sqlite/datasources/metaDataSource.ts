@@ -20,7 +20,7 @@ export const metaDataSource = {
     /** 쿼리 결과를 저장합니다. 이후 로컬 DB 총량이 변해도 이 ID 목록은 유지됩니다. */
     save: async (type: CacheType, cid: string, key: string, data: CacheMetaView): Promise<void> => {
         const sql = `INSERT OR REPLACE INTO ${TABLES.METAS} (type, cid, key, data, updated_at) VALUES (?, ?, ?, ?, ?)`;
-        await database.execute(sql, [type, cid, key, JSON.stringify(data), Date.now()]);
+        await database.execute(sql, [type, cid, key, JSON.stringify({ ...data, cid }), Date.now()]);
     },
 
     /** 특정 쿼리 캐시 삭제 */

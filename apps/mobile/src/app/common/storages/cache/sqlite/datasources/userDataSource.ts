@@ -33,14 +33,14 @@ export const userDataSource: ICacheDataSource<CacheUserView, UserQueryOptions> =
         await database.execute(`INSERT OR REPLACE INTO ${TABLES.USERS} (cid, id, data) VALUES (?, ?, ?)`, [
             cid,
             id,
-            JSON.stringify(item),
+            JSON.stringify({ ...item, cid }),
         ]);
     },
 
     saveAll: async (items, cid) => {
         if (items.length === 0) return;
         const sql = `INSERT OR REPLACE INTO ${TABLES.USERS} (cid, id, data) VALUES (?, ?, ?)`;
-        await database.executeBatch(items.map(i => [sql, [cid, i.id, JSON.stringify(i.data)]]));
+        await database.executeBatch(items.map(item => [sql, [cid, item.id, JSON.stringify({ ...item.data, cid })]]));
     },
 
     remove: async (id, cid) => {

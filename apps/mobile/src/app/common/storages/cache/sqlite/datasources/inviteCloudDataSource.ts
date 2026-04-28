@@ -31,14 +31,14 @@ export const inviteCloudDataSource: ICacheDataSource<CacheCloudView, InviteCloud
     save: async (id, item, _cid) => {
         await database.execute(`INSERT OR REPLACE INTO ${TABLES.INVITE_CLOUDS} (id, data) VALUES (?, ?)`, [
             id,
-            JSON.stringify(item),
+            JSON.stringify({ item, _cid }),
         ]);
     },
 
     saveAll: async (items, _cid) => {
         if (items.length === 0) return;
         const sql = `INSERT OR REPLACE INTO ${TABLES.INVITE_CLOUDS} (id, data) VALUES (?, ?)`;
-        await database.executeBatch(items.map(i => [sql, [i.id, JSON.stringify(i.data)]]));
+        await database.executeBatch(items.map(item => [sql, [item.id, JSON.stringify({ ...item.data, _cid })]]));
     },
 
     remove: async (id, _cid) => {

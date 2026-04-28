@@ -38,16 +38,19 @@ export interface CacheCloudView extends MyInviteView {
     name?: string;
     backend?: string;
     wss?: string;
+    cid: string;
 }
 
 /** 채널 정보 뷰 (Site ID 포함) */
 export interface CacheChannelView extends ChannelView {
+    cid: string;
     sid: string;
     isNotificationEnabled: boolean;
 }
 
 /** 채팅 메시지 뷰 (전송 상태 포함) */
 export interface CacheChatView extends ChatView {
+    cid: string;
     isPending?: boolean; // 전송 중 여부
     isFailed?: boolean; // 전송 실패 여부
 }
@@ -58,11 +61,16 @@ export interface CacheSiteView extends MySiteView {
     order?: number;
 }
 
-export interface CacheJoinView extends JoinView {}
+export interface CacheJoinView extends JoinView {
+    cid: string;
+}
 
-export interface CacheUserView extends UserView {}
+export interface CacheUserView extends UserView {
+    cid: string;
+}
 
 export interface CacheMetaView {
+    cid: string;
     ids: string[]; // 서버에서 응답받은 해당 페이지의 정확한 ID 순서
     meta?: PagingMeta; // 다음 페이지 조회를 위한 커서 정보
 }

@@ -54,7 +54,13 @@ export const joinDataSource: ICacheDataSource<CacheJoinView, JoinQueryOptions> =
     /** 검색 최적화를 위해 channel_id와 user_id를 별도 컬럼으로 분리하여 저장합니다. */
     save: async (id, item, cid) => {
         const sql = `INSERT OR REPLACE INTO ${TABLES.JOINS} (cid, id, channel_id, user_id, data) VALUES (?, ?, ?, ?, ?)`;
-        await database.execute(sql, [cid, id, item.channelId || '', item.userId || '', JSON.stringify(item)]);
+        await database.execute(sql, [
+            cid,
+            id,
+            item.channelId || '',
+            item.userId || '',
+            JSON.stringify({ ...item, cid }),
+        ]);
     },
 
     /** 다수의 참여 정보를 트랜잭션으로 일괄 저장합니다. */
@@ -63,7 +69,13 @@ export const joinDataSource: ICacheDataSource<CacheJoinView, JoinQueryOptions> =
         const sql = `INSERT OR REPLACE INTO ${TABLES.JOINS} (cid, id, channel_id, user_id, data) VALUES (?, ?, ?, ?, ?)`;
         const commands: [string, any[]][] = items.map(item => [
             sql,
-            [cid, item.id, item.data.channelId || '', item.data.userId || '', JSON.stringify(item.data)],
+            [
+                cid,
+                item.id,
+                item.data.channelId || '',
+                item.data.userId || '',
+                JSON.stringify(JSON.stringify({ ...item.data, cid })),
+            ],
         ]);
         await database.executeBatch(commands);
     },

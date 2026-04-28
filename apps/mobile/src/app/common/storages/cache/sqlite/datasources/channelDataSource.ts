@@ -76,7 +76,7 @@ export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryO
      */
     save: async (id, item, cid) => {
         const sql = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, id, sid, name, data) VALUES (?, ?, ?, ?, ?)`;
-        await database.execute(sql, [cid, id, extractSid(item), extractName(item), JSON.stringify(item)]);
+        await database.execute(sql, [cid, id, extractSid(item), extractName(item), JSON.stringify({ ...item, cid })]);
     },
 
     /**
@@ -87,7 +87,7 @@ export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryO
         const sql = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, id, sid, name, data) VALUES (?, ?, ?, ?, ?)`;
         const commands: [string, any[]][] = items.map(item => [
             sql,
-            [cid, item.id, extractSid(item.data), extractName(item.data), JSON.stringify(item.data)],
+            [cid, item.id, extractSid(item.data), extractName(item.data), JSON.stringify({ ...item.data, cid })],
         ]);
         await database.executeBatch(commands);
     },

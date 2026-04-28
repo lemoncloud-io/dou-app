@@ -71,7 +71,7 @@ export const chatDataSource: ICacheDataSource<CacheChatView, ChatQueryOptions> =
             item.chatNo || 0,
             item.createdAt || 0,
             content,
-            JSON.stringify(item),
+            JSON.stringify({ ...item, cid }),
         ]);
     },
 
@@ -91,7 +91,7 @@ export const chatDataSource: ICacheDataSource<CacheChatView, ChatQueryOptions> =
                 item.data.chatNo || 0,
                 item.data.createdAt || 0,
                 item.data.content || '',
-                JSON.stringify(item.data),
+                JSON.stringify({ ...item.data, cid }),
             ],
         ]);
         await database.executeBatch(commands);
