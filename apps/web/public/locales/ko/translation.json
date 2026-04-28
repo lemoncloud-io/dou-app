@@ -796,5 +796,16 @@
         "limitExceeded": "계정은 최대 1개까지 추가할 수 있어요",
         "subscriptionRequired": "구독 중인 플랫폼에서만 계정을 추가할 수 있어요",
         "cloudUserRequired": "클라우드 사용자만 계정을 추가할 수 있어요"
+    },
+    "reportIssue": {
+        "title": "이슈 보고",
+        "description": "문제가 발생했나요? 내용을 적어주시면 확인 후 개선하겠습니다.",
+        "titleLabel": "제목",
+        "titlePlaceholder": "이슈 제목을 입력해주세요",
+        "messageLabel": "상세 내용",
+        "messagePlaceholder": "어떤 문제가 발생했는지 자세히 적어주세요",
+        "submit": "보내기",
+        "success": "이슈가 보고되었습니다. 감사합니다!",
+        "failed": "이슈 보고에 실패했습니다. 다시 시도해주세요."
     }
 }

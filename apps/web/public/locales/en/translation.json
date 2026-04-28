@@ -796,5 +796,16 @@
         "limitExceeded": "You can add up to 1 account",
         "subscriptionRequired": "You can only add an account on your subscribed platform",
         "cloudUserRequired": "Only cloud users can add an account"
+    },
+    "reportIssue": {
+        "title": "Report Issue",
+        "description": "Having a problem? Describe it and we'll look into it.",
+        "titleLabel": "Title",
+        "titlePlaceholder": "Enter the issue title",
+        "messageLabel": "Details",
+        "messagePlaceholder": "Describe what happened in detail",
+        "submit": "Submit",
+        "success": "Issue reported. Thank you!",
+        "failed": "Failed to report issue. Please try again."
     }
 }
