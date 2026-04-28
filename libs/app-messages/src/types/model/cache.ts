@@ -1,5 +1,5 @@
 import type { ChannelView, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
-import type { MyInviteView, MySiteView, UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView, MySiteView } from '@lemoncloud/chatic-backend-api';
 
 /** 캐시 가능한 도메인 타입 정의 */
 export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud';
@@ -26,11 +26,10 @@ interface CacheBasePayload<K extends CacheType> {
 export interface CacheModelMap {
     channel: CacheChannelView;
     chat: CacheChatView;
-    user: UserView;
-    site: CacheSiteView;
-    join: JoinView;
-    usertoken: UserTokenView;
     invitecloud: CacheCloudView;
+    join: CacheJoinView;
+    site: CacheSiteView;
+    user: CacheUserView;
 }
 
 /** 클라우드/서버 정보 뷰 */
@@ -44,6 +43,7 @@ export interface CacheCloudView extends MyInviteView {
 /** 채널 정보 뷰 (Site ID 포함) */
 export interface CacheChannelView extends ChannelView {
     sid: string;
+    isNotificationEnabled: boolean;
 }
 
 /** 채팅 메시지 뷰 (전송 상태 포함) */
@@ -55,7 +55,12 @@ export interface CacheChatView extends ChatView {
 /** 사이트 정보 뷰 */
 export interface CacheSiteView extends MySiteView {
     cid: string;
+    order?: number;
 }
+
+export interface CacheJoinView extends JoinView {}
+
+export interface CacheUserView extends UserView {}
 
 /**
  *
@@ -68,6 +73,7 @@ export interface BaseQueryOptions {
 /** 채널 목록 조회 쿼리 */
 export interface ChannelQueryOptions extends BaseQueryOptions {
     sid?: string; // 특정 사이트 내 채널 필터
+    keyword?: string; // 검색 키워드
 }
 
 /** 채팅 목록 조회 쿼리 */
@@ -76,22 +82,28 @@ export interface ChatQueryOptions extends BaseQueryOptions {
     sort?: 'asc' | 'desc'; // 정렬 순서
 }
 
+export interface InviteCloudQueryOptions extends BaseQueryOptions {}
+
 /** 참여 정보 조회 쿼리 */
 export interface JoinQueryOptions extends BaseQueryOptions {
     channelId?: string;
     userId?: string;
 }
 
+/** 유저 정보 쿼리 */
+export interface UserQueryOptions extends BaseQueryOptions {}
+
+/** 사이트 정보 쿼리 */
+export interface SiteQueryOptions extends BaseQueryOptions {}
+
 /** 도메인별 쿼리 옵션 매핑 */
 export interface CacheQueryMap {
     channel: ChannelQueryOptions;
     chat: ChatQueryOptions;
-    user: BaseQueryOptions;
-    site: BaseQueryOptions;
+    user: UserQueryOptions;
+    site: SiteQueryOptions;
     join: JoinQueryOptions;
-    usertoken: BaseQueryOptions;
-    invitecloud: BaseQueryOptions;
-    cloud: BaseQueryOptions;
+    invitecloud: InviteCloudQueryOptions;
 }
 
 /** [요청] ID 기반 단일 데이터 조회 */
