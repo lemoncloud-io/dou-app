@@ -1,46 +1,33 @@
 import type { Scalar, SQLBatchTuple } from '@op-engineering/op-sqlite';
 import { open } from '@op-engineering/op-sqlite';
-import { SQL_SCHEMAS } from './schema';
+import { MIGRATIONS, TARGET_VERSION } from './schema';
 import { logger } from '../../../../services';
-import { TABLES } from './tables';
 
 const db = open({ name: 'dou.sqlite' });
-
-const TARGET_VERSION = 1;
 
 const initTables = async () => {
     try {
         await db.transaction(async tx => {
-            // 현재 로컬 SQLite 데이터베이스의 버전 확인
             const versionResult = await tx.execute('PRAGMA user_version');
             const currentVersion = (versionResult.rows?.[0] as any)?.user_version || 0;
 
-            // 신규 설치 유저 (currentVersion === 0)
-            if (currentVersion === 0) {
-                // schema.ts에 정의된 최신 CREATE TABLE 구문들을 한 번에 실행
-                SQL_SCHEMAS.forEach(query => tx.execute(query));
-
-                // 버전을 최신으로 세팅하고 종료
-                await tx.execute(`PRAGMA user_version = ${TARGET_VERSION}`);
-                logger.info('SQLITE', `Database initialized directly to v${TARGET_VERSION}`);
-                return;
-            }
-
-            // 기존 유저 마이그레이션 진행 (currentVersion > 0)
             if (currentVersion < TARGET_VERSION) {
-                logger.info('SQLITE', `Migrating DB from v${currentVersion} to v${TARGET_VERSION}`);
+                logger.info('SQLITE', `Starting Migration: v${currentVersion} -> v${TARGET_VERSION}`);
 
-                // 버전 1: SITES 테이블에 name 컬럼 추가
-                if (currentVersion < 1) {
-                    tx.execute(`ALTER TABLE ${TABLES.SITES} ADD COLUMN name TEXT`);
-                    logger.info('SQLITE', 'Migration v1 applied: Added name to SITES');
+                for (let v = currentVersion; v < TARGET_VERSION; v++) {
+                    const scripts = MIGRATIONS[v];
+                    if (scripts) {
+                        scripts.forEach(sql => tx.execute(sql));
+                        logger.info('SQLITE', `Step v${v} applied.`);
+                    }
                 }
+
                 await tx.execute(`PRAGMA user_version = ${TARGET_VERSION}`);
-                logger.info('SQLITE', 'Database migration completed successfully.');
+                logger.info('SQLITE', `Database is now at v${TARGET_VERSION}`);
             }
         });
     } catch (error) {
-        logger.error('SQLITE', 'Table initialization or migration failed:', error);
+        logger.error('SQLITE', 'Migration failed:', error);
     }
 };
 
