@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { ContactInfo } from '@chatic/app-messages';
 import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
+import { reportError, toError } from '@chatic/web-core';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -150,6 +151,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
             }
         } catch (error) {
             console.error('Failed to invite contact:', error);
+            reportError(toError(error));
             const message = error instanceof Error ? error.message : t('inviteFriends.shareFailed');
             toast({ title: message, variant: 'destructive' });
         } finally {

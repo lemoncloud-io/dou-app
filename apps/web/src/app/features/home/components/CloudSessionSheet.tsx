@@ -9,7 +9,7 @@ import { cn } from '@chatic/lib/utils';
 import { useInterval } from '@chatic/shared';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, reportError, toError, useWebCoreStore } from '@chatic/web-core';
 import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
 import { cloudsKeys } from '@chatic/users';
 
@@ -324,6 +324,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
             handleClose();
         } catch (e) {
             console.error('[CloudSessionSheet] selectCloud failed:', e);
+            reportError(toError(e));
             toast({ title: t('cloudSessionSheet.switchFailed'), variant: 'destructive' });
         }
     };

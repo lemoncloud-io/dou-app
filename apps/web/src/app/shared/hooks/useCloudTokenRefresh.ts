@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
-import { cloudCore, useServiceStatusStore, useWebCoreStore, webCore } from '@chatic/web-core';
+import { cloudCore, reportError, toError, useServiceStatusStore, useWebCoreStore, webCore } from '@chatic/web-core';
 
 const REFRESH_INTERVAL_MS = 60_000;
 
@@ -34,6 +34,7 @@ export const useCloudTokenRefresh = () => {
                 setServiceUnavailable(false);
             } catch (e) {
                 console.error('[CloudTokenRefresh] refreshToken failed', e);
+                reportError(toError(e));
                 if (isServerError(e)) {
                     setServiceUnavailable(true);
                     return;

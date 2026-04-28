@@ -6,6 +6,7 @@ import { Loader2, X } from 'lucide-react';
 import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
+import { reportError, toError } from '@chatic/web-core';
 import { useProductPlans } from '@chatic/subscriptions';
 
 import { EmailVerifyDialog } from './EmailVerifyDialog';
@@ -116,7 +117,10 @@ export const SubscriptionSelectDialog = ({
             handleClose();
         } catch (e) {
             const isCancelled = (e as { code?: string })?.code === 'user-cancelled';
-            if (!isCancelled) onError?.(e instanceof Error ? e : new Error(String(e)));
+            if (!isCancelled) {
+                reportError(toError(e));
+                onError?.(e instanceof Error ? e : new Error(String(e)));
+            }
         } finally {
             setPageState(PageState.Idle);
         }

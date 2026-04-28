@@ -6,7 +6,7 @@ import { useParams } from 'react-router-dom';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useDynamicProfile, UserType, useUserContext } from '@chatic/web-core';
+import { reportError, toError, useDynamicProfile, UserType, useUserContext } from '@chatic/web-core';
 
 import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -99,6 +99,7 @@ export const ChatSettingsPage = () => {
             navigate('/', { replace: true });
         } catch (error) {
             console.error('Failed to leave room:', error);
+            reportError(toError(error));
             toast({ title: t('chat.settings.leaveFailed'), variant: 'destructive' });
         }
     };
@@ -113,6 +114,7 @@ export const ChatSettingsPage = () => {
             navigate('/', { replace: true });
         } catch (error) {
             console.error('Failed to delete room:', error);
+            reportError(toError(error));
             toast({ title: t('chat.settings.deleteFailed'), variant: 'destructive' });
         }
     };

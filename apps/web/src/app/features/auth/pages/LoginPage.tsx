@@ -8,7 +8,9 @@ import {
     cloudCore,
     getDelegatorId,
     loginWithInviteCode,
+    reportError,
     setIsInvitedSession,
+    toError,
     useWebCoreStore,
     webCore,
 } from '@chatic/web-core';
@@ -54,6 +56,7 @@ export const LoginPage = (): JSX.Element => {
             return await loginWithInviteCode(code, delegatorId, backend);
         } catch (error) {
             console.error('[LoginPage] Fetch invite data failed:', error);
+            reportError(toError(error));
             toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
             setInviteError(true);
             return null;
@@ -70,6 +73,7 @@ export const LoginPage = (): JSX.Element => {
             window.location.replace('/');
         } catch (error) {
             console.error('[LoginPage] Device registration failed:', error);
+            reportError(toError(error));
             toast({ title: t('auth.loginFailed'), variant: 'destructive' });
             // Navigate to home to prevent permanent stuck on "preparing app"
             window.location.replace('/');
@@ -170,6 +174,7 @@ export const LoginPage = (): JSX.Element => {
             window.location.replace('/');
         } catch (error) {
             console.error('[LoginPage] Accept invite failed:', error);
+            reportError(toError(error));
             toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
             setIsAccepting(false);
         }

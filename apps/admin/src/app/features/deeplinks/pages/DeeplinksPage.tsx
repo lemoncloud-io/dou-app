@@ -23,6 +23,8 @@ import {
     AlertDialogTitle,
 } from '@chatic/ui-kit/components/ui/alert-dialog';
 
+import { reportError, toError } from '@chatic/web-core';
+
 import { CreateDeeplinkDialog, DeeplinkDetailDialog, DeeplinksTable } from '../components';
 import { useFirebaseAuth, useDeeplinks, useDeleteDeeplink, useDeleteAllDeeplinks } from '../hooks';
 
@@ -50,6 +52,7 @@ export const DeeplinksPage = (): JSX.Element => {
             toast.success('Deeplink deleted successfully');
             setDeleteTarget(null);
         } catch (err) {
+            reportError(toError(err));
             const message = err instanceof Error ? err.message : 'Failed to delete deeplink';
             toast.error(message);
         }
@@ -61,6 +64,7 @@ export const DeeplinksPage = (): JSX.Element => {
             toast.success(`${count} deeplinks deleted successfully`);
             setDeleteAllOpen(false);
         } catch (err) {
+            reportError(toError(err));
             const message = err instanceof Error ? err.message : 'Failed to delete deeplinks';
             toast.error(message);
         }
