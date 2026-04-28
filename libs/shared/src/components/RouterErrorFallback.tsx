@@ -1,8 +1,9 @@
 import { type JSX, useCallback, useEffect, useRef } from 'react';
-import { isRouteErrorResponse, useNavigate, useRouteError } from 'react-router-dom';
+import { isRouteErrorResponse, useRouteError } from 'react-router-dom';
 
 import { AlertTriangle, Home, RefreshCw, ServerCrash } from 'lucide-react';
 
+import { Logo } from '@chatic/assets';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { ERROR_MESSAGES } from '../consts';
@@ -17,9 +18,9 @@ interface RouterErrorFallbackProps {
 type RouterErrorType = 'notFound' | 'server' | 'unknown';
 
 const ERROR_ICONS: Record<RouterErrorType, ReactNode> = {
-    notFound: <AlertTriangle className="h-10 w-10 text-primary" />,
-    server: <ServerCrash className="h-10 w-10 text-primary" />,
-    unknown: <AlertTriangle className="h-10 w-10 text-primary" />,
+    notFound: <AlertTriangle className="h-8 w-8 text-muted-foreground" />,
+    server: <ServerCrash className="h-8 w-8 text-muted-foreground" />,
+    unknown: <AlertTriangle className="h-8 w-8 text-muted-foreground" />,
 };
 
 const inferRouterErrorType = (error: unknown): RouterErrorType => {
@@ -42,7 +43,6 @@ const getErrorMessage = (error: unknown): string => {
 
 export const RouterErrorFallback = ({ onError }: RouterErrorFallbackProps): JSX.Element => {
     const error = useRouteError();
-    const navigate = useNavigate();
     const containerRef = useRef<HTMLDivElement>(null);
 
     const errorType = inferRouterErrorType(error);
@@ -67,8 +67,8 @@ export const RouterErrorFallback = ({ onError }: RouterErrorFallbackProps): JSX.
     }, []);
 
     const handleGoHome = useCallback((): void => {
-        navigate('/');
-    }, [navigate]);
+        window.location.href = '/';
+    }, []);
 
     if (errorType === 'notFound') {
         return <NotFoundPage />;
@@ -84,45 +84,51 @@ export const RouterErrorFallback = ({ onError }: RouterErrorFallbackProps): JSX.
             aria-live="assertive"
             aria-atomic="true"
             tabIndex={-1}
-            className="min-h-screen bg-white flex items-center justify-center p-4 outline-none"
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background p-6 outline-none"
         >
-            <div className="w-full max-w-md text-center space-y-8">
-                <div className="flex justify-center">{icon}</div>
+            {/* Logo */}
+            <div className="mb-10 opacity-40">
+                <img src={Logo.logo} alt="DoU" className="h-16 w-16 object-contain" />
+            </div>
 
-                <div className="space-y-3">
-                    <h2 id="error-title" className="text-2xl font-bold text-neutral-900">
-                        {messages.title}
-                    </h2>
-                    <p id="error-description" className="text-neutral-500 leading-relaxed">
-                        {messages.description}
-                    </p>
-                </div>
+            {/* Icon */}
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">{icon}</div>
 
-                <div className="bg-neutral-100 border border-neutral-200 rounded-lg p-4">
-                    <pre className="text-sm text-neutral-600 overflow-auto whitespace-pre-wrap break-words max-h-32">
+            {/* Title & Description */}
+            <h2 className="mb-2 text-[18px] font-semibold leading-[1.5] text-foreground">{messages.title}</h2>
+            <p className="mb-6 max-w-[280px] text-center text-[14px] leading-[1.571] text-muted-foreground">
+                {messages.description}
+            </p>
+
+            {/* Error Detail (collapsible) */}
+            <details className="mb-8 w-full max-w-[320px]">
+                <summary className="cursor-pointer text-center text-[12px] text-muted-foreground hover:text-foreground">
+                    상세 정보 보기
+                </summary>
+                <div className="mt-2 rounded-lg border border-border bg-muted/50 p-3">
+                    <pre className="max-h-24 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-[1.5] text-muted-foreground">
                         {errorMessage}
                     </pre>
                 </div>
+            </details>
 
-                <div className="flex justify-center gap-3">
-                    <Button
-                        variant="outline"
-                        onClick={handleGoHome}
-                        className="border-neutral-300 text-neutral-700 hover:bg-neutral-100"
-                        aria-label="홈으로 이동"
-                    >
-                        <Home className="h-4 w-4 mr-2" />
-                        <span>{messages.secondaryAction}</span>
-                    </Button>
-                    <Button
-                        onClick={handleRetry}
-                        className="bg-primary hover:bg-primary/90 text-white"
-                        aria-label="다시 시도"
-                    >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        <span>{messages.primaryAction}</span>
-                    </Button>
-                </div>
+            {/* Actions */}
+            <div className="flex w-full max-w-[280px] flex-col gap-3">
+                <Button
+                    onClick={handleRetry}
+                    className="h-[50px] w-full rounded-full bg-[#B0EA10] text-[16px] font-semibold text-[#222325] hover:bg-[#9DD00E] disabled:bg-muted disabled:text-muted-foreground"
+                >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    {messages.primaryAction}
+                </Button>
+                <Button
+                    variant="ghost"
+                    onClick={handleGoHome}
+                    className="h-[44px] w-full rounded-full text-[14px] font-medium text-muted-foreground hover:text-foreground"
+                >
+                    <Home className="mr-2 h-4 w-4" />
+                    {messages.secondaryAction}
+                </Button>
             </div>
         </div>
     );

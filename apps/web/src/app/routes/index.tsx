@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom';
 
-import { useWebCoreStore } from '@chatic/web-core';
+import { RouterErrorFallback } from '@chatic/shared';
+import { reportError, useWebCoreStore } from '@chatic/web-core';
 
 import { commonRoutes } from './common/CommonRoutes';
 import { privateRoutes } from './private/PrivateRoutes';
@@ -10,13 +11,10 @@ import { publicRoutes } from './public/PublicRoutes';
 export const Router = () => {
     const { isAuthenticated, isInitialized } = useWebCoreStore();
 
-    // const handleRouterError = useCallback(
-    //     (error: Error, info: { componentStack?: string }): void => {
-    //         console.error('Router Error:', error, info);
-    //         reportError(error, info, 'web', profile?.uid);
-    //     },
-    //     [profile?.uid]
-    // );
+    const handleRouterError = useCallback((error: Error): void => {
+        console.error('Router Error:', error);
+        reportError(error);
+    }, []);
 
     const router = useMemo(() => {
         const baseRoutes = isAuthenticated
@@ -25,14 +23,11 @@ export const Router = () => {
 
         const routesWithErrorElement = baseRoutes.map(route => ({
             ...route,
-            // errorElement: <RouterErrorFallback onError={handleRouterError} />,
+            errorElement: <RouterErrorFallback onError={handleRouterError} />,
         }));
 
         return createBrowserRouter(routesWithErrorElement);
-    }, [
-        isAuthenticated,
-        //  handleRouterError
-    ]);
+    }, [isAuthenticated, handleRouterError]);
 
     if (!isInitialized) {
         return null;
