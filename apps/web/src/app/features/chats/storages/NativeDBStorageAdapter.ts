@@ -29,22 +29,6 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
      * @deprecated Deprecated by Raine
      */
     save: async (userId, channelId, message) => {
-        // const chatView = { ...toChatView(message), channelId };
-        // const nonce = generateNonce();
-        // await waitForAppMessage(
-        //     'OnSaveCache',
-        //     m => m.nonce === nonce,
-        //     () =>
-        //         postMessage({
-        //             type: 'SaveCache',
-        //             data: { type: 'chat', id: message.id, item: chatView, cid: defaultCloudId },
-        //             nonce,
-        //         })
-        // );
-        //
-        // const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
-        // bc.postMessage({ type: 'message-added', userId, channelId, message });
-        // bc.close();
         return;
     },
 
@@ -81,25 +65,6 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
          */
         await Promise.all(
             chats.filter(chat => (chat as any).chatNo <= chatNo && !(chat as any).readBy?.includes(readerUserId))
-            // .map(chat => {
-            //     const saveNonce = generateNonce();
-            //     const updatedReadBy = [...((chat as any).readBy ?? []), readerUserId];
-            //     return waitForAppMessage(
-            //         'OnSaveCache',
-            //         m => m.nonce === saveNonce,
-            //         () =>
-            //             postMessage({
-            //                 type: 'SaveCache',
-            //                 data: {
-            //                     type: 'chat',
-            //                     id: chat.id!,
-            //                     item: { ...chat, readBy: updatedReadBy },
-            //                     cid: defaultCloudId,
-            //                 },
-            //                 nonce: saveNonce,
-            //             })
-            //     );
-            // })
         );
     },
 
