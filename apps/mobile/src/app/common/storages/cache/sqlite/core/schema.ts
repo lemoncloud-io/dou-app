@@ -74,6 +74,7 @@ export const SQL_SCHEMAS = [
         cid TEXT NOT NULL,
         id TEXT NOT NULL,
         data TEXT NOT NULL,
+        name TEXT,
         PRIMARY KEY (cid, id)
     );`,
 
