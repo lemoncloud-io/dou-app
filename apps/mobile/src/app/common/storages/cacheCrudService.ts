@@ -1,11 +1,9 @@
 import {
     channelDataSource,
     chatDataSource,
-    cloudDataSource,
     joinDataSource,
     siteDataSource,
     userDataSource,
-    userTokenDataSource,
     inviteCloudDataSource,
 } from './sqlite';
 import type { CacheType } from '@chatic/app-messages';
@@ -17,10 +15,8 @@ const DS_MAP: Record<CacheType, any> = {
     chat: chatDataSource,
     channel: channelDataSource,
     user: userDataSource,
-    cloud: cloudDataSource,
     join: joinDataSource,
     site: siteDataSource,
-    usertoken: userTokenDataSource,
     invitecloud: inviteCloudDataSource,
 };
 

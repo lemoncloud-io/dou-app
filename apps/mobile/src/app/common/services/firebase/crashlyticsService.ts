@@ -19,11 +19,22 @@ export const initCrashlyticsService = () => {
 
         switch (level) {
             case 'error': {
+                let errorToRecord: Error;
+
+                if (error instanceof Error) {
+                    errorToRecord = error;
+                    errorToRecord.name = tag;
+                } else {
+                    errorToRecord = new Error(message);
+                    errorToRecord.name = tag;
+                }
+
                 void crashlytics().setAttributes({
-                    last_error_tag: tag,
-                    is_debug: String(__DEV__),
+                    error_tag: tag,
+                    error_message: message,
+                    ...data,
                 });
-                const errorToRecord = error instanceof Error ? error : new Error(`[${tag}] ${message}`);
+
                 crashlytics().recordError(errorToRecord);
                 break;
             }

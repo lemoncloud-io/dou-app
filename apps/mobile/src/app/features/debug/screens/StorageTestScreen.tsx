@@ -20,7 +20,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const DATA_TYPES: CacheType[] = ['channel', 'cloud', 'chat', 'user', 'join', 'site', 'usertoken', 'invitecloud'];
+const DATA_TYPES: CacheType[] = ['channel', 'chat', 'user', 'join', 'site', 'invitecloud'];
 
 export const StorageTestScreen = () => {
     const insets = useSafeAreaInsets();

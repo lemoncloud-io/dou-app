@@ -3,27 +3,27 @@ import { logger } from '../../services';
 import { cacheSearchService } from '../../storages';
 
 import type { WebViewBridge } from './useBaseBridge';
-import type { AppMessageData, ExecuteGlobalSearch } from '@chatic/app-messages';
+import type { AppMessageData, SearchGlobalCache } from '@chatic/app-messages';
 
 export const useSearchCacheHandler = (bridge: WebViewBridge) => {
-    const handleExecuteGlobalSearch = useCallback(
-        async (message: ExecuteGlobalSearch) => {
+    const handleSearchGlobalCache = useCallback(
+        async (message: SearchGlobalCache) => {
             try {
                 const items = await cacheSearchService.executeGlobalSearch(message.data.keyword, message.data.cid);
 
-                const response: AppMessageData<'OnExecuteGlobalSearch'> = {
-                    type: 'OnExecuteGlobalSearch',
+                const response: AppMessageData<'OnSearchGlobalCache'> = {
+                    type: 'OnSearchGlobalCache',
                     nonce: message.nonce,
                     data: { items } as any,
                 };
                 bridge.post(response);
             } catch (e) {
                 logger.error('CACHE', `Search execution failed`, e);
-                bridge.post({ type: 'OnExecuteGlobalSearch', nonce: message.nonce, data: { items: [] } as any });
+                bridge.post({ type: 'OnSearchGlobalCache', nonce: message.nonce, data: { items: [] } as any });
             }
         },
         [bridge]
     );
 
-    return { handleExecuteGlobalSearch };
+    return { handleSearchGlobalCache };
 };

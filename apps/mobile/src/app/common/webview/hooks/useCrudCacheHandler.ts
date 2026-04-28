@@ -15,7 +15,7 @@ import type {
 import { cacheCrudService } from '../../storages';
 
 export const useCrudCacheHandler = (bridge: WebViewBridge) => {
-    const handleFetchAllCacheData = useCallback(
+    const handleFetchAllCache = useCallback(
         async (message: FetchAllCacheData) => {
             try {
                 const items = await cacheCrudService.fetchAll(message.data);
@@ -35,7 +35,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleFetchCacheData = useCallback(
+    const handleFetchCache = useCallback(
         async (message: FetchCacheData) => {
             try {
                 const item = await cacheCrudService.fetch(message.data);
@@ -61,7 +61,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleSaveCacheData = useCallback(
+    const handleSaveCache = useCallback(
         async (message: SaveCacheData) => {
             try {
                 const savedId = await cacheCrudService.save(message.data);
@@ -86,7 +86,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleSaveAllCacheData = useCallback(
+    const handleSaveAllCache = useCallback(
         async (message: SaveAllCacheData) => {
             try {
                 const savedIds = await cacheCrudService.saveAll(message.data);
@@ -106,7 +106,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleDeleteCacheData = useCallback(
+    const handleDeleteCache = useCallback(
         async (message: DeleteCacheData) => {
             try {
                 const deletedId = await cacheCrudService.delete(message.data);
@@ -131,7 +131,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleDeleteAllCacheData = useCallback(
+    const handleDeleteAllCache = useCallback(
         async (message: DeleteAllCacheData) => {
             try {
                 const deletedIds = await cacheCrudService.deleteAll(message.data);
@@ -151,7 +151,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
         [bridge]
     );
 
-    const handleClearCacheData = useCallback(
+    const handleClearCache = useCallback(
         async (message: ClearCacheData) => {
             try {
                 await cacheCrudService.clear(message.data);
@@ -171,12 +171,12 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
     );
 
     return {
-        handleFetchAllCacheData,
-        handleFetchCacheData,
-        handleSaveCacheData,
-        handleSaveAllCacheData,
-        handleDeleteCacheData,
-        handleDeleteAllCacheData,
-        handleClearCacheData,
+        handleFetchAllCache,
+        handleFetchCache,
+        handleSaveCache,
+        handleSaveAllCache,
+        handleDeleteCache,
+        handleDeleteAllCache,
+        handleClearCache,
     };
 };

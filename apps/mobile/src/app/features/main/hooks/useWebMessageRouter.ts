@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import type { WebViewBridge } from '../../../common';
 import { logger, useLanguageStore, useThemeStore } from '../../../common';
 import {
     useCrudCacheHandler,
@@ -6,16 +7,15 @@ import {
     useFcmHandler,
     useOAuthHandler,
     usePermissionHandler,
+    usePreferenceCacheHandler,
     useSafeAreaHandler,
     useSearchCacheHandler,
     useSubscriptionIapHandler,
-    usePreferenceCacheHandler,
 } from '../../../common/webview/hooks';
 import { useModalHandler } from '../../../common/webview/hooks/useModalHandler';
 
 import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
-import type { WebViewBridge } from '../../../common';
 import type { MainScreenProps } from '../navigation';
 import { useAppStateHandler } from '../../../common/webview/hooks/useAppStateHandler';
 
@@ -57,18 +57,18 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
     } = useSubscriptionIapHandler(bridge);
 
     const {
-        handleFetchAllCacheData,
-        handleFetchCacheData,
-        handleSaveCacheData,
-        handleSaveAllCacheData,
-        handleDeleteCacheData,
-        handleDeleteAllCacheData,
-        handleClearCacheData,
+        handleFetchAllCache,
+        handleFetchCache,
+        handleSaveCache,
+        handleSaveAllCache,
+        handleDeleteCache,
+        handleDeleteAllCache,
+        handleClearCache,
     } = useCrudCacheHandler(bridge);
 
     const { handleFetchPreference, handleSavePreference, handleDeletePreference } = usePreferenceCacheHandler(bridge);
 
-    const { handleExecuteGlobalSearch } = useSearchCacheHandler(bridge);
+    const { handleSearchGlobalCache } = useSearchCacheHandler(bridge);
 
     const {
         handleOpenSettings,
@@ -135,28 +135,28 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
                         break;
                     // -- Cache Management --
                     case 'FetchCacheData':
-                        void handleFetchCacheData(message);
+                        void handleFetchCache(message);
                         break;
                     case 'FetchAllCacheData':
-                        void handleFetchAllCacheData(message);
+                        void handleFetchAllCache(message);
                         break;
                     case 'SaveCacheData':
-                        void handleSaveCacheData(message);
+                        void handleSaveCache(message);
                         break;
                     case 'SaveAllCacheData':
-                        void handleSaveAllCacheData(message);
+                        void handleSaveAllCache(message);
                         break;
                     case 'DeleteCacheData':
-                        void handleDeleteCacheData(message);
+                        void handleDeleteCache(message);
                         break;
                     case 'DeleteAllCacheData':
-                        void handleDeleteAllCacheData(message);
+                        void handleDeleteAllCache(message);
                         break;
-                    case `ExecuteGlobalSearch`:
-                        void handleExecuteGlobalSearch(message);
+                    case `SearchGlobalCacheData`:
+                        void handleSearchGlobalCache(message);
                         break;
                     case 'ClearCacheData':
-                        void handleClearCacheData(message);
+                        void handleClearCache(message);
                         break;
                     // -- Preference Management --
                     case 'FetchPreference':
@@ -232,12 +232,12 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
         handlePurchaseSubscription,
         handleFinishPurchase,
         handleOpenSubscriptionManagement,
-        handleFetchCacheData,
-        handleFetchAllCacheData,
-        handleSaveCacheData,
-        handleSaveAllCacheData,
-        handleDeleteCacheData,
-        handleDeleteAllCacheData,
+        handleFetchCache,
+        handleFetchAllCache,
+        handleSaveCache,
+        handleSaveAllCache,
+        handleDeleteCache,
+        handleDeleteAllCache,
         handleFetchPreference,
         handleSavePreference,
         handleDeletePreference,

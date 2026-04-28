@@ -1,8 +1,8 @@
+import type { AppMessage, AppMessageType } from '@chatic/app-messages';
 import { postMessage, useAppMessageStore } from '@chatic/app-messages';
 
 import { BROADCAST_CHANNEL_NAME } from './IndexedDBStorageAdapter';
 import type { ChatStorageAdapter } from './ChatStorageAdapter';
-import type { AppMessageType, AppMessage } from '@chatic/app-messages';
 import { toClientChatView } from '@chatic/chats';
 import type { ChatView } from '@lemoncloud/chatic-socials-api';
 
@@ -29,22 +29,6 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
      * @deprecated Deprecated by Raine
      */
     save: async (userId, channelId, message) => {
-        // const chatView = { ...toChatView(message), channelId };
-        // const nonce = generateNonce();
-        // await waitForAppMessage(
-        //     'OnSaveCacheData',
-        //     m => m.nonce === nonce,
-        //     () =>
-        //         postMessage({
-        //             type: 'SaveCacheData',
-        //             data: { type: 'chat', id: message.id, item: chatView, cid: defaultCloudId },
-        //             nonce,
-        //         })
-        // );
-        //
-        // const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
-        // bc.postMessage({ type: 'message-added', userId, channelId, message });
-        // bc.close();
         return;
     },
 
@@ -56,7 +40,7 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
             () =>
                 postMessage({
                     type: 'FetchAllCacheData',
-                    data: { type: 'chat', query: { channelId, cid: defaultCloudId } },
+                    data: { type: 'chat', cid: defaultCloudId, query: { channelId, cid: defaultCloudId } },
                     nonce,
                 })
         );
@@ -71,7 +55,7 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
             () =>
                 postMessage({
                     type: 'FetchAllCacheData',
-                    data: { type: 'chat', query: { channelId, cid: defaultCloudId } },
+                    data: { type: 'chat', cid: defaultCloudId, query: { channelId, cid: defaultCloudId } },
                     nonce,
                 })
         );
@@ -81,25 +65,6 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
          */
         await Promise.all(
             chats.filter(chat => (chat as any).chatNo <= chatNo && !(chat as any).readBy?.includes(readerUserId))
-            // .map(chat => {
-            //     const saveNonce = generateNonce();
-            //     const updatedReadBy = [...((chat as any).readBy ?? []), readerUserId];
-            //     return waitForAppMessage(
-            //         'OnSaveCacheData',
-            //         m => m.nonce === saveNonce,
-            //         () =>
-            //             postMessage({
-            //                 type: 'SaveCacheData',
-            //                 data: {
-            //                     type: 'chat',
-            //                     id: chat.id!,
-            //                     item: { ...chat, readBy: updatedReadBy },
-            //                     cid: defaultCloudId,
-            //                 },
-            //                 nonce: saveNonce,
-            //             })
-            //     );
-            // })
         );
     },
 
@@ -125,7 +90,7 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
             () =>
                 postMessage({
                     type: 'FetchAllCacheData',
-                    data: { type: 'chat', query: { channelId, cid: defaultCloudId } },
+                    data: { type: 'chat', cid: defaultCloudId, query: { channelId, cid: defaultCloudId } },
                     nonce,
                 })
         );
@@ -141,7 +106,7 @@ export const NativeDBStorageAdapter: ChatStorageAdapter = {
             () =>
                 postMessage({
                     type: 'FetchAllCacheData',
-                    data: { type: 'chat', query: { channelId, cid: defaultCloudId } },
+                    data: { type: 'chat', cid: defaultCloudId, query: { channelId, cid: defaultCloudId } },
                     nonce,
                 })
         );
