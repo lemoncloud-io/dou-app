@@ -85,6 +85,7 @@ export interface ChannelQueryOptions extends BaseQueryOptions {
 export interface ChatQueryOptions extends BaseQueryOptions {
     channelId?: string; // 특정 채널 내 메시지 필터
     sort?: 'asc' | 'desc'; // 정렬 순서
+    keyword?: string; // 검색 키워드
 }
 
 export interface InviteCloudQueryOptions extends BaseQueryOptions {}
@@ -99,7 +100,9 @@ export interface JoinQueryOptions extends BaseQueryOptions {
 export interface UserQueryOptions extends BaseQueryOptions {}
 
 /** 사이트 정보 쿼리 */
-export interface SiteQueryOptions extends BaseQueryOptions {}
+export interface SiteQueryOptions extends BaseQueryOptions {
+    keyword?: string; // 검색 키워드
+}
 
 /** 도메인별 쿼리 옵션 매핑 */
 export interface CacheQueryMap {
