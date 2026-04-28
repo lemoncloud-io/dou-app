@@ -167,7 +167,7 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
         const body: SlackReportBody = {
             title: `[${app}] error`,
             message: JSON.stringify(payload, null, 2),
-            silent: ENV === 'dev',
+            silent: ENV !== 'prod',
             save: true,
         };
 
@@ -223,7 +223,7 @@ export const reportIssue = async (title: string, message: string): Promise<void>
         const body: SlackReportBody = {
             title: `[${app}] issue: ${title}`,
             message: JSON.stringify(payload, null, 2),
-            silent: ENV !== 'prod',
+            silent: false,
             save: true,
         };
 
