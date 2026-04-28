@@ -7,7 +7,7 @@ const generateNonce = () => Math.random().toString(36).substring(2, 15) + Math.r
 /**
  * 네이티브 앱(App)으로부터 특정 타입의 메시지가 도착할 때까지 대기합니다.
  *
- * @param type 대기할 메시지 타입 (예: 'OnSaveCache')
+ * @param type 대기할 메시지 타입 (예: 'OnSaveCacheData')
  * @param predicate 특정 조건(예: nonce 일치 여부)을 검사하는 필터 함수
  * @param timeout 타임아웃 밀리초 (기본값 5초)
  * @returns 조건에 맞는 메시지 객체를 반환하는 Promise

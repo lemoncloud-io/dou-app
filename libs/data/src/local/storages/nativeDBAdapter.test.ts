@@ -65,23 +65,23 @@ const createBridgeHarness = () => {
                 const cid = message.data.cid ?? message.data.query?.cid ?? '';
 
                 switch (message.type) {
-                    case 'SaveCache': {
+                    case 'SaveCacheData': {
                         records.set(key(message.data.type, cid, message.data.id), clone(message.data.item));
                         useAppMessageStore.getState().handleMessage({
-                            type: 'OnSaveCache',
+                            type: 'OnSaveCacheData',
                             nonce: message.nonce,
                             data: { type: message.data.type, id: message.data.id, cid },
                         } as any);
                         break;
                     }
-                    case 'SaveAllCache': {
+                    case 'SaveAllCacheData': {
                         const items = message.data.items || [];
                         items.forEach((item: any) => {
                             if (!item?.id) return;
                             records.set(key(message.data.type, cid, item.id), clone(item));
                         });
                         useAppMessageStore.getState().handleMessage({
-                            type: 'OnSaveAllCache',
+                            type: 'OnSaveAllCacheData',
                             nonce: message.nonce,
                             data: {
                                 type: message.data.type,
@@ -91,9 +91,9 @@ const createBridgeHarness = () => {
                         } as any);
                         break;
                     }
-                    case 'FetchCache': {
+                    case 'FetchCacheData': {
                         useAppMessageStore.getState().handleMessage({
-                            type: 'OnFetchCache',
+                            type: 'OnFetchCacheData',
                             nonce: message.nonce,
                             data: {
                                 type: message.data.type,
@@ -104,9 +104,9 @@ const createBridgeHarness = () => {
                         } as any);
                         break;
                     }
-                    case 'FetchAllCache': {
+                    case 'FetchAllCacheData': {
                         useAppMessageStore.getState().handleMessage({
-                            type: 'OnFetchAllCache',
+                            type: 'OnFetchAllCacheData',
                             nonce: message.nonce,
                             data: {
                                 type: message.data.type,
@@ -115,12 +115,12 @@ const createBridgeHarness = () => {
                         } as any);
                         break;
                     }
-                    case 'DeleteCache': {
+                    case 'DeleteCacheData': {
                         const recordKey = key(message.data.type, cid, message.data.id);
                         const existed = records.has(recordKey);
                         records.delete(recordKey);
                         useAppMessageStore.getState().handleMessage({
-                            type: 'OnDeleteCache',
+                            type: 'OnDeleteCacheData',
                             nonce: message.nonce,
                             data: {
                                 type: message.data.type,
@@ -130,7 +130,7 @@ const createBridgeHarness = () => {
                         } as any);
                         break;
                     }
-                    case 'DeleteAllCache': {
+                    case 'DeleteAllCacheData': {
                         const deletedIds = (message.data.ids || []).filter((id: string) => {
                             const recordKey = key(message.data.type, cid, id);
                             const existed = records.has(recordKey);
@@ -138,7 +138,7 @@ const createBridgeHarness = () => {
                             return existed;
                         });
                         useAppMessageStore.getState().handleMessage({
-                            type: 'OnDeleteAllCache',
+                            type: 'OnDeleteAllCacheData',
                             nonce: message.nonce,
                             data: {
                                 type: message.data.type,
@@ -198,7 +198,7 @@ describe('createNativeDBAdapter', () => {
             );
             expect(await otherChatDB.loadAll()).toEqual([chat('L00001', { text: 'other-cid' })]);
             expect(await userDB.loadAll()).toEqual([user('L00001', { name: 'other-type' })]);
-            expect(harness.messages.map(message => message.type)).toContain('FetchAllCache');
+            expect(harness.messages.map(message => message.type)).toContain('FetchAllCacheData');
         } finally {
             harness.cleanup();
         }
@@ -229,7 +229,7 @@ describe('createNativeDBAdapter', () => {
             expect(sortById(await chatDB.loadAll())).toEqual(sortById([updated, ...batch]));
             expect(await otherChatDB.loadAll()).toEqual([chat('KEEP-CID', { text: 'keep-other-cid' })]);
             expect(await otherUserDB.loadAll()).toEqual([user('KEEP-TYPE', { name: 'keep-other-type' })]);
-            expect(harness.messages.map(message => message.type)).not.toContain('DeleteAllCache');
+            expect(harness.messages.map(message => message.type)).not.toContain('DeleteAllCacheData');
         } finally {
             harness.cleanup();
         }
@@ -253,9 +253,9 @@ describe('createNativeDBAdapter', () => {
             expect(await otherChatDB.loadAll()).toEqual([chat('KEEP', { text: 'keep-other-cid' })]);
 
             const types = harness.messages.map(m => m.type);
-            expect(types).toContain('FetchAllCache');
-            expect(types).toContain('DeleteAllCache');
-            expect(types).toContain('SaveAllCache');
+            expect(types).toContain('FetchAllCacheData');
+            expect(types).toContain('DeleteAllCacheData');
+            expect(types).toContain('SaveAllCacheData');
         } finally {
             harness.cleanup();
         }
@@ -311,7 +311,7 @@ describe('createNativeDBAdapter', () => {
         const nonce = sentMessages[0]?.nonce;
 
         useAppMessageStore.getState().handleMessage({
-            type: 'OnFetchCache',
+            type: 'OnFetchCacheData',
             nonce: 'wrong-nonce',
             data: { type: 'chat', id: 'N00001', item: chat('N00001', { text: 'wrong' }), cid },
         } as any);
@@ -320,7 +320,7 @@ describe('createNativeDBAdapter', () => {
         expect(resolved).toBe(false);
 
         useAppMessageStore.getState().handleMessage({
-            type: 'OnFetchCache',
+            type: 'OnFetchCacheData',
             nonce,
             data: { type: 'chat', id: 'N00001', item: chat('N00001', { text: 'matched' }), cid },
         } as any);
@@ -340,12 +340,12 @@ describe('createNativeDBAdapter', () => {
         const chatDB = createNativeDBAdapter('chat', nextCid('timeout'));
         const pending = chatDB.load('T00001');
 
-        expect(useAppMessageStore.getState().handlers.OnFetchCache.size).toBe(1);
+        expect(useAppMessageStore.getState().handlers.OnFetchCacheData.size).toBe(1);
 
         jest.advanceTimersByTime(5000);
 
-        await expect(pending).rejects.toThrow('Timeout waiting for app message: OnFetchCache');
-        expect(useAppMessageStore.getState().handlers.OnFetchCache.size).toBe(0);
+        await expect(pending).rejects.toThrow('Timeout waiting for app message: OnFetchCacheData');
+        expect(useAppMessageStore.getState().handlers.OnFetchCacheData.size).toBe(0);
     });
 
     it('should isolate stored items from caller references', async () => {
