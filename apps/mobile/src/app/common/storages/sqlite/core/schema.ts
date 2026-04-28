@@ -87,4 +87,18 @@ export const SQL_SCHEMAS = [
         id TEXT NOT NULL PRIMARY KEY,
         data TEXT NOT NULL
     );`,
+
+    /**
+     * Meta Table
+     * - key: 쿼리 옵션(query)을 직렬화한 고유 식별자
+     * - data: { ids: string[], meta: PagingMeta } 형태의 JSON
+     */
+    `CREATE TABLE IF NOT EXISTS ${TABLES.METAS} (
+        type TEXT NOT NULL,
+        cid TEXT NOT NULL,
+        key TEXT NOT NULL,
+        data TEXT NOT NULL,
+        updated_at INTEGER,
+        PRIMARY KEY (type, cid, key)
+    );`,
 ];

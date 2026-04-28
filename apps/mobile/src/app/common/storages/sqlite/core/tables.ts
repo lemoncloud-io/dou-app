@@ -5,4 +5,5 @@ export const TABLES = {
     JOINS: 'joins',
     SITES: 'sites',
     USERS: 'users',
+    METAS: 'metas',
 } as const;

@@ -1,4 +1,4 @@
-import type { CacheModelMap, CacheQueryMap, CacheType } from '@chatic/app-messages';
+import type { CacheModelMap, CacheQueryMap, CacheType, PagingMeta } from '@chatic/app-messages';
 import {
     channelDataSource,
     chatDataSource,
@@ -7,6 +7,20 @@ import {
     siteDataSource,
     userDataSource,
 } from './sqlite';
+import { metaDataSource } from './sqlite/datasources/metaDataSource';
+
+const generateMetaKey = (query: any): string => {
+    if (!query) return 'default';
+    return JSON.stringify(query);
+};
+
+/**
+ * 쿼리 객체에 페이징을 유발하는 파라미터가 있는지 검사합니다.
+ */
+const isPaginatedQuery = (query?: any): boolean => {
+    if (!query) return false;
+    return query.limit !== undefined || query.page !== undefined || query.cursorNo !== undefined;
+};
 
 export const cacheCrudService = {
     /**
@@ -41,10 +55,25 @@ export const cacheCrudService = {
      */
     fetchAll: async <K extends CacheType>(payload: {
         type: K;
-        query?: CacheQueryMap[K];
+        query?: CacheQueryMap[K] & PagingMeta;
         cid?: string;
     }): Promise<CacheModelMap[K][]> => {
         const { type, query, cid } = payload;
+
+        // 페이징 파라미터가 존재하는 경우에만 메타데이터(스냅샷) 매칭을 수행합니다.
+        if (cid && query && isPaginatedQuery(query)) {
+            const metaKey = generateMetaKey(query);
+            const cachedMeta = await metaDataSource.fetch(type, cid, metaKey);
+
+            if (cachedMeta && cachedMeta.ids && cachedMeta.ids.length > 0) {
+                const snapshotItems = await Promise.all(
+                    cachedMeta.ids.map(id => cacheCrudService.fetch({ type, id, cid }))
+                );
+                return snapshotItems.filter(Boolean) as CacheModelMap[K][];
+            }
+        }
+
+        // 페이징이 없거나 스냅샷이 없는 경우, 항상 최신 로컬 DB 상태를 쿼리합니다.
         switch (type) {
             case 'chat':
                 return (await chatDataSource.fetchAll(cid, query as CacheQueryMap['chat'])) as CacheModelMap[K][];
@@ -106,15 +135,12 @@ export const cacheCrudService = {
         type: K;
         items: CacheModelMap[K][];
         cid: string;
+        query?: CacheQueryMap[K] & PagingMeta;
     }): Promise<string[]> => {
-        const { type, items, cid } = payload;
+        const { type, items, cid, query } = payload;
 
-        // 공통 ID 추출 헬퍼
         const formatItems = <T extends { id?: string }>(dataList: T[]) =>
-            dataList.map(item => ({
-                id: item.id || 'unknown',
-                data: item,
-            }));
+            dataList.map(item => ({ id: item.id || 'unknown', data: item }));
 
         switch (type) {
             case 'chat':
@@ -136,7 +162,18 @@ export const cacheCrudService = {
                 await inviteCloudDataSource.saveAll(formatItems(items as CacheModelMap['invitecloud'][]), cid);
                 break;
         }
-        return items.map((i: any) => i.id);
+
+        const ids = items.map((i: any) => i.id);
+
+        if (query && ids.length > 0 && isPaginatedQuery(query)) {
+            const metaKey = generateMetaKey(query);
+            await metaDataSource.save(type, cid, metaKey, {
+                ids: ids,
+                meta: query,
+            });
+        }
+
+        return ids;
     },
 
     /**
