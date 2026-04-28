@@ -62,6 +62,11 @@ export interface CacheJoinView extends JoinView {}
 
 export interface CacheUserView extends UserView {}
 
+export interface CacheMetaView {
+    ids: string[]; // 서버에서 응답받은 해당 페이지의 정확한 ID 순서
+    meta?: PagingMeta; // 다음 페이지 조회를 위한 커서 정보
+}
+
 /**
  *
  * FetchAll/SaveAll 시 어떤 조건(정렬, 필터 등)으로 데이터를식별할지 정의합니다.
