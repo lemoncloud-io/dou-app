@@ -106,7 +106,6 @@ This library was generated with [Nx](https://nx.dev).
 | `OnOpenCamera`              | 카메라로 촬영된 미디어 에셋 전달             | `{ assets: [{ uri: '...', width: 100, ... }] }`         |
 | `OnOpenPhotoLibrary`        | 갤러리에서 선택된 미디어 에셋 전달           | `{ assets: [{ uri: '...', width: 100, ... }] }`         |
 | `OnRequestPermission`       | 시스템 권한 요청 허용/거부 결과 전달         | `{ permission: 'CAMERA', status: 'GRANTED' }`           |
-| `OnReceiveAppLog`           | 네이티브 레벨의 에러나 로그를 웹으로 포워딩  | `{ log: { level: 'error', message: '...' } }`           |
 
 ### Notification
 
@@ -151,10 +150,9 @@ This library was generated with [Nx](https://nx.dev).
 
 ### Log
 
-| Message Type              | Description                                      | Data Structure (Example)                                      |
-| :------------------------ | :----------------------------------------------- | :------------------------------------------------------------ |
-| `OnReceiveAppLog`         | Native 로그(또는 Web->Native로 전달된 로그) 푸시 | `{ log: { level: 'error', tag: 'WEBVIEW', message: '...' } }` |
-| `OnFetchAppLogBuffer`     | 로그 버퍼 조회 결과 반환                         | `{ logs: [{ tag: 'APP', message: '...' }], size: 42 }`        |
-| `OnPollAppLogBuffer`      | 로그 버퍼 poll(조회+제거) 결과 반환              | `{ logs: [{ tag: 'APP', message: '...' }], size: 21 }`        |
-| `OnClearAppLogBuffer`     | 로그 버퍼 clear 결과 반환                        | `{ success: true, size: 0 }`                                  |
-| `OnFetchAppLogBufferSize` | 현재 로그 버퍼 크기 반환                         | `{ size: 21 }`                                                |
+| Message Type              | Description                         | Data Structure (Example)                               |
+| :------------------------ | :---------------------------------- | :----------------------------------------------------- |
+| `OnFetchAppLogBuffer`     | 로그 버퍼 조회 결과 반환            | `{ logs: [{ tag: 'APP', message: '...' }], size: 42 }` |
+| `OnPollAppLogBuffer`      | 로그 버퍼 poll(조회+제거) 결과 반환 | `{ logs: [{ tag: 'APP', message: '...' }], size: 21 }` |
+| `OnClearAppLogBuffer`     | 로그 버퍼 clear 결과 반환           | `{ success: true, size: 0 }`                           |
+| `OnFetchAppLogBufferSize` | 현재 로그 버퍼 크기 반환            | `{ size: 21 }`                                         |

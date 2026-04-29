@@ -14,11 +14,6 @@ export interface AppLogInfo {
     error?: any; // 에러 객체
 }
 
-/** [응답] 앱 로그 수신 페이로드 */
-export interface OnReceiveAppLogPayload {
-    log: AppLogInfo;
-}
-
 /** [요청] Web -> App 로그 전달 페이로드 */
 export interface SendLogPayload {
     level?: AppLogLevel;
