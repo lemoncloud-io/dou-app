@@ -145,6 +145,7 @@
         "loginPrompt": "로그인하기",
         "loginDescription": "로그인 하고, 대화내용을 안전하게 관리하세요.",
         "darkMode": "다크 모드",
+        "messagePreview": "메시지 미리보기",
         "languageSettings": "언어 설정",
         "viewOnboarding": "온보딩 다시보기",
         "logout": "로그아웃",

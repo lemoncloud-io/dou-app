@@ -145,6 +145,7 @@
         "loginPrompt": "Sign in",
         "loginDescription": "Sign in to safely manage your conversations.",
         "darkMode": "Dark Mode",
+        "messagePreview": "Message Preview",
         "languageSettings": "Language",
         "viewOnboarding": "View Onboarding Again",
         "logout": "Logout",

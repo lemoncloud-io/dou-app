@@ -87,12 +87,15 @@ export const PlaceList = ({
     const cloudId = useWebSocketV2Store(s => s.cloudId);
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
     const [isPending, setIsPending] = useState(false);
+    const switchingRef = useRef(false);
     const { places, isLoading, isError, refresh } = usePlaces();
 
     const selectedCloudId = cloudCore.getSelectedCloudId();
     const isDefaultMode = selectedCloudId === 'default';
 
     const handleSelectPlace = async (placeId: string) => {
+        if (switchingRef.current) return;
+
         // relay 모드: refreshToken 불필요, 단순 선택만
         const currentWssType = useWebSocketV2Store.getState().wssType;
         if (currentWssType !== 'cloud') {
@@ -105,6 +108,7 @@ export const PlaceList = ({
         const uid = cloudToken?.id;
         if (!uid) return;
 
+        switchingRef.current = true;
         setIsPending(true);
         try {
             const target = `${uid}@${placeId}`;
@@ -126,6 +130,7 @@ export const PlaceList = ({
         } catch (e) {
             console.error('Failed to select place:', e);
         } finally {
+            switchingRef.current = false;
             setIsPending(false);
         }
     };
@@ -150,6 +155,9 @@ export const PlaceList = ({
         if (prevCloudIdRef.current && prevCloudIdRef.current !== cloudId) {
             setSelectedId(null);
             initialPlaceNotifiedRef.current = false;
+            // 저장된 placeId 클리어 — cloudCore.getSelectedPlaceId()를 읽는 다른 hook이
+            // 이전 cloud의 placeId로 chat:mine을 보내는 것을 방지
+            cloudCore.saveSelectedSiteId('');
 
             // 클라우드 해제(default 모드) 전환 시 즉시 default place 선택
             const currentCloudId = cloudCore.getSelectedCloudId();

@@ -16,6 +16,7 @@ import {
     useUserContext,
     UserType,
     cloudCore,
+    useAppPreferenceStore,
 } from '@chatic/web-core';
 import { useLogout } from '@chatic/auth';
 
@@ -36,6 +37,7 @@ export const MyPage = () => {
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();
     const { resetOnboarding } = useOnboardingStore();
+    const { blurLastMessage, setBlurLastMessage } = useAppPreferenceStore();
     const { clearAllCache } = useCacheMutations(selectedCloudId, profile?.uid);
 
     const displayName = profile?.$user?.name;
@@ -190,6 +192,10 @@ export const MyPage = () => {
                     <div className="flex items-center justify-between py-3 pl-4 pr-3">
                         <span className="text-[15px] font-medium text-foreground">{t('mypage.darkMode')}</span>
                         <Switch checked={isDarkTheme} onCheckedChange={handleThemeToggle} />
+                    </div>
+                    <div className="flex items-center justify-between py-3 pl-4 pr-3">
+                        <span className="text-[15px] font-medium text-foreground">{t('mypage.messagePreview')}</span>
+                        <Switch checked={!blurLastMessage} onCheckedChange={v => setBlurLastMessage(!v)} />
                     </div>
                     <button
                         onClick={() => setIsLanguageSheetOpen(true)}

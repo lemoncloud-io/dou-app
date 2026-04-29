@@ -103,7 +103,8 @@ export const chatHandler = async (
                 );
             }
             // 항상 notify — list 비어도 confirmed channel IDs 갱신 필요
-            notifyAppUpdated({ domain: 'channel', action, cid: cloudId, payload });
+            // targetId에 placeId를 전달하여 useChannels에서 stale 응답을 감지할 수 있도록 함
+            notifyAppUpdated({ domain: 'channel', action, cid: cloudId, targetId: placeId ?? undefined, payload });
             break;
         }
 
@@ -203,6 +204,8 @@ export const chatHandler = async (
         case 'error':
             console.error(`[Chat Handler] Server responded with error:`, payload?.error);
             reportError(new Error(`[WS:chat] ${(payload as any)?.error ?? 'Unknown chat error'}`));
+            // chat 에러를 useChannels에 전달하여 에러 상태 + 재시도 처리
+            notifyAppUpdated({ domain: 'channel', action: 'error', cid: cloudId, payload });
             break;
 
         default:
