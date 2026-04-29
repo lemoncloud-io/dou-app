@@ -32,7 +32,19 @@ export const PlaceOrderPage = () => {
     const [places, setPlaces] = useState<MySiteView[]>(serverPlaces);
 
     useEffect(() => {
-        setPlaces(serverPlaces);
+        if (serverPlaces.length === 0) return;
+        const savedOrder = selectedCloudId ? cloudCore.getPlaceOrder(selectedCloudId) : null;
+        if (savedOrder) {
+            const orderMap = new Map(savedOrder.map((id, idx) => [id, idx]));
+            const sorted = [...serverPlaces].sort((a, b) => {
+                const ai = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+                const bi = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+                return ai - bi;
+            });
+            setPlaces(sorted);
+        } else {
+            setPlaces(serverPlaces);
+        }
     }, [serverPlaces]);
 
     const myId = cloudCore.getCloudToken()?.id;
@@ -54,13 +66,23 @@ export const PlaceOrderPage = () => {
         useSensor(KeyboardSensor)
     );
 
+    const selectedCloudId = cloudCore.getSelectedCloudId();
+
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (!over || active.id === over.id) return;
 
         const oldIndex = places.findIndex(item => item.id === active.id);
         const newIndex = places.findIndex(item => item.id === over.id);
-        setPlaces(prev => arrayMove(prev, oldIndex, newIndex));
+        const reordered = arrayMove(places, oldIndex, newIndex);
+        setPlaces(reordered);
+
+        if (selectedCloudId) {
+            cloudCore.savePlaceOrder(
+                selectedCloudId,
+                reordered.map(p => p.id)
+            );
+        }
     };
 
     const handleSettings = (place: MySiteView) => {

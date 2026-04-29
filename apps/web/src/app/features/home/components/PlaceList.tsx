@@ -92,10 +92,23 @@ export const PlaceList = ({
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
     const [isPending, setIsPending] = useState(false);
     const switchingRef = useRef(false);
-    const { places, isLoading, isError, refresh } = usePlaces();
+    const { places: rawPlaces, isLoading, isError, refresh } = usePlaces();
 
     const selectedCloudId = cloudCore.getSelectedCloudId();
     const isDefaultMode = selectedCloudId === 'default';
+
+    // 저장된 순서 적용
+    const places = (() => {
+        if (!selectedCloudId || isDefaultMode) return rawPlaces;
+        const savedOrder = cloudCore.getPlaceOrder(selectedCloudId);
+        if (!savedOrder) return rawPlaces;
+        const orderMap = new Map(savedOrder.map((id, idx) => [id, idx]));
+        return [...rawPlaces].sort((a, b) => {
+            const ai = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+            const bi = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+            return ai - bi;
+        });
+    })();
 
     const handleSelectPlace = async (placeId: string) => {
         if (switchingRef.current) return;

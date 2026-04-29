@@ -11,6 +11,7 @@ export const CLOUD_DELEGATION_TOKEN_KEY = 'chatic-cloud-delegation-token';
 export const CLOUD_TOKEN_KEY = 'chatic-cloud-token';
 export const CLOUD_SELECTED_CLOUD_KEY = 'chatic-selected-cloud-id';
 export const CLOUD_SELECTED_PLACE_KEY = 'chatic-selected-place-id';
+export const CLOUD_PLACE_ORDER_KEY_PREFIX = 'chatic-place-order-';
 
 interface RequestBuilder {
     setBody: (body: unknown) => RequestBuilder;
@@ -34,6 +35,8 @@ interface CloudCore {
     getWss: () => string | null;
     getIdentityToken: () => string | null;
     getCredential: () => AWSCredentials | null;
+    savePlaceOrder: (cloudId: string, order: string[]) => void;
+    getPlaceOrder: (cloudId: string) => string[] | null;
     buildRequest: (config: AxiosRequestConfig) => RequestBuilder;
     refreshToken: (target?: string) => Promise<UserTokenView>;
 }
@@ -75,6 +78,15 @@ export const cloudCore: CloudCore = {
 
     getSelectedPlaceId: (): string | null => {
         return coreStorage.get(CLOUD_SELECTED_PLACE_KEY);
+    },
+
+    savePlaceOrder: (cloudId: string, order: string[]): void => {
+        coreStorage.set(`${CLOUD_PLACE_ORDER_KEY_PREFIX}${cloudId}`, JSON.stringify(order));
+    },
+
+    getPlaceOrder: (cloudId: string): string[] | null => {
+        const raw = coreStorage.get(`${CLOUD_PLACE_ORDER_KEY_PREFIX}${cloudId}`);
+        return raw ? (JSON.parse(raw) as string[]) : null;
     },
 
     clearDelegationToken: (): void => {
