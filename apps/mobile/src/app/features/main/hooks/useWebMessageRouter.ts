@@ -11,6 +11,8 @@ import {
     useSafeAreaHandler,
     useSearchCacheHandler,
     useSubscriptionIapHandler,
+    useLogHandler,
+    useLogBufferHandler,
 } from '../../../common/webview/hooks';
 import { useModalHandler } from '../../../common/webview/hooks/useModalHandler';
 
@@ -67,6 +69,9 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
     } = useCrudCacheHandler(bridge);
 
     const { handleFetchPreference, handleSavePreference, handleDeletePreference } = usePreferenceCacheHandler(bridge);
+    const { handleSendLog } = useLogHandler();
+    const { handleFetchAppLogBuffer, handlePollAppLogBuffer, handleClearAppLogBuffer, handleFetchAppLogBufferSize } =
+        useLogBufferHandler(bridge);
 
     const { handleSearchGlobalCache } = useSearchCacheHandler(bridge);
 
@@ -168,6 +173,21 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
                     case 'DeletePreference':
                         void handleDeletePreference(message);
                         break;
+                    case 'FetchAppLogBuffer':
+                        void handleFetchAppLogBuffer(message);
+                        break;
+                    case 'PollAppLogBuffer':
+                        void handlePollAppLogBuffer(message);
+                        break;
+                    case 'ClearAppLogBuffer':
+                        void handleClearAppLogBuffer(message);
+                        break;
+                    case 'FetchAppLogBufferSize':
+                        handleFetchAppLogBufferSize(message);
+                        break;
+                    case 'SendLog':
+                        handleSendLog(message);
+                        break;
                     // -- Native Device Features (Camera, Gallery, Sharing, etc.) --
                     case 'OpenSettings':
                         void handleOpenSettings();
@@ -241,6 +261,11 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
         handleFetchPreference,
         handleSavePreference,
         handleDeletePreference,
+        handleFetchAppLogBuffer,
+        handlePollAppLogBuffer,
+        handleClearAppLogBuffer,
+        handleFetchAppLogBufferSize,
+        handleSendLog,
         handleOpenSettings,
         handleOpenShareSheet,
         handleOpenDocument,

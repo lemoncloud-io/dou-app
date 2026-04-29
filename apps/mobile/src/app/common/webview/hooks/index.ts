@@ -11,3 +11,5 @@ export * from './useSubscriptionIapHandler';
 export * from './usePreferenceCacheHandler';
 export * from './useOAuthHandler';
 export * from './useVersionCheckHandler';
+export * from './useLogHandler';
+export * from './useLogBufferHandler';
