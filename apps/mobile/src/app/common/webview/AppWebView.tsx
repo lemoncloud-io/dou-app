@@ -14,7 +14,7 @@ import {
     getDeviceInfoScript,
     getSafeAreaScript,
 } from './utils/injectionScripts';
-import { firebaseInstallationService } from '../services/firebase/firebaseInstallationService';
+import { firebaseInstallationService } from '../services/firebase/firebaseInstallation';
 import { cacheCrudService } from '../storages';
 
 interface AppWebViewProps extends WebViewProps {}

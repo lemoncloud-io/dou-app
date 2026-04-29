@@ -32,6 +32,9 @@ import type {
     // 6. Auth
     OAuthLoginPayload,
     OAuthLogoutPayload,
+    FetchAppLogBufferPayload,
+    PollAppLogBufferPayload,
+    SendLogPayload,
 } from './model';
 
 export const WebMessageTypes = {
@@ -86,6 +89,11 @@ export const WebMessageTypes = {
     HideLoader: 'HideLoader',
     SyncCredential: 'SyncCredential',
     PopWebView: 'PopWebView',
+    FetchAppLogBuffer: 'FetchAppLogBuffer',
+    PollAppLogBuffer: 'PollAppLogBuffer',
+    ClearAppLogBuffer: 'ClearAppLogBuffer',
+    FetchAppLogBufferSize: 'FetchAppLogBufferSize',
+    SendLog: 'SendLog',
 } as const;
 
 export type WebMessageType = (typeof WebMessageTypes)[keyof typeof WebMessageTypes];
@@ -142,6 +150,11 @@ export interface WebMessageMap {
     HideLoader: WebDefaultMessage<'HideLoader'>;
     SyncCredential: WebDefaultMessage<'SyncCredential'>;
     PopWebView: WebDefaultMessage<'PopWebView'>;
+    FetchAppLogBuffer: FetchAppLogBuffer;
+    PollAppLogBuffer: PollAppLogBuffer;
+    ClearAppLogBuffer: ClearAppLogBuffer;
+    FetchAppLogBufferSize: FetchAppLogBufferSize;
+    SendLog: SendLog;
 }
 
 export type WebMessageData<T extends WebMessageType> = WebMessageMap[T];
@@ -158,29 +171,37 @@ export interface WebDefaultMessage<T extends WebMessageType> {
 export interface SetCanGoBack extends WebDefaultMessage<'SetCanGoBack'> {
     data: SetCanGoBackPayload;
 }
+
 export interface ScrollData extends WebDefaultMessage<'Scroll'> {
     data: ScrollDataPayload;
 }
+
 export interface OpenModal extends WebDefaultMessage<'OpenModal'> {
     data: OpenModalPayload;
 }
+
 export interface OpenSettings extends WebDefaultMessage<'OpenSettings'> {} // payload 없음
 export interface OpenShareSheet extends WebDefaultMessage<'OpenShareSheet'> {
     data: OpenShareSheetPayload;
 }
+
 export interface OpenDocument extends WebDefaultMessage<'OpenDocument'> {
     data: OpenDocumentPayload;
 }
+
 export interface GetContacts extends WebDefaultMessage<'GetContacts'> {} // payload 없음
 export interface OpenCamera extends WebDefaultMessage<'OpenCamera'> {
     data: OpenCameraPayload;
 }
+
 export interface OpenPhotoLibrary extends WebDefaultMessage<'OpenPhotoLibrary'> {
     data: OpenPhotoLibraryPayload;
 }
+
 export interface RequestPermission extends WebDefaultMessage<'RequestPermission'> {
     data: RequestPermissionPayload;
 }
+
 /** 외부 URL 열기 (Native에서 Linking.openURL 처리) */
 export interface OpenURL extends WebDefaultMessage<'OpenURL'> {
     data: OpenURLPayload;
@@ -192,6 +213,7 @@ export interface OpenURL extends WebDefaultMessage<'OpenURL'> {
 export interface Purchase extends WebDefaultMessage<'Purchase'> {
     data: PurchasePayload;
 }
+
 export interface FinishPurchaseTransaction extends WebDefaultMessage<'FinishPurchaseTransaction'> {
     data: FinishPurchaseTransactionPayload;
 }
@@ -202,24 +224,31 @@ export interface FinishPurchaseTransaction extends WebDefaultMessage<'FinishPurc
 export interface FetchCacheData extends WebDefaultMessage<'FetchCacheData'> {
     data: FetchCacheDataPayload;
 }
+
 export interface FetchAllCacheData extends WebDefaultMessage<'FetchAllCacheData'> {
     data: FetchAllCacheDataPayload;
 }
+
 export interface SaveCacheData extends WebDefaultMessage<'SaveCacheData'> {
     data: SaveCacheDataPayload;
 }
+
 export interface SaveAllCacheData extends WebDefaultMessage<'SaveAllCacheData'> {
     data: SaveAllCacheDataPayload;
 }
+
 export interface DeleteCacheData extends WebDefaultMessage<'DeleteCacheData'> {
     data: DeleteCacheDataPayload;
 }
+
 export interface DeleteAllCacheData extends WebDefaultMessage<'DeleteAllCacheData'> {
     data: DeleteAllCacheDataPayload;
 }
+
 export interface ClearCacheData extends WebDefaultMessage<'ClearCacheData'> {
     data: ClearCacheDataPayload;
 }
+
 export interface SearchGlobalCacheData extends WebDefaultMessage<'SearchGlobalCacheData'> {
     data: SearchGlobalCacheDataPayload;
 }
@@ -230,9 +259,11 @@ export interface SearchGlobalCacheData extends WebDefaultMessage<'SearchGlobalCa
 export interface FetchPreference extends WebDefaultMessage<'FetchPreference'> {
     data: FetchPreferencePayload;
 }
+
 export interface SavePreference extends WebDefaultMessage<'SavePreference'> {
     data: SavePreferencePayload;
 }
+
 export interface DeletePreference extends WebDefaultMessage<'DeletePreference'> {
     data: DeletePreferencePayload;
 }
@@ -243,6 +274,26 @@ export interface DeletePreference extends WebDefaultMessage<'DeletePreference'> 
 export interface OAuthLogin extends WebDefaultMessage<'OAuthLogin'> {
     data: OAuthLoginPayload;
 }
+
 export interface OAuthLogout extends WebDefaultMessage<'OAuthLogout'> {
     data: OAuthLogoutPayload;
+}
+
+// ----------------------------------------------------------------------
+// 7. Common & Others Interfaces
+// ----------------------------------------------------------------------
+export interface FetchAppLogBuffer extends WebDefaultMessage<'FetchAppLogBuffer'> {
+    data: FetchAppLogBufferPayload;
+}
+
+export interface PollAppLogBuffer extends WebDefaultMessage<'PollAppLogBuffer'> {
+    data: PollAppLogBufferPayload;
+}
+
+export interface ClearAppLogBuffer extends WebDefaultMessage<'ClearAppLogBuffer'> {}
+
+export interface FetchAppLogBufferSize extends WebDefaultMessage<'FetchAppLogBufferSize'> {}
+
+export interface SendLog extends WebDefaultMessage<'SendLog'> {
+    data: SendLogPayload;
 }

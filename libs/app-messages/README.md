@@ -75,6 +75,16 @@ This library was generated with [Nx](https://nx.dev).
 | `OAuthLogin`       | `{ provider: 'google' }`          | 소셜 로그인 인증을 요청합니다. | `OnOAuthLogin`       |
 | `OAuthLogout`      | `{ provider: 'google' }`          | 소셜 로그아웃을 요청합니다.    | `OnOAuthLogout`      |
 
+### Log
+
+| Message Type            | Payload (Data Example)                                                           | Description                                  | Expected Response         |
+| :---------------------- | :------------------------------------------------------------------------------- | :------------------------------------------- | :------------------------ |
+| `SendLog`               | `{ level: 'error', tag: 'CHECKOUT', message: '...', data: {...}, error: {...} }` | Web 로그를 Native logger로 전달합니다.       | `OnReceiveAppLog`(event)  |
+| `FetchAppLogBuffer`     | `{ count: 20 }`                                                                  | 버퍼에서 앞쪽 로그를 조회합니다(제거 안 함). | `OnFetchAppLogBuffer`     |
+| `PollAppLogBuffer`      | `{ count: 20 }`                                                                  | 버퍼에서 앞쪽 로그를 조회하며 제거합니다.    | `OnPollAppLogBuffer`      |
+| `ClearAppLogBuffer`     | -                                                                                | 로그 버퍼를 전체 비웁니다.                   | `OnClearAppLogBuffer`     |
+| `FetchAppLogBufferSize` | -                                                                                | 현재 로그 버퍼 크기를 조회합니다.            | `OnFetchAppLogBufferSize` |
+
 ---
 
 # App to Web (Response & Event)
@@ -96,7 +106,6 @@ This library was generated with [Nx](https://nx.dev).
 | `OnOpenCamera`              | 카메라로 촬영된 미디어 에셋 전달             | `{ assets: [{ uri: '...', width: 100, ... }] }`         |
 | `OnOpenPhotoLibrary`        | 갤러리에서 선택된 미디어 에셋 전달           | `{ assets: [{ uri: '...', width: 100, ... }] }`         |
 | `OnRequestPermission`       | 시스템 권한 요청 허용/거부 결과 전달         | `{ permission: 'CAMERA', status: 'GRANTED' }`           |
-| `OnReceiveAppLog`           | 네이티브 레벨의 에러나 로그를 웹으로 포워딩  | `{ log: { level: 'error', message: '...' } }`           |
 
 ### Notification
 
@@ -138,3 +147,12 @@ This library was generated with [Nx](https://nx.dev).
 | `OnDeletePreference` | 로컬 설정 값 삭제 성공 여부               | `{ key: 'theme', success: true }`                    |
 | `OnOAuthLogin`       | 소셜 로그인 성공 결과 (실패/취소 시 null) | `{ result: { provider: 'google', idToken: '...' } }` |
 | `OnOAuthLogout`      | 소셜 로그아웃 처리 완료 여부              | `{ success: true }`                                  |
+
+### Log
+
+| Message Type              | Description                         | Data Structure (Example)                               |
+| :------------------------ | :---------------------------------- | :----------------------------------------------------- |
+| `OnFetchAppLogBuffer`     | 로그 버퍼 조회 결과 반환            | `{ logs: [{ tag: 'APP', message: '...' }], size: 42 }` |
+| `OnPollAppLogBuffer`      | 로그 버퍼 poll(조회+제거) 결과 반환 | `{ logs: [{ tag: 'APP', message: '...' }], size: 21 }` |
+| `OnClearAppLogBuffer`     | 로그 버퍼 clear 결과 반환           | `{ success: true, size: 0 }`                           |
+| `OnFetchAppLogBufferSize` | 현재 로그 버퍼 크기 반환            | `{ size: 21 }`                                         |

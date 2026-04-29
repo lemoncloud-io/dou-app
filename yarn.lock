@@ -7389,7 +7389,7 @@ basic-auth@^2.0.1:
   dependencies:
     safe-buffer "5.1.2"
 
-better-sqlite3@^12.9.0:
+better-sqlite3@*, better-sqlite3@^12.9.0:
   version "12.9.0"
   resolved "https://registry.yarnpkg.com/better-sqlite3/-/better-sqlite3-12.9.0.tgz#32498c99ba3fb36f604fbb5c70667c5f68c00414"
   integrity sha512-wqUv4Gm3toFpHDQmaKD4QhZm3g1DjUBI0yzS4UBl6lElUmXFYdTQmmEDpAFa5o8FiFiymURypEnfVHzILKaxqQ==

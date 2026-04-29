@@ -1,1 +1,1 @@
-export * from './crashlyticsService';
+export * from './crashlytics';

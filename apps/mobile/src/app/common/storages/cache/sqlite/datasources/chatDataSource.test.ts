@@ -116,7 +116,7 @@ describe('ChatDataSource Test', () => {
             const desc = await chatDataSource.fetchAll('c1', { sort: 'desc' });
             const asc = await chatDataSource.fetchAll('c1', { sort: 'asc' });
 
-            expect(desc[0].chatNo).toBe(20); //
+            expect(desc[0].chatNo).toBe(20);
             expect(asc[0].chatNo).toBe(10);
         });
 
@@ -130,7 +130,7 @@ describe('ChatDataSource Test', () => {
 
             const results = await chatDataSource.fetchAll('c_perf', { channelId: 'perf' });
             expect(results).toHaveLength(1000);
-            expect(results[999].chatNo).toBe(999);
+            expect(results[0].chatNo).toBe(999);
         });
     });
 
