@@ -14,7 +14,8 @@ export type LogTag =
     | 'DEVICE'
     | 'DEEPLINK'
     | 'OAUTH'
-    | 'SQLITE';
+    | 'SQLITE'
+    | 'LOG_BUFFER';
 
 export type LogListener = (level: LogLevel, tag: LogTag, message: string, data?: any, error?: any) => void;
 
