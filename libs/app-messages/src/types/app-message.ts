@@ -33,7 +33,10 @@ import type {
     OnDeletePreferencePayload,
     OnOAuthLoginPayload,
     OnOAuthLogoutPayload,
-    OnReceiveAppLogPayload,
+    OnFetchAppLogBufferPayload,
+    OnPollAppLogBufferPayload,
+    OnClearAppLogBufferPayload,
+    OnFetchAppLogBufferSizePayload,
 } from './model';
 
 // ======================================================================
@@ -86,7 +89,10 @@ export const AppMessageTypes = {
     OnOAuthLogout: 'OnOAuthLogout',
 
     // 7. Common & Others
-    OnReceiveAppLog: 'OnReceiveAppLog',
+    OnFetchAppLogBuffer: 'OnFetchAppLogBuffer',
+    OnPollAppLogBuffer: 'OnPollAppLogBuffer',
+    OnClearAppLogBuffer: 'OnClearAppLogBuffer',
+    OnFetchAppLogBufferSize: 'OnFetchAppLogBufferSize',
 } as const;
 
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
@@ -141,7 +147,10 @@ export interface AppMessageMap {
     OnOAuthLogout: OnOAuthLogout;
 
     // 7. Common & Others
-    OnReceiveAppLog: OnReceiveAppLog;
+    OnFetchAppLogBuffer: OnFetchAppLogBuffer;
+    OnPollAppLogBuffer: OnPollAppLogBuffer;
+    OnClearAppLogBuffer: OnClearAppLogBuffer;
+    OnFetchAppLogBufferSize: OnFetchAppLogBufferSize;
 }
 
 export type AppMessageData<T extends AppMessageType> = AppMessageMap[T];
@@ -301,7 +310,23 @@ export interface OnOAuthLogout extends AppDefaultMessage<'OnOAuthLogout'> {
 // ======================================================================
 // 7. Common & Others Interfaces
 // ======================================================================
-/** 네이티브 로그 수신 포트 */
-export interface OnReceiveAppLog extends AppDefaultMessage<'OnReceiveAppLog'> {
-    data: OnReceiveAppLogPayload;
+
+/** 로그 버퍼 조회 응답 */
+export interface OnFetchAppLogBuffer extends AppDefaultMessage<'OnFetchAppLogBuffer'> {
+    data: OnFetchAppLogBufferPayload;
+}
+
+/** 로그 버퍼 poll(조회+제거) 응답 */
+export interface OnPollAppLogBuffer extends AppDefaultMessage<'OnPollAppLogBuffer'> {
+    data: OnPollAppLogBufferPayload;
+}
+
+/** 로그 버퍼 clear 응답 */
+export interface OnClearAppLogBuffer extends AppDefaultMessage<'OnClearAppLogBuffer'> {
+    data: OnClearAppLogBufferPayload;
+}
+
+/** 로그 버퍼 현재 크기 조회 응답 */
+export interface OnFetchAppLogBufferSize extends AppDefaultMessage<'OnFetchAppLogBufferSize'> {
+    data: OnFetchAppLogBufferSizePayload;
 }

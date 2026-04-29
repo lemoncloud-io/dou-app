@@ -14,7 +14,44 @@ export interface AppLogInfo {
     error?: any; // 에러 객체
 }
 
-/** [응답] 앱 로그 수신 페이로드 */
-export interface OnReceiveAppLogPayload {
-    log: AppLogInfo;
+/** [요청] Web -> App 로그 전달 페이로드 */
+export interface SendLogPayload {
+    level?: AppLogLevel;
+    tag?: string;
+    message: string;
+    data?: any;
+    error?: any;
+}
+
+/** [요청] 로그 버퍼 조회 페이로드 */
+export interface FetchAppLogBufferPayload {
+    count?: number;
+}
+
+/** [요청] 로그 버퍼 poll(조회+제거) 페이로드 */
+export interface PollAppLogBufferPayload {
+    count?: number;
+}
+
+/** [응답] 로그 버퍼 조회 페이로드 */
+export interface OnFetchAppLogBufferPayload {
+    logs: AppLogInfo[];
+    size: number;
+}
+
+/** [응답] 로그 버퍼 poll(조회+제거) 페이로드 */
+export interface OnPollAppLogBufferPayload {
+    logs: AppLogInfo[];
+    size: number;
+}
+
+/** [응답] 로그 버퍼 전체 비우기 페이로드 */
+export interface OnClearAppLogBufferPayload {
+    success: boolean;
+    size: number;
+}
+
+/** [응답] 로그 버퍼 크기 조회 페이로드 */
+export interface OnFetchAppLogBufferSizePayload {
+    size: number;
 }
