@@ -1,4 +1,4 @@
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 export type LogTag =
     | 'APP'
     | 'NOTIFICATION'
@@ -16,32 +16,19 @@ export type LogTag =
     | 'OAUTH'
     | 'SQLITE';
 
-type LogListener = (level: LogLevel, tag: LogTag, message: string, data?: any, error?: any) => void;
-
-/**
- * - 구조화된 에러 문자열 치환
- * @param error error 객체
- */
-const serializeError = (error: any) => {
-    if (!error) return 'Unknown error.';
-
-    if (error instanceof Error) {
-        return {
-            ...error,
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-        };
-    }
-
-    if (typeof error === 'object') {
-        return error;
-    }
-
-    return String(error);
-};
+export type LogListener = (level: LogLevel, tag: LogTag, message: string, data?: any, error?: any) => void;
 
 const listeners = new Set<LogListener>();
+
+const notifyListeners = (...args: Parameters<LogListener>) => {
+    listeners.forEach(listener => {
+        try {
+            listener(...args);
+        } catch {
+            console.warn(`Failed to listening log. ${JSON.stringify(listener)}`);
+        }
+    });
+};
 
 /**
  * LogService (logger)
@@ -66,11 +53,7 @@ export const logger = {
      * @param data 데이터
      */
     debug: (tag: LogTag, message: string, data?: any) => {
-        if (__DEV__) {
-            const time = new Date().toLocaleTimeString();
-            console.debug(`[${time}] [${tag}] ${message}`, data ? data : '');
-        }
-        listeners.forEach(fn => fn('debug', tag, message, data));
+        notifyListeners('debug', tag, message, data);
     },
 
     /**
@@ -80,11 +63,7 @@ export const logger = {
      * @param data 데이터
      */
     info: (tag: LogTag, message: string, data?: any) => {
-        if (__DEV__) {
-            const time = new Date().toLocaleTimeString();
-            console.info(`[${time}] [${tag}] ${message}`, data ? data : '');
-        }
-        listeners.forEach(fn => fn('info', tag, message, data));
+        notifyListeners('info', tag, message, data);
     },
 
     /**
@@ -94,11 +73,7 @@ export const logger = {
      * @param data 데이터
      */
     warn: (tag: LogTag, message: string, data?: any) => {
-        if (__DEV__) {
-            const time = new Date().toLocaleTimeString();
-            console.warn(`[${time}] [${tag}] ${message}`, data ? data : '');
-        }
-        listeners.forEach(fn => fn('warn', tag, message, data));
+        notifyListeners('warn', tag, message, data);
     },
 
     /**
@@ -108,11 +83,6 @@ export const logger = {
      * @param error 에러 StackTrace
      */
     error: (tag: LogTag, message: string, error?: any) => {
-        if (__DEV__) {
-            const time = new Date().toLocaleTimeString();
-            const serializedError = serializeError(error);
-            console.error(`[${time}] [${tag}] ${message}`, serializedError);
-        }
-        listeners.forEach(fn => fn('error', tag, message, undefined, error));
+        notifyListeners('error', tag, message, undefined, error);
     },
 };
