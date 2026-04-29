@@ -9,6 +9,13 @@ import type {
     DeleteCacheData,
     FetchAllCacheData,
     FetchCacheData,
+    OnClearCacheDataPayload,
+    OnDeleteAllCacheDataPayload,
+    OnDeleteCacheDataPayload,
+    OnFetchAllCacheDataPayload,
+    OnFetchCacheDataPayload,
+    OnSaveAllCacheDataPayload,
+    OnSaveCacheDataPayload,
     SaveAllCacheData,
     SaveCacheData,
 } from '@chatic/app-messages';
@@ -24,12 +31,19 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
+                        cid: message.data.cid,
                         items,
-                    } as any,
+                        query: message.data.query,
+                    } as OnFetchAllCacheDataPayload,
                 };
                 bridge.post(response);
             } catch (e) {
                 logger.error('CACHE', `FetchAll error: ${message.data.type}`, e);
+                bridge.post({
+                    type: 'OnFetchAllCacheData',
+                    nonce: message.nonce,
+                    data: { type: message.data.type, cid: message.data.cid, items: null } as OnFetchAllCacheDataPayload,
+                });
             }
         },
         [bridge]
@@ -44,9 +58,10 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
+                        cid: message.data.cid,
                         id: message.data.id,
                         item,
-                    } as any,
+                    } as OnFetchCacheDataPayload,
                 };
                 bridge.post(response);
             } catch (e) {
@@ -54,7 +69,12 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                 bridge.post({
                     type: 'OnFetchCacheData',
                     nonce: message.nonce,
-                    data: { type: message.data.type, id: message.data.id, item: null } as any,
+                    data: {
+                        type: message.data.type,
+                        cid: message.data.cid,
+                        id: message.data.id,
+                        item: null,
+                    } as OnFetchCacheDataPayload,
                 });
             }
         },
@@ -70,8 +90,10 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
+                        cid: message.data.cid,
                         id: savedId,
-                    } as any,
+                        success: true,
+                    } as OnSaveCacheDataPayload,
                 };
                 bridge.post(response);
             } catch (e) {
@@ -79,7 +101,12 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                 bridge.post({
                     type: 'OnSaveCacheData',
                     nonce: message.nonce,
-                    data: { type: message.data.type, id: null } as any,
+                    data: {
+                        type: message.data.type,
+                        cid: message.data.cid,
+                        id: null,
+                        success: false,
+                    } as OnSaveCacheDataPayload,
                 });
             }
         },
@@ -95,12 +122,25 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
+                        cid: message.data.cid,
                         ids: savedIds,
-                    } as any,
+                        success: true,
+                        query: message.data.query,
+                    } as OnSaveAllCacheDataPayload,
                 };
                 bridge.post(response);
             } catch (e) {
                 logger.error('CACHE', `SaveAll error: ${message.data.type}`, e);
+                bridge.post({
+                    type: 'OnSaveAllCacheData',
+                    nonce: message.nonce,
+                    data: {
+                        type: message.data.type,
+                        cid: message.data.cid,
+                        ids: [],
+                        success: false,
+                    } as OnSaveAllCacheDataPayload,
+                });
             }
         },
         [bridge]
@@ -115,8 +155,10 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
+                        cid: message.data.cid,
                         id: deletedId,
-                    } as any,
+                        success: true,
+                    } as OnDeleteCacheDataPayload,
                 };
                 bridge.post(response);
             } catch (e) {
@@ -124,7 +166,12 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                 bridge.post({
                     type: 'OnDeleteCacheData',
                     nonce: message.nonce,
-                    data: { type: message.data.type, id: null } as any,
+                    data: {
+                        type: message.data.type,
+                        cid: message.data.cid,
+                        id: null,
+                        success: false,
+                    } as OnDeleteCacheDataPayload,
                 });
             }
         },
@@ -140,12 +187,24 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
+                        cid: message.data.cid,
                         ids: deletedIds,
-                    } as any,
+                        success: true,
+                    } as OnDeleteAllCacheDataPayload,
                 };
                 bridge.post(response);
             } catch (e) {
                 logger.error('CACHE', `DeleteAll error: ${message.data.type}`, e);
+                bridge.post({
+                    type: 'OnDeleteAllCacheData',
+                    nonce: message.nonce,
+                    data: {
+                        type: message.data.type,
+                        cid: message.data.cid,
+                        ids: [],
+                        success: false,
+                    } as OnDeleteAllCacheDataPayload,
+                });
             }
         },
         [bridge]
@@ -160,11 +219,17 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
-                    } as any,
+                        success: true,
+                    } as OnClearCacheDataPayload,
                 };
                 bridge.post(response);
             } catch (e) {
                 logger.error('CACHE', `Clear error: ${message.data.type}`, e);
+                bridge.post({
+                    type: 'OnClearCacheData',
+                    nonce: message.nonce,
+                    data: { type: message.data.type, success: false } as OnClearCacheDataPayload,
+                });
             }
         },
         [bridge]

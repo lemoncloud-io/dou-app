@@ -1,19 +1,33 @@
 import type { Scalar, SQLBatchTuple } from '@op-engineering/op-sqlite';
 import { open } from '@op-engineering/op-sqlite';
-import { SQL_SCHEMAS } from './schema';
-import { logger } from '../../../services';
+import { MIGRATIONS, TARGET_VERSION } from './schema';
+import { logger } from '../../../../services';
 
 const db = open({ name: 'dou.sqlite' });
 
 const initTables = async () => {
     try {
         await db.transaction(async tx => {
-            SQL_SCHEMAS.forEach(query => {
-                tx.execute(query);
-            });
+            const versionResult = await tx.execute('PRAGMA user_version');
+            const currentVersion = (versionResult.rows?.[0] as any)?.user_version || 0;
+
+            if (currentVersion < TARGET_VERSION) {
+                logger.info('SQLITE', `Starting Migration: v${currentVersion} -> v${TARGET_VERSION}`);
+
+                for (let v = currentVersion; v < TARGET_VERSION; v++) {
+                    const scripts = MIGRATIONS[v];
+                    if (scripts) {
+                        scripts.forEach(sql => tx.execute(sql));
+                        logger.info('SQLITE', `Step v${v} applied.`);
+                    }
+                }
+
+                await tx.execute(`PRAGMA user_version = ${TARGET_VERSION}`);
+                logger.info('SQLITE', `Database is now at v${TARGET_VERSION}`);
+            }
         });
     } catch (error) {
-        logger.error('SQLITE', 'Table initialization failed:', error);
+        logger.error('SQLITE', 'Migration failed:', error);
     }
 };
 
@@ -54,7 +68,10 @@ export const database = {
             // 트랜잭션 내에서 데이터 교체 작업 수행
             await db.transaction(async tx => {
                 const result = await tx.execute(
-                    `SELECT name FROM backup_db.sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`
+                    `SELECT name
+                     FROM backup_db.sqlite_master
+                     WHERE type = 'table'
+                       AND name NOT LIKE 'sqlite_%'`
                 );
 
                 const tables = (result.rows || []) as { name: string }[];

@@ -15,7 +15,7 @@ import {
     getSafeAreaScript,
 } from './utils/injectionScripts';
 import { firebaseInstallationService } from '../services/firebase/firebaseInstallationService';
-import { cacheCrudService } from '../storages/cacheCrudService';
+import { cacheCrudService } from '../storages';
 
 interface AppWebViewProps extends WebViewProps {}
 

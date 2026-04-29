@@ -1,5 +1,5 @@
 import type { ChannelView, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
-import type { MyInviteView, MySiteView, UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView, MySiteView } from '@lemoncloud/chatic-backend-api';
 
 /** 캐시 가능한 도메인 타입 정의 */
 export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud';
@@ -26,11 +26,10 @@ interface CacheBasePayload<K extends CacheType> {
 export interface CacheModelMap {
     channel: CacheChannelView;
     chat: CacheChatView;
-    user: UserView;
-    site: CacheSiteView;
-    join: JoinView;
-    usertoken: UserTokenView;
     invitecloud: CacheCloudView;
+    join: CacheJoinView;
+    site: CacheSiteView;
+    user: CacheUserView;
 }
 
 /** 클라우드/서버 정보 뷰 */
@@ -39,15 +38,19 @@ export interface CacheCloudView extends MyInviteView {
     name?: string;
     backend?: string;
     wss?: string;
+    cid: string;
 }
 
 /** 채널 정보 뷰 (Site ID 포함) */
 export interface CacheChannelView extends ChannelView {
+    cid: string;
     sid: string;
+    isNotificationEnabled: boolean;
 }
 
 /** 채팅 메시지 뷰 (전송 상태 포함) */
 export interface CacheChatView extends ChatView {
+    cid: string;
     isPending?: boolean; // 전송 중 여부
     isFailed?: boolean; // 전송 실패 여부
 }
@@ -55,6 +58,21 @@ export interface CacheChatView extends ChatView {
 /** 사이트 정보 뷰 */
 export interface CacheSiteView extends MySiteView {
     cid: string;
+    order?: number;
+}
+
+export interface CacheJoinView extends JoinView {
+    cid: string;
+}
+
+export interface CacheUserView extends UserView {
+    cid: string;
+}
+
+export interface CacheMetaView {
+    cid: string;
+    ids: string[]; // 서버에서 응답받은 해당 페이지의 정확한 ID 순서
+    meta?: PagingMeta; // 다음 페이지 조회를 위한 커서 정보
 }
 
 /**
@@ -68,13 +86,17 @@ export interface BaseQueryOptions {
 /** 채널 목록 조회 쿼리 */
 export interface ChannelQueryOptions extends BaseQueryOptions {
     sid?: string; // 특정 사이트 내 채널 필터
+    keyword?: string; // 검색 키워드
 }
 
 /** 채팅 목록 조회 쿼리 */
 export interface ChatQueryOptions extends BaseQueryOptions {
     channelId?: string; // 특정 채널 내 메시지 필터
     sort?: 'asc' | 'desc'; // 정렬 순서
+    keyword?: string; // 검색 키워드
 }
+
+export interface InviteCloudQueryOptions extends BaseQueryOptions {}
 
 /** 참여 정보 조회 쿼리 */
 export interface JoinQueryOptions extends BaseQueryOptions {
@@ -82,16 +104,22 @@ export interface JoinQueryOptions extends BaseQueryOptions {
     userId?: string;
 }
 
+/** 유저 정보 쿼리 */
+export interface UserQueryOptions extends BaseQueryOptions {}
+
+/** 사이트 정보 쿼리 */
+export interface SiteQueryOptions extends BaseQueryOptions {
+    keyword?: string; // 검색 키워드
+}
+
 /** 도메인별 쿼리 옵션 매핑 */
 export interface CacheQueryMap {
     channel: ChannelQueryOptions;
     chat: ChatQueryOptions;
-    user: BaseQueryOptions;
-    site: BaseQueryOptions;
+    user: UserQueryOptions;
+    site: SiteQueryOptions;
     join: JoinQueryOptions;
-    usertoken: BaseQueryOptions;
-    invitecloud: BaseQueryOptions;
-    cloud: BaseQueryOptions;
+    invitecloud: InviteCloudQueryOptions;
 }
 
 /** [요청] ID 기반 단일 데이터 조회 */
@@ -107,18 +135,15 @@ export type OnFetchCacheDataPayload = {
 /** [요청] 다수/페이징 데이터 조회 (query와 meta를 조합하여 캐시 키 생성) */
 export type FetchAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
-        parentId?: string; // 상위 컨텍스트 ID
-        query?: CacheQueryMap[K]; // 검색/필터 조건
-        meta?: PagingMeta; // 페이지 정보
+        query?: CacheQueryMap[K] & PagingMeta;
     };
 }[CacheType];
 
 /** [응답] 다수 데이터 반환 */
 export type OnFetchAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
-        parentId?: string;
         items: CacheModelMap[K][] | null;
-        meta?: PagingMeta;
+        query?: CacheQueryMap[K] & PagingMeta;
     };
 }[CacheType];
 
@@ -135,20 +160,17 @@ export type OnSaveCacheDataPayload = {
 /** [요청] 다수 데이터 저장 (페이징 인덱싱 포함) */
 export type SaveAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
-        parentId?: string;
-        query?: CacheQueryMap[K];
-        meta?: PagingMeta;
-        items: CacheModelMap[K][]; // 저장할 실제 엔티티 리스트
+        query?: CacheQueryMap[K] & PagingMeta;
+        items: CacheModelMap[K][];
     };
 }[CacheType];
 
 /** [응답] 다수 저장 결과 */
 export type OnSaveAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
-        parentId?: string;
-        ids: string[]; // 저장된 아이템 ID 목록
+        ids: string[];
         success: boolean;
-        meta?: PagingMeta; // 처리된 페이징 메타
+        query?: CacheQueryMap[K] & PagingMeta;
     };
 }[CacheType];
 

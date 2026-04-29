@@ -90,5 +90,7 @@
         "@react-native-firebase/auth": "*",
         "@testing-library/react": "*"
     },
-    "devDependencies": {}
+    "devDependencies": {
+        "better-sqlite3": "*"
+    }
 }

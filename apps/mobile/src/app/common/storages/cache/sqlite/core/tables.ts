@@ -1,10 +1,9 @@
 export const TABLES = {
-    CLOUDS: 'clouds',
     CHANNELS: 'channels',
     CHATS: 'chats',
-    USERS: 'users',
+    INVITE_CLOUDS: 'invite_clouds',
     JOINS: 'joins',
     SITES: 'sites',
-    USER_TOKENS: 'user_tokens',
-    INVITE_CLOUDS: 'invite_clouds',
+    USERS: 'users',
+    METAS: 'metas',
 } as const;
