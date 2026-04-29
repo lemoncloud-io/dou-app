@@ -137,7 +137,10 @@ export const HomePage = () => {
                         </DropdownMenuContent>
                     </DropdownMenu>
                 ) : (
-                    <button onClick={() => navigate('/mypage/edit')} className="flex items-center gap-[9px]">
+                    <button
+                        onClick={() => navigate(isDefaultCloud ? '/mypage/edit' : '/mypage/cloud-profile')}
+                        className="flex items-center gap-[9px]"
+                    >
                         <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                             {displayImageUrl ? (
                                 <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />

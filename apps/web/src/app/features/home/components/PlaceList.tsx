@@ -1,19 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Check, ChevronDown, Home, RefreshCw, SlidersHorizontal, Users } from 'lucide-react';
+import { Check, Home, RefreshCw, Users } from 'lucide-react';
 
 import { getSocketSend, useWebSocketV2Store } from '@chatic/socket';
 import { cn } from '@chatic/lib/utils';
 import { cloudCore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
 import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 import { usePlaces } from '@chatic/data';
@@ -73,8 +65,6 @@ const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemPr
     );
 };
 
-type PlaceFilter = 'all' | 'mine' | 'invited';
-
 interface PlaceListProps {
     onPlaceSelected?: (placeId: string) => void;
     onNavigateToOrder?: () => void;
@@ -97,24 +87,12 @@ export const PlaceList = ({
     const cloudId = useWebSocketV2Store(s => s.cloudId);
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
     const [isPending, setIsPending] = useState(false);
-    const [filter, setFilter] = useState<PlaceFilter>('all');
     const { places, isLoading, isError, refresh } = usePlaces();
 
-    const profileId = cloudCore.getCloudToken()?.id;
     const selectedCloudId = cloudCore.getSelectedCloudId();
     const isDefaultMode = selectedCloudId === 'default';
 
-    const filteredPlaces = (() => {
-        if (filter === 'mine') return places.filter(p => p.ownerId === profileId);
-        if (filter === 'invited') return places.filter(p => p.ownerId !== profileId);
-        return places;
-    })();
-
     const handleSelectPlace = async (placeId: string) => {
-        if (placeId === 'default') {
-            return handleSelectDefaultPlace();
-        }
-
         // relay 모드: refreshToken 불필요, 단순 선택만
         const currentWssType = useWebSocketV2Store.getState().wssType;
         if (currentWssType !== 'cloud') {
@@ -152,20 +130,6 @@ export const PlaceList = ({
         }
     };
 
-    const handleSelectDefaultPlace = async () => {
-        setIsPending(true);
-        try {
-            cloudCore.clearDelegationToken();
-            useWebSocketV2Store.getState().setIsVerified(false);
-            setSelectedId('default');
-            onPlaceSelected?.('default');
-        } catch (e) {
-            console.error('Failed to switch to default place:', e);
-        } finally {
-            setIsPending(false);
-        }
-    };
-
     // 이전 세션에서 선택된 place 복원 (token refresh + channels fetch 포함)
     const initialPlaceNotifiedRef = useRef(false);
     useEffect(() => {
@@ -181,19 +145,20 @@ export const PlaceList = ({
     }, [isDefaultMode, userType]);
 
     // cloud 전환 시 이전 place 선택 초기화
-    // 단, handleSelectDefaultPlace에서 이미 selectedId='default'로 설정한 경우는 스��
-    // (clearDelegationToken → setCloudId('default') 순서로 cloudId가 변경되지만,
-    //  이미 default place가 선택된 상태이므로 리셋하면 안 됨)
     const prevCloudIdRef = useRef(cloudId);
     useEffect(() => {
         if (prevCloudIdRef.current && prevCloudIdRef.current !== cloudId) {
-            if (cloudId === 'default' && selectedId === 'default') {
-                prevCloudIdRef.current = cloudId;
-                return;
-            }
             setSelectedId(null);
             initialPlaceNotifiedRef.current = false;
-            onPlaceSelected?.('');
+
+            // 클라우드 해제(default 모드) 전환 시 즉시 default place 선택
+            const currentCloudId = cloudCore.getSelectedCloudId();
+            if (currentCloudId === 'default') {
+                initialPlaceNotifiedRef.current = true;
+                onPlaceSelected?.('default');
+            } else {
+                onPlaceSelected?.('');
+            }
         }
         prevCloudIdRef.current = cloudId;
     }, [cloudId]);
@@ -201,9 +166,9 @@ export const PlaceList = ({
     // place 목록 로드 후 auto-selection
     useEffect(() => {
         const hasSelected = !!cloudCore.getSelectedPlaceId();
-        if (hasSelected || filteredPlaces.length === 0) return;
-        handleSelectPlace(filteredPlaces[0].id);
-    }, [filteredPlaces]);
+        if (hasSelected || places.length === 0) return;
+        handleSelectPlace(places[0].id);
+    }, [places]);
 
     // 순수 게스트 또는 cloud 미선택(default) 상태는 DEFAULT_PLACE만 표시
     if (userType === UserType.TEMP_ACCOUNT || isDefaultMode) {
@@ -223,57 +188,11 @@ export const PlaceList = ({
         );
     }
 
-    const filterLabels: Record<PlaceFilter, string> = {
-        all: t('placeList.filterAll'),
-        mine: t('placeList.filterMine'),
-        invited: t('placeList.filterInvited'),
-    };
-
     const header = (
         <div className="mb-[18px] flex items-center justify-between px-4">
-            <div className="flex items-center gap-[6px]">
-                <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
-                    {t('homePage.places')}
-                </span>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <button
-                            className={cn(
-                                'flex items-center gap-[4px] rounded-[6px] border px-[8px] py-[3px] transition-colors',
-                                filter === 'all'
-                                    ? 'border-border text-muted-foreground'
-                                    : 'border-[#C139E3] bg-[#C139E3]/10 text-[#C139E3]'
-                            )}
-                        >
-                            <SlidersHorizontal size={13} />
-                            <span className="text-[12px] font-medium">{filterLabels[filter]}</span>
-                            <ChevronDown size={11} />
-                        </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="min-w-[160px]">
-                        <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-                            {t('placeList.filterSection')}
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {(['all', 'mine', 'invited'] as PlaceFilter[]).map(f => (
-                            <DropdownMenuItem
-                                key={f}
-                                onClick={() => setFilter(f)}
-                                className="flex items-center justify-between"
-                            >
-                                <span
-                                    className={cn(
-                                        filter === f ? 'font-semibold text-foreground' : 'text-muted-foreground'
-                                    )}
-                                >
-                                    {filterLabels[f]}
-                                </span>
-                                {filter === f && <Check size={14} className="text-[#C139E3]" />}
-                            </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+            <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
+                {t('homePage.places')}
+            </span>
             {!isGuest && !isPlacesLoading && onNavigateToOrder && (
                 <button onClick={onNavigateToOrder} className="flex items-center rounded-[8px] text-muted-foreground">
                     <span className="text-[14px] font-medium leading-[1.19] tracking-[-0.01em]">
@@ -324,19 +243,11 @@ export const PlaceList = ({
         );
     }
 
-    if (filteredPlaces.length === 0) {
+    if (places.length === 0) {
         return (
             <div>
                 {header}
                 <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
-                    {wssType === 'cloud' && (
-                        <PlaceItem
-                            place={DEFAULT_PLACE}
-                            isSelected={selectedId === 'default'}
-                            isDisabled={isPending}
-                            onSelectPlace={handleSelectPlace}
-                        />
-                    )}
                     {!isGuest && onCreatePlace && (
                         <button
                             onClick={onCreatePlace}
@@ -380,15 +291,7 @@ export const PlaceList = ({
         <div>
             {header}
             <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
-                {wssType === 'cloud' && (
-                    <PlaceItem
-                        place={DEFAULT_PLACE}
-                        isSelected={selectedId === 'default'}
-                        isDisabled={isPending}
-                        onSelectPlace={handleSelectPlace}
-                    />
-                )}
-                {filteredPlaces.map(place => (
+                {places.map(place => (
                     <PlaceItem
                         key={place.id}
                         place={place}

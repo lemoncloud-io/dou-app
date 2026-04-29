@@ -283,7 +283,9 @@
         "tabInvited": "Invited",
         "emptyInvited": "No invited clouds",
         "statusReservedDescription": "Setting up your cloud. This may take up to 10 minutes.",
-        "cloudReady": "Your cloud is ready!"
+        "cloudReady": "Your cloud is ready!",
+        "disconnectCloud": "Disconnect Cloud",
+        "disconnectCloudDesc": "Disconnect from cloud"
     },
     "placeList": {
         "defaultPlace": "Default",

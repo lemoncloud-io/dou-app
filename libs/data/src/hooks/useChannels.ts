@@ -35,6 +35,10 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     // 서버 chat:mine 응답으로 확인된 채널 ID 목록. null은 아직 서버 응답 없음(로딩 중)을 의미.
     const confirmedChannelIdsRef = useRef<Set<string> | null>(null);
 
+    // chat:mine 응답 없을 시 재시도
+    const retryCountRef = useRef(0);
+    const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     // cloudId가 유효한지 확인 (빈 문자열이면 무효 — stale 캐시 접근 방지)
     // 'default'는 중계서버(relay WSS) 케이스에서 정상 사용됨
     const isValidCloudId = !!cloudId;
@@ -166,9 +170,26 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                 payload: networkPayload,
             });
 
-            setTimeout(() => {
+            // 이전 타이머 정리
+            if (retryTimerRef.current) {
+                clearTimeout(retryTimerRef.current);
+            }
+
+            retryTimerRef.current = setTimeout(() => {
                 isSyncingRef.current = false;
                 setIsSyncing(false);
+
+                // 서버 응답이 없으면(confirmedChannelIdsRef가 여전히 null) 재시도
+                if (confirmedChannelIdsRef.current === null && retryCountRef.current < 3) {
+                    retryCountRef.current += 1;
+                    console.warn(`[useChannels] chat:mine no response, retry ${retryCountRef.current}/3`);
+                    requestFromNetworkRef.current();
+                } else if (confirmedChannelIdsRef.current === null) {
+                    // 재시도 소진 — 에러 상태로 전환
+                    console.error('[useChannels] chat:mine failed after 3 retries');
+                    setIsLoading(false);
+                    setIsError(true);
+                }
             }, 5000);
         },
         [emitAuthenticated, isValidCloudId, cloudId]
@@ -187,8 +208,14 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         currentParamsRef.current = initialParams;
         isSyncingRef.current = false;
         confirmedChannelIdsRef.current = null; // 서버 응답 전까지 로딩 상태 유지
+        retryCountRef.current = 0;
+        if (retryTimerRef.current) {
+            clearTimeout(retryTimerRef.current);
+            retryTimerRef.current = null;
+        }
         setChannels([]); // 즉시 이전 채널 제거 → 스켈레톤 표시
         setIsLoading(true);
+        setIsError(false);
         requestFromNetworkRef.current({ ...initialParams, limit: 100 });
     }, [targetPlaceId, cloudId]);
 
@@ -206,6 +233,12 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                 // confirmed channel IDs 갱신
                 if (detail.domain === 'channel') {
                     if (detail.action === 'mine') {
+                        // 응답 수신 — 재시도 카운터/타이머 리셋
+                        retryCountRef.current = 0;
+                        if (retryTimerRef.current) {
+                            clearTimeout(retryTimerRef.current);
+                            retryTimerRef.current = null;
+                        }
                         // 서버 chat:mine 응답 → confirmed set 전체 교체
                         const list = detail.payload?.list || [];
                         confirmedChannelIdsRef.current = new Set(list.map((ch: any) => ch.id));
@@ -262,10 +295,20 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         return () => window.removeEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
     }, [isValidCloudId, joinRepository.cloudId]);
 
+    // 언마운트 시 재시도 타이머 정리
+    useEffect(() => {
+        return () => {
+            if (retryTimerRef.current) {
+                clearTimeout(retryTimerRef.current);
+            }
+        };
+    }, []);
+
     // 포그라운드 복귀 + WebSocket 재연결 완료 시 데이터 재동기화
     // Recovery 시 isSyncingRef를 리셋하여 이전 실패/대기 중인 요청이 retry를 차단하지 않도록 함
     const requestFromNetworkForRecovery = useCallback(() => {
         isSyncingRef.current = false;
+        retryCountRef.current = 0;
         requestFromNetwork();
     }, [requestFromNetwork]);
     useConnectionRecoverySync(requestFromNetworkForRecovery, requestFromNetworkForRecovery);
@@ -277,6 +320,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         isError,
         refresh: (options?: ClientChatMinePayload) => {
             isSyncingRef.current = false;
+            retryCountRef.current = 0;
             requestFromNetwork(options);
         },
         sync: (options?: ClientChatMinePayload) => requestFromNetwork(options),

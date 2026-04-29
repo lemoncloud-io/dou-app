@@ -283,7 +283,9 @@
         "tabInvited": "초대된 클라우드",
         "emptyInvited": "초대된 클라우드가 없어요",
         "statusReservedDescription": "클라우드 설정 중이에요. 최대 10분이 소요될 수 있어요.",
-        "cloudReady": "클라우드가 준비되었어요!"
+        "cloudReady": "클라우드가 준비되었어요!",
+        "disconnectCloud": "클라우드 해제",
+        "disconnectCloudDesc": "클라우드 연결을 해제합니다"
     },
     "placeList": {
         "defaultPlace": "기본",
