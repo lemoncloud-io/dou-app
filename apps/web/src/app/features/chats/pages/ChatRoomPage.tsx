@@ -547,6 +547,17 @@ export const ChatRoomPage = () => {
 
             {/* 입력창 영역 */}
             <div
+                onMouseDown={e => {
+                    if (e.target === e.currentTarget) {
+                        e.preventDefault();
+                        inputRef.current?.focus();
+                    }
+                }}
+                onTouchEnd={e => {
+                    if (e.target === e.currentTarget) {
+                        inputRef.current?.focus();
+                    }
+                }}
                 className="border-t border-border bg-background px-4 py-3"
                 style={{
                     paddingBottom: isIOS
@@ -554,7 +565,20 @@ export const ChatRoomPage = () => {
                         : `calc(12px + var(--safe-bottom, 0px) + var(--keyboard-height, 0px))`,
                 }}
             >
-                <div className="flex items-end gap-1.5 rounded-2xl bg-muted px-3 py-1.5">
+                <div
+                    onMouseDown={e => {
+                        if (e.target === e.currentTarget) {
+                            e.preventDefault();
+                            inputRef.current?.focus();
+                        }
+                    }}
+                    onTouchEnd={e => {
+                        if (e.target === e.currentTarget) {
+                            inputRef.current?.focus();
+                        }
+                    }}
+                    className="flex items-end gap-1.5 rounded-2xl bg-muted px-3 py-1.5"
+                >
                     <textarea
                         ref={inputRef}
                         value={content}
@@ -570,17 +594,21 @@ export const ChatRoomPage = () => {
                         onTouchStart={e => e.preventDefault()}
                         onClick={handleSend}
                         disabled={isSending || !content.trim()}
-                        className={`flex size-8 flex-shrink-0 items-center justify-center rounded-full transition-colors ${
-                            content.trim() && !isSending
-                                ? 'bg-foreground text-background'
-                                : 'bg-muted-foreground/20 text-muted-foreground'
-                        }`}
+                        className="relative flex size-8 flex-shrink-0 items-center justify-center before:absolute before:inset-[-8px] before:content-['']"
                     >
-                        {isSending ? (
-                            <Loader2 size={16} className="animate-spin text-muted-foreground" />
-                        ) : (
-                            <ArrowUp size={18} />
-                        )}
+                        <span
+                            className={`flex size-8 items-center justify-center rounded-full transition-colors ${
+                                content.trim() && !isSending
+                                    ? 'bg-foreground text-background'
+                                    : 'bg-muted-foreground/20 text-muted-foreground'
+                            }`}
+                        >
+                            {isSending ? (
+                                <Loader2 size={16} className="animate-spin text-muted-foreground" />
+                            ) : (
+                                <ArrowUp size={18} />
+                            )}
+                        </span>
                     </button>
                 </div>
             </div>
