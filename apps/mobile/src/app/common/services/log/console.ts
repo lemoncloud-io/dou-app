@@ -1,29 +1,7 @@
 import { logger } from './log';
+import { serializeError } from './utils';
 
 let unsubscribeConsoleLog: (() => void) | undefined;
-
-/**
- * - 구조화된 에러 문자열 치환
- * @param error error 객체
- */
-const serializeError = (error: any) => {
-    if (!error) return 'Unknown error.';
-
-    if (error instanceof Error) {
-        return {
-            ...error,
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-        };
-    }
-
-    if (typeof error === 'object') {
-        return error;
-    }
-
-    return String(error);
-};
 
 export const initConsoleService = () => {
     if (unsubscribeConsoleLog) return unsubscribeConsoleLog;
@@ -43,11 +21,6 @@ export const initConsoleService = () => {
     });
 
     return unsubscribeConsoleLog;
-};
-
-export const teardownConsoleService = () => {
-    unsubscribeConsoleLog?.();
-    unsubscribeConsoleLog = undefined;
 };
 
 initConsoleService();
