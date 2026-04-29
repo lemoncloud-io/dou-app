@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChannelView, JoinView } from '@lemoncloud/chatic-socials-api';
 import type { CacheChannelView } from '@chatic/app-messages';
-import { useWebSocketV2 } from '@chatic/socket';
+import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { useDynamicProfile } from '@chatic/web-core';
 import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
@@ -155,6 +155,9 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
             const placeId = activeParams.placeId;
 
             if (!placeId) return;
+            // 미인증 상태에서는 emit 스킵 — emitAuthenticated의 deferred queue에 중복 누적 방지
+            // isVerified effect가 인증 완료 시 재요청을 트리거함
+            if (!useWebSocketV2Store.getState().isVerified) return;
             // cloudId를 dedup key에서 제외 — 초기 'default'→실제 cloudId 전환 시 동일 placeId 요청이 중복 발송되는 것 방지
             if (!shouldEmit(`chat:mine:${placeId}`)) return;
 
@@ -201,9 +204,12 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     const requestFromNetworkRef = useRef(requestFromNetwork);
     requestFromNetworkRef.current = requestFromNetwork;
 
-    // cloudId 변경 시 상태 리셋만 수행 (chat:mine 요청은 보내지 않음)
-    // cloud 전환 시 place가 아직 선택되지 않은 상태에서 chat:mine이 나가는 것을 방지
+    // cloudId 변경 시 상태 리셋 + (실제 변경이면) targetPlaceId가 유효할 때 재요청
+    const prevCloudIdRef = useRef<string | undefined>(undefined);
     useEffect(() => {
+        const isInitialMount = prevCloudIdRef.current === undefined;
+        prevCloudIdRef.current = cloudId;
+
         currentParamsRef.current = initialParams;
         isSyncingRef.current = false;
         confirmedChannelIdsRef.current = null;
@@ -216,6 +222,12 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         setIsLoading(true);
         setIsError(false);
         setErrorMessage(null);
+
+        // 초기 마운트가 아닌 실제 cloudId 변경 시에만 재요청
+        // 초기 마운트에서는 [targetPlaceId] effect가 요청을 처리
+        if (!isInitialMount && targetPlaceId) {
+            requestFromNetworkRef.current({ ...initialParams, limit: 100 });
+        }
     }, [cloudId]);
 
     // targetPlaceId 변경 시 서버에 채널 목록 요청
@@ -235,7 +247,31 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         setIsError(false);
         setErrorMessage(null);
         requestFromNetworkRef.current({ ...initialParams, limit: 100 });
+
+        // Fallback: shouldEmit dedup이 다른 useChannels 인스턴스의 요청 때문에 차단된 경우,
+        // dedup 윈도우(1s) 경과 후 재시도하여 stuck loading 방지
+        const fallbackTimer = setTimeout(() => {
+            if (confirmedChannelIdsRef.current === null) {
+                isSyncingRef.current = false;
+                retryCountRef.current = 0;
+                requestFromNetworkRef.current({ ...currentParamsRef.current, limit: 100 });
+            }
+        }, 1500);
+
+        return () => clearTimeout(fallbackTimer);
     }, [targetPlaceId]);
+
+    // 인증 완료(isVerified: false→true) 시 아직 채널 목록을 못 가져온 상태면 재요청
+    // handleSelectPlace에서 setIsVerified(false) → auth:update → setIsVerified(true) 순서에서
+    // [targetPlaceId] effect의 requestFromNetwork가 미인증으로 스킵된 경우를 보완
+    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    useEffect(() => {
+        if (isVerified && targetPlaceId && confirmedChannelIdsRef.current === null) {
+            isSyncingRef.current = false;
+            retryCountRef.current = 0;
+            requestFromNetworkRef.current({ ...currentParamsRef.current, limit: 100 });
+        }
+    }, [isVerified]);
 
     useEffect(() => {
         // cloudId나 Repository가 준비되지 않았다면 리스너를 등록하지 않음

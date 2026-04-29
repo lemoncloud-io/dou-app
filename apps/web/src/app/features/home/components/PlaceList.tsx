@@ -10,6 +10,10 @@ import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 import { usePlaces } from '@chatic/data';
 
+// Module-level: 현재 WS 세션에서 place auth(refreshToken + auth:update)가 완료되었는지 추적
+// home → chatroom → home 재진입 시 불필요한 auth:update를 방지하여 stuck loading 예방
+let placeAuthDone = false;
+
 const DEFAULT_PLACE: MySiteView = { id: 'default', name: 'defaultPlace', stereo: 'work' } as MySiteView;
 
 interface PlaceItemProps {
@@ -88,10 +92,23 @@ export const PlaceList = ({
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
     const [isPending, setIsPending] = useState(false);
     const switchingRef = useRef(false);
-    const { places, isLoading, isError, refresh } = usePlaces();
+    const { places: rawPlaces, isLoading, isError, refresh } = usePlaces();
 
     const selectedCloudId = cloudCore.getSelectedCloudId();
     const isDefaultMode = selectedCloudId === 'default';
+
+    // 저장된 순서 적용
+    const places = (() => {
+        if (!selectedCloudId || isDefaultMode) return rawPlaces;
+        const savedOrder = cloudCore.getPlaceOrder(selectedCloudId);
+        if (!savedOrder) return rawPlaces;
+        const orderMap = new Map(savedOrder.map((id, idx) => [id, idx]));
+        return [...rawPlaces].sort((a, b) => {
+            const ai = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+            const bi = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+            return ai - bi;
+        });
+    })();
 
     const handleSelectPlace = async (placeId: string) => {
         if (switchingRef.current) return;
@@ -125,6 +142,7 @@ export const PlaceList = ({
                 getSocketSend()?.({ type: 'auth', action: 'update', payload: { token: newToken } });
             }
 
+            placeAuthDone = true;
             setSelectedId(placeId);
             onPlaceSelected?.(placeId);
         } catch (e) {
@@ -135,14 +153,21 @@ export const PlaceList = ({
         }
     };
 
-    // 이전 세션에서 선택된 place 복원 (token refresh + channels fetch 포함)
+    // 이전 세션에서 선택된 place 복원
     const initialPlaceNotifiedRef = useRef(false);
     useEffect(() => {
         if (initialPlaceNotifiedRef.current) return;
         const savedPlaceId = cloudCore.getSelectedPlaceId();
         if (savedPlaceId) {
             initialPlaceNotifiedRef.current = true;
-            void handleSelectPlace(savedPlaceId);
+            // 이미 인증 완료 + 현재 세션에서 place auth가 된 상태면 auth:update 스킵
+            // (home → chatroom → home 재진입 시 불필요한 setIsVerified(false) 방지)
+            if (useWebSocketV2Store.getState().isVerified && placeAuthDone) {
+                setSelectedId(savedPlaceId);
+                onPlaceSelected?.(savedPlaceId);
+            } else {
+                void handleSelectPlace(savedPlaceId);
+            }
         } else if (isDefaultMode || userType === UserType.TEMP_ACCOUNT) {
             initialPlaceNotifiedRef.current = true;
             onPlaceSelected?.('default');
@@ -153,6 +178,7 @@ export const PlaceList = ({
     const prevCloudIdRef = useRef(cloudId);
     useEffect(() => {
         if (prevCloudIdRef.current && prevCloudIdRef.current !== cloudId) {
+            placeAuthDone = false;
             setSelectedId(null);
             initialPlaceNotifiedRef.current = false;
             // 저장된 placeId 클리어 — cloudCore.getSelectedPlaceId()를 읽는 다른 hook이

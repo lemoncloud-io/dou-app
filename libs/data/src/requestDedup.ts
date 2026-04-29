@@ -22,3 +22,11 @@ export const shouldEmit = (key: string): boolean => {
     lastEmitTime.set(key, now);
     return true;
 };
+
+/**
+ * 지정한 key의 dedup 기록을 제거하여 다음 shouldEmit 호출이 무조건 통과하도록 함
+ * 컴포넌트 리마운트 등으로 상태가 리셋된 후 즉시 재요청이 필요한 경우 사용
+ */
+export const clearEmit = (key: string): void => {
+    lastEmitTime.delete(key);
+};
