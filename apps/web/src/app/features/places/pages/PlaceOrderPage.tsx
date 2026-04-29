@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { cn } from '@chatic/lib/utils';
 
 import {
     closestCenter,
@@ -39,11 +38,6 @@ export const PlaceOrderPage = () => {
     const myId = cloudCore.getCloudToken()?.id;
     const [deleteTarget, setDeleteTarget] = useState<MySiteView | null>(null);
     const [leaveTarget, setLeaveTarget] = useState<MySiteView | null>(null);
-    const [activeTab, setActiveTab] = useState<'my' | 'friend'>('my');
-
-    const myPlaces = places.filter(p => p.ownerId === myId);
-    const friendPlaces = places.filter(p => p.ownerId !== myId);
-    const activePlaces = activeTab === 'my' ? myPlaces : friendPlaces;
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -64,11 +58,9 @@ export const PlaceOrderPage = () => {
         const { active, over } = event;
         if (!over || active.id === over.id) return;
 
-        const oldIndex = activePlaces.findIndex(item => item.id === active.id);
-        const newIndex = activePlaces.findIndex(item => item.id === over.id);
-        const reordered = arrayMove(activePlaces, oldIndex, newIndex);
-        const otherPlaces = activeTab === 'my' ? friendPlaces : myPlaces;
-        setPlaces(() => (activeTab === 'my' ? [...reordered, ...otherPlaces] : [...otherPlaces, ...reordered]));
+        const oldIndex = places.findIndex(item => item.id === active.id);
+        const newIndex = places.findIndex(item => item.id === over.id);
+        setPlaces(prev => arrayMove(prev, oldIndex, newIndex));
     };
 
     const handleSettings = (place: MySiteView) => {
@@ -101,44 +93,20 @@ export const PlaceOrderPage = () => {
 
             {/* Place List */}
             <div className="flex-1 overflow-y-auto pt-[14px]">
-                {/* Tab Header */}
-                <div className="flex items-center gap-[10px] px-4 pb-[10px] pr-3">
-                    <button onClick={() => setActiveTab('my')}>
-                        <span
-                            className={cn(
-                                'text-[18px] font-semibold leading-[1.334] tracking-[-0.003em]',
-                                activeTab === 'my' ? 'text-foreground' : 'text-muted-foreground/40'
-                            )}
-                        >
-                            {t('placeOrder.myPlaces')}
-                        </span>
-                    </button>
-                    <button onClick={() => setActiveTab('friend')}>
-                        <span
-                            className={cn(
-                                'text-[18px] font-semibold leading-[1.334] tracking-[-0.003em]',
-                                activeTab === 'friend' ? 'text-foreground' : 'text-muted-foreground/40'
-                            )}
-                        >
-                            {t('placeOrder.friendPlaces')}
-                        </span>
-                    </button>
-                </div>
-
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
                     modifiers={[restrictToVerticalAxis]}
                     onDragEnd={handleDragEnd}
                 >
-                    <SortableContext items={activePlaces.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                    <SortableContext items={places.map(p => p.id)} strategy={verticalListSortingStrategy}>
                         <div className="flex flex-col gap-[5px]">
-                            {activePlaces.length > 0 ? (
-                                activePlaces.map(place => (
+                            {places.length > 0 ? (
+                                places.map(place => (
                                     <SortablePlaceItem
                                         key={place.id}
                                         place={place}
-                                        isOwner={activeTab === 'my'}
+                                        isOwner={place.ownerId === myId}
                                         onSettings={handleSettings}
                                         onDelete={handleDelete}
                                         onLeave={handleLeave}

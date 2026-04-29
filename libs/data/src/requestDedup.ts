@@ -7,7 +7,7 @@
 
 const lastEmitTime = new Map<string, number>();
 
-const DEDUP_WINDOW_MS = 200;
+const DEDUP_WINDOW_MS = 1000;
 
 /**
  * 지정한 key로 최근 DEDUP_WINDOW_MS 이내에 이미 요청이 나갔는지 확인

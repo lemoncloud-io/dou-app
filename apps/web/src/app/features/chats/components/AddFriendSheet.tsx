@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
+import { reportError, toError } from '@chatic/web-core';
 import { Sheet, SheetContent } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -130,6 +131,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
             resetAndClose();
         } catch (error) {
             console.error('Failed to create invite:', error);
+            reportError(toError(error));
             const message =
                 error instanceof Error
                     ? error.message

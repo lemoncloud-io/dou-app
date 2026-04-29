@@ -80,8 +80,14 @@ export const usePlaces = () => {
 
     /**
      *  초기 마운트 시 및 cloudId 변경 시 동시 요청
+     *  default 모드(중계서버)에서는 place 개념이 없으므로 요청 스킵
      */
     useEffect(() => {
+        if (cloudId === 'default') {
+            setPlaces([]);
+            setIsLoading(false);
+            return;
+        }
         setIsLoading(true);
         void requestFromLocalRef.current?.();
         requestFromNetworkRef.current?.();

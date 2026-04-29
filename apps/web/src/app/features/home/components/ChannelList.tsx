@@ -6,6 +6,7 @@ import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 import { useNavigateWithTransition } from '@chatic/shared';
 import type { ClientChannelView } from '@chatic/data';
 import { useChannels } from '@chatic/data';
+import { useAppPreferenceStore } from '@chatic/web-core';
 
 const ChannelSkeleton = () => (
     <div className="flex items-start gap-2 rounded-[6px] px-[2px] py-2">
@@ -20,6 +21,7 @@ const ChannelSkeleton = () => (
 const ChannelItem = ({ channel }: { channel: ClientChannelView }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
+    const blurLastMessage = useAppPreferenceStore(s => s.blurLastMessage);
     const unreadCount = channel.unreadCount ?? 0;
     const isSelf = channel.memberNo === 1;
 
@@ -67,7 +69,9 @@ const ChannelItem = ({ channel }: { channel: ClientChannelView }) => {
                             {channel.name || (isSelf ? t('channelList.selfChannel') : t('channelList.unnamedChannel'))}
                         </span>
                     </div>
-                    <p className="mt-1 truncate text-[13.5px] leading-[1.2] tracking-[-0.025em] text-muted-foreground">
+                    <p
+                        className={`mt-1 truncate text-[13.5px] leading-[1.2] tracking-[-0.025em] text-muted-foreground${blurLastMessage ? ' select-none blur-[5px]' : ''}`}
+                    >
                         {channel.lastChat$?.content || channel.desc || t('channelList.noDescription')}
                     </p>
                 </div>
@@ -105,7 +109,7 @@ export const ChannelList = ({
 }: ChannelListProps) => {
     const { t } = useTranslation();
     const placeId = workspaceId || '';
-    const { channels, isLoading, isSyncing, isError, refresh } = useChannels({ placeId, detail: true });
+    const { channels, isLoading, isSyncing, isError, errorMessage, refresh } = useChannels({ placeId, detail: true });
 
     if (!placeId) return null;
     const header = (
@@ -147,6 +151,11 @@ export const ChannelList = ({
             <div className="flex flex-col items-center gap-2 py-8">
                 {header}
                 <p className="text-sm text-destructive">{t('channelList.errorLoading')}</p>
+                {errorMessage && (
+                    <p className="max-w-[280px] break-words text-center text-xs text-muted-foreground">
+                        {errorMessage}
+                    </p>
+                )}
                 <button onClick={() => refresh()} className="text-sm text-primary underline">
                     {t('channelList.retry')}
                 </button>

@@ -145,6 +145,7 @@
         "loginPrompt": "Sign in",
         "loginDescription": "Sign in to safely manage your conversations.",
         "darkMode": "Dark Mode",
+        "messagePreview": "Message Preview",
         "languageSettings": "Language",
         "viewOnboarding": "View Onboarding Again",
         "logout": "Logout",
@@ -283,7 +284,9 @@
         "tabInvited": "Invited",
         "emptyInvited": "No invited clouds",
         "statusReservedDescription": "Setting up your cloud. This may take up to 10 minutes.",
-        "cloudReady": "Your cloud is ready!"
+        "cloudReady": "Your cloud is ready!",
+        "disconnectCloud": "Disconnect Cloud",
+        "disconnectCloudDesc": "Disconnect from cloud"
     },
     "placeList": {
         "defaultPlace": "Default",
@@ -796,5 +799,16 @@
         "limitExceeded": "You can add up to 1 account",
         "subscriptionRequired": "You can only add an account on your subscribed platform",
         "cloudUserRequired": "Only cloud users can add an account"
+    },
+    "reportIssue": {
+        "title": "Report Issue",
+        "description": "Having a problem? Describe it and we'll look into it.",
+        "titleLabel": "Title",
+        "titlePlaceholder": "Enter the issue title",
+        "messageLabel": "Details",
+        "messagePlaceholder": "Describe what happened in detail",
+        "submit": "Submit",
+        "success": "Issue reported. Thank you!",
+        "failed": "Failed to report issue. Please try again."
     }
 }

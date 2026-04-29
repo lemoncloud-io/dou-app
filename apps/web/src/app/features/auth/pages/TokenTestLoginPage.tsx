@@ -12,6 +12,8 @@ import {
     OAUTH_ENDPOINT,
     WS_ENDPOINT,
     loginWithInviteCode,
+    reportError,
+    toError,
     webCore,
     useWebCoreStore,
 } from '@chatic/web-core';
@@ -93,6 +95,7 @@ export const TokenTestLoginPage = (): JSX.Element => {
                     }
                 } catch (error) {
                     console.error('[LoginPage] Invite login failed:', error);
+                    reportError(toError(error));
                     toast({ title: t('tokenLogin.inviteLoginFailed'), variant: 'destructive' });
                     setIsInviteLogin(false);
                 }

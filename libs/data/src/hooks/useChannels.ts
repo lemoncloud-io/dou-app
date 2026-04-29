@@ -26,6 +26,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isError, setIsError] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const currentParamsRef = useRef<ClientChatMinePayload>(initialParams);
     const isSyncingRef = useRef(false);
@@ -34,6 +35,10 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
     // 서버 chat:mine 응답으로 확인된 채널 ID 목록. null은 아직 서버 응답 없음(로딩 중)을 의미.
     const confirmedChannelIdsRef = useRef<Set<string> | null>(null);
+
+    // chat:mine 응답 없을 시 재시도
+    const retryCountRef = useRef(0);
+    const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // cloudId가 유효한지 확인 (빈 문자열이면 무효 — stale 캐시 접근 방지)
     // 'default'는 중계서버(relay WSS) 케이스에서 정상 사용됨
@@ -156,20 +161,36 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
             isSyncingRef.current = true;
             setIsSyncing(true);
 
-            // 'default' placeId는 서버에 전달하지 않음 — 서버가 전체 채널 반환
+            // placeId는 서버에 전달하지 않음 — refreshToken 후 서버가 place 컨텍스트를 이미 알고 있음
             const { placeId: _pid, ...restParams } = activeParams;
-            const networkPayload = placeId === 'default' ? restParams : activeParams;
 
             emitAuthenticated({
                 type: 'chat',
                 action: 'mine',
-                payload: networkPayload,
+                payload: restParams,
             });
 
-            setTimeout(() => {
+            // 이전 타이머 정리
+            if (retryTimerRef.current) {
+                clearTimeout(retryTimerRef.current);
+            }
+
+            // 1초 후 응답 없으면 재시도 (최대 10회)
+            retryTimerRef.current = setTimeout(() => {
                 isSyncingRef.current = false;
                 setIsSyncing(false);
-            }, 5000);
+
+                if (confirmedChannelIdsRef.current === null && retryCountRef.current < 10) {
+                    retryCountRef.current += 1;
+                    console.warn(`[useChannels] chat:mine no response, retry ${retryCountRef.current}/10`);
+                    requestFromNetworkRef.current();
+                } else if (confirmedChannelIdsRef.current === null) {
+                    console.error('[useChannels] chat:mine failed after 10 retries');
+                    setIsLoading(false);
+                    setIsError(true);
+                    setErrorMessage('chat:mine timeout');
+                }
+            }, 1000);
         },
         [emitAuthenticated, isValidCloudId, cloudId]
     );
@@ -180,17 +201,41 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     const requestFromNetworkRef = useRef(requestFromNetwork);
     requestFromNetworkRef.current = requestFromNetwork;
 
-    // 초기 마운트 및 placeId/cloudId 변경 시 서버에서 채널 목록 요청
-    // cloudId dep: cloud 전환 시 store의 cloudId가 비동기로 갱신되므로,
-    // 안정화된 cloudId로 재요청하여 isMatchingCloud 불일치 방지
+    // cloudId 변경 시 상태 리셋만 수행 (chat:mine 요청은 보내지 않음)
+    // cloud 전환 시 place가 아직 선택되지 않은 상태에서 chat:mine이 나가는 것을 방지
     useEffect(() => {
         currentParamsRef.current = initialParams;
         isSyncingRef.current = false;
-        confirmedChannelIdsRef.current = null; // 서버 응답 전까지 로딩 상태 유지
-        setChannels([]); // 즉시 이전 채널 제거 → 스켈레톤 표시
+        confirmedChannelIdsRef.current = null;
+        retryCountRef.current = 0;
+        if (retryTimerRef.current) {
+            clearTimeout(retryTimerRef.current);
+            retryTimerRef.current = null;
+        }
+        setChannels([]);
         setIsLoading(true);
+        setIsError(false);
+        setErrorMessage(null);
+    }, [cloudId]);
+
+    // targetPlaceId 변경 시 서버에 채널 목록 요청
+    // place가 제대로 선택된 후(refreshToken 완료 후)에만 chat:mine 발행
+    useEffect(() => {
+        if (!targetPlaceId) return;
+        currentParamsRef.current = initialParams;
+        isSyncingRef.current = false;
+        confirmedChannelIdsRef.current = null;
+        retryCountRef.current = 0;
+        if (retryTimerRef.current) {
+            clearTimeout(retryTimerRef.current);
+            retryTimerRef.current = null;
+        }
+        setChannels([]);
+        setIsLoading(true);
+        setIsError(false);
+        setErrorMessage(null);
         requestFromNetworkRef.current({ ...initialParams, limit: 100 });
-    }, [targetPlaceId, cloudId]);
+    }, [targetPlaceId]);
 
     useEffect(() => {
         // cloudId나 Repository가 준비되지 않았다면 리스너를 등록하지 않음
@@ -206,6 +251,21 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                 // confirmed channel IDs 갱신
                 if (detail.domain === 'channel') {
                     if (detail.action === 'mine') {
+                        // stale 응답 무시: 응답의 placeId가 현재 요청 중인 placeId와 다르면 스킵
+                        const responsePlaceId = detail.targetId;
+                        const expectedPlaceId = currentParamsRef.current.placeId;
+                        if (responsePlaceId && expectedPlaceId && responsePlaceId !== expectedPlaceId) {
+                            return;
+                        }
+
+                        // 응답 수신 — 에러/재시도 상태 리셋
+                        retryCountRef.current = 0;
+                        if (retryTimerRef.current) {
+                            clearTimeout(retryTimerRef.current);
+                            retryTimerRef.current = null;
+                        }
+                        setIsError(false);
+                        setErrorMessage(null);
                         // 서버 chat:mine 응답 → confirmed set 전체 교체
                         const list = detail.payload?.list || [];
                         confirmedChannelIdsRef.current = new Set(list.map((ch: any) => ch.id));
@@ -240,6 +300,32 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                         setIsSyncing(false);
                         // mine은 fast path에서 완전 처리 — requestFromLocal()이 sid 불일치로 덮어쓰는 것 방지
                         return;
+                    } else if (detail.action === 'error') {
+                        // chat 에러 응답 — 에러 상태 표시 + 1초 후 재시도
+                        const errMsg = detail.payload?.error || 'Unknown error';
+                        console.warn(`[useChannels] chat error: ${errMsg}`);
+                        setErrorMessage(errMsg);
+                        setIsError(true);
+                        isSyncingRef.current = false;
+                        setIsSyncing(false);
+
+                        if (retryTimerRef.current) {
+                            clearTimeout(retryTimerRef.current);
+                            retryTimerRef.current = null;
+                        }
+
+                        if (retryCountRef.current < 10) {
+                            retryCountRef.current += 1;
+                            console.warn(`[useChannels] retrying after error, attempt ${retryCountRef.current}/10`);
+                            retryTimerRef.current = setTimeout(() => {
+                                isSyncingRef.current = false;
+                                requestFromNetworkRef.current({ ...currentParamsRef.current, limit: 100 });
+                            }, 1000);
+                        } else {
+                            console.error('[useChannels] chat:mine failed after 10 error retries');
+                            setIsLoading(false);
+                        }
+                        return;
                     } else if (detail.action === 'start' && detail.targetId) {
                         // 새 채널 생성 → confirmed set에 추가
                         confirmedChannelIdsRef.current?.add(detail.targetId);
@@ -262,10 +348,20 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         return () => window.removeEventListener(APP_SYNC_EVENT_NAME, handleUpdate);
     }, [isValidCloudId, joinRepository.cloudId]);
 
+    // 언마운트 시 재시도 타이머 정리
+    useEffect(() => {
+        return () => {
+            if (retryTimerRef.current) {
+                clearTimeout(retryTimerRef.current);
+            }
+        };
+    }, []);
+
     // 포그라운드 복귀 + WebSocket 재연결 완료 시 데이터 재동기화
     // Recovery 시 isSyncingRef를 리셋하여 이전 실패/대기 중인 요청이 retry를 차단하지 않도록 함
     const requestFromNetworkForRecovery = useCallback(() => {
         isSyncingRef.current = false;
+        retryCountRef.current = 0;
         requestFromNetwork();
     }, [requestFromNetwork]);
     useConnectionRecoverySync(requestFromNetworkForRecovery, requestFromNetworkForRecovery);
@@ -275,8 +371,12 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         isLoading,
         isSyncing,
         isError,
+        errorMessage,
         refresh: (options?: ClientChatMinePayload) => {
+            setIsError(false);
+            setErrorMessage(null);
             isSyncingRef.current = false;
+            retryCountRef.current = 0;
             requestFromNetwork(options);
         },
         sync: (options?: ClientChatMinePayload) => requestFromNetwork(options),

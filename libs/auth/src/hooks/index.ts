@@ -13,14 +13,14 @@ import {
     verifyAlias,
 } from '../apis';
 
-import type {
-    CloudDelegationTokenView,
-    LoginUserBody,
-    RegisterUserV2Body,
-    UserBody,
-    UserProfile$,
-    UserTokenView,
-    UserView,
+import {
+    type CloudDelegationTokenView,
+    type LoginUserBody,
+    type RegisterUserV2Body,
+    type UserBody,
+    type UserProfile$,
+    type UserTokenView,
+    type UserView,
 } from '@lemoncloud/chatic-backend-api';
 import type { AxiosError } from 'axios';
 

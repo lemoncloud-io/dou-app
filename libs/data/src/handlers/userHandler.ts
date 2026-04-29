@@ -1,6 +1,7 @@
 import type { CacheSiteView } from '@chatic/app-messages';
 import type { MySiteView, UserView } from '@lemoncloud/chatic-backend-api';
 import type { WSSEnvelope, WSSUserActionType } from '@lemoncloud/chatic-sockets-api';
+import { reportError } from '@chatic/web-core';
 import { notifyAppUpdated } from '../sync-events';
 
 /**
@@ -79,6 +80,7 @@ export const userHandler = async (envelope: WSSEnvelope, cloudId: string, userRe
          */
         case 'error': {
             console.error(`[User Handler] Server responded with error:`, payload?.error);
+            reportError(new Error(`[WS:user] ${(payload as any)?.error ?? 'Unknown user error'}`));
             notifyAppUpdated({ domain: 'error', cid: cloudId, action, payload });
             break;
         }

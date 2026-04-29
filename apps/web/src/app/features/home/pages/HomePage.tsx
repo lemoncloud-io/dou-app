@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Bell, ChevronDown, Search, User } from 'lucide-react';
+import { ArrowLeftRight, Bell, ChevronDown, CircleAlert, Search, User } from 'lucide-react';
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +24,7 @@ import { LimitExceededDialog } from '../../../shared/components/LimitExceededDia
 import { SettingsDialog } from '../../../components/SettingsDialog';
 import { OnboardingModal } from '../../onboarding';
 import { SearchModal } from '../../search';
+import { ReportIssueDialog } from '../../../shared/components/ReportIssueDialog';
 import { ChannelList } from '../components/ChannelList';
 import { CloudSessionSheet } from '../components/CloudSessionSheet';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
@@ -67,6 +68,7 @@ export const HomePage = () => {
     const [isCloudSessionOpen, setIsCloudSessionOpen] = useState(false);
     const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isReportIssueOpen, setIsReportIssueOpen] = useState(false);
     const [limitDialogType, setLimitDialogType] = useState<'place' | 'channel' | null>(null);
 
     const handleLogout = () => {
@@ -135,7 +137,10 @@ export const HomePage = () => {
                         </DropdownMenuContent>
                     </DropdownMenu>
                 ) : (
-                    <button onClick={() => navigate('/mypage/edit')} className="flex items-center gap-[9px]">
+                    <button
+                        onClick={() => navigate(isDefaultCloud ? '/mypage/edit' : '/mypage/cloud-profile')}
+                        className="flex items-center gap-[9px]"
+                    >
                         <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                             {displayImageUrl ? (
                                 <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
@@ -159,6 +164,9 @@ export const HomePage = () => {
                     </button>
                     <button onClick={() => navigate('/notifications')} className="p-1">
                         <Bell size={22} className="text-foreground" />
+                    </button>
+                    <button onClick={() => setIsReportIssueOpen(true)} className="p-1">
+                        <CircleAlert size={22} className="text-foreground" />
                     </button>
                 </div>
             </header>
@@ -203,6 +211,7 @@ export const HomePage = () => {
             <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
             <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
             <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+            <ReportIssueDialog open={isReportIssueOpen} onOpenChange={setIsReportIssueOpen} />
             <LimitExceededDialog
                 open={limitDialogType !== null}
                 onOpenChange={open => !open && setLimitDialogType(null)}

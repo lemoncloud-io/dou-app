@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { useChannelMutations } from '@chatic/data';
+import { reportError, toError } from '@chatic/web-core';
 
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { ChatStartPayload } from '@lemoncloud/chatic-sockets-api';
@@ -18,6 +19,7 @@ export const useCreateChannel = () => {
             return newChannel;
         } catch (error) {
             setIsError(true);
+            reportError(toError(error));
             throw error;
         }
     };

@@ -3,13 +3,14 @@ import { useTranslation } from 'react-i18next';
 
 import { useQueryClient } from '@tanstack/react-query';
 
-import { AlertCircle, Check, Loader2, Plus, User, X } from 'lucide-react';
+import { AlertCircle, Check, Home, Loader2, Plus, User, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { useInterval } from '@chatic/shared';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, reportError, toError, useWebCoreStore } from '@chatic/web-core';
+import { useWebSocketV2Store } from '@chatic/socket';
 import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
 import { cloudsKeys } from '@chatic/users';
 
@@ -324,10 +325,19 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
             handleClose();
         } catch (e) {
             console.error('[CloudSessionSheet] selectCloud failed:', e);
+            reportError(toError(e));
             toast({ title: t('cloudSessionSheet.switchFailed'), variant: 'destructive' });
         }
     };
 
+    const handleSwitchToDefault = () => {
+        cloudCore.clearDelegationToken();
+        useWebSocketV2Store.getState().setIsVerified(false);
+        setSelectedId('default');
+        handleClose();
+    };
+
+    const isDefaultSelected = selectedId === 'default';
     const isLoading = isFetchingClouds && clouds.length === 0;
 
     return (
@@ -349,6 +359,18 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
 
                     {/* Profile */}
                     <ProfileSection />
+
+                    {/* Disconnect Cloud Link — 클라우드 연결 중일 때만 표시 */}
+                    {!isDefaultSelected && (
+                        <button
+                            onClick={handleSwitchToDefault}
+                            disabled={isPending}
+                            className="mx-auto mb-4 flex w-fit items-center gap-[6px] rounded-full border border-border bg-secondary px-4 py-[7px] text-[13px] font-medium text-foreground transition-colors active:bg-muted"
+                        >
+                            <Home size={14} />
+                            <span>{t('cloudSessionSheet.disconnectCloud')}</span>
+                        </button>
+                    )}
 
                     {/* Tabs */}
                     <TabBar tab={tab} onChange={setTab} inviteCount={inviteClouds.length} />
