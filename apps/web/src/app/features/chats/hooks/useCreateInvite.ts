@@ -64,6 +64,15 @@ export const useCreateInvite = () => {
             const selectedCloudId = cloudCore.getSelectedCloudId();
             const selectedCloud = cloudsData?.list?.find(c => c.id === selectedCloudId);
 
+            // 서버 응답의 $envs에 backend/wss가 비어있으면 cloudCore에서 보충
+            const serverEnvs = payload.$envs ?? {};
+            const fallbackEnvs = {
+                ...serverEnvs,
+                ...(!serverEnvs.backend && cloudCore.getBackend() ? { backend: cloudCore.getBackend()! } : {}),
+                ...(!serverEnvs.wss && cloudCore.getWss() ? { wss: cloudCore.getWss()! } : {}),
+            };
+            const hasEnvs = fallbackEnvs.backend || fallbackEnvs.wss;
+
             const invite: MyInviteView & { cloud?: { id?: string; name?: string } } = {
                 ...payload,
                 code,
@@ -74,6 +83,7 @@ export const useCreateInvite = () => {
                 ...(!payload.cloud && selectedCloud
                     ? { cloud: { id: selectedCloud.id, name: selectedCloud.name ?? undefined } }
                     : {}),
+                ...(hasEnvs ? { $envs: fallbackEnvs } : {}),
             };
 
             // Firebase 딥링크 서비스를 통한 딥링크 url 생성
