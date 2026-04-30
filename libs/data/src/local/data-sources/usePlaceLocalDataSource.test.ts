@@ -1,8 +1,8 @@
 import { renderHook } from '@testing-library/react';
 import { usePlaceLocalDataSource } from './usePlaceLocalDataSource';
-import { createStorageAdapter } from '../storages';
+import { createStorageAdapter } from '../../data/local/storages';
 
-jest.mock('../storages', () => ({
+jest.mock('../../data/local/storages', () => ({
     createStorageAdapter: jest.fn(),
 }));
 
