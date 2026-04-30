@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Animated, PanResponder, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
-import type { RootStackParamList } from '../../navigation';
+import type { RootStackParamList } from '../navigation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface FloatingMenuProps {

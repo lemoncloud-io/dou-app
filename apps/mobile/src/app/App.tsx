@@ -7,8 +7,8 @@ import { createNavigationContainerRef, NavigationContainer } from '@react-naviga
 
 import { FloatingMenu, useAppVersionCheck, useInitializeDeepLink, useThemeStore } from './common';
 import { getDeepLinkManager } from '@chatic/deeplinks';
-import type { RootStackParamList } from './navigation';
-import { RootNavigator } from './navigation';
+import type { RootStackParamList } from './features/core/navigation';
+import { RootNavigator } from './features/core/navigation';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 const SHOW_DEBUG_MENU = __DEV__ || Config.VITE_ENV !== 'PROD';
@@ -22,12 +22,11 @@ export const App = () => {
 
     // Initialize deep link listeners early (captures URLs immediately)
     useInitializeDeepLink();
-  
+
     // Signal that Firebase is ready for deep link processing immediately
     useEffect(() => {
         getDeepLinkManager().setAppReady();
     }, []);
-
 
     // Show update alert when update is available
     useEffect(() => {

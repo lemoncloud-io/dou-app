@@ -1,4 +1,4 @@
-export * from './components';
+export * from '../features/core/components';
 export * from './hooks';
 export * from './i18n';
 export * from './services';

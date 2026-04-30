@@ -14,7 +14,7 @@ import {
     StorageTestScreen,
 } from '../screens';
 
-import type { DebugStackParamList } from '../../../navigation';
+import type { DebugStackParamList } from '../../core/navigation';
 
 export type HomeScreenProps = NativeStackScreenProps<DebugStackParamList, 'Home'>;
 

@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { type RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { AppWebView } from '../../../common';
-import type { ModalScreenParams } from '../../../navigation';
+import type { ModalScreenParams } from '../../core/navigation';
 
 type ModalScreenRouteProp = RouteProp<{ params: ModalScreenParams }, 'params'>;
 
