@@ -1,10 +1,10 @@
 import Database from 'better-sqlite3';
 import { userDataSource } from './userDataSource';
-import { MIGRATIONS, TARGET_VERSION, TABLES } from '../core';
+import { MIGRATIONS, TARGET_VERSION, TABLES } from '../../../database';
 
 const mockDb = new Database(':memory:');
 
-jest.mock('../core/database', () => ({
+jest.mock('../../../database', () => ({
     database: {
         execute: jest.fn(async (query, params = []) => {
             const stmt = mockDb.prepare(query);

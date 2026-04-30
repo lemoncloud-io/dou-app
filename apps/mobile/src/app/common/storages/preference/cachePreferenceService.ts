@@ -1,4 +1,4 @@
-import { preferenceStore } from './mmkv';
+import { preferenceStore } from './preferenceStore';
 
 export const cachePreferenceService = {
     getPreference: (key: string) => preferenceStore.get(key as any),

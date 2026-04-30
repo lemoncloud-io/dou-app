@@ -1,6 +1,6 @@
 import { logger } from './log';
 import { AppIconBridge } from '../../bridge';
-import { mmkv } from '../storages/preference/mmkv/core';
+import { mmkv } from '../database';
 
 export const DEFAULT_APP_ICON_NAME = 'DefaultIcon';
 

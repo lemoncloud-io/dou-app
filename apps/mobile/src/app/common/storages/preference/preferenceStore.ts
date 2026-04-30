@@ -1,5 +1,5 @@
 import type { PreferenceKey } from '@chatic/app-messages';
-import { mmkv } from './core';
+import { mmkv } from '../../database';
 
 /**
  * 앱의 단순 설정 및 상태(Preferences)를 관리하는 저장소

@@ -1,6 +1,6 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { t } from '../i18n';
+import { t } from '../../../common/i18n';
 
 interface DeepLinkErrorViewProps {
     onGoHome: () => void;
@@ -10,7 +10,7 @@ interface DeepLinkErrorViewProps {
 export const DeepLinkErrorView = ({ onGoHome, reason }: DeepLinkErrorViewProps) => {
     return (
         <View style={styles.container}>
-            <Image source={require('../../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+            <Image source={require('../../../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
             <Text style={styles.title}>{t('deepLink.errorTitle')}</Text>
             <Text style={styles.message}>{t('deepLink.errorMessage')}</Text>
             {reason && <Text style={styles.reason}>{reason}</Text>}

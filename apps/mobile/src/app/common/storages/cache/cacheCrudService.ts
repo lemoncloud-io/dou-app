@@ -6,8 +6,8 @@ import {
     joinDataSource,
     siteDataSource,
     userDataSource,
-} from './sqlite';
-import { metaDataSource } from './sqlite/datasources/metaDataSource';
+    metaDataSource,
+} from './datasources';
 
 const generateMetaKey = (query: any): string => {
     if (!query) return 'default';

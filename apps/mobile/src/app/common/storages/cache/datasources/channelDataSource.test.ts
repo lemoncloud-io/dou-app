@@ -1,10 +1,10 @@
 import Database from 'better-sqlite3';
 import { channelDataSource } from './channelDataSource';
-import { MIGRATIONS, TARGET_VERSION } from '../core';
-import { TABLES } from '../core';
+import { MIGRATIONS, TARGET_VERSION } from '../../../database';
+import { TABLES } from '../../../database';
 
 const mockDb = new Database(':memory:');
-jest.mock('../core/database', () => ({
+jest.mock('../../../database', () => ({
     database: {
         execute: jest.fn(async (query: string, params: any[] = []) => {
             const stmt = mockDb.prepare(query);
@@ -122,7 +122,7 @@ describe('ChannelDataSource Test', () => {
         });
 
         it('removeAll에 빈 배열을 넘겼을 때 시스템에 영향이 없어야 한다', async () => {
-            const spy = jest.spyOn(require('../core/database').database, 'executeBatch');
+            const spy = jest.spyOn(require('../../../database/database').database, 'executeBatch');
 
             await channelDataSource.removeAll([], 'cloud1');
             expect(spy).not.toHaveBeenCalled();

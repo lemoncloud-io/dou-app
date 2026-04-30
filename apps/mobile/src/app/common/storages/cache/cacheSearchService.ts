@@ -1,4 +1,4 @@
-import { channelDataSource, chatDataSource, siteDataSource } from './sqlite';
+import { channelDataSource, chatDataSource, siteDataSource } from './datasources';
 import { logger } from '../../services';
 import type { CacheChannelView, CacheChatView, CacheSiteView } from '@chatic/app-messages';
 

@@ -1,4 +1,4 @@
-import { mmkv } from '../../storages/preference/mmkv/core';
+import { mmkv } from '../../database';
 
 /**
  * 로그 저장소 어댑터 인터페이스.

@@ -1,7 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import { DebugNavigator } from '../features/debug';
-import { MainNavigator } from '../features/main';
+import { DebugNavigator } from '../../debug';
+import { MainNavigator } from '../../main';
 
 import type { RootStackParamList } from './type';
 
