@@ -4,6 +4,7 @@ export * from './useFcmHandler';
 export * from './useAndroidBack';
 export * from './useCrudCacheHandler';
 export * from './useSearchCacheHandler';
+export * from './useAppIconHandler';
 export * from './useDeviceHandler';
 export * from './useSafeAreaHandler';
 export * from './usePermissionHandler';
