@@ -15,7 +15,7 @@ export const useDynamicProfile = (): UserProfile$ | null => {
     if (!isCloudProfile || !cloudToken) return profile;
 
     const { Token, ...cloudProfile } = cloudToken;
-    const cloudThumbnail = (cloudProfile as Record<string, unknown>).thumbnail as string | undefined;
+    const cloudThumbnail = (cloudProfile as Record<string, unknown>).photo as string | undefined;
     return {
         ...cloudProfile,
         uid: cloudProfile.uid ?? cloudProfile.id,
