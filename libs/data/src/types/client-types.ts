@@ -6,8 +6,14 @@ import type { ChannelView, ChatView } from '@lemoncloud/chatic-socials-api';
  */
 export interface ClientChatView extends ChatView {
     /**
+     * 읽은 사람 수
+     * (JoinView의 커서(chatNo)를 바탕으로 실시간 계산됨)
+     */
+    readCount?: number;
+
+    /**
      * 안 읽은 사람 수
-     * (JoinView의 커서(chatNo)를 바탕으로 chatRepository에서 실시간 계산됨)
+     * (JoinView의 커서(chatNo)를 바탕으로 실시간 계산됨)
      */
     unreadCount?: number;
 

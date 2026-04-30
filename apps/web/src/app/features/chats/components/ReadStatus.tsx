@@ -1,19 +1,19 @@
 import { useTranslation } from 'react-i18next';
 
 interface ReadStatusProps {
-    memberNo: number;
+    readCount: number;
     unreadCount: number;
 }
 
-export const ReadStatus = ({ memberNo, unreadCount }: ReadStatusProps) => {
+export const ReadStatus = ({ readCount, unreadCount }: ReadStatusProps) => {
     const { t } = useTranslation();
 
-    const readCount = Math.max(0, memberNo - unreadCount);
+    const totalMembers = readCount + unreadCount;
 
-    if (memberNo <= 1) return null;
+    if (totalMembers <= 1) return null;
 
     // 1:1 채팅
-    if (memberNo <= 2) {
+    if (totalMembers <= 2) {
         return (
             <span className="font-medium text-foreground">
                 {unreadCount === 0 ? t('chat.room.read') : t('chat.room.unread')}

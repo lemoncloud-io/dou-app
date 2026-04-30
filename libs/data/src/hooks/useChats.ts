@@ -103,16 +103,18 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                     })
                     .map((msg): ClientChatView => {
                         let unreadCount = 0;
+                        let readCount = 0;
                         if (msg.chatNo !== undefined) {
-                            let readCount = activeJoins.filter(join => (join.chatNo || 0) >= msg.chatNo!).length;
+                            readCount = activeJoins.filter(join => (join.chatNo || 0) >= msg.chatNo!).length;
                             // 내 메시지는 본인이 최소 1명으로 읽은 것으로 보장
                             if (msg.ownerId === userId && readCount === 0) readCount = 1;
                             unreadCount = Math.max(0, totalActiveMembers - readCount);
                         } else {
+                            readCount = 1;
                             unreadCount = Math.max(0, totalActiveMembers - 1);
                         }
 
-                        const mapped = ChatMapper.toClient(msg, unreadCount, userId);
+                        const mapped = ChatMapper.toClient(msg, unreadCount, readCount, userId);
                         // owner$가 없는 경우 user repository에서 조회한 이름으로 보강
                         if (mapped.ownerName === '...' && msg.ownerId) {
                             const resolvedName = userNameMap.get(msg.ownerId);
