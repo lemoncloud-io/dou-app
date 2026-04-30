@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { createStorageAdapter } from '../storages';
+import { createStorageAdapter } from '../../data/local/storages';
 import type { CacheSiteView } from '@chatic/app-messages';
 
 /**
