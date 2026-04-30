@@ -11,32 +11,35 @@ export interface IWebSocketClient {
     send<T>(domain: WSSEventDomainType, action: WSSActionType, payload: T, ref?: string): void;
 }
 
+/** 지원하는 HTTP Method 명세 */
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
+
 /**
- * DataSource 계층에서 사용할 순수 HTTP 통신 인터페이스
+ * API 요청 시 필요한 모든 설정을 담는 객체
+ */
+export interface HttpRequestConfig {
+    method: HttpMethod;
+    path: string;
+    params?: Record<string, any>;
+    body?: any;
+    headers?: Record<string, string>;
+    timeout?: number;
+}
+
+/**
+ * DataSource 계층에서 사용할 단일화된 HTTP 통신 인터페이스
  */
 export interface IHttpClient {
     /**
-     * GET
-     * @param path API 경로
-     * @param params 쿼리 파라미터
+     * 단일 send 메서드를 통해 모든 HTTP 요청을 처리합니다.
+     *
+     * @example
+     * const data = await httpClient.send<MyResponseType>({
+     *     method: 'POST',
+     *     path: '/v1/users',
+     *     body: { name: 'John' },
+     *     headers: { 'X-Custom-Header': 'value' }
+     * });
      */
-    get<T>(path: string, params?: Record<string, any>): Promise<T>;
-
-    /**
-     * POST
-     * @param path API 경로
-     * @param body 요청 본문
-     * @param params 쿼리 파라미터
-     */
-    post<T>(path: string, body?: Record<string, any>, params?: Record<string, any>): Promise<T>;
-
-    /**
-     * PUT 요청을 수행합니다.
-     */
-    put<T>(path: string, body?: Record<string, any>, params?: Record<string, any>): Promise<T>;
-
-    /**
-     * DELETE 요청을 수행합니다.
-     */
-    delete<T>(path: string, params?: Record<string, any>): Promise<T>;
+    send<T>(config: HttpRequestConfig): Promise<T>;
 }
