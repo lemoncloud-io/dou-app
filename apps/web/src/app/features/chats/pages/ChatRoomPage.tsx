@@ -60,8 +60,9 @@ export const ChatRoomPage = () => {
     const { isIOS } = useAppChecker();
 
     // 데이터 패칭 Hooks
-    useChannelMembers({ channelId: channelId || '', detail: true }); // 멤버 정보 패칭
+    const { total: membersTotal } = useChannelMembers({ channelId: channelId || '', detail: true }); // 멤버 정보 패칭
     const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(channelId || null); // 현재 채널 정보 패칭
+    const memberCount = membersTotal || channel?.memberCount || 0;
     const {
         messages,
         isLoading: isChatLoading,
@@ -327,8 +328,8 @@ export const ChatRoomPage = () => {
                 </button>
                 <h1 className="text-[17px] font-semibold text-foreground">
                     {channel?.isSelfChat ? t('channelList.selfChannel') : channel?.name || t('chat.room.title')}
-                    {!channel?.isSelfChat && channel?.memberNo && (
-                        <span className="ml-1.5 text-sm font-normal text-muted-foreground">{channel.memberNo}</span>
+                    {!channel?.isSelfChat && memberCount > 0 && (
+                        <span className="ml-1.5 text-sm font-normal text-muted-foreground">{memberCount}</span>
                     )}
                 </h1>
                 {!channel?.isSelfChat && (
@@ -523,8 +524,8 @@ export const ChatRoomPage = () => {
                                                                 </span>
                                                                 {message.chatNo !== undefined && (
                                                                     <ReadStatus
+                                                                        readCount={message.readCount ?? 0}
                                                                         unreadCount={message.unreadCount ?? 0}
-                                                                        memberNo={channel?.memberNo ?? 0}
                                                                     />
                                                                 )}
                                                             </>
