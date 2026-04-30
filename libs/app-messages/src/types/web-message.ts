@@ -9,6 +9,7 @@ import type {
     ScrollDataPayload,
     SetCanGoBackPayload,
     OpenURLPayload,
+    ChangeAppIconPayload,
 
     // 3. IAP
     PurchasePayload,
@@ -54,6 +55,9 @@ export const WebMessageTypes = {
     FetchBackgroundStatus: 'FetchBackgroundStatus',
     RequestPermission: 'RequestPermission',
     OpenURL: 'OpenURL',
+    FetchAppIcon: 'FetchAppIcon',
+    FetchAppIconList: 'FetchAppIconList',
+    ChangeAppIcon: 'ChangeAppIcon',
 
     // 2. Notification
     FetchFcmToken: 'FetchFcmToken',
@@ -115,6 +119,9 @@ export interface WebMessageMap {
     FetchBackgroundStatus: WebDefaultMessage<'FetchBackgroundStatus'>;
     RequestPermission: RequestPermission;
     OpenURL: OpenURL;
+    FetchAppIcon: FetchAppIcon;
+    FetchAppIconList: WebDefaultMessage<'FetchAppIconList'>;
+    ChangeAppIcon: ChangeAppIcon;
 
     // 2. Notification
     FetchFcmToken: WebDefaultMessage<'FetchFcmToken'>;
@@ -205,6 +212,14 @@ export interface RequestPermission extends WebDefaultMessage<'RequestPermission'
 /** 외부 URL 열기 (Native에서 Linking.openURL 처리) */
 export interface OpenURL extends WebDefaultMessage<'OpenURL'> {
     data: OpenURLPayload;
+}
+
+/** 현재 앱 아이콘 정보 조회 */
+export interface FetchAppIcon extends WebDefaultMessage<'FetchAppIcon'> {}
+
+/** 앱 아이콘 변경 */
+export interface ChangeAppIcon extends WebDefaultMessage<'ChangeAppIcon'> {
+    data: ChangeAppIconPayload;
 }
 
 // ----------------------------------------------------------------------

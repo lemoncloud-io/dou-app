@@ -35,6 +35,9 @@ This library was generated with [Nx](https://nx.dev).
 | `FetchBackgroundStatus` | -                                                          | 앱의 현재 포그라운드/백그라운드 상태를 요청합니다.     | `OnBackgroundStatusChanged` |
 | `RequestPermission`     | `{ permission: 'CAMERA' }`                                 | 특정 네이티브 시스템 권한을 요청합니다.                | `OnRequestPermission`       |
 | `OpenURL`               | `{ url: 'https://...' }`                                   | 기기 기본 브라우저나 외부 앱으로 URL을 엽니다.         | -                           |
+| `FetchAppIcon`          | -                                                          | 현재 적용된 앱 아이콘 key를 요청합니다.                | `OnFetchAppIcon`            |
+| `FetchAppIconList`      | -                                                          | 앱에서 선택 가능한 아이콘 목록을 요청합니다.           | `OnFetchAppIconList`        |
+| `ChangeAppIcon`         | `{ iconName: 'WhiteIcon' }`                                | 앱 아이콘 변경을 요청합니다. 기본 아이콘은 `null`.     | `OnChangeAppIcon`           |
 
 ### Notification
 
@@ -93,19 +96,22 @@ This library was generated with [Nx](https://nx.dev).
 
 ### Device & System
 
-| Message Type                | Description                                  | Data Structure (Example)                                |
-| :-------------------------- | :------------------------------------------- | :------------------------------------------------------ |
-| `OnUpdateDeviceInfo`        | 기기 정보 및 버전 정보 전달                  | `{ device: {...}, version: {...} }`                     |
-| `OnFetchSafeArea`           | Safe Area(노치 등) 갱신 시 전달              | `{ safeArea: { top: 47, bottom: 34, ... } }`            |
-| `OnBackgroundStatusChanged` | 앱이 백그라운드/포그라운드로 진입할 때 전달  | `{ status: 'background', isForeground: false, ... }`    |
-| `OnCloseModal`              | 모달/바텀시트가 닫혔을 때 전달               | -                                                       |
-| `OnOpenShareSheet`          | 공유 시트 액션이 완료/취소되었을 때 전달     | `{ action: 'sharedAction' }`                            |
-| `OnBackPressed`             | 네이티브 물리적 뒤로가기 제스처 발생 시 전달 | -                                                       |
-| `OnOpenDocument`            | 파일 선택기에서 선택된 문서 목록 전달        | `{ documents: [{ uri: '...', name: 'file.pdf' }] }`     |
-| `OnGetContacts`             | 권한 획득 후 주소록 연락처 목록 전달         | `{ contacts: [{ recordID: '1', displayName: '...' }] }` |
-| `OnOpenCamera`              | 카메라로 촬영된 미디어 에셋 전달             | `{ assets: [{ uri: '...', width: 100, ... }] }`         |
-| `OnOpenPhotoLibrary`        | 갤러리에서 선택된 미디어 에셋 전달           | `{ assets: [{ uri: '...', width: 100, ... }] }`         |
-| `OnRequestPermission`       | 시스템 권한 요청 허용/거부 결과 전달         | `{ permission: 'CAMERA', status: 'GRANTED' }`           |
+| Message Type                | Description                                  | Data Structure (Example)                                                                                                  |
+| :-------------------------- | :------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------ |
+| `OnUpdateDeviceInfo`        | 기기 정보 및 버전 정보 전달                  | `{ device: {...}, version: {...} }`                                                                                       |
+| `OnFetchSafeArea`           | Safe Area(노치 등) 갱신 시 전달              | `{ safeArea: { top: 47, bottom: 34, ... } }`                                                                              |
+| `OnBackgroundStatusChanged` | 앱이 백그라운드/포그라운드로 진입할 때 전달  | `{ status: 'background', isForeground: false, ... }`                                                                      |
+| `OnCloseModal`              | 모달/바텀시트가 닫혔을 때 전달               | -                                                                                                                         |
+| `OnOpenShareSheet`          | 공유 시트 액션이 완료/취소되었을 때 전달     | `{ action: 'sharedAction' }`                                                                                              |
+| `OnBackPressed`             | 네이티브 물리적 뒤로가기 제스처 발생 시 전달 | -                                                                                                                         |
+| `OnOpenDocument`            | 파일 선택기에서 선택된 문서 목록 전달        | `{ documents: [{ uri: '...', name: 'file.pdf' }] }`                                                                       |
+| `OnGetContacts`             | 권한 획득 후 주소록 연락처 목록 전달         | `{ contacts: [{ recordID: '1', displayName: '...' }] }`                                                                   |
+| `OnOpenCamera`              | 카메라로 촬영된 미디어 에셋 전달             | `{ assets: [{ uri: '...', width: 100, ... }] }`                                                                           |
+| `OnOpenPhotoLibrary`        | 갤러리에서 선택된 미디어 에셋 전달           | `{ assets: [{ uri: '...', width: 100, ... }] }`                                                                           |
+| `OnRequestPermission`       | 시스템 권한 요청 허용/거부 결과 전달         | `{ permission: 'CAMERA', status: 'GRANTED' }`                                                                             |
+| `OnFetchAppIcon`            | 현재 적용된 앱 아이콘 key 반환               | `{ iconName: 'WhiteIcon', supported: true }`                                                                              |
+| `OnFetchAppIconList`        | 변경 가능한 앱 아이콘 목록 반환              | `{ availableIcons: [{ id: null, label: '기본 아이콘 (Default)' }, { id: 'WhiteIcon', label: '화이트 에디션 (White)' }] }` |
+| `OnChangeAppIcon`           | 앱 아이콘 변경 성공 여부 반환                | `{ success: true, requestedIconName: 'WhiteIcon', iconName: 'WhiteIcon', supported: true }`                               |
 
 ### Notification
 
