@@ -155,6 +155,14 @@ export type PermissionStatus = 'GRANTED' | 'DENIED' | 'BLOCKED' | 'UNAVAILABLE';
  */
 export type AppBackgroundStatus = 'active' | 'background' | 'inactive';
 
+/**
+ * 앱 아이콘 선택지 정보 (Native -> Web)
+ */
+export interface AppIconOption {
+    id: string | null;
+    label: string;
+}
+
 /** [요청] OS 기본 공유 시트 열기 */
 export interface OpenShareSheetPayload {
     /** 공유할 콘텐츠의 제목 */
@@ -252,6 +260,15 @@ export interface OpenModalPayload {
     dragHandle?: boolean;
 }
 
+/** [요청] 앱 아이콘 변경 */
+export interface ChangeAppIconPayload {
+    /**
+     * 변경할 alternate app icon key.
+     * null, undefined, 'default'는 기본 앱 아이콘으로 복원합니다.
+     */
+    iconName?: string | null;
+}
+
 /**
  * ----------------------------------------------------------------------
  * 3. 통신 페이로드 (App -> Web 응답)
@@ -297,4 +314,34 @@ export interface OnBackgroundStatusChangedPayload {
     isBackground: boolean;
     /** 앱이 현재 사용자와 포그라운드에서 상호작용 중인지 여부 */
     isForeground: boolean;
+}
+
+/** [응답] 현재 앱 아이콘 상태 */
+export interface OnFetchAppIconPayload {
+    /** 현재 적용된 앱 아이콘 key. 기본 아이콘이면 'default' */
+    iconName: string;
+    /** 현재 플랫폼에서 동적 앱 아이콘 변경을 지원하는지 여부 */
+    supported: boolean;
+    /** 조회 실패 사유 */
+    error?: string;
+}
+
+/** [응답] 사용 가능한 앱 아이콘 목록 */
+export interface OnFetchAppIconListPayload {
+    /** 사용 가능한 전체 아이콘 목록 */
+    availableIcons: AppIconOption[];
+}
+
+/** [응답] 앱 아이콘 변경 결과 */
+export interface OnChangeAppIconPayload {
+    /** 변경 성공 여부 */
+    success: boolean;
+    /** 요청한 앱 아이콘 key. 기본 아이콘 요청이면 null */
+    requestedIconName?: string | null;
+    /** 변경 후 최종 적용된 앱 아이콘 key */
+    iconName?: string;
+    /** 현재 플랫폼에서 동적 앱 아이콘 변경을 지원하는지 여부 */
+    supported?: boolean;
+    /** 변경 실패 사유 */
+    error?: string;
 }

@@ -101,5 +101,42 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+    <key>CFBundleIcons</key>
+    <dict>
+      <key>CFBundleAlternateIcons</key>
+      <dict>
+        <key>WhiteIcon</key>
+        <dict>
+          <key>CFBundleIconFiles</key>
+          <array>
+            <string>WhiteIcon</string>
+          </array>
+          <key>UIPrerenderedIcon</key>
+          <false/>
+        </dict>
+      </dict>
+      <key>CFBundlePrimaryIcon</key>
+      <dict>
+        <key>CFBundleIconFiles</key>
+        <array>
+          <string>DefaultIcon</string>
+        </array>
+        <key>CFBundleIconName</key>
+        <string>DefaultIcon</string>
+        <key>UIPrerenderedIcon</key>
+        <false/>
+      </dict>
+      <key>UINewsstandIcon</key>
+      <dict>
+        <key>CFBundleIconFiles</key>
+        <array>
+          <string>DefaultIcon</string>
+        </array>
+        <key>UINewsstandBindingEdge</key>
+        <string>UINewsstandBindingEdgeLeft</string>
+        <key>UINewsstandBindingType</key>
+        <string>UINewsstandBindingTypeMagazine</string>
+      </dict>
+    </dict>
 </dict>
 </plist>

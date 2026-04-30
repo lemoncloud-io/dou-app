@@ -6,6 +6,7 @@ import {
     DebugHomeScreen,
     DeeplinkTestScreen,
     DeviceTestScreen,
+    AppIconTestScreen,
     NotificationTestScreen,
     IapTestScreen,
     SocketTestScreen,
@@ -75,6 +76,14 @@ export const DebugNavigator = () => {
                 component={DeviceTestScreen}
                 options={{
                     title: '디바이스 기능 테스트',
+                    headerBackButtonDisplayMode: 'minimal',
+                }}
+            />
+            <DebugStack.Screen
+                name="AppIconTest"
+                component={AppIconTestScreen}
+                options={{
+                    title: '앱 아이콘 테스트',
                     headerBackButtonDisplayMode: 'minimal',
                 }}
             />

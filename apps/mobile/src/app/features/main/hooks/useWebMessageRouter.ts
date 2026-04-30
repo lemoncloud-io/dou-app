@@ -3,6 +3,7 @@ import type { WebViewBridge } from '../../../common';
 import { logger, useLanguageStore, useThemeStore } from '../../../common';
 import {
     useCrudCacheHandler,
+    useAppIconHandler,
     useDeviceHandler,
     useFcmHandler,
     useOAuthHandler,
@@ -87,6 +88,7 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
 
     const { handleRequestPermission } = usePermissionHandler(bridge);
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler(bridge);
+    const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler(bridge);
 
     const { handleOpenModal, handleCloseModal } = useModalHandler(bridge, navigation);
 
@@ -220,6 +222,15 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
                     case 'OpenURL':
                         void handleOpenURL(message);
                         break;
+                    case 'FetchAppIcon':
+                        void handleFetchAppIcon(message);
+                        break;
+                    case 'FetchAppIconList':
+                        void handleFetchAppIconList(message);
+                        break;
+                    case 'ChangeAppIcon':
+                        void handleChangeAppIcon(message);
+                        break;
                     default:
                         if ((message as any).type === '__console__') {
                             const m = message as any;
@@ -276,6 +287,9 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
         handleOAuthLogin,
         handleOAuthLogout,
         handleOpenURL,
+        handleFetchAppIcon,
+        handleFetchAppIconList,
+        handleChangeAppIcon,
     ]);
 
     return { handleMessage, isIapLoading };

@@ -13,6 +13,9 @@ import type {
     OnOpenCameraPayload,
     OnOpenPhotoLibraryPayload,
     OnRequestPermissionPayload,
+    OnChangeAppIconPayload,
+    OnFetchAppIconPayload,
+    OnFetchAppIconListPayload,
     OnFetchFcmTokenPayload,
     OnNotificationPayload,
     OnFetchProductsPayload,
@@ -56,6 +59,9 @@ export const AppMessageTypes = {
     OnOpenCamera: 'OnOpenCamera',
     OnOpenPhotoLibrary: 'OnOpenPhotoLibrary',
     OnRequestPermission: 'OnRequestPermission',
+    OnFetchAppIcon: 'OnFetchAppIcon',
+    OnFetchAppIconList: 'OnFetchAppIconList',
+    OnChangeAppIcon: 'OnChangeAppIcon',
 
     // 2. Notification
     OnFetchFcmToken: 'OnFetchFcmToken',
@@ -114,6 +120,9 @@ export interface AppMessageMap {
     OnOpenCamera: OnOpenCamera;
     OnOpenPhotoLibrary: OnOpenPhotoLibrary;
     OnRequestPermission: OnRequestPermission;
+    OnFetchAppIcon: OnFetchAppIcon;
+    OnFetchAppIconList: OnFetchAppIconList;
+    OnChangeAppIcon: OnChangeAppIcon;
 
     // 2. Notification
     OnFetchFcmToken: OnFetchFcmToken;
@@ -204,6 +213,18 @@ export interface OnOpenPhotoLibrary extends AppDefaultMessage<'OnOpenPhotoLibrar
 /** OS 권한 요청 결과 반환 */
 export interface OnRequestPermission extends AppDefaultMessage<'OnRequestPermission'> {
     data: OnRequestPermissionPayload;
+}
+/** 현재 앱 아이콘 정보 반환 */
+export interface OnFetchAppIcon extends AppDefaultMessage<'OnFetchAppIcon'> {
+    data: OnFetchAppIconPayload;
+}
+/** 사용 가능한 앱 아이콘 목록 반환 */
+export interface OnFetchAppIconList extends AppDefaultMessage<'OnFetchAppIconList'> {
+    data: OnFetchAppIconListPayload;
+}
+/** 앱 아이콘 변경 결과 반환 */
+export interface OnChangeAppIcon extends AppDefaultMessage<'OnChangeAppIcon'> {
+    data: OnChangeAppIconPayload;
 }
 
 // ======================================================================
