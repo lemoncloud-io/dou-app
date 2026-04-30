@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Check, Home, RefreshCw, Users } from 'lucide-react';
 
-import { getSocketSend, useWebSocketV2Store } from '@chatic/socket';
+import { useWebSocketV2Store } from '@chatic/socket';
 import { cn } from '@chatic/lib/utils';
 import { cloudCore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
 import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
@@ -15,6 +15,35 @@ import { usePlaces } from '@chatic/data';
 let placeAuthDone = false;
 
 const DEFAULT_PLACE: MySiteView = { id: 'default', name: 'defaultPlace', stereo: 'work' } as MySiteView;
+
+/**
+ * isVerified가 true로 전환될 때까지 대기하는 Promise
+ * auth:update 응답을 기다리는 데 사용
+ */
+const waitForVerified = (timeoutMs = 5000): Promise<boolean> => {
+    return new Promise(resolve => {
+        if (useWebSocketV2Store.getState().isVerified) {
+            resolve(true);
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            unsub();
+            resolve(false);
+        }, timeoutMs);
+
+        const unsub = useWebSocketV2Store.subscribe(
+            s => s.isVerified,
+            verified => {
+                if (verified) {
+                    clearTimeout(timer);
+                    unsub();
+                    resolve(true);
+                }
+            }
+        );
+    });
+};
 
 interface PlaceItemProps {
     place: MySiteView;
@@ -136,11 +165,11 @@ export const PlaceList = ({
             const { Token: _token, ...cloudProfile } = refreshed;
             useWebCoreStore.getState().setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
 
+            // useCloudTokenRefresh가 isVerified=false를 감지하여 auth:update 발송
             useWebSocketV2Store.getState().setIsVerified(false);
-            const newToken = cloudCore.getIdentityToken();
-            if (newToken) {
-                getSocketSend()?.({ type: 'auth', action: 'update', payload: { token: newToken } });
-            }
+
+            // auth:update 응답 대기 — isVerified가 true가 될 때까지
+            await waitForVerified(5000);
 
             placeAuthDone = true;
             setSelectedId(placeId);
