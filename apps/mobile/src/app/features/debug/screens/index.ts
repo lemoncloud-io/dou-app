@@ -4,6 +4,7 @@ export * from './IapTestScreen';
 export * from './NotificationTestScreen';
 export * from './DeeplinkTestScreen';
 export * from './DeviceTestScreen';
+export * from './AppIconTestScreen';
 export * from './BridgeTestScreen';
 export * from './OAuthTestScreen';
 export * from './StorageTestScreen';

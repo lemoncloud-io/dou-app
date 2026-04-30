@@ -35,6 +35,9 @@ export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
                     {renderMenuItem('디바이스 기능 테스트', () => {
                         navigation.navigate('DeviceTest');
                     })}
+                    {renderMenuItem('앱 아이콘 테스트', () => {
+                        navigation.navigate('AppIconTest');
+                    })}
                     {renderMenuItem('브릿지 테스트', () => {
                         navigation.navigate('BridgeTest');
                     })}

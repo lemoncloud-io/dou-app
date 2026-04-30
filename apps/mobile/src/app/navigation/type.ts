@@ -12,6 +12,7 @@ export type DebugStackParamList = {
     NotificationTest: undefined;
     DeeplinkTest: undefined;
     DeviceTest: undefined;
+    AppIconTest: undefined;
     BridgeTest: undefined;
     OAuthTest: undefined;
     StorageTest: undefined;
