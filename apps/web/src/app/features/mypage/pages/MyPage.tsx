@@ -65,9 +65,9 @@ export const MyPage = () => {
         logout();
     };
 
+    const isDefaultCloud = !selectedCloudId || selectedCloudId === 'default';
     const handleProfileClick = () => {
-        // Profile dropdown - for now, just navigate to edit
-        navigate('/mypage/edit');
+        navigate(isDefaultCloud ? '/mypage/edit' : '/mypage/cloud-profile');
     };
 
     const handleThemeToggle = () => {
