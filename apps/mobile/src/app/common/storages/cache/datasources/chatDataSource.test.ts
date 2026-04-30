@@ -1,12 +1,12 @@
 import Database from 'better-sqlite3';
 import { chatDataSource } from './chatDataSource';
-import { MIGRATIONS, TARGET_VERSION } from '../core';
-import { TABLES } from '../core';
+import { MIGRATIONS, TARGET_VERSION } from '../../../database';
+import { TABLES } from '../../../database';
 import { metaDataSource } from './metaDataSource';
 
 const mockDb = new Database(':memory:');
 
-jest.mock('../core/database', () => ({
+jest.mock('../../../../../database/core/database', () => ({
     database: {
         execute: jest.fn(async (query: string, params: any[] = []) => {
             const stmt = mockDb.prepare(query);
@@ -137,7 +137,7 @@ describe('ChatDataSource Test', () => {
     // --- 엣지 케이스 방어 ---
     describe('Robustness & Edge Cases', () => {
         it('removeAll에 빈 배열을 넘겼을 때 executeBatch가 호출되지 않아야 한다', async () => {
-            const spy = jest.spyOn(require('../core/database').database, 'executeBatch');
+            const spy = jest.spyOn(require('../../../database').database, 'executeBatch');
 
             await chatDataSource.removeAll([], 'c1');
 

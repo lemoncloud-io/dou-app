@@ -1,7 +1,7 @@
 import type { Scalar, SQLBatchTuple } from '@op-engineering/op-sqlite';
 import { open } from '@op-engineering/op-sqlite';
 import { MIGRATIONS, TARGET_VERSION } from './schema';
-import { logger } from '../../../../services';
+import { logger } from '../../index';
 
 const db = open({ name: 'dou.sqlite' });
 

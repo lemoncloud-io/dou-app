@@ -1,4 +1,4 @@
-import { database, TABLES } from '../core';
+import { database, TABLES } from '../../../database';
 import type { CacheType, CacheMetaView } from '@chatic/app-messages';
 
 /**

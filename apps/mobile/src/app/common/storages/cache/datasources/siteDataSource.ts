@@ -1,4 +1,4 @@
-import { database, TABLES } from '../core';
+import { database, TABLES } from '../../../database';
 import type { ICacheDataSource } from './ICacheDataSource';
 import type { CacheSiteView, SiteQueryOptions } from '@chatic/app-messages';
 

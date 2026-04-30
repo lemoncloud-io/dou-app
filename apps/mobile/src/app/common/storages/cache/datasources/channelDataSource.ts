@@ -1,5 +1,5 @@
 // src/storages/sqlite/channelDataSource.ts
-import { database, TABLES } from '../core';
+import { database, TABLES } from '../../../database';
 import type { ICacheDataSource } from './ICacheDataSource';
 import type { CacheChannelView, ChannelQueryOptions } from '@chatic/app-messages';
 

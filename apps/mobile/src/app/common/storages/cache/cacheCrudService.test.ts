@@ -1,11 +1,11 @@
 import Database from 'better-sqlite3';
 import { cacheCrudService } from './cacheCrudService';
-import { MIGRATIONS, TARGET_VERSION, TABLES } from './sqlite';
+import { MIGRATIONS, TARGET_VERSION, TABLES } from '../../database';
 
 const mockDb = new Database(':memory:');
 
 jest.mock('react-native', () => ({}), { virtual: true });
-jest.mock('./sqlite/core/database', () => ({
+jest.mock('../../database/sqlite/database', () => ({
     database: {
         execute: jest.fn(async (query, params = []) => {
             const stmt = mockDb.prepare(query);
