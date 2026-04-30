@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useIssueCloudToken } from '@chatic/auth';
-import { getSocketSend, useWebSocketV2Store } from '@chatic/socket';
+import { useWebSocketV2Store } from '@chatic/socket';
 
 import { useClouds } from '@chatic/users';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
@@ -52,11 +52,8 @@ export const useCloudSession = () => {
             useWebSocketV2Store.getState().setCloudId(cloudId);
 
             // WebSocket에 새 cloud 인증 정보 전달
+            // useCloudTokenRefresh가 isVerified=false를 감지하여 auth:update 발송
             useWebSocketV2Store.getState().setIsVerified(false);
-            const newToken = cloudCore.getIdentityToken();
-            if (newToken) {
-                getSocketSend()?.({ type: 'auth', action: 'update', payload: { token: newToken } });
-            }
         } catch (e) {
             console.error('[useCloudSession] selectCloud failed:', e);
             throw e;

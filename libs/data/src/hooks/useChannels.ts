@@ -36,6 +36,10 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     // 서버 chat:mine 응답으로 확인된 채널 ID 목록. null은 아직 서버 응답 없음(로딩 중)을 의미.
     const confirmedChannelIdsRef = useRef<Set<string> | null>(null);
 
+    // cloud 전환 시 stale targetPlaceId로 chat:mine 발송 방지용
+    // 마지막으로 targetPlaceId가 설정된 시점의 cloudId를 기록
+    const cloudIdForPlaceRef = useRef(cloudId);
+
     // chat:mine 응답 없을 시 재시도
     const retryCountRef = useRef(0);
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -234,6 +238,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     // place가 제대로 선택된 후(refreshToken 완료 후)에만 chat:mine 발행
     useEffect(() => {
         if (!targetPlaceId) return;
+        cloudIdForPlaceRef.current = cloudId;
         currentParamsRef.current = initialParams;
         isSyncingRef.current = false;
         confirmedChannelIdsRef.current = null;
@@ -266,6 +271,8 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     // [targetPlaceId] effect의 requestFromNetwork가 미인증으로 스킵된 경우를 보완
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     useEffect(() => {
+        // cloud 전환 중 stale targetPlaceId로 chat:mine 발송 방지
+        if (cloudId !== cloudIdForPlaceRef.current) return;
         if (isVerified && targetPlaceId && confirmedChannelIdsRef.current === null) {
             isSyncingRef.current = false;
             retryCountRef.current = 0;
