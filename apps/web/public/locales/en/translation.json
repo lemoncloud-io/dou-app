@@ -27,7 +27,9 @@
         "settings": "Settings",
         "logout": "Logout",
         "logoutInvited": "Logout Invited Account",
-        "logoutFailed": "Logout failed"
+        "logoutFailed": "Logout failed",
+        "notifications": "Notifications",
+        "reportIssue": "Report Issue"
     },
     "profile": {
         "editTitle": "Edit Profile",

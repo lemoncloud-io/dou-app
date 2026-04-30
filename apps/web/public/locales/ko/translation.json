@@ -27,7 +27,9 @@
         "settings": "설정",
         "logout": "로그아웃",
         "logoutInvited": "초대 계정 로그아웃",
-        "logoutFailed": "로그아웃 실패"
+        "logoutFailed": "로그아웃 실패",
+        "notifications": "알림",
+        "reportIssue": "문제 신고"
     },
     "profile": {
         "editTitle": "프로필 수정",
