@@ -4,7 +4,7 @@ import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '../events/types';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
 import type { SocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import { RepositoryBase, requestRemote, type RepositoryRequestOptions, type RepositoryRuntime } from './types';
+import { BaseRepository, type RepositoryRequestOptions, type RepositoryRuntime } from './types';
 
 /** user:update-profile 서버 요청 payload입니다. */
 export type UserProfileUpdatePayload = UserUpdateProfilePayload;
@@ -30,23 +30,23 @@ export interface IUserRepository {
  * UserRemoteDataSource를 감싸는 사용자 Repository 구현체입니다.
  * chat 도메인에 걸친 사용자 조회/초대 요청도 사용자 API로 묶어 노출합니다.
  */
-export class UserRepository extends RepositoryBase implements IUserRepository {
+export class UserRepository extends BaseRepository implements IUserRepository {
     constructor(
         private readonly userDataSource: IUserRemoteDataSource,
-        private readonly requestManager: SocketRequestManager,
+        requestManager: SocketRequestManager,
         runtime?: RepositoryRuntime
     ) {
-        super(runtime);
+        super(requestManager, runtime);
     }
 
     /** chat:users 요청을 수행하고 응답을 기다립니다. */
     public fetchUsers(payload: ChatUsersPayload, options?: RepositoryRequestOptions): Promise<ListResult<UserView>> {
-        return requestRemote(this.requestManager, ref => this.userDataSource.fetchUsers(payload, ref), options);
+        return this.requestRemote(ref => this.userDataSource.fetchUsers(payload, ref), options);
     }
 
     /** user:update-profile 요청을 수행하고 응답을 기다립니다. */
     public updateProfile(payload: UserProfileUpdatePayload, options?: RepositoryRequestOptions): Promise<UserView> {
-        return requestRemote(this.requestManager, ref => this.userDataSource.updateProfile(payload, ref), options);
+        return this.requestRemote(ref => this.userDataSource.updateProfile(payload, ref), options);
     }
 
     /** user:invite 요청을 수행하고 정규화된 초대 결과를 기다립니다. (== 유저 생성) */
@@ -54,6 +54,6 @@ export class UserRepository extends RepositoryBase implements IUserRepository {
         payload: UserInviteRequestPayload,
         options?: RepositoryRequestOptions
     ): Promise<UserInviteResult> {
-        return requestRemote(this.requestManager, ref => this.userDataSource.requestInvite(payload, ref), options);
+        return this.requestRemote(ref => this.userDataSource.requestInvite(payload, ref), options);
     }
 }

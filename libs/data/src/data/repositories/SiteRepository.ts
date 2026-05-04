@@ -3,7 +3,7 @@ import type { UserMakeSitePayload, UserUpdateSitePayload, WSSPayload } from '@le
 import type { ListResult } from '../events/types';
 import type { ISiteRemoteDataSource } from '../remote/data-sources';
 import type { SocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import { RepositoryBase, requestRemote, type RepositoryRequestOptions, type RepositoryRuntime } from './types';
+import { BaseRepository, type RepositoryRequestOptions, type RepositoryRuntime } from './types';
 
 /**
  * 사이트/플레이스 도메인의 Repository 공개 계약입니다.
@@ -21,27 +21,27 @@ export interface ISiteRepository {
 /**
  * SiteRemoteDataSource를 감싸는 site Repository 구현체입니다.
  */
-export class SiteRepository extends RepositoryBase implements ISiteRepository {
+export class SiteRepository extends BaseRepository implements ISiteRepository {
     constructor(
         private readonly siteDataSource: ISiteRemoteDataSource,
-        private readonly requestManager: SocketRequestManager,
+        requestManager: SocketRequestManager,
         runtime?: RepositoryRuntime
     ) {
-        super(runtime);
+        super(requestManager, runtime);
     }
 
     /** user:my-site 요청을 수행하고 응답을 기다립니다. */
     public fetchSite(payload?: WSSPayload, options?: RepositoryRequestOptions): Promise<ListResult<SiteView>> {
-        return requestRemote(this.requestManager, ref => this.siteDataSource.fetchSite(payload, ref), options);
+        return this.requestRemote(ref => this.siteDataSource.fetchSite(payload, ref), options);
     }
 
     /** user:make-site 요청을 수행하고 응답을 기다립니다. */
     public createSite(payload: UserMakeSitePayload, options?: RepositoryRequestOptions): Promise<SiteView> {
-        return requestRemote(this.requestManager, ref => this.siteDataSource.createSite(payload, ref), options);
+        return this.requestRemote(ref => this.siteDataSource.createSite(payload, ref), options);
     }
 
     /** user:update-site 요청을 수행하고 응답을 기다립니다. */
     public updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<SiteView> {
-        return requestRemote(this.requestManager, ref => this.siteDataSource.updateSite(payload, ref), options);
+        return this.requestRemote(ref => this.siteDataSource.updateSite(payload, ref), options);
     }
 }

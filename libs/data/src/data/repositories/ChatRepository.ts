@@ -2,7 +2,7 @@ import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
 import type { ChatFeedPayload, ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
 import type { IChatRemoteDataSource } from '../remote/data-sources';
 import type { SocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import { RepositoryBase, requestRemote, type RepositoryRequestOptions, type RepositoryRuntime } from './types';
+import { BaseRepository, type RepositoryRequestOptions, type RepositoryRuntime } from './types';
 
 /**
  * 채팅 메시지 도메인의 Repository 공개 계약입니다.
@@ -18,24 +18,24 @@ export interface IChatRepository {
 
 /**
  * ChatRemoteDataSource를 감싸는 채팅 Repository 구현체입니다.
- * domain event 내부 구독은 RepositoryBase의 protected API로만 사용할 수 있습니다.
+ * domain event 내부 구독은 BaseRepository의 protected API로만 사용할 수 있습니다.
  */
-export class ChatRepository extends RepositoryBase implements IChatRepository {
+export class ChatRepository extends BaseRepository implements IChatRepository {
     constructor(
         private readonly chatDataSource: IChatRemoteDataSource,
-        private readonly requestManager: SocketRequestManager,
+        requestManager: SocketRequestManager,
         runtime?: RepositoryRuntime
     ) {
-        super(runtime);
+        super(requestManager, runtime);
     }
 
     /** 메시지 발신을 data source에 위임하고 응답을 기다립니다. */
     public sendChat(payload: ChatSendPayload, options?: RepositoryRequestOptions): Promise<ChatView> {
-        return requestRemote(this.requestManager, ref => this.chatDataSource.sendChat(payload, ref), options);
+        return this.requestRemote(ref => this.chatDataSource.sendChat(payload, ref), options);
     }
 
     /** 메시지 피드 조회를 data source에 위임하고 응답을 기다립니다. */
     public fetchChat(payload: ChatFeedPayload, options?: RepositoryRequestOptions): Promise<ChatFeedResult> {
-        return requestRemote(this.requestManager, ref => this.chatDataSource.fetchChat(payload, ref), options);
+        return this.requestRemote(ref => this.chatDataSource.fetchChat(payload, ref), options);
     }
 }
