@@ -15,6 +15,7 @@ import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore, useSplas
 import { initializeMessageListener, logger } from '@chatic/app-messages';
 
 import { ServiceUnavailableOverlay, SplashOverlay, WebSocketV2Connection } from './components';
+import { DataProvider } from './shared/data';
 import { Router } from './routes';
 import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
 import { useAutoSelectCloud } from './shared/hooks/useCloudSession';
@@ -120,15 +121,17 @@ export function App() {
                             <HelmetProvider>
                                 <QueryClientProvider client={queryClient}>
                                     <ThemeProvider>
-                                        <AutoSelectCloud />
-                                        <ForegroundTokenRefresh refreshToken={refreshToken} />
-                                        {isAuthenticated && <WebSocketV2Connection />}
-                                        <ServiceUnavailableOverlay />
-                                        <DeviceTokenRegistration />
-                                        <Router />
-                                        <GlobalLoader />
-                                        <SonnerToaster />
-                                        <Toaster />
+                                        <DataProvider>
+                                            <AutoSelectCloud />
+                                            <ForegroundTokenRefresh refreshToken={refreshToken} />
+                                            {isAuthenticated && <WebSocketV2Connection />}
+                                            <ServiceUnavailableOverlay />
+                                            <DeviceTokenRegistration />
+                                            <Router />
+                                            <GlobalLoader />
+                                            <SonnerToaster />
+                                            <Toaster />
+                                        </DataProvider>
                                     </ThemeProvider>
                                     {/*{process.env.NODE_ENV !== 'prod' && <ReactQueryDevtools buttonPosition="bottom-left" />}*/}
                                 </QueryClientProvider>
