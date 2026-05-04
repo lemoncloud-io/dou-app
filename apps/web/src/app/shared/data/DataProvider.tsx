@@ -1,40 +1,50 @@
 import { createContext, useContext, useMemo } from 'react';
 
-import type { IEventBus, ISocketDispatcher } from '@chatic/data';
-import { EventBusEngine, type DomainEventMap, type SocketEventMap, SocketDispatcher } from '@chatic/data';
+import {
+    EventBusEngine,
+    SocketDispatcher,
+    SocketRequestManager,
+    type DomainEventMap,
+    type SocketEventMap,
+} from '@chatic/data';
 
-import { useRepositoryContextHolder, useRepositoryFactory } from './repositoryFactory';
-import { useSocketFactory } from './socketFactory';
+import { useRepositoryContextHolder } from './repositoryFactory';
+import { useDataSocket } from './socketFactory';
+import { createDataSources, createRepositories } from './repositoryFactory';
 import type { DataProviderProps, DataProviderValue, DataRepositories } from './types';
 
 const DataProviderContext = createContext<DataProviderValue | null>(null);
 
-export const DataProvider = ({ children, context: injectedContext }: DataProviderProps) => {
-    // socketEventBus: WebSocket 수신 메시지 -> RemoteDataSource
-    // domainEventBus: RemoteDataSource 정제 이벤트 -> Repository & RequestManager
-    const socketEventBus: IEventBus<SocketEventMap> = useMemo(() => new EventBusEngine<SocketEventMap>(), []);
-    const domainEventBus: IEventBus<DomainEventMap> = useMemo(() => new EventBusEngine<DomainEventMap>(), []);
+export const DataProvider = ({ children, context: injectedContext, inviteCloudRepository }: DataProviderProps) => {
+    // socketEventBus: dispatcher가 raw socket envelope를 도메인별 RemoteDataSource로 전달하는 버스.
+    // domainEventBus: RemoteDataSource가 정제한 domain event를 request manager와 Repository 내부 정책으로 전달하는 버스.
+    const socketEventBus = useMemo(() => new EventBusEngine<SocketEventMap>(), []);
+    const domainEventBus = useMemo(() => new EventBusEngine<DomainEventMap>(), []);
 
-    const socketDispatcher: ISocketDispatcher = useMemo(() => new SocketDispatcher(socketEventBus), [socketEventBus]);
-    const { wssClient } = useSocketFactory(socketDispatcher);
+    const requestManager = useMemo(() => new SocketRequestManager(domainEventBus), [domainEventBus]);
+    const dispatcher = useMemo(() => new SocketDispatcher(socketEventBus), [socketEventBus]);
+    const context = useRepositoryContextHolder(injectedContext);
+    const wssClient = useDataSocket({ context, dispatcher });
 
-    // 컨텍스트 홀더 초기화 (사용자/클라우드 세션 정보)
-    const repositoryContext = useRepositoryContextHolder(injectedContext);
+    const dataSources = useMemo(
+        () => createDataSources({ domainEventBus, socketEventBus, wssClient }),
+        [domainEventBus, socketEventBus, wssClient]
+    );
 
-    // 레포지토리 팩토리 초기화
-    const { repositories } = useRepositoryFactory({
-        context: repositoryContext,
-        domainEventBus,
-        socketEventBus,
-        wssClient,
-    });
+    const repositories = useMemo<DataRepositories>(
+        () => createRepositories({ context, dataSources, domainEventBus, inviteCloudRepository, requestManager }),
+        [context, dataSources, domainEventBus, inviteCloudRepository, requestManager]
+    );
 
     const value = useMemo<DataProviderValue>(
         () => ({
             repositories,
-            setRepositoryContext: nextContext => repositoryContext.setContext(nextContext),
+            requestManager,
+            dispatcher,
+            context,
+            setRepositoryContext: nextContext => context.setContext(nextContext),
         }),
-        [repositoryContext, repositories]
+        [context, dispatcher, repositories, requestManager]
     );
 
     return <DataProviderContext.Provider value={value}>{children}</DataProviderContext.Provider>;
@@ -43,7 +53,7 @@ export const DataProvider = ({ children, context: injectedContext }: DataProvide
 export const useDataProvider = (): DataProviderValue => {
     const value = useContext(DataProviderContext);
     if (!value) {
-        throw new Error('useDataProvider must be used within DataProvider');
+        throw new Error('useDataProvider must be used within WebDataProvider');
     }
     return value;
 };
