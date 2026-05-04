@@ -5,15 +5,24 @@ import {
     SocketDispatcher,
     type EventBusEngine,
     type IWebSocketClient,
-    type MutableRepositoryContext,
     type SocketContext,
     type SocketEventMap,
 } from '@chatic/data';
 import type { WSSActionType, WSSEnvelope, WSSEventDomainType } from '@lemoncloud/chatic-sockets-api';
 
-const createSocketContext = (context: MutableRepositoryContext): SocketContext => ({
-    cloudId: context.getContext().cid ?? 'default',
+const createSocketContext = (cloudId?: string | null): SocketContext => ({
+    cloudId: cloudId ?? 'default',
 });
+
+/**
+ * SocketDispatcher에 주입할 소켓 전용 context를 만듭니다.
+ * RepositoryContext의 cid/sid/uid 전체를 넘기지 않고, 소켓 핸들러가 필요한 cloudId만 별도 모델로 축소합니다.
+ */
+export const useSocketContext = (injectedCloudId?: string): SocketContext => {
+    const cloudId = useWebSocketV2Store((state: { cloudId?: string | null }) => state.cloudId);
+
+    return useMemo<SocketContext>(() => createSocketContext(injectedCloudId ?? cloudId), [cloudId, injectedCloudId]);
+};
 
 /**
  * WebSocket 송수신을 Repository 파이프라인과 연결합니다.
@@ -26,11 +35,11 @@ const createSocketContext = (context: MutableRepositoryContext): SocketContext =
  * 이후 흐름은 socketEventBus -> RemoteDataSource -> domainEventBus -> SocketRequestManager 순서입니다.
  */
 const useDataSocket = ({
-    context,
     dispatcher,
+    socketContext,
 }: {
-    context: MutableRepositoryContext;
     dispatcher: SocketDispatcher;
+    socketContext: SocketContext;
 }): IWebSocketClient => {
     const { emitAuthenticated } = useWebSocketV2();
     const lastMessage = useWebSocketV2Store((state: { lastMessage?: WSSEnvelope | null }) => state.lastMessage) ?? null;
@@ -53,27 +62,26 @@ const useDataSocket = ({
     useEffect(() => {
         if (!lastMessage) return;
 
-        // 메시지를 실제로 처리하는 시점에 holder를 다시 읽어, cid 변경 직후 수신된 envelope도 최신 SocketContext로 dispatch합니다.
-        const socketContext: SocketContext = createSocketContext(context);
+        // SocketContext는 RepositoryContext와 분리되어 있으며, 소켓 핸들러가 필요한 cloudId만 전달합니다.
         dispatcher.dispatch(lastMessage, socketContext);
-    }, [context, dispatcher, lastMessage]);
+    }, [dispatcher, lastMessage, socketContext]);
 
     return wssClient;
 };
 
 /**
  * 소켓 계층에 필요한 생성과 context 주입을 한 곳에서 처리합니다.
- * DataProvider는 socketEventBus와 Repository context만 넘기고, dispatcher/wssClient 조립은 이 factory에 위임합니다.
+ * DataProvider는 socketEventBus와 SocketContext만 넘기고, dispatcher/wssClient 조립은 이 factory에 위임합니다.
  */
 export const useSocketFactory = ({
-    context,
+    socketContext,
     socketEventBus,
 }: {
-    context: MutableRepositoryContext;
+    socketContext: SocketContext;
     socketEventBus: EventBusEngine<SocketEventMap>;
 }): { wssClient: IWebSocketClient } => {
     const dispatcher = useMemo(() => new SocketDispatcher(socketEventBus), [socketEventBus]);
-    const wssClient = useDataSocket({ context, dispatcher });
+    const wssClient = useDataSocket({ dispatcher, socketContext });
 
     return { wssClient };
 };

@@ -24,6 +24,7 @@ import {
 } from '@chatic/data';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 import type { DataRepositories } from './types';
 
@@ -39,7 +40,7 @@ import type { DataRepositories } from './types';
  */
 export const useRepositoryContextHolder = (injectedContext?: RepositoryContext): MutableRepositoryContext => {
     const cloudId = useWebSocketV2Store((state: { cloudId?: string | null }) => state.cloudId);
-    const profileUid = useWebCoreStore(state => state.profile?.uid);
+    const profileUid = useWebCoreStore(state => (state.profile as UserProfile$ | null | undefined)?.uid);
     // place 선택 값은 cloudCore storage에 존재한다.
     // 같은 탭 storage 변경은 이벤트가 발생하지 않으므로 provider 렌더링 시점마다 최신 값을 다시 읽는다.
     const selectedPlaceId = cloudCore.getSelectedPlaceId() || undefined;
@@ -93,13 +94,11 @@ const createRepositories = ({
     context,
     dataSources,
     domainEventBus,
-    inviteCloudRepository,
     requestManager,
 }: {
     context: MutableRepositoryContext;
     dataSources: DataSources;
     domainEventBus: EventBusEngine<DomainEventMap>;
-    inviteCloudRepository?: IInviteCloudRepository;
     requestManager: SocketRequestManager;
 }): DataRepositories => ({
     auth: new AuthRepository(dataSources.auth, requestManager, context, domainEventBus),
@@ -108,7 +107,9 @@ const createRepositories = ({
     join: new JoinRepository(dataSources.join, requestManager, context, domainEventBus),
     site: new SiteRepository(dataSources.site, requestManager, context, domainEventBus),
     user: new UserRepository(dataSources.user, requestManager, context, domainEventBus),
-    inviteCloud: inviteCloudRepository,
+    inviteCloud: {
+        //TODO will be created by Raine
+    } as IInviteCloudRepository,
 });
 
 /**
@@ -118,13 +119,11 @@ const createRepositories = ({
 export const useRepositoryFactory = ({
     context,
     domainEventBus,
-    inviteCloudRepository,
     socketEventBus,
     wssClient,
 }: {
     context: MutableRepositoryContext;
     domainEventBus: EventBusEngine<DomainEventMap>;
-    inviteCloudRepository?: IInviteCloudRepository;
     socketEventBus: EventBusEngine<SocketEventMap>;
     wssClient: IWebSocketClient;
 }): { repositories: DataRepositories } => {
@@ -134,8 +133,8 @@ export const useRepositoryFactory = ({
         [domainEventBus, socketEventBus, wssClient]
     );
     const repositories = useMemo(
-        () => createRepositories({ context, dataSources, domainEventBus, inviteCloudRepository, requestManager }),
-        [context, dataSources, domainEventBus, inviteCloudRepository, requestManager]
+        () => createRepositories({ context, dataSources, domainEventBus, requestManager }),
+        [context, dataSources, domainEventBus, requestManager]
     );
 
     return { repositories };
