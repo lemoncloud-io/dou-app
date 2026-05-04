@@ -1,16 +1,9 @@
 import { createContext, useContext, useMemo } from 'react';
 
-import {
-    EventBusEngine,
-    SocketDispatcher,
-    SocketRequestManager,
-    type DomainEventMap,
-    type SocketEventMap,
-} from '@chatic/data';
+import { EventBusEngine, type DomainEventMap, type SocketEventMap } from '@chatic/data';
 
-import { useRepositoryContextHolder } from './repositoryFactory';
-import { useDataSocket } from './socketFactory';
-import { createDataSources, createRepositories } from './repositoryFactory';
+import { useRepositoryContextHolder, useRepositoryFactory } from './repositoryFactory';
+import { useSocketFactory } from './socketFactory';
 import type { DataProviderProps, DataProviderValue, DataRepositories } from './types';
 
 const DataProviderContext = createContext<DataProviderValue | null>(null);
@@ -21,30 +14,22 @@ export const DataProvider = ({ children, context: injectedContext, inviteCloudRe
     const socketEventBus = useMemo(() => new EventBusEngine<SocketEventMap>(), []);
     const domainEventBus = useMemo(() => new EventBusEngine<DomainEventMap>(), []);
 
-    const requestManager = useMemo(() => new SocketRequestManager(domainEventBus), [domainEventBus]);
-    const dispatcher = useMemo(() => new SocketDispatcher(socketEventBus), [socketEventBus]);
     const context = useRepositoryContextHolder(injectedContext);
-    const wssClient = useDataSocket({ context, dispatcher });
-
-    const dataSources = useMemo(
-        () => createDataSources({ domainEventBus, socketEventBus, wssClient }),
-        [domainEventBus, socketEventBus, wssClient]
-    );
-
-    const repositories = useMemo<DataRepositories>(
-        () => createRepositories({ context, dataSources, domainEventBus, inviteCloudRepository, requestManager }),
-        [context, dataSources, domainEventBus, inviteCloudRepository, requestManager]
-    );
+    const { wssClient } = useSocketFactory({ context, socketEventBus });
+    const { repositories } = useRepositoryFactory({
+        context,
+        domainEventBus,
+        inviteCloudRepository,
+        socketEventBus,
+        wssClient,
+    });
 
     const value = useMemo<DataProviderValue>(
         () => ({
             repositories,
-            requestManager,
-            dispatcher,
-            context,
             setRepositoryContext: nextContext => context.setContext(nextContext),
         }),
-        [context, dispatcher, repositories, requestManager]
+        [context, repositories]
     );
 
     return <DataProviderContext.Provider value={value}>{children}</DataProviderContext.Provider>;
@@ -53,7 +38,7 @@ export const DataProvider = ({ children, context: injectedContext, inviteCloudRe
 export const useDataProvider = (): DataProviderValue => {
     const value = useContext(DataProviderContext);
     if (!value) {
-        throw new Error('useDataProvider must be used within WebDataProvider');
+        throw new Error('useDataProvider must be used within DataProvider');
     }
     return value;
 };

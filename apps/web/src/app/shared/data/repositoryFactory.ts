@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import type {
-    EventBusEngine} from '@chatic/data';
+import type { EventBusEngine } from '@chatic/data';
 import {
     AuthRemoteDataSource,
     AuthRepository,
@@ -19,7 +18,7 @@ import {
     SiteRemoteDataSource,
     SiteRepository,
     type SocketEventMap,
-    type SocketRequestManager,
+    SocketRequestManager,
     UserRemoteDataSource,
     UserRepository,
 } from '@chatic/data';
@@ -40,19 +39,19 @@ import type { DataRepositories } from './types';
  */
 export const useRepositoryContextHolder = (injectedContext?: RepositoryContext): MutableRepositoryContext => {
     const cloudId = useWebSocketV2Store((state: { cloudId?: string | null }) => state.cloudId);
-    const profileUid = useWebCoreStore(state => (state.profile as RepositoryContext | null | undefined)?.uid);
-    const repositoryContext = useMemo<RepositoryContext>(() => {
-        // place 선택 값은 cloudCore storage에 존재한다.
-        // 같은 탭 storage 변경은 이벤트가 발생하지 않으므로 provider 렌더링 시점마다 최신 값을 다시 읽는다.
-        const selectedPlaceId = cloudCore.getSelectedPlaceId() || undefined;
+    const profileUid = useWebCoreStore(state => state.profile?.uid);
+    // place 선택 값은 cloudCore storage에 존재한다.
+    // 같은 탭 storage 변경은 이벤트가 발생하지 않으므로 provider 렌더링 시점마다 최신 값을 다시 읽는다.
+    const selectedPlaceId = cloudCore.getSelectedPlaceId() || undefined;
 
+    const repositoryContext = useMemo<RepositoryContext>(() => {
         return {
             ...injectedContext,
             cid: injectedContext?.cid ?? cloudId ?? 'default',
             sid: injectedContext?.sid ?? selectedPlaceId,
             uid: injectedContext?.uid ?? profileUid ?? undefined,
         };
-    }, [cloudId, injectedContext, profileUid]);
+    }, [injectedContext, cloudId, profileUid, selectedPlaceId]);
 
     const [context] = useState(() => new MutableRepositoryContext(repositoryContext));
 
@@ -67,7 +66,7 @@ export const useRepositoryContextHolder = (injectedContext?: RepositoryContext):
  * RemoteDataSource 생성 위치를 한 곳으로 모읍니다.
  * 네트워크 client 또는 event bus 연결 방식이 바뀌면 이 factory의 인자만 조정하면 됩니다.
  */
-export const createDataSources = ({
+const createDataSources = ({
     domainEventBus,
     socketEventBus,
     wssClient,
@@ -84,13 +83,13 @@ export const createDataSources = ({
     user: new UserRemoteDataSource(socketEventBus, domainEventBus, wssClient),
 });
 
-export type DataSources = ReturnType<typeof createDataSources>;
+type DataSources = ReturnType<typeof createDataSources>;
 
 /**
  * Repository 생성 위치를 한 곳으로 모읍니다.
  * domainEventBus listener는 Repository 내부 side effect 전용이므로 UI/Hook 계층에 직접 노출하지 않습니다.
  */
-export const createRepositories = ({
+const createRepositories = ({
     context,
     dataSources,
     domainEventBus,
@@ -111,3 +110,33 @@ export const createRepositories = ({
     user: new UserRepository(dataSources.user, requestManager, context, domainEventBus),
     inviteCloud: inviteCloudRepository,
 });
+
+/**
+ * Repository 계층에 필요한 생성과 context 주입을 한 곳에서 처리합니다.
+ * DataProvider는 event bus와 socket client만 넘기고, requestManager/dataSource/repository 조립은 이 factory에 위임합니다.
+ */
+export const useRepositoryFactory = ({
+    context,
+    domainEventBus,
+    inviteCloudRepository,
+    socketEventBus,
+    wssClient,
+}: {
+    context: MutableRepositoryContext;
+    domainEventBus: EventBusEngine<DomainEventMap>;
+    inviteCloudRepository?: IInviteCloudRepository;
+    socketEventBus: EventBusEngine<SocketEventMap>;
+    wssClient: IWebSocketClient;
+}): { repositories: DataRepositories } => {
+    const requestManager = useMemo(() => new SocketRequestManager(domainEventBus), [domainEventBus]);
+    const dataSources = useMemo(
+        () => createDataSources({ domainEventBus, socketEventBus, wssClient }),
+        [domainEventBus, socketEventBus, wssClient]
+    );
+    const repositories = useMemo(
+        () => createRepositories({ context, dataSources, domainEventBus, inviteCloudRepository, requestManager }),
+        [context, dataSources, domainEventBus, inviteCloudRepository, requestManager]
+    );
+
+    return { repositories };
+};
