@@ -6,6 +6,7 @@ import type {
     ModelSyncPayload,
     SystemPayload,
 } from '@lemoncloud/chatic-sockets-api';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type {
     ChannelView,
     ChatFeedResult,
@@ -170,12 +171,15 @@ export interface DomainEventMap {
     // ------------------------------------------
     // 4. User Domain (사용자)
     // ------------------------------------------
+    'user:create': DomainPayload<UserView | MyInviteView>;
     'user:update': DomainPayload<UserView>;
+    'user:delete': DomainPayload<UserView>;
     'user:list': DomainPayload<ListResult<UserView>>;
 
     // ------------------------------------------
     // 5. Site Domain (사이트=플레이스)
     // ------------------------------------------
+    'site:create': DomainPayload<SiteView>;
     'site:update': DomainPayload<SiteView>;
     'site:list': DomainPayload<ListResult<SiteView>>;
 
