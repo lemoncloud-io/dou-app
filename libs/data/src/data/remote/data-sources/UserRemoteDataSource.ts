@@ -2,15 +2,12 @@ import type { UserView } from '@lemoncloud/chatic-socials-api';
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap, ListResult, SocketEventMap } from '../../events/types';
 import type { IWebSocketClient } from '../clients';
-import type { ChatInvitePayload, ChatUsersPayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
+import type { ChatUsersPayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
 import type { MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 
 export interface IUserRemoteDataSource {
     /** 특정 조건의 사용자 목록을 서버에 요청합니다. */
     fetchUsers(payload: ChatUsersPayload, ref?: string): void;
-
-    /** 사용자를 채널로 초대합니다. */
-    inviteUser(payload: ChatInvitePayload, ref?: string): void;
 
     /** 내 프로필 정보 수정을 요청합니다. */
     updateProfile(payload: UserUpdateProfilePayload, ref?: string): void;
@@ -72,10 +69,6 @@ export class UserRemoteDataSource implements IUserRemoteDataSource {
 
     public fetchUsers(payload: ChatUsersPayload, ref?: string) {
         this.wssClient.send('chat', 'users', payload, ref);
-    }
-
-    public inviteUser(payload: ChatInvitePayload, ref?: string) {
-        this.wssClient.send('chat', 'invite', payload, ref);
     }
 
     public updateProfile(payload: UserUpdateProfilePayload, ref?: string) {

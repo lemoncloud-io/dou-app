@@ -20,7 +20,7 @@ export interface IChannelRemoteDataSource {
     /** 새로운 채팅방을 시작하거나 초기 상태를 요청합니다. */
     startChat(payload: ChatStartPayload, ref?: string): void;
     /** 채널에 특정 유저를 초대합니다. */
-    inviteUser(payload: ChatInvitePayload, ref?: string): void;
+    inviteChannel(payload: ChatInvitePayload, ref?: string): void;
 }
 
 export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
@@ -90,7 +90,7 @@ export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
         this.wssClient.send('chat', 'start', payload, ref);
     }
 
-    public inviteUser(payload: ChatInvitePayload, ref?: string) {
+    public inviteChannel(payload: ChatInvitePayload, ref?: string) {
         this.wssClient.send('chat', 'invite', payload, ref);
     }
 }
