@@ -9,7 +9,12 @@ import type {
 import type { ListResult } from '../events/types';
 import type { IChannelRemoteDataSource } from '../remote/data-sources';
 import type { SocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import { BaseRepository, type RepositoryRequestOptions, type RepositoryRuntime } from './types';
+import {
+    BaseRepository,
+    type RepositoryContextProvider,
+    type RepositoryDomainEventBus,
+    type RepositoryRequestOptions,
+} from './types';
 
 /**
  * 채널 도메인의 Repository 공개 계약입니다.
@@ -36,9 +41,10 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
     constructor(
         private readonly channelDataSource: IChannelRemoteDataSource,
         requestManager: SocketRequestManager,
-        runtime?: RepositoryRuntime
+        context?: RepositoryContextProvider,
+        domainEventBus?: RepositoryDomainEventBus
     ) {
-        super(requestManager, runtime);
+        super(requestManager, context, domainEventBus);
     }
 
     /** chat:mine 요청을 수행하고 응답을 기다립니다. */

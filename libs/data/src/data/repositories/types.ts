@@ -14,14 +14,14 @@ export interface RepositoryRequestOptions {
 
 /**
  * Repository 계층 전체가 공유하는 실행 문맥입니다.
- * cid는 현재 연결된 cloud, pid는 선택된 place, uid는 현재 사용자를 의미합니다.
- * 서버 요청 및 향후 local cache 파티셔닝 정책에서 공통으로 참조할 수 있도록 Repository runtime에 주입됩니다.
+ * cid는 현재 연결된 cloud, sid는 선택된 place, uid는 현재 사용자를 의미합니다.
+ * 서버 요청 및 향후 local cache 파티셔닝 정책에서 공통으로 참조할 수 있도록 Repository에 주입됩니다.
  */
 export interface RepositoryContext {
     /** 현재 연결된 cloud id */
     cid?: string;
     /** 현재 선택된 place id */
-    pid?: string;
+    sid?: string;
     /** 현재 사용자 id */
     uid?: string;
     /** 도메인별 추가 context를 수용하기 위한 확장 필드 */
@@ -39,7 +39,7 @@ export interface RepositoryContextProvider {
 
 /**
  * 외부 환경(web provider 등)에서 갱신하는 mutable context holder입니다.
- * Repository 인스턴스는 이 holder를 참조하므로 cid/pid/uid 변경이 있어도 Repository를 재생성할 필요가 없습니다.
+ * Repository 인스턴스는 이 holder를 참조하므로 cid/sid/uid 변경이 있어도 Repository를 재생성할 필요가 없습니다.
  */
 export class MutableRepositoryContext implements RepositoryContextProvider {
     private context: RepositoryContext;
@@ -57,15 +57,7 @@ export class MutableRepositoryContext implements RepositoryContextProvider {
     }
 }
 
-/**
- * Repository 내부 동작에 필요한 런타임 의존성입니다.
- * domainEventBus는 RemoteDataSource가 정제한 도메인 이벤트를 Repository 내부에서 받아
- * 이후 로컬 캐시 갱신, 낙관적 업데이트 정리, 재동기화 트리거 등에 쓰기 위한 통로입니다.
- */
-export interface RepositoryRuntime {
-    context?: RepositoryContextProvider;
-    domainEventBus?: IEventBus<DomainEventMap>;
-}
+export type RepositoryDomainEventBus = IEventBus<DomainEventMap>;
 
 /**
  * Repository 공통 기반 클래스입니다.
@@ -80,7 +72,8 @@ export interface RepositoryRuntime {
 export abstract class BaseRepository {
     constructor(
         private readonly requestManager: SocketRequestManager,
-        private readonly runtime: RepositoryRuntime = {}
+        private readonly context?: RepositoryContextProvider,
+        private readonly domainEventBus?: RepositoryDomainEventBus
     ) {}
 
     /**
@@ -94,10 +87,10 @@ export abstract class BaseRepository {
 
     /**
      * 현재 Repository 실행 문맥을 읽습니다.
-     * 외부 context holder를 매번 조회하므로 cid/pid/uid 변경이 즉시 반영됩니다.
+     * 외부 context holder를 매번 조회하므로 cid/sid/uid 변경이 즉시 반영됩니다.
      */
     protected getRepositoryContext(): RepositoryContext {
-        return this.runtime.context?.getContext() ?? {};
+        return this.context?.getContext() ?? {};
     }
 
     /**
@@ -108,7 +101,7 @@ export abstract class BaseRepository {
         event: K,
         callback: (data: DomainEventMap[K]) => void
     ): () => void {
-        if (!this.runtime.domainEventBus) return () => undefined;
-        return this.runtime.domainEventBus.on(event, callback);
+        if (!this.domainEventBus) return () => undefined;
+        return this.domainEventBus.on(event, callback);
     }
 }

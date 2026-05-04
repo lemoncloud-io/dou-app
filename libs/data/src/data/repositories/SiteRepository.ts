@@ -3,7 +3,12 @@ import type { UserMakeSitePayload, UserUpdateSitePayload, WSSPayload } from '@le
 import type { ListResult } from '../events/types';
 import type { ISiteRemoteDataSource } from '../remote/data-sources';
 import type { SocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import { BaseRepository, type RepositoryRequestOptions, type RepositoryRuntime } from './types';
+import {
+    BaseRepository,
+    type RepositoryContextProvider,
+    type RepositoryDomainEventBus,
+    type RepositoryRequestOptions,
+} from './types';
 
 /**
  * 사이트/플레이스 도메인의 Repository 공개 계약입니다.
@@ -25,9 +30,10 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
     constructor(
         private readonly siteDataSource: ISiteRemoteDataSource,
         requestManager: SocketRequestManager,
-        runtime?: RepositoryRuntime
+        context?: RepositoryContextProvider,
+        domainEventBus?: RepositoryDomainEventBus
     ) {
-        super(requestManager, runtime);
+        super(requestManager, context, domainEventBus);
     }
 
     /** user:my-site 요청을 수행하고 응답을 기다립니다. */

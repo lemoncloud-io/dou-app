@@ -1,7 +1,12 @@
 import type { AuthPayload } from '@lemoncloud/chatic-sockets-api';
 import type { IAuthRemoteDataSource } from '../remote/data-sources';
 import type { SocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import { BaseRepository, type RepositoryRequestOptions, type RepositoryRuntime } from './types';
+import {
+    BaseRepository,
+    type RepositoryContextProvider,
+    type RepositoryDomainEventBus,
+    type RepositoryRequestOptions,
+} from './types';
 
 /**
  * 인증 도메인의 Repository 공개 계약입니다.
@@ -23,9 +28,10 @@ export class AuthRepository extends BaseRepository implements IAuthRepository {
     constructor(
         private readonly authDataSource: IAuthRemoteDataSource,
         requestManager: SocketRequestManager,
-        runtime?: RepositoryRuntime
+        context?: RepositoryContextProvider,
+        domainEventBus?: RepositoryDomainEventBus
     ) {
-        super(requestManager, runtime);
+        super(requestManager, context, domainEventBus);
     }
 
     /**

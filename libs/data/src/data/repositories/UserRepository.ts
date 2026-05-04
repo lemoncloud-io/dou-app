@@ -4,7 +4,12 @@ import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '../events/types';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
 import type { SocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import { BaseRepository, type RepositoryRequestOptions, type RepositoryRuntime } from './types';
+import {
+    BaseRepository,
+    type RepositoryContextProvider,
+    type RepositoryDomainEventBus,
+    type RepositoryRequestOptions,
+} from './types';
 
 /** user:update-profile 서버 요청 payload입니다. */
 export type UserProfileUpdatePayload = UserUpdateProfilePayload;
@@ -34,9 +39,10 @@ export class UserRepository extends BaseRepository implements IUserRepository {
     constructor(
         private readonly userDataSource: IUserRemoteDataSource,
         requestManager: SocketRequestManager,
-        runtime?: RepositoryRuntime
+        context?: RepositoryContextProvider,
+        domainEventBus?: RepositoryDomainEventBus
     ) {
-        super(requestManager, runtime);
+        super(requestManager, context, domainEventBus);
     }
 
     /** chat:users 요청을 수행하고 응답을 기다립니다. */

@@ -2,7 +2,12 @@ import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
 import type { ChatFeedPayload, ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
 import type { IChatRemoteDataSource } from '../remote/data-sources';
 import type { SocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import { BaseRepository, type RepositoryRequestOptions, type RepositoryRuntime } from './types';
+import {
+    BaseRepository,
+    type RepositoryContextProvider,
+    type RepositoryDomainEventBus,
+    type RepositoryRequestOptions,
+} from './types';
 
 /**
  * 채팅 메시지 도메인의 Repository 공개 계약입니다.
@@ -24,9 +29,10 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
     constructor(
         private readonly chatDataSource: IChatRemoteDataSource,
         requestManager: SocketRequestManager,
-        runtime?: RepositoryRuntime
+        context?: RepositoryContextProvider,
+        domainEventBus?: RepositoryDomainEventBus
     ) {
-        super(requestManager, runtime);
+        super(requestManager, context, domainEventBus);
     }
 
     /** 메시지 발신을 data source에 위임하고 응답을 기다립니다. */
