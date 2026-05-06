@@ -29,7 +29,6 @@ export class SiteRemoteDataSource implements ISiteRemoteDataSource {
             this.domainEventBus.emit('site:create', {
                 data: detail.payload as SiteView,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 
@@ -37,7 +36,6 @@ export class SiteRemoteDataSource implements ISiteRemoteDataSource {
             this.domainEventBus.emit('site:update', {
                 data: detail.payload as SiteView,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 
@@ -45,7 +43,6 @@ export class SiteRemoteDataSource implements ISiteRemoteDataSource {
             this.domainEventBus.emit('site:list', {
                 data: detail.payload as ListResult<SiteView>,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 

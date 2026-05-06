@@ -25,7 +25,6 @@ export class ChatRemoteDataSource implements IChatRemoteDataSource {
             this.domainEventBus.emit('chat:create', {
                 data: detail.payload as ChatView,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 
@@ -33,7 +32,6 @@ export class ChatRemoteDataSource implements IChatRemoteDataSource {
             this.domainEventBus.emit('chat:list', {
                 data: detail.payload as ChatFeedResult,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 
@@ -41,7 +39,6 @@ export class ChatRemoteDataSource implements IChatRemoteDataSource {
             this.domainEventBus.emit('chat:delete', {
                 data: detail.payload as ChatView,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 
@@ -49,7 +46,6 @@ export class ChatRemoteDataSource implements IChatRemoteDataSource {
             this.domainEventBus.emit('chat:update', {
                 data: detail.payload as ChatView,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 

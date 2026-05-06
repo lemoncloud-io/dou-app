@@ -26,7 +26,6 @@ export class JoinRemoteDataSource implements IJoinRemoteDataSource {
             this.domainEventBus.emit('join:update', {
                 data: detail.payload as JoinView,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 
@@ -34,7 +33,6 @@ export class JoinRemoteDataSource implements IJoinRemoteDataSource {
             this.domainEventBus.emit('join:update', {
                 data: detail.payload as JoinView,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 
@@ -42,7 +40,6 @@ export class JoinRemoteDataSource implements IJoinRemoteDataSource {
             this.domainEventBus.emit('join:delete', {
                 data: detail.payload as JoinView,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 

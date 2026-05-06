@@ -5,11 +5,11 @@ import { authHandler, chatHandler, modelHandler, syncHandler, systemHandler, use
 import type { IEventBus } from '../../events/eventBus';
 import type { SocketEventMap } from '../../events/types';
 
-export interface SocketContext {
-    cloudId: string; // 현재 접속 중인 클라우드 서비스 식별자
+export interface ISocketDispatcher {
+    dispatch(envelope: WSSEnvelope): void;
 }
 
-export class SocketDispatcher {
+export class SocketDispatcher implements ISocketDispatcher {
     /**
      * @param eventBus 핸들러들이 이벤트를 방출할 때 사용할 공통 이벤트 버스
      */
@@ -18,9 +18,8 @@ export class SocketDispatcher {
     /**
      * 수신된 소켓 Envelope) 타입을 분석하여 적절한 핸들러 함수를 호출합니다.
      * @param envelope 서버로부터 수신된 원시 소켓 데이터
-     * @param context 서비스 식별자 등 처리에 필요한 외부 문맥 정보
      */
-    dispatch(envelope: WSSEnvelope, context: SocketContext) {
+    dispatch(envelope: WSSEnvelope) {
         if (!envelope || !envelope.type) {
             logger.warn('SOCKET_DISPATCHER', '[Socket Dispatcher] Invalid envelope received');
             return;
@@ -35,27 +34,27 @@ export class SocketDispatcher {
              */
             switch (domain) {
                 case 'model': {
-                    modelHandler(envelope, context, this.eventBus);
+                    modelHandler(envelope, this.eventBus);
                     break;
                 }
                 case 'chat': {
-                    chatHandler(envelope, context, this.eventBus);
+                    chatHandler(envelope, this.eventBus);
                     break;
                 }
                 case 'auth': {
-                    authHandler(envelope, context, this.eventBus);
+                    authHandler(envelope, this.eventBus);
                     break;
                 }
                 case 'sync': {
-                    syncHandler(envelope, context, this.eventBus);
+                    syncHandler(envelope, this.eventBus);
                     break;
                 }
                 case 'user': {
-                    userHandler(envelope, context, this.eventBus);
+                    userHandler(envelope, this.eventBus);
                     break;
                 }
                 case 'system': {
-                    systemHandler(envelope, context, this.eventBus);
+                    systemHandler(envelope, this.eventBus);
                     break;
                 }
                 default: {

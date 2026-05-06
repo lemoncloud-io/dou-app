@@ -23,7 +23,6 @@ export class AuthRemoteDataSource implements IAuthRemoteDataSource {
             this.domainEventBus.emit('auth:update', {
                 data: detail.payload as AuthPayload,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 

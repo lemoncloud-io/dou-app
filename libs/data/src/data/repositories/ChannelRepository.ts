@@ -8,7 +8,7 @@ import type {
 } from '@lemoncloud/chatic-sockets-api';
 import type { ListResult } from '../events/types';
 import type { IChannelRemoteDataSource } from '../remote/data-sources';
-import type { SocketRequestManager } from '../remote/sockets/SocketRequestManager';
+import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import {
     BaseRepository,
     type RepositoryContextProvider,
@@ -40,7 +40,7 @@ export interface IChannelRepository {
 export class ChannelRepository extends BaseRepository implements IChannelRepository {
     constructor(
         private readonly channelDataSource: IChannelRemoteDataSource,
-        requestManager: SocketRequestManager,
+        requestManager: ISocketRequestManager,
         context?: RepositoryContextProvider,
         domainEventBus?: RepositoryDomainEventBus
     ) {

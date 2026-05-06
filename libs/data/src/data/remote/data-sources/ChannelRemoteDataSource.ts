@@ -37,7 +37,6 @@ export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
             this.domainEventBus.emit('channel:create', {
                 data: detail.payload as ChannelView,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 
@@ -45,7 +44,6 @@ export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
             this.domainEventBus.emit('channel:update', {
                 data: detail.payload as ChannelView,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 
@@ -53,7 +51,6 @@ export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
             this.domainEventBus.emit('channel:delete', {
                 data: detail.payload as ChannelView,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 
@@ -61,7 +58,6 @@ export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
             this.domainEventBus.emit('channel:list', {
                 data: detail.payload as ListResult<ChannelView>,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 

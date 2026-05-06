@@ -1,7 +1,7 @@
 import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
 import type { ChatFeedPayload, ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
 import type { IChatRemoteDataSource } from '../remote/data-sources';
-import type { SocketRequestManager } from '../remote/sockets/SocketRequestManager';
+import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import {
     BaseRepository,
     type RepositoryContextProvider,
@@ -28,7 +28,7 @@ export interface IChatRepository {
 export class ChatRepository extends BaseRepository implements IChatRepository {
     constructor(
         private readonly chatDataSource: IChatRemoteDataSource,
-        requestManager: SocketRequestManager,
+        requestManager: ISocketRequestManager,
         context?: RepositoryContextProvider,
         domainEventBus?: RepositoryDomainEventBus
     ) {

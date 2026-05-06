@@ -1,6 +1,6 @@
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/types';
-import type { SocketRequestManager } from '../remote/sockets/SocketRequestManager';
+import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 
 /**
  * Repository 요청 단위에서만 덮어쓸 수 있는 옵션입니다.
@@ -71,7 +71,7 @@ export type RepositoryDomainEventBus = IEventBus<DomainEventMap>;
  */
 export abstract class BaseRepository {
     constructor(
-        private readonly requestManager: SocketRequestManager,
+        private readonly requestManager: ISocketRequestManager,
         private readonly context?: RepositoryContextProvider,
         private readonly domainEventBus?: RepositoryDomainEventBus
     ) {}

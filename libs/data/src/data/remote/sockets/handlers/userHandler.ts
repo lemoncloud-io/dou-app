@@ -1,17 +1,15 @@
 import type { ChatErrorPayload, WSSEnvelope, WSSUserActionType } from '@lemoncloud/chatic-sockets-api';
 import type { SiteView, UserView } from '@lemoncloud/chatic-socials-api';
 import { logger } from '@chatic/app-messages';
-import type { SocketContext } from '../dispatchers';
 import type { SocketEventMap } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
 
 /**
  * 사용자 및 사이트 관련 메시지를 분석하여 각각의 도메인 이벤트로 분기 처리합니다.
  * @param envelope 서버로부터 전달받은 사용자 도메인 원본 메시지 객체
- * @param ctx 현재 소켓 연결의 문맥 정보
  * @param eventBus 이벤트를 중계할 전역 이벤트 버스
  */
-export const userHandler = (envelope: WSSEnvelope, ctx: SocketContext, eventBus: IEventBus<SocketEventMap>) => {
+export const userHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEventMap>) => {
     const action = envelope.action as WSSUserActionType;
     const { payload, meta } = envelope;
 
@@ -19,7 +17,6 @@ export const userHandler = (envelope: WSSEnvelope, ctx: SocketContext, eventBus:
      * - 이벤트 상세 객체 구성
      */
     const detail = {
-        cid: ctx.cloudId,
         ref: meta?.ref,
         payload,
     };

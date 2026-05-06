@@ -1,13 +1,13 @@
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
 import type { ChatReadPayload, ChatUpdateJoinPayload } from '@lemoncloud/chatic-sockets-api';
 import type { IJoinRemoteDataSource } from '../remote/data-sources';
-import type { SocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import {
     BaseRepository,
     type RepositoryContextProvider,
     type RepositoryDomainEventBus,
     type RepositoryRequestOptions,
 } from './types';
+import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 
 /**
  * 채널 참여 상태(join) 도메인의 Repository 공개 계약입니다.
@@ -26,7 +26,7 @@ export interface IJoinRepository {
 export class JoinRepository extends BaseRepository implements IJoinRepository {
     constructor(
         private readonly joinDataSource: IJoinRemoteDataSource,
-        requestManager: SocketRequestManager,
+        requestManager: ISocketRequestManager,
         context?: RepositoryContextProvider,
         domainEventBus?: RepositoryDomainEventBus
     ) {

@@ -1,15 +1,13 @@
-import type { SystemPayload, WSSEnvelope, WSSSystemActionType, ChatErrorPayload } from '@lemoncloud/chatic-sockets-api';
-import type { SocketContext } from '../dispatchers';
+import type { ChatErrorPayload, SystemPayload, WSSEnvelope, WSSSystemActionType } from '@lemoncloud/chatic-sockets-api';
 import type { SocketEventMap, SocketEventType } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
 
 /**
  * 시스템 관련 소켓 메시지를 분석하여 해당 액션에 부합하는 이벤트를 발생시킵니다.
  * @param envelope 서버로부터 수신된 시스템 원본 메시지 객체
- * @param ctx 소켓 연결 문맥 정보 (Workspace ID 등)
  * @param eventBus 이벤트를 중계할 전역 이벤트 버스
  */
-export const systemHandler = (envelope: WSSEnvelope, ctx: SocketContext, eventBus: IEventBus<SocketEventMap>) => {
+export const systemHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEventMap>) => {
     const action = envelope.action as WSSSystemActionType;
     const { payload, meta } = envelope;
 
@@ -17,7 +15,6 @@ export const systemHandler = (envelope: WSSEnvelope, ctx: SocketContext, eventBu
      * - 이벤트 상세 객체 구성
      */
     const detail = {
-        cid: ctx.cloudId,
         ref: meta?.ref,
         payload,
     };

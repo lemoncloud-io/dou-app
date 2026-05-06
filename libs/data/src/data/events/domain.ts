@@ -21,8 +21,6 @@ export interface DomainPayload<T> {
     data: T;
     /** 요청 발신 시 부여했던 추적용 참조 번호 (서버 응답 시 매핑됨) */
     ref?: string;
-    /** 현재 연결된 클라우드 또는 워크스페이스의 식별자 */
-    cid: string;
 }
 
 /**

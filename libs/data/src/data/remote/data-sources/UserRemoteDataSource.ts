@@ -30,7 +30,6 @@ export class UserRemoteDataSource implements IUserRemoteDataSource {
             this.domainEventBus.emit('user:create', {
                 data: detail.payload as UserView,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 
@@ -38,7 +37,6 @@ export class UserRemoteDataSource implements IUserRemoteDataSource {
             this.domainEventBus.emit('user:update', {
                 data: detail.payload as UserView,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 
@@ -46,7 +44,6 @@ export class UserRemoteDataSource implements IUserRemoteDataSource {
             this.domainEventBus.emit('user:list', {
                 data: detail.payload as ListResult<UserView>,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 
@@ -54,7 +51,6 @@ export class UserRemoteDataSource implements IUserRemoteDataSource {
             this.domainEventBus.emit('user:delete', {
                 data: detail.payload as UserView,
                 ref: detail.ref,
-                cid: detail.cid,
             });
         });
 

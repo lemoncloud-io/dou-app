@@ -2,7 +2,7 @@ import type { SiteView } from '@lemoncloud/chatic-socials-api';
 import type { UserMakeSitePayload, UserUpdateSitePayload, WSSPayload } from '@lemoncloud/chatic-sockets-api';
 import type { ListResult } from '../events/types';
 import type { ISiteRemoteDataSource } from '../remote/data-sources';
-import type { SocketRequestManager } from '../remote/sockets/SocketRequestManager';
+import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import {
     BaseRepository,
     type RepositoryContextProvider,
@@ -29,7 +29,7 @@ export interface ISiteRepository {
 export class SiteRepository extends BaseRepository implements ISiteRepository {
     constructor(
         private readonly siteDataSource: ISiteRemoteDataSource,
-        requestManager: SocketRequestManager,
+        requestManager: ISocketRequestManager,
         context?: RepositoryContextProvider,
         domainEventBus?: RepositoryDomainEventBus
     ) {

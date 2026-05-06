@@ -1,21 +1,19 @@
 import type {
-    WSSEnvelope,
-    WSSModelActionType,
     ChatErrorPayload,
     ModelSyncPayload,
+    WSSEnvelope,
+    WSSModelActionType,
 } from '@lemoncloud/chatic-sockets-api';
 import { logger } from '@chatic/app-messages';
-import type { SocketContext } from '../dispatchers';
 import type { SocketEventMap, SocketEventType } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
 
 /**
  * 수신된 소켓 Envelope 를 해석하여 각 도메인별 이벤트를 발생시킵니다.
  * @param envelope 서버로부터 수신된 원본 메시지 객체
- * @param ctx 현재 소켓의 연결 문맥 정보 (Workspace ID 등)
  * @param eventBus 이벤트를 전파할 시스템 전역 이벤트 버스
  */
-export const modelHandler = (envelope: WSSEnvelope, ctx: SocketContext, eventBus: IEventBus<SocketEventMap>) => {
+export const modelHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEventMap>) => {
     const { action, payload, meta } = envelope;
 
     // 데이터 유효성 검사: 전달받은 페이로드가 유효하지 않은 경우 처리 중단
@@ -34,7 +32,6 @@ export const modelHandler = (envelope: WSSEnvelope, ctx: SocketContext, eventBus
      * - 공통 이벤트 상세 객체 구성
      */
     const detail = {
-        cid: ctx.cloudId,
         ref: meta?.ref,
         payload: payload as ModelSyncPayload,
     };

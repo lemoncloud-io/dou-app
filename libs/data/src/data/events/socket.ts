@@ -21,8 +21,6 @@ import type { ListResult, Synced } from './common';
  * @template T 실제 비즈니스 페이로드 데이터의 타입
  */
 export interface SocketEventDetail<T> {
-    /** 현재 연결된 클라우드 또는 워크스페이스의 식별자 */
-    cid: string;
     /** 클라이언트가 발신한 요청과 서버의 응답을 매핑하기 위한 추적용 참조 번호 (선택) */
     ref?: string;
     /** 서버 스펙에 정의된 실제 전달 데이터 */

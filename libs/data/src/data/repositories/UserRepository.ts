@@ -3,20 +3,13 @@ import type { ChatUsersPayload, UserInvitePayload, UserUpdateProfilePayload } fr
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '../events/types';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
-import type { SocketRequestManager } from '../remote/sockets/SocketRequestManager';
+import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import {
     BaseRepository,
     type RepositoryContextProvider,
     type RepositoryDomainEventBus,
     type RepositoryRequestOptions,
 } from './types';
-
-/** user:update-profile 서버 요청 payload입니다. */
-export type UserProfileUpdatePayload = UserUpdateProfilePayload;
-/** user:invite 서버 요청 payload입니다. */
-export type UserInviteRequestPayload = UserInvitePayload;
-/** user:invite 서버 응답 모델입니다. */
-export type UserInviteResult = MyInviteView;
 
 /**
  * 사용자 도메인의 Repository 공개 계약입니다.
@@ -26,9 +19,9 @@ export interface IUserRepository {
     /** 특정 채널 또는 조건에 맞는 사용자 목록을 조회합니다. */
     fetchUsers(payload: ChatUsersPayload, options?: RepositoryRequestOptions): Promise<ListResult<UserView>>;
     /** 내 사용자 프로필 정보를 수정합니다. */
-    updateProfile(payload: UserProfileUpdatePayload, options?: RepositoryRequestOptions): Promise<UserView>;
+    updateProfile(payload: UserUpdateProfilePayload, options?: RepositoryRequestOptions): Promise<UserView>;
     /** 외부 사용자 초대 코드를 생성합니다. */
-    requestInvite(payload: UserInviteRequestPayload, options?: RepositoryRequestOptions): Promise<UserInviteResult>;
+    requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView>;
 }
 
 /**
@@ -38,7 +31,7 @@ export interface IUserRepository {
 export class UserRepository extends BaseRepository implements IUserRepository {
     constructor(
         private readonly userDataSource: IUserRemoteDataSource,
-        requestManager: SocketRequestManager,
+        requestManager: ISocketRequestManager,
         context?: RepositoryContextProvider,
         domainEventBus?: RepositoryDomainEventBus
     ) {
@@ -51,15 +44,12 @@ export class UserRepository extends BaseRepository implements IUserRepository {
     }
 
     /** user:update-profile 요청을 수행하고 응답을 기다립니다. */
-    public updateProfile(payload: UserProfileUpdatePayload, options?: RepositoryRequestOptions): Promise<UserView> {
+    public updateProfile(payload: UserUpdateProfilePayload, options?: RepositoryRequestOptions): Promise<UserView> {
         return this.requestRemote(ref => this.userDataSource.updateProfile(payload, ref), options);
     }
 
     /** user:invite 요청을 수행하고 정규화된 초대 결과를 기다립니다. (== 유저 생성) */
-    public requestInvite(
-        payload: UserInviteRequestPayload,
-        options?: RepositoryRequestOptions
-    ): Promise<UserInviteResult> {
+    public requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView> {
         return this.requestRemote(ref => this.userDataSource.requestInvite(payload, ref), options);
     }
 }
