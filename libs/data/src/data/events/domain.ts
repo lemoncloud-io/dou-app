@@ -44,6 +44,7 @@ export interface DomainEventMap {
     // ------------------------------------------
     'join:update': DomainPayload<JoinView>;
     'join:delete': DomainPayload<JoinView>;
+    'join:create': DomainPayload<JoinView>;
 
     // ------------------------------------------
     // 3. Channel Domain (채팅방)

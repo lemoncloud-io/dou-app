@@ -7,6 +7,7 @@ import type { ChatReadPayload, ChatUpdateJoinPayload } from '@lemoncloud/chatic-
 export interface IJoinRemoteDataSource {
     /** 특정 메시지까지 읽었음을 서버에 알리고 참여 정보를 동기화합니다. */
     readChat(payload: ChatReadPayload, ref?: string): void;
+
     /** 참여 정보(예: 알림 설정 변경)를 수정합니다. */
     updateJoin(payload: ChatUpdateJoinPayload, ref?: string): void;
 }
@@ -24,6 +25,13 @@ export class JoinRemoteDataSource implements IJoinRemoteDataSource {
         // chat:read 이벤트는 도메인 계층에서 join:update 로직으로 통합 처리됩니다.
         this.socketEventBus.on('chat:read', detail => {
             this.domainEventBus.emit('join:update', {
+                data: detail.payload as JoinView,
+                ref: detail.ref,
+            });
+        });
+
+        this.socketEventBus.on('join:create', detail => {
+            this.domainEventBus.emit('join:create', {
                 data: detail.payload as JoinView,
                 ref: detail.ref,
             });
