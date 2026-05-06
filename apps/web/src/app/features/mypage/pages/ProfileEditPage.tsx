@@ -63,6 +63,7 @@ export const ProfileEditPage = () => {
 
         if (file.size > MAX_IMAGE_SIZE) {
             setImageSizeError(true);
+            event.target.value = '';
             return;
         }
 

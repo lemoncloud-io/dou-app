@@ -465,7 +465,7 @@
         "nameDescription": "Please enter up to 20 characters.",
         "photoLabel": "Photo",
         "photoOptional": "[Optional]",
-        "imageSizeError": "Image size exceeds 2MB",
+        "imageSizeError": "Image size exceeds 10MB",
         "changeImage": "Change photo"
     },
     "workspace": {
@@ -558,7 +558,7 @@
         "photoLabel": "Profile Photo",
         "photoOptional": "[Optional]",
         "save": "Done",
-        "imageSizeError": "Image must be less than 2MB",
+        "imageSizeError": "Image must be less than 10MB",
         "tabBasic": "Basic Profile",
         "tabCloud": "Cloud Profile",
         "cloudDescription1": "Set your name and photo",

@@ -77,6 +77,7 @@ export const CloudProfileEditPage = () => {
         if (!file) return;
         if (file.size > MAX_IMAGE_SIZE) {
             setImageSizeError(true);
+            event.target.value = '';
             return;
         }
         setImageSizeError(false);

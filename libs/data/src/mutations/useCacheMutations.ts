@@ -80,14 +80,13 @@ export const useCacheMutations = (cloudId: string, profileUid?: string) => {
                 userRepo.clearAll(),
                 joinRepo.clearAll(),
                 siteRepo.clearAll(),
-                inviteCloudRepo.clearAll(),
             ]);
         } catch (error) {
             console.error('Failed to clear all caches', error);
         } finally {
             setPendingStates(prev => ({ ...prev, 'clear-all-cache': false }));
         }
-    }, [channelRepo, chatRepo, userRepo, joinRepo, siteRepo, inviteCloudRepo]);
+    }, [channelRepo, chatRepo, userRepo, joinRepo, siteRepo]);
 
     return {
         isPending: pendingStates,
