@@ -1,8 +1,8 @@
 import type { AuthPayload } from '@lemoncloud/chatic-sockets-api';
 import type { IAuthRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import type { RepositoryRequestOptions } from './types';
-import { BaseRepository, type RepositoryContextProvider } from './types';
+import type { DataContextProvider, RepositoryRequestOptions } from './types';
+import { BaseRepository } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
 
@@ -26,10 +26,10 @@ export class AuthRepository extends BaseRepository implements IAuthRepository {
     constructor(
         private readonly authRemoteDataSource: IAuthRemoteDataSource,
         requestManager: ISocketRequestManager,
-        context: RepositoryContextProvider,
+        contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
-        super(requestManager, context, domainEventBus);
+        super(requestManager, contextProvider, domainEventBus);
     }
 
     /**

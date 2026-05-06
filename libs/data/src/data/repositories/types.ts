@@ -15,6 +15,13 @@ export interface RepositoryRequestOptions {
      * remote 실패 시 local hit가 있으면 fallback으로 반환할 수 있습니다.
      */
     refresh?: boolean;
+    /**
+     * 읽기 시 cache/network 병행 정책을 제어합니다.
+     * - cache-and-network: cache hit면 즉시 반환하고 background refresh 수행
+     * - network-only: cache를 무시하고 network만 사용
+     * - cache-only: network를 사용하지 않고 cache만 사용
+     */
+    cachePolicy?: 'cache-and-network' | 'network-only' | 'cache-only';
 }
 
 /**
@@ -22,7 +29,7 @@ export interface RepositoryRequestOptions {
  * cid는 현재 연결된 cloud, sid는 선택된 place, uid는 현재 사용자를 의미합니다.
  * 서버 요청 및 향후 local cache 파티셔닝 정책에서 공통으로 참조할 수 있도록 Repository에 주입됩니다.
  */
-export interface RepositoryContext {
+export interface DataContext {
     /** 현재 연결된 cloud id */
     cid?: string;
     /** 현재 선택된 place id */
@@ -37,28 +44,24 @@ export interface RepositoryContext {
  * Repository가 최신 context를 직접 보관하지 않고 provider를 통해 읽도록 하는 계약입니다.
  * context 객체 자체가 교체되어도 Repository는 getContext() 호출 시점의 최신 값을 읽습니다.
  */
-export interface RepositoryContextProvider {
-    getContext(): RepositoryContext;
-    setContext?(context: RepositoryContext): void;
+export interface DataContextProvider {
+    getContext(): DataContext;
+    setContext(context: DataContext): void;
 }
 
 /**
  * 외부 환경(web provider 등)에서 갱신하는 mutable context holder입니다.
  * Repository 인스턴스는 이 holder를 참조하므로 cid/sid/uid 변경이 있어도 Repository를 재생성할 필요가 없습니다.
  */
-export class MutableRepositoryContext implements RepositoryContextProvider {
-    private context: RepositoryContext;
+export class DataContextHolder implements DataContextProvider {
+    constructor(private context: DataContext) {}
 
-    constructor(initialContext: RepositoryContext = {}) {
-        this.context = initialContext;
-    }
-
-    public getContext(): RepositoryContext {
+    public getContext(): DataContext {
         return this.context;
     }
 
-    public setContext(context: RepositoryContext): void {
-        this.context = { ...this.context, ...context };
+    public setContext(context: DataContext): void {
+        this.context = context;
     }
 }
 
@@ -75,7 +78,7 @@ export class MutableRepositoryContext implements RepositoryContextProvider {
 export abstract class BaseRepository {
     protected constructor(
         private readonly requestManager: ISocketRequestManager,
-        private readonly context: RepositoryContextProvider,
+        private readonly context: DataContextProvider,
         private readonly domainEventBus: IEventBus<DomainEventMap>
     ) {}
 
@@ -92,8 +95,14 @@ export abstract class BaseRepository {
      * 현재 Repository 실행 문맥을 읽습니다.
      * 외부 context holder를 매번 조회하므로 cid/sid/uid 변경이 즉시 반영됩니다.
      */
-    protected getRepositoryContext(): RepositoryContext {
+    protected getRepositoryContext(): DataContext {
         return this.context?.getContext() ?? {};
+    }
+
+    protected runInBackground(task: () => Promise<unknown>, label: string): void {
+        void task().catch(error => {
+            console.warn(`[Repository:${label}] background task failed`, error);
+        });
     }
 
     /**

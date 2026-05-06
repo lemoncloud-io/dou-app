@@ -3,8 +3,8 @@ import type { ChatFeedPayload, ChatSendPayload } from '@lemoncloud/chatic-socket
 import type { IChatLocalDataSource } from '../local/data-sources';
 import type { IChatRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import type { RepositoryRequestOptions } from './types';
-import { BaseRepository, type RepositoryContextProvider } from './types';
+import type { DataContextProvider, RepositoryRequestOptions } from './types';
+import { BaseRepository } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
 
@@ -29,10 +29,10 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         private readonly chatRemoteDataSource: IChatRemoteDataSource,
         private readonly chatLocalDataSource: IChatLocalDataSource,
         requestManager: ISocketRequestManager,
-        context: RepositoryContextProvider,
+        contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
-        super(requestManager, context, domainEventBus);
+        super(requestManager, contextProvider, domainEventBus);
     }
 
     /** 메시지 발신을 data source에 위임하고 응답을 기다립니다. */

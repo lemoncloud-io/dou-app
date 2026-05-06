@@ -1,6 +1,5 @@
 import type { RemoteDataSources } from '../remote/data-sources';
 import type { LocalDataSources } from '../local/data-sources';
-import type { RepositoryContextProvider } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
@@ -18,6 +17,7 @@ import type { ISiteRepository } from './SiteRepository';
 import { SiteRepository } from './SiteRepository';
 import type { IInviteCloudRepository } from './InviteCloudRepository';
 import { InviteCloudRepository } from './InviteCloudRepository';
+import type { DataContextProvider } from './types';
 
 export * from './AuthRepository';
 export * from './ChannelRepository';
@@ -55,7 +55,7 @@ export const createRepositories = ({
 }: {
     remoteDataSources: RemoteDataSources;
     localDataSources: LocalDataSources;
-    context: RepositoryContextProvider;
+    context: DataContextProvider;
     domainEventBus: IEventBus<DomainEventMap>;
     requestManager: ISocketRequestManager;
 }): DataRepositories => ({

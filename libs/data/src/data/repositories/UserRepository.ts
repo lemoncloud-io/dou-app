@@ -4,7 +4,8 @@ import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { DomainEventMap, ListResult } from '../events/types';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import { BaseRepository, type RepositoryContextProvider, type RepositoryRequestOptions } from './types';
+import type { DataContextProvider } from './types';
+import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { IUserLocalDataSource } from '../local/data-sources';
 
@@ -15,8 +16,10 @@ import type { IUserLocalDataSource } from '../local/data-sources';
 export interface IUserRepository {
     /** 특정 채널 또는 조건에 맞는 사용자 목록을 조회합니다. */
     fetchUsers(payload: ChatUsersPayload, options?: RepositoryRequestOptions): Promise<ListResult<UserView>>;
+
     /** 내 사용자 프로필 정보를 수정합니다. */
     updateProfile(payload: UserUpdateProfilePayload, options?: RepositoryRequestOptions): Promise<UserView>;
+
     /** 외부 사용자 초대 코드를 생성합니다. */
     requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView>;
 }
@@ -30,10 +33,10 @@ export class UserRepository extends BaseRepository implements IUserRepository {
         private readonly userRemoteDataSource: IUserRemoteDataSource,
         private readonly userLocalDataSource: IUserLocalDataSource,
         requestManager: ISocketRequestManager,
-        context: RepositoryContextProvider,
+        contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
-        super(requestManager, context, domainEventBus);
+        super(requestManager, contextProvider, domainEventBus);
     }
 
     /** chat:users 요청을 수행하고 응답을 기다립니다. */

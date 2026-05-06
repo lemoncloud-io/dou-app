@@ -2,7 +2,8 @@ import type { JoinView } from '@lemoncloud/chatic-socials-api';
 import type { ChatReadPayload, ChatUpdateJoinPayload } from '@lemoncloud/chatic-sockets-api';
 import type { IJoinLocalDataSource } from '../local/data-sources';
 import type { IJoinRemoteDataSource } from '../remote/data-sources';
-import { BaseRepository, type RepositoryContextProvider, type RepositoryRequestOptions } from './types';
+import type { DataContextProvider} from './types';
+import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { DomainEventMap } from '../events/domain';
 import type { IEventBus } from '../events/eventBus';
@@ -31,10 +32,10 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
         private readonly joinRemoteDataSource: IJoinRemoteDataSource,
         private readonly joinLocalDataSource: IJoinLocalDataSource,
         requestManager: ISocketRequestManager,
-        context: RepositoryContextProvider,
+        contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
-        super(requestManager, context, domainEventBus);
+        super(requestManager, contextProvider, domainEventBus);
     }
 
     /** chat:read 요청을 수행하고 응답을 기다립니다. */

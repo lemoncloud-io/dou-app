@@ -10,13 +10,11 @@ import type { IChannelLocalDataSource } from '../local/data-sources';
 import type { DomainEventMap, ListResult } from '../events/types';
 import type { IChannelRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import { BaseRepository, type RepositoryContextProvider, type RepositoryRequestOptions } from './types';
+import type { DataContextProvider } from './types';
+import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 
-/**
- * 채널 도메인의 Repository 공개 계약입니다.
- * 채널 목록 조회, 채널 생성/수정/삭제, 멤버 초대 요청을 담당합니다.
- */
+/** 채널 도메인의 Repository 공개 계약입니다. */
 export interface IChannelRepository {
     /** 내가 참여 중인 채널 목록을 조회합니다. */
     fetchChannel(payload: ChatMinePayload, options?: RepositoryRequestOptions): Promise<ListResult<ChannelView>>;
@@ -46,10 +44,10 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         private readonly channelRemoteDataSource: IChannelRemoteDataSource,
         private readonly channelLocalDataSource: IChannelLocalDataSource,
         requestManager: ISocketRequestManager,
-        context: RepositoryContextProvider,
+        contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
-        super(requestManager, context, domainEventBus);
+        super(requestManager, contextProvider, domainEventBus);
     }
 
     public async fetchChannel(

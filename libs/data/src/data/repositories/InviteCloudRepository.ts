@@ -1,6 +1,6 @@
 import type { CacheCloudView } from '@chatic/app-messages';
 import type { IInviteCloudLocalDataSource } from '../local/data-sources';
-import type { RepositoryContextProvider } from './types';
+import type { DataContextProvider} from './types';
 import { BaseRepository } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
@@ -29,10 +29,10 @@ export class InviteCloudRepository extends BaseRepository implements IInviteClou
     constructor(
         private readonly inviteCloudLocalDataSource: IInviteCloudLocalDataSource,
         requestManager: ISocketRequestManager,
-        context: RepositoryContextProvider,
+        contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
-        super(requestManager, context, domainEventBus);
+        super(requestManager, contextProvider, domainEventBus);
     }
 
     public saveInvite(id: string, invite: CacheCloudView): Promise<void> {
