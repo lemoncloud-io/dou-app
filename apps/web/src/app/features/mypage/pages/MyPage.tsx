@@ -114,6 +114,28 @@ export const MyPage = () => {
                         </div>
                         <p className="text-[14px] text-muted-foreground">{t('mypage.loginDescription')}</p>
                     </button>
+                ) : isDefaultCloud ? (
+                    <div className="flex items-center gap-[9px]">
+                        <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                            {displayImageUrl ? (
+                                <img
+                                    src={displayImageUrl}
+                                    alt="Profile"
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                <User size={20} className="text-muted-foreground" />
+                            )}
+                        </div>
+                        <div className="flex flex-col items-start gap-0.5">
+                            <h2 className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
+                                {displayName}
+                            </h2>
+                            <p className="text-[14px] text-muted-foreground">{profile?.$user?.email}</p>
+                        </div>
+                    </div>
                 ) : (
                     <button onClick={handleProfileClick} className="flex items-center gap-[9px]">
                         <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
@@ -172,17 +194,19 @@ export const MyPage = () => {
                             </span>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
-                        <div className="h-2" />
                         {(userType === UserType.SOCIAL_WITH_CLOUD || userType === UserType.INVITED_WITH_CLOUD) && (
-                            <button
-                                onClick={() => navigate('/mypage/account-manage')}
-                                className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                            >
-                                <span className="text-[15px] font-medium text-foreground">
-                                    {t('mypage.accountManage.title')}
-                                </span>
-                                <ChevronRight size={18} className="text-muted-foreground" />
-                            </button>
+                            <>
+                                <div className="h-2" />
+                                <button
+                                    onClick={() => navigate('/mypage/account-manage')}
+                                    className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                                >
+                                    <span className="text-[15px] font-medium text-foreground">
+                                        {t('mypage.accountManage.title')}
+                                    </span>
+                                    <ChevronRight size={18} className="text-muted-foreground" />
+                                </button>
+                            </>
                         )}
                     </div>
                 )}

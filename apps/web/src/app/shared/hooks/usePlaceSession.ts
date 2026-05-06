@@ -21,7 +21,9 @@ export const usePlaceSession = () => {
         const { cloudDelegationToken, userToken } = await issueCloudToken(placeId);
 
         cloudCore.saveDelegationToken(cloudDelegationToken);
-        cloudCore.saveCloudToken(userToken);
+        // 서버가 반환하지 않는 로컬 커스텀 필드(thumbnail 등)를 보존
+        const existing = cloudCore.getCloudToken();
+        cloudCore.saveCloudToken(existing ? ({ ...existing, ...userToken } as typeof userToken) : userToken);
         cloudCore.saveSelectedCloudId(placeId);
 
         const { Token, ...profile } = userToken;

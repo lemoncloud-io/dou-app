@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Bell, ChevronDown, CircleAlert, Search, User } from 'lucide-react';
+import { ArrowLeftRight, Bell, ChevronDown, CircleAlert, EllipsisVertical, Search, User } from 'lucide-react';
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -123,7 +123,7 @@ export const HomePage = () => {
                                     )}
                                 </div>
                                 <div className="flex items-center gap-1">
-                                    <span className="max-w-[160px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
+                                    <span className="max-w-[100px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
                                         {displayName}
                                     </span>
                                     <ChevronDown size={18} className="text-muted-foreground" />
@@ -148,7 +148,7 @@ export const HomePage = () => {
                                 <User size={20} className="text-muted-foreground" />
                             )}
                         </div>
-                        <span className="max-w-[160px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
+                        <span className="max-w-[100px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
                             {displayName}
                         </span>
                     </button>
@@ -162,12 +162,23 @@ export const HomePage = () => {
                     <button onClick={() => setIsSearchOpen(true)} className="p-1">
                         <Search size={22} className="text-foreground" />
                     </button>
-                    <button onClick={() => navigate('/notifications')} className="p-1">
-                        <Bell size={22} className="text-foreground" />
-                    </button>
-                    <button onClick={() => setIsReportIssueOpen(true)} className="p-1">
-                        <CircleAlert size={22} className="text-foreground" />
-                    </button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button className="p-1">
+                                <EllipsisVertical size={22} className="text-foreground" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => navigate('/notifications')} className="cursor-pointer">
+                                <Bell size={16} className="mr-2" />
+                                <span>{t('home.notifications')}</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setIsReportIssueOpen(true)} className="cursor-pointer">
+                                <CircleAlert size={16} className="mr-2" />
+                                <span>{t('home.reportIssue')}</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </header>
 

@@ -27,7 +27,9 @@
         "settings": "설정",
         "logout": "로그아웃",
         "logoutInvited": "초대 계정 로그아웃",
-        "logoutFailed": "로그아웃 실패"
+        "logoutFailed": "로그아웃 실패",
+        "notifications": "알림",
+        "reportIssue": "문제 신고"
     },
     "profile": {
         "editTitle": "프로필 수정",
@@ -463,7 +465,7 @@
         "nameDescription": "20글자 이내로 입력해 주세요.",
         "photoLabel": "사진",
         "photoOptional": "[선택]",
-        "imageSizeError": "이미지 크기가 2MB를 초과합니다",
+        "imageSizeError": "이미지 크기가 10MB를 초과합니다",
         "changeImage": "사진 변경"
     },
     "workspace": {
@@ -556,7 +558,7 @@
         "photoLabel": "프로필 사진",
         "photoOptional": "[선택]",
         "save": "완료",
-        "imageSizeError": "이미지는 2MB 이하여야 합니다",
+        "imageSizeError": "이미지는 10MB 이하여야 합니다",
         "tabBasic": "기본 프로필",
         "tabCloud": "Cloud 프로필",
         "cloudDescription1": "Cloud에서 사용할 이름과",

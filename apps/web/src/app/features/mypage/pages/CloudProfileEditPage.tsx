@@ -26,7 +26,7 @@ export const CloudProfileEditPage = () => {
     // cloudToken에서 직접 읽어야 relay photo가 섞이지 않음
     const cloudToken = cloudCore.getCloudToken();
     const cloudName = cloudToken?.name || '';
-    const cloudThumbnail = ((cloudToken as Record<string, unknown>)?.thumbnail as string) || '';
+    const cloudThumbnail = ((cloudToken as Record<string, unknown>)?.photo as string) || '';
 
     const initialRef = useRef({ name: cloudName, thumbnail: cloudThumbnail, initialized: !!cloudToken });
     const [name, setName] = useState(cloudName.slice(0, 30));
@@ -77,6 +77,7 @@ export const CloudProfileEditPage = () => {
         if (!file) return;
         if (file.size > MAX_IMAGE_SIZE) {
             setImageSizeError(true);
+            event.target.value = '';
             return;
         }
         setImageSizeError(false);
