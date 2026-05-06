@@ -203,5 +203,12 @@ TTL을 도입하려면 scope별 cache metadata가 필요하므로 후속 작업�
 - `libs/data/src/data/local/storages/*`를 DataProvider에서 주입하도록 설계한다.
 - 신규 캐싱 정책에 맞춰 `storages`내 캐싱 테이블들이 개선된다.
 - `LocalDataSource` 내부 기능들이 Repository 요청 페이로드에 맞춰 대응된다.
-- 6번 캐싱 운용 정책에 맞춰 local hit, local miss, remote fail, offline fallback 케이스가 처리된다.
 - 단위 테스트가 추가된다.
+
+## 9. 추가 조건 및 요구사항
+
+- 반드시 작업 범위는 `apps/web/src/app/shared/data` 및 `libs/data/src`만 고려한다.
+- `CacheStorage`의 팩터리는 `apps/web/src/app/shared/data`에서 구성되어야한다.
+- 스토리지 진입 인터페이스는 `CacheStorage`이며, 위에서 언급한 `factory`는 주입 결정정책만 판단한다.
+- CacheStorage의 scope을 결정할 `Context`는 `RepositoryContext`로 부터 `LocalDataSource`로 이어지며, 주입받는다.
+- `RepositoryOptions`에 캐싱 네트워크 동시사용, 오직 네트워크만 사용, 무조건 캐싱 사용과 같은 여러 정책들을 파라미터로 제공한다.
