@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { AlertCircle, Check, Home, Loader2, Plus, User, X } from 'lucide-react';
 
+import { logger } from '@chatic/app-messages';
 import { cn } from '@chatic/lib/utils';
 import { useInterval } from '@chatic/shared';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
@@ -324,7 +325,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
             setSelectedId(cloudId);
             handleClose();
         } catch (e) {
-            console.error('[CloudSessionSheet] selectCloud failed:', e);
+            logger.error('SESSION', '[CloudSessionSheet] selectCloud failed', { error: e, data: { cloudId } });
             reportError(toError(e));
             toast({ title: t('cloudSessionSheet.switchFailed'), variant: 'destructive' });
         }

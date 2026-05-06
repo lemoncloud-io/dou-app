@@ -12,7 +12,7 @@ import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore, useSplashStore } from '@chatic/web-core';
 
-import { initializeMessageListener } from '@chatic/app-messages';
+import { initializeMessageListener, logger } from '@chatic/app-messages';
 
 import { ServiceUnavailableOverlay, SplashOverlay, WebSocketV2Connection } from './components';
 import { Router } from './routes';
@@ -100,7 +100,7 @@ export function App() {
     }, []);
 
     const handleError = useCallback((error: Error, info: ErrorInfo): void => {
-        console.error('Application Error:', error, info);
+        logger.error('APP', 'Application Error', { error, data: info });
         reportError(error, { componentStack: info.componentStack ?? undefined });
     }, []);
 

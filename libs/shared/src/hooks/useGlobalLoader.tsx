@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+import { logger } from '@chatic/app-messages';
+
 const LOADER_TIMEOUT_MS = 30_000;
 
 interface LoaderState {
@@ -22,7 +24,7 @@ export const useLoaderStore = create<LoaderState>(set => ({
 
         if (isLoading) {
             loaderTimeoutId = setTimeout(() => {
-                console.warn('[GlobalLoader] Safety timeout reached, auto-resetting loading state');
+                logger.warn('GLOBAL_LOADER', '[GlobalLoader] Safety timeout reached, auto-resetting loading state');
                 loaderTimeoutId = null;
                 set({ isLoading: false, message: undefined });
             }, LOADER_TIMEOUT_MS);

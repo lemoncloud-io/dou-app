@@ -6,6 +6,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 
 import { toast } from 'sonner';
 
+import { logger } from '@chatic/app-messages';
 import { LoadingFallback } from '@chatic/shared';
 import { createCredentialsByProvider, loginWithInviteCode, useWebCoreStore } from '@chatic/web-core';
 
@@ -43,7 +44,7 @@ export const OAuthResponsePage = () => {
                     const stateObj = JSON.parse(decodeURIComponent(stateParam));
                     redirectTo = stateObj.from || '/home';
                 } catch (e) {
-                    console.warn(t('oauth.error.stateParam'), e);
+                    logger.warn('AUTH', t('oauth.error.stateParam'), e);
                 }
 
                 navigate(redirectTo, { replace: true });

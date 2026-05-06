@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 
+import { logger } from '@chatic/app-messages';
 import { useWebSocketV2 } from '@chatic/socket';
 import { useDynamicProfile } from '@chatic/web-core';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
@@ -27,7 +28,12 @@ export const useReadMessage = (
         if (!chatNo) return;
         emit({ type: 'chat', action: 'read', payload: { channelId, chatNo } });
         applyReadEvent?.(chatNo, profile.uid);
-        storage.markAllRead(profile.uid, channelId).catch(console.error);
+        storage.markAllRead(profile.uid, channelId).catch(error => {
+            logger.error('CHAT', 'Failed to mark all messages as read', {
+                error,
+                data: { userId: profile.uid, channelId, chatNo },
+            });
+        });
     }, [channelId]);
 
     // type:chat action:read 또는 type:model action:update sourceType:join 수신 시 applyReadEvent

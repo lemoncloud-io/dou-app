@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { logger } from '@chatic/app-messages';
+
 declare const __APP_VERSION__: string;
 
 const IS_PROD = import.meta.env.VITE_ENV === 'PROD';
@@ -111,7 +113,7 @@ export const useVersionCheck = (config?: VersionCheckConfig): VersionCheckResult
         } catch (err) {
             const errorObj = err instanceof Error ? err : new Error('Version check failed');
             setError(errorObj);
-            console.warn('[VersionCheck] Failed to check version:', errorObj.message);
+            logger.warn('VERSION', '[VersionCheck] Failed to check version', { message: errorObj.message });
         } finally {
             isCheckingRef.current = false;
             setIsChecking(false);
@@ -123,7 +125,7 @@ export const useVersionCheck = (config?: VersionCheckConfig): VersionCheckResult
             return;
         }
 
-        console.log(`[VersionCheck] Starting version check interval: ${interval}ms (current: ${currentVersion})`);
+        logger.info('VERSION', '[VersionCheck] Starting version check interval', { interval, currentVersion });
         intervalRef.current = setInterval(checkVersion, interval);
     }, [checkVersion, interval, currentVersion]);
 

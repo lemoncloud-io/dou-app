@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { AppState } from 'react-native';
 
+import { logger } from '@chatic/app-messages';
 import { useWebCoreStore, webCore } from '@chatic/web-core';
 
 // import { useWebSocket } from './useWebSocket';
@@ -63,7 +64,7 @@ export const useInitWebSocket = (sessionId?: string, channels?: string) => {
             const tokenData = await webCore.getTokenSignature();
             return tokenData?.originToken?.identityToken || null;
         } catch (error) {
-            console.error('[WebSocket] Failed to get token:', error);
+            logger.error('SOCKET', '[WebSocket] Failed to get token', { error });
             return null;
         }
     }, []);
@@ -84,7 +85,7 @@ export const useInitWebSocket = (sessionId?: string, channels?: string) => {
     }, [id, setId]);
 
     useEffect(() => {
-        console.log('[useInitWebSocket] connectionStatus changed:', connectionStatus);
+        logger.debug('SOCKET', '[useInitWebSocket] connectionStatus changed', { connectionStatus });
         setConnectionStatus(connectionStatus);
     }, [connectionStatus, setConnectionStatus]);
 
@@ -115,10 +116,10 @@ export const useInitWebSocket = (sessionId?: string, channels?: string) => {
 
         const subscription = AppState.addEventListener('change', nextAppState => {
             if (nextAppState === 'active') {
-                console.log('[useInitWebSocket] App became active - reconnecting');
+                logger.info('SOCKET', '[useInitWebSocket] App became active - reconnecting');
                 connect();
             } else if (nextAppState === 'background' || nextAppState === 'inactive') {
-                console.log('[useInitWebSocket] App went to background/inactive - disconnecting');
+                logger.info('SOCKET', '[useInitWebSocket] App went to background/inactive - disconnecting');
                 disconnect();
             }
         });

@@ -1,4 +1,5 @@
 import type { ClientSyncPayload, WSSEnvelope, WSSSyncActionType } from '@lemoncloud/chatic-sockets-api';
+import { logger } from '@chatic/app-messages';
 import { notifyAppUpdated } from '../sync-events';
 
 /**
@@ -19,7 +20,7 @@ export const syncHandler = async (envelope: WSSEnvelope, cid: string) => {
         case 'update':
         case 'sync': {
             if (payload) {
-                console.log(`[Sync Handler] State updated:`, payload);
+                logger.info('SYNC', '[Sync Handler] State updated', payload);
             }
             notifyAppUpdated({ domain: 'presence', action, cid, payload });
             break;
@@ -30,14 +31,14 @@ export const syncHandler = async (envelope: WSSEnvelope, cid: string) => {
          */
         case 'info': {
             if (payload) {
-                console.log(`[Sync Handler] Info received:`, payload);
+                logger.info('SYNC', '[Sync Handler] Info received', payload);
             }
             notifyAppUpdated({ domain: 'presence', action, cid, payload });
             break;
         }
 
         default:
-            console.warn(`[Sync Handler] Unhandled sync action: ${action}`);
+            logger.warn('SYNC', `[Sync Handler] Unhandled sync action: ${action}`);
             break;
     }
 };

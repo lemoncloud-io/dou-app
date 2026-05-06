@@ -1,4 +1,5 @@
 import { notifyAppUpdated } from '../sync-events';
+import { logger } from '@chatic/app-messages';
 import type { WSSEnvelope, WSSModelActionType } from '@lemoncloud/chatic-sockets-api';
 
 /**
@@ -174,11 +175,11 @@ export const modelHandler = async (
             }
 
             default: {
-                console.warn(`[Model Handler] Unhandled action: ${action}`);
+                logger.warn('MODEL', `[Model Handler] Unhandled action: ${action}`);
                 break;
             }
         }
     } catch (error) {
-        console.error(`[Model Handler] DB Sync Error for action ${action} and type ${type}:`, error);
+        logger.error('MODEL', `[Model Handler] DB Sync Error for action ${action} and type ${type}`, { error });
     }
 };

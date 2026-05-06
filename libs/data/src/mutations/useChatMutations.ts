@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { logger } from '@chatic/app-messages';
 import { useWebSocketV2 } from '@chatic/socket';
 import type { ChatView } from '@lemoncloud/chatic-socials-api';
 import { useDynamicProfile } from '@chatic/web-core';
@@ -92,7 +93,12 @@ export const useChatMutations = () => {
                                 payload: failedMsg,
                             });
                         })
-                        .catch(console.error);
+                        .catch(error => {
+                            logger.error('CHAT', 'Failed to save failed temp message', {
+                                error,
+                                data: { channelId: payload.channelId, tempId },
+                            });
+                        });
                     reject(new Error('Message send timeout.'));
                 }, 5000);
 
@@ -145,7 +151,7 @@ export const useChatMutations = () => {
                     targetId: channelId,
                 });
             } catch (error) {
-                console.error('Failed to delete chat:', error);
+                logger.error('CHAT', 'Failed to delete chat', { error, data: { messageId, channelId } });
                 throw error;
             } finally {
                 setPendingStates(prev => ({ ...prev, [action]: false }));

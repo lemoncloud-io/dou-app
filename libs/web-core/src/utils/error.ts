@@ -1,3 +1,5 @@
+import { logger } from '@chatic/app-messages';
+
 export const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
 
 export enum ErrorType {
@@ -131,14 +133,14 @@ export const extractErrorMessage = (error: any): string => {
 };
 
 export const handleAuthError = (error: any, shouldLogout: boolean, message?: string): never => {
-    console.error(message || 'Authentication error:', error);
+    logger.error('AUTH', message || 'Authentication error', { error });
     const errorMessage = extractErrorMessage(error);
 
     if (shouldLogout) {
         alert(`인증 오류: ${errorMessage}`);
         window.location.href = '/auth/logout';
     } else {
-        console.error(`요청 오류: ${errorMessage}`);
+        logger.error('AUTH', `요청 오류: ${errorMessage}`, { error });
     }
 
     throw error;

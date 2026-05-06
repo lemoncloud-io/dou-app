@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import { logger } from '@chatic/app-messages';
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 
@@ -35,7 +36,7 @@ export const useRegisterDevice = () => useCustomMutation<UserTokenView, string, 
 export const useRegisterUser = () =>
     useCustomMutation<UserView, string, UserBody>(registerUser, {
         onSuccess: () => {
-            console.log('User registered successfully');
+            logger.info('AUTH', 'User registered successfully');
         },
     });
 
@@ -44,7 +45,7 @@ export const useRegisterUserV2 = () =>
         ({ email, ...body }) => registerUserV2(body, email),
         {
             onSuccess: () => {
-                console.log('User registered successfully');
+                logger.info('AUTH', 'User registered successfully');
             },
         }
     );
@@ -57,7 +58,7 @@ export const useLogin = () => {
             const { Token, ...rest } = data;
             setProfile(rest as unknown as UserProfile$);
             setIsAuthenticated(true);
-            console.log('Login successful');
+            logger.info('AUTH', 'Login successful');
         },
     });
 };
@@ -103,7 +104,9 @@ export const useLogout = () => {
 
     return useCustomMutation<void, string, void>(async () => {
         // 1. 서버 로그아웃 (실패해도 로컬 정리는 진행)
-        await logout().catch(err => console.error('[useLogout] Server logout failed:', err));
+        await logout().catch(err => {
+            logger.error('AUTH', '[useLogout] Server logout failed', { error: err });
+        });
         // 2. 로컬 상태 정리 + 리다이렉트
         await storeLogout();
     });

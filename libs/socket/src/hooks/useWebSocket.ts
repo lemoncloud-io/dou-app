@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { logger } from '@chatic/app-messages';
 import { WebSocketService } from '../services';
 
 import type { BaseWebSocketMessage, ConnectionStatus } from '../types';
@@ -97,12 +98,13 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
 
     // Connect to WebSocket (async)
     const connect = useCallback(async (): Promise<void> => {
-        console.log('[useWebSocket] connect() called');
-        console.log('[useWebSocket] wsService.current exists:', !!wsService.current);
-        console.log('[useWebSocket] endpoint:', endpoint);
+        logger.debug('SOCKET', '[useWebSocket] connect() called', {
+            hasService: !!wsService.current,
+            hasEndpoint: !!endpoint,
+        });
 
         if (!endpoint) {
-            console.error(`${logPrefix || '[useWebSocket]'} Endpoint not configured`);
+            logger.error('SOCKET', `${logPrefix || '[useWebSocket]'} Endpoint not configured`);
             return;
         }
 
@@ -142,7 +144,7 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
                 });
 
                 wsService.current.onError(error => {
-                    console.error(`${logPrefix || '[useWebSocket]'} Error:`, error);
+                    logger.error('SOCKET', `${logPrefix || '[useWebSocket]'} Error`, { error });
                 });
             } else {
                 // Update config if service already exists
@@ -157,10 +159,10 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
             }
 
             // Connect
-            console.log(`${logPrefix || '[useWebSocket]'} Connecting...`);
+            logger.info('SOCKET', `${logPrefix || '[useWebSocket]'} Connecting`);
             wsService.current.connect();
         } catch (error) {
-            console.error(`${logPrefix || '[useWebSocket]'} Failed to connect:`, error);
+            logger.error('SOCKET', `${logPrefix || '[useWebSocket]'} Failed to connect`, { error });
         }
     }, [endpoint, tokenProvider, messageParser, authQueryParam, pingInterval, logPrefix, sessionId]);
 
@@ -180,7 +182,7 @@ export const useWebSocket = <TMessage extends BaseWebSocketMessage = BaseWebSock
             if (wsService.current) {
                 wsService.current.send(data);
             } else {
-                console.warn(`${logPrefix || '[useWebSocket]'} Cannot send - service not initialized`);
+                logger.warn('SOCKET', `${logPrefix || '[useWebSocket]'} Cannot send - service not initialized`);
             }
         },
         [logPrefix]

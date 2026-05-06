@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { logger } from '@chatic/app-messages';
 import { BROADCAST_CHANNEL_NAME } from '../storages/IndexedDBStorageAdapter';
 import { useDynamicStorage } from './_deprecated/useDynamicStorage';
 
@@ -14,7 +15,12 @@ export const useUnreadCount = (userId: string | null, channelId: string) => {
         if (!userId) return;
 
         const refresh = () => {
-            storage.countUnread(userId, channelId).then(setUnreadCount).catch(console.error);
+            storage
+                .countUnread(userId, channelId)
+                .then(setUnreadCount)
+                .catch(error => {
+                    logger.error('CHAT', 'Failed to count unread messages', { error, data: { userId, channelId } });
+                });
         };
 
         refresh();

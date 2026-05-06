@@ -1,4 +1,4 @@
-import type { CacheSiteView } from '@chatic/app-messages';
+import { logger, type CacheSiteView } from '@chatic/app-messages';
 import type { MySiteView, UserView } from '@lemoncloud/chatic-backend-api';
 import type { WSSEnvelope, WSSUserActionType } from '@lemoncloud/chatic-sockets-api';
 import { reportError } from '@chatic/web-core';
@@ -26,10 +26,10 @@ export const userHandler = async (envelope: WSSEnvelope, cloudId: string, userRe
             const siteList = payload?.list as MySiteView[];
             if (siteList) {
                 const cacheSiteList = siteList.map(site => ({ ...site, cid: cloudId }) as CacheSiteView);
-                console.log('[userHandler] my-site response:', {
+                logger.info('USER', '[userHandler] my-site response', {
                     cloudId,
                     count: cacheSiteList.length,
-                    places: cacheSiteList.map(s => ({ id: s.id, name: s.name, stereo: s.stereo, status: s.status })),
+                    places: cacheSiteList.map(s => ({ id: s.id, name: s.name, stereo: s.stereo })),
                 });
                 await placeRepo.replacePlaces(cacheSiteList);
                 notifyAppUpdated({ domain: 'site', action, cid: cloudId, payload });
@@ -79,13 +79,13 @@ export const userHandler = async (envelope: WSSEnvelope, cloudId: string, userRe
          * 에러 응답
          */
         case 'error': {
-            console.error(`[User Handler] Server responded with error:`, payload?.error);
+            logger.error('USER', '[User Handler] Server responded with error', { error: payload?.error });
             reportError(new Error(`[WS:user] ${(payload as any)?.error ?? 'Unknown user error'}`));
             notifyAppUpdated({ domain: 'error', cid: cloudId, action, payload });
             break;
         }
 
         default:
-            console.warn(`[User Handler] Unhandled user action: ${action}`);
+            logger.warn('USER', `[User Handler] Unhandled user action: ${action}`);
     }
 };

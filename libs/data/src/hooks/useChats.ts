@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { logger } from '@chatic/app-messages';
 import { useWebSocketV2 } from '@chatic/socket';
 import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
@@ -133,7 +134,10 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                     isLoadingMore: false,
                 });
             } catch (error) {
-                console.error(`Failed to load chats for channel ${targetChannelId}:`, error);
+                logger.error('CHAT', `Failed to load chats for channel ${targetChannelId}`, {
+                    error,
+                    data: { channelId: targetChannelId },
+                });
                 setStatus(prev => ({ ...prev, isLoading: false, isError: true }));
             }
         },
@@ -182,7 +186,12 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                         return Promise.all(pending.map(m => chatRepository.deleteChat(m.id!)));
                     }
                 })
-                .catch(console.error);
+                .catch(error => {
+                    logger.error('CHAT', 'Failed to clean orphaned pending messages', {
+                        error,
+                        data: { channelId: targetChannelId },
+                    });
+                });
         }
 
         requestFromNetwork({ channelId: targetChannelId, limit: initialParams.limit });

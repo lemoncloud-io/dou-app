@@ -10,6 +10,7 @@ import {
     usePlaces,
     useUserMutations,
 } from '@chatic/data';
+import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store, getSocketSend } from '@chatic/socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { ChatStartPayload } from '@lemoncloud/chatic-sockets-api';
@@ -61,7 +62,7 @@ export const DebugChatPage = () => {
             setNewPlaceName('');
             refreshPlaces();
         } catch (e) {
-            console.error(e);
+            logger.error('DEBUG_CHAT', 'Failed to make site', { error: e });
         }
     };
 
@@ -102,9 +103,9 @@ export const DebugChatPage = () => {
 
             setSelectedPlaceId(placeId);
             // 모바일 환경을 위해 Alert 대신 가벼운 Toast나 조용한 처리 권장
-            console.log(`${placeId} 플레이스로 전환 완료`);
+            logger.info('DEBUG_CHAT', `${placeId} 플레이스로 전환 완료`);
         } catch (e) {
-            console.error('Failed to select place:', e);
+            logger.error('DEBUG_CHAT', 'Failed to select place', { error: e, data: { placeId } });
             alert('플레이스 전환 실패');
         }
     };
@@ -118,7 +119,7 @@ export const DebugChatPage = () => {
             setNewChannelName('');
             refreshChannels();
         } catch (e) {
-            console.error(e);
+            logger.error('DEBUG_CHAT', 'Failed to create channel', { error: e, data: { selectedPlaceId } });
         }
     };
 
@@ -138,7 +139,7 @@ export const DebugChatPage = () => {
                 });
             }
         } catch (e) {
-            console.error('전송 또는 읽음 처리 실패:', e);
+            logger.error('DEBUG_CHAT', '전송 또는 읽음 처리 실패', { error: e, data: { selectedChannelId } });
         }
     };
 

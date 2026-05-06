@@ -6,6 +6,7 @@ import ChainedBackend from 'i18next-chained-backend';
 import LocalStorageBackend from 'i18next-localstorage-backend';
 import Backend from 'i18next-xhr-backend';
 
+import { logger } from '@chatic/app-messages';
 import { ENV, LANGUAGE_KEY, PROJECT } from '@chatic/web-core';
 
 const I18N_VERSION = process.env.I18N_VERSION || 'fallback';
@@ -16,7 +17,7 @@ if (!isDevelopment) {
     Object.keys(localStorage).forEach(key => {
         if (key.startsWith('i18next_res_') && !key.startsWith(currentPrefix)) {
             localStorage.removeItem(key);
-            console.log(`Cleaned up old i18n cache: ${key}`);
+            logger.info('I18N', `Cleaned up old i18n cache: ${key}`);
         }
     });
 }

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { logger } from '@chatic/app-messages';
 import type { ConnectionStatus } from '../types';
 
 /**
@@ -96,7 +97,7 @@ const store = create<WebSocketState & WebSocketActions>((set, get) => ({
             try {
                 callback(message);
             } catch (error) {
-                console.error('[WebSocket] Subscriber error:', error);
+                logger.error('SOCKET', '[WebSocket] Subscriber error', { error });
             }
         });
     },

@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 
+import { logger } from '@chatic/app-messages';
 import { fetchProfile } from '../api';
 import { useWebCoreStore } from '../stores';
 
@@ -12,7 +13,7 @@ export const useProfile = () => {
             setProfile(profile);
             return profile;
         } catch (error) {
-            console.error('❌ Profile fetch failed:', error);
+            logger.error('PROFILE', 'Profile fetch failed', { error });
             throw error;
         }
     }, [setProfile]);

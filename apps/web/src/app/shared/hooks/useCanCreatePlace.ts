@@ -1,3 +1,4 @@
+import { logger } from '@chatic/app-messages';
 import { cloudCore, useUserContext, useWebCoreStore } from '@chatic/web-core';
 import { usePlaces } from '@chatic/data';
 
@@ -17,7 +18,7 @@ export const useCanCreatePlace = () => {
     // Can only create place if the selected cloud is owned by me
     const isMyCloud = selectedCloud ? selectedCloud.ownerId === myUserId : false;
 
-    console.log('[useCanCreatePlace]', {
+    logger.debug('PLACE', '[useCanCreatePlace]', {
         selectedCloudId,
         selectedCloud: selectedCloud ? { id: selectedCloud.id, ownerId: selectedCloud.ownerId } : null,
         myUserId,

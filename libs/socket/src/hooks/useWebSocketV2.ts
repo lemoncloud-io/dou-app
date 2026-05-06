@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 
+import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '../stores';
 import { reportError } from '@chatic/web-core';
 
@@ -22,6 +23,20 @@ let globalEmitAuthenticatedFn: ((data: unknown) => void) | null = null;
 export const getSocketSend = () => globalSendFn;
 
 const HEALTH_CHECK_TIMEOUT_MS = 3_000;
+
+const getMessageMeta = (data: unknown) => {
+    if (typeof data !== 'object' || data === null) {
+        return { dataType: typeof data };
+    }
+
+    const message = data as Record<string, unknown>;
+    return {
+        type: message.type,
+        action: message.action,
+        id: message.id,
+        mid: message.mid,
+    };
+};
 
 /** Check socket health via Worker. Returns 'connected' if alive, 'reconnecting' if dead/reconnecting. */
 export const checkSocketHealth = (): Promise<'connected' | 'reconnecting'> => {
@@ -61,15 +76,15 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
     // then requestDedup blocks subsequent retry attempts.
     const sendProxy = useCallback((data: unknown) => {
         if (globalSendFn) globalSendFn(data);
-        else console.warn('[WebSocketV2] Not initialized');
+        else logger.warn('SOCKET', '[WebSocketV2] Not initialized');
     }, []);
     const emitProxy = useCallback((data: unknown) => {
         if (globalEmitFn) globalEmitFn(data);
-        else console.warn('[WebSocketV2] Not initialized');
+        else logger.warn('SOCKET', '[WebSocketV2] Not initialized');
     }, []);
     const emitAuthenticatedProxy = useCallback((data: unknown) => {
         if (globalEmitAuthenticatedFn) globalEmitAuthenticatedFn(data);
-        else console.warn('[WebSocketV2] Not initialized');
+        else logger.warn('SOCKET', '[WebSocketV2] Not initialized');
     }, []);
 
     if (!config) {
@@ -86,12 +101,12 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
 
     const connect = useCallback(async (): Promise<void> => {
         if (!endpoint) {
-            console.error(`${logPrefix} Endpoint not configured`);
+            logger.error('SOCKET', `${logPrefix} Endpoint not configured`);
             return;
         }
 
         if (!connectParams?.deviceId) {
-            console.warn(`${logPrefix} DeviceId not provided, skipping connection`);
+            logger.warn('SOCKET', `${logPrefix} DeviceId not provided, skipping connection`);
             return;
         }
 
@@ -110,7 +125,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
 
                     if (message.type === 'message') {
                         const envelope = message.data as WSSEnvelope;
-                        console.log(`${logPrefix} Message:`, envelope);
+                        logger.debug('SOCKET', `${logPrefix} Message`, getMessageMeta(envelope));
                         store.setLastMessage(envelope);
 
                         const payload = envelope.payload as { state?: string } | undefined;
@@ -124,7 +139,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                     }
 
                     if (message.type === 'error') {
-                        console.error(`${logPrefix} Worker error:`, message.error);
+                        logger.error('SOCKET', `${logPrefix} Worker error`, { error: message.error });
                         reportError(new Error(`[WebSocket Worker] ${message.error}`));
                     }
 
@@ -163,7 +178,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                 store.setDeviceId(connectParams.deviceId);
             }
         } catch (error) {
-            console.error(`${logPrefix} Failed to connect:`, error);
+            logger.error('SOCKET', `${logPrefix} Failed to connect`, { error });
             store.setConnectionStatus('error');
         }
     }, [endpoint, logPrefix, connectParams, store]);
@@ -185,7 +200,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
             if (worker) {
                 worker.postMessage({ type: 'send', data });
             } else {
-                console.warn(`${logPrefix} Cannot send - worker not initialized`);
+                logger.warn('SOCKET', `${logPrefix} Cannot send - worker not initialized`);
             }
         },
         [logPrefix]
@@ -195,7 +210,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
         (data: unknown): void => {
             const worker = workerRef.current || globalWorkerRef;
             if (!worker) {
-                console.warn(`${logPrefix} Cannot emit - worker not initialized`);
+                logger.warn('SOCKET', `${logPrefix} Cannot emit - worker not initialized`);
                 return;
             }
             if (useWebSocketV2Store.getState().isConnected) {
@@ -219,10 +234,10 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
         (data: unknown): void => {
             const worker = workerRef.current || globalWorkerRef;
             if (!worker) {
-                console.warn(`${logPrefix} Cannot emitAuthenticated - worker not initialized`);
+                logger.warn('SOCKET', `${logPrefix} Cannot emitAuthenticated - worker not initialized`);
                 return;
             }
-            console.log(`${logPrefix} Emit:`, data);
+            logger.debug('SOCKET', `${logPrefix} Emit`, getMessageMeta(data));
             if (useWebSocketV2Store.getState().isVerified) {
                 worker.postMessage({ type: 'send', data });
                 return;
@@ -232,7 +247,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                 verified => {
                     if (!verified) return;
                     unsub();
-                    console.log(`${logPrefix} Emit (deferred):`, data);
+                    logger.debug('SOCKET', `${logPrefix} Emit (deferred)`, getMessageMeta(data));
                     (workerRef.current || globalWorkerRef)?.postMessage({ type: 'send', data });
                 }
             );
@@ -252,12 +267,12 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
 
     useEffect(() => {
         if (!enabled) {
-            console.log(`${logPrefix} Disconnecting (enabled=false)`);
+            logger.info('SOCKET', `${logPrefix} Disconnecting (enabled=false)`);
             disconnectRef.current();
             return;
         }
 
-        console.log(`${logPrefix} Connecting to:`, endpoint);
+        logger.info('SOCKET', `${logPrefix} Connecting`, { endpoint });
         void connectRef.current();
 
         return () => {

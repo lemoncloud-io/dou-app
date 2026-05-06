@@ -16,7 +16,7 @@ import {
 } from '@chatic/web-core';
 import { LoadingFallback } from '@chatic/shared';
 
-import { getMobileAppInfo } from '@chatic/app-messages';
+import { getMobileAppInfo, logger } from '@chatic/app-messages';
 
 import type { CloudDelegationTokenView, UserProfile$, UserTokenView } from '@lemoncloud/chatic-backend-api';
 
@@ -49,13 +49,13 @@ export const LoginPage = (): JSX.Element => {
         try {
             const delegatorId = getDelegatorId();
             if (!delegatorId) {
-                console.error('[LoginPage] delegatorId not found in storage');
+                logger.error('AUTH', '[LoginPage] delegatorId not found in storage');
                 setMissingDelegator(true);
                 return null;
             }
             return await loginWithInviteCode(code, delegatorId, backend);
         } catch (error) {
-            console.error('[LoginPage] Fetch invite data failed:', error);
+            logger.error('AUTH', '[LoginPage] Fetch invite data failed', { error });
             reportError(toError(error));
             toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
             setInviteError(true);
@@ -72,7 +72,7 @@ export const LoginPage = (): JSX.Element => {
             setIsAuthenticated(true);
             window.location.replace('/');
         } catch (error) {
-            console.error('[LoginPage] Device registration failed:', error);
+            logger.error('AUTH', '[LoginPage] Device registration failed', { error });
             reportError(toError(error));
             toast({ title: t('auth.loginFailed'), variant: 'destructive' });
             // Navigate to home to prevent permanent stuck on "preparing app"
@@ -173,7 +173,7 @@ export const LoginPage = (): JSX.Element => {
             toast({ title: t('auth.loginSuccess') });
             window.location.replace('/');
         } catch (error) {
-            console.error('[LoginPage] Accept invite failed:', error);
+            logger.error('AUTH', '[LoginPage] Accept invite failed', { error });
             reportError(toError(error));
             toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
             setIsAccepting(false);

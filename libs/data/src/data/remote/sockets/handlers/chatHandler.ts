@@ -1,5 +1,6 @@
 import type { ChatErrorPayload, WSSChatActionType, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { ChannelView, ChatFeedResult, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
+import { logger } from '@chatic/app-messages';
 import type { SocketContext } from '../dispatchers';
 import type { ListResult, SocketEventMap } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
@@ -84,7 +85,7 @@ export const chatHandler = (envelope: WSSEnvelope, ctx: SocketContext, eventBus:
             break;
 
         default:
-            console.warn(`[Chat Handler] Unhandled chat action: ${action}`);
+            logger.warn('CHAT', `[Chat Handler] Unhandled chat action: ${action}`);
             break;
     }
 };

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Check, Home, RefreshCw, Users } from 'lucide-react';
 
+import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cn } from '@chatic/lib/utils';
 import { cloudCore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
@@ -175,7 +176,7 @@ export const PlaceList = ({
             setSelectedId(placeId);
             onPlaceSelected?.(placeId);
         } catch (e) {
-            console.error('Failed to select place:', e);
+            logger.error('PLACE', 'Failed to select place', { error: e, data: { placeId } });
         } finally {
             switchingRef.current = false;
             setIsPending(false);

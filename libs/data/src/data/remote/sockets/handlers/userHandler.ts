@@ -1,5 +1,6 @@
 import type { ChatErrorPayload, WSSEnvelope, WSSUserActionType } from '@lemoncloud/chatic-sockets-api';
 import type { SiteView, UserView } from '@lemoncloud/chatic-socials-api';
+import { logger } from '@chatic/app-messages';
 import type { SocketContext } from '../dispatchers';
 import type { SocketEventMap } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
@@ -62,7 +63,7 @@ export const userHandler = (envelope: WSSEnvelope, ctx: SocketContext, eventBus:
             break;
         }
         default:
-            console.warn(`[User Handler] Unhandled user action: ${action}`);
+            logger.warn('USER', `[User Handler] Unhandled user action: ${action}`);
             break;
     }
 };

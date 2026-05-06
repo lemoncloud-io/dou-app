@@ -6,7 +6,12 @@ import { useInviteLocalDataSource } from '../local/data-sources';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import { useInviteClouds } from './useInviteClouds';
 
-jest.mock('@chatic/app-messages', () => ({ getMobileAppInfo: jest.fn() }));
+jest.mock('@chatic/app-messages', () => ({
+    getMobileAppInfo: jest.fn(),
+    logger: {
+        error: jest.fn(),
+    },
+}));
 jest.mock('@chatic/socket', () => ({ useWebSocketV2Store: jest.fn() }));
 jest.mock('../local/data-sources', () => ({ useInviteRepository: jest.fn() }));
 jest.mock('@chatic/web-core', () => ({

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { logger } from '@chatic/app-messages';
 import { BROADCAST_CHANNEL_NAME } from '../../storages';
 import { useDynamicStorage } from './useDynamicStorage';
 import type { ClientChatView } from '@chatic/chats';
@@ -13,7 +14,12 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
 
     useEffect(() => {
         if (!userId || !channelId) return;
-        storage.load(userId, channelId).then(setMessages).catch(console.error);
+        storage
+            .load(userId, channelId)
+            .then(setMessages)
+            .catch(error => {
+                logger.error('CHAT', 'Failed to load messages from storage', { error, data: { userId, channelId } });
+            });
     }, [userId, channelId, storage]);
 
     useEffect(() => {
@@ -58,7 +64,12 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
 
             // optimistic 메시지(temp-id)는 storage에 저장하지 않음
             if (userId && !message.id.startsWith('temp-')) {
-                await storage.save(userId, effectiveChannelId, messageWithReadBy).catch(console.error);
+                await storage.save(userId, effectiveChannelId, messageWithReadBy).catch(error => {
+                    logger.error('CHAT', 'Failed to save message to storage', {
+                        error,
+                        data: { userId, channelId: effectiveChannelId, messageId: message.id },
+                    });
+                });
             }
         },
         [userId, channelId, storage]
@@ -67,7 +78,9 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
     const clearMessages = useCallback(async () => {
         setMessages([]);
         if (userId && channelId) {
-            await storage.clear(userId, channelId).catch(console.error);
+            await storage.clear(userId, channelId).catch(error => {
+                logger.error('CHAT', 'Failed to clear messages from storage', { error, data: { userId, channelId } });
+            });
         }
     }, [userId, channelId, storage]);
 
@@ -82,7 +95,9 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
         if (!messages.some(m => m.isRead === false)) return;
 
         setMessages(prev => prev.map(m => ({ ...m, isRead: true })));
-        await storage.markAllRead(userId, channelId).catch(console.error);
+        await storage.markAllRead(userId, channelId).catch(error => {
+            logger.error('CHAT', 'Failed to mark all messages as read', { error, data: { userId, channelId } });
+        });
     }, [userId, channelId, messages, storage]);
 
     const applyReadEvent = useCallback(
@@ -99,7 +114,12 @@ export const useChatMessages = (userId: string | null, channelId: string | null)
                 })
             );
 
-            await storage.update(userId, channelId, chatNo, readerUserId).catch(console.error);
+            await storage.update(userId, channelId, chatNo, readerUserId).catch(error => {
+                logger.error('CHAT', 'Failed to apply read event to storage', {
+                    error,
+                    data: { userId, channelId, chatNo, readerUserId },
+                });
+            });
             window.dispatchEvent(new CustomEvent('unread-refreshed', { detail: { channelId } }));
         },
         [userId, channelId, storage]

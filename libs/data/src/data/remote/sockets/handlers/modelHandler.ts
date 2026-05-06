@@ -4,6 +4,7 @@ import type {
     ChatErrorPayload,
     ModelSyncPayload,
 } from '@lemoncloud/chatic-sockets-api';
+import { logger } from '@chatic/app-messages';
 import type { SocketContext } from '../dispatchers';
 import type { SocketEventMap, SocketEventType } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
@@ -68,7 +69,7 @@ export const modelHandler = (envelope: WSSEnvelope, ctx: SocketContext, eventBus
             break;
         }
         default:
-            console.warn(`[Model Handler] Unhandled user action: ${action}`);
+            logger.warn('MODEL', `[Model Handler] Unhandled user action: ${action}`);
             break;
     }
 };

@@ -4,6 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 
 import { toast } from 'sonner';
 
+import { logger } from '@chatic/app-messages';
 import { useTheme } from '@chatic/theme';
 
 import { CloudLogo } from './CloudLogo';
@@ -33,7 +34,7 @@ export const Sidebar = (): JSX.Element => {
     const { theme, setTheme } = useTheme();
 
     const { mutate: logout, isPending: isLoggingOut } = useLogout(undefined, error => {
-        console.error('Logout failed:', error);
+        logger.error('AUTH', 'Logout failed', { error });
         toast.error(t('home.logoutFailed', 'Logout failed'));
     });
 

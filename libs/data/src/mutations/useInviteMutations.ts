@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore } from '@chatic/web-core';
 import type { InviteCloudView } from '@chatic/app-messages';
@@ -41,7 +42,7 @@ export const useInviteMutations = () => {
                     })
                 );
             } catch (error) {
-                console.error('Failed to save invite:', error);
+                logger.error('INVITE', 'Failed to save invite', { error, data: { inviteId: inviteData.id } });
                 throw error;
             } finally {
                 setIsSaving(false);

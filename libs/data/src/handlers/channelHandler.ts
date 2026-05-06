@@ -1,4 +1,5 @@
 import type { WSSChannelActionType, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
+import { logger } from '@chatic/app-messages';
 import { notifyAppUpdated } from '../sync-events';
 
 /**
@@ -18,7 +19,7 @@ export const channelHandler = async (envelope: WSSEnvelope, cid: string) => {
          */
         case 'subscribe': {
             const subscribedChannels = payload?.subscribed || [];
-            console.log(`[Channel Handler] Successfully subscribed to:`, subscribedChannels);
+            logger.info('CHANNEL', '[Channel Handler] Successfully subscribed to', subscribedChannels);
             notifyAppUpdated({ domain: 'system', action, cid, payload });
             break;
         }
@@ -28,13 +29,13 @@ export const channelHandler = async (envelope: WSSEnvelope, cid: string) => {
          */
         case 'unsubscribe': {
             const unsubscribedChannels = payload?.unsubscribed || [];
-            console.log(`[Channel Handler] Successfully unsubscribed from:`, unsubscribedChannels);
+            logger.info('CHANNEL', '[Channel Handler] Successfully unsubscribed from', unsubscribedChannels);
             notifyAppUpdated({ domain: 'system', action, cid, payload });
             break;
         }
 
         default:
-            console.warn(`[Channel Handler] Unhandled channel action: ${action}`);
+            logger.warn('CHANNEL', `[Channel Handler] Unhandled channel action: ${action}`);
             break;
     }
 };

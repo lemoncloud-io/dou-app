@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { logger } from '@chatic/app-messages';
 import { cloudCore, useDynamicProfile } from '@chatic/web-core';
 import { usePlaces, useChannels } from '@chatic/data';
 
@@ -91,7 +92,7 @@ export const useSearch = (query: string) => {
                     chats: chatResults,
                 });
             } catch (error) {
-                console.error('Search error:', error);
+                logger.error('SEARCH', 'Search error', { error });
                 setResults({ places: [], chats: [] });
             } finally {
                 setIsSearching(false);
