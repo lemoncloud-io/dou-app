@@ -1,19 +1,13 @@
 import type { SiteView } from '@lemoncloud/chatic-socials-api';
 import type { UserMakeSitePayload, UserUpdateSitePayload, WSSPayload } from '@lemoncloud/chatic-sockets-api';
-import type { ListResult } from '../events/types';
+import type { ISiteLocalDataSource } from '../local/data-sources';
+import type { DomainEventMap, ListResult } from '../events/types';
 import type { ISiteRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import {
-    BaseRepository,
-    type RepositoryContextProvider,
-    type RepositoryDomainEventBus,
-    type RepositoryRequestOptions,
-} from './types';
+import { BaseRepository, type RepositoryContextProvider, type RepositoryRequestOptions } from './types';
+import type { IEventBus } from '../events/eventBus';
 
-/**
- * 사이트/플레이스 도메인의 Repository 공개 계약입니다.
- * 사용자가 접근 가능한 site 목록과 site 생성/수정을 담당합니다.
- */
+/** 사이트/플레이스 도메인의 Repository 공개 계약입니다. */
 export interface ISiteRepository {
     /** 사용자의 site 목록을 조회합니다. */
     fetchSite(payload?: WSSPayload, options?: RepositoryRequestOptions): Promise<ListResult<SiteView>>;
@@ -23,31 +17,30 @@ export interface ISiteRepository {
     updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<SiteView>;
 }
 
-/**
- * SiteRemoteDataSource를 감싸는 site Repository 구현체입니다.
- */
+/** Remote site API와 local site cache를 중재합니다. */
 export class SiteRepository extends BaseRepository implements ISiteRepository {
     constructor(
-        private readonly siteDataSource: ISiteRemoteDataSource,
+        private readonly siteRemoteDataSource: ISiteRemoteDataSource,
+        private readonly siteLocalDataSource: ISiteLocalDataSource,
         requestManager: ISocketRequestManager,
-        context?: RepositoryContextProvider,
-        domainEventBus?: RepositoryDomainEventBus
+        context: RepositoryContextProvider,
+        domainEventBus: IEventBus<DomainEventMap>
     ) {
         super(requestManager, context, domainEventBus);
     }
 
     /** user:my-site 요청을 수행하고 응답을 기다립니다. */
     public fetchSite(payload?: WSSPayload, options?: RepositoryRequestOptions): Promise<ListResult<SiteView>> {
-        return this.requestRemote(ref => this.siteDataSource.fetchSite(payload, ref), options);
+        return this.requestRemote(ref => this.siteRemoteDataSource.fetchSite(payload, ref), options);
     }
 
     /** user:make-site 요청을 수행하고 응답을 기다립니다. */
     public createSite(payload: UserMakeSitePayload, options?: RepositoryRequestOptions): Promise<SiteView> {
-        return this.requestRemote(ref => this.siteDataSource.createSite(payload, ref), options);
+        return this.requestRemote(ref => this.siteRemoteDataSource.createSite(payload, ref), options);
     }
 
     /** user:update-site 요청을 수행하고 응답을 기다립니다. */
     public updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<SiteView> {
-        return this.requestRemote(ref => this.siteDataSource.updateSite(payload, ref), options);
+        return this.requestRemote(ref => this.siteRemoteDataSource.updateSite(payload, ref), options);
     }
 }

@@ -10,6 +10,11 @@ import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManag
 export interface RepositoryRequestOptions {
     ref?: string;
     timeoutMs?: number;
+    /**
+     * true면 local cache hit가 있어도 remote 요청을 우선 수행합니다.
+     * remote 실패 시 local hit가 있으면 fallback으로 반환할 수 있습니다.
+     */
+    refresh?: boolean;
 }
 
 /**
@@ -57,8 +62,6 @@ export class MutableRepositoryContext implements RepositoryContextProvider {
     }
 }
 
-export type RepositoryDomainEventBus = IEventBus<DomainEventMap>;
-
 /**
  * Repository 공통 기반 클래스입니다.
  *
@@ -70,10 +73,10 @@ export type RepositoryDomainEventBus = IEventBus<DomainEventMap>;
  * - 도메인별 Repository가 로컬 캐시 갱신 등을 구현할 때 protected 메서드로만 사용합니다.
  */
 export abstract class BaseRepository {
-    constructor(
+    protected constructor(
         private readonly requestManager: ISocketRequestManager,
-        private readonly context?: RepositoryContextProvider,
-        private readonly domainEventBus?: RepositoryDomainEventBus
+        private readonly context: RepositoryContextProvider,
+        private readonly domainEventBus: IEventBus<DomainEventMap>
     ) {}
 
     /**
@@ -101,7 +104,6 @@ export abstract class BaseRepository {
         event: K,
         callback: (data: DomainEventMap[K]) => void
     ): () => void {
-        if (!this.domainEventBus) return () => undefined;
         return this.domainEventBus.on(event, callback);
     }
 }

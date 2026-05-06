@@ -1,12 +1,10 @@
 import type { AuthPayload } from '@lemoncloud/chatic-sockets-api';
 import type { IAuthRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import {
-    BaseRepository,
-    type RepositoryContextProvider,
-    type RepositoryDomainEventBus,
-    type RepositoryRequestOptions,
-} from './types';
+import type { RepositoryRequestOptions } from './types';
+import { BaseRepository, type RepositoryContextProvider } from './types';
+import type { IEventBus } from '../events/eventBus';
+import type { DomainEventMap } from '../events/domain';
 
 /**
  * 인증 도메인의 Repository 공개 계약입니다.
@@ -26,10 +24,10 @@ export interface IAuthRepository {
  */
 export class AuthRepository extends BaseRepository implements IAuthRepository {
     constructor(
-        private readonly authDataSource: IAuthRemoteDataSource,
+        private readonly authRemoteDataSource: IAuthRemoteDataSource,
         requestManager: ISocketRequestManager,
-        context?: RepositoryContextProvider,
-        domainEventBus?: RepositoryDomainEventBus
+        context: RepositoryContextProvider,
+        domainEventBus: IEventBus<DomainEventMap>
     ) {
         super(requestManager, context, domainEventBus);
     }
@@ -39,6 +37,6 @@ export class AuthRepository extends BaseRepository implements IAuthRepository {
      */
     public updateSocketAuth(payload?: AuthPayload, options?: RepositoryRequestOptions): Promise<AuthPayload> {
         const remotePayload = payload ?? {};
-        return this.requestRemote(ref => this.authDataSource.updateSocketAuth(remotePayload, ref), options);
+        return this.requestRemote(ref => this.authRemoteDataSource.updateSocketAuth(remotePayload, ref), options);
     }
 }
