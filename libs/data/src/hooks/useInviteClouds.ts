@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
+import type { CacheCloudView } from '@chatic/app-messages';
 import { getMobileAppInfo, logger } from '@chatic/app-messages';
-import type { InviteCloudView } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import type { AppSyncDetail } from '../sync-events';
 import { useInviteLocalDataSource } from '../local/data-sources';
 
 export const useInviteClouds = () => {
-    const [inviteClouds, setInviteClouds] = useState<InviteCloudView[]>([]);
+    const [inviteClouds, setInviteClouds] = useState<CacheCloudView[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     const { isOnMobileApp } = getMobileAppInfo();

@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import { createStorageAdapter } from '../../data/local/storages';
-import type { InviteCloudView } from '@chatic/app-messages';
+import type { CacheCloudView } from '@chatic/app-messages';
 
 /**
  * 초대 데이터의 로컬 영속성을 관리하는 리포지토리
@@ -13,7 +13,7 @@ export const useInviteLocalDataSource = (cloudId: string) => {
      * 특정 초대 정보를 로컬 DB에 저장
      */
     const saveInvite = useCallback(
-        async (id: string, invite: InviteCloudView) => {
+        async (id: string, invite: CacheCloudView) => {
             if (inviteDB) await inviteDB.save(id, invite);
         },
         [inviteDB]
@@ -32,7 +32,7 @@ export const useInviteLocalDataSource = (cloudId: string) => {
     /**
      * 로컬 DB에 저장된 모든 초대 목록 가져오기
      */
-    const getInvites = useCallback(async (): Promise<InviteCloudView[]> => {
+    const getInvites = useCallback(async (): Promise<CacheCloudView[]> => {
         if (!inviteDB) return [];
         return await inviteDB.loadAll();
     }, [inviteDB]);
