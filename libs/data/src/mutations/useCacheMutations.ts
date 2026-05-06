@@ -40,8 +40,6 @@ export const useCacheMutations = (cloudId: string, profileUid?: string) => {
                     return siteRepo.clearAll;
                 case 'invitecloud':
                     return inviteCloudRepo.clearAll;
-                case 'cloud':
-                case 'usertoken':
                 default:
                     return async () => {
                         return;
