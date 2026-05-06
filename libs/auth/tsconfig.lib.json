@@ -10,13 +10,16 @@
     "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
     "references": [
         {
-            "path": "../shared/tsconfig.lib.json"
+            "path": "../users/tsconfig.lib.json"
+        },
+        {
+            "path": "../app-messages/tsconfig.lib.json"
         },
         {
             "path": "../web-core/tsconfig.lib.json"
         },
         {
-            "path": "../users/tsconfig.lib.json"
+            "path": "../shared/tsconfig.lib.json"
         }
     ]
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { logger } from '@chatic/app-messages';
 import { usePlaceLocalDataSource } from '../local/data-sources';
 import { useWebSocketV2 } from '@chatic/socket';
 import { cloudCore } from '@chatic/web-core';
@@ -46,7 +47,7 @@ export const usePlaces = () => {
                 setIsLoading(false);
             }
         } catch (error) {
-            console.error('Failed to load places from DB:', error);
+            logger.error('PLACE', 'Failed to load places from DB', { error });
             setIsError(true);
             setIsLoading(false);
         }

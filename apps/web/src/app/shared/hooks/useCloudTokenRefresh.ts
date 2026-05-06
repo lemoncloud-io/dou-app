@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 
+import { logger } from '@chatic/app-messages';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, reportError, toError, useServiceStatusStore, useWebCoreStore, webCore } from '@chatic/web-core';
 
@@ -36,7 +37,7 @@ export const useCloudTokenRefresh = () => {
                     await cloudCore.refreshToken();
                     setServiceUnavailable(false);
                 } catch (e) {
-                    console.error('[CloudTokenRefresh] refreshToken failed', e);
+                    logger.error('AUTH', '[CloudTokenRefresh] refreshToken failed', { error: e });
                     reportError(toError(e));
                     if (isServerError(e)) {
                         setServiceUnavailable(true);

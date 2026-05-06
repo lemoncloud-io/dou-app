@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
+import { getMobileAppInfo, logger, postMessage, useHandleAppMessage } from '@chatic/app-messages';
 import { useValidateApple, useValidateGoogle, useValidateMembership, subscriptionKeys } from '@chatic/subscriptions';
 import { cloudsKeys } from '@chatic/users';
 
@@ -225,7 +225,7 @@ export const useSubscriptionIap = () => {
                 await finishTransaction(p);
                 restored++;
             } catch (e) {
-                console.warn('[useSubscriptionIap] restore skip:', p.productId, e);
+                logger.warn('IAP', '[useSubscriptionIap] restore skip', { productId: p.productId, error: e });
             }
         }
 

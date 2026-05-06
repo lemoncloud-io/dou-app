@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
+import { logger } from '@chatic/app-messages';
 import { useWebSocketV2 } from '@chatic/socket';
 import { useDynamicProfile } from '@chatic/web-core';
 import { useUserLocalDataSource } from '../local/data-sources';
@@ -54,7 +55,7 @@ export const useChannelMembers = (initialParams: ChatUsersPayload) => {
                 setMembers(data);
                 setTotal(data.length);
             } catch (error) {
-                console.error('Failed to load members from DB:', error);
+                logger.error('CHANNEL', 'Failed to load members from DB', { error });
                 setIsError(true);
             } finally {
                 setIsLoading(false);

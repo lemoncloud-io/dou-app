@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { logger } from '@chatic/app-messages';
 import type { CacheType } from '@chatic/app-messages';
 import {
     useChannelLocalDataSource,
@@ -60,7 +61,7 @@ export const useCacheMutations = (cloudId: string, profileUid?: string) => {
                 const clearAction = getClearAction(type);
                 await clearAction();
             } catch (error) {
-                console.error(`Failed to clear cache for type: ${type}`, error);
+                logger.error('CACHE', `Failed to clear cache for type: ${type}`, { error, data: { type } });
             } finally {
                 setPendingStates(prev => ({ ...prev, 'clear-cache': false }));
             }
@@ -82,7 +83,7 @@ export const useCacheMutations = (cloudId: string, profileUid?: string) => {
                 siteRepo.clearAll(),
             ]);
         } catch (error) {
-            console.error('Failed to clear all caches', error);
+            logger.error('CACHE', 'Failed to clear all caches', { error });
         } finally {
             setPendingStates(prev => ({ ...prev, 'clear-all-cache': false }));
         }

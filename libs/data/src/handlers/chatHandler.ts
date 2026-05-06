@@ -1,5 +1,6 @@
 import { notifyAppUpdated } from '../sync-events';
 import { reportError } from '@chatic/web-core';
+import { logger } from '@chatic/app-messages';
 import type { WSSChatActionType, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { CacheChannelView } from '@chatic/app-messages';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
@@ -202,13 +203,13 @@ export const chatHandler = async (
         }
 
         case 'error':
-            console.error(`[Chat Handler] Server responded with error:`, payload?.error);
+            logger.error('CHAT', '[Chat Handler] Server responded with error', { error: payload?.error });
             reportError(new Error(`[WS:chat] ${(payload as any)?.error ?? 'Unknown chat error'}`));
             // chat 에러를 useChannels에 전달하여 에러 상태 + 재시도 처리
             notifyAppUpdated({ domain: 'channel', action: 'error', cid: cloudId, payload });
             break;
 
         default:
-            console.warn(`[Chat Handler] Unhandled chat action: ${action}`);
+            logger.warn('CHAT', `[Chat Handler] Unhandled chat action: ${action}`);
     }
 };

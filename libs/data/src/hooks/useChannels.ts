@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChannelView, JoinView } from '@lemoncloud/chatic-socials-api';
+import { logger } from '@chatic/app-messages';
 import type { CacheChannelView } from '@chatic/app-messages';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { useDynamicProfile } from '@chatic/web-core';
@@ -137,7 +138,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
                 setChannels(resultChannels);
             } catch (error) {
-                console.error('Failed to load channels from DB:', error);
+                logger.error('DATA', 'Failed to load channels from DB', { error });
                 setIsError(true);
             } finally {
                 setIsLoading(false);
@@ -189,10 +190,13 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
                 if (confirmedChannelIdsRef.current === null && retryCountRef.current < 10) {
                     retryCountRef.current += 1;
-                    console.warn(`[useChannels] chat:mine no response, retry ${retryCountRef.current}/10`);
+                    logger.warn('CHANNEL', '[useChannels] chat:mine no response, retry', {
+                        retryCount: retryCountRef.current,
+                        maxRetries: 10,
+                    });
                     requestFromNetworkRef.current();
                 } else if (confirmedChannelIdsRef.current === null) {
-                    console.error('[useChannels] chat:mine failed after 10 retries');
+                    logger.error('CHANNEL', '[useChannels] chat:mine failed after 10 retries');
                     setIsLoading(false);
                     setIsError(true);
                     setErrorMessage('chat:mine timeout');
@@ -346,7 +350,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                     } else if (detail.action === 'error') {
                         // chat 에러 응답 — 에러 상태 표시 + 1초 후 재시도
                         const errMsg = detail.payload?.error || 'Unknown error';
-                        console.warn(`[useChannels] chat error: ${errMsg}`);
+                        logger.warn('CHANNEL', `[useChannels] chat error: ${errMsg}`);
                         setErrorMessage(errMsg);
                         setIsError(true);
                         isSyncingRef.current = false;
@@ -359,13 +363,16 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
 
                         if (retryCountRef.current < 10) {
                             retryCountRef.current += 1;
-                            console.warn(`[useChannels] retrying after error, attempt ${retryCountRef.current}/10`);
+                            logger.warn('CHANNEL', '[useChannels] retrying after error', {
+                                retryCount: retryCountRef.current,
+                                maxRetries: 10,
+                            });
                             retryTimerRef.current = setTimeout(() => {
                                 isSyncingRef.current = false;
                                 requestFromNetworkRef.current({ ...currentParamsRef.current, limit: 100 });
                             }, 1000);
                         } else {
-                            console.error('[useChannels] chat:mine failed after 10 error retries');
+                            logger.error('CHANNEL', '[useChannels] chat:mine failed after 10 error retries');
                             setIsLoading(false);
                         }
                         return;

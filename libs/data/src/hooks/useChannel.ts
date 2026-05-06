@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ChannelView, JoinView } from '@lemoncloud/chatic-socials-api';
+import { logger } from '@chatic/app-messages';
 import { useWebSocketV2 } from '@chatic/socket';
 import type { AppSyncDetail } from '../sync-events';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
@@ -65,7 +66,7 @@ export const useChannel = (channelId: string | null) => {
                 setChannel(null);
             }
         } catch (error) {
-            console.error(`Failed to load channel ${channelId} from DB:`, error);
+            logger.error('DATA', `Failed to load channel ${channelId} from DB`, { error, data: { channelId } });
             setIsError(true);
             setChannel(null);
         } finally {

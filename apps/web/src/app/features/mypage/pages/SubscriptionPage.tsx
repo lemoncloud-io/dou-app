@@ -5,7 +5,7 @@ import { Trans, useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
+import { getMobileAppInfo, logger, postMessage } from '@chatic/app-messages';
 import { reportError, toError } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useMembershipInfo } from '@chatic/subscriptions';
@@ -51,7 +51,7 @@ export const SubscriptionPage = () => {
                         : t('mypage.subscription.restoreEmpty'),
             });
         } catch (e) {
-            console.error('[SubscriptionPage] restore failed:', e);
+            logger.error('IAP', '[SubscriptionPage] restore failed', { error: e });
             reportError(toError(e));
             toast({ title: t('mypage.subscription.restoreFailed'), variant: 'destructive' });
         } finally {

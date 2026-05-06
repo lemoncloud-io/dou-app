@@ -8,6 +8,8 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection } from 'firebase/firestore';
 
+import { logger } from '@chatic/app-messages';
+
 import type { FirebaseApp } from 'firebase/app';
 import type { Firestore, CollectionReference } from 'firebase/firestore';
 
@@ -50,7 +52,7 @@ const initializeFirebase = (): FirebaseApp => {
         app = initializeApp(DEV_CONFIG, APP_NAME);
     }
 
-    console.log('[DeeplinkTest Firebase] Initialized');
+    logger.info('DEEPLINK', '[DeeplinkTest Firebase] Initialized');
     return app;
 };
 

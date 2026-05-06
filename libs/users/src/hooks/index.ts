@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { logger } from '@chatic/app-messages';
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
 import { useWebCoreStore } from '@chatic/web-core';
 
@@ -24,7 +25,7 @@ export const useClouds = (params: Params = {}) => {
         queryKey: cloudsKeys.list(params),
         queryFn: async () => {
             const result = await fetchClouds(params);
-            console.log('[useClouds] result:', result);
+            logger.debug('USERS', '[useClouds] result', result);
             return result;
         },
         enabled: isAuthenticated,

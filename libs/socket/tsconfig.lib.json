@@ -11,6 +11,9 @@
     "references": [
         {
             "path": "../web-core/tsconfig.lib.json"
+        },
+        {
+            "path": "../app-messages/tsconfig.lib.json"
         }
     ]
 }

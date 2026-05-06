@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { logger } from '@chatic/app-messages';
 import { useWebCoreStore } from '../stores';
 
 type InitState = 'idle' | 'initializing' | 'completed';
@@ -19,17 +20,23 @@ export const useInitWebCore = () => {
             setLocalInitState('completed');
             retryCountRef.current = 0;
         } catch (error) {
-            console.error('❌ WebCore initialization failed:', error);
+            logger.error('WEB_CORE', 'WebCore initialization failed', { error });
 
             if (retryCountRef.current < MAX_INIT_RETRIES) {
                 retryCountRef.current++;
-                console.log(`🔄 Retrying initialization (${retryCountRef.current}/${MAX_INIT_RETRIES})...`);
+                logger.info('WEB_CORE', 'Retrying initialization', {
+                    retryCount: retryCountRef.current,
+                    maxRetries: MAX_INIT_RETRIES,
+                });
                 setTimeout(() => {
                     void runInitialization();
                 }, RETRY_DELAY_MS * retryCountRef.current);
             } else {
                 // All retries exhausted — allow app to render so user can interact (logout, etc.)
-                console.error('❌ WebCore initialization failed after all retries, proceeding with error state');
+                logger.error(
+                    'WEB_CORE',
+                    'WebCore initialization failed after all retries, proceeding with error state'
+                );
                 setLocalInitState('completed');
             }
         }

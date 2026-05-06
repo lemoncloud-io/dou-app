@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 
-import { getMobileAppInfo, initializeMessageListener, postMessage, useAppMessageStore } from '@chatic/app-messages';
+import {
+    getMobileAppInfo,
+    initializeMessageListener,
+    logger,
+    postMessage,
+    useAppMessageStore,
+} from '@chatic/app-messages';
 import type { OAuthLoginProvider } from '@chatic/app-messages';
 
 import { updateProfile } from '../api';
@@ -176,7 +182,7 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
             // Add handler for mobile app token sync response
             const appMessageStore = useAppMessageStore.getState();
             appMessageStore.addHandler('OnSuccessSyncCredential', message => {
-                console.log('📱 Mobile token sync successful:', message);
+                logger.info('AUTH', 'Mobile token sync successful', message);
                 // TODO: Process token data from mobile app
             });
         }
@@ -199,7 +205,7 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
             try {
                 callback();
             } catch (error) {
-                console.error('Logout callback error:', error);
+                logger.error('AUTH', 'Logout callback error', { error });
             }
         });
         logoutCallbacks.clear();

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useDynamicProfile, reportError } from '@chatic/web-core';
 import {
@@ -79,10 +80,10 @@ export const useGlobalSocketRouter = () => {
                         await systemHandler(envelope, cloudId);
                         break;
                     default:
-                        console.warn(`[Socket Router] Unhandled domain: ${envelope.type}`);
+                        logger.warn('SOCKET_ROUTER', `[Socket Router] Unhandled domain: ${envelope.type}`);
                 }
             } catch (error) {
-                console.error(`[Socket Router] Error in domain ${envelope.type}:`, error);
+                logger.error('SOCKET_ROUTER', `[Socket Router] Error in domain ${envelope.type}`, { error });
                 reportError(error instanceof Error ? error : new Error(String(error)));
             }
         };

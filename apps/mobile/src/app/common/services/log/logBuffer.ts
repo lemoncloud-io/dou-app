@@ -53,14 +53,20 @@ export const createLogBufferService = (storage: ILogStorage) => {
             if (initialized) return logBufferService.teardown;
 
             await logBufferService.loadQueue();
-            unsubscribeLogger = logger.subscribe((_level, tag, message, data, error) => {
-                void logBufferService.append({
+            unsubscribeLogger = logger.subscribe((level, tag, message, data, error) => {
+                const entry: AppLogInfo = {
+                    level,
                     tag,
                     message,
                     data: serializeLogValue(data),
                     timestamp: Date.now(),
-                    error: serializeError(error),
-                });
+                };
+
+                if (error != null) {
+                    entry.error = serializeError(error);
+                }
+
+                void logBufferService.append(entry);
             });
             initialized = true;
 

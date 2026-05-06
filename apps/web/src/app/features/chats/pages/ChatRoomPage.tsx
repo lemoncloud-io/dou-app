@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
+import { logger } from '@chatic/app-messages';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useDynamicProfile, useUserContext, UserType } from '@chatic/web-core';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
@@ -118,7 +119,12 @@ export const ChatRoomPage = () => {
                 (lastReadChatNoRef.current === null || latestChatNo > lastReadChatNoRef.current)
             ) {
                 lastReadChatNoRef.current = latestChatNo;
-                readMessage({ channelId, chatNo: latestChatNo }).catch(console.error);
+                readMessage({ channelId, chatNo: latestChatNo }).catch(error => {
+                    logger.error('CHAT', 'Failed to read latest message', {
+                        error,
+                        data: { channelId, chatNo: latestChatNo },
+                    });
+                });
             }
         };
 
@@ -189,11 +195,16 @@ export const ChatRoomPage = () => {
                 // 서버 응답 성공 시 발급받은 번호로 내 메시지 읽음 처리
                 if (newChat && newChat.chatNo !== undefined) {
                     lastReadChatNoRef.current = newChat.chatNo;
-                    readMessage({ channelId, chatNo: newChat.chatNo }).catch(console.error);
+                    readMessage({ channelId, chatNo: newChat.chatNo }).catch(error => {
+                        logger.error('CHAT', 'Failed to read sent message', {
+                            error,
+                            data: { channelId, chatNo: newChat.chatNo },
+                        });
+                    });
                 }
             })
             .catch(error => {
-                console.error('Failed to send message:', error);
+                logger.error('CHAT', 'Failed to send message', { error, data: { channelId } });
                 // 실패 시 입력했던 텍스트를 복구할 수 있도록 상태 저장
                 toast({ title: t('chat.room.sendFailed'), variant: 'destructive' });
             });
@@ -221,11 +232,16 @@ export const ChatRoomPage = () => {
             .then(newChat => {
                 if (newChat && newChat.chatNo !== undefined) {
                     lastReadChatNoRef.current = newChat.chatNo;
-                    readMessage({ channelId, chatNo: newChat.chatNo }).catch(console.error);
+                    readMessage({ channelId, chatNo: newChat.chatNo }).catch(error => {
+                        logger.error('CHAT', 'Failed to read retried message', {
+                            error,
+                            data: { channelId, chatNo: newChat.chatNo },
+                        });
+                    });
                 }
             })
             .catch(error => {
-                console.error('Failed to send message:', error);
+                logger.error('CHAT', 'Failed to retry message', { error, data: { channelId, messageId: message.id } });
             });
     };
 

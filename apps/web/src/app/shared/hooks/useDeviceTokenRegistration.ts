@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { postMessage, useHandleAppMessage } from '@chatic/app-messages';
+import { logger, postMessage, useHandleAppMessage } from '@chatic/app-messages';
 import { useWebCoreStore } from '@chatic/web-core';
 import { useRegisterDeviceToken } from '@chatic/users';
 
@@ -28,24 +28,28 @@ export const useDeviceTokenRegistration = () => {
         if (hasRegistered.current) return;
 
         isHandlerReady.current = true;
-        console.log('[DeviceToken] isAppEnv detected, requesting FetchFcmToken...');
+        logger.info('DEVICE_TOKEN', '[DeviceToken] isAppEnv detected, requesting FetchFcmToken');
         postMessage({ type: 'FetchFcmToken' });
     }, [isAuthenticated]);
 
     useHandleAppMessage('OnFetchFcmToken', async message => {
-        console.log('[DeviceToken] OnFetchFcmToken received:', message.data);
+        logger.info('DEVICE_TOKEN', '[DeviceToken] OnFetchFcmToken received', { hasToken: !!message.data.token });
         if (!isAuthenticated) {
-            console.log('[DeviceToken] not authenticated, skip');
+            logger.info('DEVICE_TOKEN', '[DeviceToken] not authenticated, skip');
             return;
         }
         const newToken = message.data.token;
         if (!newToken) return;
 
         const storedToken = localStorage.getItem(DEVICE_TOKEN_STORAGE_KEY);
-        console.log('[DeviceToken] received token:', newToken, '/ stored:', storedToken);
+        logger.debug('DEVICE_TOKEN', '[DeviceToken] received token', {
+            hasNewToken: !!newToken,
+            hasStoredToken: !!storedToken,
+            isChanged: storedToken !== newToken,
+        });
 
         if (storedToken === newToken) {
-            console.log('[DeviceToken] token unchanged, skip register');
+            logger.info('DEVICE_TOKEN', '[DeviceToken] token unchanged, skip register');
             return;
         }
 
@@ -59,9 +63,9 @@ export const useDeviceTokenRegistration = () => {
             });
             localStorage.setItem(DEVICE_TOKEN_STORAGE_KEY, newToken);
             hasRegistered.current = true;
-            console.log('[DeviceToken] register success');
+            logger.info('DEVICE_TOKEN', '[DeviceToken] register success');
         } catch (error) {
-            console.error('[DeviceToken] register failed:', error);
+            logger.error('DEVICE_TOKEN', '[DeviceToken] register failed', { error });
         }
     });
 };

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { logger } from '@chatic/app-messages';
 import { useIssueCloudToken } from '@chatic/auth';
 import { useWebSocketV2Store } from '@chatic/socket';
 
@@ -55,7 +56,7 @@ export const useCloudSession = () => {
             // useCloudTokenRefresh가 isVerified=false를 감지하여 auth:update 발송
             useWebSocketV2Store.getState().setIsVerified(false);
         } catch (e) {
-            console.error('[useCloudSession] selectCloud failed:', e);
+            logger.error('SESSION', '[useCloudSession] selectCloud failed', { error: e });
             throw e;
         }
     };

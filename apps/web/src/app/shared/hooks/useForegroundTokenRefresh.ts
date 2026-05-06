@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { logger } from '@chatic/app-messages';
 import { cloudCore, useWebCoreStore, webCore } from '@chatic/web-core';
 import { getSocketSend, checkSocketHealth, useWebSocketV2Store } from '@chatic/socket';
 
@@ -33,7 +34,7 @@ export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) 
                 try {
                     await cloudCore.refreshToken();
                 } catch (e) {
-                    console.error('[ForegroundRefresh] Cloud token refresh failed', e);
+                    logger.error('AUTH', '[ForegroundRefresh] Cloud token refresh failed', { error: e });
                 }
             }
 

@@ -1,5 +1,6 @@
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { WSSEventDomainType } from '@lemoncloud/chatic-sockets-api/dist/libs/wss/wss-types';
+import { logger } from '@chatic/app-messages';
 import { authHandler, chatHandler, modelHandler, syncHandler, systemHandler, userHandler } from './handlers';
 import type { IEventBus } from '../../events/eventBus';
 import type { SocketEventMap } from '../../events/types';
@@ -21,7 +22,7 @@ export class SocketDispatcher {
      */
     dispatch(envelope: WSSEnvelope, context: SocketContext) {
         if (!envelope || !envelope.type) {
-            console.warn('[Socket Dispatcher] Invalid envelope received');
+            logger.warn('SOCKET_DISPATCHER', '[Socket Dispatcher] Invalid envelope received');
             return;
         }
 
@@ -58,11 +59,11 @@ export class SocketDispatcher {
                     break;
                 }
                 default: {
-                    console.warn(`[Socket Dispatcher] Unhandled domain: ${domain}`);
+                    logger.warn('SOCKET_DISPATCHER', `[Socket Dispatcher] Unhandled domain: ${domain}`);
                 }
             }
         } else {
-            console.warn(`[Socket Dispatcher] No router found for domain: ${domain}`);
+            logger.warn('SOCKET_DISPATCHER', `[Socket Dispatcher] No router found for domain: ${domain}`);
         }
     }
 }

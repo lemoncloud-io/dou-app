@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+import { logger } from '@chatic/app-messages';
+
 export interface TabLifecycleState {
     isVisible: boolean;
     isFocused: boolean;
@@ -18,7 +20,9 @@ export const useTabLifecycle = () => {
     useEffect(() => {
         const handleVisibilityChange = () => {
             const isVisible = !document.hidden;
-            console.log('[TabLifecycle] Visibility changed:', isVisible ? 'visible' : 'hidden');
+            logger.debug('TAB_LIFECYCLE', '[TabLifecycle] Visibility changed', {
+                visibility: isVisible ? 'visible' : 'hidden',
+            });
             setState(prev => ({
                 ...prev,
                 isVisible,
@@ -27,7 +31,7 @@ export const useTabLifecycle = () => {
         };
 
         const handleFocus = () => {
-            console.log('[TabLifecycle] Window focused');
+            logger.debug('TAB_LIFECYCLE', '[TabLifecycle] Window focused');
             setState(prev => ({
                 ...prev,
                 isFocused: true,
@@ -36,7 +40,7 @@ export const useTabLifecycle = () => {
         };
 
         const handleBlur = () => {
-            console.log('[TabLifecycle] Window blurred');
+            logger.debug('TAB_LIFECYCLE', '[TabLifecycle] Window blurred');
             setState(prev => ({
                 ...prev,
                 isFocused: false,
@@ -45,11 +49,11 @@ export const useTabLifecycle = () => {
         };
 
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            console.log('[TabLifecycle] Before unload');
+            logger.debug('TAB_LIFECYCLE', '[TabLifecycle] Before unload');
         };
 
         const handleUnload = () => {
-            console.log('[TabLifecycle] Unload');
+            logger.debug('TAB_LIFECYCLE', '[TabLifecycle] Unload');
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);

@@ -2,7 +2,7 @@ import { DOU_ENDPOINT, ENV, getDynamicDOUEndpoint, OAUTH_ENDPOINT, webCore, clou
 import { MAX_RETRIES, validateTokenResponse, withRetry } from '../utils';
 import { useWebCoreStore } from '../stores';
 
-import { getMobileAppInfo } from '@chatic/app-messages';
+import { getMobileAppInfo, logger } from '@chatic/app-messages';
 
 const throwIfApiError = <T>(data: T & { error?: string }): T => {
     if (data.error) throw new Error(data.error);
@@ -83,7 +83,7 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
     const now = Date.now();
     const lastReported = recentErrors.get(throttleKey);
     if (lastReported && now - lastReported < THROTTLE_WINDOW_MS) {
-        console.warn('[ErrorReport] Throttled (duplicate within 60s):', throttleKey);
+        logger.warn('ERROR_REPORT', '[ErrorReport] Throttled (duplicate within 60s)', { throttleKey });
         return;
     }
     recentErrors.set(throttleKey, now);
@@ -179,7 +179,7 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
             .setBody(body)
             .execute();
     } catch (reportingError) {
-        console.error('Failed to report error:', reportingError);
+        logger.error('ERROR_REPORT', 'Failed to report error', { error: reportingError });
     }
 };
 
@@ -235,7 +235,7 @@ export const reportIssue = async (title: string, message: string): Promise<void>
             .setBody(body)
             .execute();
     } catch (reportingError) {
-        console.error('Failed to report issue:', reportingError);
+        logger.error('ERROR_REPORT', 'Failed to report issue', { error: reportingError });
         throw reportingError;
     }
 };
@@ -408,7 +408,7 @@ export const updateProfile = async (uid: string, body: Record<string, unknown>) 
             (error?.message && error.message.includes('403'));
 
         if (is403) {
-            console.log('Profile update got 403, attempting token refresh...');
+            logger.info('PROFILE', 'Profile update got 403, attempting token refresh');
             try {
                 await refreshAuthToken();
                 // Retry profile update once after successful token refresh
@@ -427,7 +427,7 @@ export const updateProfile = async (uid: string, body: Record<string, unknown>) 
                     'Profile update after token refresh'
                 );
             } catch (refreshError) {
-                console.error('Token refresh failed during profile update:', refreshError);
+                logger.error('PROFILE', 'Token refresh failed during profile update', { error: refreshError });
                 throw error;
             }
         }

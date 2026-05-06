@@ -1,4 +1,5 @@
 import type { SystemPayload, WSSEnvelope, WSSSystemActionType } from '@lemoncloud/chatic-sockets-api';
+import { logger } from '@chatic/app-messages';
 import { reportError } from '@chatic/web-core';
 import { notifyAppUpdated } from '../sync-events';
 
@@ -22,7 +23,7 @@ export const systemHandler = async (envelope: WSSEnvelope, cid: string) => {
          * 현재 접속된 커넥션 정보 수신
          */
         case 'info': {
-            console.log(`[System Handler] Connection info received:`, payload);
+            logger.info('SYSTEM', '[System Handler] Connection info received', payload);
             notifyAppUpdated({ domain: 'system', cid, action, payload });
             break;
         }
@@ -33,7 +34,7 @@ export const systemHandler = async (envelope: WSSEnvelope, cid: string) => {
          */
         case 'message': {
             if (payload?.content) {
-                console.log(`[System Handler] System message:`, payload.content);
+                logger.info('SYSTEM', '[System Handler] System message', payload.content);
             }
             notifyAppUpdated({ domain: 'system', cid, action, payload });
             break;
@@ -50,7 +51,7 @@ export const systemHandler = async (envelope: WSSEnvelope, cid: string) => {
         }
 
         default:
-            console.warn(`[System Handler] Unhandled system action: ${action}`);
+            logger.warn('SYSTEM', `[System Handler] Unhandled system action: ${action}`);
             break;
     }
 };

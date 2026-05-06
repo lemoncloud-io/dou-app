@@ -1,4 +1,5 @@
 import type { AuthPayload, WSSAuthActionType, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
+import { logger } from '@chatic/app-messages';
 import { reportError } from '@chatic/web-core';
 import { notifyAppUpdated } from '../sync-events';
 
@@ -29,7 +30,7 @@ export const authHandler = async (envelope: WSSEnvelope, cid: string) => {
         }
 
         default:
-            console.warn(`[Auth Handler] Unhandled auth action: ${action}`);
+            logger.warn('AUTH', `[Auth Handler] Unhandled auth action: ${action}`);
             break;
     }
 };

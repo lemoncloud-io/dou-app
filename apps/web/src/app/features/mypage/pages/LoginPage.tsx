@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { webCore, useWebCoreStore, setOAuthProvider } from '@chatic/web-core';
 
-import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
+import { getMobileAppInfo, logger, postMessage, useHandleAppMessage } from '@chatic/app-messages';
 import type { OAuthTokenResult } from '@chatic/app-messages';
 import { useVerifyNativeAppToken } from '@chatic/users';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
@@ -88,7 +88,7 @@ export const LoginPage = () => {
                 window.location.replace('/');
             }
         } catch (e) {
-            console.error('[LoginPage] OAuth login failed:', e);
+            logger.error('AUTH', '[LoginPage] OAuth login failed', { error: e });
             toast({
                 title: t('mypageLogin.error'),
                 description: t('mypageLogin.errorDescription'),

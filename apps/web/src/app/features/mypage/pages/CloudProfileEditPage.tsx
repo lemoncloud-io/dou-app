@@ -2,6 +2,7 @@ import { Camera, User } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { logger } from '@chatic/app-messages';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { resizeImageToBase64 } from '@chatic/shared';
 
@@ -65,7 +66,7 @@ export const CloudProfileEditPage = () => {
             toast({ title: t('profileEdit.cloudSaveSuccess') });
             navigate(-1);
         } catch (error) {
-            console.error('Failed to update cloud profile:', error);
+            logger.error('PROFILE', 'Failed to update cloud profile', { error });
             toast({ title: t('profileEdit.cloudSaveError'), variant: 'destructive' });
         }
     };

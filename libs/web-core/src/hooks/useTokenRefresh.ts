@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { postMessage } from '@chatic/app-messages';
+import { logger, postMessage } from '@chatic/app-messages';
 
 import { fetchProfile, refreshAuthToken, reportError } from '../api';
 import { useWebCoreStore } from '../stores';
@@ -53,15 +53,15 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             await refreshAuthToken();
             return true;
         } catch (error) {
-            console.error('❌ Token refresh failed:', error);
+            logger.error('AUTH', 'Token refresh failed', { error });
             reportError(toError(error));
             const errorClassification: ErrorClassification = classifyError(error);
             if (errorClassification.shouldLogout) {
-                console.log('🚪 Token completely expired or invalid - logging out...');
+                logger.info('AUTH', 'Token completely expired or invalid - logging out');
                 await logout(wasInviteFlowRef.current ? { preserveUrl: true } : undefined);
                 return false;
             }
-            console.log('⚠️ Temporary refresh failure, will retry later');
+            logger.info('AUTH', 'Temporary refresh failure, will retry later');
             return true;
         } finally {
             isRefreshingRef.current = false;
@@ -73,7 +73,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             return;
         }
 
-        console.log(`🚀 Starting token refresh interval: ${REFRESH_INTERVAL}ms`);
+        logger.info('AUTH', 'Starting token refresh interval', { interval: REFRESH_INTERVAL });
         intervalRef.current = setInterval(refreshToken, REFRESH_INTERVAL);
     }, [refreshToken]);
 
@@ -81,7 +81,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
         if (intervalRef.current) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
-            console.log('🛑 Stopped token refresh interval');
+            logger.info('AUTH', 'Stopped token refresh interval');
         }
     }, []);
 
@@ -91,7 +91,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             return;
         }
 
-        console.log('🏁 Initializing: checking token validity...');
+        logger.info('AUTH', 'Initializing: checking token validity');
         try {
             const refreshSuccess = await refreshToken();
             if (!refreshSuccess) {
@@ -107,13 +107,13 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             networkRetryRef.current = 0;
             setInitStatus('success');
         } catch (error: unknown) {
-            console.error('❌ Profile fetch failed:', error);
+            logger.error('PROFILE', 'Profile fetch failed', { error });
             reportError(toError(error));
 
             const errorClassification: ErrorClassification = classifyError(error);
 
             if (errorClassification.shouldLogout) {
-                console.log('🔄 Profile fetch got auth error, refreshing token once more...');
+                logger.info('AUTH', 'Profile fetch got auth error, refreshing token once more');
                 const refreshSuccess = await refreshToken();
                 if (refreshSuccess) {
                     try {
@@ -121,13 +121,13 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
                         setProfile(profile);
                         isInitializedRef.current = true;
                         setInitStatus('success');
-                        console.log('✅ Initialization succeeded after additional token refresh');
+                        logger.info('AUTH', 'Initialization succeeded after additional token refresh');
                         return;
                     } catch (retryError) {
-                        console.error('❌ Profile fetch failed even after token refresh: ', retryError);
+                        logger.error('PROFILE', 'Profile fetch failed even after token refresh', { error: retryError });
                         const retryErrorClassification: ErrorClassification = classifyError(retryError);
                         if (retryErrorClassification.shouldLogout) {
-                            console.log('🚪 Profile fetch still failing with auth error - logging out...');
+                            logger.info('AUTH', 'Profile fetch still failing with auth error - logging out');
                             hasFailedRef.current = true;
                             setInitStatus('failed');
                             await logout(wasInviteFlowRef.current ? { preserveUrl: true } : undefined);
@@ -141,9 +141,11 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             if (networkRetryRef.current < MAX_NETWORK_RETRIES) {
                 networkRetryRef.current++;
                 const delay = NETWORK_RETRY_BASE_MS * networkRetryRef.current;
-                console.log(
-                    `⚠️ Network error, retrying in ${delay}ms (${networkRetryRef.current}/${MAX_NETWORK_RETRIES})`
-                );
+                logger.info('AUTH', 'Network error, retrying initialization', {
+                    delay,
+                    retryCount: networkRetryRef.current,
+                    maxRetries: MAX_NETWORK_RETRIES,
+                });
                 await new Promise(resolve => setTimeout(resolve, delay));
                 hasFailedRef.current = false;
                 await initialize();
@@ -152,7 +154,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
 
             hasFailedRef.current = true;
             setInitStatus('failed');
-            console.log('⚠️ Initialization failed after all network retries');
+            logger.info('AUTH', 'Initialization failed after all network retries');
         }
     }, [isAuthenticated, refreshToken, webCoreReady, setProfile, logout]);
 
@@ -180,7 +182,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
 
         const handleVisibility = () => {
             if (document.visibilityState !== 'visible') return;
-            console.log('🔄 App resumed with failed init state, retrying...');
+            logger.info('AUTH', 'App resumed with failed init state, retrying');
             hasFailedRef.current = false;
             networkRetryRef.current = 0;
             setInitStatus('pending');

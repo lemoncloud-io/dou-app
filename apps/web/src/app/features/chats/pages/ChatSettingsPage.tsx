@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
+import { logger } from '@chatic/app-messages';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { reportError, toError, useDynamicProfile, UserType, useUserContext } from '@chatic/web-core';
@@ -98,7 +99,7 @@ export const ChatSettingsPage = () => {
             toast({ title: t('chat.settings.leftRoom') });
             navigate('/', { replace: true });
         } catch (error) {
-            console.error('Failed to leave room:', error);
+            logger.error('CHAT', 'Failed to leave room', { error, data: { channelId } });
             reportError(toError(error));
             toast({ title: t('chat.settings.leaveFailed'), variant: 'destructive' });
         }
@@ -113,7 +114,7 @@ export const ChatSettingsPage = () => {
             toast({ title: t('chat.settings.deletedRoom') });
             navigate('/', { replace: true });
         } catch (error) {
-            console.error('Failed to delete room:', error);
+            logger.error('CHAT', 'Failed to delete room', { error, data: { channelId } });
             reportError(toError(error));
             toast({ title: t('chat.settings.deleteFailed'), variant: 'destructive' });
         }
@@ -124,7 +125,7 @@ export const ChatSettingsPage = () => {
 
         // TODO: Implement report member API call
         // Example: await reportMember(channelId, selectedMember.id, reason);
-        console.log('Report member:', selectedMember, 'Reason:', reason);
+        logger.info('CHAT', 'Report member', { selectedMember, reason });
         closeDialog();
         toast({ title: t('chat.settings.reportSuccess') });
     };
@@ -134,7 +135,7 @@ export const ChatSettingsPage = () => {
 
         // TODO: Implement block member API call
         // Example: await blockMember(selectedMember.id);
-        console.log('Block member:', selectedMember);
+        logger.info('CHAT', 'Block member', { selectedMember });
         closeDialog();
         toast({ title: t('chat.settings.blockSuccess') });
     };

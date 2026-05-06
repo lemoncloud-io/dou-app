@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getMobileAppInfo } from '@chatic/app-messages';
+import { getMobileAppInfo, logger } from '@chatic/app-messages';
 import type { InviteCloudView } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
@@ -22,7 +22,7 @@ export const useInviteClouds = () => {
             const data = await inviteRepository.getInvites();
             setInviteClouds(data);
         } catch (error) {
-            console.error('Failed to load invites:', error);
+            logger.error('INVITE', 'Failed to load invites', { error });
         } finally {
             setIsLoading(false);
         }

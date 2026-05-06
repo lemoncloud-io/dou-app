@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, LogOut, Mail, MessageSquare, Database, XCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, Mail, MessageSquare, Database, FileText, XCircle } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -72,6 +72,16 @@ export const DebugPage = () => {
                             <div className="flex items-center gap-3">
                                 <Database size={18} className="text-muted-foreground" />
                                 <span className="text-[15px] font-medium text-foreground">State Info</span>
+                            </div>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                        <button
+                            onClick={() => navigate('/mypage/debug/log-buffer')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <FileText size={18} className="text-muted-foreground" />
+                                <span className="text-[15px] font-medium text-foreground">Log Buffer</span>
                             </div>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>

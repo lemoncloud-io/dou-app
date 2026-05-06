@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom';
 
+import { logger } from '@chatic/app-messages';
 import { RouterErrorFallback } from '@chatic/shared';
 import { reportError, useWebCoreStore } from '@chatic/web-core';
 
@@ -12,7 +13,7 @@ export const Router = () => {
     const { isAuthenticated, isInitialized } = useWebCoreStore();
 
     const handleRouterError = useCallback((error: Error): void => {
-        console.error('Router Error:', error);
+        logger.error('ROUTER', 'Router Error', { error });
         reportError(error);
     }, []);
 

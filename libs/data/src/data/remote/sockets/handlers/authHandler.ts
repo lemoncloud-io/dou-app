@@ -1,4 +1,5 @@
 import type { AuthPayload, ChatErrorPayload, WSSAuthActionType, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
+import { logger } from '@chatic/app-messages';
 import type { SocketContext } from '../dispatchers';
 import type { IEventBus } from '../../../events/eventBus';
 import type { SocketEventMap } from '../../../events/types';
@@ -41,7 +42,7 @@ export const authHandler = (envelope: WSSEnvelope, ctx: SocketContext, eventBus:
             break;
 
         default:
-            console.warn(`[Auth Handler] Unhandled auth action: ${action}`);
+            logger.warn('AUTH', `[Auth Handler] Unhandled auth action: ${action}`);
             break;
     }
 };

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
+import { logger } from '@chatic/app-messages';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
@@ -45,7 +46,7 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
             toast({ title: t('updateChannel.success') });
             onOpenChange(false);
         } catch (error) {
-            console.error('Failed to update channel:', error);
+            logger.error('CHAT', 'Failed to update channel', { error, data: { channelId } });
             toast({ title: t('updateChannel.error'), variant: 'destructive' });
         }
     };

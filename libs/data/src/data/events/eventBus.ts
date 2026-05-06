@@ -1,3 +1,5 @@
+import { logger } from '@chatic/app-messages';
+
 import type { DomainEventMap, SocketEventMap } from './types';
 
 /**
@@ -61,7 +63,7 @@ export class EventBusEngine<R extends AppEventMap> implements IEventBus<R> {
                 try {
                     cb(data);
                 } catch (e) {
-                    console.error(`[EventBus] ${String(event)} Error:`, e);
+                    logger.error('EVENT_BUS', `[EventBus] ${String(event)} Error`, { error: e });
                 }
             });
         }
@@ -73,7 +75,7 @@ export class EventBusEngine<R extends AppEventMap> implements IEventBus<R> {
             try {
                 cb(event, data);
             } catch (e) {
-                console.error(`[EventBus] AnyListener Error:`, e);
+                logger.error('EVENT_BUS', '[EventBus] AnyListener Error', { error: e });
             }
         });
     }
