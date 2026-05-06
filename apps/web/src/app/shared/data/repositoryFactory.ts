@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import type { EventBusEngine } from '@chatic/data';
+import type { IEventBus, ISocketRequestManager, RepositoryContextProvider } from '@chatic/data';
 import {
     AuthRemoteDataSource,
     AuthRepository,
@@ -72,8 +72,8 @@ const createDataSources = ({
     socketEventBus,
     wssClient,
 }: {
-    domainEventBus: EventBusEngine<DomainEventMap>;
-    socketEventBus: EventBusEngine<SocketEventMap>;
+    domainEventBus: IEventBus<DomainEventMap>;
+    socketEventBus: IEventBus<SocketEventMap>;
     wssClient: IWebSocketClient;
 }) => ({
     auth: new AuthRemoteDataSource(socketEventBus, domainEventBus, wssClient),
@@ -96,10 +96,10 @@ const createRepositories = ({
     domainEventBus,
     requestManager,
 }: {
-    context: MutableRepositoryContext;
+    context: RepositoryContextProvider;
     dataSources: DataSources;
-    domainEventBus: EventBusEngine<DomainEventMap>;
-    requestManager: SocketRequestManager;
+    domainEventBus: IEventBus<DomainEventMap>;
+    requestManager: ISocketRequestManager;
 }): DataRepositories => ({
     auth: new AuthRepository(dataSources.auth, requestManager, context, domainEventBus),
     channel: new ChannelRepository(dataSources.channel, requestManager, context, domainEventBus),
@@ -123,11 +123,14 @@ export const useRepositoryFactory = ({
     wssClient,
 }: {
     context: MutableRepositoryContext;
-    domainEventBus: EventBusEngine<DomainEventMap>;
-    socketEventBus: EventBusEngine<SocketEventMap>;
+    domainEventBus: IEventBus<DomainEventMap>;
+    socketEventBus: IEventBus<SocketEventMap>;
     wssClient: IWebSocketClient;
 }): { repositories: DataRepositories } => {
-    const requestManager = useMemo(() => new SocketRequestManager(domainEventBus), [domainEventBus]);
+    const requestManager: ISocketRequestManager = useMemo(
+        () => new SocketRequestManager(domainEventBus),
+        [domainEventBus]
+    );
     const dataSources = useMemo(
         () => createDataSources({ domainEventBus, socketEventBus, wssClient }),
         [domainEventBus, socketEventBus, wssClient]
