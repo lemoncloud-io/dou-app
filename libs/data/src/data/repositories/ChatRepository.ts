@@ -33,24 +33,103 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         domainEventBus: IEventBus<DomainEventMap>
     ) {
         super(requestManager, contextProvider, domainEventBus);
+        this.initializeInternalListeners();
     }
 
     /** 메시지 발신을 data source에 위임하고 응답을 기다립니다. */
-    public sendChat(payload: ChatSendPayload, options?: RepositoryRequestOptions): Promise<ChatView> {
-        return this.requestRemote(ref => this.chatRemoteDataSource.sendChat(payload, ref), options);
+    public async sendChat(payload: ChatSendPayload, options?: RepositoryRequestOptions): Promise<ChatView> {
+        const chat = await this.requestRemote<ChatView>(
+            ref => this.chatRemoteDataSource.sendChat(payload, ref),
+            options
+        );
+        await this.chatLocalDataSource.upsertChat(chat, this.getRepositoryContext());
+        return chat;
     }
 
     /** 메시지 피드 조회를 data source에 위임하고 응답을 기다립니다. */
-    public fetchChat(payload: ChatFeedPayload, options?: RepositoryRequestOptions): Promise<ChatFeedResult> {
-        return this.requestRemote(ref => this.chatRemoteDataSource.fetchChat(payload, ref), options);
+    public async fetchChat(payload: ChatFeedPayload, options?: RepositoryRequestOptions): Promise<ChatFeedResult> {
+        const policy = this.resolveCachePolicy(options);
+        if (policy === 'network-only') {
+            return this.fetchFromRemoteAndCache(payload, options);
+        }
+
+        const local = await this.chatLocalDataSource.fetchChat(payload, this.getRepositoryContext());
+        if (policy === 'cache-only') {
+            return (
+                local ??
+                ({
+                    list: [],
+                    cursorNo: 0,
+                    limit: payload.limit,
+                    readNo: 0,
+                    total: 0,
+                } as ChatFeedResult)
+            );
+        }
+
+        if (local) {
+            this.runInBackground(
+                () => this.fetchFromRemoteAndCache(payload, { ...options, cachePolicy: 'network-only' }),
+                'chat:cache-and-network-refresh'
+            );
+            return local;
+        }
+
+        return this.fetchFromRemoteAndCache(payload, options);
     }
 
     /**
      * 새로운 채팅 메시지(chat:create) 수신 이벤트를 구독합니다.
      */
     public onChatCreated(callback: (chat: ChatView) => void): () => void {
-        return this.onDomainEvent('chat:create', data => {
-            callback(data as ChatView);
+        return this.onDomainEvent('chat:create', detail => {
+            callback(detail.data as ChatView);
+        });
+    }
+
+    private resolveCachePolicy(
+        options?: RepositoryRequestOptions
+    ): NonNullable<RepositoryRequestOptions['cachePolicy']> {
+        if (options?.cachePolicy) return options.cachePolicy;
+        return 'cache-and-network';
+    }
+
+    private async fetchFromRemoteAndCache(
+        payload: ChatFeedPayload,
+        options?: RepositoryRequestOptions
+    ): Promise<ChatFeedResult> {
+        const remote = await this.requestRemote<ChatFeedResult>(
+            ref => this.chatRemoteDataSource.fetchChat(payload, ref),
+            options
+        );
+        await this.chatLocalDataSource.upsertChats(remote.list || [], this.getRepositoryContext());
+        return remote;
+    }
+
+    private initializeInternalListeners(): void {
+        this.onDomainEvent('chat:create', detail => {
+            this.runInBackground(
+                () => this.chatLocalDataSource.upsertChat(detail.data, this.getRepositoryContext()),
+                'chat:create'
+            );
+        });
+        this.onDomainEvent('chat:update', detail => {
+            this.runInBackground(
+                () => this.chatLocalDataSource.upsertChat(detail.data, this.getRepositoryContext()),
+                'chat:update'
+            );
+        });
+        this.onDomainEvent('chat:delete', detail => {
+            this.runInBackground(
+                () => this.chatLocalDataSource.deleteChat(detail.data.id || '', this.getRepositoryContext()),
+                'chat:delete'
+            );
+        });
+        this.onDomainEvent('chat:list', detail => {
+            this.runInBackground(
+                () => this.chatLocalDataSource.upsertChats(detail.data.list || [], this.getRepositoryContext()),
+                'chat:list'
+            );
         });
     }
 }

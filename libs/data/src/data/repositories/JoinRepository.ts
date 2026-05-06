@@ -2,7 +2,7 @@ import type { JoinView } from '@lemoncloud/chatic-socials-api';
 import type { ChatReadPayload, ChatUpdateJoinPayload } from '@lemoncloud/chatic-sockets-api';
 import type { IJoinLocalDataSource } from '../local/data-sources';
 import type { IJoinRemoteDataSource } from '../remote/data-sources';
-import type { DataContextProvider} from './types';
+import type { DataContextProvider } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { DomainEventMap } from '../events/domain';
@@ -36,36 +36,68 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
         domainEventBus: IEventBus<DomainEventMap>
     ) {
         super(requestManager, contextProvider, domainEventBus);
+        this.initializeInternalListeners();
     }
 
     /** chat:read 요청을 수행하고 응답을 기다립니다. */
-    public readChat(payload: ChatReadPayload, options?: RepositoryRequestOptions): Promise<JoinView> {
-        return this.requestRemote(ref => this.joinRemoteDataSource.readChat(payload, ref), options);
+    public async readChat(payload: ChatReadPayload, options?: RepositoryRequestOptions): Promise<JoinView> {
+        const join = await this.requestRemote<JoinView>(
+            ref => this.joinRemoteDataSource.readChat(payload, ref),
+            options
+        );
+        await this.joinLocalDataSource.upsertJoin(join, this.getRepositoryContext());
+        return join;
     }
 
     /** chat:update-join 요청을 수행하고 응답을 기다립니다. */
-    public updateJoin(payload: ChatUpdateJoinPayload, options?: RepositoryRequestOptions): Promise<JoinView> {
-        return this.requestRemote(ref => this.joinRemoteDataSource.updateJoin(payload, ref), options);
+    public async updateJoin(payload: ChatUpdateJoinPayload, options?: RepositoryRequestOptions): Promise<JoinView> {
+        const join = await this.requestRemote<JoinView>(
+            ref => this.joinRemoteDataSource.updateJoin(payload, ref),
+            options
+        );
+        await this.joinLocalDataSource.upsertJoin(join, this.getRepositoryContext());
+        return join;
     }
 
     /** 서버로부터 참여 정보 생성(join:create) 이벤트를 수신하는 리스너를 등록합니다. */
     public onJoinCreated(callback: (join: JoinView) => void): () => void {
-        return this.onDomainEvent('join:create', data => {
-            callback(data as JoinView);
+        return this.onDomainEvent('join:create', detail => {
+            callback(detail.data as JoinView);
         });
     }
 
     /** 서버로부터 참여 정보 변경(join:update) 이벤트를 수신하는 리스너를 등록합니다. */
     public onJoinUpdated(callback: (join: JoinView) => void): () => void {
-        return this.onDomainEvent('join:update', data => {
-            callback(data as JoinView);
+        return this.onDomainEvent('join:update', detail => {
+            callback(detail.data as JoinView);
         });
     }
 
     /** 서버로부터 참여 정보 삭제(join:delete) 이벤트를 수신하는 리스너를 등록합니다. */
     public onJoinDeleted(callback: (join: JoinView) => void): () => void {
-        return this.onDomainEvent('join:delete', data => {
-            callback(data as JoinView);
+        return this.onDomainEvent('join:delete', detail => {
+            callback(detail.data as JoinView);
+        });
+    }
+
+    private initializeInternalListeners(): void {
+        this.onDomainEvent('join:create', detail => {
+            this.runInBackground(
+                () => this.joinLocalDataSource.upsertJoin(detail.data, this.getRepositoryContext()),
+                'join:create'
+            );
+        });
+        this.onDomainEvent('join:update', detail => {
+            this.runInBackground(
+                () => this.joinLocalDataSource.upsertJoin(detail.data, this.getRepositoryContext()),
+                'join:update'
+            );
+        });
+        this.onDomainEvent('join:delete', detail => {
+            this.runInBackground(
+                () => this.joinLocalDataSource.deleteJoin(detail.data.id || '', this.getRepositoryContext()),
+                'join:delete'
+            );
         });
     }
 }

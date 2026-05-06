@@ -4,7 +4,7 @@ import type { ISiteLocalDataSource } from '../local/data-sources';
 import type { DomainEventMap, ListResult } from '../events/types';
 import type { ISiteRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import type { DataContextProvider} from './types';
+import type { DataContextProvider } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 
@@ -30,20 +30,89 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         domainEventBus: IEventBus<DomainEventMap>
     ) {
         super(requestManager, contextProvider, domainEventBus);
+        this.initializeInternalListeners();
     }
 
     /** user:my-site 요청을 수행하고 응답을 기다립니다. */
-    public fetchSite(payload?: WSSPayload, options?: RepositoryRequestOptions): Promise<ListResult<SiteView>> {
-        return this.requestRemote(ref => this.siteRemoteDataSource.fetchSite(payload, ref), options);
+    public async fetchSite(payload?: WSSPayload, options?: RepositoryRequestOptions): Promise<ListResult<SiteView>> {
+        const policy = this.resolveCachePolicy(options);
+        if (policy === 'network-only') {
+            return this.fetchFromRemoteAndCache(payload, options);
+        }
+
+        const local = await this.siteLocalDataSource.fetchSite(payload, this.getRepositoryContext());
+        if (policy === 'cache-only') {
+            return local ?? { list: [], total: 0 };
+        }
+
+        if (local) {
+            this.runInBackground(
+                () => this.fetchFromRemoteAndCache(payload, { ...options, cachePolicy: 'network-only' }),
+                'site:cache-and-network-refresh'
+            );
+            return local;
+        }
+
+        return this.fetchFromRemoteAndCache(payload, options);
     }
 
     /** user:make-site 요청을 수행하고 응답을 기다립니다. */
-    public createSite(payload: UserMakeSitePayload, options?: RepositoryRequestOptions): Promise<SiteView> {
-        return this.requestRemote(ref => this.siteRemoteDataSource.createSite(payload, ref), options);
+    public async createSite(payload: UserMakeSitePayload, options?: RepositoryRequestOptions): Promise<SiteView> {
+        const site = await this.requestRemote<SiteView>(
+            ref => this.siteRemoteDataSource.createSite(payload, ref),
+            options
+        );
+        await this.siteLocalDataSource.upsertSite(site, this.getRepositoryContext());
+        return site;
     }
 
     /** user:update-site 요청을 수행하고 응답을 기다립니다. */
-    public updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<SiteView> {
-        return this.requestRemote(ref => this.siteRemoteDataSource.updateSite(payload, ref), options);
+    public async updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<SiteView> {
+        const site = await this.requestRemote<SiteView>(
+            ref => this.siteRemoteDataSource.updateSite(payload, ref),
+            options
+        );
+        await this.siteLocalDataSource.upsertSite(site, this.getRepositoryContext());
+        return site;
+    }
+
+    private resolveCachePolicy(
+        options?: RepositoryRequestOptions
+    ): NonNullable<RepositoryRequestOptions['cachePolicy']> {
+        if (options?.cachePolicy) return options.cachePolicy;
+        return 'cache-and-network';
+    }
+
+    private async fetchFromRemoteAndCache(
+        payload?: WSSPayload,
+        options?: RepositoryRequestOptions
+    ): Promise<ListResult<SiteView>> {
+        const remote = await this.requestRemote<ListResult<SiteView>>(
+            ref => this.siteRemoteDataSource.fetchSite(payload, ref),
+            options
+        );
+        await this.siteLocalDataSource.replaceSites(remote.list || [], this.getRepositoryContext());
+        return remote;
+    }
+
+    private initializeInternalListeners(): void {
+        this.onDomainEvent('site:create', detail => {
+            this.runInBackground(
+                () => this.siteLocalDataSource.upsertSite(detail.data, this.getRepositoryContext()),
+                'site:create'
+            );
+        });
+        this.onDomainEvent('site:update', detail => {
+            this.runInBackground(
+                () => this.siteLocalDataSource.upsertSite(detail.data, this.getRepositoryContext()),
+                'site:update'
+            );
+        });
+        this.onDomainEvent('site:list', detail => {
+            this.runInBackground(
+                () => this.siteLocalDataSource.replaceSites(detail.data.list || [], this.getRepositoryContext()),
+                'site:list'
+            );
+        });
     }
 }

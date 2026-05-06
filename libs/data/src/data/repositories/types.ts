@@ -10,11 +10,7 @@ import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManag
 export interface RepositoryRequestOptions {
     ref?: string;
     timeoutMs?: number;
-    /**
-     * true면 local cache hit가 있어도 remote 요청을 우선 수행합니다.
-     * remote 실패 시 local hit가 있으면 fallback으로 반환할 수 있습니다.
-     */
-    refresh?: boolean;
+
     /**
      * 읽기 시 cache/network 병행 정책을 제어합니다.
      * - cache-and-network: cache hit면 즉시 반환하고 background refresh 수행
