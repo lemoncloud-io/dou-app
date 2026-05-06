@@ -46,19 +46,13 @@ Repository 레이어는 RemoteDataSource 상위에서 도메인별 데이터 접
 
 ## 7. 추가 요구사항
 
-- `RemoteDataSource`로 소캣 요청 데이터를 수신하기위해선 `private readonly domainEventBus: IEventBus<DomainEventMap>`를 활용한다. 이벤트를 리스닝하는 기능도 추가해야한다.
+- `RemoteDataSource`로 소캣 요청 데이터를 수신하기위해선 `private readonly domainEventBus: IEventBus<DomainEventMap>`를 활용한다. 이벤트를 리스닝하는 기능도 추가해야 한다.
 - `DataProvider`는 web 모듈에 구현하며, 훅과 연동될 수 있도록 해야한다. 현재 구현된 DataProvider는 이전하거나 제거한다.
-- `Repository`레이어의 기능들은 이후 `cid`와 같은 context를 추가적으로 요구하기때문에 context를 주입하는 과정이 필요하며, context는 외부 변경에따라 모듈 내부에서도 유동적으로 변경되어야한다
+- `Repository`레이어의 기능들은 이후 `cid`와 같은 context를 추가적으로 요구하기때문에 context를 주입하는 과정이 필요하며, context는 외부 변경에따라 모듈 내부에서도 유동적으로 변경되어야한다.
 - `InviteCloudRepository`는 우선 인터페이스만 생성해둔다. `IInviteCloudLocalDataSource`는 제거한다.
 - `RepositoryTypes.ts`는 이름을 리팩터링한다. ex: types.ts
-
-## 8. 추가 요구사항
-
-- `listen` 기능은 `domainEventBus`로 넘어온 이벤트를 `repository` 에서 수신하여 이후 local 캐시업데이트와 같은 사이트 이펙트에 사용하기 위함이야 그러니 외부로 노출시키면 안돼
-- 주석을 꼼꼼하게 달아줘
-- `types.ts`는 갓모듈 형태가되지않도록 분리해주면 좋을 것 같습니다.
-- `context`(sid,uid) 추가에 따라 `DataProvider` 에 주입 형태를 업데이트해주세요
-
-## 9. 기타 개선사항
-
-- `types.ts`에 있는 `requestRemote`를 BaseRepository 안에 넣어 통합적인 클래스로 관리하도록 하는 방향은 어떨까요?
+- `listen` 기능은 `domainEventBus`로 넘어온 이벤트를 `repository` 에서 수신하여 이후 local 캐시업데이트와 같은 사이트 이펙트에 사용하기 위함이기 때문에 외부로 노출시켜서는 안된다.
+- 변경된 코드에 대한 주석들을 꼼꼼하게 달아야한다.
+- `types.ts`는 갓 모듈 형태가되지 않도록 유형별로 코드를 분리해주어야한다.
+- `context`(sid,uid) 추가에 따라 `DataProvider` 에 주입 형태를 업데이트 해야한다.
+- `types.ts`에 있는 `requestRemote`를 BaseRepository 안에 넣어 통합적인 클래스로 관리하도록 하는 방향에 대한 검토가 필요할 것 같다.
