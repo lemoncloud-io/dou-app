@@ -1,46 +1,50 @@
-# Storage Adapter Guide
+# Local Storage Adapters (`libs/data/src/data/local/storages`)
 
-프론트에서는 `createStorageAdapter(type, cid)`를 기본 진입점으로 사용하면 됩니다.
+`CacheStorage` 인터페이스를 기준으로 웹(IndexedDB) / 네이티브(WebView bridge) 어댑터를 제공합니다.
 
-- 웹: `IndexedDB`
-- 네이티브 앱 WebView: 브릿지 메시지 -> 네이티브 `SQLite`
+## 현재 scope 정책
 
-## 사용법
+- 현재는 **`cid` 단일 scope**만 사용합니다.
+- 각 CRUD 호출 시점에 `DataContextProvider.getContext().cid`를 읽어 scope를 결정합니다.
+- `uid` scope는 후속 작업에서 추가할 예정입니다.
 
-```ts
-import { createStorageAdapter } from '@chatic/data';
+## 주요 구성
 
-const chatStorage = createStorageAdapter('chat', cid);
+- `cacheStorage.ts`
+    - 공통 인터페이스: `CacheStorage<TType>`
+    - 저장 스키마: `CacheSchema<T>`
+- `indexedDBAdapter.ts`
+    - 웹 구현체
+    - 키 포맷: `${type}:${cid}:${id}`
+    - 인덱스: `type_cid`
+- `nativeDBAdapter.ts`
+    - WebView bridge 구현체
+    - `nonce` 기반 요청/응답 매칭
+    - `replaceAll`은 현재 `fetch -> deleteAll -> saveAll` 3단계
+- `index.ts`
+    - 도메인별 storage 묶음 생성: `createCacheStorages(contextProvider, storageFactory)`
 
-await chatStorage.save(chat.id, chat);
-const oneChat = await chatStorage.load(chat.id);
-const allChats = await chatStorage.loadAll();
-
-await chatStorage.replaceAll(serverChats);
-await chatStorage.delete(chat.id);
-```
-
-## 마이그레이션
-
-1. 프론트 코드에서 직접 환경 분기하지 않습니다.
-2. 앱 코드에서 `createIndexedDBAdapter`, `createNativeDBAdapter` 직접 import를 제거합니다.
-3. `createStorageAdapter(type, cid)`로 교체합니다.
-4. 하나의 저장소 스코프에서는 같은 `type`, `cid`를 유지합니다.
-
-Before:
+## 사용 예시
 
 ```ts
-const storage = isNativeApp() ? createNativeDBAdapter('chat', cid) : createIndexedDBAdapter('chat', cid);
+import {
+    createCacheStorages,
+    createIndexedDBAdapter,
+    createNativeDBAdapter,
+    type CacheStorageFactory,
+} from '@chatic/data';
+
+const storageFactory: CacheStorageFactory = (type, contextProvider) => {
+    const isNative = typeof window !== 'undefined' && !!window.ReactNativeWebView;
+    return isNative ? createNativeDBAdapter(type, contextProvider) : createIndexedDBAdapter(type, contextProvider);
+};
+
+const storages = createCacheStorages(contextProvider, storageFactory);
+await storages.chat.save(chat.id, chat);
 ```
 
-After:
+## 주의 사항
 
-```ts
-const storage = createStorageAdapter('chat', cid);
-```
-
-## Notes
-
-- `id`는 필수입니다. 빈 값이나 누락된 값을 넘기지 않습니다.
-- `load()`는 데이터가 없으면 `null`을 반환합니다.
-- 네이티브 `replaceAll()`은 현재 `fetch -> delete -> save` 순서로 동작하며 아직 원자적이지 않습니다. saveAll() 사용을 추천합니다.
+- `CacheStorage`는 호출 시점 context를 읽도록 구현되어야 합니다.
+    - 같은 adapter 인스턴스라도 `cid` 변경 후에는 새 scope로 동작해야 합니다.
+- `saveAll/replaceAll`은 `id`가 없는 아이템을 무시합니다.
