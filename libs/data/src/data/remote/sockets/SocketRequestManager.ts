@@ -21,10 +21,14 @@ interface InterceptedDetail<T = any> {
     message?: string;
 }
 
+export interface ISocketRequestManager {
+    request<T>(sendAction: (ref: string) => void, customRef?: string, timeoutMs?: number): Promise<T>;
+}
+
 /**
  * 소켓 발신에 대한 비동기 응답을 추적하고, 이를 동기적(Promise) 흐름으로 제어하는 매니저 클래스입니다.
  */
-export class SocketRequestManager {
+export class SocketRequestManager implements ISocketRequestManager {
     // 다양한 응답 타입을 하나의 Map에서 관리하기 위해 내부적으로 제네릭 기본값을 활용합니다.
     private pendingRequests = new Map<string, PendingRequest>();
 

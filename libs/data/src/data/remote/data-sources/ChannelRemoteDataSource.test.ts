@@ -110,9 +110,9 @@ describe('ChannelRemoteDataSource', () => {
             expect(mockWssClient.send).toHaveBeenCalledWith('chat', 'start', payload, 'ref-start');
         });
 
-        it('inviteUser 호출 시 chat 도메인의 invite 액션으로 전송되어야 한다', () => {
+        it('inviteChannel 호출 시 chat 도메인의 invite 액션으로 전송되어야 한다', () => {
             const payload: ChatInvitePayload = { channelId: 'ch-1', users: ['user-2'] } as any;
-            dataSource.inviteUser(payload, 'ref-invite');
+            dataSource.inviteChannel(payload, 'ref-invite');
 
             expect(mockWssClient.send).toHaveBeenCalledWith('chat', 'invite', payload, 'ref-invite');
         });

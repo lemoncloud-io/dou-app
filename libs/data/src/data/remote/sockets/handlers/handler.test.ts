@@ -1,12 +1,10 @@
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { SocketEventMap } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
-import type { SocketContext } from '../dispatchers';
 import { authHandler, chatHandler, modelHandler } from './index';
 
 describe('Socket Dispatcher Handlers', () => {
     let mockEventBus: jest.Mocked<IEventBus<SocketEventMap>>;
-    const mockContext: SocketContext = { cloudId: 'test-cloud-id' };
 
     beforeEach(() => {
         mockEventBus = {
@@ -28,7 +26,7 @@ describe('Socket Dispatcher Handlers', () => {
                 },
             };
 
-            authHandler(envelope, mockContext, mockEventBus);
+            authHandler(envelope, mockEventBus);
 
             expect(mockEventBus.emit).toHaveBeenCalledWith('auth:update', {
                 cid: 'test-cloud-id',
@@ -44,7 +42,7 @@ describe('Socket Dispatcher Handlers', () => {
                 payload: { error: 'Unauthorized' },
             };
 
-            authHandler(envelope, mockContext, mockEventBus);
+            authHandler(envelope, mockEventBus);
 
             expect(mockEventBus.emit).toHaveBeenCalledWith(
                 'auth:error',
@@ -63,7 +61,7 @@ describe('Socket Dispatcher Handlers', () => {
                 payload: { id: 'msg-1', text: 'hello' },
             };
 
-            chatHandler(envelope, mockContext, mockEventBus);
+            chatHandler(envelope, mockEventBus);
 
             expect(mockEventBus.emit).toHaveBeenCalledWith(
                 'chat:create',
@@ -80,7 +78,7 @@ describe('Socket Dispatcher Handlers', () => {
                 payload: { list: [], total: 0 },
             };
 
-            chatHandler(envelope, mockContext, mockEventBus);
+            chatHandler(envelope, mockEventBus);
 
             expect(mockEventBus.emit).toHaveBeenCalledWith(
                 'channel:read',
@@ -99,7 +97,7 @@ describe('Socket Dispatcher Handlers', () => {
                 payload: { type: 'channel', id: 'ch-1', name: 'updated' },
             };
 
-            modelHandler(envelope, mockContext, mockEventBus);
+            modelHandler(envelope, mockEventBus);
 
             // payload.type('channel') + action('update') => 'channel:update'
             expect(mockEventBus.emit).toHaveBeenCalledWith(

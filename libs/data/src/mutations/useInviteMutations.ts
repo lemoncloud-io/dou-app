@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore } from '@chatic/web-core';
-import type { InviteCloudView } from '@chatic/app-messages';
+import type { CacheCloudView } from '@chatic/app-messages';
 import { APP_SYNC_EVENT_NAME } from '../sync-events';
 import type { AppSyncDetail } from '../sync-events';
 import { useInviteLocalDataSource } from '../local/data-sources';
@@ -20,7 +20,7 @@ export const useInviteMutations = () => {
      * 초대장을 로컬 DB에 저장하고, 화면 갱신 이벤트를 방출합니다.
      */
     const saveInvite = useCallback(
-        async (inviteData: InviteCloudView) => {
+        async (inviteData: CacheCloudView) => {
             setIsSaving(true);
 
             try {

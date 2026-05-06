@@ -1,4 +1,11 @@
 export { useDataSync } from './useDataSync';
+export * from './data/events/eventBus';
+export * from './data/events/types';
+export * from './data/remote/clients';
+export * from './data/remote/data-sources';
+export * from './data/remote/sockets/dispatchers';
+export * from './data/remote/sockets/SocketRequestManager';
+export * from './data/repositories';
 export * from './hooks';
 export * from './mutations';
 export * from './local/data-sources';

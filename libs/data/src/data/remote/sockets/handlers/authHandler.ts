@@ -1,16 +1,14 @@
 import type { AuthPayload, ChatErrorPayload, WSSAuthActionType, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import { logger } from '@chatic/app-messages';
-import type { SocketContext } from '../dispatchers';
 import type { IEventBus } from '../../../events/eventBus';
 import type { SocketEventMap } from '../../../events/types';
 
 /**
  * 인증 관련 소켓 메시지를 분석하여 적절한 인증 이벤트를 발생시킵니다.
  * @param envelope 서버로부터 전달받은 인증 관련 메시지 객체
- * @param ctx 현재 소켓 연결의 문맥 정보 (cloud id 등)
  * @param eventBus 시스템 전역에서 사용하는 이벤트 중계 인터페이스
  */
-export const authHandler = (envelope: WSSEnvelope, ctx: SocketContext, eventBus: IEventBus<SocketEventMap>) => {
+export const authHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEventMap>) => {
     const action = envelope.action as WSSAuthActionType;
     const { payload, meta } = envelope;
 
@@ -18,7 +16,6 @@ export const authHandler = (envelope: WSSEnvelope, ctx: SocketContext, eventBus:
      * - 이벤트 상세 객체 구성
      */
     const detail = {
-        cid: ctx.cloudId,
         ref: meta?.ref,
         payload,
     };
