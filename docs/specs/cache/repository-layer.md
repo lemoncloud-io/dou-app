@@ -56,3 +56,8 @@ Repository 레이어는 RemoteDataSource 상위에서 도메인별 데이터 접
 - `types.ts`는 갓 모듈 형태가되지 않도록 유형별로 코드를 분리해주어야한다.
 - `context`(sid,uid) 추가에 따라 `DataProvider` 에 주입 형태를 업데이트 해야한다.
 - `types.ts`에 있는 `requestRemote`를 BaseRepository 안에 넣어 통합적인 클래스로 관리하도록 하는 방향에 대한 검토가 필요할 것 같다.
+
+## 8. 추가 요구사항
+
+- `SocketDispatcher` 또한 인터페이스화 하여 DataProvider에서 생성 및 주입할 수 있도록 한다.
+- 요청-응답과 관계없이 오로지 소켓으로 리스닝 되는 데이터를 UI 레이어에서 감지할 수 있어야하는데, 해당 부분을 어떻게 개선해야할지 검토가 필요하다.
