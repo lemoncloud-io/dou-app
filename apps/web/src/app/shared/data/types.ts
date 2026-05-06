@@ -1,4 +1,4 @@
-import type { DataRepositories, RepositoryContext } from '@chatic/data';
+import type { DataContext, DataRepositories } from '@chatic/data';
 
 import type { ReactNode } from 'react';
 
@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
  */
 export interface DataProviderValue {
     repositories: DataRepositories;
-    setRepositoryContext(context: RepositoryContext): void;
+    setDataContext(context: DataContext): void;
 }
 
 /**
@@ -17,5 +17,5 @@ export interface DataProviderValue {
  */
 export interface DataProviderProps {
     children: ReactNode;
-    context?: RepositoryContext;
+    context?: DataContext;
 }
