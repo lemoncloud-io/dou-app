@@ -1,7 +1,6 @@
 import type {
     ChatDeleteChannelPayload,
     ChatInvitePayload,
-    ChatLeavePayload,
     ChatMinePayload,
     ChatStartPayload,
     ChatUpdateChannelPayload,
@@ -32,6 +31,15 @@ export interface IChannelRepository {
 
     /** 기존 채널에 사용자를 초대합니다. */
     inviteChannel(payload: ChatInvitePayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
+
+    /** 서버로부터 채널 정보 변경(channel:update) 이벤트를 수신하는 리스너를 등록합니다. */
+    onChannelUpdated(callback: (channel: DomainChannel) => void): () => void;
+
+    /** 서버로부터 채널 삭제(channel:delete) 이벤트를 수신하는 리스너를 등록합니다. */
+    onChannelDeleted(callback: (channel: DomainChannel) => void): () => void;
+
+    /** 서버로부터 신규 채널 생성(channel:create) 이벤트를 수신하는 리스너를 등록합니다. */
+    onChannelCreated(callback: (channel: DomainChannel) => void): () => void;
     inviteChannel(payload: ChatInvitePayload, options?: RepositoryRequestOptions): Promise<ChannelView>;
 
     /** 채널에서 나갑니다. */
@@ -83,7 +91,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         payload: ChatUpdateChannelPayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainChannel> {
-        const channel = await this.requestRemote<DomainChannel>(
+        const channel = await this.requestRemote<ChannelView>(
             ref => this.channelRemoteDataSource.updateChannel(payload, ref),
             options
         );
@@ -97,7 +105,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         payload: ChatDeleteChannelPayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainChannel> {
-        const channel = await this.requestRemote<DomainChannel>(
+        const channel = await this.requestRemote<ChannelView>(
             ref => this.channelRemoteDataSource.deleteChannel(payload, ref),
             options
         );
@@ -111,7 +119,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
 
     /** chat:start 요청을 수행하고 응답을 기다립니다. */
     public async startChat(payload: ChatStartPayload, options?: RepositoryRequestOptions): Promise<DomainChannel> {
-        const channel = await this.requestRemote<DomainChannel>(
+        const channel = await this.requestRemote<ChannelView>(
             ref => this.channelRemoteDataSource.startChat(payload, ref),
             options
         );
@@ -122,7 +130,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
 
     /** chat:invite 요청을 수행하고 응답을 기다립니다. */
     public async inviteChannel(payload: ChatInvitePayload, options?: RepositoryRequestOptions): Promise<DomainChannel> {
-        const channel = await this.requestRemote<DomainChannel>(
+        const channel = await this.requestRemote<ChannelView>(
             ref => this.channelRemoteDataSource.inviteChannel(payload, ref),
             options
         );
@@ -159,11 +167,32 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         return 'cache-and-network';
     }
 
+    /** 서버로부터 채널 정보 변경(channel:update) 이벤트를 수신하는 리스너를 등록합니다. */
+    public onChannelUpdated(callback: (channel: DomainChannel) => void): () => void {
+        return this.onDomainEvent('channel:update', detail => {
+            callback(detail.data as DomainChannel);
+        });
+    }
+
+    /** 서버로부터 채널 삭제(channel:delete) 이벤트를 수신하는 리스너를 등록합니다. */
+    public onChannelDeleted(callback: (channel: DomainChannel) => void): () => void {
+        return this.onDomainEvent('channel:delete', detail => {
+            callback(detail.data as DomainChannel);
+        });
+    }
+
+    /** 서버로부터 신규 채널 생성(channel:create) 이벤트를 수신하는 리스너를 등록합니다. */
+    public onChannelCreated(callback: (channel: DomainChannel) => void): () => void {
+        return this.onDomainEvent('channel:create', detail => {
+            callback(detail.data as DomainChannel);
+        });
+    }
+
     private async fetchFromRemoteAndCache(
         payload: ChatMinePayload,
         options?: RepositoryRequestOptions
     ): Promise<ListResult<DomainChannel>> {
-        const remote = await this.requestRemote<ListResult<any>>(
+        const remote = await this.requestRemote<ListResult<ChannelView>>(
             ref => this.channelRemoteDataSource.fetchChannel(payload, ref),
             options
         );

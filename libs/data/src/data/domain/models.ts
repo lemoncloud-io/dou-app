@@ -1,12 +1,5 @@
-import type { CloudView } from '@lemoncloud/chatic-backend-api';
-import type {
-    ChannelView,
-    ChatFeedResult,
-    ChatView,
-    JoinView,
-    SiteView,
-    UserView,
-} from '@lemoncloud/chatic-socials-api';
+import type { CloudView, UserView } from '@lemoncloud/chatic-backend-api';
+import type { ChannelView, ChatFeedResult, ChatView, JoinView, SiteView } from '@lemoncloud/chatic-socials-api';
 import type { ListResult } from '../events/common';
 
 export interface DomainScope {

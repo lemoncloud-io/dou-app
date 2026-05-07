@@ -1,5 +1,5 @@
 import type { ChatUsersPayload, UserInvitePayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
-import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView, UserView } from '@lemoncloud/chatic-backend-api';
 import type { DomainEventMap, ListResult } from '../events/types';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
@@ -23,6 +23,15 @@ export interface IUserRepository {
 
     /** 외부 사용자 초대 코드를 생성합니다. */
     requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView>;
+
+    /** 서버로부터 신규 사용자 생성(user:create) 이벤트를 수신하는 리스너를 등록합니다. */
+    onUserCreated(callback: (user: DomainUser) => void): () => void;
+
+    /** 기존 사용자 정보 변경(user:update) 이벤트를 수신하는 리스너를 등록합니다. */
+    onUserUpdated(callback: (user: DomainUser) => void): () => void;
+
+    /** 사용자 삭제/탈퇴(user:delete) 이벤트를 수신하는 리스너를 등록합니다. */
+    onUserDeleted(callback: (user: DomainUser) => void): () => void;
 }
 
 /**
@@ -65,7 +74,7 @@ export class UserRepository extends BaseRepository implements IUserRepository {
         payload: UserUpdateProfilePayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainUser> {
-        const user = await this.requestRemote<DomainUser>(
+        const user = await this.requestRemote<UserView>(
             ref => this.userRemoteDataSource.updateProfile(payload, ref),
             options
         );
@@ -79,11 +88,32 @@ export class UserRepository extends BaseRepository implements IUserRepository {
         return this.requestRemote(ref => this.userRemoteDataSource.requestInvite(payload, ref), options);
     }
 
+    /** 서버로부터 신규 사용자 생성(user:create) 이벤트를 수신하는 리스너를 등록합니다. */
+    public onUserCreated(callback: (user: DomainUser) => void): () => void {
+        return this.onDomainEvent('user:create', detail => {
+            callback(detail.data as DomainUser);
+        });
+    }
+
+    /** 기존 사용자 정보 변경(user:update) 이벤트를 수신하는 리스너를 등록합니다. */
+    public onUserUpdated(callback: (user: DomainUser) => void): () => void {
+        return this.onDomainEvent('user:update', detail => {
+            callback(detail.data as DomainUser);
+        });
+    }
+
+    /** 사용자 삭제/탈퇴(user:delete) 이벤트를 수신하는 리스너를 등록합니다. */
+    public onUserDeleted(callback: (user: DomainUser) => void): () => void {
+        return this.onDomainEvent('user:delete', detail => {
+            callback(detail.data as DomainUser);
+        });
+    }
+
     private async fetchFromRemoteAndCache(
         payload: ChatUsersPayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainUser>> {
-        const remote = await this.requestRemote<ListResult<DomainUser>>(
+        const remote = await this.requestRemote<ListResult<UserView>>(
             ref => this.userRemoteDataSource.fetchUsers(payload, ref),
             options
         );

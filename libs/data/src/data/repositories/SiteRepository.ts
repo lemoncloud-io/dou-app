@@ -9,6 +9,7 @@ import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainListResult, DomainSite } from '../domain';
 import { toDomainSite } from '../domain';
+import type { SiteView } from '@lemoncloud/chatic-socials-api';
 
 /** 사이트/플레이스 도메인의 Repository 공개 계약입니다. */
 export interface ISiteRepository {
@@ -20,6 +21,12 @@ export interface ISiteRepository {
 
     /** 기존 site 정보를 수정합니다. */
     updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite>;
+
+    /** 서버로부터 신규 사이트 생성(site:create) 이벤트를 수신하는 리스너를 등록합니다. */
+    onSiteCreated(callback: (site: DomainSite) => void): () => void;
+
+    /** 기존 사이트 정보 변경(site:update) 이벤트를 수신하는 리스너를 등록합니다. */
+    onSiteUpdated(callback: (site: DomainSite) => void): () => void;
     updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<SiteView>;
 
     /** 서버로부터 site 생성(site:create) 이벤트를 수신하는 리스너를 등록합니다. */
@@ -60,7 +67,7 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
 
     /** user:make-site 요청을 수행하고 응답을 기다립니다. */
     public async createSite(payload: UserMakeSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite> {
-        const site = await this.requestRemote<DomainSite>(
+        const site = await this.requestRemote<SiteView>(
             ref => this.siteRemoteDataSource.createSite(payload, ref),
             options
         );
@@ -71,7 +78,7 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
 
     /** user:update-site 요청을 수행하고 응답을 기다립니다. */
     public async updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite> {
-        const site = await this.requestRemote<DomainSite>(
+        const site = await this.requestRemote<SiteView>(
             ref => this.siteRemoteDataSource.updateSite(payload, ref),
             options
         );
@@ -80,11 +87,25 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         return domainSite;
     }
 
+    /** 서버로부터 신규 사이트 생성(site:create) 이벤트를 수신하는 리스너를 등록합니다. */
+    public onSiteCreated(callback: (site: DomainSite) => void): () => void {
+        return this.onDomainEvent('site:create', detail => {
+            callback(detail.data as DomainSite);
+        });
+    }
+
+    /** 기존 사이트 정보 변경(site:update) 이벤트를 수신하는 리스너를 등록합니다. */
+    public onSiteUpdated(callback: (site: DomainSite) => void): () => void {
+        return this.onDomainEvent('site:update', detail => {
+            callback(detail.data as DomainSite);
+        });
+    }
+
     private async fetchFromRemoteAndCache(
         payload?: WSSPayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainSite>> {
-        const remote = await this.requestRemote<ListResult<DomainSite>>(
+        const remote = await this.requestRemote<ListResult<SiteView>>(
             ref => this.siteRemoteDataSource.fetchSite(payload, ref),
             options
         );
@@ -128,20 +149,6 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
                 () => this.siteLocalDataSource.replaceSites(detail.data.list || [], this.getRepositoryContext()),
                 'site:list'
             );
-        });
-    }
-
-    /** 서버로부터 site 생성(site:create) 이벤트를 수신하는 리스너를 등록합니다. */
-    public onSiteCreated(callback: (site: SiteView) => void): () => void {
-        return this.onDomainEvent('site:create', data => {
-            callback(data.data);
-        });
-    }
-
-    /** 서버로부터 site 변경(site:update) 이벤트를 수신하는 리스너를 등록합니다. */
-    public onSiteUpdated(callback: (site: SiteView) => void): () => void {
-        return this.onDomainEvent('site:update', data => {
-            callback(data.data);
         });
     }
 }

@@ -8,6 +8,7 @@ import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
 import type { DomainChat, DomainChatFeedResult } from '../domain';
 import { toDomainChat } from '../domain';
+import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
 
 /** 채팅 메시지 도메인의 Repository 공개 계약입니다. */
 export interface IChatRepository {
@@ -16,6 +17,18 @@ export interface IChatRepository {
 
     /** 서버의 chat:feed 요청을 수행하여 채널의 메시지 피드를 조회합니다. */
     fetchChat(payload: ChatFeedPayload, options?: RepositoryRequestOptions): Promise<DomainChatFeedResult>;
+
+    /** 새로운 채팅 메시지(chat:create) 수신 이벤트를 구독합니다.
+     * @param callback 수신된 채팅 데이터를 처리할 콜백 함수
+     * @returns 구독 해제(unsubscribe) 함수
+     */
+    onChatCreated(callback: (chat: ChatView) => void): () => void;
+
+    /** 기존 채팅 메시지 변경(chat:update) 이벤트를 구독합니다. */
+    onChatUpdated(callback: (chat: ChatView) => void): () => void;
+
+    /** 채팅 메시지 삭제(chat:delete) 이벤트를 구독합니다. */
+    onChatDeleted(callback: (chat: ChatView) => void): () => void;
 }
 
 /** Remote chat API와 local message cache를 중재합니다. */
@@ -33,7 +46,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
 
     /** 메시지 발신을 data source에 위임하고 응답을 기다립니다. */
     public async sendChat(payload: ChatSendPayload, options?: RepositoryRequestOptions): Promise<DomainChat> {
-        const chat = await this.requestRemote<DomainChat>(
+        const chat = await this.requestRemote<ChatView>(
             ref => this.chatRemoteDataSource.sendChat(payload, ref),
             options
         );
@@ -75,11 +88,41 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         });
     }
 
+    /**
+     * 새로운 채팅 메시지(chat:create) 수신 이벤트를 구독합니다.
+     */
+    public onChatCreated(callback: (chat: ChatView) => void): () => void {
+        return this.onDomainEvent('chat:create', detail => {
+            callback(detail.data as ChatView);
+        });
+    }
+
+    /**
+     * 기존 채팅 메시지 변경(chat:update) 이벤트를 구독합니다.
+     */
+    public onChatUpdated(callback: (chat: ChatView) => void): () => void {
+        return this.onDomainEvent('chat:update', detail => {
+            callback(detail.data as ChatView);
+        });
+    }
+
+    /**
+     * 채팅 메시지 삭제(chat:delete) 이벤트를 구독합니다.
+     */
+    public onChatDeleted(callback: (chat: ChatView) => void): () => void {
+        return this.onDomainEvent('chat:delete', detail => {
+            callback(detail.data as ChatView);
+        });
+    }
+
     private async fetchFromRemoteAndCache(
         payload: ChatFeedPayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainChatFeedResult> {
-        const remote = await this.requestRemote<any>(ref => this.chatRemoteDataSource.fetchChat(payload, ref), options);
+        const remote = await this.requestRemote<ChatFeedResult>(
+            ref => this.chatRemoteDataSource.fetchChat(payload, ref),
+            options
+        );
         const domainList = ((remote?.list || []) as any[]).map(item => toDomainChat(item, this.getDomainScope()));
         await this.chatLocalDataSource.upsertChats(domainList, this.getRepositoryContext());
         return { ...remote, list: domainList } as DomainChatFeedResult;
