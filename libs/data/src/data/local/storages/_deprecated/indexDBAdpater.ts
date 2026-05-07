@@ -1,0 +1,178 @@
+import type { CacheModelMap, CacheType } from '@chatic/app-messages';
+import type { CacheSchema, CacheStorage } from '../cacheStorage';
+
+// IndexedDB 설정 상수
+const DB_NAME = 'ChaticWebCacheDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'cache_store';
+
+/**
+ * IDBRequest를 Promise로 변환하는 헬퍼 함수
+ * IndexedDB의 이벤트 기반 API를 async/await 패턴으로 사용할 수 있게 합니다.
+ */
+const promisifyRequest = <T>(request: IDBRequest<T>): Promise<T> => {
+    return new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+};
+
+/**
+ * IDBTransaction의 완료 여부를 Promise로 변환하는 헬퍼 함수
+ * 트랜잭션 내의 모든 작업이 성공적으로 커밋되었는지 확인합니다.
+ */
+const promisifyTransaction = (transaction: IDBTransaction): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(new Error('Transaction aborted'));
+    });
+};
+
+/**
+ * 데이터베이스를 열고 필요한 경우 스키마를 생성/업데이트합니다.
+ */
+const openDB = (): Promise<IDBDatabase> => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    // DB 버전이 올라가거나 처음 생성될 때 실행되는 스키마 정의 로직
+    request.onupgradeneeded = event => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+            // 'key'를 기본키로 사용하는 오브젝트 스토어 생성
+            const store = db.createObjectStore(STORE_NAME, { keyPath: 'key' });
+            // 도메인별 일괄 조회를 위해 'type'과 'cid'를 묶은 복합 인덱스 생성
+            store.createIndex('type_cid', ['type', 'cid'], { unique: false });
+        }
+    };
+    return promisifyRequest(request);
+};
+
+/**
+ * 웹 환경을 위한 CacheStorage의 IndexedDB 구현체입니다.
+ * [type + cid] 복합 인덱스를 사용하여 단일 오브젝트 스토어 내에서 데이터를 관리합니다.
+ * @deprecated
+ */
+export const createIndexedDBAdapter = <TType extends CacheType>(type: TType, cid: string): CacheStorage<TType> => {
+    type Model = CacheModelMap[TType];
+
+    // 저장소 내에서 고유성을 보장하기 위한 복합 키 생성 함수
+    const generateKey = (id: string) => `${type}:${cid}:${id}`;
+
+    /**
+     * 지정된 모드(readonly/readwrite)로 스토어와 트랜잭션을 가져옵니다.
+     */
+    const getStore = async (mode: IDBTransactionMode) => {
+        const db = await openDB();
+        const transaction = db.transaction(STORE_NAME, mode);
+        const store = transaction.objectStore(STORE_NAME);
+        return { store, transaction };
+    };
+
+    return {
+        /**
+         * 단일 아이템을 저장하거나 업데이트합니다.
+         */
+        async save(id: string, item: Model): Promise<Model> {
+            const { store, transaction } = await getStore('readwrite');
+            const data: CacheSchema<Model> = { key: generateKey(id), type, cid, id, data: item };
+            store.put(data);
+            await promisifyTransaction(transaction);
+            return item;
+        },
+
+        /**
+         * 여러 아이템을 하나의 트랜잭션 내에서 원자적으로 저장합니다.
+         */
+        async saveAll(items: Model[]): Promise<Model[]> {
+            const { store, transaction } = await getStore('readwrite');
+
+            items.forEach(item => {
+                const itemId = (item as { id?: string }).id;
+                if (!itemId) return;
+                const data: CacheSchema<Model> = { key: generateKey(itemId), type, cid, id: itemId, data: item };
+                store.put(data); // 루프 내에서는 개별 Promise를 기다리지 않고 큐에 삽입
+            });
+
+            // 모든 작업이 포함된 트랜잭션이 최종 완료될 때까지 대기
+            await promisifyTransaction(transaction);
+            return items;
+        },
+
+        /**
+         * 기존 [type, cid] 스코프 데이터를 모두 삭제하고 새 items로 교체합니다. (단일 readwrite 트랜잭션)
+         * 서버 전체 동기화 시 stale 데이터를 원자적으로 제거합니다.
+         */
+        async replaceAll(items: Model[]): Promise<Model[]> {
+            const { store, transaction } = await getStore('readwrite');
+            const index = store.index('type_cid');
+            const existingKeys = await promisifyRequest<IDBValidKey[]>(index.getAllKeys([type, cid]));
+
+            existingKeys.forEach(key => store.delete(key));
+
+            items.forEach(item => {
+                const itemId = (item as { id?: string }).id;
+                if (!itemId) return;
+                const data: CacheSchema<Model> = { key: generateKey(itemId), type, cid, id: itemId, data: item };
+                store.put(data);
+            });
+
+            await promisifyTransaction(transaction);
+            return items;
+        },
+
+        /**
+         * ID를 통해 단일 데이터를 로드합니다.
+         */
+        async load(id: string): Promise<Model | null> {
+            const { store } = await getStore('readonly');
+            const result = await promisifyRequest<CacheSchema<Model>>(store.get(generateKey(id)));
+            return result ? result.data : null;
+        },
+
+        /**
+         * 인덱스를 사용하여 특정 도메인(type, cid)에 속한 데이터를 전체 조회합니다.
+         * 도메인별 필터/정렬은 상위(repository) 레이어에서 수행합니다.
+         */
+        async loadAll(): Promise<Model[]> {
+            const { store } = await getStore('readonly');
+            const index = store.index('type_cid');
+            const results = await promisifyRequest<CacheSchema<Model>[]>(index.getAll([type, cid]));
+            return results.map(r => r.data);
+        },
+
+        /**
+         * ID를 통해 단일 데이터를 삭제합니다.
+         * 대상이 없어도 예외 없이 완료됩니다.
+         */
+        async delete(id: string): Promise<void> {
+            const { store, transaction } = await getStore('readwrite');
+            store.delete(generateKey(id));
+            await promisifyTransaction(transaction);
+        },
+
+        /**
+         * 여러 ID를 하나의 트랜잭션 내에서 일괄 삭제합니다.
+         */
+        async deleteAll(ids: string[]): Promise<void> {
+            if (ids.length === 0) return;
+            const { store, transaction } = await getStore('readwrite');
+            ids.forEach(id => store.delete(generateKey(id)));
+            await promisifyTransaction(transaction);
+        },
+
+        /**
+         * 추출된 모든 키(도메인 내 모든 cid 포함)를 삭제합니다.
+         */
+        async clearAll(): Promise<void> {
+            const { store, transaction } = await getStore('readwrite');
+            const index = store.index('type_cid');
+            const range = IDBKeyRange.bound([type], [type, []]);
+
+            const keys = await promisifyRequest<IDBValidKey[]>(index.getAllKeys(range));
+            keys.forEach(key => store.delete(key));
+
+            return promisifyTransaction(transaction);
+        },
+    };
+};

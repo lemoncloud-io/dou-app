@@ -7,20 +7,15 @@ import type {
     ChatStartPayload,
     ChatUpdateChannelPayload,
 } from '@lemoncloud/chatic-sockets-api';
-import type { ListResult } from '../events/types';
+import type { IChannelLocalDataSource } from '../local/data-sources';
+import type { DomainEventMap, ListResult } from '../events/types';
 import type { IChannelRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import {
-    BaseRepository,
-    type RepositoryContextProvider,
-    type RepositoryDomainEventBus,
-    type RepositoryRequestOptions,
-} from './types';
+import type { DataContextProvider } from './types';
+import { BaseRepository, type RepositoryRequestOptions } from './types';
+import type { IEventBus } from '../events/eventBus';
 
-/**
- * 채널 도메인의 Repository 공개 계약입니다.
- * 채널 목록 조회, 채널 생성/수정/삭제, 멤버 초대 요청을 담당합니다.
- */
+/** 채널 도메인의 Repository 공개 계약입니다. */
 export interface IChannelRepository {
     /** 내가 참여 중인 채널 목록을 조회합니다. */
     fetchChannel(payload: ChatMinePayload, options?: RepositoryRequestOptions): Promise<ListResult<ChannelView>>;
@@ -47,78 +42,175 @@ export interface IChannelRepository {
     onChannelDeleted(callback: (channel: ChannelView) => void): () => void;
 }
 
-/**
- * ChannelRemoteDataSource를 감싸는 채널 Repository 구현체입니다.
- * 모든 메서드는 data source 발신 후 request manager가 domain event 응답을 resolve하도록 연결합니다.
- */
+/** Remote channel API와 local channel cache를 중재합니다. */
 export class ChannelRepository extends BaseRepository implements IChannelRepository {
-    /** 동시 다발적 fetchChannel 호출을 하나의 WebSocket 요청으로 합치기 위한 inflight Promise 맵 (placeId별) */
-    private inflightFetchChannel = new Map<string, Promise<ListResult<ChannelView>>>();
+    /** 동시 다발적 fetchChannel 호출을 하나의 WebSocket 요청으로 합치기 위한 inflight Promise */
+    private inflightFetchChannel: Promise<ListResult<ChannelView>> | null = null;
 
     constructor(
-        private readonly channelDataSource: IChannelRemoteDataSource,
+        private readonly channelRemoteDataSource: IChannelRemoteDataSource,
+        private readonly channelLocalDataSource: IChannelLocalDataSource,
         requestManager: ISocketRequestManager,
-        context?: RepositoryContextProvider,
-        domainEventBus?: RepositoryDomainEventBus
+        contextProvider: DataContextProvider,
+        domainEventBus: IEventBus<DomainEventMap>
     ) {
-        super(requestManager, context, domainEventBus);
+        super(requestManager, contextProvider, domainEventBus);
+        this.initializeInternalListeners();
     }
 
-    /** chat:mine 요청을 수행하고 응답을 기다립니다. 동일 placeId의 동시 호출은 하나로 합쳐집니다. */
-    public fetchChannel(
+    public async fetchChannel(
         payload: ChatMinePayload,
         options?: RepositoryRequestOptions
     ): Promise<ListResult<ChannelView>> {
-        const key = payload.placeId ?? '';
-        const inflight = this.inflightFetchChannel.get(key);
-        if (inflight) return inflight;
+        const policy = this.resolveCachePolicy(options);
+        if (policy === 'network-only') {
+            return this.fetchFromRemoteAndCache(payload, options);
+        }
 
-        const promise = this.requestRemote<ListResult<ChannelView>>(
-            ref => this.channelDataSource.fetchChannel(payload, ref),
-            options
-        ).finally(() => {
-            this.inflightFetchChannel.delete(key);
-        });
-        this.inflightFetchChannel.set(key, promise);
-        return promise;
+        const local = await this.channelLocalDataSource.fetchChannel(payload, this.getRepositoryContext());
+        if (policy === 'cache-only') {
+            return (
+                local ?? {
+                    list: [],
+                    limit: (payload as { limit?: number }).limit,
+                    page: (payload as { page?: number }).page,
+                    total: 0,
+                }
+            );
+        }
+
+        if (local) {
+            this.runInBackground(
+                () => this.fetchFromRemoteAndCache(payload, { ...options, cachePolicy: 'network-only' }),
+                'channel:cache-and-network-refresh'
+            );
+            return local;
+        }
+
+        return this.fetchFromRemoteAndCache(payload, options);
     }
 
     /** chat:update-channel 요청을 수행하고 응답을 기다립니다. */
-    public updateChannel(payload: ChatUpdateChannelPayload, options?: RepositoryRequestOptions): Promise<ChannelView> {
-        return this.requestRemote(ref => this.channelDataSource.updateChannel(payload, ref), options);
+    public async updateChannel(
+        payload: ChatUpdateChannelPayload,
+        options?: RepositoryRequestOptions
+    ): Promise<ChannelView> {
+        const channel = await this.requestRemote<ChannelView>(
+            ref => this.channelRemoteDataSource.updateChannel(payload, ref),
+            options
+        );
+        await this.channelLocalDataSource.upsertChannel(channel, this.getRepositoryContext());
+        return channel;
     }
 
     /** chat:delete-channel 요청을 수행하고 응답을 기다립니다. */
-    public deleteChannel(payload: ChatDeleteChannelPayload, options?: RepositoryRequestOptions): Promise<ChannelView> {
-        return this.requestRemote(ref => this.channelDataSource.deleteChannel(payload, ref), options);
+    public async deleteChannel(
+        payload: ChatDeleteChannelPayload,
+        options?: RepositoryRequestOptions
+    ): Promise<ChannelView> {
+        const channel = await this.requestRemote<ChannelView>(
+            ref => this.channelRemoteDataSource.deleteChannel(payload, ref),
+            options
+        );
+        await this.channelLocalDataSource.deleteChannel(
+            channel.id || (payload as { channelId?: string }).channelId || '',
+            this.getRepositoryContext()
+        );
+        return channel;
     }
 
     /** chat:start 요청을 수행하고 응답을 기다립니다. */
-    public startChat(payload: ChatStartPayload, options?: RepositoryRequestOptions): Promise<ChannelView> {
-        return this.requestRemote(ref => this.channelDataSource.startChat(payload, ref), options);
+    public async startChat(payload: ChatStartPayload, options?: RepositoryRequestOptions): Promise<ChannelView> {
+        const channel = await this.requestRemote<ChannelView>(
+            ref => this.channelRemoteDataSource.startChat(payload, ref),
+            options
+        );
+        await this.channelLocalDataSource.upsertChannel(channel, this.getRepositoryContext());
+        return channel;
     }
 
     /** chat:invite 요청을 수행하고 응답을 기다립니다. */
-    public inviteChannel(payload: ChatInvitePayload, options?: RepositoryRequestOptions): Promise<ChannelView> {
-        return this.requestRemote(ref => this.channelDataSource.inviteChannel(payload, ref), options);
+    public async inviteChannel(payload: ChatInvitePayload, options?: RepositoryRequestOptions): Promise<ChannelView> {
+        const channel = await this.requestRemote<ChannelView>(
+            ref => this.channelRemoteDataSource.inviteChannel(payload, ref),
+            options
+        );
+        await this.channelLocalDataSource.upsertChannel(channel, this.getRepositoryContext());
+        return channel;
     }
 
     /** chat:leave 요청을 수행하고 응답을 기다립니다. */
     public leaveChannel(payload: ChatLeavePayload, options?: RepositoryRequestOptions): Promise<ChannelView> {
-        return this.requestRemote(ref => this.channelDataSource.leaveChannel(payload, ref), options);
+        return this.requestRemote(ref => this.channelRemoteDataSource.leaveChannel(payload, ref), options);
     }
 
     /** 서버로부터 채널 정보 변경(channel:update) 이벤트를 수신하는 리스너를 등록합니다. */
     public onChannelUpdated(callback: (channel: ChannelView) => void): () => void {
-        return this.onDomainEvent('channel:update', data => {
-            callback(data.data);
+        return this.onDomainEvent('channel:update', detail => {
+            callback(detail.data as ChannelView);
         });
     }
 
     /** 서버로부터 채널 삭제(channel:delete) 이벤트를 수신하는 리스너를 등록합니다. */
     public onChannelDeleted(callback: (channel: ChannelView) => void): () => void {
-        return this.onDomainEvent('channel:delete', data => {
-            callback(data.data);
+        return this.onDomainEvent('channel:delete', detail => {
+            callback(detail.data as ChannelView);
+        });
+    }
+
+    private resolveCachePolicy(
+        options?: RepositoryRequestOptions
+    ): NonNullable<RepositoryRequestOptions['cachePolicy']> {
+        if (options?.cachePolicy) return options.cachePolicy;
+        return 'cache-and-network';
+    }
+
+    private async fetchFromRemoteAndCache(
+        payload: ChatMinePayload,
+        options?: RepositoryRequestOptions
+    ): Promise<ListResult<ChannelView>> {
+        if (this.inflightFetchChannel) return this.inflightFetchChannel;
+
+        this.inflightFetchChannel = (async () => {
+            try {
+                const remote = await this.requestRemote<ListResult<ChannelView>>(
+                    ref => this.channelRemoteDataSource.fetchChannel(payload, ref),
+                    options
+                );
+                await this.channelLocalDataSource.upsertChannels(remote.list || [], this.getRepositoryContext());
+                return remote;
+            } finally {
+                this.inflightFetchChannel = null;
+            }
+        })();
+
+        return this.inflightFetchChannel;
+    }
+
+    private initializeInternalListeners(): void {
+        this.onDomainEvent('channel:create', detail => {
+            this.runInBackground(
+                () => this.channelLocalDataSource.upsertChannel(detail.data, this.getRepositoryContext()),
+                'channel:create'
+            );
+        });
+        this.onDomainEvent('channel:update', detail => {
+            this.runInBackground(
+                () => this.channelLocalDataSource.upsertChannel(detail.data, this.getRepositoryContext()),
+                'channel:update'
+            );
+        });
+        this.onDomainEvent('channel:delete', detail => {
+            this.runInBackground(
+                () => this.channelLocalDataSource.deleteChannel(detail.data.id || '', this.getRepositoryContext()),
+                'channel:delete'
+            );
+        });
+        this.onDomainEvent('channel:list', detail => {
+            this.runInBackground(
+                () => this.channelLocalDataSource.upsertChannels(detail.data.list || [], this.getRepositoryContext()),
+                'channel:list'
+            );
         });
     }
 }

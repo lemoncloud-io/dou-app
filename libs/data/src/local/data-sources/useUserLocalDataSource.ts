@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { createStorageAdapter } from '../../data/local/storages';
+import { createStorageAdapter } from '../../data/local/storages/_deprecated';
 import type { UserView } from '@lemoncloud/chatic-socials-api';
 
 /**

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useCallback } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
-import type { ISocketDispatcher, IWebSocketClient } from '@chatic/data';
+import type { IEventBus, ISocketDispatcher, IWebSocketClient, SocketEventMap } from '@chatic/data';
+import { createRemoteDataSources, type DomainEventMap, SocketDispatcher } from '@chatic/data';
 import type { WSSActionType, WSSEnvelope, WSSEventDomainType } from '@lemoncloud/chatic-sockets-api';
 
 /**
@@ -20,18 +21,18 @@ const useSocketListener = (dispatcher: ISocketDispatcher) => {
  * IWebSocketClient 인터페이스를 구현하는 송신 객체 생성 훅
  */
 const useSocketEmitter = (): IWebSocketClient => {
-    const { emitAuthenticated } = useWebSocketV2();
+    const { emit } = useWebSocketV2();
 
     const send = useCallback(
         (domain: WSSEventDomainType, action: WSSActionType, payload: unknown, ref?: string) => {
-            emitAuthenticated({
+            emit({
                 type: domain,
                 action,
                 payload,
                 meta: ref ? { ref, ts: Date.now() } : undefined,
             });
         },
-        [emitAuthenticated]
+        [emit]
     );
 
     return useMemo(() => ({ send }), [send]);
@@ -44,4 +45,26 @@ export const useSocketFactory = (dispatcher: ISocketDispatcher): { wssClient: IW
     useSocketListener(dispatcher);
     const wssClient = useSocketEmitter();
     return { wssClient };
+};
+
+export const useRemoteDataSourcesFactory = ({
+    socketEventBus,
+    domainEventBus,
+}: {
+    socketEventBus: IEventBus<SocketEventMap>;
+    domainEventBus: IEventBus<DomainEventMap>;
+}) => {
+    //  Dispatcher 생성
+    const dispatcher = useMemo(() => new SocketDispatcher(socketEventBus), [socketEventBus]);
+
+    // 소켓 클라이언트 및 리스너 연결
+    const { wssClient } = useSocketFactory(dispatcher);
+
+    //  RemoteDataSource 조립
+    const remoteDataSources = useMemo(
+        () => createRemoteDataSources({ domainEventBus, socketEventBus, wssClient }),
+        [domainEventBus, socketEventBus, wssClient]
+    );
+
+    return { remoteDataSources };
 };
