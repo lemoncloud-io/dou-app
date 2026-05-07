@@ -1,5 +1,5 @@
 import type { ChannelView, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
-import type { MyInviteView, MySiteView } from '@lemoncloud/chatic-backend-api';
+import type { CloudView, MySiteView } from '@lemoncloud/chatic-backend-api';
 
 /** 캐시 가능한 도메인 타입 정의 */
 export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud';
@@ -14,10 +14,22 @@ export interface PagingMeta {
     took?: number;
 }
 
+/** 캐시 만료/동기화 메타데이터 */
+export interface CacheTtlMeta {
+    lastSyncedAt: number;
+    expiresAt: number;
+}
+
+/** 캐시 모델 공통 메타 베이스 */
+export interface CacheViewBase {
+    __cacheMeta?: CacheTtlMeta;
+}
+
 /** 모든 캐시 메시지의 공통 기반 필드 */
 interface CacheBasePayload<K extends CacheType> {
     type: K; // 도메인 타입
     cid: string; // Cloud ID
+    uid: string; // User ID
 }
 
 /*
@@ -33,7 +45,7 @@ export interface CacheModelMap {
 }
 
 /** 클라우드/서버 정보 뷰 */
-export interface CacheCloudView extends MyInviteView {
+export interface CacheCloudView extends CloudView, CacheViewBase {
     id: string;
     name?: string;
     backend?: string;
@@ -42,37 +54,31 @@ export interface CacheCloudView extends MyInviteView {
 }
 
 /** 채널 정보 뷰 (Site ID 포함) */
-export interface CacheChannelView extends ChannelView {
+export interface CacheChannelView extends ChannelView, CacheViewBase {
     cid: string;
     sid: string;
     isNotificationEnabled: boolean;
 }
 
 /** 채팅 메시지 뷰 (전송 상태 포함) */
-export interface CacheChatView extends ChatView {
+export interface CacheChatView extends ChatView, CacheViewBase {
     cid: string;
     isPending?: boolean; // 전송 중 여부
     isFailed?: boolean; // 전송 실패 여부
 }
 
 /** 사이트 정보 뷰 */
-export interface CacheSiteView extends MySiteView {
+export interface CacheSiteView extends MySiteView, CacheViewBase {
     cid: string;
     order?: number;
 }
 
-export interface CacheJoinView extends JoinView {
+export interface CacheJoinView extends JoinView, CacheViewBase {
     cid: string;
 }
 
-export interface CacheUserView extends UserView {
+export interface CacheUserView extends UserView, CacheViewBase {
     cid: string;
-}
-
-export interface CacheMetaView {
-    cid: string;
-    ids: string[]; // 서버에서 응답받은 해당 페이지의 정확한 ID 순서
-    meta?: PagingMeta; // 다음 페이지 조회를 위한 커서 정보
 }
 
 /**
@@ -81,6 +87,7 @@ export interface CacheMetaView {
  */
 export interface BaseQueryOptions {
     cid?: string;
+    uid?: string;
 }
 
 /** 채널 목록 조회 쿼리 */
@@ -196,18 +203,19 @@ export type OnDeleteAllCacheDataPayload = {
 
 /** [요청] 특정 도메인 테이블 전체 삭제 */
 export type ClearCacheDataPayload = {
-    [K in CacheType]: { type: K };
+    [K in CacheType]: CacheBasePayload<K>;
 }[CacheType];
 
 /** [응답] 초기화 결과 */
 export type OnClearCacheDataPayload = {
-    [K in CacheType]: { type: K; success: boolean };
+    [K in CacheType]: CacheBasePayload<K> & { success: boolean };
 }[CacheType];
 
 /** [요청] 키워드 기반 전역 검색 */
 export interface SearchGlobalCacheDataPayload {
     keyword: string;
     cid?: string;
+    uid?: string;
 }
 
 /** [응답] 전역 검색 결과 리스트 */
