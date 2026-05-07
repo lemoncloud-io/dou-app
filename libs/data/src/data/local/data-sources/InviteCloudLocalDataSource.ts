@@ -36,6 +36,7 @@ export interface IInviteCloudLocalDataSource {
 
 /** 초대 cloud 캐시의 local-only CRUD를 담당합니다. */
 export class InviteCloudLocalDataSource extends BaseLocalDataSource implements IInviteCloudLocalDataSource {
+    private static readonly GLOBAL_CID = 'global';
     private static readonly GLOBAL_UID = 'global';
 
     constructor(
@@ -59,15 +60,19 @@ export class InviteCloudLocalDataSource extends BaseLocalDataSource implements I
     }
 
     /**
-     * * Storage 접근 시 강제로 GLOBAL_UID를 주입하여 실행하는 래퍼 함수
+     * * Storage 접근 시 강제로 GLOBAL_CID 및 GLOBAL_UID를 주입하여 실행하는 래퍼 함수
      */
-    private async runWithGlobalUid<T>(
+    private async runWithGlobalContext<T>(
         override: LocalDataSourceContextOverride | undefined,
         run: () => Promise<T>
     ): Promise<T> {
         const original = this.contextProvider.getContext();
         // 무조건 uid를 GLOBAL_UID로 덮어씌움
-        const mergedOverride = { ...(override || {}), uid: InviteCloudLocalDataSource.GLOBAL_UID };
+        const mergedOverride = {
+            ...(override || {}),
+            cid: InviteCloudLocalDataSource.GLOBAL_CID,
+            uid: InviteCloudLocalDataSource.GLOBAL_UID,
+        };
 
         this.contextProvider.setContext({ ...original, ...mergedOverride });
         try {
@@ -83,7 +88,7 @@ export class InviteCloudLocalDataSource extends BaseLocalDataSource implements I
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
         if (!id) return;
-        await this.runWithGlobalUid(contextOverride, async () => {
+        await this.runWithGlobalContext(contextOverride, async () => {
             const existing = await this.cacheStorage.load(id);
             const normalized = this.normalizeInviteCloud(id, { ...(existing ?? {}), ...invite }, contextOverride);
             await this.cacheStorage.save(id, normalized);
@@ -95,25 +100,25 @@ export class InviteCloudLocalDataSource extends BaseLocalDataSource implements I
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<CacheCloudView | null> {
         if (!id) return null;
-        const cached = await this.runWithGlobalUid(contextOverride, () => this.cacheStorage.load(id));
+        const cached = await this.runWithGlobalContext(contextOverride, () => this.cacheStorage.load(id));
         if (!cached) return null;
         return { ...cached };
     }
 
     public async getInviteClouds(contextOverride?: LocalDataSourceContextOverride): Promise<CacheCloudView[]> {
-        const cached = await this.runWithGlobalUid(contextOverride, () => this.cacheStorage.loadAll());
+        const cached = await this.runWithGlobalContext(contextOverride, () => this.cacheStorage.loadAll());
         return cached.map(item => ({ ...item }));
     }
 
     public async deleteInviteCloud(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         if (!id) return;
-        await this.runWithGlobalUid(contextOverride, () => this.cacheStorage.delete(id));
+        await this.runWithGlobalContext(contextOverride, () => this.cacheStorage.delete(id));
     }
 
     public async deleteInviteClouds(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
-        await this.runWithGlobalUid(contextOverride, () => this.cacheStorage.deleteAll(validIds));
+        await this.runWithGlobalContext(contextOverride, () => this.cacheStorage.deleteAll(validIds));
     }
 
     public async updateInviteCloudPartial(
@@ -122,7 +127,7 @@ export class InviteCloudLocalDataSource extends BaseLocalDataSource implements I
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
         if (!id) return;
-        await this.runWithGlobalUid(contextOverride, async () => {
+        await this.runWithGlobalContext(contextOverride, async () => {
             const existing = await this.cacheStorage.load(id);
             if (!existing) return;
             const normalized = this.normalizeInviteCloud(id, { ...existing, ...patch }, contextOverride);
@@ -131,6 +136,6 @@ export class InviteCloudLocalDataSource extends BaseLocalDataSource implements I
     }
 
     public async clearAll(contextOverride?: LocalDataSourceContextOverride): Promise<void> {
-        await this.runWithGlobalUid(contextOverride, () => this.cacheStorage.clearAll());
+        await this.runWithGlobalContext(contextOverride, () => this.cacheStorage.clearAll());
     }
 }

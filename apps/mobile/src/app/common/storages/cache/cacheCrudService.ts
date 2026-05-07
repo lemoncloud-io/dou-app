@@ -16,6 +16,9 @@ const generateMetaKey = (query: any): string => {
 const resolveScopedUid = (type: CacheType, uid?: string): string =>
     type === 'invitecloud' ? 'global' : (uid ?? 'default');
 
+const resolveScopedCid = (type: CacheType, cid?: string): string =>
+    type === 'invitecloud' ? 'global' : (cid ?? 'default');
+
 /**
  * 쿼리 객체에 페이징을 유발하는 파라미터가 있는지 검사합니다.
  */
@@ -36,19 +39,21 @@ export const cacheCrudService = {
     }): Promise<CacheModelMap[K] | null> => {
         const { type, id, cid, uid } = payload;
         const scopedUid = resolveScopedUid(type, uid);
+        const scopedCid = resolveScopedCid(type, cid);
+
         switch (type) {
             case 'chat':
-                return (await chatDataSource.fetch(id, cid, scopedUid)) as CacheModelMap[K] | null;
+                return (await chatDataSource.fetch(id, scopedCid, scopedUid)) as CacheModelMap[K] | null;
             case 'channel':
-                return (await channelDataSource.fetch(id, cid, scopedUid)) as CacheModelMap[K] | null;
+                return (await channelDataSource.fetch(id, scopedCid, scopedUid)) as CacheModelMap[K] | null;
             case 'join':
-                return (await joinDataSource.fetch(id, cid, scopedUid)) as CacheModelMap[K] | null;
+                return (await joinDataSource.fetch(id, scopedCid, scopedUid)) as CacheModelMap[K] | null;
             case 'site':
-                return (await siteDataSource.fetch(id, cid, scopedUid)) as CacheModelMap[K] | null;
+                return (await siteDataSource.fetch(id, scopedCid, scopedUid)) as CacheModelMap[K] | null;
             case 'user':
-                return (await userDataSource.fetch(id, cid, scopedUid)) as CacheModelMap[K] | null;
+                return (await userDataSource.fetch(id, scopedCid, scopedUid)) as CacheModelMap[K] | null;
             case 'invitecloud':
-                return (await inviteCloudDataSource.fetch(id, cid, scopedUid)) as CacheModelMap[K] | null;
+                return (await inviteCloudDataSource.fetch(id, scopedCid, scopedUid)) as CacheModelMap[K] | null;
             default:
                 return null;
         }
@@ -65,6 +70,7 @@ export const cacheCrudService = {
     }): Promise<CacheModelMap[K][]> => {
         const { type, query, cid, uid } = payload;
         const scopedUid = resolveScopedUid(type, uid);
+        const scopedCid = resolveScopedCid(type, cid);
 
         // 페이징 파라미터가 존재하는 경우에만 메타데이터(스냅샷) 매칭을 수행합니다.
         if (cid && query && isPaginatedQuery(query)) {
@@ -83,37 +89,37 @@ export const cacheCrudService = {
         switch (type) {
             case 'chat':
                 return (await chatDataSource.fetchAll(
-                    cid,
+                    scopedCid,
                     query as CacheQueryMap['chat'],
                     scopedUid
                 )) as CacheModelMap[K][];
             case 'channel':
                 return (await channelDataSource.fetchAll(
-                    cid,
+                    scopedCid,
                     query as CacheQueryMap['channel'],
                     scopedUid
                 )) as CacheModelMap[K][];
             case 'join':
                 return (await joinDataSource.fetchAll(
-                    cid,
+                    scopedCid,
                     query as CacheQueryMap['join'],
                     scopedUid
                 )) as CacheModelMap[K][];
             case 'site':
                 return (await siteDataSource.fetchAll(
-                    cid,
+                    scopedCid,
                     query as CacheQueryMap['site'],
                     scopedUid
                 )) as CacheModelMap[K][];
             case 'user':
                 return (await userDataSource.fetchAll(
-                    cid,
+                    scopedCid,
                     query as CacheQueryMap['user'],
                     scopedUid
                 )) as CacheModelMap[K][];
             case 'invitecloud':
                 return (await inviteCloudDataSource.fetchAll(
-                    cid,
+                    scopedCid,
                     query as CacheQueryMap['invitecloud'],
                     scopedUid
                 )) as CacheModelMap[K][];
@@ -134,24 +140,26 @@ export const cacheCrudService = {
     }): Promise<string> => {
         const { type, id, item, cid, uid } = payload;
         const scopedUid = resolveScopedUid(type, uid);
+        const scopedCid = resolveScopedCid(type, cid);
+
         switch (type) {
             case 'chat':
-                await chatDataSource.save(id, item as CacheModelMap['chat'], cid, scopedUid);
+                await chatDataSource.save(id, item as CacheModelMap['chat'], scopedCid, scopedUid);
                 break;
             case 'channel':
-                await channelDataSource.save(id, item as CacheModelMap['channel'], cid, scopedUid);
+                await channelDataSource.save(id, item as CacheModelMap['channel'], scopedCid, scopedUid);
                 break;
             case 'join':
-                await joinDataSource.save(id, item as CacheModelMap['join'], cid, scopedUid);
+                await joinDataSource.save(id, item as CacheModelMap['join'], scopedCid, scopedUid);
                 break;
             case 'site':
-                await siteDataSource.save(id, item as CacheModelMap['site'], cid, scopedUid);
+                await siteDataSource.save(id, item as CacheModelMap['site'], scopedCid, scopedUid);
                 break;
             case 'user':
-                await userDataSource.save(id, item as CacheModelMap['user'], cid, scopedUid);
+                await userDataSource.save(id, item as CacheModelMap['user'], scopedCid, scopedUid);
                 break;
             case 'invitecloud':
-                await inviteCloudDataSource.save(id, item as CacheModelMap['invitecloud'], cid, scopedUid);
+                await inviteCloudDataSource.save(id, item as CacheModelMap['invitecloud'], scopedCid, scopedUid);
                 break;
         }
         return id;
@@ -169,30 +177,31 @@ export const cacheCrudService = {
     }): Promise<string[]> => {
         const { type, items, cid, uid, query } = payload;
         const scopedUid = resolveScopedUid(type, uid);
+        const scopedCid = resolveScopedCid(type, cid);
 
         const formatItems = <T extends { id?: string }>(dataList: T[]) =>
             dataList.map(item => ({ id: item.id || 'unknown', data: item }));
 
         switch (type) {
             case 'chat':
-                await chatDataSource.saveAll(formatItems(items as CacheModelMap['chat'][]), cid, scopedUid);
+                await chatDataSource.saveAll(formatItems(items as CacheModelMap['chat'][]), scopedCid, scopedUid);
                 break;
             case 'channel':
-                await channelDataSource.saveAll(formatItems(items as CacheModelMap['channel'][]), cid, scopedUid);
+                await channelDataSource.saveAll(formatItems(items as CacheModelMap['channel'][]), scopedCid, scopedUid);
                 break;
             case 'join':
-                await joinDataSource.saveAll(formatItems(items as CacheModelMap['join'][]), cid, scopedUid);
+                await joinDataSource.saveAll(formatItems(items as CacheModelMap['join'][]), scopedCid, scopedUid);
                 break;
             case 'site':
-                await siteDataSource.saveAll(formatItems(items as CacheModelMap['site'][]), cid, scopedUid);
+                await siteDataSource.saveAll(formatItems(items as CacheModelMap['site'][]), scopedCid, scopedUid);
                 break;
             case 'user':
-                await userDataSource.saveAll(formatItems(items as CacheModelMap['user'][]), cid, scopedUid);
+                await userDataSource.saveAll(formatItems(items as CacheModelMap['user'][]), scopedCid, scopedUid);
                 break;
             case 'invitecloud':
                 await inviteCloudDataSource.saveAll(
                     formatItems(items as CacheModelMap['invitecloud'][]),
-                    cid,
+                    scopedCid,
                     scopedUid
                 );
                 break;
@@ -256,24 +265,26 @@ export const cacheCrudService = {
     }): Promise<string[]> => {
         const { type, ids, cid, uid } = payload;
         const scopedUid = resolveScopedUid(type, uid);
+        const scopedCid = resolveScopedCid(payload.type, payload.cid);
+
         switch (type) {
             case 'chat':
-                await chatDataSource.removeAll(ids, cid, scopedUid);
+                await chatDataSource.removeAll(ids, scopedCid, scopedUid);
                 break;
             case 'channel':
-                await channelDataSource.removeAll(ids, cid, scopedUid);
+                await channelDataSource.removeAll(ids, scopedCid, scopedUid);
                 break;
             case 'join':
-                await joinDataSource.removeAll(ids, cid, scopedUid);
+                await joinDataSource.removeAll(ids, scopedCid, scopedUid);
                 break;
             case 'site':
-                await siteDataSource.removeAll(ids, cid, scopedUid);
+                await siteDataSource.removeAll(ids, scopedCid, scopedUid);
                 break;
             case 'user':
-                await userDataSource.removeAll(ids, cid, scopedUid);
+                await userDataSource.removeAll(ids, scopedCid, scopedUid);
                 break;
             case 'invitecloud':
-                await inviteCloudDataSource.removeAll(ids, cid, scopedUid);
+                await inviteCloudDataSource.removeAll(ids, scopedCid, scopedUid);
                 break;
         }
         return ids;
@@ -284,26 +295,27 @@ export const cacheCrudService = {
      */
     clear: async <K extends CacheType>(payload: { type: K; cid: string; uid: string }): Promise<void> => {
         const scopedUid = resolveScopedUid(payload.type, payload.uid);
+        const scopedCid = resolveScopedCid(payload.type, payload.cid);
         switch (payload.type) {
             case 'chat':
-                await chatDataSource.clear(payload.cid, scopedUid);
+                await chatDataSource.clear(scopedCid, scopedUid);
                 break;
             case 'channel':
-                await channelDataSource.clear(payload.cid, scopedUid);
+                await channelDataSource.clear(scopedCid, scopedUid);
                 break;
             case 'join':
-                await joinDataSource.clear(payload.cid, scopedUid);
+                await joinDataSource.clear(scopedCid, scopedUid);
                 break;
             case 'site':
-                await siteDataSource.clear(payload.cid, scopedUid);
+                await siteDataSource.clear(scopedCid, scopedUid);
                 break;
             case 'user':
-                await userDataSource.clear(payload.cid, scopedUid);
+                await userDataSource.clear(scopedCid, scopedUid);
                 break;
             case 'invitecloud':
-                await inviteCloudDataSource.clear(payload.cid, scopedUid);
+                await inviteCloudDataSource.clear(scopedCid, scopedUid);
                 break;
         }
-        await metaDataSource.clear(payload.type, payload.cid, scopedUid);
+        await metaDataSource.clear(payload.type, scopedCid, scopedUid);
     },
 };
