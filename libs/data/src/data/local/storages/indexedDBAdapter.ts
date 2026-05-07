@@ -1,11 +1,12 @@
-import type { CacheModelMap, CacheType } from '@chatic/app-messages';
+import type { CacheModelMap, CacheTtlMeta, CacheType } from '@chatic/app-messages';
 import type { DataContextProvider } from '../../repositories';
 import type { CacheSchema, CacheStorage } from './cacheStorage';
+import { type AdapterScope, createTtlMeta, isExpired, resolveScopedContext, withCacheMeta } from './utils';
 
 const DB_NAME = 'ChaticWebCacheDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'cache_store';
-const TYPE_CID_INDEX = 'type_cid';
+const TYPE_CID_UID_INDEX = 'type_cid_uid';
 
 const promisifyRequest = <T>(request: IDBRequest<T>): Promise<T> =>
     new Promise((resolve, reject) => {
@@ -24,25 +25,35 @@ const openDB = async (): Promise<IDBDatabase> => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = event => {
         const db = (event.target as IDBOpenDBRequest).result;
+        let store: IDBObjectStore;
         if (!db.objectStoreNames.contains(STORE_NAME)) {
-            const store = db.createObjectStore(STORE_NAME, { keyPath: 'key' });
-            store.createIndex(TYPE_CID_INDEX, ['type', 'cid'], { unique: false });
+            store = db.createObjectStore(STORE_NAME, { keyPath: 'key' });
+        } else {
+            const transaction = (event.target as IDBOpenDBRequest).transaction;
+            if (!transaction) return;
+            store = transaction.objectStore(STORE_NAME);
+        }
+
+        if (store.indexNames.contains('type_cid')) {
+            store.deleteIndex('type_cid');
+        }
+
+        if (!store.indexNames.contains(TYPE_CID_UID_INDEX)) {
+            store.createIndex(TYPE_CID_UID_INDEX, ['type', 'cid', 'uid'], { unique: false });
         }
     };
     return promisifyRequest(request);
 };
 
-const getScopeCid = (contextProvider: DataContextProvider): string => {
-    return contextProvider.getContext().cid || 'default';
-};
-
-const buildKey = (type: CacheType, cid: string, id: string): string => `${type}:${cid}:${id}`;
+const buildKey = (type: CacheType, cid: string, uid: string, id: string): string => `${type}:${cid}:${uid}:${id}`;
 
 export const createIndexedDBAdapter = <TType extends CacheType>(
     type: TType,
     contextProvider: DataContextProvider
 ): CacheStorage<TType> => {
     type Model = CacheModelMap[TType];
+    type Scope = AdapterScope;
+    type IndexedDbRow = CacheSchema<Model> & { meta?: CacheTtlMeta };
 
     const getStore = async (mode: IDBTransactionMode) => {
         const db = await openDB();
@@ -50,32 +61,50 @@ export const createIndexedDBAdapter = <TType extends CacheType>(
         return { store: transaction.objectStore(STORE_NAME), transaction };
     };
 
-    const createSchema = (cid: string, id: string, item: Model): CacheSchema<Model> => ({
-        key: buildKey(type, cid, id),
+    const resolveMeta = (schema: IndexedDbRow): { expiresAt: number; lastSyncedAt: number } | null => {
+        const fromData = schema.data.__cacheMeta;
+        if (fromData) return fromData;
+        return schema.meta || null;
+    };
+
+    const createSchema = (cid: string, uid: string, id: string, item: Model): IndexedDbRow => ({
+        key: buildKey(type, cid, uid, id),
         type,
         cid,
+        uid,
         id,
-        data: item,
+        data: withCacheMeta(type, item),
+        meta: createTtlMeta(type),
     });
+
+    const getScopeIndexKeys = async (store: IDBObjectStore, scope: Scope): Promise<IDBValidKey[]> => {
+        const index = store.index(TYPE_CID_UID_INDEX);
+        return promisifyRequest<IDBValidKey[]>(index.getAllKeys([type, scope.cid, scope.uid]));
+    };
+
+    const getScopeSchemas = async (store: IDBObjectStore, scope: Scope): Promise<IndexedDbRow[]> => {
+        const index = store.index(TYPE_CID_UID_INDEX);
+        return promisifyRequest<IndexedDbRow[]>(index.getAll([type, scope.cid, scope.uid]));
+    };
 
     return {
         async save(id: string, item: Model): Promise<Model> {
-            const cid = getScopeCid(contextProvider);
+            const scope = resolveScopedContext(type, contextProvider);
             const { store, transaction } = await getStore('readwrite');
-            store.put(createSchema(cid, id, item));
+            store.put(createSchema(scope.cid, scope.uid, id, item));
             await promisifyTransaction(transaction);
             return item;
         },
 
         async saveAll(items: Model[]): Promise<Model[]> {
             if (items.length === 0) return [];
-            const cid = getScopeCid(contextProvider);
+            const scope = resolveScopedContext(type, contextProvider);
             const { store, transaction } = await getStore('readwrite');
 
             items.forEach(item => {
                 const id = (item as { id?: string }).id;
                 if (!id) return;
-                store.put(createSchema(cid, id, item));
+                store.put(createSchema(scope.cid, scope.uid, id, item));
             });
 
             await promisifyTransaction(transaction);
@@ -83,16 +112,15 @@ export const createIndexedDBAdapter = <TType extends CacheType>(
         },
 
         async replaceAll(items: Model[]): Promise<Model[]> {
-            const cid = getScopeCid(contextProvider);
+            const scope = resolveScopedContext(type, contextProvider);
             const { store, transaction } = await getStore('readwrite');
-            const index = store.index(TYPE_CID_INDEX);
-            const keys = await promisifyRequest<IDBValidKey[]>(index.getAllKeys([type, cid]));
+            const keys = await getScopeIndexKeys(store, scope);
 
             keys.forEach(key => store.delete(key));
             items.forEach(item => {
                 const id = (item as { id?: string }).id;
                 if (!id) return;
-                store.put(createSchema(cid, id, item));
+                store.put(createSchema(scope.cid, scope.uid, id, item));
             });
 
             await promisifyTransaction(transaction);
@@ -100,40 +128,64 @@ export const createIndexedDBAdapter = <TType extends CacheType>(
         },
 
         async load(id: string): Promise<Model | null> {
-            const cid = getScopeCid(contextProvider);
+            const scope = resolveScopedContext(type, contextProvider);
+            const key = buildKey(type, scope.cid, scope.uid, id);
             const { store } = await getStore('readonly');
-            const schema = await promisifyRequest<CacheSchema<Model> | undefined>(store.get(buildKey(type, cid, id)));
-            return schema ? schema.data : null;
+            const schema = await promisifyRequest<IndexedDbRow | undefined>(store.get(key));
+            const meta = schema ? resolveMeta(schema) : null;
+            if (schema && meta && isExpired(meta)) {
+                const writeStore = await getStore('readwrite');
+                writeStore.store.delete(key);
+                await promisifyTransaction(writeStore.transaction);
+                return null;
+            }
+            return schema ? (schema.data as Model) : null;
         },
 
         async loadAll(): Promise<Model[]> {
-            const cid = getScopeCid(contextProvider);
+            const scope = resolveScopedContext(type, contextProvider);
             const { store } = await getStore('readonly');
-            const index = store.index(TYPE_CID_INDEX);
-            const schemas = await promisifyRequest<CacheSchema<Model>[]>(index.getAll([type, cid]));
-            return schemas.map(schema => schema.data);
+            const schemas = await getScopeSchemas(store, scope);
+
+            const alive = schemas.filter(schema => {
+                const meta = resolveMeta(schema);
+                return !(meta && isExpired(meta));
+            });
+            const expiredKeys = schemas
+                .filter(schema => {
+                    const meta = resolveMeta(schema);
+                    return !!(meta && isExpired(meta));
+                })
+                .map(schema => schema.key);
+
+            if (expiredKeys.length > 0) {
+                const writeStore = await getStore('readwrite');
+                expiredKeys.forEach(key => writeStore.store.delete(key));
+                await promisifyTransaction(writeStore.transaction);
+            }
+
+            return alive.map(schema => schema.data as Model);
         },
 
         async delete(id: string): Promise<void> {
-            const cid = getScopeCid(contextProvider);
+            const scope = resolveScopedContext(type, contextProvider);
             const { store, transaction } = await getStore('readwrite');
-            store.delete(buildKey(type, cid, id));
+            store.delete(buildKey(type, scope.cid, scope.uid, id));
             await promisifyTransaction(transaction);
         },
 
         async deleteAll(ids: string[]): Promise<void> {
             if (ids.length === 0) return;
-            const cid = getScopeCid(contextProvider);
+            const scope = resolveScopedContext(type, contextProvider);
             const { store, transaction } = await getStore('readwrite');
-            ids.forEach(id => store.delete(buildKey(type, cid, id)));
+            ids.forEach(id => store.delete(buildKey(type, scope.cid, scope.uid, id)));
             await promisifyTransaction(transaction);
         },
 
         async clearAll(): Promise<void> {
-            const cid = getScopeCid(contextProvider);
+            const scope = resolveScopedContext(type, contextProvider);
             const { store, transaction } = await getStore('readwrite');
-            const index = store.index(TYPE_CID_INDEX);
-            const keys = await promisifyRequest<IDBValidKey[]>(index.getAllKeys([type, cid]));
+            const keys = await getScopeIndexKeys(store, scope);
             keys.forEach(key => store.delete(key));
             await promisifyTransaction(transaction);
         },

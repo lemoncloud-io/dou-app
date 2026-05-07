@@ -2,13 +2,10 @@ import type { AppMessage, AppMessageType, CacheModelMap, CacheType, WebMessage }
 import { postMessage, useAppMessageStore } from '@chatic/app-messages';
 import type { DataContextProvider } from '../../repositories';
 import type { CacheStorage } from './cacheStorage';
+import { type AdapterScope, isModelExpired, resolveScopedContext, withCacheMeta } from './utils';
 
 const generateNonce = (): string => {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-};
-
-const getScopeCid = (contextProvider: DataContextProvider): string => {
-    return contextProvider.getContext().cid || 'default';
 };
 
 const waitForAppMessage = <T extends AppMessageType>(
@@ -41,18 +38,61 @@ export const createNativeDBAdapter = <TType extends CacheType>(
     contextProvider: DataContextProvider
 ): CacheStorage<TType> => {
     type Model = CacheModelMap[TType];
+    type Scope = AdapterScope;
+
+    const post = (message: WebMessage): void => sendMessage(message);
+
+    const postAndWait = async <T extends AppMessageType>(
+        request: WebMessage,
+        responseType: T,
+        nonce: string
+    ): Promise<Extract<AppMessage, { type: T }>> => {
+        post(request);
+        return waitForAppMessage(responseType, message => message.nonce === nonce);
+    };
+
+    const buildQuery = (scope: Scope) => ({ cid: scope.cid, uid: scope.uid });
+
+    const removeExpiredItem = async (scope: Scope, id: string): Promise<void> => {
+        const nonce = generateNonce();
+        await postAndWait(
+            {
+                type: 'DeleteCacheData',
+                nonce,
+                data: { type, cid: scope.cid, uid: scope.uid, id },
+            } as WebMessage,
+            'OnDeleteCacheData',
+            nonce
+        );
+    };
+
+    const removeExpiredItems = async (scope: Scope, ids: string[]): Promise<void> => {
+        if (ids.length === 0) return;
+        const nonce = generateNonce();
+        await postAndWait(
+            {
+                type: 'DeleteAllCacheData',
+                nonce,
+                data: { type, cid: scope.cid, uid: scope.uid, ids },
+            } as WebMessage,
+            'OnDeleteAllCacheData',
+            nonce
+        );
+    };
 
     return {
         save: async (id: string, item: Model): Promise<Model> => {
             const nonce = generateNonce();
-            const cid = getScopeCid(contextProvider);
-            sendMessage({
-                type: 'SaveCacheData',
-                nonce,
-                data: { type, cid, id, item },
-            } as WebMessage);
-
-            await waitForAppMessage('OnSaveCacheData', message => message.nonce === nonce);
+            const scope = resolveScopedContext(type, contextProvider);
+            await postAndWait(
+                {
+                    type: 'SaveCacheData',
+                    nonce,
+                    data: { type, cid: scope.cid, uid: scope.uid, id, item: withCacheMeta(type, item) },
+                } as WebMessage,
+                'OnSaveCacheData',
+                nonce
+            );
             return item;
         },
 
@@ -60,116 +100,123 @@ export const createNativeDBAdapter = <TType extends CacheType>(
             if (items.length === 0) return [];
 
             const nonce = generateNonce();
-            const cid = getScopeCid(contextProvider);
-            sendMessage({
-                type: 'SaveAllCacheData',
-                nonce,
-                data: { type, cid, items },
-            } as WebMessage);
-
-            await waitForAppMessage('OnSaveAllCacheData', message => message.nonce === nonce);
+            const scope = resolveScopedContext(type, contextProvider);
+            await postAndWait(
+                {
+                    type: 'SaveAllCacheData',
+                    nonce,
+                    data: { type, cid: scope.cid, uid: scope.uid, items: items.map(item => withCacheMeta(type, item)) },
+                } as WebMessage,
+                'OnSaveAllCacheData',
+                nonce
+            );
             return items;
         },
 
         load: async (id: string): Promise<Model | null> => {
             const nonce = generateNonce();
-            const cid = getScopeCid(contextProvider);
-            sendMessage({
-                type: 'FetchCacheData',
-                nonce,
-                data: { type, cid, id },
-            } as WebMessage);
-
-            const response = await waitForAppMessage('OnFetchCacheData', message => message.nonce === nonce);
-            return (response.data.item as Model) || null;
+            const scope = resolveScopedContext(type, contextProvider);
+            const response = await postAndWait(
+                {
+                    type: 'FetchCacheData',
+                    nonce,
+                    data: { type, cid: scope.cid, uid: scope.uid, id },
+                } as WebMessage,
+                'OnFetchCacheData',
+                nonce
+            );
+            const rawItem = (response.data.item as Model) || null;
+            if (!rawItem) return null;
+            if (isModelExpired(rawItem)) {
+                await removeExpiredItem(scope, id);
+                return null;
+            }
+            return rawItem;
         },
 
         loadAll: async (): Promise<Model[]> => {
             const nonce = generateNonce();
-            const cid = getScopeCid(contextProvider);
-            sendMessage({
-                type: 'FetchAllCacheData',
-                nonce,
-                data: { type, cid, query: { cid } },
-            } as WebMessage);
+            const scope = resolveScopedContext(type, contextProvider);
+            const response = await postAndWait(
+                {
+                    type: 'FetchAllCacheData',
+                    nonce,
+                    data: { type, cid: scope.cid, uid: scope.uid, query: buildQuery(scope) },
+                } as WebMessage,
+                'OnFetchAllCacheData',
+                nonce
+            );
+            const items = ((response.data.items as Model[]) || []).filter(Boolean);
+            const expiredIds = items
+                .filter(isModelExpired)
+                .map(item => (item as { id?: string }).id)
+                .filter((id): id is string => !!id);
+            await removeExpiredItems(scope, expiredIds);
 
-            const response = await waitForAppMessage('OnFetchAllCacheData', message => message.nonce === nonce);
-            return (response.data.items as Model[]) || [];
+            return items.filter(item => !isModelExpired(item)).map(item => item);
         },
 
         async replaceAll(items: Model[]): Promise<Model[]> {
-            const cid = getScopeCid(contextProvider);
+            const scope = resolveScopedContext(type, contextProvider);
 
             const fetchNonce = generateNonce();
-            sendMessage({
-                type: 'FetchAllCacheData',
-                nonce: fetchNonce,
-                data: { type, cid, query: { cid } },
-            } as WebMessage);
-            const fetched = await waitForAppMessage('OnFetchAllCacheData', message => message.nonce === fetchNonce);
+            const fetched = await postAndWait(
+                {
+                    type: 'FetchAllCacheData',
+                    nonce: fetchNonce,
+                    data: { type, cid: scope.cid, uid: scope.uid, query: buildQuery(scope) },
+                } as WebMessage,
+                'OnFetchAllCacheData',
+                fetchNonce
+            );
             const existingIds = ((fetched.data.items || []) as Array<{ id?: string | null }>)
                 .map(item => item?.id)
                 .filter((id): id is string => !!id);
 
-            if (existingIds.length > 0) {
-                const deleteNonce = generateNonce();
-                sendMessage({
-                    type: 'DeleteAllCacheData',
-                    nonce: deleteNonce,
-                    data: { type, cid, ids: existingIds },
-                } as WebMessage);
-                await waitForAppMessage('OnDeleteAllCacheData', message => message.nonce === deleteNonce);
-            }
+            await removeExpiredItems(scope, existingIds);
 
             if (items.length > 0) {
                 const saveNonce = generateNonce();
-                sendMessage({
-                    type: 'SaveAllCacheData',
-                    nonce: saveNonce,
-                    data: { type, cid, items },
-                } as WebMessage);
-                await waitForAppMessage('OnSaveAllCacheData', message => message.nonce === saveNonce);
+                await postAndWait(
+                    {
+                        type: 'SaveAllCacheData',
+                        nonce: saveNonce,
+                        data: {
+                            type,
+                            cid: scope.cid,
+                            uid: scope.uid,
+                            items: items.map(item => withCacheMeta(type, item)),
+                        },
+                    } as WebMessage,
+                    'OnSaveAllCacheData',
+                    saveNonce
+                );
             }
 
             return items;
         },
 
         delete: async (id: string): Promise<void> => {
-            const nonce = generateNonce();
-            const cid = getScopeCid(contextProvider);
-            sendMessage({
-                type: 'DeleteCacheData',
-                nonce,
-                data: { type, cid, id },
-            } as WebMessage);
-
-            await waitForAppMessage('OnDeleteCacheData', message => message.nonce === nonce);
+            await removeExpiredItem(resolveScopedContext(type, contextProvider), id);
         },
 
         deleteAll: async (ids: string[]): Promise<void> => {
             if (ids.length === 0) return;
-
-            const nonce = generateNonce();
-            const cid = getScopeCid(contextProvider);
-            sendMessage({
-                type: 'DeleteAllCacheData',
-                nonce,
-                data: { type, cid, ids },
-            } as WebMessage);
-
-            await waitForAppMessage('OnDeleteAllCacheData', message => message.nonce === nonce);
+            await removeExpiredItems(resolveScopedContext(type, contextProvider), ids);
         },
 
         clearAll: async (): Promise<void> => {
             const nonce = generateNonce();
-            const cid = getScopeCid(contextProvider);
-            sendMessage({
-                type: 'ClearCacheData',
-                nonce,
-                data: { type, cid },
-            } as WebMessage);
-
-            await waitForAppMessage('OnClearCacheData', message => message.nonce === nonce);
+            const scope = resolveScopedContext(type, contextProvider);
+            await postAndWait(
+                {
+                    type: 'ClearCacheData',
+                    nonce,
+                    data: { type, cid: scope.cid, uid: scope.uid },
+                } as WebMessage,
+                'OnClearCacheData',
+                nonce
+            );
         },
     };
 };

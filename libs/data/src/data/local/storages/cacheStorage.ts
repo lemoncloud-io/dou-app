@@ -22,6 +22,7 @@ export interface CacheSchema<T> {
     key: string;
     type: string;
     cid: string;
+    uid: string;
     id: string;
     data: T;
 }
