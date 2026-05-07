@@ -6,12 +6,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 
 const CACHE_TTL_MS: Record<CacheType, number> = {
-    channel: 7 * DAY_MS,
-    chat: 3 * DAY_MS,
+    channel: 30 * MINUTE_MS,
+    chat: MINUTE_MS,
     invitecloud: 100 * 12 * 30 * DAY_MS, // 100 years; permanent cache
-    join: 7 * DAY_MS,
-    site: 7 * DAY_MS,
-    user: 5 * MINUTE_MS,
+    join: 30 * MINUTE_MS,
+    site: 30 * MINUTE_MS,
+    user: 30 * MINUTE_MS,
 };
 
 /** 어댑터 공통 스코프 표현입니다. */
