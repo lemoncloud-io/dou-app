@@ -21,6 +21,7 @@ import {
 import { useLogout } from '@chatic/auth';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
+import { useTotalUnreadCount } from '../../chats/hooks/useTotalUnreadCount';
 import { LanguageSelectSheet, LogoutDialog } from '../components';
 import { DEBUG_STORAGE_KEY } from '../consts';
 import { useCacheMutations } from '@chatic/data';
@@ -39,6 +40,7 @@ export const MyPage = () => {
     const { resetOnboarding } = useOnboardingStore();
     const { blurLastMessage, setBlurLastMessage } = useAppPreferenceStore();
     const { clearAllCache } = useCacheMutations(selectedCloudId, profile?.uid);
+    const totalUnread = useTotalUnreadCount();
 
     const displayName = profile?.$user?.name;
     const displayImageUrl = profile?.$user?.photo;
@@ -316,7 +318,7 @@ export const MyPage = () => {
                 )}
             </div>
 
-            <BottomNavigation />
+            <BottomNavigation totalUnread={totalUnread} />
 
             {/* Logout Dialog */}
             <LogoutDialog

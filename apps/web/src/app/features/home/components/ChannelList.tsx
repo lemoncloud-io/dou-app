@@ -7,8 +7,6 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import type { ClientChannelView } from '@chatic/data';
 import { useAppPreferenceStore } from '@chatic/web-core';
 
-import { useChannels } from '../../../shared/hooks/useChannels';
-
 const ChannelSkeleton = () => (
     <div className="flex items-start gap-2 rounded-[6px] px-[2px] py-2">
         <Skeleton className="h-10 w-10 rounded-full" />
@@ -94,25 +92,30 @@ const ChannelItem = ({ channel }: { channel: ClientChannelView }) => {
 };
 
 interface ChannelListProps {
-    workspaceId?: string;
+    channels: ClientChannelView[];
+    isLoading: boolean;
+    isSyncing: boolean;
+    isError: boolean;
+    errorMessage: string | null;
+    onRefreshChannels: () => void;
     showCreateButton?: boolean;
-    isChannelsLoading?: boolean;
     onCreateChannel?: () => void;
     channelLimit?: number;
 }
 
 export const ChannelList = ({
-    workspaceId,
+    channels,
+    isLoading,
+    isSyncing,
+    isError,
+    errorMessage,
+    onRefreshChannels: refresh,
     showCreateButton,
-    isChannelsLoading: _isChannelsLoading,
     onCreateChannel,
     channelLimit,
 }: ChannelListProps) => {
     const { t } = useTranslation();
-    const placeId = workspaceId || '';
-    const { channels, isLoading, isSyncing, isError, errorMessage, refresh } = useChannels({ placeId, detail: true });
 
-    if (!placeId) return null;
     const header = (
         <div className="mb-[18px] flex items-center justify-between">
             <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">Chat</span>

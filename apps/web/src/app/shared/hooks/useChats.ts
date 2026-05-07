@@ -119,11 +119,14 @@ export const useChats = (initialParams: ChatFeedPayload) => {
             }));
 
             try {
-                const result = await chatRepository.fetchChat({
-                    channelId: nextParams.channelId,
-                    cursorNo: nextParams.cursorNo,
-                    limit: nextParams.limit ?? DEFAULT_CHAT_LIMIT,
-                });
+                const result = await chatRepository.fetchChat(
+                    {
+                        channelId: nextParams.channelId,
+                        cursorNo: nextParams.cursorNo,
+                        limit: nextParams.limit ?? DEFAULT_CHAT_LIMIT,
+                    },
+                    { cachePolicy: 'network-only' }
+                );
 
                 if (requestSeqRef.current !== requestSeq) return;
 
@@ -163,6 +166,9 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     useEffect(() => {
         return chatRepository.onChatCreated((chat: ChatView) => {
             if (chat.channelId !== targetChannelId) return;
+            // 자신이 보낸 메시지는 optimistic update 흐름(notifyAppUpdated)에서 처리하므로 건너뜀.
+            // onChatCreated가 먼저 실행되어 temp 메시지와 서버 메시지가 동시에 표시되는 것을 방지.
+            if (chat.ownerId === userIdRef.current) return;
             const nextMessage = toClientChat(chat, userIdRef.current);
             setMessages(prev => mergeMessages(prev, [nextMessage]));
         });

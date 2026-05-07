@@ -80,7 +80,9 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
             setErrorMessage(null);
 
             try {
-                const result = await channelRepository.fetchChannel(buildFetchPayload(nextParams));
+                const result = await channelRepository.fetchChannel(buildFetchPayload(nextParams), {
+                    cachePolicy: 'network-only',
+                });
                 if (requestSeqRef.current !== requestSeq) return;
 
                 const nextChannels = sortChannels(

@@ -21,18 +21,18 @@ const useSocketListener = (dispatcher: ISocketDispatcher) => {
  * IWebSocketClient 인터페이스를 구현하는 송신 객체 생성 훅
  */
 const useSocketEmitter = (): IWebSocketClient => {
-    const { emit } = useWebSocketV2();
+    const { emitAuthenticated } = useWebSocketV2();
 
     const send = useCallback(
         (domain: WSSEventDomainType, action: WSSActionType, payload: unknown, ref?: string) => {
-            emit({
+            emitAuthenticated({
                 type: domain,
                 action,
                 payload,
                 meta: ref ? { ref, ts: Date.now() } : undefined,
             });
         },
-        [emit]
+        [emitAuthenticated]
     );
 
     return useMemo(() => ({ send }), [send]);

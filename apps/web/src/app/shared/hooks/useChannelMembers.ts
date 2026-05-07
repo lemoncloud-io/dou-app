@@ -45,7 +45,10 @@ export const useChannelMembers = (initialParams: ChatUsersPayload) => {
             setIsError(false);
 
             try {
-                const result = await userRepository.fetchUsers({ ...nextParams, channelId });
+                const result = await userRepository.fetchUsers(
+                    { ...nextParams, channelId },
+                    { cachePolicy: 'network-only' }
+                );
                 if (requestSeqRef.current !== requestSeq) return;
 
                 setMembers(result.list ?? []);

@@ -5,8 +5,6 @@ import { cn } from '@chatic/lib/utils';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 
-import { useTotalUnreadCount } from '../../features/chats/hooks/useTotalUnreadCount';
-
 const IconChat = ({ color }: { color: string }) => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path
@@ -36,11 +34,14 @@ const NAV_ITEMS = [
     { path: '/mypage', labelKey: 'bottomNav.my', Icon: IconMy },
 ] as const;
 
-export const BottomNavigation = () => {
+interface BottomNavigationProps {
+    totalUnread: number;
+}
+
+export const BottomNavigation = ({ totalUnread }: BottomNavigationProps) => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { pathname } = useLocation();
-    const totalUnread = useTotalUnreadCount();
     const displayUnread = totalUnread > 999 ? '+999' : totalUnread > 0 ? String(totalUnread) : null;
 
     return (

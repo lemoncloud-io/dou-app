@@ -31,7 +31,7 @@ export const usePlaces = () => {
             setIsError(false);
 
             try {
-                const result = await siteRepository.fetchSite();
+                const result = await siteRepository.fetchSite({}, { cachePolicy: 'network-only' });
                 if (requestSeqRef.current !== requestSeq) return;
 
                 setPlaces((result.list ?? []) as MySiteView[]);

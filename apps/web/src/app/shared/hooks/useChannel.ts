@@ -13,7 +13,7 @@ const toClientChannel = (channel: ChannelView, userId?: string): ClientChannelVi
     const lastChatNo = channel.lastChat$?.chatNo ?? channel.chatNo ?? 0;
     const lastMessageIsMine = channel.lastChat$?.ownerId === userId;
     const myReadNo = lastMessageIsMine ? lastChatNo : (channel.$join?.chatNo ?? 0);
-    const memberCount = channel.memberNo ?? channel.memberIds?.length ?? channel.$joins?.length ?? 0;
+    const memberCount = channel.memberIds?.length ?? channel.$joins?.length ?? 0;
 
     return {
         ...channel,
@@ -53,7 +53,10 @@ export const useChannel = (channelId: string | null) => {
         setIsError(false);
 
         try {
-            const result = await channelRepository.fetchChannel({ detail: true, limit: DEFAULT_CHANNEL_LIMIT });
+            const result = await channelRepository.fetchChannel(
+                { detail: true, limit: DEFAULT_CHANNEL_LIMIT },
+                { cachePolicy: 'network-only' }
+            );
             if (requestSeqRef.current !== requestSeq) return;
 
             const found = (result.list ?? []).find((ch: ChannelView) => ch.id === channelId);

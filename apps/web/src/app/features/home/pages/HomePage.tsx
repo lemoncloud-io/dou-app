@@ -1,6 +1,6 @@
 import { ArrowLeftRight, Bell, ChevronDown, CircleAlert, EllipsisVertical, Search, User } from 'lucide-react';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -17,6 +17,8 @@ import { useLogout } from '@chatic/auth';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
+import { usePlaces } from '../../../shared/hooks/usePlaces';
+import { useChannels } from '../../../shared/hooks/useChannels';
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { CloudLogo } from '../../../shared/components/CloudLogo';
@@ -42,6 +44,12 @@ export const HomePage = () => {
     const { mutate: logout } = useLogout();
     const navigate = useNavigateWithTransition();
 
+    // === 데이터: 단일 소스 — usePlaces/useChannels를 한 번만 호출 ===
+    const placesResult = usePlaces();
+    const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+    const channelsResult = useChannels({ placeId: selectedPlaceId || '', detail: true });
+
+    // 파생 데이터
     const {
         canCreate: _canCreateChannel,
         isDefaultCloud,
@@ -50,15 +58,20 @@ export const HomePage = () => {
         currentCount: channelCount,
         maxCount: maxChannels,
         isMyCloud: isMyCloudForChannel,
-    } = useCanCreateChannel();
+    } = useCanCreateChannel({ count: channelsResult.channels.length, isLoading: channelsResult.isLoading });
     const {
         isLimitReached: isPlaceLimitReached,
         isLoading: isPlacesLoading,
         maxCount: maxPlaces,
         isMyCloud,
-    } = useCanCreatePlace();
+    } = useCanCreatePlace({ count: placesResult.places.length, isLoading: placesResult.isLoading });
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const { isCloudsError } = useCloudSession();
+
+    const totalUnread = useMemo(
+        () => channelsResult.channels.reduce((sum, ch) => sum + ((ch.unreadCount as number) ?? 0), 0),
+        [channelsResult.channels]
+    );
 
     const displayName = profile?.$user?.name ?? '-';
     const displayImageUrl = profile?.$user?.photo;
@@ -66,7 +79,6 @@ export const HomePage = () => {
     const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isCloudSessionOpen, setIsCloudSessionOpen] = useState(false);
-    const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isReportIssueOpen, setIsReportIssueOpen] = useState(false);
     const [limitDialogType, setLimitDialogType] = useState<'place' | 'channel' | null>(null);
@@ -195,11 +207,14 @@ export const HomePage = () => {
             {/* Place List */}
             <section className="pb-4 pt-2">
                 <PlaceList
+                    places={placesResult.places}
+                    isLoading={placesResult.isLoading}
+                    isError={placesResult.isError}
+                    onRefreshPlaces={placesResult.refresh}
                     onPlaceSelected={setSelectedPlaceId}
                     onNavigateToOrder={() => navigate('/places/order')}
                     onCreatePlace={handleCreatePlace}
                     isGuest={userType === UserType.TEMP_ACCOUNT}
-                    isPlacesLoading={isPlacesLoading}
                 />
             </section>
 
@@ -207,13 +222,19 @@ export const HomePage = () => {
 
             {/* Chat List */}
             <section className="flex min-h-0 flex-1 flex-col px-4 pt-[18px]">
-                <ChannelList
-                    workspaceId={selectedPlaceId ?? ''}
-                    showCreateButton={!isChannelsLoading && (isMyCloud || (isDefaultCloud && channelCount === 0))}
-                    isChannelsLoading={isChannelsLoading}
-                    onCreateChannel={handleCreateChannel}
-                    channelLimit={maxChannels}
-                />
+                {selectedPlaceId ? (
+                    <ChannelList
+                        channels={channelsResult.channels}
+                        isLoading={channelsResult.isLoading}
+                        isSyncing={channelsResult.isSyncing}
+                        isError={channelsResult.isError}
+                        errorMessage={channelsResult.errorMessage}
+                        onRefreshChannels={channelsResult.refresh}
+                        showCreateButton={!isChannelsLoading && (isMyCloud || (isDefaultCloud && channelCount === 0))}
+                        onCreateChannel={handleCreateChannel}
+                        channelLimit={maxChannels}
+                    />
+                ) : null}
             </section>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
@@ -221,7 +242,7 @@ export const HomePage = () => {
             <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
             <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
             <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
-            <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+            {isSearchOpen && <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />}
             <ReportIssueDialog open={isReportIssueOpen} onOpenChange={setIsReportIssueOpen} />
             <LimitExceededDialog
                 open={limitDialogType !== null}
@@ -229,7 +250,7 @@ export const HomePage = () => {
                 type={limitDialogType ?? 'place'}
                 maxCount={limitDialogType === 'channel' ? maxChannels : maxPlaces}
             />
-            <BottomNavigation />
+            <BottomNavigation totalUnread={totalUnread} />
         </div>
     );
 };

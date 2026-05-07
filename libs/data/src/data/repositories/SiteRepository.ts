@@ -95,12 +95,22 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         payload?: WSSPayload,
         options?: RepositoryRequestOptions
     ): Promise<ListResult<SiteView>> {
-        const remote = await this.requestRemote<ListResult<SiteView>>(
-            ref => this.siteRemoteDataSource.fetchSite(payload, ref),
-            options
-        );
-        await this.siteLocalDataSource.replaceSites(remote.list || [], this.getRepositoryContext());
-        return remote;
+        if (this.inflightFetchSite) return this.inflightFetchSite;
+
+        this.inflightFetchSite = (async () => {
+            try {
+                const remote = await this.requestRemote<ListResult<SiteView>>(
+                    ref => this.siteRemoteDataSource.fetchSite(payload, ref),
+                    options
+                );
+                await this.siteLocalDataSource.replaceSites(remote.list || [], this.getRepositoryContext());
+                return remote;
+            } finally {
+                this.inflightFetchSite = null;
+            }
+        })();
+
+        return this.inflightFetchSite;
     }
 
     private initializeInternalListeners(): void {
