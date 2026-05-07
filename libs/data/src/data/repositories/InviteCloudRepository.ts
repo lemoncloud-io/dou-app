@@ -28,6 +28,12 @@ export interface IInviteCloudRepository {
 
     /** 초대 cloud 로컬 저장소를 비웁니다. */
     clearAll(): Promise<void>;
+
+    /** 초대 cloud 전체 목록을 스트림으로 구독합니다. */
+    subscribeInviteClouds(callback: (invites: CacheCloudView[]) => void): () => void;
+
+    /** 단일 초대 cloud를 스트림으로 구독합니다. */
+    subscribeInviteCloud(id: string, callback: (invite: CacheCloudView | null) => void): () => void;
 }
 
 /** InviteCloud는 remote endpoint가 없으므로 LocalDataSource만 위임합니다. */
@@ -67,5 +73,15 @@ export class InviteCloudRepository extends BaseRepository implements IInviteClou
 
     public clearAll(): Promise<void> {
         return this.inviteCloudLocalDataSource.clearAll();
+    }
+
+    /** 로컬 초대 cloud 목록 스냅샷을 지속 구독합니다. */
+    public subscribeInviteClouds(callback: (invites: CacheCloudView[]) => void): () => void {
+        return this.inviteCloudLocalDataSource.subscribeInviteClouds(callback);
+    }
+
+    /** 로컬 단일 초대 cloud 스냅샷을 지속 구독합니다. */
+    public subscribeInviteCloud(id: string, callback: (invite: CacheCloudView | null) => void): () => void {
+        return this.inviteCloudLocalDataSource.subscribeInviteCloud(id, callback);
     }
 }

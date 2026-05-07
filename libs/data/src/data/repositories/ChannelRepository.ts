@@ -14,13 +14,15 @@ import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManag
 import type { DataContextProvider } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
-import type { DomainChannel } from '../domain';
-import { toDomainChannel } from '../domain';
+import { createDomainListResult, type DomainChannel, type DomainListResult, toDomainChannel } from '../domain';
 
 /** 채널 도메인의 Repository 공개 계약입니다. */
 export interface IChannelRepository {
     /** 내가 참여 중인 채널 목록을 조회합니다. */
-    fetchChannel(payload: ChatMinePayload, options?: RepositoryRequestOptions): Promise<ListResult<DomainChannel>>;
+    fetchChannel(
+        payload: ChatMinePayload,
+        options?: RepositoryRequestOptions
+    ): Promise<DomainListResult<DomainChannel>>;
 
     /** 채널 이름/설정 등 채널 메타데이터를 수정합니다. */
     updateChannel(payload: ChatUpdateChannelPayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
@@ -48,6 +50,15 @@ export interface IChannelRepository {
 
     /** 서버로부터 신규 채널 생성(channel:create) 이벤트를 수신하는 리스너를 등록합니다. */
     onChannelCreated(callback: (channel: DomainChannel) => void): () => void;
+
+    /** 로컬 캐시 기준 채널 목록을 스트림으로 구독합니다. */
+    subscribeChannels(
+        payload: ChatMinePayload,
+        callback: (result: DomainListResult<DomainChannel> | null) => void
+    ): () => void;
+
+    /** 로컬 캐시 기준 단일 채널을 스트림으로 구독합니다. */
+    subscribeChannel(id: string, callback: (channel: DomainChannel | null) => void): () => void;
 }
 
 /** Remote channel API와 local channel cache를 중재합니다. */
@@ -66,19 +77,23 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
     public async fetchChannel(
         payload: ChatMinePayload,
         options?: RepositoryRequestOptions
-    ): Promise<ListResult<DomainChannel>> {
-        return this.fetchWithCachePolicy<ListResult<DomainChannel>>({
+    ): Promise<DomainListResult<DomainChannel>> {
+        return this.fetchWithCachePolicy<DomainListResult<DomainChannel>>({
             options,
             backgroundLabel: 'channel',
             fetchLocal: () => this.channelLocalDataSource.fetchChannel(payload, this.getRepositoryContext()),
             fetchRemote: remoteOptions => this.fetchFromRemoteAndCache(payload, remoteOptions),
             isLocalValid: local => (local.list || []).length > 0,
-            fallback: () => ({
-                list: [],
-                limit: (payload as { limit?: number }).limit,
-                page: (payload as { page?: number }).page,
-                total: 0,
-            }),
+            fallback: () =>
+                createDomainListResult(
+                    {
+                        list: [],
+                        limit: (payload as { limit?: number }).limit,
+                        page: (payload as { page?: number }).page,
+                        total: 0,
+                    },
+                    { source: 'fallback' }
+                ),
         });
     }
 
@@ -175,17 +190,30 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         });
     }
 
+    /** 로컬 채널 목록 스냅샷을 지속 구독합니다. */
+    public subscribeChannels(
+        payload: ChatMinePayload,
+        callback: (result: DomainListResult<DomainChannel> | null) => void
+    ): () => void {
+        return this.channelLocalDataSource.subscribeChannelList(payload, callback, this.getRepositoryContext());
+    }
+
+    /** 로컬 단일 채널 스냅샷을 지속 구독합니다. */
+    public subscribeChannel(id: string, callback: (channel: DomainChannel | null) => void): () => void {
+        return this.channelLocalDataSource.subscribeChannel(id, callback, this.getRepositoryContext());
+    }
+
     private async fetchFromRemoteAndCache(
         payload: ChatMinePayload,
         options?: RepositoryRequestOptions
-    ): Promise<ListResult<DomainChannel>> {
+    ): Promise<DomainListResult<DomainChannel>> {
         const remote = await this.requestRemote<ListResult<ChannelView>>(
             ref => this.channelRemoteDataSource.fetchChannel(payload, ref),
             options
         );
         const domainList = (remote.list || []).map(item => toDomainChannel(item, this.getDomainScope()));
         await this.channelLocalDataSource.upsertChannels(domainList, this.getRepositoryContext());
-        return { ...remote, list: domainList };
+        return createDomainListResult({ ...remote, list: domainList }, { source: 'remote' });
     }
 
     private initializeInternalListeners(): void {

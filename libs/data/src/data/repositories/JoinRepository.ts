@@ -6,15 +6,22 @@ import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { DomainEventMap } from '../events/domain';
 import type { IEventBus } from '../events/eventBus';
-import type { DomainJoin, DomainJoinListPayload } from '../domain';
-import { toDomainJoin } from '../domain';
+import {
+    createDomainListResult,
+    type DomainJoin,
+    type DomainJoinListPayload,
+    type DomainListResult,
+    toDomainJoin,
+} from '../domain';
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
-import type { ListResult } from '../events/common';
 
 /** 채널 참여 상태(join) 도메인의 Repository 공개 계약입니다. */
 export interface IJoinRepository {
     /** 채널의 참여자(Join) 목록을 조회합니다. */
-    fetchJoins(payload: DomainJoinListPayload, options?: RepositoryRequestOptions): Promise<ListResult<DomainJoin>>;
+    fetchJoins(
+        payload: DomainJoinListPayload,
+        options?: RepositoryRequestOptions
+    ): Promise<DomainListResult<DomainJoin>>;
 
     /** 특정 채팅 번호까지 읽었음을 서버에 알립니다. */
     readChat(payload: ChatReadPayload, options?: RepositoryRequestOptions): Promise<DomainJoin>;
@@ -33,6 +40,15 @@ export interface IJoinRepository {
 
     /** 서버로부터 참여 정보 삭제(join:delete) 이벤트를 수신하는 리스너를 등록합니다. */
     onJoinDeleted(callback: (join: DomainJoin) => void): () => void;
+
+    /** 로컬 캐시 기준 채널 참여 목록을 스트림으로 구독합니다. */
+    subscribeJoins(
+        payload: DomainJoinListPayload,
+        callback: (result: DomainListResult<DomainJoin>) => void
+    ): () => void;
+
+    /** 로컬 캐시 기준 단일 참여 정보를 스트림으로 구독합니다. */
+    subscribeJoin(id: string, callback: (join: DomainJoin | null) => void): () => void;
 }
 
 /** Remote join API와 local join cache를 중재합니다. */
@@ -52,7 +68,7 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
     public async fetchJoins(
         payload: DomainJoinListPayload,
         options?: RepositoryRequestOptions
-    ): Promise<ListResult<DomainJoin>> {
+    ): Promise<DomainListResult<DomainJoin>> {
         const policy = this.resolveCachePolicy(options);
         if (policy === 'network-only') {
             throw this.createRemoteUnsupportedError(policy);
@@ -114,6 +130,25 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
         });
     }
 
+    /** 로컬 참여 목록 스냅샷을 지속 구독합니다. */
+    public subscribeJoins(
+        payload: DomainJoinListPayload,
+        callback: (result: DomainListResult<DomainJoin>) => void
+    ): () => void {
+        const channelId = payload.channelId || '';
+        return this.joinLocalDataSource.subscribeJoinsByChannel(
+            channelId,
+            joins => callback(createDomainListResult({ list: joins, total: joins.length }, { source: 'local' })),
+            { activeOnly: payload.activeOnly },
+            this.getRepositoryContext()
+        );
+    }
+
+    /** 로컬 단일 참여 정보 스냅샷을 지속 구독합니다. */
+    public subscribeJoin(id: string, callback: (join: DomainJoin | null) => void): () => void {
+        return this.joinLocalDataSource.subscribeJoin(id, callback, this.getRepositoryContext());
+    }
+
     private initializeInternalListeners(): void {
         this.onDomainEvent('join:create', detail => {
             this.runInBackground(
@@ -135,15 +170,15 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
         });
     }
 
-    private async fetchLocalJoins(payload: DomainJoinListPayload): Promise<ListResult<DomainJoin>> {
+    private async fetchLocalJoins(payload: DomainJoinListPayload): Promise<DomainListResult<DomainJoin>> {
         const channelId = payload?.channelId;
-        if (!channelId) return { list: [], total: 0 };
+        if (!channelId) return createDomainListResult({ list: [], total: 0 }, { source: 'local' });
 
         const joins = payload.activeOnly
             ? await this.joinLocalDataSource.getActiveJoinsByChannel(channelId, this.getRepositoryContext())
             : await this.joinLocalDataSource.getJoinsByChannel(channelId, this.getRepositoryContext());
 
-        return { list: joins, total: joins.length };
+        return createDomainListResult({ list: joins, total: joins.length }, { source: 'local' });
     }
 
     private createRemoteUnsupportedError(policy: string): Error {

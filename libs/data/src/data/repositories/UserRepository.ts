@@ -7,8 +7,7 @@ import type { DataContextProvider } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { IUserLocalDataSource } from '../local/data-sources';
-import type { DomainListResult, DomainUser } from '../domain';
-import { toDomainUser } from '../domain';
+import { createDomainListResult, type DomainListResult, type DomainUser, toDomainUser } from '../domain';
 
 /**
  * 사용자 도메인의 Repository 공개 계약입니다.
@@ -35,6 +34,15 @@ export interface IUserRepository {
 
     /** 사용자 삭제/탈퇴(user:delete) 이벤트를 수신하는 리스너를 등록합니다. */
     onUserDeleted(callback: (user: DomainUser) => void): () => void;
+
+    /** 로컬 캐시 기준 사용자 목록을 스트림으로 구독합니다. */
+    subscribeUsers(
+        payload: ChatUsersPayload,
+        callback: (result: DomainListResult<DomainUser> | null) => void
+    ): () => void;
+
+    /** 로컬 캐시 기준 단일 사용자를 스트림으로 구독합니다. */
+    subscribeUser(id: string, callback: (user: DomainUser | null) => void): () => void;
 }
 
 /**
@@ -64,12 +72,16 @@ export class UserRepository extends BaseRepository implements IUserRepository {
             fetchLocal: () => this.userLocalDataSource.fetchUsers(payload, this.getRepositoryContext()),
             fetchRemote: remoteOptions => this.fetchFromRemoteAndCache(payload, remoteOptions),
             isLocalValid: local => (local.list || []).length > 0,
-            fallback: () => ({
-                list: [],
-                limit: (payload as { limit?: number }).limit,
-                page: (payload as { page?: number }).page,
-                total: 0,
-            }),
+            fallback: () =>
+                createDomainListResult(
+                    {
+                        list: [],
+                        limit: (payload as { limit?: number }).limit,
+                        page: (payload as { page?: number }).page,
+                        total: 0,
+                    },
+                    { source: 'fallback' }
+                ),
         });
     }
 
@@ -118,6 +130,19 @@ export class UserRepository extends BaseRepository implements IUserRepository {
         });
     }
 
+    /** 로컬 사용자 목록 스냅샷을 지속 구독합니다. */
+    public subscribeUsers(
+        payload: ChatUsersPayload,
+        callback: (result: DomainListResult<DomainUser> | null) => void
+    ): () => void {
+        return this.userLocalDataSource.subscribeUsers(payload, callback, this.getRepositoryContext());
+    }
+
+    /** 로컬 단일 사용자 스냅샷을 지속 구독합니다. */
+    public subscribeUser(id: string, callback: (user: DomainUser | null) => void): () => void {
+        return this.userLocalDataSource.subscribeUser(id, callback, this.getRepositoryContext());
+    }
+
     private async fetchFromRemoteAndCache(
         payload: ChatUsersPayload,
         options?: RepositoryRequestOptions
@@ -128,7 +153,7 @@ export class UserRepository extends BaseRepository implements IUserRepository {
         );
         const domainList = (remote.list || []).map(item => toDomainUser(item, this.getDomainScope()));
         await this.userLocalDataSource.upsertUsers(domainList, this.getRepositoryContext());
-        return { ...remote, list: domainList };
+        return createDomainListResult({ ...remote, list: domainList }, { source: 'remote' });
     }
 
     private initializeInternalListeners(): void {

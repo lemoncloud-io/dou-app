@@ -7,8 +7,7 @@ import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManag
 import type { DataContextProvider } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
-import type { DomainListResult, DomainSite } from '../domain';
-import { toDomainSite } from '../domain';
+import { createDomainListResult, type DomainListResult, type DomainSite, toDomainSite } from '../domain';
 
 /** 사이트/플레이스 도메인의 Repository 공개 계약입니다. */
 export interface ISiteRepository {
@@ -29,6 +28,15 @@ export interface ISiteRepository {
 
     /** 기존 사이트 정보 변경(site:update) 이벤트를 수신하는 리스너를 등록합니다. */
     onSiteUpdated(callback: (site: DomainSite) => void): () => void;
+
+    /** 로컬 캐시 기준 사이트 목록을 스트림으로 구독합니다. */
+    subscribeSites(
+        payload: WSSPayload | undefined,
+        callback: (result: DomainListResult<DomainSite> | null) => void
+    ): () => void;
+
+    /** 로컬 캐시 기준 단일 사이트를 스트림으로 구독합니다. */
+    subscribeSite(id: string, callback: (site: DomainSite | null) => void): () => void;
 }
 
 /** Remote site API와 local site cache를 중재합니다. */
@@ -55,7 +63,7 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
             fetchLocal: () => this.siteLocalDataSource.fetchSite(payload, this.getRepositoryContext()),
             fetchRemote: remoteOptions => this.fetchFromRemoteAndCache(payload, remoteOptions),
             isLocalValid: local => (local.list || []).length > 0,
-            fallback: () => ({ list: [], total: 0 }),
+            fallback: () => createDomainListResult({ list: [], total: 0 }, { source: 'fallback' }),
         });
     }
 
@@ -100,6 +108,19 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         });
     }
 
+    /** 로컬 사이트 목록 스냅샷을 지속 구독합니다. */
+    public subscribeSites(
+        payload: WSSPayload | undefined,
+        callback: (result: DomainListResult<DomainSite> | null) => void
+    ): () => void {
+        return this.siteLocalDataSource.subscribeSites(payload, callback, this.getRepositoryContext());
+    }
+
+    /** 로컬 단일 사이트 스냅샷을 지속 구독합니다. */
+    public subscribeSite(id: string, callback: (site: DomainSite | null) => void): () => void {
+        return this.siteLocalDataSource.subscribeSite(id, callback, this.getRepositoryContext());
+    }
+
     private async fetchFromRemoteAndCache(
         payload?: WSSPayload,
         options?: RepositoryRequestOptions
@@ -110,7 +131,7 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         );
         const domainList = (remote.list || []).map(item => toDomainSite(item, this.getDomainScope()));
         await this.siteLocalDataSource.replaceSites(domainList, this.getRepositoryContext());
-        return { ...remote, list: domainList };
+        return createDomainListResult({ ...remote, list: domainList }, { source: 'remote' });
     }
 
     private initializeInternalListeners(): void {

@@ -32,6 +32,12 @@ export interface IChatRepository {
 
     /** 채팅 메시지 삭제(chat:delete) 이벤트를 구독합니다. */
     onChatDeleted(callback: (chat: ChatView) => void): () => void;
+
+    /** 로컬 캐시 기준 채널 feed를 스트림으로 구독합니다. */
+    subscribeChatFeed(payload: ChatFeedPayload, callback: (result: DomainChatFeedResult | null) => void): () => void;
+
+    /** 로컬 캐시 기준 단일 메시지를 스트림으로 구독합니다. */
+    subscribeChat(id: string, callback: (chat: DomainChat | null) => void): () => void;
 }
 
 /** Remote chat API와 local message cache를 중재합니다. */
@@ -126,6 +132,19 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         return this.onDomainEvent('chat:delete', detail => {
             callback(detail.data as ChatView);
         });
+    }
+
+    /** 로컬 채팅 feed 스냅샷을 지속 구독합니다. */
+    public subscribeChatFeed(
+        payload: ChatFeedPayload,
+        callback: (result: DomainChatFeedResult | null) => void
+    ): () => void {
+        return this.chatLocalDataSource.subscribeChatFeed(payload, callback, this.getRepositoryContext());
+    }
+
+    /** 로컬 단일 메시지 스냅샷을 지속 구독합니다. */
+    public subscribeChat(id: string, callback: (chat: DomainChat | null) => void): () => void {
+        return this.chatLocalDataSource.subscribeChat(id, callback, this.getRepositoryContext());
     }
 
     private async fetchFromRemoteAndCache(

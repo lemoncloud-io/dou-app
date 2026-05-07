@@ -69,14 +69,37 @@ describe('ChatLocalDataSource', () => {
             id: 'c1',
             channelId: 'ch-1',
             cid: 'cloud-a',
-            text: 'before',
+            content: 'before',
             chatNo: 10,
             createdAt: 1000,
         } as any);
-        await dataSource.updateChatPartial('c1', { text: 'after' } as any);
+        await dataSource.updateChatPartial('c1', { content: 'after' } as any);
 
         const loaded = await storage.load('c1');
         expect(loaded?.content).toBe('after');
         expect(loaded?.chatNo).toBe(10);
+    });
+
+    it('re-emits subscribed chat feed when local cache is mutated', async () => {
+        const storage = createMemoryStorage();
+        const dataSource = new ChatLocalDataSource(contextProvider, storage);
+        const emissions: number[] = [];
+
+        const unsubscribe = dataSource.subscribeChatFeed({ channelId: 'ch-1', limit: 30 } as any, result =>
+            emissions.push(result?.list.length ?? -1)
+        );
+
+        await Promise.resolve();
+        await dataSource.upsertChat({
+            id: 'stream-1',
+            channelId: 'ch-1',
+            chatNo: 1,
+            cid: 'cloud-a',
+            createdAt: 1,
+        } as any);
+        await dataSource.deleteChat('stream-1');
+        unsubscribe();
+
+        expect(emissions).toEqual([-1, 1, -1]);
     });
 });
