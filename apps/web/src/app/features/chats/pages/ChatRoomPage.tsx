@@ -12,7 +12,7 @@ import {
     User,
     X,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
@@ -33,7 +33,9 @@ import { InviteFriendsDialog } from '../components';
 import { MessageBubble } from '../components/MessageBubble';
 import { ReadStatus } from '../components/ReadStatus';
 import type { ClientChatView } from '@chatic/data';
-import { useChannelMembers, useChannel, useChatMutations, useChats, FOREGROUND_RESYNC_EVENT_NAME } from '@chatic/data';
+import { FOREGROUND_RESYNC_EVENT_NAME } from '@chatic/data';
+import { useChannelMembers, useChannel, useChatMutations, useJoinPositions } from '../../../shared/hooks';
+import { useChats } from '../../../shared/hooks/useChats';
 
 // 입력 가능한 최대 글자 수
 const MAX_INPUT_LENGTH = 5000;
@@ -61,9 +63,17 @@ export const ChatRoomPage = () => {
     const { isIOS } = useAppChecker();
 
     // 데이터 패칭 Hooks
-    const { total: membersTotal } = useChannelMembers({ channelId: channelId || '', detail: true }); // 멤버 정보 패칭
+    const { members, total: membersTotal } = useChannelMembers({ channelId: channelId || '', detail: true }); // 멤버 정보 패칭
     const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(channelId || null); // 현재 채널 정보 패칭
     const memberCount = membersTotal || channel?.memberCount || 0;
+
+    // JoinView 기반 readCount 계산
+    const initialJoins = useMemo(
+        () => members.map(m => m.$join).filter((j): j is NonNullable<typeof j> => !!j),
+        [members]
+    );
+    const { getReadCount } = useJoinPositions(channelId ?? null, initialJoins);
+
     const {
         messages,
         isLoading: isChatLoading,
@@ -336,7 +346,7 @@ export const ChatRoomPage = () => {
     }
 
     return (
-        <div className="flex h-screen flex-col pt-safe-top bg-background">
+        <div className="flex h-full flex-col pt-safe-top bg-background">
             {/* 상단 헤더 영역 */}
             <header className="relative z-10 flex min-h-[48px] items-center justify-center border-b border-border px-4 py-3">
                 <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
@@ -538,12 +548,18 @@ export const ChatRoomPage = () => {
                                                                 <span className="text-muted-foreground">
                                                                     {formatTime(message.timestamp)}
                                                                 </span>
-                                                                {message.chatNo !== undefined && (
-                                                                    <ReadStatus
-                                                                        readCount={message.readCount ?? 0}
-                                                                        unreadCount={message.unreadCount ?? 0}
-                                                                    />
-                                                                )}
+                                                                {message.chatNo !== undefined &&
+                                                                    (() => {
+                                                                        const { readCount, unreadCount } = getReadCount(
+                                                                            message.chatNo
+                                                                        );
+                                                                        return (
+                                                                            <ReadStatus
+                                                                                readCount={readCount}
+                                                                                unreadCount={unreadCount}
+                                                                            />
+                                                                        );
+                                                                    })()}
                                                             </>
                                                         )}
                                                     </div>

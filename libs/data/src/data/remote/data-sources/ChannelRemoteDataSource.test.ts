@@ -8,6 +8,7 @@ import type {
     ChatDeleteChannelPayload,
     ChatStartPayload,
     ChatInvitePayload,
+    ChatLeavePayload,
 } from '@lemoncloud/chatic-sockets-api';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 
@@ -115,6 +116,13 @@ describe('ChannelRemoteDataSource', () => {
             dataSource.inviteChannel(payload, 'ref-invite');
 
             expect(mockWssClient.send).toHaveBeenCalledWith('chat', 'invite', payload, 'ref-invite');
+        });
+
+        it('leaveChannel 호출 시 chat 도메인의 leave 액션으로 전송되어야 한다', () => {
+            const payload: ChatLeavePayload = { channelId: 'ch-1' } as any;
+            dataSource.leaveChannel(payload, 'ref-leave');
+
+            expect(mockWssClient.send).toHaveBeenCalledWith('chat', 'leave', payload, 'ref-leave');
         });
     });
 });

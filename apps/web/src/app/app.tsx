@@ -22,7 +22,6 @@ import { useAutoSelectCloud } from './shared/hooks/useCloudSession';
 import { useForegroundTokenRefresh } from './shared/hooks/useForegroundTokenRefresh';
 import { useForegroundResync } from './shared/hooks/useForegroundResync';
 import i18n from '../i18n';
-import { useDataSync } from '@chatic/data';
 
 if (typeof window !== 'undefined') {
     window.addEventListener('error', event => {
@@ -90,7 +89,6 @@ export function App() {
         return () => clearTimeout(timer);
     }, [canRenderApp]);
 
-    useDataSync();
     useForegroundResync(refreshToken);
 
     useEffect(() => {

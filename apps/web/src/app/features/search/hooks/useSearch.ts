@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { logger } from '@chatic/app-messages';
 import { cloudCore, useDynamicProfile } from '@chatic/web-core';
-import { usePlaces, useChannels } from '@chatic/data';
+import { usePlaces } from '../../../shared/hooks';
 
 import { IndexedDBChannelAdapter } from '../../chats/storages/IndexedDBChannelAdapter';
 import { IndexedDBStorageAdapter } from '../../chats/storages/IndexedDBStorageAdapter';
+import { useChannels } from '../../../shared/hooks/useChannels';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';

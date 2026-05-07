@@ -2,6 +2,7 @@ import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type {
     ChatDeleteChannelPayload,
     ChatInvitePayload,
+    ChatLeavePayload,
     ChatMinePayload,
     ChatStartPayload,
     ChatUpdateChannelPayload,
@@ -31,6 +32,9 @@ export interface IChannelRepository {
     /** 기존 채널에 사용자를 초대합니다. */
     inviteChannel(payload: ChatInvitePayload, options?: RepositoryRequestOptions): Promise<ChannelView>;
 
+    /** 채널에서 나갑니다. */
+    leaveChannel(payload: ChatLeavePayload, options?: RepositoryRequestOptions): Promise<ChannelView>;
+
     /** 서버로부터 채널 정보 변경(channel:update) 이벤트를 수신하는 리스너를 등록합니다. */
     onChannelUpdated(callback: (channel: ChannelView) => void): () => void;
 
@@ -40,6 +44,9 @@ export interface IChannelRepository {
 
 /** Remote channel API와 local channel cache를 중재합니다. */
 export class ChannelRepository extends BaseRepository implements IChannelRepository {
+    /** 동시 다발적 fetchChannel 호출을 하나의 WebSocket 요청으로 합치기 위한 inflight Promise */
+    private inflightFetchChannel: Promise<ListResult<ChannelView>> | null = null;
+
     constructor(
         private readonly channelRemoteDataSource: IChannelRemoteDataSource,
         private readonly channelLocalDataSource: IChannelLocalDataSource,
@@ -132,6 +139,11 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         return channel;
     }
 
+    /** chat:leave 요청을 수행하고 응답을 기다립니다. */
+    public leaveChannel(payload: ChatLeavePayload, options?: RepositoryRequestOptions): Promise<ChannelView> {
+        return this.requestRemote(ref => this.channelRemoteDataSource.leaveChannel(payload, ref), options);
+    }
+
     /** 서버로부터 채널 정보 변경(channel:update) 이벤트를 수신하는 리스너를 등록합니다. */
     public onChannelUpdated(callback: (channel: ChannelView) => void): () => void {
         return this.onDomainEvent('channel:update', detail => {
@@ -157,12 +169,22 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         payload: ChatMinePayload,
         options?: RepositoryRequestOptions
     ): Promise<ListResult<ChannelView>> {
-        const remote = await this.requestRemote<ListResult<ChannelView>>(
-            ref => this.channelRemoteDataSource.fetchChannel(payload, ref),
-            options
-        );
-        await this.channelLocalDataSource.upsertChannels(remote.list || [], this.getRepositoryContext());
-        return remote;
+        if (this.inflightFetchChannel) return this.inflightFetchChannel;
+
+        this.inflightFetchChannel = (async () => {
+            try {
+                const remote = await this.requestRemote<ListResult<ChannelView>>(
+                    ref => this.channelRemoteDataSource.fetchChannel(payload, ref),
+                    options
+                );
+                await this.channelLocalDataSource.upsertChannels(remote.list || [], this.getRepositoryContext());
+                return remote;
+            } finally {
+                this.inflightFetchChannel = null;
+            }
+        })();
+
+        return this.inflightFetchChannel;
     }
 
     private initializeInternalListeners(): void {

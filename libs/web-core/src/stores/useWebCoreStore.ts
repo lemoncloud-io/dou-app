@@ -141,7 +141,11 @@ const initialState: Pick<WebCoreStore, keyof WebCoreState> = (() => {
     const userRole = (profile?.$user as UserViewExtended | undefined)?.userRole;
     const isGuest = userRole === 'guest' && !isInvited;
     const isCloudUser = isInvited || userRole === 'user';
-    const delegatorId = getDelegatorId() ?? (userRole === 'guest' && profile?.uid ? profile.uid : null);
+    const persisted = getDelegatorId();
+    const delegatorId = userRole === 'guest' && profile?.uid ? profile.uid : persisted;
+    if (userRole === 'guest' && profile?.uid) {
+        setDelegatorId(profile.uid);
+    }
 
     return {
         isInitialized: false,
@@ -285,7 +289,7 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
 
         // Cache delegatorId: guest profile.uid is the stable delegator identity.
         // On guest→invited transition, preserve the previously cached value.
-        const newDelegatorId = userRoleGuest && profile.uid ? profile.uid : getDelegatorId();
+
         if (userRoleGuest && profile.uid) {
             setDelegatorId(profile.uid);
         }
@@ -295,7 +299,7 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
             isGuest,
             isInvited,
             isCloudUser,
-            delegatorId: newDelegatorId,
+            delegatorId: userRoleGuest ? profile.uid : getDelegatorId(),
             userName: profile['$user']?.name || 'Unknown',
         });
     },

@@ -15,7 +15,7 @@ import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { MemberListItem } from '../components/MemberListItem';
 import { ReportMemberDialog } from '../components/ReportMemberDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
-import { useChannel, useChannelMembers, useChannelMutations } from '@chatic/data';
+import { useChannel, useChannelMembers, useChannelMutations } from '../../../shared/hooks';
 
 type DialogType = 'invite' | 'update' | 'delete' | 'leave' | 'report' | 'block' | null;
 

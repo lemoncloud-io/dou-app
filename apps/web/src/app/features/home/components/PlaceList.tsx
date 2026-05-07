@@ -9,8 +9,6 @@ import { cn } from '@chatic/lib/utils';
 import { cloudCore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
 import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
-import { usePlaces } from '@chatic/data';
-
 // Module-level: 현재 WS 세션에서 place auth(refreshToken + auth:update)가 완료되었는지 추적
 // home → chatroom → home 재진입 시 불필요한 auth:update를 방지하여 stuck loading 예방
 let placeAuthDone = false;
@@ -55,9 +53,9 @@ interface PlaceItemProps {
 
 const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemProps) => {
     const { t } = useTranslation();
-    const isSelectable = place.stereo === 'work';
+    // const isSelectable = place.stereo === 'work';
     const isDefaultPlace = place.id === 'default';
-    const disabled = !isSelectable || isDisabled || isSelected;
+    const disabled = isDisabled || isSelected;
     const selected = isSelected;
     const displayName = isDefaultPlace ? t('placeList.defaultPlace') : place.name;
 
@@ -100,19 +98,25 @@ const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemPr
 };
 
 interface PlaceListProps {
+    places: MySiteView[];
+    isLoading: boolean;
+    isError: boolean;
+    onRefreshPlaces: () => void;
     onPlaceSelected?: (placeId: string) => void;
     onNavigateToOrder?: () => void;
     onCreatePlace?: () => void;
     isGuest?: boolean;
-    isPlacesLoading?: boolean;
 }
 
 export const PlaceList = ({
+    places: rawPlaces,
+    isLoading,
+    isError,
+    onRefreshPlaces: refresh,
     onPlaceSelected,
     onNavigateToOrder,
     onCreatePlace,
     isGuest,
-    isPlacesLoading,
 }: PlaceListProps) => {
     const { t } = useTranslation();
     const { userType } = useUserContext();
@@ -122,7 +126,6 @@ export const PlaceList = ({
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
     const [isPending, setIsPending] = useState(false);
     const switchingRef = useRef(false);
-    const { places: rawPlaces, isLoading, isError, refresh } = usePlaces();
 
     const selectedCloudId = cloudCore.getSelectedCloudId();
     const isDefaultMode = selectedCloudId === 'default';
@@ -257,7 +260,7 @@ export const PlaceList = ({
             <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
                 {t('homePage.places')}
             </span>
-            {!isGuest && !isPlacesLoading && onNavigateToOrder && (
+            {!isGuest && !isLoading && onNavigateToOrder && (
                 <button onClick={onNavigateToOrder} className="flex items-center rounded-[8px] text-muted-foreground">
                     <span className="text-[14px] font-medium leading-[1.19] tracking-[-0.01em]">
                         {t('placeList.settings')}
@@ -354,6 +357,7 @@ export const PlaceList = ({
     return (
         <div>
             {header}
+
             <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
                 {places.map(place => (
                     <PlaceItem

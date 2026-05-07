@@ -18,10 +18,18 @@ export interface ISiteRepository {
 
     /** 기존 site 정보를 수정합니다. */
     updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<SiteView>;
+
+    /** 서버로부터 site 생성(site:create) 이벤트를 수신하는 리스너를 등록합니다. */
+    onSiteCreated(callback: (site: SiteView) => void): () => void;
+    /** 서버로부터 site 변경(site:update) 이벤트를 수신하는 리스너를 등록합니다. */
+    onSiteUpdated(callback: (site: SiteView) => void): () => void;
 }
 
 /** Remote site API와 local site cache를 중재합니다. */
 export class SiteRepository extends BaseRepository implements ISiteRepository {
+    /** 동시 다발적 fetchSite 호출을 하나의 WebSocket 요청으로 합치기 위한 inflight Promise */
+    private inflightFetchSite: Promise<ListResult<SiteView>> | null = null;
+
     constructor(
         private readonly siteRemoteDataSource: ISiteRemoteDataSource,
         private readonly siteLocalDataSource: ISiteLocalDataSource,
@@ -87,12 +95,22 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         payload?: WSSPayload,
         options?: RepositoryRequestOptions
     ): Promise<ListResult<SiteView>> {
-        const remote = await this.requestRemote<ListResult<SiteView>>(
-            ref => this.siteRemoteDataSource.fetchSite(payload, ref),
-            options
-        );
-        await this.siteLocalDataSource.replaceSites(remote.list || [], this.getRepositoryContext());
-        return remote;
+        if (this.inflightFetchSite) return this.inflightFetchSite;
+
+        this.inflightFetchSite = (async () => {
+            try {
+                const remote = await this.requestRemote<ListResult<SiteView>>(
+                    ref => this.siteRemoteDataSource.fetchSite(payload, ref),
+                    options
+                );
+                await this.siteLocalDataSource.replaceSites(remote.list || [], this.getRepositoryContext());
+                return remote;
+            } finally {
+                this.inflightFetchSite = null;
+            }
+        })();
+
+        return this.inflightFetchSite;
     }
 
     private initializeInternalListeners(): void {
@@ -113,6 +131,20 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
                 () => this.siteLocalDataSource.replaceSites(detail.data.list || [], this.getRepositoryContext()),
                 'site:list'
             );
+        });
+    }
+
+    /** 서버로부터 site 생성(site:create) 이벤트를 수신하는 리스너를 등록합니다. */
+    public onSiteCreated(callback: (site: SiteView) => void): () => void {
+        return this.onDomainEvent('site:create', data => {
+            callback(data.data);
+        });
+    }
+
+    /** 서버로부터 site 변경(site:update) 이벤트를 수신하는 리스너를 등록합니다. */
+    public onSiteUpdated(callback: (site: SiteView) => void): () => void {
+        return this.onDomainEvent('site:update', data => {
+            callback(data.data);
         });
     }
 }
