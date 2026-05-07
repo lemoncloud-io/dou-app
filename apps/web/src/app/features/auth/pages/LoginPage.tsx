@@ -6,11 +6,11 @@ import { useLocation } from 'react-router-dom';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     cloudCore,
-    getDelegatorId,
     loginWithInviteCode,
     reportError,
     setIsInvitedSession,
     toError,
+    useDelegatorId,
     useWebCoreStore,
     webCore,
 } from '@chatic/web-core';
@@ -39,6 +39,7 @@ export const LoginPage = (): JSX.Element => {
     const { deviceId, isReady } = useDynamicDeviceId();
     const { saveInvite } = useInviteMutations();
     const profile = useWebCoreStore(state => state.profile);
+    const delegatorId = useDelegatorId();
 
     const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
@@ -47,9 +48,8 @@ export const LoginPage = (): JSX.Element => {
         const backend = urlParams.get('_backend') ?? undefined;
         if (!code || !profile?.uid) return null;
         try {
-            const delegatorId = getDelegatorId();
             if (!delegatorId) {
-                logger.error('AUTH', '[LoginPage] delegatorId not found in storage');
+                logger.error('AUTH', '[LoginPage] delegatorId not found');
                 setMissingDelegator(true);
                 return null;
             }
@@ -61,7 +61,7 @@ export const LoginPage = (): JSX.Element => {
             setInviteError(true);
             return null;
         }
-    }, [urlParams, toast, t, profile?.uid]);
+    }, [urlParams, toast, t, profile?.uid, delegatorId]);
     const handleDeviceRegistration = useCallback(async () => {
         try {
             const { Token, ...rest } = await registerDevice(deviceId);
