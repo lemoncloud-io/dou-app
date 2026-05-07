@@ -31,6 +31,8 @@ export const useChannel = (channelId: string | null) => {
     const { channel: channelRepository, join: joinRepository } = useRepositories();
     const profile = useDynamicProfile();
     const userId = profile?.uid;
+    const userIdRef = useRef(userId);
+    userIdRef.current = userId;
     const requestSeqRef = useRef(0);
 
     const [channel, setChannel] = useState<ClientChannelView | null>(null);
@@ -55,7 +57,7 @@ export const useChannel = (channelId: string | null) => {
             if (requestSeqRef.current !== requestSeq) return;
 
             const found = (result.list ?? []).find((ch: ChannelView) => ch.id === channelId);
-            setChannel(found ? toClientChannel(found, userId) : null);
+            setChannel(found ? toClientChannel(found, userIdRef.current) : null);
         } catch (error) {
             if (requestSeqRef.current !== requestSeq) return;
 
@@ -70,7 +72,7 @@ export const useChannel = (channelId: string | null) => {
                 setIsLoading(false);
             }
         }
-    }, [channelId, channelRepository, userId]);
+    }, [channelId, channelRepository]);
 
     useEffect(() => {
         setIsLoading(true);
@@ -82,7 +84,7 @@ export const useChannel = (channelId: string | null) => {
 
         const unsubscribeUpdated = channelRepository.onChannelUpdated((ch: ChannelView) => {
             if (ch.id !== channelId) return;
-            setChannel(toClientChannel(ch, userId));
+            setChannel(toClientChannel(ch, userIdRef.current));
         });
 
         const unsubscribeDeleted = channelRepository.onChannelDeleted((ch: ChannelView) => {
@@ -106,7 +108,7 @@ export const useChannel = (channelId: string | null) => {
             unsubscribeJoinCreated();
             unsubscribeJoinDeleted();
         };
-    }, [channelId, channelRepository, joinRepository, fetchChannel, userId]);
+    }, [channelId, channelRepository, joinRepository, fetchChannel]);
 
     return {
         channel,

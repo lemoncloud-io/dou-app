@@ -80,6 +80,8 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     const { chat: chatRepository } = useRepositories();
     const profile = useDynamicProfile();
     const userId = profile?.uid;
+    const userIdRef = useRef(userId);
+    userIdRef.current = userId;
     const targetChannelId = initialParams.channelId;
     const requestSeqRef = useRef(0);
     const currentParamsRef = useRef(initialParams);
@@ -126,7 +128,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 if (requestSeqRef.current !== requestSeq) return;
 
                 const nextMessages = sortMessages(
-                    (result.list ?? []).map((chat: ChatView) => toClientChat(chat, userId))
+                    (result.list ?? []).map((chat: ChatView) => toClientChat(chat, userIdRef.current))
                 );
 
                 setMessages(prev => (mode === 'append' ? mergeMessages(prev, nextMessages) : nextMessages));
@@ -148,7 +150,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 }));
             }
         },
-        [chatRepository, userId]
+        [chatRepository]
     );
 
     useEffect(() => {
@@ -161,10 +163,10 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     useEffect(() => {
         return chatRepository.onChatCreated((chat: ChatView) => {
             if (chat.channelId !== targetChannelId) return;
-            const nextMessage = toClientChat(chat, userId);
+            const nextMessage = toClientChat(chat, userIdRef.current);
             setMessages(prev => mergeMessages(prev, [nextMessage]));
         });
-    }, [chatRepository, targetChannelId, userId]);
+    }, [chatRepository, targetChannelId]);
 
     useEffect(() => {
         const handleLegacySync = (event: Event) => {
@@ -184,13 +186,13 @@ export const useChats = (initialParams: ChatFeedPayload) => {
             }
 
             if (!detail.payload) return;
-            const nextMessage = toClientChat(detail.payload, userId);
+            const nextMessage = toClientChat(detail.payload, userIdRef.current);
             setMessages(prev => mergeMessages(prev, [nextMessage], detail.ref));
         };
 
         window.addEventListener(APP_SYNC_EVENT_NAME, handleLegacySync);
         return () => window.removeEventListener(APP_SYNC_EVENT_NAME, handleLegacySync);
-    }, [targetChannelId, userId]);
+    }, [targetChannelId]);
 
     const loadMore = useCallback(() => {
         if (feedCursorNo === undefined || feedCursorNo === 0 || status.isLoadingMore) return;
