@@ -11,11 +11,17 @@ export const chatDataSource: ICacheDataSource<CacheChatView, ChatQueryOptions> =
      * @param id 메시지 고유 식별자
      * @param cid 클라우드 식별자
      */
-    fetch: async (id, cid) => {
-        const query = cid
-            ? `SELECT data FROM ${TABLES.CHATS} WHERE id = ? AND cid = ?`
-            : `SELECT data FROM ${TABLES.CHATS} WHERE id = ?`;
-        const params = cid ? [id, cid] : [id];
+    fetch: async (id, cid, uid) => {
+        let query = `SELECT data FROM ${TABLES.CHATS} WHERE id = ?`;
+        const params: (string | number)[] = [id];
+        if (cid) {
+            query += ` AND cid = ?`;
+            params.push(cid);
+        }
+        if (uid) {
+            query += ` AND uid = ?`;
+            params.push(uid);
+        }
         const result = await database.execute(query, params);
 
         if (result.rows && result.rows.length > 0) {
@@ -29,7 +35,7 @@ export const chatDataSource: ICacheDataSource<CacheChatView, ChatQueryOptions> =
      * @param cid 클라우드 식별자
      * @param query 채널 ID 필터링 및 메시지 순서(sort) 정렬 조건
      */
-    fetchAll: async (cid, query) => {
+    fetchAll: async (cid, query, uid) => {
         let sql = `SELECT data FROM ${TABLES.CHATS}`;
         const params: (string | number)[] = [];
         const conditions: string[] = [];
@@ -37,6 +43,10 @@ export const chatDataSource: ICacheDataSource<CacheChatView, ChatQueryOptions> =
         if (cid) {
             conditions.push(`cid = ?`);
             params.push(cid);
+        }
+        if (uid) {
+            conditions.push(`uid = ?`);
+            params.push(uid);
         }
         if (query?.channelId) {
             conditions.push(`channel_id = ?`);
@@ -60,8 +70,8 @@ export const chatDataSource: ICacheDataSource<CacheChatView, ChatQueryOptions> =
      * 단일 채팅 메시지를 저장하거나 업데이트합니다. (Upsert)
      * 검색 및 정렬 최적화를 위해 channel_id, chat_no, created_at, content를 별도 컬럼으로 추출합니다.
      */
-    save: async (id, item, cid) => {
-        const sql = `INSERT OR REPLACE INTO ${TABLES.CHATS} (cid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+    save: async (id, item, cid, uid) => {
+        const sql = `INSERT OR REPLACE INTO ${TABLES.CHATS} (cid, uid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
         const channelId = item.channelId || '';
         const chatNo = item.chatNo || 0;
         const createdAt = item.createdAt || 0;
@@ -71,20 +81,21 @@ export const chatDataSource: ICacheDataSource<CacheChatView, ChatQueryOptions> =
             ...item,
             id,
             cid,
+            uid,
             channelId,
             chatNo,
             createdAt,
         });
 
-        await database.execute(sql, [cid, id, channelId, chatNo, createdAt, content, dataToSave]);
+        await database.execute(sql, [cid, uid, id, channelId, chatNo, createdAt, content, dataToSave]);
     },
 
     /**
      * 다수의 채팅 메시지를 일괄 저장합니다. (Batch 삽입으로 성능 최적화)
      */
-    saveAll: async (items, cid) => {
+    saveAll: async (items, cid, uid) => {
         if (items.length === 0) return;
-        const sql = `INSERT OR REPLACE INTO ${TABLES.CHATS} (cid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+        const sql = `INSERT OR REPLACE INTO ${TABLES.CHATS} (cid, uid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
         const commands: [string, any[]][] = items.map(item => {
             const id = item.id;
@@ -99,31 +110,46 @@ export const chatDataSource: ICacheDataSource<CacheChatView, ChatQueryOptions> =
                 ...chatData,
                 id,
                 cid,
+                uid,
                 channelId,
                 chatNo,
                 createdAt,
             });
 
-            return [sql, [cid, id, channelId, chatNo, createdAt, content, dataToSave]];
+            return [sql, [cid, uid, id, channelId, chatNo, createdAt, content, dataToSave]];
         });
 
         await database.executeBatch(commands);
     },
 
     /** 단일 메시지 삭제 */
-    remove: async (id, cid) => {
-        await database.execute(`DELETE FROM ${TABLES.CHATS} WHERE id = ? AND cid = ?`, [id, cid]);
+    remove: async (id, cid, uid) => {
+        await database.execute(`DELETE FROM ${TABLES.CHATS} WHERE id = ? AND cid = ? AND uid = ?`, [id, cid, uid]);
     },
 
     /** 다수 메시지 일괄 삭제 */
-    removeAll: async (ids, cid) => {
+    removeAll: async (ids, cid, uid) => {
         if (ids.length === 0) return;
-        const sql = `DELETE FROM ${TABLES.CHATS} WHERE id = ? AND cid = ?`;
-        await database.executeBatch(ids.map(id => [sql, [id, cid]]));
+        const sql = `DELETE FROM ${TABLES.CHATS} WHERE id = ? AND cid = ? AND uid = ?`;
+        await database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
     },
 
     /** 채팅 테이블의 모든 데이터 초기화 */
-    clear: async () => {
-        await database.execute(`DELETE FROM ${TABLES.CHATS}`);
+    clear: async (cid, uid) => {
+        const conditions: string[] = [];
+        const params: string[] = [];
+        if (cid) {
+            conditions.push('cid = ?');
+            params.push(cid);
+        }
+        if (uid) {
+            conditions.push('uid = ?');
+            params.push(uid);
+        }
+        const sql =
+            conditions.length > 0
+                ? `DELETE FROM ${TABLES.CHATS} WHERE ${conditions.join(' AND ')}`
+                : `DELETE FROM ${TABLES.CHATS}`;
+        await database.execute(sql, params);
     },
 };

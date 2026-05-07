@@ -22,6 +22,7 @@ jest.mock('../../../database', () => ({
 }));
 
 describe('JoinDataSource Complex Relationship Test', () => {
+    const uid = 'u1';
     beforeAll(() => {
         const migrate = mockDb.transaction(() => {
             for (let v = 0; v < TARGET_VERSION; v++) {
@@ -43,7 +44,7 @@ describe('JoinDataSource Complex Relationship Test', () => {
             { id: 'j2', data: { channelId: 'ch1', userId: 'userB' } },
             { id: 'j3', data: { channelId: 'ch2', userId: 'userA' } },
         ];
-        await joinDataSource.saveAll(joins as any, 'cloud1');
+        await joinDataSource.saveAll(joins as any, 'cloud1', uid);
 
         // 특정 채널에 속한 모든 유저 조회
         const ch1Users = await joinDataSource.fetchAll('cloud1', { channelId: 'ch1' });
@@ -59,8 +60,8 @@ describe('JoinDataSource Complex Relationship Test', () => {
     it('Multi-tenant Isolation: CID가 다르면 참여 정보가 독립적이어야 한다', async () => {
         const data = { channelId: 'ch1', userId: 'user1' };
 
-        await joinDataSource.save('join_1', data as any, 'cloud_A');
-        await joinDataSource.save('join_1', data as any, 'cloud_B');
+        await joinDataSource.save('join_1', data as any, 'cloud_A', uid);
+        await joinDataSource.save('join_1', data as any, 'cloud_B', uid);
 
         const resultA = await joinDataSource.fetchAll('cloud_A');
         expect(resultA).toHaveLength(1);
@@ -69,7 +70,7 @@ describe('JoinDataSource Complex Relationship Test', () => {
 
     it('Data Integrity: saveAll 시 이중 stringify 없이 객체가 정상 저장되어야 한다', async () => {
         const item = { id: 'j1', data: { channelId: 'ch1', userId: 'u1' } };
-        await joinDataSource.saveAll([item] as any, 'c1');
+        await joinDataSource.saveAll([item] as any, 'c1', uid);
 
         const fetched = await joinDataSource.fetch('j1', 'c1');
         expect(typeof fetched).toBe('object');

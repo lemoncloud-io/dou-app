@@ -29,6 +29,7 @@ jest.mock('../../../../../database/core/database', () => ({
 }));
 
 describe('ChatDataSource Test', () => {
+    const uid = 'u1';
     beforeAll(() => {
         const migrate = mockDb.transaction(() => {
             for (let v = 0; v < TARGET_VERSION; v++) {
@@ -50,8 +51,8 @@ describe('ChatDataSource Test', () => {
         it('동일 ID 메시지라도 CID가 다르면 독립적으로 저장되고 조회되어야 한다', async () => {
             const msgData = { channelId: 'ch1', chatNo: 1, content: 'Hello' };
 
-            await chatDataSource.save('msg_1', msgData as any, 'cloud_A');
-            await chatDataSource.save('msg_1', { ...msgData, content: 'World' } as any, 'cloud_B');
+            await chatDataSource.save('msg_1', msgData as any, 'cloud_A', uid);
+            await chatDataSource.save('msg_1', { ...msgData, content: 'World' } as any, 'cloud_B', uid);
 
             const resA = await chatDataSource.fetch('msg_1', 'cloud_A');
             const resB = await chatDataSource.fetch('msg_1', 'cloud_B');
@@ -62,10 +63,10 @@ describe('ChatDataSource Test', () => {
         });
 
         it('remove 시 해당 cid의 데이터만 정확히 삭제되어야 한다', async () => {
-            await chatDataSource.save('target', { content: 'Delete Me' } as any, 'c1');
-            await chatDataSource.save('target', { content: 'Keep Me' } as any, 'c2');
+            await chatDataSource.save('target', { content: 'Delete Me' } as any, 'c1', uid);
+            await chatDataSource.save('target', { content: 'Keep Me' } as any, 'c2', uid);
 
-            await chatDataSource.remove('target', 'c1');
+            await chatDataSource.remove('target', 'c1', uid);
 
             expect(await chatDataSource.fetch('target', 'c1')).toBeNull();
             expect(await chatDataSource.fetch('target', 'c2')).not.toBeNull();
@@ -80,7 +81,7 @@ describe('ChatDataSource Test', () => {
                 { id: 'm2', data: { channelId: 'room1', content: 'Banana is yellow' } },
                 { id: 'm3', data: { channelId: 'room2', content: 'Apple is green' } },
             ];
-            await chatDataSource.saveAll(chats as any, 'cloud1');
+            await chatDataSource.saveAll(chats as any, 'cloud1', uid);
 
             // room1에 있으면서 'Apple'이 포함된 메시지 조회
             const results = await chatDataSource.fetchAll('cloud1', {
@@ -93,8 +94,8 @@ describe('ChatDataSource Test', () => {
         });
 
         it('특수 문자 및 공백이 포함된 키워드 검색이 정상적이어야 한다', async () => {
-            await chatDataSource.save('m1', { content: '오늘 점심 뭐 먹지?' } as any, 'c1');
-            await chatDataSource.save('m2', { content: '!!주의사항!!' } as any, 'c1');
+            await chatDataSource.save('m1', { content: '오늘 점심 뭐 먹지?' } as any, 'c1', uid);
+            await chatDataSource.save('m2', { content: '!!주의사항!!' } as any, 'c1', uid);
 
             const res1 = await chatDataSource.fetchAll('c1', { keyword: '점심 뭐' } as any);
             const res2 = await chatDataSource.fetchAll('c1', { keyword: '!!' } as any);
@@ -111,7 +112,7 @@ describe('ChatDataSource Test', () => {
                 { id: 'm1', data: { chatNo: 10, content: 'Older' } },
                 { id: 'm2', data: { chatNo: 20, content: 'Newer' } },
             ];
-            await chatDataSource.saveAll(data as any, 'c1');
+            await chatDataSource.saveAll(data as any, 'c1', uid);
 
             const desc = await chatDataSource.fetchAll('c1', { sort: 'desc' });
             const asc = await chatDataSource.fetchAll('c1', { sort: 'asc' });
@@ -126,7 +127,7 @@ describe('ChatDataSource Test', () => {
                 data: { chatNo: i, content: `msg ${i}`, channelId: 'perf' },
             }));
 
-            await chatDataSource.saveAll(bulk as any, 'c_perf');
+            await chatDataSource.saveAll(bulk as any, 'c_perf', uid);
 
             const results = await chatDataSource.fetchAll('c_perf', { channelId: 'perf' });
             expect(results).toHaveLength(1000);
@@ -139,7 +140,7 @@ describe('ChatDataSource Test', () => {
         it('removeAll에 빈 배열을 넘겼을 때 executeBatch가 호출되지 않아야 한다', async () => {
             const spy = jest.spyOn(require('../../../database').database, 'executeBatch');
 
-            await chatDataSource.removeAll([], 'c1');
+            await chatDataSource.removeAll([], 'c1', uid);
 
             expect(spy).not.toHaveBeenCalled();
             spy.mockRestore();
@@ -148,7 +149,7 @@ describe('ChatDataSource Test', () => {
         it('데이터 저장 시 필수 필드가 누락되어도 기본값이 적용되어야 한다', async () => {
             // chatNo, createdAt 등이 없는 불완전한 데이터
             const brokenItem = { content: 'Partial' };
-            await chatDataSource.save('partial_1', brokenItem as any, 'c1');
+            await chatDataSource.save('partial_1', brokenItem as any, 'c1', uid);
 
             const result = await chatDataSource.fetch('partial_1', 'c1');
             expect(result).not.toBeNull();
@@ -178,8 +179,8 @@ describe('ChatDataSource Test', () => {
                 config: { theme: 'dark', notifications: { email: true, push: false } },
             };
 
-            await metaDataSource.save('system', 'config_v1', 'c1', complexMeta);
-            const fetched = await metaDataSource.fetch('system', 'config_v1', 'c1');
+            await metaDataSource.save('system', 'config_v1', 'u1', 'c1', complexMeta as any);
+            const fetched = (await metaDataSource.fetch('system', 'config_v1', 'u1', 'c1')) as any;
 
             expect(fetched.config.notifications.push).toBe(false);
             expect(fetched.history[0].tags).toContain('important');

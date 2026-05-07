@@ -27,6 +27,7 @@ jest.mock('../../../database', () => ({
 }));
 
 describe('ChannelDataSource Test', () => {
+    const uid = 'u1';
     beforeAll(() => {
         const migrate = mockDb.transaction(() => {
             for (let v = 0; v < TARGET_VERSION; v++) {
@@ -54,7 +55,7 @@ describe('ChannelDataSource Test', () => {
                 },
             }));
 
-            await channelDataSource.saveAll(bulkChannels as any, 'cloud_perf');
+            await channelDataSource.saveAll(bulkChannels as any, 'cloud_perf', uid);
             const evenChannels = await channelDataSource.fetchAll('cloud_perf', { sid: 'site_even' });
             expect(evenChannels).toHaveLength(500);
             expect(evenChannels[0].sid).toBe('site_even');
@@ -66,8 +67,8 @@ describe('ChannelDataSource Test', () => {
         it('Cloud A의 검색 결과에 Cloud B의 채널이 섞이지 않아야 한다', async () => {
             const channelData = { sid: 's1', name: 'Shared Name' };
 
-            await channelDataSource.save('common_id', channelData as any, 'cloud_A');
-            await channelDataSource.save('common_id', { ...channelData, name: 'B Side' } as any, 'cloud_B');
+            await channelDataSource.save('common_id', channelData as any, 'cloud_A', uid);
+            await channelDataSource.save('common_id', { ...channelData, name: 'B Side' } as any, 'cloud_B', uid);
 
             const resultA = await channelDataSource.fetchAll('cloud_A', { keyword: 'Shared' });
             expect(resultA).toHaveLength(1);
@@ -87,7 +88,8 @@ describe('ChannelDataSource Test', () => {
 
             await channelDataSource.saveAll(
                 complexNames.map(c => ({ id: c.id, data: { ...c, sid: 's1' } })),
-                'cloud1'
+                'cloud1',
+                uid
             );
 
             // 1. 따옴표 검색 (SQL 에러 방지)
@@ -110,7 +112,7 @@ describe('ChannelDataSource Test', () => {
             const brokenData = { someField: 'no name and sid' };
 
             // extractSid, extractName 로직 검증
-            await channelDataSource.save('broken_1', brokenData as any, 'cloud1');
+            await channelDataSource.save('broken_1', brokenData as any, 'cloud1', uid);
 
             const result = await channelDataSource.fetch('broken_1', 'cloud1');
             expect(result).not.toBeNull();
@@ -124,7 +126,7 @@ describe('ChannelDataSource Test', () => {
         it('removeAll에 빈 배열을 넘겼을 때 시스템에 영향이 없어야 한다', async () => {
             const spy = jest.spyOn(require('../../../database/database').database, 'executeBatch');
 
-            await channelDataSource.removeAll([], 'cloud1');
+            await channelDataSource.removeAll([], 'cloud1', uid);
             expect(spy).not.toHaveBeenCalled();
             spy.mockRestore();
         });

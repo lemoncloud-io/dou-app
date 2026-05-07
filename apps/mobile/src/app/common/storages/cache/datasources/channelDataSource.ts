@@ -23,11 +23,17 @@ export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryO
      * @param id 채널 고유 식별자
      * @param cid 클라우드 식별자
      */
-    fetch: async (id, cid) => {
-        const query = cid
-            ? `SELECT data FROM ${TABLES.CHANNELS} WHERE id = ? AND cid = ?`
-            : `SELECT data FROM ${TABLES.CHANNELS} WHERE id = ?`;
-        const params = cid ? [id, cid] : [id];
+    fetch: async (id, cid, uid) => {
+        let query = `SELECT data FROM ${TABLES.CHANNELS} WHERE id = ?`;
+        const params: (string | number)[] = [id];
+        if (cid) {
+            query += ` AND cid = ?`;
+            params.push(cid);
+        }
+        if (uid) {
+            query += ` AND uid = ?`;
+            params.push(uid);
+        }
 
         const result = await database.execute(query, params);
         if (result.rows && result.rows.length > 0) {
@@ -41,7 +47,7 @@ export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryO
      * @param cid 클라우드 식별자
      * @param query 사이트 ID(sid) 필터링 및 이름(keyword) 검색 조건
      */
-    fetchAll: async (cid, query) => {
+    fetchAll: async (cid, query, uid) => {
         let sql = `SELECT data FROM ${TABLES.CHANNELS}`;
         const params: (string | number)[] = [];
         const conditions: string[] = [];
@@ -50,6 +56,10 @@ export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryO
         if (cid) {
             conditions.push(`cid = ?`);
             params.push(cid);
+        }
+        if (uid) {
+            conditions.push(`uid = ?`);
+            params.push(uid);
         }
         // 특정 사이트에 속한 채널 필터링
         if (query?.sid) {
@@ -74,8 +84,8 @@ export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryO
      * 채널 정보를 저장하거나 업데이트합니다.
      * 원본 JSON 데이터 외에 sid, name을 개별 컬럼으로 추출하여 인덱싱 성능을 확보합니다.
      */
-    save: async (id, item, cid) => {
-        const sql = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, id, sid, name, data) VALUES (?, ?, ?, ?, ?)`;
+    save: async (id, item, cid, uid) => {
+        const sql = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, uid, id, sid, name, data) VALUES (?, ?, ?, ?, ?, ?)`;
 
         const sid = extractSid(item);
         const name = extractName(item);
@@ -84,19 +94,20 @@ export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryO
             ...item,
             id,
             cid,
+            uid,
             sid,
             name,
         });
 
-        await database.execute(sql, [cid, id, sid, name, dataToSave]);
+        await database.execute(sql, [cid, uid, id, sid, name, dataToSave]);
     },
 
     /**
      * 다수의 채널 정보를 일괄 저장합니다.
      */
-    saveAll: async (items, cid) => {
+    saveAll: async (items, cid, uid) => {
         if (items.length === 0) return;
-        const sql = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, id, sid, name, data) VALUES (?, ?, ?, ?, ?)`;
+        const sql = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, uid, id, sid, name, data) VALUES (?, ?, ?, ?, ?, ?)`;
 
         const commands: [string, any[]][] = items.map(item => {
             const id = item.id;
@@ -109,11 +120,12 @@ export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryO
                 ...channelData,
                 id,
                 cid,
+                uid,
                 sid,
                 name,
             });
 
-            return [sql, [cid, id, sid, name, dataToSave]];
+            return [sql, [cid, uid, id, sid, name, dataToSave]];
         });
 
         await database.executeBatch(commands);
@@ -122,23 +134,37 @@ export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryO
     /**
      *  단일 채널 삭제
      */
-    remove: async (id, cid) => {
-        await database.execute(`DELETE FROM ${TABLES.CHANNELS} WHERE id = ? AND cid = ?`, [id, cid]);
+    remove: async (id, cid, uid) => {
+        await database.execute(`DELETE FROM ${TABLES.CHANNELS} WHERE id = ? AND cid = ? AND uid = ?`, [id, cid, uid]);
     },
 
     /**
      *  다수 채널 일괄 삭제
      */
-    removeAll: async (ids, cid) => {
+    removeAll: async (ids, cid, uid) => {
         if (ids.length === 0) return;
-        const sql = `DELETE FROM ${TABLES.CHANNELS} WHERE id = ? AND cid = ?`;
-        await database.executeBatch(ids.map(id => [sql, [id, cid]]));
+        const sql = `DELETE FROM ${TABLES.CHANNELS} WHERE id = ? AND cid = ? AND uid = ?`;
+        await database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
     },
 
     /**
      *  채널 테이블 전체 초기화
      */
-    clear: async () => {
-        await database.execute(`DELETE FROM ${TABLES.CHANNELS}`);
+    clear: async (cid, uid) => {
+        const conditions: string[] = [];
+        const params: string[] = [];
+        if (cid) {
+            conditions.push('cid = ?');
+            params.push(cid);
+        }
+        if (uid) {
+            conditions.push('uid = ?');
+            params.push(uid);
+        }
+        const sql =
+            conditions.length > 0
+                ? `DELETE FROM ${TABLES.CHANNELS} WHERE ${conditions.join(' AND ')}`
+                : `DELETE FROM ${TABLES.CHANNELS}`;
+        await database.execute(sql, params);
     },
 };

@@ -42,6 +42,7 @@ beforeEach(() => {
 describe('Paging Snapshot Integrity', () => {
     it('saveAll 시 페이징 쿼리가 있다면 ID 리스트 스냅샷을 저장해야 한다', async () => {
         const cid = 'cloud_1';
+        const uid = 'user_1';
         const query = { limit: 20, page: 1 }; // 페이징 유발 쿼리
         const items = [
             { id: 'msg_1', content: 'Hello' },
@@ -49,7 +50,7 @@ describe('Paging Snapshot Integrity', () => {
         ];
 
         // 저장 실행
-        await cacheCrudService.saveAll({ type: 'chat', items: items as any, cid, query });
+        await cacheCrudService.saveAll({ type: 'chat', items: items as any, cid, uid, query });
 
         // 메타 데이터베이스에 스냅샷이 생성되었는지 직접 확인
         const metaKey = JSON.stringify(query);
@@ -57,9 +58,9 @@ describe('Paging Snapshot Integrity', () => {
             .prepare(
                 `SELECT data
                  FROM ${TABLES.METAS}
-                 WHERE key = ?`
+                 WHERE key = ? AND uid = ?`
             )
-            .get(metaKey) as any;
+            .get(metaKey, uid) as any;
 
         expect(metaRow).toBeDefined();
         const savedMeta = JSON.parse(metaRow.data);
@@ -68,11 +69,12 @@ describe('Paging Snapshot Integrity', () => {
 
     it('fetchAll: 데이터가 추가되어도 기존 스냅샷이 있다면 스냅샷의 ID들만 반환해야 한다', async () => {
         const cid = 'cloud_1';
+        const uid = 'user_1';
         const query = { limit: 10, page: 1 };
 
         // 초기 데이터(스냅샷) 저장
         const originalItems = [{ id: 'old_1' }, { id: 'old_2' }];
-        await cacheCrudService.saveAll({ type: 'chat', items: originalItems as any, cid, query });
+        await cacheCrudService.saveAll({ type: 'chat', items: originalItems as any, cid, uid, query });
 
         // DB에 스냅샷에 없는 "새로운" 데이터 추가 (실시간 수신 상황 시뮬레이션)
         await cacheCrudService.save({
@@ -80,10 +82,11 @@ describe('Paging Snapshot Integrity', () => {
             id: 'new_3',
             item: { content: 'New Message' } as any,
             cid,
+            uid,
         });
 
         // fetchAll 호출 (동일 쿼리)
-        const results = await cacheCrudService.fetchAll({ type: 'chat', query, cid });
+        const results = await cacheCrudService.fetchAll({ type: 'chat', query, cid, uid });
 
         // 검증: 새로 추가된 'new_3'는 결과에 없어야 함 (스냅샷 유지)
         expect(results).toHaveLength(2);
@@ -93,12 +96,14 @@ describe('Paging Snapshot Integrity', () => {
 
     it('페이징 파라미터가 없는 쿼리는 스냅샷을 생성하지 않고 최신 DB를 쿼리해야 한다', async () => {
         const cid = 'cloud_1';
+        const uid = 'user_1';
         const query = { channelId: 'room_1' }; // limit/page 없음
 
         await cacheCrudService.saveAll({
             type: 'chat',
             items: [{ id: 'm1' }] as any,
             cid,
+            uid,
             query,
         });
 
@@ -108,9 +113,9 @@ describe('Paging Snapshot Integrity', () => {
             .prepare(
                 `SELECT data
                  FROM ${TABLES.METAS}
-                 WHERE key = ?`
+                 WHERE key = ? AND uid = ?`
             )
-            .get(metaKey);
+            .get(metaKey, uid);
         expect(metaRow).toBeUndefined(); // 스냅샷 생성 안됨
     });
 });
@@ -118,9 +123,9 @@ describe('Paging Snapshot Integrity', () => {
 // --- 기본 CRUD 연동 테스트 ---
 describe('Generic CRUD Coordination', () => {
     it('clear 호출 시 특정 도메인의 테이블 데이터만 완전히 삭제해야 한다', async () => {
-        await cacheCrudService.save({ type: 'chat', id: 'c1', item: {} as any, cid: 'cloud' });
+        await cacheCrudService.save({ type: 'chat', id: 'c1', item: {} as any, cid: 'cloud', uid: 'u1' });
 
-        await cacheCrudService.clear({ type: 'chat' }); //
+        await cacheCrudService.clear({ type: 'chat', cid: 'cloud', uid: 'u1' }); //
 
         const result = await cacheCrudService.fetch({ type: 'chat', id: 'c1', cid: 'cloud' });
         expect(result).toBeNull();
@@ -133,6 +138,7 @@ describe('Generic CRUD Coordination', () => {
             id: 'chat_99',
             item: chatItem as any,
             cid: 'cloud_1',
+            uid: 'u1',
         });
 
         const fetched = await cacheCrudService.fetch({ type: 'chat', id: 'chat_99', cid: 'cloud_1' });

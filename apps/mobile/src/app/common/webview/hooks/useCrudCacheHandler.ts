@@ -32,6 +32,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     data: {
                         type: message.data.type,
                         cid: message.data.cid,
+                        uid: message.data.uid,
                         items,
                         query: message.data.query,
                     } as OnFetchAllCacheDataPayload,
@@ -42,7 +43,12 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                 bridge.post({
                     type: 'OnFetchAllCacheData',
                     nonce: message.nonce,
-                    data: { type: message.data.type, cid: message.data.cid, items: null } as OnFetchAllCacheDataPayload,
+                    data: {
+                        type: message.data.type,
+                        cid: message.data.cid,
+                        uid: message.data.uid,
+                        items: null,
+                    } as OnFetchAllCacheDataPayload,
                 });
             }
         },
@@ -59,6 +65,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     data: {
                         type: message.data.type,
                         cid: message.data.cid,
+                        uid: message.data.uid,
                         id: message.data.id,
                         item,
                     } as OnFetchCacheDataPayload,
@@ -72,6 +79,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     data: {
                         type: message.data.type,
                         cid: message.data.cid,
+                        uid: message.data.uid,
                         id: message.data.id,
                         item: null,
                     } as OnFetchCacheDataPayload,
@@ -91,6 +99,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     data: {
                         type: message.data.type,
                         cid: message.data.cid,
+                        uid: message.data.uid,
                         id: savedId,
                         success: true,
                     } as OnSaveCacheDataPayload,
@@ -104,6 +113,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     data: {
                         type: message.data.type,
                         cid: message.data.cid,
+                        uid: message.data.uid,
                         id: null,
                         success: false,
                     } as OnSaveCacheDataPayload,
@@ -123,6 +133,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     data: {
                         type: message.data.type,
                         cid: message.data.cid,
+                        uid: message.data.uid,
                         ids: savedIds,
                         success: true,
                         query: message.data.query,
@@ -137,6 +148,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     data: {
                         type: message.data.type,
                         cid: message.data.cid,
+                        uid: message.data.uid,
                         ids: [],
                         success: false,
                     } as OnSaveAllCacheDataPayload,
@@ -156,6 +168,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     data: {
                         type: message.data.type,
                         cid: message.data.cid,
+                        uid: message.data.uid,
                         id: deletedId,
                         success: true,
                     } as OnDeleteCacheDataPayload,
@@ -169,6 +182,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     data: {
                         type: message.data.type,
                         cid: message.data.cid,
+                        uid: message.data.uid,
                         id: null,
                         success: false,
                     } as OnDeleteCacheDataPayload,
@@ -188,6 +202,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     data: {
                         type: message.data.type,
                         cid: message.data.cid,
+                        uid: message.data.uid,
                         ids: deletedIds,
                         success: true,
                     } as OnDeleteAllCacheDataPayload,
@@ -201,6 +216,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     data: {
                         type: message.data.type,
                         cid: message.data.cid,
+                        uid: message.data.uid,
                         ids: [],
                         success: false,
                     } as OnDeleteAllCacheDataPayload,
@@ -219,6 +235,8 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                     nonce: message.nonce,
                     data: {
                         type: message.data.type,
+                        cid: message.data.cid,
+                        uid: message.data.uid,
                         success: true,
                     } as OnClearCacheDataPayload,
                 };
@@ -228,7 +246,12 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                 bridge.post({
                     type: 'OnClearCacheData',
                     nonce: message.nonce,
-                    data: { type: message.data.type, success: false } as OnClearCacheDataPayload,
+                    data: {
+                        type: message.data.type,
+                        cid: message.data.cid,
+                        uid: message.data.uid,
+                        success: false,
+                    } as OnClearCacheDataPayload,
                 });
             }
         },

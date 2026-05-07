@@ -19,6 +19,7 @@ jest.mock('../../../database', () => ({
 }));
 
 describe('UserDataSource Test', () => {
+    const uid = 'u1';
     beforeAll(() => {
         mockDb.transaction(() => {
             for (let v = 0; v < TARGET_VERSION; v++) MIGRATIONS[v]?.forEach(sql => mockDb.exec(sql));
@@ -32,8 +33,8 @@ describe('UserDataSource Test', () => {
     });
 
     it('fetchAll: 특정 cid에 속한 유저들만 정확히 반환해야 한다', async () => {
-        await userDataSource.save('u1', { nickname: 'A' } as any, 'cloud_A');
-        await userDataSource.save('u2', { nickname: 'B' } as any, 'cloud_B');
+        await userDataSource.save('u1', { nickname: 'A' } as any, 'cloud_A', uid);
+        await userDataSource.save('u2', { nickname: 'B' } as any, 'cloud_B', uid);
 
         const results = await userDataSource.fetchAll('cloud_A'); //
         expect(results).toHaveLength(1);
@@ -45,7 +46,7 @@ describe('UserDataSource Test', () => {
             { id: 'user_1', data: {} },
             { id: 'user_2', data: {} },
         ];
-        await userDataSource.saveAll(users as any, 'batch_cloud');
+        await userDataSource.saveAll(users as any, 'batch_cloud', uid);
 
         const results = await userDataSource.fetchAll('batch_cloud');
         expect(results.every(u => u.id && u.cid === 'batch_cloud')).toBe(true); //
