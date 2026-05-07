@@ -9,7 +9,6 @@ import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainListResult, DomainSite } from '../domain';
 import { toDomainSite } from '../domain';
-import type { SiteView } from '@lemoncloud/chatic-socials-api';
 
 /** 사이트/플레이스 도메인의 Repository 공개 계약입니다. */
 export interface ISiteRepository {
@@ -30,19 +29,10 @@ export interface ISiteRepository {
 
     /** 기존 사이트 정보 변경(site:update) 이벤트를 수신하는 리스너를 등록합니다. */
     onSiteUpdated(callback: (site: DomainSite) => void): () => void;
-    updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<SiteView>;
-
-    /** 서버로부터 site 생성(site:create) 이벤트를 수신하는 리스너를 등록합니다. */
-    onSiteCreated(callback: (site: SiteView) => void): () => void;
-    /** 서버로부터 site 변경(site:update) 이벤트를 수신하는 리스너를 등록합니다. */
-    onSiteUpdated(callback: (site: SiteView) => void): () => void;
 }
 
 /** Remote site API와 local site cache를 중재합니다. */
 export class SiteRepository extends BaseRepository implements ISiteRepository {
-    /** 동시 다발적 fetchSite 호출을 하나의 WebSocket 요청으로 합치기 위한 inflight Promise */
-    private inflightFetchSite: Promise<ListResult<SiteView>> | null = null;
-
     constructor(
         private readonly siteRemoteDataSource: ISiteRemoteDataSource,
         private readonly siteLocalDataSource: ISiteLocalDataSource,
@@ -121,23 +111,6 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         const domainList = (remote.list || []).map(item => toDomainSite(item, this.getDomainScope()));
         await this.siteLocalDataSource.replaceSites(domainList, this.getRepositoryContext());
         return { ...remote, list: domainList };
-    ): Promise<ListResult<SiteView>> {
-        if (this.inflightFetchSite) return this.inflightFetchSite;
-
-        this.inflightFetchSite = (async () => {
-            try {
-                const remote = await this.requestRemote<ListResult<SiteView>>(
-                    ref => this.siteRemoteDataSource.fetchSite(payload, ref),
-                    options
-                );
-                await this.siteLocalDataSource.replaceSites(remote.list || [], this.getRepositoryContext());
-                return remote;
-            } finally {
-                this.inflightFetchSite = null;
-            }
-        })();
-
-        return this.inflightFetchSite;
     }
 
     private initializeInternalListeners(): void {
