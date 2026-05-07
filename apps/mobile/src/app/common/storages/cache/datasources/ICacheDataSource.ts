@@ -13,7 +13,7 @@ export interface ICacheDataSource<T, Q = void> {
      * @param cid - (선택) 데이터 격리를 위한 Cloud ID
      * @returns 조회된 데이터 객체 또는 존재하지 않을 경우 `null`
      */
-    fetch: (id: string, cid?: string) => Promise<T | null>;
+    fetch: (id: string, cid?: string, uid?: string) => Promise<T | null>;
 
     /**
      * 다수(목록)의 캐시 데이터를 조건에 맞게 조회합니다.
@@ -22,7 +22,7 @@ export interface ICacheDataSource<T, Q = void> {
      * @param query - (선택) 도메인 특화 필터링, 정렬, 페이징 조건 (예: 채널 ID, limit 등)
      * @returns 조회된 데이터 배열
      */
-    fetchAll: (cid?: string, query?: Q) => Promise<T[]>;
+    fetchAll: (cid?: string, query?: Q, uid?: string) => Promise<T[]>;
 
     /**
      * 단일 데이터를 캐시에 저장합니다. (이미 존재하면 업데이트/Upsert)
@@ -31,7 +31,7 @@ export interface ICacheDataSource<T, Q = void> {
      * @param item - 저장할 데이터 모델 객체
      * @param cid - 데이터가 속한 Cloud ID (필수)
      */
-    save: (id: string, item: T, cid: string) => Promise<void>;
+    save: (id: string, item: T, cid: string, uid: string) => Promise<void>;
 
     /**
      * 다수의 데이터를 성능 최적화를 위해 일괄(Batch)로 캐시에 저장합니다. (Upsert)
@@ -39,7 +39,7 @@ export interface ICacheDataSource<T, Q = void> {
      * @param items - 저장할 데이터 식별자(`id`)와 실제 모델(`data`)을 포함하는 객체 배열
      * @param cid - 데이터들이 속한 Cloud ID (필수)
      */
-    saveAll: (items: { id: string; data: T }[], cid: string) => Promise<void>;
+    saveAll: (items: { id: string; data: T }[], cid: string, uid: string) => Promise<void>;
 
     /**
      * 단일 데이터를 캐시에서 삭제합니다.
@@ -47,7 +47,7 @@ export interface ICacheDataSource<T, Q = void> {
      * @param id - 삭제할 데이터의 고유 ID
      * @param cid - 데이터가 속한 Cloud ID (필수)
      */
-    remove: (id: string, cid: string) => Promise<void>;
+    remove: (id: string, cid: string, uid: string) => Promise<void>;
 
     /**
      * 다수의 데이터를 일괄(Batch)로 캐시에서 삭제합니다.
@@ -55,11 +55,11 @@ export interface ICacheDataSource<T, Q = void> {
      * @param ids - 삭제할 데이터들의 고유 ID 배열
      * @param cid - 데이터들이 속한 Cloud ID (필수)
      */
-    removeAll: (ids: string[], cid: string) => Promise<void>;
+    removeAll: (ids: string[], cid: string, uid: string) => Promise<void>;
 
     /**
      * 해당 데이터 소스(테이블)의 모든 캐시 데이터를 완전히 초기화(삭제)합니다.
      * 주의: cid 구분 없이 해당 도메인의 전체 데이터가 날아갑니다.
      */
-    clear: () => Promise<void>;
+    clear: (cid?: string, uid?: string) => Promise<void>;
 }

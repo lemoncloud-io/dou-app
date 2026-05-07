@@ -1,6 +1,7 @@
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/types';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
+import type { DomainScope } from '../domain';
 
 /**
  * Repository 요청 단위에서만 덮어쓸 수 있는 옵션입니다.
@@ -13,12 +14,14 @@ export interface RepositoryRequestOptions {
 
     /**
      * 읽기 시 cache/network 병행 정책을 제어합니다.
-     * - cache-and-network: cache hit면 즉시 반환하고 background refresh 수행
+     * - cache-first: cache hit면 즉시 반환하고 background refresh 수행
      * - network-only: cache를 무시하고 network만 사용
      * - cache-only: network를 사용하지 않고 cache만 사용
      */
-    cachePolicy?: 'cache-and-network' | 'network-only' | 'cache-only';
+    cachePolicy?: RepositoryCachePolicy;
 }
+
+export type RepositoryCachePolicy = 'cache-first' | 'network-only' | 'cache-only' | 'cache-and-network';
 
 /**
  * Repository 계층 전체가 공유하는 실행 문맥입니다.
@@ -32,6 +35,7 @@ export interface DataContext {
     sid?: string;
     /** 현재 사용자 id */
     uid?: string;
+
     /** 도메인별 추가 context를 수용하기 위한 확장 필드 */
     [key: string]: unknown;
 }
@@ -42,6 +46,7 @@ export interface DataContext {
  */
 export interface DataContextProvider {
     getContext(): DataContext;
+
     setContext(context: DataContext): void;
 }
 
@@ -95,10 +100,63 @@ export abstract class BaseRepository {
         return this.context?.getContext() ?? {};
     }
 
+    protected getDomainScope(): DomainScope {
+        const context = this.getRepositoryContext();
+        return {
+            cid: context.cid || 'default',
+            sid: context.sid,
+            uid: context.uid,
+        };
+    }
+
     protected runInBackground(task: () => Promise<unknown>, label: string): void {
         void task().catch(error => {
             console.warn(`[Repository:${label}] background task failed`, error);
         });
+    }
+
+    protected resolveCachePolicy(options?: RepositoryRequestOptions): RepositoryCachePolicy {
+        const policy = options?.cachePolicy;
+        if (!policy || policy === 'cache-first' || policy === 'cache-and-network') {
+            return 'cache-first';
+        }
+        return policy;
+    }
+
+    protected async fetchWithCachePolicy<T>({
+        options,
+        fetchLocal,
+        fetchRemote,
+        fallback,
+        isLocalValid,
+        backgroundLabel,
+    }: {
+        options?: RepositoryRequestOptions;
+        fetchLocal: () => Promise<T | null>;
+        fetchRemote: (options?: RepositoryRequestOptions) => Promise<T>;
+        fallback: () => T;
+        isLocalValid?: (local: T) => boolean;
+        backgroundLabel: string;
+    }): Promise<T> {
+        const policy = this.resolveCachePolicy(options);
+        if (policy === 'network-only') {
+            return fetchRemote(options);
+        }
+
+        const local = await fetchLocal();
+        if (policy === 'cache-only') {
+            return local ?? fallback();
+        }
+
+        if (local && (isLocalValid ? isLocalValid(local) : true)) {
+            this.runInBackground(
+                () => fetchRemote({ ...options, cachePolicy: 'network-only' }),
+                `${backgroundLabel}:cache-first-refresh`
+            );
+            return local;
+        }
+
+        return fetchRemote(options);
     }
 
     /**

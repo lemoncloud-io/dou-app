@@ -4,9 +4,10 @@
 
 ## 현재 scope 정책
 
-- 현재는 **`cid` 단일 scope**만 사용합니다.
-- 각 CRUD 호출 시점에 `DataContextProvider.getContext().cid`를 읽어 scope를 결정합니다.
-- `uid` scope는 후속 작업에서 추가할 예정입니다.
+- 현재는 **`(cid, uid)` 복합 scope**를 사용합니다.
+- 각 CRUD 호출 시점에 `DataContextProvider.getContext()`를 읽어 scope를 결정합니다.
+- 같은 adapter 인스턴스라도 context가 변경되면 즉시 다른 scope를 바라봅니다.
+- 캐시 레코드에는 `lastSyncedAt`, `expiresAt` TTL 메타데이터가 함께 저장되며, 조회 시 만료 데이터는 반환 전에 GC됩니다.
 
 ## 주요 구성
 
@@ -15,8 +16,8 @@
     - 저장 스키마: `CacheSchema<T>`
 - `indexedDBAdapter.ts`
     - 웹 구현체
-    - 키 포맷: `${type}:${cid}:${id}`
-    - 인덱스: `type_cid`
+    - 키 포맷: `${type}:${cid}:${uid}:${id}`
+    - 인덱스: `type_cid_uid`
 - `nativeDBAdapter.ts`
     - WebView bridge 구현체
     - `nonce` 기반 요청/응답 매칭
@@ -46,5 +47,5 @@ await storages.chat.save(chat.id, chat);
 ## 주의 사항
 
 - `CacheStorage`는 호출 시점 context를 읽도록 구현되어야 합니다.
-    - 같은 adapter 인스턴스라도 `cid` 변경 후에는 새 scope로 동작해야 합니다.
+    - 같은 adapter 인스턴스라도 `cid/uid` 변경 후에는 새 scope로 동작해야 합니다.
 - `saveAll/replaceAll`은 `id`가 없는 아이템을 무시합니다.

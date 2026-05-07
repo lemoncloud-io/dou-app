@@ -8,13 +8,13 @@ import type { CacheCloudView, InviteCloudQueryOptions } from '@chatic/app-messag
  * (파라미터로 넘어온 _cid는 인터페이스 규격을 맞추기 위한 것이며 무시됩니다)
  */
 export const inviteCloudDataSource: ICacheDataSource<CacheCloudView, InviteCloudQueryOptions> = {
-    fetch: async (id, _cid) => {
+    fetch: async (id, _cid, _uid) => {
         const result = await database.execute(`SELECT data FROM ${TABLES.INVITE_CLOUDS} WHERE id = ?`, [id]);
         if (result.rows && result.rows.length > 0) return JSON.parse(result.rows[0].data as string) as CacheCloudView;
         return null;
     },
 
-    fetchAll: async (_cid, _query) => {
+    fetchAll: async (_cid, _query, _uid) => {
         const result = await database.execute(`SELECT data FROM ${TABLES.INVITE_CLOUDS}`);
         return (result.rows || []).reduce<CacheCloudView[]>((acc, row) => {
             try {
@@ -26,29 +26,29 @@ export const inviteCloudDataSource: ICacheDataSource<CacheCloudView, InviteCloud
         }, []);
     },
 
-    save: async (id, item, _cid) => {
+    save: async (id, item, _cid, _uid) => {
         await database.execute(`INSERT OR REPLACE INTO ${TABLES.INVITE_CLOUDS} (id, data) VALUES (?, ?)`, [
             id,
             JSON.stringify({ ...item, id }),
         ]);
     },
 
-    saveAll: async (items, _cid) => {
+    saveAll: async (items, _cid, _uid) => {
         if (items.length === 0) return;
         const sql = `INSERT OR REPLACE INTO ${TABLES.INVITE_CLOUDS} (id, data) VALUES (?, ?)`;
         await database.executeBatch(items.map(item => [sql, [item.id, JSON.stringify({ ...item.data, id: item.id })]]));
     },
 
-    remove: async (id, _cid) => {
+    remove: async (id, _cid, _uid) => {
         await database.execute(`DELETE FROM ${TABLES.INVITE_CLOUDS} WHERE id = ?`, [id]);
     },
 
-    removeAll: async (ids, _cid) => {
+    removeAll: async (ids, _cid, _uid) => {
         if (ids.length === 0) return;
         await database.executeBatch(ids.map(id => [`DELETE FROM ${TABLES.INVITE_CLOUDS} WHERE id = ?`, [id]]));
     },
 
-    clear: async () => {
+    clear: async (_cid, _uid) => {
         await database.execute(`DELETE FROM ${TABLES.INVITE_CLOUDS}`);
     },
 };

@@ -19,6 +19,7 @@ jest.mock('../../../database/database', () => ({
 }));
 
 describe('SiteDataSource Test', () => {
+    const uid = 'u1';
     beforeAll(() => {
         mockDb.transaction(() => {
             for (let v = 0; v < TARGET_VERSION; v++) MIGRATIONS[v]?.forEach(sql => mockDb.exec(sql));
@@ -36,7 +37,7 @@ describe('SiteDataSource Test', () => {
             { id: 's1', data: { name: 'Apple' } },
             { id: 's2', data: { name: 'Banana' } },
         ];
-        await siteDataSource.saveAll(sites as any, 'c1');
+        await siteDataSource.saveAll(sites as any, 'c1', uid);
 
         const results = await siteDataSource.fetchAll('c1', { keyword: 'App' });
         expect(results).toHaveLength(1);
@@ -44,7 +45,7 @@ describe('SiteDataSource Test', () => {
     });
 
     it('Patch Integrity: 저장 시 전달된 파라미터가 JSON 데이터를 덮어써야 한다', async () => {
-        await siteDataSource.save('site_id', { name: 'Old' } as any, 'new_cid');
+        await siteDataSource.save('site_id', { name: 'Old' } as any, 'new_cid', uid);
 
         const fetched = await siteDataSource.fetch('site_id', 'new_cid');
         expect(fetched?.id).toBe('site_id');

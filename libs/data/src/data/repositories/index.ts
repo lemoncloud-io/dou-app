@@ -39,7 +39,7 @@ export interface DataRepositories {
     join: IJoinRepository;
     user: IUserRepository;
     site: ISiteRepository;
-    inviteCloud?: IInviteCloudRepository;
+    inviteCloud: IInviteCloudRepository;
 }
 
 /**

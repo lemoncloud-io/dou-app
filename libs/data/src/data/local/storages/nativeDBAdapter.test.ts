@@ -31,10 +31,10 @@ const createBridgeHarness = () => {
     const records = new Map<string, any>();
     const messages: Array<{ type: string; nonce?: string; data: any }> = [];
 
-    const key = (type: string, cid: string, id: string) => `${type}:${cid}:${id}`;
-    const loadAll = (type: string, cid: string) =>
+    const key = (type: string, cid: string, uid: string, id: string) => `${type}:${cid}:${uid}:${id}`;
+    const loadAll = (type: string, cid: string, uid: string) =>
         Array.from(records.entries())
-            .filter(([recordKey]) => recordKey.startsWith(`${type}:${cid}:`))
+            .filter(([recordKey]) => recordKey.startsWith(`${type}:${cid}:${uid}:`))
             .map(([, item]) => clone(item));
 
     resetAppMessageStore();
@@ -45,10 +45,11 @@ const createBridgeHarness = () => {
 
             Promise.resolve().then(() => {
                 const cid = message.data?.cid ?? message.data?.query?.cid ?? 'default';
+                const uid = message.data?.uid ?? message.data?.query?.uid ?? 'default';
 
                 switch (message.type) {
                     case 'SaveCacheData':
-                        records.set(key(message.data.type, cid, message.data.id), clone(message.data.item));
+                        records.set(key(message.data.type, cid, uid, message.data.id), clone(message.data.item));
                         useAppMessageStore.getState().handleMessage({
                             type: 'OnSaveCacheData',
                             nonce: message.nonce,
@@ -58,7 +59,7 @@ const createBridgeHarness = () => {
                     case 'SaveAllCacheData':
                         (message.data.items || []).forEach((item: any) => {
                             if (!item?.id) return;
-                            records.set(key(message.data.type, cid, item.id), clone(item));
+                            records.set(key(message.data.type, cid, uid, item.id), clone(item));
                         });
                         useAppMessageStore.getState().handleMessage({
                             type: 'OnSaveAllCacheData',
@@ -78,8 +79,9 @@ const createBridgeHarness = () => {
                             data: {
                                 type: message.data.type,
                                 cid,
+                                uid,
                                 id: message.data.id,
-                                item: clone(records.get(key(message.data.type, cid, message.data.id)) ?? null),
+                                item: clone(records.get(key(message.data.type, cid, uid, message.data.id)) ?? null),
                             },
                         } as any);
                         break;
@@ -87,11 +89,11 @@ const createBridgeHarness = () => {
                         useAppMessageStore.getState().handleMessage({
                             type: 'OnFetchAllCacheData',
                             nonce: message.nonce,
-                            data: { type: message.data.type, cid, items: loadAll(message.data.type, cid) },
+                            data: { type: message.data.type, cid, uid, items: loadAll(message.data.type, cid, uid) },
                         } as any);
                         break;
                     case 'DeleteCacheData':
-                        records.delete(key(message.data.type, cid, message.data.id));
+                        records.delete(key(message.data.type, cid, uid, message.data.id));
                         useAppMessageStore.getState().handleMessage({
                             type: 'OnDeleteCacheData',
                             nonce: message.nonce,
@@ -100,7 +102,7 @@ const createBridgeHarness = () => {
                         break;
                     case 'DeleteAllCacheData':
                         (message.data.ids || []).forEach((id: string) =>
-                            records.delete(key(message.data.type, cid, id))
+                            records.delete(key(message.data.type, cid, uid, id))
                         );
                         useAppMessageStore.getState().handleMessage({
                             type: 'OnDeleteAllCacheData',
@@ -110,7 +112,7 @@ const createBridgeHarness = () => {
                         break;
                     case 'ClearCacheData':
                         Array.from(records.keys())
-                            .filter(recordKey => recordKey.startsWith(`${message.data.type}:${cid}:`))
+                            .filter(recordKey => recordKey.startsWith(`${message.data.type}:${cid}:${uid}:`))
                             .forEach(recordKey => records.delete(recordKey));
                         useAppMessageStore.getState().handleMessage({
                             type: 'OnClearCacheData',
@@ -141,10 +143,10 @@ describe('createNativeDBAdapter', () => {
         jest.useRealTimers();
     });
 
-    it('reads/writes within cid scope', async () => {
+    it('reads/writes within cid+uid scope', async () => {
         const harness = createBridgeHarness();
-        const contextA = { getContext: () => ({ cid: 'cloud-a' }), setContext: () => undefined };
-        const contextB = { getContext: () => ({ cid: 'cloud-b' }), setContext: () => undefined };
+        const contextA = { getContext: () => ({ cid: 'cloud-a', uid: 'user-a' }), setContext: () => undefined };
+        const contextB = { getContext: () => ({ cid: 'cloud-a', uid: 'user-b' }), setContext: () => undefined };
         const storageA = createNativeDBAdapter('chat', contextA);
         const storageB = createNativeDBAdapter('chat', contextB);
 
@@ -160,24 +162,25 @@ describe('createNativeDBAdapter', () => {
         }
     });
 
-    it('uses latest cid from contextProvider at call-time', async () => {
+    it('uses latest cid/uid from contextProvider at call-time', async () => {
         const harness = createBridgeHarness();
-        const context = { cid: 'cloud-a' };
+        const context = { cid: 'cloud-a', uid: 'user-a' };
         const contextProvider = {
-            getContext: () => ({ cid: context.cid }),
-            setContext: (next: { cid: string }) => {
+            getContext: () => ({ cid: context.cid, uid: context.uid }),
+            setContext: (next: { cid: string; uid: string }) => {
                 context.cid = next.cid;
+                context.uid = next.uid;
             },
         };
         const storage = createNativeDBAdapter('chat', contextProvider);
 
         try {
             await storage.save('A1', chat('A1', { text: 'from-a' }));
-            contextProvider.setContext({ cid: 'cloud-b' });
+            contextProvider.setContext({ cid: 'cloud-b', uid: 'user-b' });
             await storage.save('B1', chat('B1', { text: 'from-b' }));
 
             expect(await storage.loadAll()).toEqual([chat('B1', { text: 'from-b' })]);
-            contextProvider.setContext({ cid: 'cloud-a' });
+            contextProvider.setContext({ cid: 'cloud-a', uid: 'user-a' });
             expect(await storage.loadAll()).toEqual([chat('A1', { text: 'from-a' })]);
         } finally {
             harness.cleanup();
@@ -186,7 +189,7 @@ describe('createNativeDBAdapter', () => {
 
     it('replaceAll follows fetch-delete-save bridge flow', async () => {
         const harness = createBridgeHarness();
-        const contextProvider = { getContext: () => ({ cid: 'cloud-r' }), setContext: () => undefined };
+        const contextProvider = { getContext: () => ({ cid: 'cloud-r', uid: 'user-r' }), setContext: () => undefined };
         const storage = createNativeDBAdapter('chat', contextProvider);
 
         try {
@@ -210,11 +213,31 @@ describe('createNativeDBAdapter', () => {
             postMessage: () => undefined,
         };
 
-        const contextProvider = { getContext: () => ({ cid: 'cloud-timeout' }), setContext: () => undefined };
+        const contextProvider = {
+            getContext: () => ({ cid: 'cloud-timeout', uid: 'user-timeout' }),
+            setContext: () => undefined,
+        };
         const storage = createNativeDBAdapter('chat', contextProvider);
         const pending = storage.load('T1');
 
         jest.advanceTimersByTime(5000);
         await expect(pending).rejects.toThrow('Timeout waiting for app message: OnFetchCacheData');
+    });
+
+    it('filters expired records while loading', async () => {
+        const nowSpy = jest.spyOn(Date, 'now');
+        nowSpy.mockReturnValue(1000);
+        const harness = createBridgeHarness();
+        const contextProvider = { getContext: () => ({ cid: 'ttl', uid: 'user-ttl' }), setContext: () => undefined };
+        const storage = createNativeDBAdapter('user', contextProvider);
+
+        try {
+            await storage.save('U1', { id: 'U1', cid: 'ttl', name: 'ttl-user' } as any);
+            nowSpy.mockReturnValue(1000 + 6 * 60 * 1000);
+            expect(await storage.loadAll()).toEqual([]);
+        } finally {
+            harness.cleanup();
+            nowSpy.mockRestore();
+        }
     });
 });

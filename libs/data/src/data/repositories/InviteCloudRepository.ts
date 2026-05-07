@@ -1,4 +1,4 @@
-import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
+import type { CacheCloudView } from '@chatic/app-messages';
 import type { IInviteCloudLocalDataSource } from '../local/data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepository } from './types';
@@ -6,21 +6,25 @@ import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 
-type InviteCloudCache = MyInviteView & { id: string; cid: string; name?: string; backend?: string; wss?: string };
-
 /** InviteCloud Repository의 공개 계약입니다. */
 export interface IInviteCloudRepository {
     /** 초대 cloud 정보를 로컬 저장소에 저장합니다. */
-    saveInvite(id: string, invite: InviteCloudCache): Promise<void>;
+    saveInviteCloud(id: string, invite: Partial<CacheCloudView>): Promise<void>;
 
     /** 단일 초대 cloud 정보를 조회합니다. */
-    getInvite(id: string): Promise<InviteCloudCache | null>;
+    getInviteCloud(id: string): Promise<CacheCloudView | null>;
 
     /** 저장된 모든 초대 cloud 정보를 조회합니다. */
-    getInvites(): Promise<InviteCloudCache[]>;
+    getInviteClouds(): Promise<CacheCloudView[]>;
 
     /** 단일 초대 cloud 정보를 삭제합니다. */
-    deleteInvite(id: string): Promise<void>;
+    deleteInviteCloud(id: string): Promise<void>;
+
+    /** 다중 초대 cloud 정보를 삭제합니다. */
+    deleteInviteClouds(ids: string[]): Promise<void>;
+
+    /** 단일 초대 cloud 정보를 부분 업데이트합니다. */
+    updateInviteCloudPartial(id: string, patch: Partial<CacheCloudView>): Promise<void>;
 
     /** 초대 cloud 로컬 저장소를 비웁니다. */
     clearAll(): Promise<void>;
@@ -37,20 +41,28 @@ export class InviteCloudRepository extends BaseRepository implements IInviteClou
         super(requestManager, contextProvider, domainEventBus);
     }
 
-    public saveInvite(id: string, invite: InviteCloudCache): Promise<void> {
-        return this.inviteCloudLocalDataSource.saveInvite(id, invite);
+    public saveInviteCloud(id: string, invite: Partial<CacheCloudView>): Promise<void> {
+        return this.inviteCloudLocalDataSource.saveInviteCloud(id, invite);
     }
 
-    public getInvite(id: string): Promise<InviteCloudCache | null> {
-        return this.inviteCloudLocalDataSource.getInvite(id);
+    public getInviteCloud(id: string): Promise<CacheCloudView | null> {
+        return this.inviteCloudLocalDataSource.getInviteCloud(id);
     }
 
-    public getInvites(): Promise<InviteCloudCache[]> {
-        return this.inviteCloudLocalDataSource.getInvites();
+    public getInviteClouds(): Promise<CacheCloudView[]> {
+        return this.inviteCloudLocalDataSource.getInviteClouds();
     }
 
-    public deleteInvite(id: string): Promise<void> {
-        return this.inviteCloudLocalDataSource.deleteInvite(id);
+    public deleteInviteCloud(id: string): Promise<void> {
+        return this.inviteCloudLocalDataSource.deleteInviteCloud(id);
+    }
+
+    public deleteInviteClouds(ids: string[]): Promise<void> {
+        return this.inviteCloudLocalDataSource.deleteInviteClouds(ids);
+    }
+
+    public updateInviteCloudPartial(id: string, patch: Partial<CacheCloudView>): Promise<void> {
+        return this.inviteCloudLocalDataSource.updateInviteCloudPartial(id, patch);
     }
 
     public clearAll(): Promise<void> {

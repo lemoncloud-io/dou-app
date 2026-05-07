@@ -28,6 +28,7 @@ jest.mock('../../../database', () => ({
 }));
 
 describe('InviteCloudDataSource Professional Test', () => {
+    const uid = 'u1';
     beforeAll(() => {
         const migrate = mockDb.transaction(() => {
             for (let v = 0; v < TARGET_VERSION; v++) {
@@ -47,7 +48,7 @@ describe('InviteCloudDataSource Professional Test', () => {
     it('Global Access: cid가 달라도 동일한 id라면 데이터를 공유해야 한다', async () => {
         const data = { name: 'Global Cloud' };
 
-        await inviteCloudDataSource.save('cloud_1', data as any, 'cid_A');
+        await inviteCloudDataSource.save('cloud_1', data as any, 'cid_A', uid);
 
         const result = await inviteCloudDataSource.fetch('cloud_1', 'cid_B');
         expect(result).not.toBeNull();
@@ -56,7 +57,7 @@ describe('InviteCloudDataSource Professional Test', () => {
 
     it('Patch Integrity: 저장 시 객체 내부에 id가 정확히 주입되어야 한다', async () => {
         const rawItem = { backend: 'https://api.test.com' };
-        await inviteCloudDataSource.save('invite_id', rawItem as any, 'any');
+        await inviteCloudDataSource.save('invite_id', rawItem as any, 'any', uid);
 
         const fetched = await inviteCloudDataSource.fetch('invite_id', 'any');
         expect(fetched?.id).toBe('invite_id');

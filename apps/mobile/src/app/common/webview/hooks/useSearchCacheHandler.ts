@@ -9,7 +9,11 @@ export const useSearchCacheHandler = (bridge: WebViewBridge) => {
     const handleSearchGlobalCache = useCallback(
         async (message: SearchGlobalCacheData) => {
             try {
-                const items = await cacheSearchService.executeGlobalSearch(message.data.keyword, message.data.cid);
+                const items = await cacheSearchService.executeGlobalSearch(
+                    message.data.keyword,
+                    message.data.cid,
+                    message.data.uid
+                );
 
                 const response: AppMessageData<'OnSearchGlobalCacheData'> = {
                     type: 'OnSearchGlobalCacheData',

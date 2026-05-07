@@ -1,6 +1,7 @@
 export { useDataSync } from './useDataSync';
 export * from './data/events/eventBus';
 export * from './data/events/types';
+export * from './data/domain';
 export * from './data/local/data-sources';
 export * from './data/local/storages';
 export * from './data/remote/clients';

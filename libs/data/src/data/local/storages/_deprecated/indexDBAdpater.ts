@@ -55,6 +55,7 @@ const openDB = (): Promise<IDBDatabase> => {
  */
 export const createIndexedDBAdapter = <TType extends CacheType>(type: TType, cid: string): CacheStorage<TType> => {
     type Model = CacheModelMap[TType];
+    const uid = 'default';
 
     // 저장소 내에서 고유성을 보장하기 위한 복합 키 생성 함수
     const generateKey = (id: string) => `${type}:${cid}:${id}`;
@@ -75,7 +76,7 @@ export const createIndexedDBAdapter = <TType extends CacheType>(type: TType, cid
          */
         async save(id: string, item: Model): Promise<Model> {
             const { store, transaction } = await getStore('readwrite');
-            const data: CacheSchema<Model> = { key: generateKey(id), type, cid, id, data: item };
+            const data: CacheSchema<Model> = { key: generateKey(id), type, cid, uid, id, data: item };
             store.put(data);
             await promisifyTransaction(transaction);
             return item;
@@ -90,7 +91,7 @@ export const createIndexedDBAdapter = <TType extends CacheType>(type: TType, cid
             items.forEach(item => {
                 const itemId = (item as { id?: string }).id;
                 if (!itemId) return;
-                const data: CacheSchema<Model> = { key: generateKey(itemId), type, cid, id: itemId, data: item };
+                const data: CacheSchema<Model> = { key: generateKey(itemId), type, cid, uid, id: itemId, data: item };
                 store.put(data); // 루프 내에서는 개별 Promise를 기다리지 않고 큐에 삽입
             });
 
@@ -113,7 +114,7 @@ export const createIndexedDBAdapter = <TType extends CacheType>(type: TType, cid
             items.forEach(item => {
                 const itemId = (item as { id?: string }).id;
                 if (!itemId) return;
-                const data: CacheSchema<Model> = { key: generateKey(itemId), type, cid, id: itemId, data: item };
+                const data: CacheSchema<Model> = { key: generateKey(itemId), type, cid, uid, id: itemId, data: item };
                 store.put(data);
             });
 

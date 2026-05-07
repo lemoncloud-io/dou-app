@@ -5,15 +5,16 @@ import type { CacheChannelView, CacheChatView, CacheSiteView } from '@chatic/app
 export const cacheSearchService = {
     executeGlobalSearch: async (
         keyword: string,
-        cid?: string
+        cid?: string,
+        uid?: string
     ): Promise<(CacheChannelView | CacheChatView | CacheSiteView)[]> => {
         if (!keyword || keyword.trim() === '') return [];
 
         try {
             const [channels, chats, sites] = await Promise.all([
-                channelDataSource.fetchAll(cid, { keyword }),
-                chatDataSource.fetchAll(cid, { keyword }),
-                siteDataSource.fetchAll(cid, { keyword }),
+                channelDataSource.fetchAll(cid, { keyword }, uid),
+                chatDataSource.fetchAll(cid, { keyword }, uid),
+                siteDataSource.fetchAll(cid, { keyword }, uid),
             ]);
 
             const formattedChannels = channels.map(item => ({ ...item, _domain: 'channel' as const }));

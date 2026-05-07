@@ -1,44 +1,67 @@
-import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
 import { BaseLocalDataSource, type LocalDataSourceContextOverride } from './types';
 import type { DataContextProvider } from '../../repositories';
 import type { CacheStorage, CacheStorageItem } from '../storages';
+import { toDomainChat } from './mappers';
+import type { DomainChat, DomainChatFeedResult } from '../../domain';
+import { toDomainChat as toDomainChatBase } from '../../domain';
 
 export interface IChatLocalDataSource {
     /** 채널 메시지 피드를 로컬 캐시에서 cursor 기반으로 조회합니다. */
     fetchChat(
         payload: ChatFeedPayload,
         contextOverride?: LocalDataSourceContextOverride
-    ): Promise<ChatFeedResult | null>;
+    ): Promise<DomainChatFeedResult | null>;
 
     /** 특정 채널의 모든 메시지를 시간순으로 조회합니다. */
-    getChatsByChannel(channelId: string, contextOverride?: LocalDataSourceContextOverride): Promise<ChatView[]>;
+    getChatsByChannel(channelId: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainChat[]>;
 
     /** 단일 메시지를 저장/병합합니다. */
-    upsertChat(chat: ChatView, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+    upsertChat(chat: Partial<DomainChat>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
 
     /** 다수 메시지를 저장/병합합니다. */
-    upsertChats(chats: ChatView[], contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+    upsertChats(chats: Array<Partial<DomainChat>>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
 
     /** 단일 메시지를 삭제합니다. */
     deleteChat(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+
+    /** 다중 메시지를 삭제합니다. */
+    deleteChats(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+
+    /** 메시지 일부 필드만 병합 업데이트합니다. */
+    updateChatPartial(
+        id: string,
+        patch: Partial<DomainChat>,
+        contextOverride?: LocalDataSourceContextOverride
+    ): Promise<void>;
+
+    /** 현재 스코프의 메시지 캐시를 초기화합니다. */
+    clearAll(contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+
+    /** 채널 메시지의 연속성(누락 구간)을 검사합니다. */
+    checkContinuity(
+        channelId: string,
+        contextOverride?: LocalDataSourceContextOverride
+    ): Promise<{ hasGap: boolean; missingRanges: Array<{ from: number; to: number }> }>;
 }
 
 const DEFAULT_CHAT_LIMIT = 30;
+type ChatCache = CacheStorageItem<'chat'>;
+type ChatSortable = Partial<DomainChat> | ChatCache;
 
-const getChatNo = (chat: ChatView): number | undefined => {
+const getChatNo = (chat: ChatSortable): number | undefined => {
     const chatNo = (chat as { chatNo?: number }).chatNo;
     return typeof chatNo === 'number' ? chatNo : undefined;
 };
 
-const getChatSortTime = (chat: ChatView): number => {
+const getChatSortTime = (chat: ChatSortable): number => {
     const createdAt = (chat as { createdAt?: string | number }).createdAt;
     if (typeof createdAt === 'number') return createdAt;
     if (createdAt) return new Date(createdAt).getTime();
     return 0;
 };
 
-const sortByNewest = (left: ChatView, right: ChatView): number => {
+const sortByNewest = (left: ChatSortable, right: ChatSortable): number => {
     const leftNo = getChatNo(left);
     const rightNo = getChatNo(right);
     if (leftNo !== undefined && rightNo !== undefined) return rightNo - leftNo;
@@ -47,9 +70,7 @@ const sortByNewest = (left: ChatView, right: ChatView): number => {
     return getChatSortTime(right) - getChatSortTime(left);
 };
 
-const sortByOldest = (left: ChatView, right: ChatView): number => -sortByNewest(left, right);
-type ChatCache = CacheStorageItem<'chat'>;
-const toDomainChat = (chat: ChatCache): ChatView => ({ ...chat });
+const sortByOldest = (left: ChatSortable, right: ChatSortable): number => -sortByNewest(left, right);
 
 export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLocalDataSource {
     constructor(
@@ -62,7 +83,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
     fetchChat(
         payload: ChatFeedPayload,
         contextOverride?: LocalDataSourceContextOverride
-    ): Promise<ChatFeedResult | null> {
+    ): Promise<DomainChatFeedResult | null> {
         // channelId 없이 feed를 만들 수 없으므로 null을 반환합니다.
         const channelId = payload.channelId;
         if (!channelId) return Promise.resolve(null);
@@ -75,7 +96,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
                 limit: payload.limit ?? DEFAULT_CHAT_LIMIT,
                 readNo: 0,
                 total: 0,
-            } as ChatFeedResult);
+            } as DomainChatFeedResult);
         }
 
         return this.getChatsByChannel(channelId, contextOverride).then(allMessages => {
@@ -95,7 +116,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
             const page = candidates.slice(0, limit).sort(sortByOldest);
 
             if (page.length === 0) {
-                return { list: [], cursorNo: 0, limit, readNo: 0, total: allMessages.length } as ChatFeedResult;
+                return { list: [], cursorNo: 0, limit, readNo: 0, total: allMessages.length } as DomainChatFeedResult;
             }
 
             const numericChatNos = page.map(getChatNo).filter((chatNo): chatNo is number => chatNo !== undefined);
@@ -111,14 +132,14 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
                 limit,
                 readNo: 0,
                 total: allMessages.length,
-            } as ChatFeedResult;
+            } as DomainChatFeedResult;
         });
     }
 
     public async getChatsByChannel(
         channelId: string,
         _contextOverride?: LocalDataSourceContextOverride
-    ): Promise<ChatView[]> {
+    ): Promise<DomainChat[]> {
         if (!channelId) return [];
         const allMessages = await this.cacheStorage.loadAll();
         return allMessages
@@ -127,25 +148,90 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
             .map(toDomainChat);
     }
 
-    public async upsertChat(chat: ChatView, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+    public async upsertChat(
+        chat: Partial<DomainChat>,
+        contextOverride?: LocalDataSourceContextOverride
+    ): Promise<void> {
         const id = chat.id;
         if (!id) return;
 
-        const cacheItem: ChatCache = {
-            ...chat,
-            cid: this.getCid(contextOverride),
-            isPending: (chat as { isPending?: boolean }).isPending ?? false,
-            isFailed: (chat as { isFailed?: boolean }).isFailed ?? false,
-        };
+        const context = this.getContext(contextOverride);
+        const existing = await this.cacheStorage.load(id);
+        const normalized = toDomainChatBase(
+            {
+                ...(existing ?? {}),
+                ...(chat as Record<string, unknown>),
+                cid: context.cid || this.getCid(contextOverride),
+            } as Partial<DomainChat>,
+            {
+                cid: context.cid || this.getCid(contextOverride),
+                sid: context.sid,
+                uid: context.uid,
+            }
+        );
+
+        const cacheItem: ChatCache = normalized as ChatCache;
         await this.cacheStorage.save(id, cacheItem);
     }
 
-    public async upsertChats(chats: ChatView[], contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+    public async upsertChats(
+        chats: Array<Partial<DomainChat>>,
+        contextOverride?: LocalDataSourceContextOverride
+    ): Promise<void> {
         await Promise.all(chats.map(chat => this.upsertChat(chat, contextOverride)));
     }
 
     public async deleteChat(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         if (!id) return;
         await this.cacheStorage.delete(id);
+    }
+
+    public async deleteChats(ids: string[], _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        const validIds = ids.filter(Boolean);
+        if (validIds.length === 0) return;
+        await this.cacheStorage.deleteAll(validIds);
+    }
+
+    public async updateChatPartial(
+        id: string,
+        patch: Partial<DomainChat>,
+        contextOverride?: LocalDataSourceContextOverride
+    ): Promise<void> {
+        if (!id) return;
+        const existing = await this.cacheStorage.load(id);
+        if (!existing) return;
+        await this.upsertChat({ ...existing, ...patch }, contextOverride);
+    }
+
+    public async clearAll(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        await this.cacheStorage.clearAll();
+    }
+
+    public async checkContinuity(
+        channelId: string,
+        contextOverride?: LocalDataSourceContextOverride
+    ): Promise<{ hasGap: boolean; missingRanges: Array<{ from: number; to: number }> }> {
+        const messages = await this.getChatsByChannel(channelId, contextOverride);
+        const chatNos = messages
+            .map(getChatNo)
+            .filter((chatNo): chatNo is number => chatNo !== undefined)
+            .sort((a, b) => a - b);
+
+        if (chatNos.length < 2) {
+            return { hasGap: false, missingRanges: [] };
+        }
+
+        const missingRanges: Array<{ from: number; to: number }> = [];
+        for (let index = 1; index < chatNos.length; index += 1) {
+            const previous = chatNos[index - 1];
+            const current = chatNos[index];
+            if (current - previous <= 1) continue;
+            missingRanges.push({ from: previous + 1, to: current - 1 });
+        }
+
+        return {
+            hasGap: missingRanges.length > 0,
+            missingRanges,
+        };
     }
 }
