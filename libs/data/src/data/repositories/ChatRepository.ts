@@ -2,7 +2,12 @@ import type { ChatFeedPayload, ChatSendPayload } from '@lemoncloud/chatic-socket
 import type { IChatLocalDataSource } from '../local/data-sources';
 import type { IChatRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import type { DataContextProvider, RepositoryRequestOptions } from './types';
+import type {
+    DataContextProvider,
+    ILocalCacheMutationRepository,
+    LocalCacheBulkPatch,
+    RepositoryRequestOptions,
+} from './types';
 import { BaseRepository } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
@@ -11,7 +16,7 @@ import { toDomainChat } from '../domain';
 import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
 
 /** 채팅 메시지 도메인의 Repository 공개 계약입니다. */
-export interface IChatRepository {
+export interface IChatRepository extends ILocalCacheMutationRepository<DomainChat> {
     /** 서버의 chat:send 요청을 수행합니다. */
     sendChat(payload: ChatSendPayload, options?: RepositoryRequestOptions): Promise<DomainChat>;
 
@@ -145,6 +150,37 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
     /** 로컬 단일 메시지 스냅샷을 지속 구독합니다. */
     public subscribeChat(id: string, callback: (chat: DomainChat | null) => void): () => void {
         return this.chatLocalDataSource.subscribeChat(id, callback, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에 메시지를 생성/병합합니다. (remote 호출 없음) */
+    public cacheCreate(item: Partial<DomainChat>): Promise<void> {
+        return this.chatLocalDataSource.upsertChat(item, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시의 메시지 일부 필드를 갱신합니다. (remote 호출 없음) */
+    public cacheUpdate(id: string, patch: Partial<DomainChat>): Promise<void> {
+        return this.chatLocalDataSource.updateChatPartial(id, patch, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에서 메시지를 삭제합니다. (remote 호출 없음) */
+    public cacheDelete(id: string): Promise<void> {
+        return this.chatLocalDataSource.deleteChat(id, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에 메시지를 일괄 생성/병합합니다. (remote 호출 없음) */
+    public cacheBulkCreate(items: Array<Partial<DomainChat>>): Promise<void> {
+        return this.chatLocalDataSource.upsertChats(items, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시의 메시지 일부 필드를 일괄 갱신합니다. (remote 호출 없음) */
+    public async cacheBulkUpdate(items: Array<LocalCacheBulkPatch<DomainChat>>): Promise<void> {
+        await Promise.all(
+            items
+                .filter(item => !!item.id)
+                .map(item =>
+                    this.chatLocalDataSource.updateChatPartial(item.id, item.patch, this.getRepositoryContext())
+                )
+        );
     }
 
     private async fetchFromRemoteAndCache(

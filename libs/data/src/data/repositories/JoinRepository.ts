@@ -1,7 +1,7 @@
 import type { ChatReadPayload, ChatUpdateJoinPayload } from '@lemoncloud/chatic-sockets-api';
 import type { IJoinLocalDataSource } from '../local/data-sources';
 import type { IJoinRemoteDataSource } from '../remote/data-sources';
-import type { DataContextProvider } from './types';
+import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { DomainEventMap } from '../events/domain';
@@ -16,7 +16,7 @@ import {
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
 
 /** 채널 참여 상태(join) 도메인의 Repository 공개 계약입니다. */
-export interface IJoinRepository {
+export interface IJoinRepository extends ILocalCacheMutationRepository<DomainJoin> {
     /** 채널의 참여자(Join) 목록을 조회합니다. */
     fetchJoins(
         payload: DomainJoinListPayload,
@@ -147,6 +147,37 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
     /** 로컬 단일 참여 정보 스냅샷을 지속 구독합니다. */
     public subscribeJoin(id: string, callback: (join: DomainJoin | null) => void): () => void {
         return this.joinLocalDataSource.subscribeJoin(id, callback, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에 참여 정보를 생성/병합합니다. (remote 호출 없음) */
+    public cacheCreate(item: Partial<DomainJoin>): Promise<void> {
+        return this.joinLocalDataSource.upsertJoin(item, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시의 참여 정보 일부 필드를 갱신합니다. (remote 호출 없음) */
+    public cacheUpdate(id: string, patch: Partial<DomainJoin>): Promise<void> {
+        return this.joinLocalDataSource.updateJoinPartial(id, patch, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에서 참여 정보를 삭제합니다. (remote 호출 없음) */
+    public cacheDelete(id: string): Promise<void> {
+        return this.joinLocalDataSource.deleteJoin(id, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에 참여 정보를 일괄 생성/병합합니다. (remote 호출 없음) */
+    public cacheBulkCreate(items: Array<Partial<DomainJoin>>): Promise<void> {
+        return this.joinLocalDataSource.upsertJoins(items, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시의 참여 정보 일부 필드를 일괄 갱신합니다. (remote 호출 없음) */
+    public async cacheBulkUpdate(items: Array<LocalCacheBulkPatch<DomainJoin>>): Promise<void> {
+        await Promise.all(
+            items
+                .filter(item => !!item.id)
+                .map(item =>
+                    this.joinLocalDataSource.updateJoinPartial(item.id, item.patch, this.getRepositoryContext())
+                )
+        );
     }
 
     private initializeInternalListeners(): void {

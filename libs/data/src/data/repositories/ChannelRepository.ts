@@ -11,13 +11,13 @@ import type { IChannelLocalDataSource } from '../local/data-sources';
 import type { DomainEventMap, ListResult } from '../events/types';
 import type { IChannelRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import type { DataContextProvider } from './types';
+import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import { createDomainListResult, type DomainChannel, type DomainListResult, toDomainChannel } from '../domain';
 
 /** 채널 도메인의 Repository 공개 계약입니다. */
-export interface IChannelRepository {
+export interface IChannelRepository extends ILocalCacheMutationRepository<DomainChannel> {
     /** 내가 참여 중인 채널 목록을 조회합니다. */
     fetchChannel(
         payload: ChatMinePayload,
@@ -201,6 +201,37 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
     /** 로컬 단일 채널 스냅샷을 지속 구독합니다. */
     public subscribeChannel(id: string, callback: (channel: DomainChannel | null) => void): () => void {
         return this.channelLocalDataSource.subscribeChannel(id, callback, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에 채널을 생성/병합합니다. (remote 호출 없음) */
+    public cacheCreate(item: Partial<DomainChannel>): Promise<void> {
+        return this.channelLocalDataSource.upsertChannel(item, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시의 채널 일부 필드를 갱신합니다. (remote 호출 없음) */
+    public cacheUpdate(id: string, patch: Partial<DomainChannel>): Promise<void> {
+        return this.channelLocalDataSource.updateChannelPartial(id, patch, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에서 채널을 삭제합니다. (remote 호출 없음) */
+    public cacheDelete(id: string): Promise<void> {
+        return this.channelLocalDataSource.deleteChannel(id, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에 채널을 일괄 생성/병합합니다. (remote 호출 없음) */
+    public cacheBulkCreate(items: Array<Partial<DomainChannel>>): Promise<void> {
+        return this.channelLocalDataSource.upsertChannels(items, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시의 채널 일부 필드를 일괄 갱신합니다. (remote 호출 없음) */
+    public async cacheBulkUpdate(items: Array<LocalCacheBulkPatch<DomainChannel>>): Promise<void> {
+        await Promise.all(
+            items
+                .filter(item => !!item.id)
+                .map(item =>
+                    this.channelLocalDataSource.updateChannelPartial(item.id, item.patch, this.getRepositoryContext())
+                )
+        );
     }
 
     private async fetchFromRemoteAndCache(

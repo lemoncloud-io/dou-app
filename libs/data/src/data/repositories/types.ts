@@ -23,6 +23,24 @@ export interface RepositoryRequestOptions {
 
 export type RepositoryCachePolicy = 'cache-first' | 'network-only' | 'cache-only' | 'cache-and-network';
 
+/** 로컬 캐시 전용 bulk update 입력 타입입니다. */
+export interface LocalCacheBulkPatch<TModel> {
+    id: string;
+    patch: Partial<TModel>;
+}
+
+/**
+ * Repository 공통 로컬 캐시 조작 계약입니다.
+ * 이 인터페이스의 메서드는 원격 요청 없이 LocalDataSource를 통해 캐시만 갱신합니다.
+ */
+export interface ILocalCacheMutationRepository<TModel> {
+    cacheCreate(item: Partial<TModel>): Promise<void>;
+    cacheUpdate(id: string, patch: Partial<TModel>): Promise<void>;
+    cacheDelete(id: string): Promise<void>;
+    cacheBulkCreate(items: Array<Partial<TModel>>): Promise<void>;
+    cacheBulkUpdate(items: Array<LocalCacheBulkPatch<TModel>>): Promise<void>;
+}
+
 /**
  * Repository 계층 전체가 공유하는 실행 문맥입니다.
  * cid는 현재 연결된 cloud, sid는 선택된 place, uid는 현재 사용자를 의미합니다.

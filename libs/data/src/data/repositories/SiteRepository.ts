@@ -4,13 +4,13 @@ import type { ISiteLocalDataSource } from '../local/data-sources';
 import type { DomainEventMap, ListResult } from '../events/types';
 import type { ISiteRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import type { DataContextProvider } from './types';
+import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import { createDomainListResult, type DomainListResult, type DomainSite, toDomainSite } from '../domain';
 
 /** 사이트/플레이스 도메인의 Repository 공개 계약입니다. */
-export interface ISiteRepository {
+export interface ISiteRepository extends ILocalCacheMutationRepository<DomainSite> {
     /** 사용자의 site 목록을 조회합니다. */
     fetchSite(payload?: WSSPayload, options?: RepositoryRequestOptions): Promise<DomainListResult<DomainSite>>;
 
@@ -119,6 +119,37 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
     /** 로컬 단일 사이트 스냅샷을 지속 구독합니다. */
     public subscribeSite(id: string, callback: (site: DomainSite | null) => void): () => void {
         return this.siteLocalDataSource.subscribeSite(id, callback, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에 사이트를 생성/병합합니다. (remote 호출 없음) */
+    public cacheCreate(item: Partial<DomainSite>): Promise<void> {
+        return this.siteLocalDataSource.upsertSite(item, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시의 사이트 일부 필드를 갱신합니다. (remote 호출 없음) */
+    public cacheUpdate(id: string, patch: Partial<DomainSite>): Promise<void> {
+        return this.siteLocalDataSource.updateSitePartial(id, patch, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에서 사이트를 삭제합니다. (remote 호출 없음) */
+    public cacheDelete(id: string): Promise<void> {
+        return this.siteLocalDataSource.deleteSite(id, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에 사이트를 일괄 생성/병합합니다. (remote 호출 없음) */
+    public cacheBulkCreate(items: Array<Partial<DomainSite>>): Promise<void> {
+        return this.siteLocalDataSource.upsertSites(items, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시의 사이트 일부 필드를 일괄 갱신합니다. (remote 호출 없음) */
+    public async cacheBulkUpdate(items: Array<LocalCacheBulkPatch<DomainSite>>): Promise<void> {
+        await Promise.all(
+            items
+                .filter(item => !!item.id)
+                .map(item =>
+                    this.siteLocalDataSource.updateSitePartial(item.id, item.patch, this.getRepositoryContext())
+                )
+        );
     }
 
     private async fetchFromRemoteAndCache(
