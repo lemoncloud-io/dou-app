@@ -13,26 +13,35 @@ export interface IUserLocalDataSource {
         payload: ChatUsersPayload,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<ListResult<DomainUser> | null>;
+
     /** 단일 사용자를 id로 조회합니다. */
     getUser(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser | null>;
+
     /** 다수 사용자 id로 사용자 목록을 조회합니다. */
     getUsers(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser[]>;
+
     /** 채널 기준으로 사용자 목록을 조회합니다. */
     getUsersByChannel(channelId: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser[]>;
+
     /** 단일 사용자 정보를 저장/병합합니다. */
     upsertUser(user: Partial<DomainUser>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+
     /** 다수 사용자 정보를 저장/병합합니다. */
     upsertUsers(users: Array<Partial<DomainUser>>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+
     /** 단일 사용자 정보를 삭제합니다. */
     deleteUser(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+
     /** 다중 사용자 정보를 삭제합니다. */
     deleteUsers(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+
     /** 단일 사용자 일부 필드만 병합 업데이트합니다. */
     updateUserPartial(
         id: string,
         patch: Partial<DomainUser>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void>;
+
     /** 현재 스코프 사용자 캐시를 초기화합니다. */
     clearAll(contextOverride?: LocalDataSourceContextOverride): Promise<void>;
 }
@@ -50,22 +59,18 @@ export class UserLocalDataSource extends BaseLocalDataSource implements IUserLoc
         payload: ChatUsersPayload,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<ListResult<DomainUser> | null> {
-        // channelId 우선, 없으면 userIds, 둘 다 없으면 전체 캐시를 조회합니다.
         const channelId = payload.channelId;
-        const userIds = this.getPayloadUserIds(payload);
         const users = channelId
             ? await this.getUsersByChannel(channelId, contextOverride)
-            : userIds.length > 0
-              ? await this.getUsers(userIds, contextOverride)
-              : (await this.cacheStorage.loadAll()).map(toDomainUser);
+            : (await this.cacheStorage.loadAll()).map(toDomainUser);
 
         if (users.length === 0) return null;
 
         return {
             list: users,
             total: users.length,
-            limit: (payload as { limit?: number }).limit,
-            page: (payload as { page?: number }).page,
+            page: payload.page,
+            limit: payload.limit,
         };
     }
 
@@ -150,10 +155,5 @@ export class UserLocalDataSource extends BaseLocalDataSource implements IUserLoc
 
     public async clearAll(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         await this.cacheStorage.clearAll();
-    }
-
-    private getPayloadUserIds(payload: ChatUsersPayload): string[] {
-        const maybePayload = payload as { userIds?: string[]; ids?: string[] };
-        return maybePayload.userIds ?? maybePayload.ids ?? [];
     }
 }

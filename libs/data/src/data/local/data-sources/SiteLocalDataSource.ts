@@ -54,13 +54,14 @@ export class SiteLocalDataSource extends BaseLocalDataSource implements ISiteLoc
         _payload?: WSSPayload,
         _contextOverride?: LocalDataSourceContextOverride
     ): Promise<ListResult<DomainSite> | null> {
-        // 서버 반환 정렬과 유사하게 order/name 기준 정렬로 결과를 고정합니다.
         const sites = await this.cacheStorage.loadAll();
         if (sites.length === 0) return null;
 
-        const sorted = [...sites].sort((left, right) => getSiteSortValue(left).localeCompare(getSiteSortValue(right)));
+        const domainSites = sites.map(toDomainSite);
+        const sorted = domainSites.sort((left, right) => getSiteSortValue(left).localeCompare(getSiteSortValue(right)));
+
         return {
-            list: sorted.map(toDomainSite),
+            list: sorted,
             total: sorted.length,
         };
     }
@@ -94,7 +95,35 @@ export class SiteLocalDataSource extends BaseLocalDataSource implements ISiteLoc
         sites: Array<Partial<DomainSite>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
-        await Promise.all(sites.map(site => this.upsertSite(site, contextOverride)));
+        if (sites.length === 0) return;
+
+        const context = this.getContext(contextOverride);
+        const cid = context.cid || this.getCid(contextOverride);
+        const baseScope = { cid, sid: context.sid, uid: context.uid };
+
+        // 기존 데이터 일괄 로드 (병합용)
+        const existingItems = await Promise.all(sites.map(site => (site.id ? this.cacheStorage.load(site.id) : null)));
+
+        //  메모리에서 정규화 및 병합
+        const cacheItemsToSave: SiteCache[] = [];
+        sites.forEach((site, index) => {
+            if (!site.id) return;
+            const existing = existingItems[index];
+            const normalized = toDomainSiteBase(
+                {
+                    ...(existing ?? {}),
+                    ...(site as Record<string, unknown>),
+                    cid,
+                } as Partial<DomainSite>,
+                baseScope
+            );
+            cacheItemsToSave.push(normalized as SiteCache);
+        });
+
+        // 브릿지 통신을 1회로 단축하여 일괄 저장
+        if (cacheItemsToSave.length > 0) {
+            await this.cacheStorage.saveAll(cacheItemsToSave);
+        }
     }
 
     public async replaceSites(

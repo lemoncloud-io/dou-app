@@ -24,6 +24,9 @@ export interface IUserRepository {
     /** 외부 사용자 초대 코드를 생성합니다. */
     requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView>;
 
+    /** 현재 스코프의 user 로컬 캐시를 초기화합니다. */
+    clearAll(): Promise<void>;
+
     /** 서버로부터 신규 사용자 생성(user:create) 이벤트를 수신하는 리스너를 등록합니다. */
     onUserCreated(callback: (user: DomainUser) => void): () => void;
 
@@ -60,6 +63,7 @@ export class UserRepository extends BaseRepository implements IUserRepository {
             backgroundLabel: 'user',
             fetchLocal: () => this.userLocalDataSource.fetchUsers(payload, this.getRepositoryContext()),
             fetchRemote: remoteOptions => this.fetchFromRemoteAndCache(payload, remoteOptions),
+            isLocalValid: local => (local.list || []).length > 0,
             fallback: () => ({
                 list: [],
                 limit: (payload as { limit?: number }).limit,
@@ -86,6 +90,11 @@ export class UserRepository extends BaseRepository implements IUserRepository {
     /** user:invite 요청을 수행하고 정규화된 초대 결과를 기다립니다. (== 유저 생성) */
     public requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView> {
         return this.requestRemote(ref => this.userRemoteDataSource.requestInvite(payload, ref), options);
+    }
+
+    /** 현재 스코프의 user 로컬 캐시를 초기화합니다. */
+    public clearAll(): Promise<void> {
+        return this.userLocalDataSource.clearAll(this.getRepositoryContext());
     }
 
     /** 서버로부터 신규 사용자 생성(user:create) 이벤트를 수신하는 리스너를 등록합니다. */

@@ -32,6 +32,7 @@ export interface IChannelLocalDataSource {
         patch: Partial<DomainChannel>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void>;
+
     /** 현재 스코프의 채널 캐시를 모두 비웁니다. */
     clearAll(contextOverride?: LocalDataSourceContextOverride): Promise<void>;
 }

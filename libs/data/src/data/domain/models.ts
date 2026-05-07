@@ -36,6 +36,12 @@ export interface DomainJoin extends JoinView {
     readNo: number;
 }
 
+/** join 목록 조회 시 Repository에서 사용하는 local 전용 payload입니다. */
+export interface DomainJoinListPayload {
+    channelId?: string;
+    activeOnly?: boolean;
+}
+
 export interface DomainUser extends UserView {
     id: string;
     cid: string;

@@ -125,4 +125,31 @@ describe('ChatRepository cache policy', () => {
             total: 0,
         });
     });
+
+    it('delegates clearAll to local data source with repository context', async () => {
+        const { repository, local } = createRepository({ localResult: null });
+
+        await repository.clearAll();
+
+        expect(local.clearAll).toHaveBeenCalledWith({ cid: 'cloud-a', uid: 'user-a' });
+    });
+
+    it('treats cursorNo=0 empty local result as valid cache', async () => {
+        const localResult = {
+            list: [],
+            cursorNo: 0,
+            limit: 30,
+            readNo: 0,
+            total: 0,
+        } as ChatFeedResult;
+        const { repository, remote } = createRepository({ localResult, hasGap: false });
+
+        const result = await repository.fetchChat({ channelId: 'ch-1', limit: 30, cursorNo: 0 } as any, {
+            cachePolicy: 'cache-first',
+        });
+
+        expect(result).toEqual(localResult);
+        await Promise.resolve();
+        expect(remote.fetchChat).toHaveBeenCalledTimes(1);
+    });
 });

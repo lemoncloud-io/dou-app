@@ -18,6 +18,9 @@ export interface IChatRepository {
     /** 서버의 chat:feed 요청을 수행하여 채널의 메시지 피드를 조회합니다. */
     fetchChat(payload: ChatFeedPayload, options?: RepositoryRequestOptions): Promise<DomainChatFeedResult>;
 
+    /** 현재 스코프의 chat 로컬 캐시를 초기화합니다. */
+    clearAll(): Promise<void>;
+
     /** 새로운 채팅 메시지(chat:create) 수신 이벤트를 구독합니다.
      * @param callback 수신된 채팅 데이터를 처리할 콜백 함수
      * @returns 구독 해제(unsubscribe) 함수
@@ -77,6 +80,11 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
                 return continuity.hasGap ? null : local;
             },
             fetchRemote: remoteOptions => this.fetchFromRemoteAndCache(payload, remoteOptions),
+            isLocalValid: local => {
+                // cursorNo=0은 "더 가져올 원격 데이터 없음" 상태이므로 빈 목록도 유효 캐시로 취급합니다.
+                if ((payload as { cursorNo?: number }).cursorNo === 0) return true;
+                return (local.list || []).length > 0;
+            },
             fallback: () =>
                 ({
                     list: [],
@@ -86,6 +94,11 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
                     total: 0,
                 }) as DomainChatFeedResult,
         });
+    }
+
+    /** 현재 스코프의 chat 로컬 캐시를 초기화합니다. */
+    public clearAll(): Promise<void> {
+        return this.chatLocalDataSource.clearAll(this.getRepositoryContext());
     }
 
     /**

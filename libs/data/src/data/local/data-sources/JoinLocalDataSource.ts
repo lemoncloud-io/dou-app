@@ -50,7 +50,7 @@ export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLoc
     ): Promise<DomainJoin[]> {
         if (!channelId) return [];
         const joins = await this.cacheStorage.loadAll();
-        return joins.filter(join => join.channelId === channelId).map(toDomainJoin);
+        return joins.map(toDomainJoin).filter(join => join.channelId === channelId);
     }
 
     public async getActiveJoinsByChannel(
@@ -91,7 +91,36 @@ export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLoc
         joins: Array<Partial<DomainJoin>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
-        await Promise.all(joins.map(join => this.upsertJoin(join, contextOverride)));
+        if (joins.length === 0) return;
+
+        // 다중 데이터 저장 시 브릿지 통신(saveAll) 최적화
+        // 개별 upsertJoin 호출로 인한 다수의 브릿지 횡단을 방지하고 메모리에서 병합 후 일괄 처리합니다.
+        const context = this.getContext(contextOverride);
+        const cid = context.cid || this.getCid(contextOverride);
+        const baseScope = { cid, sid: context.sid, uid: context.uid };
+
+        //  병합을 위해 기존 캐시 데이터 일괄 로드
+        const existingItems = await Promise.all(joins.map(join => (join.id ? this.cacheStorage.load(join.id) : null)));
+
+        // 메모리 상에서 정규화 및 병합 수행
+        const cacheItemsToSave: CacheStorageItem<'join'>[] = [];
+        joins.forEach((join, index) => {
+            if (!join.id) return;
+            const existing = existingItems[index];
+            const normalized = toDomainJoinBase(
+                {
+                    ...(existing ?? {}),
+                    ...(join as Record<string, unknown>),
+                    cid,
+                } as Partial<DomainJoin>,
+                baseScope
+            );
+            cacheItemsToSave.push(normalized as CacheStorageItem<'join'>);
+        });
+
+        if (cacheItemsToSave.length > 0) {
+            await this.cacheStorage.saveAll(cacheItemsToSave);
+        }
     }
 
     public async deleteJoin(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
@@ -113,7 +142,8 @@ export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLoc
         if (!id) return;
         const existing = await this.cacheStorage.load(id);
         if (!existing) return;
-        await this.upsertJoin({ ...existing, ...patch }, contextOverride);
+
+        await this.upsertJoin({ ...(existing as unknown as DomainJoin), ...patch }, contextOverride);
     }
 
     public async clearAll(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {

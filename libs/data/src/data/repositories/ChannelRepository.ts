@@ -32,6 +32,9 @@ export interface IChannelRepository {
     /** 기존 채널에 사용자를 초대합니다. */
     inviteChannel(payload: ChatInvitePayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
 
+    /** 현재 스코프의 channel 로컬 캐시를 초기화합니다. */
+    clearAll(): Promise<void>;
+
     /** 서버로부터 채널 정보 변경(channel:update) 이벤트를 수신하는 리스너를 등록합니다. */
     onChannelUpdated(callback: (channel: DomainChannel) => void): () => void;
 
@@ -77,6 +80,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
             backgroundLabel: 'channel',
             fetchLocal: () => this.channelLocalDataSource.fetchChannel(payload, this.getRepositoryContext()),
             fetchRemote: remoteOptions => this.fetchFromRemoteAndCache(payload, remoteOptions),
+            isLocalValid: local => (local.list || []).length > 0,
             fallback: () => ({
                 list: [],
                 limit: (payload as { limit?: number }).limit,
@@ -165,6 +169,11 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
     ): NonNullable<RepositoryRequestOptions['cachePolicy']> {
         if (options?.cachePolicy) return options.cachePolicy;
         return 'cache-and-network';
+    }
+
+    /** 현재 스코프의 channel 로컬 캐시를 초기화합니다. */
+    public clearAll(): Promise<void> {
+        return this.channelLocalDataSource.clearAll(this.getRepositoryContext());
     }
 
     /** 서버로부터 채널 정보 변경(channel:update) 이벤트를 수신하는 리스너를 등록합니다. */

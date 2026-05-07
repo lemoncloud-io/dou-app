@@ -22,6 +22,9 @@ export interface ISiteRepository {
     /** 기존 site 정보를 수정합니다. */
     updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite>;
 
+    /** 현재 스코프의 site 로컬 캐시를 초기화합니다. */
+    clearAll(): Promise<void>;
+
     /** 서버로부터 신규 사이트 생성(site:create) 이벤트를 수신하는 리스너를 등록합니다. */
     onSiteCreated(callback: (site: DomainSite) => void): () => void;
 
@@ -61,6 +64,7 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
             backgroundLabel: 'site',
             fetchLocal: () => this.siteLocalDataSource.fetchSite(payload, this.getRepositoryContext()),
             fetchRemote: remoteOptions => this.fetchFromRemoteAndCache(payload, remoteOptions),
+            isLocalValid: local => (local.list || []).length > 0,
             fallback: () => ({ list: [], total: 0 }),
         });
     }
@@ -85,6 +89,11 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         const domainSite = toDomainSite(site, this.getDomainScope());
         await this.siteLocalDataSource.upsertSite(domainSite, this.getRepositoryContext());
         return domainSite;
+    }
+
+    /** 현재 스코프의 site 로컬 캐시를 초기화합니다. */
+    public clearAll(): Promise<void> {
+        return this.siteLocalDataSource.clearAll(this.getRepositoryContext());
     }
 
     /** 서버로부터 신규 사이트 생성(site:create) 이벤트를 수신하는 리스너를 등록합니다. */
