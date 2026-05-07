@@ -1,40 +1,43 @@
 import { createContext, useContext, useMemo } from 'react';
 
-import type { IEventBus, ISocketDispatcher } from '@chatic/data';
-import { EventBusEngine, type DomainEventMap, type SocketEventMap, SocketDispatcher } from '@chatic/data';
+import type { DataContext, DataRepositories, IEventBus, ISocketRequestManager } from '@chatic/data';
+import { type DomainEventMap, EventBusEngine, type SocketEventMap, SocketRequestManager } from '@chatic/data';
 
-import { useRepositoryContextHolder, useRepositoryFactory } from './repositoryFactory';
-import { useSocketFactory } from './socketFactory';
-import type { DataProviderProps, DataProviderValue, DataRepositories } from './types';
+import { useRepositoryFactory } from './repositoryFactory';
+import type { DataProviderProps, DataProviderValue } from './types';
+import { useDataContextHolder } from './contextHolder';
+import { useRemoteDataSourcesFactory } from './remoteFactory';
+import { useLocalDataSourcesFactory } from './localFactory';
 
 const DataProviderContext = createContext<DataProviderValue | null>(null);
 
 export const DataProvider = ({ children, context: injectedContext }: DataProviderProps) => {
-    // socketEventBus: WebSocket 수신 메시지 -> RemoteDataSource
-    // domainEventBus: RemoteDataSource 정제 이벤트 -> Repository & RequestManager
     const socketEventBus: IEventBus<SocketEventMap> = useMemo(() => new EventBusEngine<SocketEventMap>(), []);
     const domainEventBus: IEventBus<DomainEventMap> = useMemo(() => new EventBusEngine<DomainEventMap>(), []);
 
-    const socketDispatcher: ISocketDispatcher = useMemo(() => new SocketDispatcher(socketEventBus), [socketEventBus]);
-    const { wssClient } = useSocketFactory(socketDispatcher);
+    const requestManager: ISocketRequestManager = useMemo(
+        () => new SocketRequestManager(domainEventBus),
+        [domainEventBus]
+    );
 
-    // 컨텍스트 홀더 초기화 (사용자/클라우드 세션 정보)
-    const repositoryContext = useRepositoryContextHolder(injectedContext);
+    const { contextHolder } = useDataContextHolder(injectedContext);
+    const { remoteDataSources } = useRemoteDataSourcesFactory({ socketEventBus, domainEventBus });
+    const { localDataSources } = useLocalDataSourcesFactory({ contextProvider: contextHolder });
 
-    // 레포지토리 팩토리 초기화
     const { repositories } = useRepositoryFactory({
-        context: repositoryContext,
+        remoteDataSources,
+        localDataSources,
+        contextProvider: contextHolder,
         domainEventBus,
-        socketEventBus,
-        wssClient,
+        requestManager,
     });
 
     const value = useMemo<DataProviderValue>(
         () => ({
             repositories,
-            setRepositoryContext: nextContext => repositoryContext.setContext(nextContext),
+            setDataContext: (nextContext: DataContext) => contextHolder.setContext(nextContext),
         }),
-        [repositoryContext, repositories]
+        [contextHolder, repositories]
     );
 
     return <DataProviderContext.Provider value={value}>{children}</DataProviderContext.Provider>;

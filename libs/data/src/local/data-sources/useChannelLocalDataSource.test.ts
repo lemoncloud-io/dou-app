@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { useChannelLocalDataSource } from './useChannelLocalDataSource';
-import { createStorageAdapter } from '../../data/local/storages';
+import { createStorageAdapter } from '../../data/local/storages/_deprecated';
 
 jest.mock('../../data/local/storages', () => ({
     createStorageAdapter: jest.fn(),
