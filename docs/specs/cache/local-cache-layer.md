@@ -212,3 +212,20 @@ TTL을 도입하려면 scope별 cache metadata가 필요하므로 후속 작업�
 - 스토리지 진입 인터페이스는 `CacheStorage`이며, 위에서 언급한 `factory`는 주입 결정정책만 판단한다.
 - CacheStorage의 scope을 결정할 `Context`는 `RepositoryContext`로 부터 `LocalDataSource`로 이어지며, 주입받는다.
 - `RepositoryOptions`에 캐싱 네트워크 동시사용, 오직 네트워크만 사용, 무조건 캐싱 사용과 같은 여러 정책들을 파라미터로 제공한다.
+
+## 10. 후속 작업 TODO (Next)
+
+아래 항목은 현 단계에서 완료 조건으로 보지 않고, 후속 작업으로 분리한다.
+
+- `LocalDataSource` 개선
+    - 도메인별 반환 모델을 순수 도메인 타입으로 고정하고 캐시 모델(`Cache*`)과의 변환 경계를 명확히 유지
+    - 스토리지 로딩 데이터에 대한 정규화/검증 로직 보강 (`type`, `stereo` 등 폭넓은 캐시 타입 필드 정제)
+    - read payload별 서버 스펙 정합성 검증 로직 강화 (cursor/page/정렬 semantics)
+- `Repository` 개선
+    - 도메인 이벤트 기반 캐시 사이드이펙트 표준화(도메인별 공통 패턴 정리)
+    - read/write 캐시 정책(`cache-and-network`, `network-only`, `cache-only`) 도메인별 예외 규칙 문서화 및 정교화
+    - context 변경(`cid/sid/uid`) 시점과 Repository 내부 참조 일관성 검증 항목 보강
+- 도메인 모델 및 매퍼 구현
+    - `CacheModel -> DomainModel`, `DomainModel -> CacheModel` 매퍼를 도메인별로 명시적으로 분리
+    - Repository/LocalDataSource에서 직접 캐스팅(`as`) 의존을 줄이고 매퍼 경유를 기본 규칙으로 적용
+    - 매퍼 단위 테스트 및 경계값(누락 필드/확장 enum 값) 검증 케이스 확장
