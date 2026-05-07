@@ -7,16 +7,19 @@ import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManag
 import type { DataContextProvider } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
+import type { DomainListResult, DomainSite } from '../domain';
+import { toDomainSite } from '../domain';
 
 /** 사이트/플레이스 도메인의 Repository 공개 계약입니다. */
 export interface ISiteRepository {
     /** 사용자의 site 목록을 조회합니다. */
-    fetchSite(payload?: WSSPayload, options?: RepositoryRequestOptions): Promise<ListResult<SiteView>>;
+    fetchSite(payload?: WSSPayload, options?: RepositoryRequestOptions): Promise<DomainListResult<DomainSite>>;
 
     /** 새 site를 생성합니다. */
-    createSite(payload: UserMakeSitePayload, options?: RepositoryRequestOptions): Promise<SiteView>;
+    createSite(payload: UserMakeSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite>;
 
     /** 기존 site 정보를 수정합니다. */
+    updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite>;
     updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<SiteView>;
 
     /** 서버로부터 site 생성(site:create) 이벤트를 수신하는 리스너를 등록합니다. */
@@ -42,58 +45,52 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
     }
 
     /** user:my-site 요청을 수행하고 응답을 기다립니다. */
-    public async fetchSite(payload?: WSSPayload, options?: RepositoryRequestOptions): Promise<ListResult<SiteView>> {
-        const policy = this.resolveCachePolicy(options);
-        if (policy === 'network-only') {
-            return this.fetchFromRemoteAndCache(payload, options);
-        }
-
-        const local = await this.siteLocalDataSource.fetchSite(payload, this.getRepositoryContext());
-        if (policy === 'cache-only') {
-            return local ?? { list: [], total: 0 };
-        }
-
-        if (local) {
-            this.runInBackground(
-                () => this.fetchFromRemoteAndCache(payload, { ...options, cachePolicy: 'network-only' }),
-                'site:cache-and-network-refresh'
-            );
-            return local;
-        }
-
-        return this.fetchFromRemoteAndCache(payload, options);
+    public async fetchSite(
+        payload?: WSSPayload,
+        options?: RepositoryRequestOptions
+    ): Promise<DomainListResult<DomainSite>> {
+        return this.fetchWithCachePolicy<DomainListResult<DomainSite>>({
+            options,
+            backgroundLabel: 'site',
+            fetchLocal: () => this.siteLocalDataSource.fetchSite(payload, this.getRepositoryContext()),
+            fetchRemote: remoteOptions => this.fetchFromRemoteAndCache(payload, remoteOptions),
+            fallback: () => ({ list: [], total: 0 }),
+        });
     }
 
     /** user:make-site 요청을 수행하고 응답을 기다립니다. */
-    public async createSite(payload: UserMakeSitePayload, options?: RepositoryRequestOptions): Promise<SiteView> {
-        const site = await this.requestRemote<SiteView>(
+    public async createSite(payload: UserMakeSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite> {
+        const site = await this.requestRemote<DomainSite>(
             ref => this.siteRemoteDataSource.createSite(payload, ref),
             options
         );
-        await this.siteLocalDataSource.upsertSite(site, this.getRepositoryContext());
-        return site;
+        const domainSite = toDomainSite(site, this.getDomainScope());
+        await this.siteLocalDataSource.upsertSite(domainSite, this.getRepositoryContext());
+        return domainSite;
     }
 
     /** user:update-site 요청을 수행하고 응답을 기다립니다. */
-    public async updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<SiteView> {
-        const site = await this.requestRemote<SiteView>(
+    public async updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite> {
+        const site = await this.requestRemote<DomainSite>(
             ref => this.siteRemoteDataSource.updateSite(payload, ref),
             options
         );
-        await this.siteLocalDataSource.upsertSite(site, this.getRepositoryContext());
-        return site;
-    }
-
-    private resolveCachePolicy(
-        options?: RepositoryRequestOptions
-    ): NonNullable<RepositoryRequestOptions['cachePolicy']> {
-        if (options?.cachePolicy) return options.cachePolicy;
-        return 'cache-and-network';
+        const domainSite = toDomainSite(site, this.getDomainScope());
+        await this.siteLocalDataSource.upsertSite(domainSite, this.getRepositoryContext());
+        return domainSite;
     }
 
     private async fetchFromRemoteAndCache(
         payload?: WSSPayload,
         options?: RepositoryRequestOptions
+    ): Promise<DomainListResult<DomainSite>> {
+        const remote = await this.requestRemote<ListResult<DomainSite>>(
+            ref => this.siteRemoteDataSource.fetchSite(payload, ref),
+            options
+        );
+        const domainList = (remote.list || []).map(item => toDomainSite(item, this.getDomainScope()));
+        await this.siteLocalDataSource.replaceSites(domainList, this.getRepositoryContext());
+        return { ...remote, list: domainList };
     ): Promise<ListResult<SiteView>> {
         if (this.inflightFetchSite) return this.inflightFetchSite;
 

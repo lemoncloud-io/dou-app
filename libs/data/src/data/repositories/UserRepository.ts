@@ -1,4 +1,3 @@
-import type { UserView } from '@lemoncloud/chatic-socials-api';
 import type { ChatUsersPayload, UserInvitePayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { DomainEventMap, ListResult } from '../events/types';
@@ -8,6 +7,8 @@ import type { DataContextProvider } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { IUserLocalDataSource } from '../local/data-sources';
+import type { DomainListResult, DomainUser } from '../domain';
+import { toDomainUser } from '../domain';
 
 /**
  * 사용자 도메인의 Repository 공개 계약입니다.
@@ -15,10 +16,10 @@ import type { IUserLocalDataSource } from '../local/data-sources';
  */
 export interface IUserRepository {
     /** 특정 채널 또는 조건에 맞는 사용자 목록을 조회합니다. */
-    fetchUsers(payload: ChatUsersPayload, options?: RepositoryRequestOptions): Promise<ListResult<UserView>>;
+    fetchUsers(payload: ChatUsersPayload, options?: RepositoryRequestOptions): Promise<DomainListResult<DomainUser>>;
 
     /** 내 사용자 프로필 정보를 수정합니다. */
-    updateProfile(payload: UserUpdateProfilePayload, options?: RepositoryRequestOptions): Promise<UserView>;
+    updateProfile(payload: UserUpdateProfilePayload, options?: RepositoryRequestOptions): Promise<DomainUser>;
 
     /** 외부 사용자 초대 코드를 생성합니다. */
     requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView>;
@@ -44,46 +45,33 @@ export class UserRepository extends BaseRepository implements IUserRepository {
     public async fetchUsers(
         payload: ChatUsersPayload,
         options?: RepositoryRequestOptions
-    ): Promise<ListResult<UserView>> {
-        const policy = this.resolveCachePolicy(options);
-        if (policy === 'network-only') {
-            return this.fetchFromRemoteAndCache(payload, options);
-        }
-
-        const local = await this.userLocalDataSource.fetchUsers(payload, this.getRepositoryContext());
-        if (policy === 'cache-only') {
-            return (
-                local ?? {
-                    list: [],
-                    limit: (payload as { limit?: number }).limit,
-                    page: (payload as { page?: number }).page,
-                    total: 0,
-                }
-            );
-        }
-
-        if (local) {
-            this.runInBackground(
-                () => this.fetchFromRemoteAndCache(payload, { ...options, cachePolicy: 'network-only' }),
-                'user:cache-and-network-refresh'
-            );
-            return local;
-        }
-
-        return this.fetchFromRemoteAndCache(payload, options);
+    ): Promise<DomainListResult<DomainUser>> {
+        return this.fetchWithCachePolicy<DomainListResult<DomainUser>>({
+            options,
+            backgroundLabel: 'user',
+            fetchLocal: () => this.userLocalDataSource.fetchUsers(payload, this.getRepositoryContext()),
+            fetchRemote: remoteOptions => this.fetchFromRemoteAndCache(payload, remoteOptions),
+            fallback: () => ({
+                list: [],
+                limit: (payload as { limit?: number }).limit,
+                page: (payload as { page?: number }).page,
+                total: 0,
+            }),
+        });
     }
 
     /** user:update-profile 요청을 수행하고 응답을 기다립니다. */
     public async updateProfile(
         payload: UserUpdateProfilePayload,
         options?: RepositoryRequestOptions
-    ): Promise<UserView> {
-        const user = await this.requestRemote<UserView>(
+    ): Promise<DomainUser> {
+        const user = await this.requestRemote<DomainUser>(
             ref => this.userRemoteDataSource.updateProfile(payload, ref),
             options
         );
-        await this.userLocalDataSource.upsertUser(user, this.getRepositoryContext());
-        return user;
+        const domainUser = toDomainUser(user, this.getDomainScope());
+        await this.userLocalDataSource.upsertUser(domainUser, this.getRepositoryContext());
+        return domainUser;
     }
 
     /** user:invite 요청을 수행하고 정규화된 초대 결과를 기다립니다. (== 유저 생성) */
@@ -91,31 +79,29 @@ export class UserRepository extends BaseRepository implements IUserRepository {
         return this.requestRemote(ref => this.userRemoteDataSource.requestInvite(payload, ref), options);
     }
 
-    private resolveCachePolicy(
-        options?: RepositoryRequestOptions
-    ): NonNullable<RepositoryRequestOptions['cachePolicy']> {
-        if (options?.cachePolicy) return options.cachePolicy;
-        return 'cache-and-network';
-    }
-
     private async fetchFromRemoteAndCache(
         payload: ChatUsersPayload,
         options?: RepositoryRequestOptions
-    ): Promise<ListResult<UserView>> {
-        const remote = await this.requestRemote<ListResult<UserView>>(
+    ): Promise<DomainListResult<DomainUser>> {
+        const remote = await this.requestRemote<ListResult<DomainUser>>(
             ref => this.userRemoteDataSource.fetchUsers(payload, ref),
             options
         );
-        await this.userLocalDataSource.upsertUsers(remote.list || [], this.getRepositoryContext());
-        return remote;
+        const domainList = (remote.list || []).map(item => toDomainUser(item, this.getDomainScope()));
+        await this.userLocalDataSource.upsertUsers(domainList, this.getRepositoryContext());
+        return { ...remote, list: domainList };
     }
 
     private initializeInternalListeners(): void {
         this.onDomainEvent('user:create', detail => {
-            const user = detail.data as Partial<UserView>;
+            const user = detail.data as Partial<DomainUser>;
             if (!user?.id) return;
             this.runInBackground(
-                () => this.userLocalDataSource.upsertUser(user as UserView, this.getRepositoryContext()),
+                () =>
+                    this.userLocalDataSource.upsertUser(
+                        toDomainUser(user, this.getDomainScope()),
+                        this.getRepositoryContext()
+                    ),
                 'user:create'
             );
         });
