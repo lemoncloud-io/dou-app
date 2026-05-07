@@ -1,4 +1,4 @@
-import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
+import type { CloudView } from '@lemoncloud/chatic-backend-api';
 import type {
     ChannelView,
     ChatFeedResult,
@@ -55,7 +55,7 @@ export interface DomainSite extends SiteView {
     order: number;
 }
 
-export interface DomainInviteCloud extends MyInviteView {
+export interface DomainInviteCloud extends CloudView {
     id: string;
     cid: string;
     name?: string;

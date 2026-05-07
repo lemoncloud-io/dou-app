@@ -1,4 +1,4 @@
-import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
+import type { CloudView } from '@lemoncloud/chatic-backend-api';
 import type { ChannelView, ChatView, JoinView, SiteView, UserView } from '@lemoncloud/chatic-socials-api';
 import type { CacheStorageItem } from '../local/storages';
 import type {
@@ -123,11 +123,11 @@ export const toDomainSite = (
 };
 
 export const toDomainInviteCloud = (
-    source: MyInviteView | CacheStorageItem<'invitecloud'> | Partial<DomainInviteCloud>,
+    source: CloudView | CacheStorageItem<'invitecloud'> | Partial<DomainInviteCloud>,
     scope: DomainScope
 ): DomainInviteCloud => {
     return {
-        ...(source as MyInviteView),
+        ...(source as CloudView),
         id: toStringSafe((source as { id?: string }).id),
         cid: toStringSafe((source as { cid?: string }).cid) || scope.cid,
         name: toStringSafe((source as { name?: string }).name) || undefined,
