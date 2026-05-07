@@ -5,7 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { cloudCore } from '@chatic/web-core';
-import { usePlaces, useChannels } from '@chatic/data';
+import { usePlaces } from '../../../shared/hooks';
+
+import { useChannels } from '../../../shared/hooks/useChannels';
 
 export const SearchPage = () => {
     const navigate = useNavigateWithTransition();

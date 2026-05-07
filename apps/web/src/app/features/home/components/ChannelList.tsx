@@ -5,8 +5,9 @@ import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import type { ClientChannelView } from '@chatic/data';
-import { useChannels } from '@chatic/data';
 import { useAppPreferenceStore } from '@chatic/web-core';
+
+import { useChannels } from '../../../shared/hooks/useChannels';
 
 const ChannelSkeleton = () => (
     <div className="flex items-start gap-2 rounded-[6px] px-[2px] py-2">

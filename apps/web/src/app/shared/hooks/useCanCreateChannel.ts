@@ -1,7 +1,7 @@
 import { cloudCore, useUserContext, useWebCoreStore } from '@chatic/web-core';
-import { useChannels } from '@chatic/data';
 
 import { useCloudSession } from './useCloudSession';
+import { useChannels } from './useChannels';
 
 export const useCanCreateChannel = () => {
     const { permissions } = useUserContext();

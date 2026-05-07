@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 
-import { useChannels } from '@chatic/data';
 import { cloudCore } from '@chatic/web-core';
+
+import { useChannels } from '../../../shared/hooks/useChannels';
 
 export const useTotalUnreadCount = () => {
     const placeId = cloudCore.getSelectedPlaceId() || '';

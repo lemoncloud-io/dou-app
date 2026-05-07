@@ -5,7 +5,9 @@ import { useDeviceInfo } from '@chatic/device-utils';
 import { useDelegatorId, useDynamicProfile, useWebCoreStore, useUserContext, cloudCore } from '@chatic/web-core';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useClouds } from '@chatic/users';
-import { useChannels, usePlaces } from '@chatic/data';
+import { usePlaces } from '../../../shared/hooks';
+
+import { useChannels } from '../../../shared/hooks/useChannels';
 
 const Row = ({ label, value }: { label: string; value: string | number | boolean | null | undefined }) => (
     <div className="flex flex-col gap-0.5 py-1.5">

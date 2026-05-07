@@ -21,12 +21,20 @@ export interface ISiteRepository {
     createSite(payload: UserMakeSitePayload, options?: RepositoryRequestOptions): Promise<SiteView>;
     /** 기존 site 정보를 수정합니다. */
     updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<SiteView>;
+
+    /** 서버로부터 site 생성(site:create) 이벤트를 수신하는 리스너를 등록합니다. */
+    onSiteCreated(callback: (site: SiteView) => void): () => void;
+    /** 서버로부터 site 변경(site:update) 이벤트를 수신하는 리스너를 등록합니다. */
+    onSiteUpdated(callback: (site: SiteView) => void): () => void;
 }
 
 /**
  * SiteRemoteDataSource를 감싸는 site Repository 구현체입니다.
  */
 export class SiteRepository extends BaseRepository implements ISiteRepository {
+    /** 동시 다발적 fetchSite 호출을 하나의 WebSocket 요청으로 합치기 위한 inflight Promise */
+    private inflightFetchSite: Promise<ListResult<SiteView>> | null = null;
+
     constructor(
         private readonly siteDataSource: ISiteRemoteDataSource,
         requestManager: ISocketRequestManager,
@@ -36,9 +44,17 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         super(requestManager, context, domainEventBus);
     }
 
-    /** user:my-site 요청을 수행하고 응답을 기다립니다. */
+    /** user:my-site 요청을 수행하고 응답을 기다립니다. 동시 호출 시 하나의 요청으로 합쳐집니다. */
     public fetchSite(payload?: WSSPayload, options?: RepositoryRequestOptions): Promise<ListResult<SiteView>> {
-        return this.requestRemote(ref => this.siteDataSource.fetchSite(payload, ref), options);
+        if (!this.inflightFetchSite) {
+            this.inflightFetchSite = this.requestRemote<ListResult<SiteView>>(
+                ref => this.siteDataSource.fetchSite(payload, ref),
+                options
+            ).finally(() => {
+                this.inflightFetchSite = null;
+            });
+        }
+        return this.inflightFetchSite;
     }
 
     /** user:make-site 요청을 수행하고 응답을 기다립니다. */
@@ -49,5 +65,19 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
     /** user:update-site 요청을 수행하고 응답을 기다립니다. */
     public updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<SiteView> {
         return this.requestRemote(ref => this.siteDataSource.updateSite(payload, ref), options);
+    }
+
+    /** 서버로부터 site 생성(site:create) 이벤트를 수신하는 리스너를 등록합니다. */
+    public onSiteCreated(callback: (site: SiteView) => void): () => void {
+        return this.onDomainEvent('site:create', data => {
+            callback(data.data);
+        });
+    }
+
+    /** 서버로부터 site 변경(site:update) 이벤트를 수신하는 리스너를 등록합니다. */
+    public onSiteUpdated(callback: (site: SiteView) => void): () => void {
+        return this.onDomainEvent('site:update', data => {
+            callback(data.data);
+        });
     }
 }

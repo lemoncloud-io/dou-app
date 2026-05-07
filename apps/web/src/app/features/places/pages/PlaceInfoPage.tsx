@@ -10,7 +10,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';
-import { usePlaces } from '@chatic/data';
+import { usePlaces } from '../../../shared/hooks';
 import { useUpdateMyPlace } from '../../home/hooks/useUpdateMyPlace';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';

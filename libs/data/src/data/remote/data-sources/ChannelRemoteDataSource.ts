@@ -8,6 +8,7 @@ import type {
     ChatDeleteChannelPayload,
     ChatStartPayload,
     ChatInvitePayload,
+    ChatLeavePayload,
 } from '@lemoncloud/chatic-sockets-api';
 
 export interface IChannelRemoteDataSource {
@@ -21,6 +22,8 @@ export interface IChannelRemoteDataSource {
     startChat(payload: ChatStartPayload, ref?: string): void;
     /** 채널에 특정 유저를 초대합니다. */
     inviteChannel(payload: ChatInvitePayload, ref?: string): void;
+    /** 채널에서 나갑니다. */
+    leaveChannel(payload: ChatLeavePayload, ref?: string): void;
 }
 
 export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
@@ -88,5 +91,9 @@ export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
 
     public inviteChannel(payload: ChatInvitePayload, ref?: string) {
         this.wssClient.send('chat', 'invite', payload, ref);
+    }
+
+    public leaveChannel(payload: ChatLeavePayload, ref?: string) {
+        this.wssClient.send('chat', 'leave', payload, ref);
     }
 }

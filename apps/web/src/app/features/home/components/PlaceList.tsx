@@ -9,7 +9,7 @@ import { cn } from '@chatic/lib/utils';
 import { cloudCore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
 import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
-import { usePlaces } from '@chatic/data';
+import { usePlaces } from '../../../shared/hooks';
 
 // Module-level: 현재 WS 세션에서 place auth(refreshToken + auth:update)가 완료되었는지 추적
 // home → chatroom → home 재진입 시 불필요한 auth:update를 방지하여 stuck loading 예방

@@ -548,10 +548,18 @@ export const ChatRoomPage = () => {
                                                                 <span className="text-muted-foreground">
                                                                     {formatTime(message.timestamp)}
                                                                 </span>
-                                                                {message.chatNo !== undefined && (() => {
-                                                                    const { readCount, unreadCount } = getReadCount(message.chatNo);
-                                                                    return <ReadStatus readCount={readCount} unreadCount={unreadCount} />;
-                                                                })()}
+                                                                {message.chatNo !== undefined &&
+                                                                    (() => {
+                                                                        const { readCount, unreadCount } = getReadCount(
+                                                                            message.chatNo
+                                                                        );
+                                                                        return (
+                                                                            <ReadStatus
+                                                                                readCount={readCount}
+                                                                                unreadCount={unreadCount}
+                                                                            />
+                                                                        );
+                                                                    })()}
                                                             </>
                                                         )}
                                                     </div>

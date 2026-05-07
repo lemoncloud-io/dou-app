@@ -2,6 +2,7 @@ import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type {
     ChatDeleteChannelPayload,
     ChatInvitePayload,
+    ChatLeavePayload,
     ChatMinePayload,
     ChatStartPayload,
     ChatUpdateChannelPayload,
@@ -36,6 +37,9 @@ export interface IChannelRepository {
     /** 기존 채널에 사용자를 초대합니다. */
     inviteChannel(payload: ChatInvitePayload, options?: RepositoryRequestOptions): Promise<ChannelView>;
 
+    /** 채널에서 나갑니다. */
+    leaveChannel(payload: ChatLeavePayload, options?: RepositoryRequestOptions): Promise<ChannelView>;
+
     /** 서버로부터 채널 정보 변경(channel:update) 이벤트를 수신하는 리스너를 등록합니다. */
     onChannelUpdated(callback: (channel: ChannelView) => void): () => void;
 
@@ -48,6 +52,9 @@ export interface IChannelRepository {
  * 모든 메서드는 data source 발신 후 request manager가 domain event 응답을 resolve하도록 연결합니다.
  */
 export class ChannelRepository extends BaseRepository implements IChannelRepository {
+    /** 동시 다발적 fetchChannel 호출을 하나의 WebSocket 요청으로 합치기 위한 inflight Promise 맵 (placeId별) */
+    private inflightFetchChannel = new Map<string, Promise<ListResult<ChannelView>>>();
+
     constructor(
         private readonly channelDataSource: IChannelRemoteDataSource,
         requestManager: ISocketRequestManager,
@@ -57,12 +64,23 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         super(requestManager, context, domainEventBus);
     }
 
-    /** chat:mine 요청을 수행하고 응답을 기다립니다. */
+    /** chat:mine 요청을 수행하고 응답을 기다립니다. 동일 placeId의 동시 호출은 하나로 합쳐집니다. */
     public fetchChannel(
         payload: ChatMinePayload,
         options?: RepositoryRequestOptions
     ): Promise<ListResult<ChannelView>> {
-        return this.requestRemote(ref => this.channelDataSource.fetchChannel(payload, ref), options);
+        const key = payload.placeId ?? '';
+        const inflight = this.inflightFetchChannel.get(key);
+        if (inflight) return inflight;
+
+        const promise = this.requestRemote<ListResult<ChannelView>>(
+            ref => this.channelDataSource.fetchChannel(payload, ref),
+            options
+        ).finally(() => {
+            this.inflightFetchChannel.delete(key);
+        });
+        this.inflightFetchChannel.set(key, promise);
+        return promise;
     }
 
     /** chat:update-channel 요청을 수행하고 응답을 기다립니다. */
@@ -85,17 +103,22 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         return this.requestRemote(ref => this.channelDataSource.inviteChannel(payload, ref), options);
     }
 
+    /** chat:leave 요청을 수행하고 응답을 기다립니다. */
+    public leaveChannel(payload: ChatLeavePayload, options?: RepositoryRequestOptions): Promise<ChannelView> {
+        return this.requestRemote(ref => this.channelDataSource.leaveChannel(payload, ref), options);
+    }
+
     /** 서버로부터 채널 정보 변경(channel:update) 이벤트를 수신하는 리스너를 등록합니다. */
     public onChannelUpdated(callback: (channel: ChannelView) => void): () => void {
         return this.onDomainEvent('channel:update', data => {
-            callback(data as ChannelView);
+            callback(data.data);
         });
     }
 
     /** 서버로부터 채널 삭제(channel:delete) 이벤트를 수신하는 리스너를 등록합니다. */
     public onChannelDeleted(callback: (channel: ChannelView) => void): () => void {
         return this.onDomainEvent('channel:delete', data => {
-            callback(data as ChannelView);
+            callback(data.data);
         });
     }
 }

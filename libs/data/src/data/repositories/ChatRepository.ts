@@ -56,7 +56,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
      */
     public onChatCreated(callback: (chat: ChatView) => void): () => void {
         return this.onDomainEvent('chat:create', data => {
-            callback(data as ChatView);
+            callback(data.data);
         });
     }
 }

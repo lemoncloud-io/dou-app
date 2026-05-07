@@ -1,21 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
+import { useInviteClouds } from '@chatic/data';
 import {
     useChannelMembers,
     useChannelMutations,
-    useChannels,
     useChatMutations,
-    useChats,
-    useInviteClouds,
     usePlaceMutations,
     usePlaces,
     useUserMutations,
-} from '@chatic/data';
+} from '../../../shared/hooks';
 import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store, getSocketSend } from '@chatic/socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { ChatStartPayload } from '@lemoncloud/chatic-sockets-api';
 import { ChevronRight, Loader2, Send } from 'lucide-react';
 import { DebugStatePage } from './DebugStatePage';
+import { useChannels } from '../../../shared/hooks/useChannels';
+import { useChats } from '../../../shared/hooks/useChats';
 
 /**
  * TODO 캐싱 마이그레이션 및 테스트 완료 이후 제거할 것

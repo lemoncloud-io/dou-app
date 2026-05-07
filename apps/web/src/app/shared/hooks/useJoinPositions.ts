@@ -26,10 +26,7 @@ interface UseJoinPositionsReturn {
  * @param channelId 대상 채널 ID
  * @param initialJoins useChannelMembers(detail:true) 응답의 UserView.$join 배열로 초기 위치 구성
  */
-export const useJoinPositions = (
-    channelId: string | null,
-    initialJoins: JoinView[]
-): UseJoinPositionsReturn => {
+export const useJoinPositions = (channelId: string | null, initialJoins: JoinView[]): UseJoinPositionsReturn => {
     const { join: joinRepository } = useRepositories();
     const positionsRef = useRef<Map<string, JoinPosition>>(new Map());
     const [version, setVersion] = useState(0);

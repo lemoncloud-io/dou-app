@@ -56,21 +56,21 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
     /** 서버로부터 참여 정보 생성(join:create) 이벤트를 수신하는 리스너를 등록합니다. */
     public onJoinCreated(callback: (join: JoinView) => void): () => void {
         return this.onDomainEvent('join:create', data => {
-            callback(data as JoinView);
+            callback(data.data);
         });
     }
 
     /** 서버로부터 참여 정보 변경(join:update) 이벤트를 수신하는 리스너를 등록합니다. */
     public onJoinUpdated(callback: (join: JoinView) => void): () => void {
         return this.onDomainEvent('join:update', data => {
-            callback(data as JoinView);
+            callback(data.data);
         });
     }
 
     /** 서버로부터 참여 정보 삭제(join:delete) 이벤트를 수신하는 리스너를 등록합니다. */
     public onJoinDeleted(callback: (join: JoinView) => void): () => void {
         return this.onDomainEvent('join:delete', data => {
-            callback(data as JoinView);
+            callback(data.data);
         });
     }
 }

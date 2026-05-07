@@ -6,7 +6,7 @@ import { logger } from '@chatic/app-messages';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { resizeImageToBase64 } from '@chatic/shared';
 
-import { useUserMutations } from '@chatic/data';
+import { useUserMutations } from '../../../shared/hooks';
 import { cn } from '@chatic/lib/utils';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
