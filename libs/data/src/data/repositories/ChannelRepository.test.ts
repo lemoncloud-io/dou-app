@@ -14,16 +14,15 @@ describe('ChannelRepository', () => {
         };
 
         const local = {
-            fetchChannel: jest.fn(async () => localResult),
-            getChannel: jest.fn(),
-            upsertChannel: jest.fn(),
-            upsertChannels: jest.fn(),
-            deleteChannel: jest.fn(),
-            deleteChannels: jest.fn(),
-            updateChannelPartial: jest.fn(),
+            fetchList: jest.fn(async () => localResult),
+            getById: jest.fn(),
+            upsert: jest.fn(),
+            upsertMany: jest.fn(),
+            remove: jest.fn(),
+            removeMany: jest.fn(),
             clearAll: jest.fn(),
-            subscribeChannelList: jest.fn(() => () => undefined),
-            subscribeChannel: jest.fn(() => () => undefined),
+            subscribeList: jest.fn(() => () => undefined),
+            subscribeItem: jest.fn(() => () => undefined),
         };
 
         const requestManager = {
@@ -59,7 +58,8 @@ describe('ChannelRepository', () => {
     };
 
     it('returns local first for cache-first and runs remote refresh in background', async () => {
-        const localResult = { list: [{ id: 'l1' }], total: 1 };
+        // 💡 수정: 메타데이터 분리 규격 적용
+        const localResult = { list: [{ id: 'l1' }], meta: { total: 1, source: 'local' } };
         const { repository, remote, requestManager } = createRepository({ localResult });
 
         const result = await repository.fetchChannel(payload, { cachePolicy: 'cache-first' });
@@ -70,13 +70,13 @@ describe('ChannelRepository', () => {
         expect(requestManager.request).toHaveBeenCalledTimes(1);
     });
 
-    it('delegates subscribeChannels to local data source with repository context', () => {
+    it('delegates subscribeList to local data source with repository context', () => {
         const { repository, local } = createRepository({ localResult: null });
         const callback = jest.fn();
 
-        repository.subscribeChannels(payload, callback);
+        repository.subscribeList(payload, callback);
 
-        expect(local.subscribeChannelList).toHaveBeenCalledWith(payload, callback, {
+        expect(local.subscribeList).toHaveBeenCalledWith(payload, callback, {
             cid: 'cloud-a',
             uid: 'user-a',
             sid: 'place-a',

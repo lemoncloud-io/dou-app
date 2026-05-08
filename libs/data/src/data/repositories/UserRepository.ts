@@ -36,13 +36,13 @@ export interface IUserRepository extends ILocalCacheMutationRepository<DomainUse
     onUserDeleted(callback: (user: DomainUser) => void): () => void;
 
     /** 로컬 캐시 기준 사용자 목록을 스트림으로 구독합니다. */
-    subscribeUsers(
+    subscribeList(
         payload: ChatUsersPayload,
         callback: (result: DomainListResult<DomainUser> | null) => void
     ): () => void;
 
     /** 로컬 캐시 기준 단일 사용자를 스트림으로 구독합니다. */
-    subscribeUser(id: string, callback: (user: DomainUser | null) => void): () => void;
+    subscribeItem(id: string, callback: (user: DomainUser | null) => void): () => void;
 }
 
 /**
@@ -61,7 +61,6 @@ export class UserRepository extends BaseRepository implements IUserRepository {
         this.initializeInternalListeners();
     }
 
-    /** chat:users 요청을 수행하고 응답을 기다립니다. */
     public async fetchUsers(
         payload: ChatUsersPayload,
         options?: RepositoryRequestOptions
@@ -69,23 +68,19 @@ export class UserRepository extends BaseRepository implements IUserRepository {
         return this.fetchWithCachePolicy<DomainListResult<DomainUser>>({
             options,
             backgroundLabel: 'user',
-            fetchLocal: () => this.userLocalDataSource.fetchUsers(payload, this.getRepositoryContext()),
+            fetchLocal: () => this.userLocalDataSource.fetchList(payload, this.getRepositoryContext()),
             fetchRemote: remoteOptions => this.fetchFromRemoteAndCache(payload, remoteOptions),
             isLocalValid: local => (local.list || []).length > 0,
             fallback: () =>
-                createDomainListResult(
-                    {
-                        list: [],
-                        limit: (payload as { limit?: number }).limit,
-                        page: (payload as { page?: number }).page,
-                        total: 0,
-                    },
-                    { source: 'fallback' }
-                ),
+                createDomainListResult([], {
+                    limit: (payload as { limit?: number }).limit,
+                    page: (payload as { page?: number }).page,
+                    total: 0,
+                    source: 'fallback',
+                }),
         });
     }
 
-    /** user:update-profile 요청을 수행하고 응답을 기다립니다. */
     public async updateProfile(
         payload: UserUpdateProfilePayload,
         options?: RepositoryRequestOptions
@@ -95,81 +90,71 @@ export class UserRepository extends BaseRepository implements IUserRepository {
             options
         );
         const domainUser = toDomainUser(user, this.getDomainScope());
-        await this.userLocalDataSource.upsertUser(domainUser, this.getRepositoryContext());
+        await this.userLocalDataSource.upsert(domainUser, this.getRepositoryContext());
         return domainUser;
     }
 
-    /** user:invite 요청을 수행하고 정규화된 초대 결과를 기다립니다. (== 유저 생성) */
     public requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView> {
         return this.requestRemote(ref => this.userRemoteDataSource.requestInvite(payload, ref), options);
     }
 
-    /** 현재 스코프의 user 로컬 캐시를 초기화합니다. */
     public clearAll(): Promise<void> {
         return this.userLocalDataSource.clearAll(this.getRepositoryContext());
     }
 
-    /** 서버로부터 신규 사용자 생성(user:create) 이벤트를 수신하는 리스너를 등록합니다. */
     public onUserCreated(callback: (user: DomainUser) => void): () => void {
         return this.onDomainEvent('user:create', detail => {
             callback(detail.data as DomainUser);
         });
     }
 
-    /** 기존 사용자 정보 변경(user:update) 이벤트를 수신하는 리스너를 등록합니다. */
     public onUserUpdated(callback: (user: DomainUser) => void): () => void {
         return this.onDomainEvent('user:update', detail => {
             callback(detail.data as DomainUser);
         });
     }
 
-    /** 사용자 삭제/탈퇴(user:delete) 이벤트를 수신하는 리스너를 등록합니다. */
     public onUserDeleted(callback: (user: DomainUser) => void): () => void {
         return this.onDomainEvent('user:delete', detail => {
             callback(detail.data as DomainUser);
         });
     }
 
-    /** 로컬 사용자 목록 스냅샷을 지속 구독합니다. */
-    public subscribeUsers(
+    // --- 스트림 인터페이스 통합 ---
+    public subscribeList(
         payload: ChatUsersPayload,
         callback: (result: DomainListResult<DomainUser> | null) => void
     ): () => void {
-        return this.userLocalDataSource.subscribeUsers(payload, callback, this.getRepositoryContext());
+        return this.userLocalDataSource.subscribeList(payload, callback, this.getRepositoryContext());
     }
 
-    /** 로컬 단일 사용자 스냅샷을 지속 구독합니다. */
-    public subscribeUser(id: string, callback: (user: DomainUser | null) => void): () => void {
-        return this.userLocalDataSource.subscribeUser(id, callback, this.getRepositoryContext());
+    public subscribeItem(id: string, callback: (user: DomainUser | null) => void): () => void {
+        return this.userLocalDataSource.subscribeItem(id, callback, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시에 사용자를 생성/병합합니다. (remote 호출 없음) */
+    // --- Cache Mutations (통합) ---
     public cacheCreate(item: Partial<DomainUser>): Promise<void> {
-        return this.userLocalDataSource.upsertUser(item, this.getRepositoryContext());
+        return this.userLocalDataSource.upsert(item, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시의 사용자 일부 필드를 갱신합니다. (remote 호출 없음) */
     public cacheUpdate(id: string, patch: Partial<DomainUser>): Promise<void> {
-        return this.userLocalDataSource.updateUserPartial(id, patch, this.getRepositoryContext());
+        return this.userLocalDataSource.upsert({ id, ...patch }, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시에서 사용자를 삭제합니다. (remote 호출 없음) */
     public cacheDelete(id: string): Promise<void> {
-        return this.userLocalDataSource.deleteUser(id, this.getRepositoryContext());
+        return this.userLocalDataSource.remove(id, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시에 사용자를 일괄 생성/병합합니다. (remote 호출 없음) */
     public cacheBulkCreate(items: Array<Partial<DomainUser>>): Promise<void> {
-        return this.userLocalDataSource.upsertUsers(items, this.getRepositoryContext());
+        return this.userLocalDataSource.upsertMany(items, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시의 사용자 일부 필드를 일괄 갱신합니다. (remote 호출 없음) */
     public async cacheBulkUpdate(items: Array<LocalCacheBulkPatch<DomainUser>>): Promise<void> {
         await Promise.all(
             items
                 .filter(item => !!item.id)
                 .map(item =>
-                    this.userLocalDataSource.updateUserPartial(item.id, item.patch, this.getRepositoryContext())
+                    this.userLocalDataSource.upsert({ id: item.id, ...item.patch }, this.getRepositoryContext())
                 )
         );
     }
@@ -183,8 +168,14 @@ export class UserRepository extends BaseRepository implements IUserRepository {
             options
         );
         const domainList = (remote.list || []).map(item => toDomainUser(item, this.getDomainScope()));
-        await this.userLocalDataSource.upsertUsers(domainList, this.getRepositoryContext());
-        return createDomainListResult({ ...remote, list: domainList }, { source: 'remote' });
+        await this.userLocalDataSource.upsertMany(domainList, this.getRepositoryContext());
+
+        return createDomainListResult(domainList, {
+            total: remote.total ?? domainList.length,
+            limit: remote.limit,
+            page: remote.page,
+            source: 'remote',
+        });
     }
 
     private initializeInternalListeners(): void {
@@ -193,7 +184,7 @@ export class UserRepository extends BaseRepository implements IUserRepository {
             if (!user?.id) return;
             this.runInBackground(
                 () =>
-                    this.userLocalDataSource.upsertUser(
+                    this.userLocalDataSource.upsert(
                         toDomainUser(user, this.getDomainScope()),
                         this.getRepositoryContext()
                     ),
@@ -206,7 +197,7 @@ export class UserRepository extends BaseRepository implements IUserRepository {
             if (!user?.id) return;
             this.runInBackground(
                 () =>
-                    this.userLocalDataSource.upsertUser(
+                    this.userLocalDataSource.upsert(
                         toDomainUser(user, this.getDomainScope()),
                         this.getRepositoryContext()
                     ),
@@ -218,7 +209,7 @@ export class UserRepository extends BaseRepository implements IUserRepository {
             const userId = detail.data?.id;
             if (!userId) return;
             this.runInBackground(
-                () => this.userLocalDataSource.deleteUser(userId, this.getRepositoryContext()),
+                () => this.userLocalDataSource.remove(userId, this.getRepositoryContext()),
                 'user:delete'
             );
         });
@@ -228,7 +219,7 @@ export class UserRepository extends BaseRepository implements IUserRepository {
             if (list.length === 0) return;
             this.runInBackground(() => {
                 const domainUsers = list.map((item: any) => toDomainUser(item, this.getDomainScope()));
-                return this.userLocalDataSource.upsertUsers(domainUsers, this.getRepositoryContext());
+                return this.userLocalDataSource.upsertMany(domainUsers, this.getRepositoryContext());
             }, 'user:list');
         });
     }
