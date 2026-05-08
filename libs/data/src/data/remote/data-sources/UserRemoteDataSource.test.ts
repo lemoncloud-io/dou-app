@@ -37,9 +37,9 @@ describe('UserRemoteDataSource', () => {
 
     it('inviteUser 호출 시 chat 도메인의 invite 액션으로 전송되어야 한다', () => {
         const payload: ChatInvitePayload = { channelId: 'ch-1', userIds: ['u-1'] };
-        dataSource.inviteUser(payload, 'ref-invite');
+        dataSource.requestInvite(payload, 'ref-invite');
 
-        expect(mockWssClient.send).toHaveBeenCalledWith('chat', 'invite', payload, 'ref-invite');
+        expect(mockWssClient.send).toHaveBeenCalledWith('user', 'invite', payload, 'ref-invite');
     });
 
     it('updateProfile 호출 시 user 도메인의 update-profile 액션으로 전송되어야 한다', () => {
@@ -57,13 +57,12 @@ describe('UserRemoteDataSource', () => {
     });
 
     it('user:create 수신 시 user:create 로 정제하여 발행해야 한다', () => {
-        const mockDetail = { cid: 'c-1', ref: 'r-create', payload: { id: 'user-1', name: 'Guest' } };
+        const mockDetail = { ref: 'r-create', payload: { id: 'user-1', name: 'Guest' } };
         socketCallbacks['user:create'](mockDetail);
 
         expect(mockDomainEventBus.emit).toHaveBeenCalledWith('user:create', {
             data: mockDetail.payload,
             ref: 'r-create',
-            cid: 'c-1',
         });
     });
 });

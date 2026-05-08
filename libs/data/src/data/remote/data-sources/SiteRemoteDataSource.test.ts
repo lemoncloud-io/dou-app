@@ -28,24 +28,22 @@ describe('SiteRemoteDataSource', () => {
     });
 
     it('site:read 수신 시 site:list 로 정제하여 발행해야 한다', () => {
-        const mockDetail = { cid: 'c-1', ref: 'r-1', payload: { list: [], total: 0 } };
+        const mockDetail = { ref: 'r-1', payload: { list: [], total: 0 } };
         socketCallbacks['site:read'](mockDetail);
 
         expect(mockDomainEventBus.emit).toHaveBeenCalledWith('site:list', {
             data: mockDetail.payload,
             ref: 'r-1',
-            cid: 'c-1',
         });
     });
 
     it('site:create 수신 시 site:create 로 정제하여 발행해야 한다', () => {
-        const mockDetail = { cid: 'c-1', ref: 'r-create', payload: { id: 'site-1', name: 'Workspace' } };
+        const mockDetail = { ref: 'r-create', payload: { id: 'site-1', name: 'Workspace' } };
         socketCallbacks['site:create'](mockDetail);
 
         expect(mockDomainEventBus.emit).toHaveBeenCalledWith('site:create', {
             data: mockDetail.payload,
             ref: 'r-create',
-            cid: 'c-1',
         });
     });
 

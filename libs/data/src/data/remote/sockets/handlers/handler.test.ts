@@ -29,7 +29,6 @@ describe('Socket Dispatcher Handlers', () => {
             authHandler(envelope, mockEventBus);
 
             expect(mockEventBus.emit).toHaveBeenCalledWith('auth:update', {
-                cid: 'test-cloud-id',
                 ref: 'ref-1',
                 payload: { token: 'new-token' },
             });

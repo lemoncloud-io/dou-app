@@ -29,13 +29,12 @@ describe('AuthRemoteDataSource', () => {
     });
 
     it('auth:update 이벤트 수신 시 정제하여 emit 해야 한다', () => {
-        const mockDetail = { cid: 'c-1', ref: 'r-1', payload: { token: 'abc' } };
+        const mockDetail = { ref: 'r-1', payload: { token: 'abc' } };
         socketCallbacks['auth:update'](mockDetail);
 
         expect(mockDomainEventBus.emit).toHaveBeenCalledWith('auth:update', {
             data: mockDetail.payload,
             ref: 'r-1',
-            cid: 'c-1',
         });
     });
 

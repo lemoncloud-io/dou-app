@@ -49,7 +49,6 @@ describe('ChannelRemoteDataSource', () => {
     describe('수신(Receive) 파이프라인 검증 (Socket -> Domain)', () => {
         it('channel:create 소켓 이벤트 수신 시 domainEventBus 로 매핑하여 emit 해야 한다', () => {
             const mockDetail = {
-                cid: 'cloud-1',
                 ref: 'ref-1',
                 payload: { id: 'ch-1', name: 'General' } as ChannelView,
             };
@@ -59,13 +58,11 @@ describe('ChannelRemoteDataSource', () => {
             expect(mockDomainEventBus.emit).toHaveBeenCalledWith('channel:create', {
                 data: mockDetail.payload,
                 ref: 'ref-1',
-                cid: 'cloud-1',
             });
         });
 
         it('channel:error 소켓 이벤트 수신 시 표준 공통 error 규격으로 매핑하여 emit 해야 한다', () => {
             const mockDetail = {
-                cid: 'cloud-1',
                 ref: 'ref-err',
                 payload: { error: 'Not Found' },
             };
