@@ -21,45 +21,7 @@ import { toDomainJoin as toDomainJoinBase } from '../../domain';
 export interface IJoinLocalDataSource
     extends ICrudLocalDataSource<DomainJoin>,
         IListLocalDataSource<DomainJoin, DomainJoinListPayload, DomainListResult<DomainJoin>>,
-        IStreamLocalDataSource<DomainJoin, DomainJoinListPayload, DomainListResult<DomainJoin>> {
-    /** 단일 join 정보를 id로 조회합니다. */
-    getJoin(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainJoin | null>;
-    /** 채널에 속한 join 목록을 조회합니다. */
-    getJoinsByChannel(channelId: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainJoin[]>;
-    /** 채널에 속한 활성(joined=1) join 목록만 조회합니다. */
-    getActiveJoinsByChannel(channelId: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainJoin[]>;
-    /** 단일 join 정보를 저장/병합합니다. */
-    upsertJoin(join: Partial<DomainJoin>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
-    /** 다수 join 정보를 저장/병합합니다. */
-    upsertJoins(joins: Array<Partial<DomainJoin>>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
-    /** 단일 join 정보를 삭제합니다. */
-    deleteJoin(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
-    /** 다중 join 정보를 삭제합니다. */
-    deleteJoins(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void>;
-    /** 단일 join 일부 필드만 병합 업데이트합니다. */
-    updateJoinPartial(
-        id: string,
-        patch: Partial<DomainJoin>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<void>;
-    /** 현재 스코프의 join 캐시를 초기화합니다. */
-    clearAll(contextOverride?: LocalDataSourceContextOverride): Promise<void>;
-
-    /** 채널별 join 목록 조회 결과를 스트림으로 구독합니다. */
-    subscribeJoinsByChannel(
-        channelId: string,
-        callback: LocalStreamCallback<DomainJoin[]>,
-        options?: { activeOnly?: boolean },
-        contextOverride?: LocalDataSourceContextOverride
-    ): LocalStreamUnsubscribe;
-
-    /** 단일 join 조회 결과를 스트림으로 구독합니다. */
-    subscribeJoin(
-        id: string,
-        callback: LocalStreamCallback<DomainJoin | null>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): LocalStreamUnsubscribe;
-}
+        IStreamLocalDataSource<DomainJoin, DomainJoinListPayload, DomainListResult<DomainJoin>> {}
 
 /** 채널 참여 정보 캐시 read/write를 담당합니다. */
 export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLocalDataSource {
@@ -70,32 +32,17 @@ export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLoc
         super(contextProvider);
     }
 
-    public async getJoin(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<DomainJoin | null> {
+    // =========================================================================
+    // 1. 공통 CRUD 인터페이스 (ICrudLocalDataSource)
+    // =========================================================================
+
+    public async getById(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<DomainJoin | null> {
+        if (!id) return null;
         const item = await this.cacheStorage.load(id);
         return item ? toDomainJoin(item) : null;
     }
 
-    public async getJoinsByChannel(
-        channelId: string,
-        _contextOverride?: LocalDataSourceContextOverride
-    ): Promise<DomainJoin[]> {
-        if (!channelId) return [];
-        const joins = await this.cacheStorage.loadAll();
-        return joins.map(toDomainJoin).filter(join => join.channelId === channelId);
-    }
-
-    public async getActiveJoinsByChannel(
-        channelId: string,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<DomainJoin[]> {
-        const joins = await this.getJoinsByChannel(channelId, contextOverride);
-        return joins.filter(join => join.joined === 1 || join.joined === undefined);
-    }
-
-    public async upsertJoin(
-        join: Partial<DomainJoin>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<void> {
+    public async upsert(join: Partial<DomainJoin>, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         const id = join.id;
         if (!id) return;
 
@@ -119,22 +66,19 @@ export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLoc
         await this.emitAllStreams();
     }
 
-    public async upsertJoins(
+    public async upsertMany(
         joins: Array<Partial<DomainJoin>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
         if (joins.length === 0) return;
 
         // 다중 데이터 저장 시 브릿지 통신(saveAll) 최적화
-        // 개별 upsertJoin 호출로 인한 다수의 브릿지 횡단을 방지하고 메모리에서 병합 후 일괄 처리합니다.
         const context = this.getContext(contextOverride);
         const cid = context.cid || this.getCid(contextOverride);
         const baseScope = { cid, sid: context.sid, uid: context.uid };
 
-        //  병합을 위해 기존 캐시 데이터 일괄 로드
         const existingItems = await Promise.all(joins.map(join => (join.id ? this.cacheStorage.load(join.id) : null)));
 
-        // 메모리 상에서 정규화 및 병합 수행
         const cacheItemsToSave: CacheStorageItem<'join'>[] = [];
         joins.forEach((join, index) => {
             if (!join.id) return;
@@ -156,29 +100,17 @@ export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLoc
         }
     }
 
-    public async deleteJoin(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+    public async remove(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         if (!id) return;
         await this.cacheStorage.delete(id);
         await this.emitAllStreams();
     }
 
-    public async deleteJoins(ids: string[], _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+    public async removeMany(ids: string[], _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
         await this.cacheStorage.deleteAll(validIds);
         await this.emitAllStreams();
-    }
-
-    public async updateJoinPartial(
-        id: string,
-        patch: Partial<DomainJoin>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<void> {
-        if (!id) return;
-        const existing = await this.cacheStorage.load(id);
-        if (!existing) return;
-
-        await this.upsertJoin({ ...(existing as unknown as DomainJoin), ...patch }, contextOverride);
     }
 
     public async clearAll(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
@@ -186,76 +118,44 @@ export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLoc
         await this.emitAllStreams();
     }
 
-    /** 로컬 채널별 참여 목록 스냅샷을 지속 구독합니다. */
-    public subscribeJoinsByChannel(
-        channelId: string,
-        callback: LocalStreamCallback<DomainJoin[]>,
-        options?: { activeOnly?: boolean },
-        contextOverride?: LocalDataSourceContextOverride
-    ): LocalStreamUnsubscribe {
-        return this.subscribeQueryStream(
-            () =>
-                options?.activeOnly
-                    ? this.getActiveJoinsByChannel(channelId, contextOverride)
-                    : this.getJoinsByChannel(channelId, contextOverride),
-            callback
-        );
-    }
+    // =========================================================================
+    // 2. 공통 List 인터페이스 (IListLocalDataSource)
+    // =========================================================================
 
-    /** 로컬 단일 참여 정보 스냅샷을 지속 구독합니다. */
-    public subscribeJoin(
-        id: string,
-        callback: LocalStreamCallback<DomainJoin | null>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): LocalStreamUnsubscribe {
-        return this.subscribeQueryStream(() => this.getJoin(id, contextOverride), callback);
-    }
-
-    /** 공통 CRUD 인터페이스: 리스트 조회 */
     public async fetchList(
         query: DomainJoinListPayload,
-        contextOverride?: LocalDataSourceContextOverride
+        _contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainJoin> | null> {
         const channelId = query?.channelId;
+
+        //  channelId가 없을 때 null 대신 빈 배열 반환
         if (!channelId) {
-            return createDomainListResult({ list: [], total: 0 }, { source: 'local' });
+            return createDomainListResult([], { total: 0, source: 'local' });
         }
 
-        const joins = query.activeOnly
-            ? await this.getActiveJoinsByChannel(channelId, contextOverride)
-            : await this.getJoinsByChannel(channelId, contextOverride);
-        return createDomainListResult({ list: joins, total: joins.length }, { source: 'local' });
+        const allJoins = await this.cacheStorage.loadAll();
+        let joins = allJoins.map(toDomainJoin).filter(join => join.channelId === channelId);
+
+        // query의 activeOnly 필터링 조건 적용
+        if (query.activeOnly) {
+            joins = joins.filter(join => join.joined === 1 || join.joined === undefined);
+        }
+
+        //  조회된 데이터가 없을 때 빈 배열 반환
+        if (joins.length === 0) {
+            return createDomainListResult([], { total: 0, source: 'local' });
+        }
+
+        return createDomainListResult(joins, {
+            total: joins.length,
+            source: 'local',
+        });
     }
 
-    /** 공통 CRUD 인터페이스: 단건 조회 */
-    public getById(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainJoin | null> {
-        return this.getJoin(id, contextOverride);
-    }
+    // =========================================================================
+    // 3. 공통 Stream 인터페이스 (IStreamLocalDataSource)
+    // =========================================================================
 
-    /** 공통 CRUD 인터페이스: 단건 저장 */
-    public upsert(item: Partial<DomainJoin>, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
-        return this.upsertJoin(item, contextOverride);
-    }
-
-    /** 공통 CRUD 인터페이스: 다건 저장 */
-    public upsertMany(
-        items: Array<Partial<DomainJoin>>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<void> {
-        return this.upsertJoins(items, contextOverride);
-    }
-
-    /** 공통 CRUD 인터페이스: 단건 삭제 */
-    public remove(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
-        return this.deleteJoin(id, contextOverride);
-    }
-
-    /** 공통 CRUD 인터페이스: 다건 삭제 */
-    public removeMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void> {
-        return this.deleteJoins(ids, contextOverride);
-    }
-
-    /** 공통 Stream 인터페이스: 리스트 구독 */
     public subscribeList(
         query: DomainJoinListPayload,
         callback: LocalStreamCallback<DomainListResult<DomainJoin> | null>,
@@ -264,12 +164,11 @@ export class JoinLocalDataSource extends BaseLocalDataSource implements IJoinLoc
         return this.subscribeQueryStream(() => this.fetchList(query, contextOverride), callback);
     }
 
-    /** 공통 Stream 인터페이스: 단건 구독 */
     public subscribeItem(
         id: string,
         callback: LocalStreamCallback<DomainJoin | null>,
         contextOverride?: LocalDataSourceContextOverride
     ): LocalStreamUnsubscribe {
-        return this.subscribeJoin(id, callback, contextOverride);
+        return this.subscribeQueryStream(() => this.getById(id, contextOverride), callback);
     }
 }

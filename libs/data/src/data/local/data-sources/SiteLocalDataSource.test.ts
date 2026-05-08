@@ -10,16 +10,14 @@ const createMemoryStorage = (): CacheStorage<'site'> => {
         },
         async saveAll(items) {
             items.forEach(item => {
-                if (!item?.id) return;
-                map.set(item.id, { ...item });
+                if (item?.id) map.set(item.id, { ...item });
             });
             return items;
         },
         async replaceAll(items) {
             map.clear();
             items.forEach(item => {
-                if (!item?.id) return;
-                map.set(item.id, { ...item });
+                if (item?.id) map.set(item.id, { ...item });
             });
             return items;
         },
@@ -56,7 +54,7 @@ describe('SiteLocalDataSource', () => {
             { id: 's2', cid: 'cloud-a', name: 'Alpha', order: 1 },
         ] as any);
 
-        const result = await dataSource.fetchSite();
+        const result = await dataSource.fetchList(undefined);
 
         expect(result?.list.map(site => site.id)).toEqual(['s2', 's1']);
     });
@@ -66,13 +64,13 @@ describe('SiteLocalDataSource', () => {
         const dataSource = new SiteLocalDataSource(contextProvider, storage);
         const emissions: number[] = [];
 
-        const unsubscribe = dataSource.subscribeSites(undefined, result => {
-            emissions.push(result?.list.length ?? 0);
+        const unsubscribe = dataSource.subscribeList(undefined, result => {
+            emissions.push(result?.meta?.total ?? 0);
         });
 
         await Promise.resolve();
-        await dataSource.upsertSite({ id: 's1', cid: 'cloud-a', name: 'Alpha', order: 1 } as any);
-        await dataSource.deleteSite('s1');
+        await dataSource.upsert({ id: 's1', cid: 'cloud-a', name: 'Alpha', order: 1 } as any);
+        await dataSource.remove('s1');
         unsubscribe();
 
         expect(emissions).toEqual([0, 1, 0]);

@@ -10,16 +10,14 @@ const createMemoryStorage = (): CacheStorage<'user'> => {
         },
         async saveAll(items) {
             items.forEach(item => {
-                if (!item?.id) return;
-                map.set(item.id, { ...item });
+                if (item?.id) map.set(item.id, { ...item });
             });
             return items;
         },
         async replaceAll(items) {
             map.clear();
             items.forEach(item => {
-                if (!item?.id) return;
-                map.set(item.id, { ...item });
+                if (item?.id) map.set(item.id, { ...item });
             });
             return items;
         },
@@ -51,13 +49,13 @@ describe('UserLocalDataSource', () => {
         const storage = createMemoryStorage();
         const dataSource = new UserLocalDataSource(contextProvider, storage);
 
-        await dataSource.upsertUsers([
+        await dataSource.upsertMany([
             { id: 'u1', cid: 'cloud-a', name: 'A', $join: { channelId: 'ch-1' } },
             { id: 'u2', cid: 'cloud-a', name: 'B', channelId: 'ch-1' },
             { id: 'u3', cid: 'cloud-a', name: 'C', channelId: 'ch-2' },
         ] as any);
 
-        const result = await dataSource.fetchUsers({ channelId: 'ch-1' } as any);
+        const result = await dataSource.fetchList({ channelId: 'ch-1' } as any);
 
         expect(result?.list.map(item => item.id).sort()).toEqual(['u1', 'u2']);
     });
@@ -67,13 +65,13 @@ describe('UserLocalDataSource', () => {
         const dataSource = new UserLocalDataSource(contextProvider, storage);
         const emissions: number[] = [];
 
-        const unsubscribe = dataSource.subscribeUsers({ channelId: 'ch-1' } as any, result => {
-            emissions.push(result?.list.length ?? 0);
+        const unsubscribe = dataSource.subscribeList({ channelId: 'ch-1' } as any, result => {
+            emissions.push(result?.meta?.total ?? 0);
         });
 
         await Promise.resolve();
-        await dataSource.upsertUser({ id: 'u1', cid: 'cloud-a', name: 'A', channelId: 'ch-1' } as any);
-        await dataSource.deleteUser('u1');
+        await dataSource.upsert({ id: 'u1', cid: 'cloud-a', name: 'A', channelId: 'ch-1' } as any);
+        await dataSource.remove('u1');
         unsubscribe();
 
         expect(emissions).toEqual([0, 1, 0]);

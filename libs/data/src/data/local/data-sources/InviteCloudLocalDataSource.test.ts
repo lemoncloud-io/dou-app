@@ -10,16 +10,14 @@ const createMemoryStorage = (): CacheStorage<'invitecloud'> => {
         },
         async saveAll(items) {
             items.forEach(item => {
-                if (!item?.id) return;
-                map.set(item.id, { ...item });
+                if (item?.id) map.set(item.id, { ...item });
             });
             return items;
         },
         async replaceAll(items) {
             map.clear();
             items.forEach(item => {
-                if (!item?.id) return;
-                map.set(item.id, { ...item });
+                if (item?.id) map.set(item.id, { ...item });
             });
             return items;
         },
@@ -56,8 +54,8 @@ describe('InviteCloudLocalDataSource', () => {
         const storage = createMemoryStorage();
         const dataSource = new InviteCloudLocalDataSource(contextProvider as any, storage);
 
-        await dataSource.saveInviteCloud('i1', { name: 'Cloud One', cid: 'cloud-a' } as any);
-        const loaded = await dataSource.getInviteCloud('i1');
+        await dataSource.upsert({ id: 'i1', name: 'Cloud One', cid: 'cloud-a' } as any);
+        const loaded = await dataSource.getById('i1');
 
         expect(loaded?.id).toBe('i1');
         expect(loaded?.name).toBe('Cloud One');
@@ -68,13 +66,13 @@ describe('InviteCloudLocalDataSource', () => {
         const dataSource = new InviteCloudLocalDataSource(contextProvider as any, storage);
         const emissions: number[] = [];
 
-        const unsubscribe = dataSource.subscribeInviteClouds(items => {
-            emissions.push(items.length);
+        const unsubscribe = dataSource.subscribeList(undefined, result => {
+            emissions.push(result?.meta?.total ?? 0);
         });
 
         await Promise.resolve();
-        await dataSource.saveInviteCloud('i1', { name: 'Cloud One', cid: 'cloud-a' } as any);
-        await dataSource.deleteInviteCloud('i1');
+        await dataSource.upsert({ id: 'i1', name: 'Cloud One', cid: 'cloud-a' });
+        await dataSource.remove('i1');
         unsubscribe();
 
         expect(emissions).toEqual([0, 1, 0]);
