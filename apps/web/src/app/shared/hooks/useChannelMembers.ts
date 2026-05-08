@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/app-messages';
-import type { UserView } from '@lemoncloud/chatic-socials-api';
 import type { ChatUsersPayload } from '@lemoncloud/chatic-sockets-api';
 
 import { useRepositories } from '../data';
+import type { DomainUser } from '@chatic/data';
 
 /**
  * 특정 채널의 멤버 목록을 repository를 통해 조회하고, 실시간 동기화 이벤트에 반응하는 훅
@@ -15,7 +15,7 @@ export const useChannelMembers = (initialParams: ChatUsersPayload) => {
     const requestSeqRef = useRef(0);
     const currentParamsRef = useRef(initialParams);
 
-    const [members, setMembers] = useState<UserView[]>([]);
+    const [members, setMembers] = useState<DomainUser[]>([]);
     const [total, setTotal] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);

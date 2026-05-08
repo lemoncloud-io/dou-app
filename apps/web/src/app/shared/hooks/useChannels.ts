@@ -2,16 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
-import type { ClientChannelView, ClientChatMinePayload } from '@chatic/data';
-import type { ChannelView, ChatView, JoinView } from '@lemoncloud/chatic-socials-api';
-import type { ChatMinePayload } from '@lemoncloud/chatic-sockets-api';
+import type { ClientChannelView, DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
 import { useDynamicProfile } from '@chatic/web-core';
 
 import { useRepositories } from '../data';
 
 const DEFAULT_CHANNEL_LIMIT = 100;
 
-const toClientChannel = (channel: ChannelView, userId?: string): ClientChannelView => {
+const toClientChannel = (channel: DomainChannel, userId?: string): ClientChannelView => {
     const lastChatNo = channel.lastChat$?.chatNo ?? channel.chatNo ?? 0;
     const lastMessageIsMine = channel.lastChat$?.ownerId === userId;
     const myReadNo = lastMessageIsMine ? lastChatNo : (channel.$join?.chatNo ?? 0);
@@ -33,17 +31,18 @@ const sortChannels = (channels: ClientChannelView[]) =>
         return timeB - timeA;
     });
 
-const buildFetchPayload = ({ placeId: _placeId, ...params }: ClientChatMinePayload): ChatMinePayload => ({
+const buildFetchPayload = ({ sid: _placeId, ...params }: DomainChannelListPayload): DomainChannelListPayload => ({
+    sid: _placeId,
     limit: params.limit ?? DEFAULT_CHANNEL_LIMIT,
     page: params.page,
     detail: params.detail,
 });
 
-export const useChannels = (initialParams: ClientChatMinePayload) => {
+export const useChannels = (initialParams: DomainChannelListPayload) => {
     const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
     const profile = useDynamicProfile();
     const userId = profile?.uid;
-    const targetPlaceId = initialParams.placeId;
+    const targetPlaceId = initialParams.sid;
     const cloudId = useWebSocketV2Store(s => s.cloudId);
     const prevCloudIdRef = useRef(cloudId);
     const requestSeqRef = useRef(0);
@@ -58,11 +57,11 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const fetchChannels = useCallback(
-        async (params?: Partial<ClientChatMinePayload>, options?: { loading?: boolean }) => {
+        async (params?: Partial<DomainChannelListPayload>, options?: { loading?: boolean }) => {
             const nextParams = { ...currentParamsRef.current, ...params };
             currentParamsRef.current = nextParams;
 
-            if (!nextParams.placeId) {
+            if (!nextParams.sid) {
                 setChannels([]);
                 setIsLoading(false);
                 setIsSyncing(false);
@@ -86,7 +85,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                 if (requestSeqRef.current !== requestSeq) return;
 
                 const nextChannels = sortChannels(
-                    (result.list ?? []).map((channel: ChannelView) => toClientChannel(channel, userId))
+                    (result.list ?? []).map((channel: DomainChannel) => toClientChannel(channel, userId))
                 );
                 setChannels(nextChannels);
             } catch (error) {
@@ -95,7 +94,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                 const message = error instanceof Error ? error.message : String(error);
                 logger.error('CHANNEL', 'Failed to fetch channels from repository', {
                     error,
-                    data: { placeId: nextParams.placeId },
+                    data: { placeId: nextParams.sid },
                 });
                 setIsError(true);
                 setErrorMessage(message);
@@ -122,7 +121,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
     }, [fetchChannels, targetPlaceId, cloudId, initialParams.detail, initialParams.limit, initialParams.page]);
 
     useEffect(() => {
-        const unsubscribeUpdated = channelRepository.onChannelUpdated((channel: ChannelView) => {
+        const unsubscribeUpdated = channelRepository.onChannelUpdated((channel: DomainChannel) => {
             setChannels(prev => {
                 const nextChannel = toClientChannel(channel, userId);
                 const exists = prev.some(item => item.id === nextChannel.id);
@@ -132,17 +131,17 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
                 return sortChannels(next);
             });
         });
-        const unsubscribeDeleted = channelRepository.onChannelDeleted((channel: ChannelView) => {
+        const unsubscribeDeleted = channelRepository.onChannelDeleted((channel: DomainChannel) => {
             setChannels(prev => prev.filter(item => item.id !== channel.id));
         });
-        const unsubscribeChatCreated = chatRepository.onChatCreated((chat: ChatView) => {
+        const unsubscribeChatCreated = chatRepository.onChatCreated((chat: DomainChat) => {
             const current = channelsRef.current;
             if (!chat.channelId || current.length === 0) return;
             if (current.some(channel => channel.id === chat.channelId)) {
                 void fetchChannels();
             }
         });
-        const unsubscribeJoinUpdated = joinRepository.onJoinUpdated((join: JoinView) => {
+        const unsubscribeJoinUpdated = joinRepository.onJoinUpdated((join: DomainJoin) => {
             const current = channelsRef.current;
             if (!join.channelId || current.length === 0) return;
             if (current.some(channel => channel.id === join.channelId)) {
@@ -164,7 +163,7 @@ export const useChannels = (initialParams: ClientChatMinePayload) => {
         isSyncing,
         isError,
         errorMessage,
-        refresh: (options?: ClientChatMinePayload) => fetchChannels(options, { loading: false }),
-        sync: (options?: ClientChatMinePayload) => fetchChannels(options, { loading: false }),
+        refresh: (options?: DomainChannelListPayload) => fetchChannels(options, { loading: false }),
+        sync: (options?: DomainChannelListPayload) => fetchChannels(options, { loading: false }),
     };
 };

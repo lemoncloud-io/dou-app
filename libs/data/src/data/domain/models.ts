@@ -1,6 +1,7 @@
 import type { CloudView, UserView } from '@lemoncloud/chatic-backend-api';
 import type { ChannelView, ChatFeedResult, ChatView, JoinView, SiteView } from '@lemoncloud/chatic-socials-api';
 import type { ListResult } from '../events/common';
+import type { ChatMinePayload } from '@lemoncloud/chatic-sockets-api';
 
 export interface DomainScope {
     cid: string;
@@ -40,6 +41,11 @@ export interface DomainJoin extends JoinView {
 export interface DomainJoinListPayload {
     channelId?: string;
     activeOnly?: boolean;
+}
+
+export interface DomainChannelListPayload extends ChatMinePayload {
+    /** 타겟 사이트/플레이스 아이디  (값이 없을 경우; */
+    sid?: string;
 }
 
 export interface DomainUser extends UserView {

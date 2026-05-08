@@ -24,7 +24,7 @@ import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { useTotalUnreadCount } from '../../chats/hooks/useTotalUnreadCount';
 import { LanguageSelectSheet, LogoutDialog } from '../components';
 import { DEBUG_STORAGE_KEY } from '../consts';
-import { useCacheMutations } from '@chatic/data';
+import { useCacheMutations } from '../../../shared/hooks/useCacheMutations';
 
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
@@ -39,7 +39,7 @@ export const MyPage = () => {
     const { deviceInfo, versionInfo } = useDeviceInfo();
     const { resetOnboarding } = useOnboardingStore();
     const { blurLastMessage, setBlurLastMessage } = useAppPreferenceStore();
-    const { clearAllCache } = useCacheMutations(selectedCloudId, profile?.uid);
+    const { clearAllCache } = useCacheMutations();
     const totalUnread = useTotalUnreadCount();
 
     const displayName = profile?.$user?.name;

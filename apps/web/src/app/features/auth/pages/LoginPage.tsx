@@ -22,7 +22,7 @@ import type { CloudDelegationTokenView, UserProfile$, UserTokenView } from '@lem
 
 import { useRegisterDevice } from '@chatic/auth';
 import { useDynamicDeviceId } from '../../../shared/hooks/useDynamicDeviceId';
-import { useInviteMutations } from '@chatic/data';
+import { useInviteMutations } from '../../../shared/hooks/useInviteMutations';
 
 export const LoginPage = (): JSX.Element => {
     const { t } = useTranslation();
@@ -39,6 +39,7 @@ export const LoginPage = (): JSX.Element => {
     const { deviceId, isReady } = useDynamicDeviceId();
     const { saveInvite } = useInviteMutations();
     const profile = useWebCoreStore(state => state.profile);
+    const selectedCloudId = cloudCore.getSelectedCloudId() ?? 'default';
     const delegatorId = useDelegatorId();
 
     const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -151,6 +152,7 @@ export const LoginPage = (): JSX.Element => {
                 if (isOnMobileApp) {
                     await saveInvite({
                         id: effectiveCloudId,
+                        cid: selectedCloudId,
                         name: urlCloudName ?? data.name,
                         backend: backend ?? undefined,
                         wss: wss ?? undefined,

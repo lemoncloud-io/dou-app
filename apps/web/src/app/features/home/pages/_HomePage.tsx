@@ -18,6 +18,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { useWebCoreStore } from '@chatic/web-core';
 
 import { useSessionId } from '../hooks';
+import { toast } from 'sonner';
 
 /** Canvas dimensions - must match Admin's Remote Canvas for accurate position mapping */
 const CANVAS_WIDTH = 800;

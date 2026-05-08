@@ -1,12 +1,12 @@
 import { useCallback, useState } from 'react';
 
 import { logger } from '@chatic/app-messages';
-import type { ChatView } from '@lemoncloud/chatic-socials-api';
 import type { ChatReadPayload, ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
 import { useDynamicProfile } from '@chatic/web-core';
 import { v4 as uuid } from 'uuid';
 
 import { useRepositories } from '../data';
+import type { DomainChat } from '@chatic/data';
 
 const APP_SYNC_EVENT_NAME = 'app-sync-updated';
 
@@ -44,7 +44,7 @@ export const useChatMutations = () => {
      * 메시지 전송 (optimistic update 포함)
      */
     const sendMessage = useCallback(
-        (payload: ChatSendPayload, tempId: string = uuid()): Promise<ChatView> => {
+        (payload: ChatSendPayload, tempId: string = uuid()): Promise<DomainChat> => {
             if (!userId) return Promise.reject(new Error('User is not authenticated'));
             if (!payload.channelId) return Promise.reject(new Error('channelId is required'));
             if (!payload.content) return Promise.reject(new Error('content is required'));
@@ -71,7 +71,7 @@ export const useChatMutations = () => {
 
             return chatRepository
                 .sendChat(payload)
-                .then((result: ChatView) => {
+                .then((result: DomainChat) => {
                     setPendingStates(prev => ({ ...prev, send: false }));
 
                     // temp 메시지를 서버 확정 메시지로 교체

@@ -30,13 +30,13 @@ export interface IChatRepository extends ILocalCacheMutationRepository<DomainCha
      * @param callback 수신된 채팅 데이터를 처리할 콜백 함수
      * @returns 구독 해제(unsubscribe) 함수
      */
-    onChatCreated(callback: (chat: ChatView) => void): () => void;
+    onChatCreated(callback: (chat: DomainChat) => void): () => void;
 
     /** 기존 채팅 메시지 변경(chat:update) 이벤트를 구독합니다. */
-    onChatUpdated(callback: (chat: ChatView) => void): () => void;
+    onChatUpdated(callback: (chat: DomainChat) => void): () => void;
 
     /** 채팅 메시지 삭제(chat:delete) 이벤트를 구독합니다. */
-    onChatDeleted(callback: (chat: ChatView) => void): () => void;
+    onChatDeleted(callback: (chat: DomainChat) => void): () => void;
 
     /** 로컬 캐시 기준 채널 feed를 스트림으로 구독합니다. */
     subscribeChatFeed(payload: ChatFeedPayload, callback: (result: DomainChatFeedResult | null) => void): () => void;
@@ -115,27 +115,30 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
     /**
      * 새로운 채팅 메시지(chat:create) 수신 이벤트를 구독합니다.
      */
-    public onChatCreated(callback: (chat: ChatView) => void): () => void {
+    public onChatCreated(callback: (chat: DomainChat) => void): () => void {
         return this.onDomainEvent('chat:create', detail => {
-            callback(detail.data as ChatView);
+            const domainChat = toDomainChat(detail.data, this.getDomainScope());
+            callback(domainChat);
         });
     }
 
     /**
      * 기존 채팅 메시지 변경(chat:update) 이벤트를 구독합니다.
      */
-    public onChatUpdated(callback: (chat: ChatView) => void): () => void {
+    public onChatUpdated(callback: (chat: DomainChat) => void): () => void {
         return this.onDomainEvent('chat:update', detail => {
-            callback(detail.data as ChatView);
+            const domainChat = toDomainChat(detail.data, this.getDomainScope());
+            callback(domainChat);
         });
     }
 
     /**
      * 채팅 메시지 삭제(chat:delete) 이벤트를 구독합니다.
      */
-    public onChatDeleted(callback: (chat: ChatView) => void): () => void {
+    public onChatDeleted(callback: (chat: DomainChat) => void): () => void {
         return this.onDomainEvent('chat:delete', detail => {
-            callback(detail.data as ChatView);
+            const domainChat = toDomainChat(detail.data, this.getDomainScope());
+            callback(domainChat);
         });
     }
 

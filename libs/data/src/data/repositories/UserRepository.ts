@@ -189,7 +189,7 @@ export class UserRepository extends BaseRepository implements IUserRepository {
 
     private initializeInternalListeners(): void {
         this.onDomainEvent('user:create', detail => {
-            const user = detail.data as Partial<DomainUser>;
+            const user = detail.data;
             if (!user?.id) return;
             this.runInBackground(
                 () =>
@@ -200,23 +200,36 @@ export class UserRepository extends BaseRepository implements IUserRepository {
                 'user:create'
             );
         });
+
         this.onDomainEvent('user:update', detail => {
+            const user = detail.data;
+            if (!user?.id) return;
             this.runInBackground(
-                () => this.userLocalDataSource.upsertUser(detail.data, this.getRepositoryContext()),
+                () =>
+                    this.userLocalDataSource.upsertUser(
+                        toDomainUser(user, this.getDomainScope()),
+                        this.getRepositoryContext()
+                    ),
                 'user:update'
             );
         });
+
         this.onDomainEvent('user:delete', detail => {
+            const userId = detail.data?.id;
+            if (!userId) return;
             this.runInBackground(
-                () => this.userLocalDataSource.deleteUser(detail.data.id || '', this.getRepositoryContext()),
+                () => this.userLocalDataSource.deleteUser(userId, this.getRepositoryContext()),
                 'user:delete'
             );
         });
+
         this.onDomainEvent('user:list', detail => {
-            this.runInBackground(
-                () => this.userLocalDataSource.upsertUsers(detail.data.list || [], this.getRepositoryContext()),
-                'user:list'
-            );
+            const list = detail.data?.list || [];
+            if (list.length === 0) return;
+            this.runInBackground(() => {
+                const domainUsers = list.map((item: any) => toDomainUser(item, this.getDomainScope()));
+                return this.userLocalDataSource.upsertUsers(domainUsers, this.getRepositoryContext());
+            }, 'user:list');
         });
     }
 }
