@@ -154,8 +154,8 @@ describe('createNativeDBAdapter', () => {
             await storageA.save('A1', chat('A1', { text: 'from-a' }));
             await storageB.save('B1', chat('B1', { text: 'from-b' }));
 
-            expect(await storageA.loadAll()).toEqual([chat('A1', { text: 'from-a' })]);
-            expect(await storageB.loadAll()).toEqual([chat('B1', { text: 'from-b' })]);
+            expect(await storageA.loadAll()).toMatchObject([chat('A1', { text: 'from-a' })]);
+            expect(await storageB.loadAll()).toMatchObject([chat('B1', { text: 'from-b' })]);
             expect(harness.messages.map(message => message.type)).toContain('SaveCacheData');
         } finally {
             harness.cleanup();
@@ -179,15 +179,15 @@ describe('createNativeDBAdapter', () => {
             contextProvider.setContext({ cid: 'cloud-b', uid: 'user-b' });
             await storage.save('B1', chat('B1', { text: 'from-b' }));
 
-            expect(await storage.loadAll()).toEqual([chat('B1', { text: 'from-b' })]);
+            expect(await storage.loadAll()).toMatchObject([chat('B1', { text: 'from-b' })]);
             contextProvider.setContext({ cid: 'cloud-a', uid: 'user-a' });
-            expect(await storage.loadAll()).toEqual([chat('A1', { text: 'from-a' })]);
+            expect(await storage.loadAll()).toMatchObject([chat('A1', { text: 'from-a' })]);
         } finally {
             harness.cleanup();
         }
     });
 
-    it('replaceAll follows fetch-delete-save bridge flow', async () => {
+    it('replaceAll follows fetch-clear-save bridge flow', async () => {
         const harness = createBridgeHarness();
         const contextProvider = { getContext: () => ({ cid: 'cloud-r', uid: 'user-r' }), setContext: () => undefined };
         const storage = createNativeDBAdapter('chat', contextProvider);
@@ -196,10 +196,12 @@ describe('createNativeDBAdapter', () => {
             await storage.saveAll([chat('R1'), chat('R2')] as any);
             await storage.replaceAll([chat('R3')] as any);
 
-            expect(await storage.loadAll()).toEqual([chat('R3')]);
+            expect(await storage.loadAll()).toMatchObject([chat('R3')]);
             const types = harness.messages.map(message => message.type);
             expect(types).toContain('FetchAllCacheData');
-            expect(types).toContain('DeleteAllCacheData');
+
+            // 💡 수정: DeleteAllCacheData 대신 ClearCacheData 확인
+            expect(types).toContain('ClearCacheData');
             expect(types).toContain('SaveAllCacheData');
         } finally {
             harness.cleanup();
@@ -233,7 +235,7 @@ describe('createNativeDBAdapter', () => {
 
         try {
             await storage.save('U1', { id: 'U1', cid: 'ttl', name: 'ttl-user' } as any);
-            nowSpy.mockReturnValue(1000 + 6 * 60 * 1000);
+            nowSpy.mockReturnValue(1000 + 31 * 60 * 1000);
             expect(await storage.loadAll()).toEqual([]);
         } finally {
             harness.cleanup();

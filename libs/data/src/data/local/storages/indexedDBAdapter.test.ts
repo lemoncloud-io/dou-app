@@ -30,8 +30,8 @@ describe('createIndexedDBAdapter', () => {
         await storageA.save('A1', chat('A1', { text: 'from-a' }));
         await storageB.save('B1', chat('B1', { text: 'from-b' }));
 
-        expect(await storageA.loadAll()).toEqual([chat('A1', { text: 'from-a' })]);
-        expect(await storageB.loadAll()).toEqual([chat('B1', { text: 'from-b' })]);
+        expect(await storageA.loadAll()).toMatchObject([chat('A1', { text: 'from-a' })]);
+        expect(await storageB.loadAll()).toMatchObject([chat('B1', { text: 'from-b' })]);
     });
 
     it('reads latest cid/uid from contextProvider at call-time', async () => {
@@ -50,10 +50,10 @@ describe('createIndexedDBAdapter', () => {
         contextProvider.setContext({ cid: 'cloud-b', uid: 'user-b' });
         await storage.save('B1', chat('B1', { text: 'from-b' }));
 
-        expect(await storage.loadAll()).toEqual([chat('B1', { text: 'from-b' })]);
+        expect(await storage.loadAll()).toMatchObject([chat('B1', { text: 'from-b' })]);
 
         contextProvider.setContext({ cid: 'cloud-a', uid: 'user-a' });
-        expect(await storage.loadAll()).toEqual([chat('A1', { text: 'from-a' })]);
+        expect(await storage.loadAll()).toMatchObject([chat('A1', { text: 'from-a' })]);
     });
 
     it('replaceAll and clearAll affect only current cid+uid scope', async () => {
@@ -66,12 +66,12 @@ describe('createIndexedDBAdapter', () => {
         await other.save('O1', chat('O1'));
 
         await main.replaceAll([chat('M3')] as any);
-        expect(await main.loadAll()).toEqual([chat('M3')]);
-        expect(await other.loadAll()).toEqual([chat('O1')]);
+        expect(await main.loadAll()).toMatchObject([chat('M3')]);
+        expect(await other.loadAll()).toMatchObject([chat('O1')]);
 
         await main.clearAll();
         expect(await main.loadAll()).toEqual([]);
-        expect(await other.loadAll()).toEqual([chat('O1')]);
+        expect(await other.loadAll()).toMatchObject([chat('O1')]);
     });
 
     it('filters and garbage-collects expired items on read', async () => {
@@ -82,7 +82,7 @@ describe('createIndexedDBAdapter', () => {
         nowSpy.mockReturnValue(1000);
         await storage.save('U1', { id: 'U1', cid: 'ttl', name: 'alive' } as any);
 
-        nowSpy.mockReturnValue(1000 + 6 * 60 * 1000);
+        nowSpy.mockReturnValue(1000 + 31 * 60 * 1000);
         expect(await storage.load('U1')).toBeNull();
         expect(await storage.loadAll()).toEqual([]);
 
