@@ -1,29 +1,25 @@
 import { useCallback, useState } from 'react';
 import { logger } from '@chatic/app-messages';
 import type { CacheType } from '@chatic/app-messages';
-import {
-    useChannelLocalDataSource,
-    useChatLocalDataSource,
-    useInviteLocalDataSource,
-    useJoinLocalDataSource,
-    usePlaceLocalDataSource,
-    useUserLocalDataSource,
-} from '../local/data-sources';
+import { useRepositories } from '../data';
 
 type CacheMutationAction = 'clear-cache' | 'clear-all-cache';
 
-export const useCacheMutations = (cloudId: string, profileUid?: string) => {
+export const useCacheMutations = () => {
     const [pendingStates, setPendingStates] = useState<Record<CacheMutationAction, boolean>>({
         'clear-cache': false,
         'clear-all-cache': false,
     });
+    const {
+        channel: channelRepo,
+        chat: chatRepo,
+        user: userRepo,
+        join: joinRepo,
+        site: siteRepo,
+        inviteCloud: inviteCloudRepo,
+    } = useRepositories();
 
-    const channelRepo = useChannelLocalDataSource(cloudId, profileUid);
-    const chatRepo = useChatLocalDataSource(cloudId, profileUid);
-    const inviteCloudRepo = useInviteLocalDataSource(cloudId);
-    const joinRepo = useJoinLocalDataSource(cloudId, profileUid);
-    const siteRepo = usePlaceLocalDataSource(cloudId);
-    const userRepo = useUserLocalDataSource(cloudId, profileUid);
+    //TODO
 
     const getClearAction = useCallback(
         (type: CacheType): (() => Promise<void>) => {

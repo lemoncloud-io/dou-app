@@ -14,13 +14,14 @@ import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManag
 import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
+import type { DomainChannelListPayload } from '../domain';
 import { createDomainListResult, type DomainChannel, type DomainListResult, toDomainChannel } from '../domain';
 
 /** 채널 도메인의 Repository 공개 계약입니다. */
 export interface IChannelRepository extends ILocalCacheMutationRepository<DomainChannel> {
     /** 내가 참여 중인 채널 목록을 조회합니다. */
     fetchChannel(
-        payload: ChatMinePayload,
+        payload: DomainChannelListPayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainChannel>>;
 
@@ -53,7 +54,7 @@ export interface IChannelRepository extends ILocalCacheMutationRepository<Domain
 
     /** 로컬 캐시 기준 채널 목록을 스트림으로 구독합니다. */
     subscribeChannels(
-        payload: ChatMinePayload,
+        payload: DomainChannelListPayload,
         callback: (result: DomainListResult<DomainChannel> | null) => void
     ): () => void;
 
@@ -192,7 +193,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
 
     /** 로컬 채널 목록 스냅샷을 지속 구독합니다. */
     public subscribeChannels(
-        payload: ChatMinePayload,
+        payload: DomainChannelListPayload,
         callback: (result: DomainListResult<DomainChannel> | null) => void
     ): () => void {
         return this.channelLocalDataSource.subscribeChannelList(payload, callback, this.getRepositoryContext());

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { logger } from '@chatic/app-messages';
 import { cloudCore, useWebCoreStore, webCore } from '@chatic/web-core';
-import { getSocketSend, checkSocketHealth, useWebSocketV2Store } from '@chatic/socket';
+import { checkSocketHealth, getSocketSend, useWebSocketV2Store } from '@chatic/socket';
 
 const DEBOUNCE_MS = 300;
 

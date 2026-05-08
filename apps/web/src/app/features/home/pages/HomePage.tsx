@@ -47,7 +47,7 @@ export const HomePage = () => {
     // === 데이터: 단일 소스 — usePlaces/useChannels를 한 번만 호출 ===
     const placesResult = usePlaces();
     const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
-    const channelsResult = useChannels({ placeId: selectedPlaceId || '', detail: true });
+    const channelsResult = useChannels({ sid: selectedPlaceId || '', detail: true });
 
     // 파생 데이터
     const {

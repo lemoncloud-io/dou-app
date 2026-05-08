@@ -11,8 +11,13 @@ import {
 import type { CacheStorage, CacheStorageItem } from '../storages';
 import type { DataContextProvider } from '../../repositories';
 import { toDomainChannel } from './mappers';
-import { createDomainListResult, type DomainChannel, type DomainListResult } from '../../domain';
-import { toDomainChannel as toDomainChannelBase } from '../../domain';
+import type { DomainChannelListPayload } from '../../domain';
+import {
+    createDomainListResult,
+    type DomainChannel,
+    type DomainListResult,
+    toDomainChannel as toDomainChannelBase,
+} from '../../domain';
 
 export interface IChannelLocalDataSource
     extends ICrudLocalDataSource<DomainChannel>,
@@ -23,19 +28,25 @@ export interface IChannelLocalDataSource
         payload: ChatMinePayload,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainChannel> | null>;
+
     /** 단일 채널을 id로 조회합니다. */
     getChannel(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainChannel | null>;
+
     /** 단일 채널을 저장/병합합니다. */
     upsertChannel(channel: Partial<DomainChannel>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+
     /** 다수 채널을 저장/병합합니다. */
     upsertChannels(
         channels: Array<Partial<DomainChannel>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void>;
+
     /** 단일 채널을 삭제합니다. */
     deleteChannel(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+
     /** 다중 채널을 삭제합니다. */
     deleteChannels(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+
     /** 단일 채널 일부 필드만 병합 업데이트합니다. */
     updateChannelPartial(
         id: string,
@@ -48,7 +59,7 @@ export interface IChannelLocalDataSource
 
     /** 채널 목록 조회 결과를 스트림으로 구독합니다. */
     subscribeChannelList(
-        payload: ChatMinePayload,
+        payload: DomainChannelListPayload,
         callback: LocalStreamCallback<DomainListResult<DomainChannel> | null>,
         contextOverride?: LocalDataSourceContextOverride
     ): LocalStreamUnsubscribe;
@@ -68,12 +79,6 @@ const getChannelSortTime = (channel: Partial<DomainChannel> | ChannelCache): num
     return typeof value === 'number' ? value : new Date(value).getTime();
 };
 
-const getPayloadPlaceId = (payload: ChatMinePayload): string | undefined => {
-    const maybePayload = payload as { placeId?: string; sid?: string };
-    const placeId = maybePayload.placeId ?? maybePayload.sid;
-    return placeId && placeId !== 'default' ? placeId : undefined;
-};
-
 type ChannelCache = CacheStorageItem<'channel'>;
 
 /** 채널 캐시 read/write와 서버 응답 형태에 맞춘 list 가공을 담당합니다. */
@@ -86,13 +91,13 @@ export class ChannelLocalDataSource extends BaseLocalDataSource implements IChan
     }
 
     public async fetchChannel(
-        payload: ChatMinePayload,
+        payload: DomainChannelListPayload,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainChannel> | null> {
         // sid(place) 기준으로 로컬 목록을 스코프한 뒤 최신 대화 순으로 정렬합니다.
         const context = this.getContext(contextOverride);
         const allChannels = await this.cacheStorage.loadAll();
-        const placeId = getPayloadPlaceId(payload) ?? context.sid;
+        const placeId = payload.sid ?? context.sid;
         const scopedChannels = placeId ? allChannels.filter(channel => channel.sid === placeId) : allChannels;
 
         if (scopedChannels.length === 0) return null;
@@ -201,7 +206,7 @@ export class ChannelLocalDataSource extends BaseLocalDataSource implements IChan
 
     /** 로컬 채널 목록 스냅샷을 지속 구독합니다. */
     public subscribeChannelList(
-        payload: ChatMinePayload,
+        payload: DomainChannelListPayload,
         callback: LocalStreamCallback<DomainListResult<DomainChannel> | null>,
         contextOverride?: LocalDataSourceContextOverride
     ): LocalStreamUnsubscribe {
@@ -219,7 +224,7 @@ export class ChannelLocalDataSource extends BaseLocalDataSource implements IChan
 
     /** 공통 CRUD 인터페이스: 리스트 조회 */
     public fetchList(
-        query: ChatMinePayload,
+        query: DomainChannelListPayload,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainChannel> | null> {
         return this.fetchChannel(query, contextOverride);
@@ -255,7 +260,7 @@ export class ChannelLocalDataSource extends BaseLocalDataSource implements IChan
 
     /** 공통 Stream 인터페이스: 리스트 구독 */
     public subscribeList(
-        query: ChatMinePayload,
+        query: DomainChannelListPayload,
         callback: LocalStreamCallback<DomainListResult<DomainChannel> | null>,
         contextOverride?: LocalDataSourceContextOverride
     ): LocalStreamUnsubscribe {

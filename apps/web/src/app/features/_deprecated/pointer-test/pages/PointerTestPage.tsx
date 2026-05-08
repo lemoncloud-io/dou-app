@@ -6,11 +6,11 @@ import { ClipboardList, Crosshair, MousePointer } from 'lucide-react';
 import { useWebSocketStore } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-import { useSessionId } from '../../home/hooks/useSessionId';
 import { PointerCanvas } from '../components';
 import { useInitPointerWebSocket, usePointerSync } from '../hooks';
 
 import type { JSX } from 'react';
+import { useSessionId } from '../../../home';
 
 const CANVAS_WIDTH = 600;
 const CANVAS_HEIGHT = 400;

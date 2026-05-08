@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/app-messages';
-import type { ClientChannelView } from '@chatic/data';
-import type { ChannelView, JoinView } from '@lemoncloud/chatic-socials-api';
+import type { ClientChannelView, DomainChannel, DomainJoin } from '@chatic/data';
 import { useDynamicProfile } from '@chatic/web-core';
 
 import { useRepositories } from '../data';
 
 const DEFAULT_CHANNEL_LIMIT = 100;
 
-const toClientChannel = (channel: ChannelView, userId?: string): ClientChannelView => {
+const toClientChannel = (channel: DomainChannel, userId?: string): ClientChannelView => {
     const lastChatNo = channel.lastChat$?.chatNo ?? channel.chatNo ?? 0;
     const lastMessageIsMine = channel.lastChat$?.ownerId === userId;
     const myReadNo = lastMessageIsMine ? lastChatNo : (channel.$join?.chatNo ?? 0);
@@ -59,7 +58,7 @@ export const useChannel = (channelId: string | null) => {
             );
             if (requestSeqRef.current !== requestSeq) return;
 
-            const found = (result.list ?? []).find((ch: ChannelView) => ch.id === channelId);
+            const found = (result.list ?? []).find((ch: DomainChannel) => ch.id === channelId);
             setChannel(found ? toClientChannel(found, userIdRef.current) : null);
         } catch (error) {
             if (requestSeqRef.current !== requestSeq) return;
@@ -85,22 +84,22 @@ export const useChannel = (channelId: string | null) => {
     useEffect(() => {
         if (!channelId) return;
 
-        const unsubscribeUpdated = channelRepository.onChannelUpdated((ch: ChannelView) => {
+        const unsubscribeUpdated = channelRepository.onChannelUpdated((ch: DomainChannel) => {
             if (ch.id !== channelId) return;
             setChannel(toClientChannel(ch, userIdRef.current));
         });
 
-        const unsubscribeDeleted = channelRepository.onChannelDeleted((ch: ChannelView) => {
+        const unsubscribeDeleted = channelRepository.onChannelDeleted((ch: DomainChannel) => {
             if (ch.id !== channelId) return;
             setChannel(null);
         });
 
-        const unsubscribeJoinCreated = joinRepository.onJoinCreated((join: JoinView) => {
+        const unsubscribeJoinCreated = joinRepository.onJoinCreated((join: DomainJoin) => {
             if (join.channelId !== channelId) return;
             void fetchChannel();
         });
 
-        const unsubscribeJoinDeleted = joinRepository.onJoinDeleted((join: JoinView) => {
+        const unsubscribeJoinDeleted = joinRepository.onJoinDeleted((join: DomainJoin) => {
             if (join.channelId !== channelId) return;
             void fetchChannel();
         });

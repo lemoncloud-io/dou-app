@@ -9,8 +9,5 @@ export * from './data/remote/data-sources';
 export * from './data/remote/sockets/dispatchers';
 export * from './data/remote/sockets/SocketRequestManager';
 export * from './data/repositories';
-export * from './hooks';
-export * from './mutations';
-export * from './local/data-sources';
 export { FOREGROUND_RESYNC_EVENT_NAME } from './sync-events/syncEvent';
 export * from './types';

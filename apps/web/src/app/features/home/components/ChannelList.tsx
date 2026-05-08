@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import type { ClientChannelView } from '@chatic/data';
 import { useAppPreferenceStore } from '@chatic/web-core';
+import type { DomainChannel } from '@chatic/data';
 
 const ChannelSkeleton = () => (
     <div className="flex items-start gap-2 rounded-[6px] px-[2px] py-2">
@@ -17,7 +17,7 @@ const ChannelSkeleton = () => (
     </div>
 );
 
-const ChannelItem = ({ channel }: { channel: ClientChannelView }) => {
+const ChannelItem = ({ channel }: { channel: DomainChannel }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const blurLastMessage = useAppPreferenceStore(s => s.blurLastMessage);
@@ -92,7 +92,7 @@ const ChannelItem = ({ channel }: { channel: ClientChannelView }) => {
 };
 
 interface ChannelListProps {
-    channels: ClientChannelView[];
+    channels: DomainChannel[];
     isLoading: boolean;
     isSyncing: boolean;
     isError: boolean;
@@ -192,7 +192,7 @@ export const ChannelList = ({
             {header}
             <div className="flex-1 overflow-y-auto">
                 <div className="flex flex-col gap-[18px] px-1">
-                    {channels.map((channel: ClientChannelView) => (
+                    {channels.map((channel: DomainChannel) => (
                         <ChannelItem key={channel.id} channel={channel} />
                     ))}
                 </div>

@@ -57,13 +57,3 @@ export interface AppSyncDetail<T = any> {
  */
 const TAB_ID = `tab-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 export const getTabId = () => TAB_ID;
-
-/**
- * 통합 앱 동기화 알림 함수
- */
-export const notifyAppUpdated = <T>(detail: AppSyncDetail<T>) => {
-    window.dispatchEvent(new CustomEvent(APP_SYNC_EVENT_NAME, { detail }));
-    const bc = new BroadcastChannel(APP_SYNC_CHANNEL_NAME);
-    bc.postMessage({ ...detail, _originTabId: TAB_ID });
-    bc.close();
-};

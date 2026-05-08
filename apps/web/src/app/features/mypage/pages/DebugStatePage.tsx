@@ -45,7 +45,7 @@ export const DebugStatePage = () => {
 
     const { data: cloudsData } = useClouds();
     const { places } = usePlaces();
-    const { channels } = useChannels({ placeId: selectedCloudId, detail: true });
+    const { channels } = useChannels({ sid: selectedCloudId, detail: true });
 
     const clouds = cloudsData?.list ?? [];
     const selectedCloud = clouds.find(c => c.id === selectedCloudId);

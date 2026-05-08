@@ -5,18 +5,15 @@ import { toast } from 'sonner';
 
 import { LoadingFallback } from '@chatic/shared';
 import { useLogout } from '@chatic/auth';
-import { useCacheMutations } from '@chatic/data';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { useCacheMutations } from '../../../shared/hooks/useCacheMutations';
 
 export const LogoutPage = () => {
     const { t } = useTranslation();
-    const { profile } = useWebCoreStore();
-    const selectedCloudId = cloudCore.getSelectedCloudId() ?? 'default';
 
     const { mutate: logout } = useLogout();
     const logoutCalled = useRef(false);
 
-    const { clearAllCache } = useCacheMutations(selectedCloudId, profile?.uid);
+    const { clearAllCache } = useCacheMutations();
 
     useEffect(() => {
         if (logoutCalled.current) return;

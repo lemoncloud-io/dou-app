@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/app-messages';
-import type { ClientChatView } from '@chatic/data';
-import type { ChatView } from '@lemoncloud/chatic-socials-api';
+import type { ClientChatView, DomainChat } from '@chatic/data';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
 import { useDynamicProfile } from '@chatic/web-core';
 
@@ -20,20 +19,15 @@ interface LegacyAppSyncDetail<T = unknown> {
     ref?: string;
 }
 
-type LocalChatView = ChatView & {
-    isPending?: boolean;
-    isFailed?: boolean;
-};
-
-const getCreatedAtTime = (chat: Pick<ChatView, 'createdAt'>) => {
+const getCreatedAtTime = (chat: Pick<DomainChat, 'createdAt'>) => {
     const time = new Date(chat.createdAt ?? 0).getTime();
     return Number.isNaN(time) ? 0 : time;
 };
 
-const getChatKey = (chat: ChatView) =>
+const getChatKey = (chat: ClientChatView) =>
     chat.id ?? `${chat.channelId ?? 'channel'}:${chat.chatNo ?? getCreatedAtTime(chat)}`;
 
-const toClientChat = (chat: LocalChatView, userId?: string): ClientChatView => {
+const toClientChat = (chat: DomainChat, userId?: string): ClientChatView => {
     const createdAt = chat.createdAt ?? Date.now();
     const timestamp = new Date(createdAt);
     const id = chat.id ?? (chat.chatNo !== undefined ? `${chat.channelId}:${chat.chatNo}` : undefined);
@@ -131,7 +125,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 if (requestSeqRef.current !== requestSeq) return;
 
                 const nextMessages = sortMessages(
-                    (result.list ?? []).map((chat: ChatView) => toClientChat(chat, userIdRef.current))
+                    (result.list ?? []).map((chat: DomainChat) => toClientChat(chat, userIdRef.current))
                 );
 
                 setMessages(prev => (mode === 'append' ? mergeMessages(prev, nextMessages) : nextMessages));
@@ -164,7 +158,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     }, [fetchMessages, targetChannelId, initialParams.limit]);
 
     useEffect(() => {
-        return chatRepository.onChatCreated((chat: ChatView) => {
+        return chatRepository.onChatCreated((chat: DomainChat) => {
             if (chat.channelId !== targetChannelId) return;
             // 자신이 보낸 메시지는 optimistic update 흐름(notifyAppUpdated)에서 처리하므로 건너뜀.
             // onChatCreated가 먼저 실행되어 temp 메시지와 서버 메시지가 동시에 표시되는 것을 방지.
@@ -176,7 +170,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
 
     useEffect(() => {
         const handleLegacySync = (event: Event) => {
-            const { detail } = event as CustomEvent<LegacyAppSyncDetail<LocalChatView>>;
+            const { detail } = event as CustomEvent<LegacyAppSyncDetail<DomainChat>>;
             if (detail.domain !== 'chat' || detail.targetId !== targetChannelId) return;
 
             // send, delete 액션만 처리 (optimistic update 용도)

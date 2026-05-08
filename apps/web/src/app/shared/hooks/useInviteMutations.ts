@@ -2,17 +2,17 @@ import { useCallback, useState } from 'react';
 import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore } from '@chatic/web-core';
-import type { CacheCloudView } from '@chatic/app-messages';
-import { APP_SYNC_EVENT_NAME } from '../sync-events';
-import type { AppSyncDetail } from '../sync-events';
-import { useInviteLocalDataSource } from '../local/data-sources';
+import { useRepositories } from '../data';
+import type { DomainInviteCloud } from '@chatic/data';
 
 export const useInviteMutations = () => {
     const cloudIdFromStore = useWebSocketV2Store(s => s.cloudId);
     // Fallback: during invite acceptance, WebSocket may be unconnected (cloudId=null).
     // cloudCore.getSelectedCloudId() holds the value set synchronously during handleAccept.
     const cloudId = cloudIdFromStore || cloudCore.getSelectedCloudId() || 'default';
-    const repository = useInviteLocalDataSource(cloudId);
+
+    // DataSource 대신 Repository 인스턴스를 가져옵니다.
+    const { inviteCloud } = useRepositories();
 
     const [isSaving, setIsSaving] = useState(false);
 
@@ -20,27 +20,12 @@ export const useInviteMutations = () => {
      * 초대장을 로컬 DB에 저장하고, 화면 갱신 이벤트를 방출합니다.
      */
     const saveInvite = useCallback(
-        async (inviteData: CacheCloudView) => {
+        async (inviteData: DomainInviteCloud) => {
             setIsSaving(true);
 
             try {
-                // 로컬 DB에 저장
-                await repository.saveInvite(inviteData.id, inviteData);
-
-                /**
-                 * useInviteClouds가 감지할 수 있도록 이벤트 방출
-                 * 서버를 거치지 않기 때문에 별도의 action이 존재하지 않음
-                 */
-                window.dispatchEvent(
-                    new CustomEvent(APP_SYNC_EVENT_NAME, {
-                        detail: {
-                            domain: 'invitecloud',
-                            action: '',
-                            cid: cloudId,
-                            targetId: inviteData.id,
-                        } as AppSyncDetail,
-                    })
-                );
+                // Repository의 saveInviteCloud 메서드 사용
+                await inviteCloud.saveInviteCloud(inviteData.id, inviteData);
             } catch (error) {
                 logger.error('INVITE', 'Failed to save invite', { error, data: { inviteId: inviteData.id } });
                 throw error;
@@ -48,7 +33,7 @@ export const useInviteMutations = () => {
                 setIsSaving(false);
             }
         },
-        [repository, cloudId]
+        [inviteCloud, cloudId]
     );
 
     return {

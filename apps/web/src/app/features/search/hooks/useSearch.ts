@@ -29,7 +29,7 @@ export const useSearch = (query: string) => {
 
     const { places: apiPlaces } = usePlaces();
     const searchPlaceId = cloudCore.getSelectedPlaceId() || '';
-    const { channels: apiChannels } = useChannels({ placeId: searchPlaceId, detail: true });
+    const { channels: apiChannels } = useChannels({ sid: searchPlaceId, detail: true });
 
     const [results, setResults] = useState<SearchResults>({ places: [], chats: [] });
     const [isSearching, setIsSearching] = useState(false);
