@@ -66,4 +66,37 @@ export interface DomainChatFeedResult extends Omit<ChatFeedResult, 'list'> {
     list: DomainChat[];
 }
 
-export type DomainListResult<T, R = any> = ListResult<T, R>;
+export interface DomainListMeta {
+    /** 실제 리스트 아이템 길이와 무관하게, 서버/캐시가 보고하는 전체 개수 */
+    totalCount: number;
+    /** 해당 리스트 스냅샷이 마지막으로 갱신된 시각(epoch ms) */
+    lastUpdatedAt: number;
+    /** 리스트 데이터 출처 */
+    source?: 'local' | 'remote' | 'fallback';
+}
+
+/**
+ * 도메인 리스트 표준 래퍼입니다.
+ * 기존 ListResult를 유지하면서 meta를 추가해 공통적인 동기화/무결성 정보를 관리합니다.
+ */
+export interface DomainListResult<T, R = any> extends ListResult<T, R> {
+    meta: DomainListMeta;
+}
+
+export const createDomainListResult = <T, R = any>(
+    result: ListResult<T, R>,
+    meta?: Partial<DomainListMeta>
+): DomainListResult<T, R> => {
+    const list = result.list || [];
+    const totalCount = result.total ?? list.length;
+    return {
+        ...result,
+        list,
+        total: totalCount,
+        meta: {
+            totalCount,
+            lastUpdatedAt: meta?.lastUpdatedAt ?? Date.now(),
+            source: meta?.source,
+        },
+    };
+};

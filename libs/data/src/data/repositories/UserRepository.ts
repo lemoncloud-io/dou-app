@@ -3,18 +3,17 @@ import type { MyInviteView, UserView } from '@lemoncloud/chatic-backend-api';
 import type { DomainEventMap, ListResult } from '../events/types';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
-import type { DataContextProvider } from './types';
+import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { IUserLocalDataSource } from '../local/data-sources';
-import type { DomainListResult, DomainUser } from '../domain';
-import { toDomainUser } from '../domain';
+import { createDomainListResult, type DomainListResult, type DomainUser, toDomainUser } from '../domain';
 
 /**
  * 사용자 도메인의 Repository 공개 계약입니다.
  * 사용자 목록 조회, 채널 초대, 내 프로필 수정, 외부 초대 코드 생성을 담당합니다.
  */
-export interface IUserRepository {
+export interface IUserRepository extends ILocalCacheMutationRepository<DomainUser> {
     /** 특정 채널 또는 조건에 맞는 사용자 목록을 조회합니다. */
     fetchUsers(payload: ChatUsersPayload, options?: RepositoryRequestOptions): Promise<DomainListResult<DomainUser>>;
 
@@ -35,6 +34,15 @@ export interface IUserRepository {
 
     /** 사용자 삭제/탈퇴(user:delete) 이벤트를 수신하는 리스너를 등록합니다. */
     onUserDeleted(callback: (user: DomainUser) => void): () => void;
+
+    /** 로컬 캐시 기준 사용자 목록을 스트림으로 구독합니다. */
+    subscribeUsers(
+        payload: ChatUsersPayload,
+        callback: (result: DomainListResult<DomainUser> | null) => void
+    ): () => void;
+
+    /** 로컬 캐시 기준 단일 사용자를 스트림으로 구독합니다. */
+    subscribeUser(id: string, callback: (user: DomainUser | null) => void): () => void;
 }
 
 /**
@@ -64,12 +72,16 @@ export class UserRepository extends BaseRepository implements IUserRepository {
             fetchLocal: () => this.userLocalDataSource.fetchUsers(payload, this.getRepositoryContext()),
             fetchRemote: remoteOptions => this.fetchFromRemoteAndCache(payload, remoteOptions),
             isLocalValid: local => (local.list || []).length > 0,
-            fallback: () => ({
-                list: [],
-                limit: (payload as { limit?: number }).limit,
-                page: (payload as { page?: number }).page,
-                total: 0,
-            }),
+            fallback: () =>
+                createDomainListResult(
+                    {
+                        list: [],
+                        limit: (payload as { limit?: number }).limit,
+                        page: (payload as { page?: number }).page,
+                        total: 0,
+                    },
+                    { source: 'fallback' }
+                ),
         });
     }
 
@@ -118,6 +130,50 @@ export class UserRepository extends BaseRepository implements IUserRepository {
         });
     }
 
+    /** 로컬 사용자 목록 스냅샷을 지속 구독합니다. */
+    public subscribeUsers(
+        payload: ChatUsersPayload,
+        callback: (result: DomainListResult<DomainUser> | null) => void
+    ): () => void {
+        return this.userLocalDataSource.subscribeUsers(payload, callback, this.getRepositoryContext());
+    }
+
+    /** 로컬 단일 사용자 스냅샷을 지속 구독합니다. */
+    public subscribeUser(id: string, callback: (user: DomainUser | null) => void): () => void {
+        return this.userLocalDataSource.subscribeUser(id, callback, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에 사용자를 생성/병합합니다. (remote 호출 없음) */
+    public cacheCreate(item: Partial<DomainUser>): Promise<void> {
+        return this.userLocalDataSource.upsertUser(item, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시의 사용자 일부 필드를 갱신합니다. (remote 호출 없음) */
+    public cacheUpdate(id: string, patch: Partial<DomainUser>): Promise<void> {
+        return this.userLocalDataSource.updateUserPartial(id, patch, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에서 사용자를 삭제합니다. (remote 호출 없음) */
+    public cacheDelete(id: string): Promise<void> {
+        return this.userLocalDataSource.deleteUser(id, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시에 사용자를 일괄 생성/병합합니다. (remote 호출 없음) */
+    public cacheBulkCreate(items: Array<Partial<DomainUser>>): Promise<void> {
+        return this.userLocalDataSource.upsertUsers(items, this.getRepositoryContext());
+    }
+
+    /** 로컬 캐시의 사용자 일부 필드를 일괄 갱신합니다. (remote 호출 없음) */
+    public async cacheBulkUpdate(items: Array<LocalCacheBulkPatch<DomainUser>>): Promise<void> {
+        await Promise.all(
+            items
+                .filter(item => !!item.id)
+                .map(item =>
+                    this.userLocalDataSource.updateUserPartial(item.id, item.patch, this.getRepositoryContext())
+                )
+        );
+    }
+
     private async fetchFromRemoteAndCache(
         payload: ChatUsersPayload,
         options?: RepositoryRequestOptions
@@ -128,7 +184,7 @@ export class UserRepository extends BaseRepository implements IUserRepository {
         );
         const domainList = (remote.list || []).map(item => toDomainUser(item, this.getDomainScope()));
         await this.userLocalDataSource.upsertUsers(domainList, this.getRepositoryContext());
-        return { ...remote, list: domainList };
+        return createDomainListResult({ ...remote, list: domainList }, { source: 'remote' });
     }
 
     private initializeInternalListeners(): void {

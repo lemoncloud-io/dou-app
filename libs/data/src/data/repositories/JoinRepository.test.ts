@@ -56,7 +56,7 @@ describe('JoinRepository local-only fetchJoins', () => {
         const result = await repository.fetchJoins({ channelId: 'ch-1' }, { cachePolicy: 'cache-first' });
 
         expect(local.getJoinsByChannel).toHaveBeenCalledWith('ch-1', { cid: 'cloud-a', uid: 'user-a' });
-        expect(result).toEqual({ list: localJoins, total: 1 });
+        expect(result).toMatchObject({ list: localJoins, total: 1, meta: { totalCount: 1, source: 'local' } });
         expect(requestManager.request).not.toHaveBeenCalled();
     });
 
@@ -69,7 +69,7 @@ describe('JoinRepository local-only fetchJoins', () => {
 
         expect(local.getActiveJoinsByChannel).toHaveBeenCalledWith('ch-1', { cid: 'cloud-a', uid: 'user-a' });
         expect(local.getJoinsByChannel).not.toHaveBeenCalled();
-        expect(result).toEqual({ list: activeJoins, total: 1 });
+        expect(result).toMatchObject({ list: activeJoins, total: 1, meta: { totalCount: 1, source: 'local' } });
     });
 
     it('returns fallback for cache-only when local is empty', async () => {
@@ -78,7 +78,7 @@ describe('JoinRepository local-only fetchJoins', () => {
 
         const result = await repository.fetchJoins({ channelId: 'ch-1' }, { cachePolicy: 'cache-only' });
 
-        expect(result).toEqual({ list: [], total: 0 });
+        expect(result).toMatchObject({ list: [], total: 0, meta: { totalCount: 0, source: 'local' } });
         expect(requestManager.request).not.toHaveBeenCalled();
     });
 
