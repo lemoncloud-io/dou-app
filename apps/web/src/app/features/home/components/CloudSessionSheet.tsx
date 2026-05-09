@@ -374,7 +374,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                     )}
 
                     {/* Tabs */}
-                    <TabBar tab={tab} onChange={setTab} inviteCount={inviteClouds.length} />
+                    <TabBar tab={tab} onChange={setTab} inviteCount={inviteClouds?.meta.total ?? 0} />
 
                     {/* Content */}
                     <div className="max-h-[40vh] overflow-y-auto">

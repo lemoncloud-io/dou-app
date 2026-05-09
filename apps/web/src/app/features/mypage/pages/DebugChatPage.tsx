@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { DomainChannel, DomainChatFeedResult, DomainListResult } from '@chatic/data';
+import type { DomainChannel, DomainChat, DomainListResult } from '@chatic/data';
 import { Trash2 } from 'lucide-react';
 
 import { useRepositories } from '../../../shared/data';
@@ -20,7 +20,7 @@ export const DebugChatPage = () => {
     const [selectedChannelId, setSelectedChannelId] = useState('');
 
     const [chatSubscribed, setChatSubscribed] = useState(false);
-    const [chatSnapshot, setChatSnapshot] = useState<DomainChatFeedResult | null>(null);
+    const [chatSnapshot, setChatSnapshot] = useState<DomainListResult<DomainChat> | null>(null);
     const [chatLogs, setChatLogs] = useState<string[]>([]);
     const [editingChatId, setEditingChatId] = useState('');
     const [editingChatContent, setEditingChatContent] = useState('');
@@ -58,7 +58,7 @@ export const DebugChatPage = () => {
             if (!activePlaceId) return;
 
             channelUnsubRef.current?.();
-            channelUnsubRef.current = channelRepository.subscribeChannels(
+            channelUnsubRef.current = channelRepository.subscribeList(
                 { placeId: activePlaceId, page: 0, limit: 100 } as any,
                 result => {
                     setChannelSnapshot(result);
@@ -111,22 +111,20 @@ export const DebugChatPage = () => {
     );
 
     const subscribeChats = useCallback(() => {
-        if (!selectedChannelId.trim()) {
+        const channelId = selectedChannelId.trim();
+        if (!channelId) {
             alert('먼저 채널을 생성하거나 선택하세요.');
             return;
         }
 
         chatUnsubRef.current?.();
-        chatUnsubRef.current = chatRepository.subscribeChatFeed(
-            { channelId: selectedChannelId.trim(), limit: 200 },
-            result => {
-                setChatSnapshot(result);
-                pushChatLog(`stream emit: ${result?.list?.length ?? 0} chats`);
-            }
-        );
+        chatUnsubRef.current = chatRepository.subscribeList(channelId, result => {
+            setChatSnapshot(result);
+            pushChatLog(`stream emit: ${result?.list.length ?? 0} chats`);
+        });
 
         setChatSubscribed(true);
-        pushChatLog(`stream subscribed (channelId=${selectedChannelId.trim()})`);
+        pushChatLog(`stream subscribed (channelId=${channelId})`);
     }, [chatRepository, pushChatLog, selectedChannelId]);
 
     const unsubscribeChats = useCallback(() => {
