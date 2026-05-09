@@ -88,7 +88,8 @@
         "@react-native-firebase/installations": "*",
         "@react-native-firebase/messaging": "*",
         "@react-native-firebase/auth": "*",
-        "@testing-library/react": "*"
+        "@testing-library/react": "*",
+        "@notifee/react-native": "*"
     },
     "devDependencies": {
         "better-sqlite3": "*"
