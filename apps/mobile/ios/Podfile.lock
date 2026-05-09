@@ -4532,6 +4532,11 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - RNNotifee (9.1.8):
+    - React-Core
+    - RNNotifee/NotifeeCore (= 9.1.8)
+  - RNNotifee/NotifeeCore (9.1.8):
+    - React-Core
   - RNPermissions (5.5.1):
     - boost
     - DoubleConversion
@@ -4780,6 +4785,7 @@ DEPENDENCIES:
   - RNFS (from `../../../node_modules/react-native-fs`)
   - "RNGoogleSignin (from `../../../node_modules/@react-native-google-signin/google-signin`)"
   - RNLocalize (from `../../../node_modules/react-native-localize`)
+  - "RNNotifee (from `../../../node_modules/@notifee/react-native`)"
   - RNPermissions (from `../../../node_modules/react-native-permissions`)
   - RNScreens (from `../../../node_modules/react-native-screens`)
   - RNSVG (from `../../../node_modules/react-native-svg`)
@@ -5023,6 +5029,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/@react-native-google-signin/google-signin"
   RNLocalize:
     :path: "../../../node_modules/react-native-localize"
+  RNNotifee:
+    :path: "../../../node_modules/@notifee/react-native"
   RNPermissions:
     :path: "../../../node_modules/react-native-permissions"
   RNScreens:
@@ -5165,6 +5173,7 @@ SPEC CHECKSUMS:
   RNFS: 89de7d7f4c0f6bafa05343c578f61118c8282ed8
   RNGoogleSignin: 32eac25be182674a2838c8bf6908c0296fe3bb5d
   RNLocalize: 9988fa71fb84c415902898b35cc6aa5af052731e
+  RNNotifee: 5e3b271e8ea7456a36eec994085543c9adca9168
   RNPermissions: 6f83da488489444f3e0b60640d01787bd7704a0e
   RNScreens: d6413aeb1878cdafd3c721e2c5218faf5d5d3b13
   RNSVG: b5da7cb4bb60503fd841bf6eddae1d171e515d79
