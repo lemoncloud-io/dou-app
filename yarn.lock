@@ -3281,6 +3281,11 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
+"@notifee/react-native@^9.1.8":
+  version "9.1.8"
+  resolved "https://registry.yarnpkg.com/@notifee/react-native/-/react-native-9.1.8.tgz#3d55cb3fbcc21f9e35931e366afdf64b294da891"
+  integrity sha512-Az/dueoPerJsbbjRxu8a558wKY+gONUrfoy3Hs++5OqbeMsR0dYe6P+4oN6twrLFyzAhEA1tEoZRvQTFDRmvQg==
+
 "@nx/detox@22.3.3":
   version "22.3.3"
   resolved "https://registry.yarnpkg.com/@nx/detox/-/detox-22.3.3.tgz#fffe9992c9a4c0a5f65984fbee029c42d45d644f"
