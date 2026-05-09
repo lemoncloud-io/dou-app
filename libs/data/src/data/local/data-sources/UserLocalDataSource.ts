@@ -18,56 +18,8 @@ export interface IUserLocalDataSource
     extends ICrudLocalDataSource<DomainUser>,
         IListLocalDataSource<DomainUser, ChatUsersPayload>,
         IStreamLocalDataSource<DomainUser, ChatUsersPayload, DomainListResult<DomainUser>> {
-    /** 사용자 목록을 로컬 캐시에서 조회합니다. */
-    fetchUsers(
-        payload: ChatUsersPayload,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<DomainListResult<DomainUser> | null>;
-
-    /** 단일 사용자를 id로 조회합니다. */
-    getUser(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser | null>;
-
-    /** 다수 사용자 id로 사용자 목록을 조회합니다. */
+    /** 다수 사용자 id로 사용자 목록을 조회합니다. (User 도메인 특화 로직) */
     getUsers(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser[]>;
-
-    /** 채널 기준으로 사용자 목록을 조회합니다. */
-    getUsersByChannel(channelId: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser[]>;
-
-    /** 단일 사용자 정보를 저장/병합합니다. */
-    upsertUser(user: Partial<DomainUser>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
-
-    /** 다수 사용자 정보를 저장/병합합니다. */
-    upsertUsers(users: Array<Partial<DomainUser>>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
-
-    /** 단일 사용자 정보를 삭제합니다. */
-    deleteUser(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
-
-    /** 다중 사용자 정보를 삭제합니다. */
-    deleteUsers(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void>;
-
-    /** 단일 사용자 일부 필드만 병합 업데이트합니다. */
-    updateUserPartial(
-        id: string,
-        patch: Partial<DomainUser>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<void>;
-
-    /** 현재 스코프 사용자 캐시를 초기화합니다. */
-    clearAll(contextOverride?: LocalDataSourceContextOverride): Promise<void>;
-
-    /** 사용자 목록 조회 결과를 스트림으로 구독합니다. */
-    subscribeUsers(
-        payload: ChatUsersPayload,
-        callback: LocalStreamCallback<DomainListResult<DomainUser> | null>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): LocalStreamUnsubscribe;
-
-    /** 단일 사용자 조회 결과를 스트림으로 구독합니다. */
-    subscribeUser(
-        id: string,
-        callback: LocalStreamCallback<DomainUser | null>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): LocalStreamUnsubscribe;
 }
 
 /** 사용자 캐시 read/write와 채널 멤버 조회 결과 가공을 담당합니다. */
@@ -79,56 +31,16 @@ export class UserLocalDataSource extends BaseLocalDataSource implements IUserLoc
         super(contextProvider);
     }
 
-    public async fetchUsers(
-        payload: ChatUsersPayload,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<DomainListResult<DomainUser> | null> {
-        const channelId = payload.channelId;
-        const users = channelId
-            ? await this.getUsersByChannel(channelId, contextOverride)
-            : (await this.cacheStorage.loadAll()).map(toDomainUser);
+    // =========================================================================
+    // 1. 공통 CRUD 인터페이스 (ICrudLocalDataSource)
+    // =========================================================================
 
-        if (users.length === 0) return null;
-
-        return createDomainListResult(
-            {
-                list: users,
-                total: users.length,
-                page: payload.page,
-                limit: payload.limit,
-            },
-            { source: 'local' }
-        );
-    }
-
-    public async getUser(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser | null> {
+    public async getById(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser | null> {
         const user = await this.cacheStorage.load(id);
         return user ? toDomainUser(user) : null;
     }
 
-    public async getUsers(ids: string[], _contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser[]> {
-        if (ids.length === 0) return [];
-        const users = await Promise.all(ids.map(id => this.cacheStorage.load(id)));
-        return users.filter((user): user is CacheStorageItem<'user'> => !!user).map(toDomainUser);
-    }
-
-    public async getUsersByChannel(
-        channelId: string,
-        _contextOverride?: LocalDataSourceContextOverride
-    ): Promise<DomainUser[]> {
-        if (!channelId) return [];
-        const users = (await this.cacheStorage.loadAll()).map(toDomainUser);
-        return users.filter(user => {
-            const joinChannelId = (user as { $join?: { channelId?: string } }).$join?.channelId;
-            const directChannelId = (user as { channelId?: string }).channelId;
-            return joinChannelId === channelId || directChannelId === channelId;
-        });
-    }
-
-    public async upsertUser(
-        user: Partial<DomainUser>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<void> {
+    public async upsert(user: Partial<DomainUser>, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         const id = user.id;
         if (!id) return;
 
@@ -152,35 +64,24 @@ export class UserLocalDataSource extends BaseLocalDataSource implements IUserLoc
         await this.emitAllStreams();
     }
 
-    public async upsertUsers(
+    public async upsertMany(
         users: Array<Partial<DomainUser>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
-        await Promise.all(users.map(user => this.upsertUser(user, contextOverride)));
+        await Promise.all(users.map(user => this.upsert(user, contextOverride)));
     }
 
-    public async deleteUser(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+    public async remove(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         if (!id) return;
         await this.cacheStorage.delete(id);
         await this.emitAllStreams();
     }
 
-    public async deleteUsers(ids: string[], _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+    public async removeMany(ids: string[], _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
         await this.cacheStorage.deleteAll(validIds);
         await this.emitAllStreams();
-    }
-
-    public async updateUserPartial(
-        id: string,
-        patch: Partial<DomainUser>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<void> {
-        if (!id) return;
-        const existing = await this.cacheStorage.load(id);
-        if (!existing) return;
-        await this.upsertUser({ ...existing, ...patch }, contextOverride);
     }
 
     public async clearAll(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
@@ -188,75 +89,67 @@ export class UserLocalDataSource extends BaseLocalDataSource implements IUserLoc
         await this.emitAllStreams();
     }
 
-    /** 로컬 사용자 목록 스냅샷을 지속 구독합니다. */
-    public subscribeUsers(
+    // =========================================================================
+    // 2. 특수 도메인 로직
+    // =========================================================================
+
+    public async getUsers(ids: string[], _contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser[]> {
+        if (ids.length === 0) return [];
+        const users = await Promise.all(ids.map(id => this.cacheStorage.load(id)));
+        return users.filter((user): user is CacheStorageItem<'user'> => !!user).map(toDomainUser);
+    }
+
+    // =========================================================================
+    // 3. 공통 List/Stream 인터페이스
+    // =========================================================================
+
+    public async fetchList(
         payload: ChatUsersPayload,
-        callback: LocalStreamCallback<DomainListResult<DomainUser> | null>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): LocalStreamUnsubscribe {
-        return this.subscribeQueryStream(() => this.fetchUsers(payload, contextOverride), callback);
-    }
-
-    /** 로컬 단일 사용자 스냅샷을 지속 구독합니다. */
-    public subscribeUser(
-        id: string,
-        callback: LocalStreamCallback<DomainUser | null>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): LocalStreamUnsubscribe {
-        return this.subscribeQueryStream(() => this.getUser(id, contextOverride), callback);
-    }
-
-    /** 공통 CRUD 인터페이스: 리스트 조회 */
-    public fetchList(
-        query: ChatUsersPayload,
-        contextOverride?: LocalDataSourceContextOverride
+        _contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainUser> | null> {
-        return this.fetchUsers(query, contextOverride);
+        const channelId = payload.channelId;
+        const allUsers = await this.cacheStorage.loadAll();
+        let users = allUsers.map(toDomainUser);
+
+        // 기존 getUsersByChannel 로직을 fetchList 내부로 통합
+        if (channelId) {
+            users = users.filter(user => {
+                const joinChannelId = (user as { $join?: { channelId?: string } }).$join?.channelId;
+                const directChannelId = (user as { channelId?: string }).channelId;
+                return joinChannelId === channelId || directChannelId === channelId;
+            });
+        }
+
+        if (users.length === 0) {
+            return createDomainListResult([], {
+                total: 0,
+                page: payload.page,
+                limit: payload.limit,
+                source: 'local',
+            });
+        }
+
+        return createDomainListResult(users, {
+            total: users.length,
+            page: payload.page,
+            limit: payload.limit,
+            source: 'local',
+        });
     }
 
-    /** 공통 CRUD 인터페이스: 단건 조회 */
-    public getById(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser | null> {
-        return this.getUser(id, contextOverride);
-    }
-
-    /** 공통 CRUD 인터페이스: 단건 저장 */
-    public upsert(item: Partial<DomainUser>, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
-        return this.upsertUser(item, contextOverride);
-    }
-
-    /** 공통 CRUD 인터페이스: 다건 저장 */
-    public upsertMany(
-        items: Array<Partial<DomainUser>>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<void> {
-        return this.upsertUsers(items, contextOverride);
-    }
-
-    /** 공통 CRUD 인터페이스: 단건 삭제 */
-    public remove(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
-        return this.deleteUser(id, contextOverride);
-    }
-
-    /** 공통 CRUD 인터페이스: 다건 삭제 */
-    public removeMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void> {
-        return this.deleteUsers(ids, contextOverride);
-    }
-
-    /** 공통 Stream 인터페이스: 리스트 구독 */
     public subscribeList(
         query: ChatUsersPayload,
         callback: LocalStreamCallback<DomainListResult<DomainUser> | null>,
         contextOverride?: LocalDataSourceContextOverride
     ): LocalStreamUnsubscribe {
-        return this.subscribeUsers(query, callback, contextOverride);
+        return this.subscribeQueryStream(() => this.fetchList(query, contextOverride), callback);
     }
 
-    /** 공통 Stream 인터페이스: 단건 구독 */
     public subscribeItem(
         id: string,
         callback: LocalStreamCallback<DomainUser | null>,
         contextOverride?: LocalDataSourceContextOverride
     ): LocalStreamUnsubscribe {
-        return this.subscribeUser(id, callback, contextOverride);
+        return this.subscribeQueryStream(() => this.getById(id, contextOverride), callback);
     }
 }

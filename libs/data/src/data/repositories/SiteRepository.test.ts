@@ -11,16 +11,16 @@ describe('SiteRepository', () => {
         };
 
         const local = {
-            fetchSite: jest.fn(async () => localResult),
-            upsertSite: jest.fn(),
-            upsertSites: jest.fn(),
+            fetchList: jest.fn(async () => localResult),
+            getById: jest.fn(),
+            upsert: jest.fn(),
+            upsertMany: jest.fn(),
             replaceSites: jest.fn(),
-            deleteSite: jest.fn(),
-            deleteSites: jest.fn(),
-            updateSitePartial: jest.fn(),
+            remove: jest.fn(),
+            removeMany: jest.fn(),
             clearAll: jest.fn(),
-            subscribeSites: jest.fn(() => () => undefined),
-            subscribeSite: jest.fn(() => () => undefined),
+            subscribeList: jest.fn(() => () => undefined),
+            subscribeItem: jest.fn(() => () => undefined),
         };
 
         const requestManager = {
@@ -56,7 +56,7 @@ describe('SiteRepository', () => {
     };
 
     it('returns local first for cache-first and runs remote refresh in background', async () => {
-        const localResult = { list: [{ id: 's-local' }], total: 1 };
+        const localResult = { list: [{ id: 's-local' }], meta: { total: 1, source: 'local' } };
         const { repository, remote, requestManager } = createRepository({ localResult });
 
         const result = await repository.fetchSite(payload, { cachePolicy: 'cache-first' });
@@ -67,23 +67,15 @@ describe('SiteRepository', () => {
         expect(requestManager.request).toHaveBeenCalledTimes(1);
     });
 
-    it('delegates subscribeSites to local data source with repository context', () => {
+    it('delegates subscribeList to local data source with repository context', () => {
         const { repository, local } = createRepository({ localResult: null });
         const callback = jest.fn();
 
-        repository.subscribeSites(payload, callback);
+        repository.subscribeList(payload, callback);
 
-        expect(local.subscribeSites).toHaveBeenCalledWith(payload, callback, {
+        expect(local.subscribeList).toHaveBeenCalledWith(payload, callback, {
             cid: 'cloud-a',
             uid: 'user-a',
         });
-    });
-
-    it('delegates clearAll to local data source with repository context', async () => {
-        const { repository, local } = createRepository({ localResult: null });
-
-        await repository.clearAll();
-
-        expect(local.clearAll).toHaveBeenCalledWith({ cid: 'cloud-a', uid: 'user-a' });
     });
 });

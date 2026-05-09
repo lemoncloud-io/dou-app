@@ -29,14 +29,15 @@ export interface ISiteRepository extends ILocalCacheMutationRepository<DomainSit
     /** 기존 사이트 정보 변경(site:update) 이벤트를 수신하는 리스너를 등록합니다. */
     onSiteUpdated(callback: (site: DomainSite) => void): () => void;
 
+    // --- 통합 스트림 인터페이스 ---
     /** 로컬 캐시 기준 사이트 목록을 스트림으로 구독합니다. */
-    subscribeSites(
+    subscribeList(
         payload: WSSPayload | undefined,
         callback: (result: DomainListResult<DomainSite> | null) => void
     ): () => void;
 
     /** 로컬 캐시 기준 단일 사이트를 스트림으로 구독합니다. */
-    subscribeSite(id: string, callback: (site: DomainSite | null) => void): () => void;
+    subscribeItem(id: string, callback: (site: DomainSite | null) => void): () => void;
 }
 
 /** Remote site API와 local site cache를 중재합니다. */
@@ -52,7 +53,6 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         this.initializeInternalListeners();
     }
 
-    /** user:my-site 요청을 수행하고 응답을 기다립니다. */
     public async fetchSite(
         payload?: WSSPayload,
         options?: RepositoryRequestOptions
@@ -60,94 +60,84 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         return this.fetchWithCachePolicy<DomainListResult<DomainSite>>({
             options,
             backgroundLabel: 'site',
-            fetchLocal: () => this.siteLocalDataSource.fetchSite(payload, this.getRepositoryContext()),
+            fetchLocal: () => this.siteLocalDataSource.fetchList(payload, this.getRepositoryContext()),
             fetchRemote: remoteOptions => this.fetchFromRemoteAndCache(payload, remoteOptions),
             isLocalValid: local => (local.list || []).length > 0,
-            fallback: () => createDomainListResult({ list: [], total: 0 }, { source: 'fallback' }),
+            fallback: () => createDomainListResult([], { total: 0, source: 'fallback' }),
         });
     }
 
-    /** user:make-site 요청을 수행하고 응답을 기다립니다. */
     public async createSite(payload: UserMakeSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite> {
         const site = await this.requestRemote<SiteView>(
             ref => this.siteRemoteDataSource.createSite(payload, ref),
             options
         );
         const domainSite = toDomainSite(site, this.getDomainScope());
-        await this.siteLocalDataSource.upsertSite(domainSite, this.getRepositoryContext());
+        await this.siteLocalDataSource.upsert(domainSite, this.getRepositoryContext());
         return domainSite;
     }
 
-    /** user:update-site 요청을 수행하고 응답을 기다립니다. */
     public async updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite> {
         const site = await this.requestRemote<SiteView>(
             ref => this.siteRemoteDataSource.updateSite(payload, ref),
             options
         );
         const domainSite = toDomainSite(site, this.getDomainScope());
-        await this.siteLocalDataSource.upsertSite(domainSite, this.getRepositoryContext());
+        await this.siteLocalDataSource.upsert(domainSite, this.getRepositoryContext());
         return domainSite;
     }
 
-    /** 현재 스코프의 site 로컬 캐시를 초기화합니다. */
     public clearAll(): Promise<void> {
         return this.siteLocalDataSource.clearAll(this.getRepositoryContext());
     }
 
-    /** 서버로부터 신규 사이트 생성(site:create) 이벤트를 수신하는 리스너를 등록합니다. */
     public onSiteCreated(callback: (site: DomainSite) => void): () => void {
         return this.onDomainEvent('site:create', detail => {
             callback(detail.data as DomainSite);
         });
     }
 
-    /** 기존 사이트 정보 변경(site:update) 이벤트를 수신하는 리스너를 등록합니다. */
     public onSiteUpdated(callback: (site: DomainSite) => void): () => void {
         return this.onDomainEvent('site:update', detail => {
             callback(detail.data as DomainSite);
         });
     }
 
-    /** 로컬 사이트 목록 스냅샷을 지속 구독합니다. */
-    public subscribeSites(
+    // --- 스트림 인터페이스 통합 ---
+    public subscribeList(
         payload: WSSPayload | undefined,
         callback: (result: DomainListResult<DomainSite> | null) => void
     ): () => void {
-        return this.siteLocalDataSource.subscribeSites(payload, callback, this.getRepositoryContext());
+        return this.siteLocalDataSource.subscribeList(payload, callback, this.getRepositoryContext());
     }
 
-    /** 로컬 단일 사이트 스냅샷을 지속 구독합니다. */
-    public subscribeSite(id: string, callback: (site: DomainSite | null) => void): () => void {
-        return this.siteLocalDataSource.subscribeSite(id, callback, this.getRepositoryContext());
+    public subscribeItem(id: string, callback: (site: DomainSite | null) => void): () => void {
+        return this.siteLocalDataSource.subscribeItem(id, callback, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시에 사이트를 생성/병합합니다. (remote 호출 없음) */
+    // --- Cache Mutations (통합) ---
     public cacheCreate(item: Partial<DomainSite>): Promise<void> {
-        return this.siteLocalDataSource.upsertSite(item, this.getRepositoryContext());
+        return this.siteLocalDataSource.upsert(item, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시의 사이트 일부 필드를 갱신합니다. (remote 호출 없음) */
     public cacheUpdate(id: string, patch: Partial<DomainSite>): Promise<void> {
-        return this.siteLocalDataSource.updateSitePartial(id, patch, this.getRepositoryContext());
+        return this.siteLocalDataSource.upsert({ id, ...patch }, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시에서 사이트를 삭제합니다. (remote 호출 없음) */
     public cacheDelete(id: string): Promise<void> {
-        return this.siteLocalDataSource.deleteSite(id, this.getRepositoryContext());
+        return this.siteLocalDataSource.remove(id, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시에 사이트를 일괄 생성/병합합니다. (remote 호출 없음) */
     public cacheBulkCreate(items: Array<Partial<DomainSite>>): Promise<void> {
-        return this.siteLocalDataSource.upsertSites(items, this.getRepositoryContext());
+        return this.siteLocalDataSource.upsertMany(items, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시의 사이트 일부 필드를 일괄 갱신합니다. (remote 호출 없음) */
     public async cacheBulkUpdate(items: Array<LocalCacheBulkPatch<DomainSite>>): Promise<void> {
         await Promise.all(
             items
                 .filter(item => !!item.id)
                 .map(item =>
-                    this.siteLocalDataSource.updateSitePartial(item.id, item.patch, this.getRepositoryContext())
+                    this.siteLocalDataSource.upsert({ id: item.id, ...item.patch }, this.getRepositoryContext())
                 )
         );
     }
@@ -161,20 +151,28 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
             options
         );
         const domainList = (remote.list || []).map(item => toDomainSite(item, this.getDomainScope()));
+
+        // Site 도메인의 전체 교체 로직은 유지
         await this.siteLocalDataSource.replaceSites(domainList, this.getRepositoryContext());
-        return createDomainListResult({ ...remote, list: domainList }, { source: 'remote' });
+
+        return createDomainListResult(domainList, {
+            total: remote.total ?? domainList.length,
+            limit: remote.limit,
+            page: remote.page,
+            source: 'remote',
+        });
     }
 
     private initializeInternalListeners(): void {
         this.onDomainEvent('site:create', detail => {
             this.runInBackground(
-                () => this.siteLocalDataSource.upsertSite(detail.data, this.getRepositoryContext()),
+                () => this.siteLocalDataSource.upsert(detail.data, this.getRepositoryContext()),
                 'site:create'
             );
         });
         this.onDomainEvent('site:update', detail => {
             this.runInBackground(
-                () => this.siteLocalDataSource.upsertSite(detail.data, this.getRepositoryContext()),
+                () => this.siteLocalDataSource.upsert(detail.data, this.getRepositoryContext()),
                 'site:update'
             );
         });

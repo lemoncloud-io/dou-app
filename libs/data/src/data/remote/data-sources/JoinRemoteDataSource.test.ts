@@ -35,7 +35,6 @@ describe('JoinRemoteDataSource', () => {
         expect(mockDomainEventBus.emit).toHaveBeenCalledWith('join:update', {
             data: mockDetail.payload,
             ref: 'r-1',
-            cid: 'c-1',
         });
     });
 

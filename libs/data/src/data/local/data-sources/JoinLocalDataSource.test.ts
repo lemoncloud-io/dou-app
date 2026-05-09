@@ -10,16 +10,14 @@ const createMemoryStorage = (): CacheStorage<'join'> => {
         },
         async saveAll(items) {
             items.forEach(item => {
-                if (!item?.id) return;
-                map.set(item.id, { ...item });
+                if (item?.id) map.set(item.id, { ...item });
             });
             return items;
         },
         async replaceAll(items) {
             map.clear();
             items.forEach(item => {
-                if (!item?.id) return;
-                map.set(item.id, { ...item });
+                if (item?.id) map.set(item.id, { ...item });
             });
             return items;
         },
@@ -51,15 +49,15 @@ describe('JoinLocalDataSource', () => {
         const storage = createMemoryStorage();
         const dataSource = new JoinLocalDataSource(contextProvider, storage);
 
-        await dataSource.upsertJoins([
+        await dataSource.upsertMany([
             { id: 'j1', cid: 'cloud-a', channelId: 'ch-1', userId: 'u1', joined: 1 },
             { id: 'j2', cid: 'cloud-a', channelId: 'ch-1', userId: 'u2', joined: 0 },
             { id: 'j3', cid: 'cloud-a', channelId: 'ch-2', userId: 'u3', joined: 1 },
         ] as any);
 
-        const result = await dataSource.getActiveJoinsByChannel('ch-1');
+        const result = await dataSource.fetchList({ channelId: 'ch-1', activeOnly: true });
 
-        expect(result.map(item => item.id)).toEqual(['j1']);
+        expect(result?.list.map(item => item.id)).toEqual(['j1']);
     });
 
     it('re-emits subscribed join list when cache is mutated', async () => {
@@ -67,13 +65,13 @@ describe('JoinLocalDataSource', () => {
         const dataSource = new JoinLocalDataSource(contextProvider, storage);
         const emissions: number[] = [];
 
-        const unsubscribe = dataSource.subscribeJoinsByChannel('ch-1', joins => {
-            emissions.push(joins.length);
+        const unsubscribe = dataSource.subscribeList({ channelId: 'ch-1' }, result => {
+            emissions.push(result?.meta?.total ?? 0);
         });
 
         await Promise.resolve();
-        await dataSource.upsertJoin({ id: 'j1', cid: 'cloud-a', channelId: 'ch-1', userId: 'u1', joined: 1 } as any);
-        await dataSource.deleteJoin('j1');
+        await dataSource.upsert({ id: 'j1', cid: 'cloud-a', channelId: 'ch-1', userId: 'u1', joined: 1 } as any);
+        await dataSource.remove('j1');
         unsubscribe();
 
         expect(emissions).toEqual([0, 1, 0]);

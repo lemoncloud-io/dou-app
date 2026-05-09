@@ -41,14 +41,15 @@ export interface IJoinRepository extends ILocalCacheMutationRepository<DomainJoi
     /** 서버로부터 참여 정보 삭제(join:delete) 이벤트를 수신하는 리스너를 등록합니다. */
     onJoinDeleted(callback: (join: DomainJoin) => void): () => void;
 
+    // --- 통합 스트림 인터페이스 ---
     /** 로컬 캐시 기준 채널 참여 목록을 스트림으로 구독합니다. */
-    subscribeJoins(
+    subscribeList(
         payload: DomainJoinListPayload,
-        callback: (result: DomainListResult<DomainJoin>) => void
+        callback: (result: DomainListResult<DomainJoin> | null) => void
     ): () => void;
 
     /** 로컬 캐시 기준 단일 참여 정보를 스트림으로 구독합니다. */
-    subscribeJoin(id: string, callback: (join: DomainJoin | null) => void): () => void;
+    subscribeItem(id: string, callback: (join: DomainJoin | null) => void): () => void;
 }
 
 /** Remote join API와 local join cache를 중재합니다. */
@@ -64,7 +65,6 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
         this.initializeInternalListeners();
     }
 
-    /** 채널 조인 목록을 조회합니다. */
     public async fetchJoins(
         payload: DomainJoinListPayload,
         options?: RepositoryRequestOptions
@@ -82,134 +82,112 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
         throw this.createRemoteUnsupportedError(policy);
     }
 
-    /** chat:read 요청을 수행하고 응답을 기다립니다. */
     public async readChat(payload: ChatReadPayload, options?: RepositoryRequestOptions): Promise<DomainJoin> {
         const join = await this.requestRemote<JoinView>(
             ref => this.joinRemoteDataSource.readChat(payload, ref),
             options
         );
         const domainJoin = toDomainJoin(join, this.getDomainScope());
-        await this.joinLocalDataSource.upsertJoin(domainJoin, this.getRepositoryContext());
+        await this.joinLocalDataSource.upsert(domainJoin, this.getRepositoryContext());
         return domainJoin;
     }
 
-    /** chat:update-join 요청을 수행하고 응답을 기다립니다. */
     public async updateJoin(payload: ChatUpdateJoinPayload, options?: RepositoryRequestOptions): Promise<DomainJoin> {
         const join = await this.requestRemote<JoinView>(
             ref => this.joinRemoteDataSource.updateJoin(payload, ref),
             options
         );
         const domainJoin = toDomainJoin(join, this.getDomainScope());
-        await this.joinLocalDataSource.upsertJoin(domainJoin, this.getRepositoryContext());
+        await this.joinLocalDataSource.upsert(domainJoin, this.getRepositoryContext());
         return domainJoin;
     }
 
-    /** 현재 스코프의 join 로컬 캐시를 초기화합니다. */
     public clearAll(): Promise<void> {
         return this.joinLocalDataSource.clearAll(this.getRepositoryContext());
     }
 
-    /** 서버로부터 참여 정보 생성(join:create) 이벤트를 수신하는 리스너를 등록합니다. */
     public onJoinCreated(callback: (join: DomainJoin) => void): () => void {
         return this.onDomainEvent('join:create', detail => {
             callback(detail.data as DomainJoin);
         });
     }
 
-    /** 서버로부터 참여 정보 변경(join:update) 이벤트를 수신하는 리스너를 등록합니다. */
     public onJoinUpdated(callback: (join: DomainJoin) => void): () => void {
         return this.onDomainEvent('join:update', detail => {
             callback(detail.data as DomainJoin);
         });
     }
 
-    /** 서버로부터 참여 정보 삭제(join:delete) 이벤트를 수신하는 리스너를 등록합니다. */
     public onJoinDeleted(callback: (join: DomainJoin) => void): () => void {
         return this.onDomainEvent('join:delete', detail => {
             callback(detail.data as DomainJoin);
         });
     }
 
-    /** 로컬 참여 목록 스냅샷을 지속 구독합니다. */
-    public subscribeJoins(
+    // --- 스트림 인터페이스 ---
+    public subscribeList(
         payload: DomainJoinListPayload,
-        callback: (result: DomainListResult<DomainJoin>) => void
+        callback: (result: DomainListResult<DomainJoin> | null) => void
     ): () => void {
-        const channelId = payload.channelId || '';
-        return this.joinLocalDataSource.subscribeJoinsByChannel(
-            channelId,
-            joins => callback(createDomainListResult({ list: joins, total: joins.length }, { source: 'local' })),
-            { activeOnly: payload.activeOnly },
-            this.getRepositoryContext()
-        );
+        return this.joinLocalDataSource.subscribeList(payload, callback, this.getRepositoryContext());
     }
 
-    /** 로컬 단일 참여 정보 스냅샷을 지속 구독합니다. */
-    public subscribeJoin(id: string, callback: (join: DomainJoin | null) => void): () => void {
-        return this.joinLocalDataSource.subscribeJoin(id, callback, this.getRepositoryContext());
+    public subscribeItem(id: string, callback: (join: DomainJoin | null) => void): () => void {
+        return this.joinLocalDataSource.subscribeItem(id, callback, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시에 참여 정보를 생성/병합합니다. (remote 호출 없음) */
+    // --- Cache Mutations (통합) ---
     public cacheCreate(item: Partial<DomainJoin>): Promise<void> {
-        return this.joinLocalDataSource.upsertJoin(item, this.getRepositoryContext());
+        return this.joinLocalDataSource.upsert(item, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시의 참여 정보 일부 필드를 갱신합니다. (remote 호출 없음) */
     public cacheUpdate(id: string, patch: Partial<DomainJoin>): Promise<void> {
-        return this.joinLocalDataSource.updateJoinPartial(id, patch, this.getRepositoryContext());
+        return this.joinLocalDataSource.upsert({ id, ...patch }, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시에서 참여 정보를 삭제합니다. (remote 호출 없음) */
     public cacheDelete(id: string): Promise<void> {
-        return this.joinLocalDataSource.deleteJoin(id, this.getRepositoryContext());
+        return this.joinLocalDataSource.remove(id, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시에 참여 정보를 일괄 생성/병합합니다. (remote 호출 없음) */
     public cacheBulkCreate(items: Array<Partial<DomainJoin>>): Promise<void> {
-        return this.joinLocalDataSource.upsertJoins(items, this.getRepositoryContext());
+        return this.joinLocalDataSource.upsertMany(items, this.getRepositoryContext());
     }
 
-    /** 로컬 캐시의 참여 정보 일부 필드를 일괄 갱신합니다. (remote 호출 없음) */
     public async cacheBulkUpdate(items: Array<LocalCacheBulkPatch<DomainJoin>>): Promise<void> {
         await Promise.all(
             items
                 .filter(item => !!item.id)
                 .map(item =>
-                    this.joinLocalDataSource.updateJoinPartial(item.id, item.patch, this.getRepositoryContext())
+                    this.joinLocalDataSource.upsert({ id: item.id, ...item.patch }, this.getRepositoryContext())
                 )
         );
     }
 
+    // --- Internal Logic ---
     private initializeInternalListeners(): void {
         this.onDomainEvent('join:create', detail => {
             this.runInBackground(
-                () => this.joinLocalDataSource.upsertJoin(detail.data, this.getRepositoryContext()),
+                () => this.joinLocalDataSource.upsert(detail.data, this.getRepositoryContext()),
                 'join:create'
             );
         });
         this.onDomainEvent('join:update', detail => {
             this.runInBackground(
-                () => this.joinLocalDataSource.upsertJoin(detail.data, this.getRepositoryContext()),
+                () => this.joinLocalDataSource.upsert(detail.data, this.getRepositoryContext()),
                 'join:update'
             );
         });
         this.onDomainEvent('join:delete', detail => {
             this.runInBackground(
-                () => this.joinLocalDataSource.deleteJoin(detail.data.id || '', this.getRepositoryContext()),
+                () => this.joinLocalDataSource.remove(detail.data.id || '', this.getRepositoryContext()),
                 'join:delete'
             );
         });
     }
 
     private async fetchLocalJoins(payload: DomainJoinListPayload): Promise<DomainListResult<DomainJoin>> {
-        const channelId = payload?.channelId;
-        if (!channelId) return createDomainListResult({ list: [], total: 0 }, { source: 'local' });
-
-        const joins = payload.activeOnly
-            ? await this.joinLocalDataSource.getActiveJoinsByChannel(channelId, this.getRepositoryContext())
-            : await this.joinLocalDataSource.getJoinsByChannel(channelId, this.getRepositoryContext());
-
-        return createDomainListResult({ list: joins, total: joins.length }, { source: 'local' });
+        const result = await this.joinLocalDataSource.fetchList(payload, this.getRepositoryContext());
+        return result || createDomainListResult([], { total: 0, source: 'local' });
     }
 
     private createRemoteUnsupportedError(policy: string): Error {

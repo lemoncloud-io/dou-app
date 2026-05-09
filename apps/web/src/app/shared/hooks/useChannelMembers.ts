@@ -52,7 +52,7 @@ export const useChannelMembers = (initialParams: ChatUsersPayload) => {
                 if (requestSeqRef.current !== requestSeq) return;
 
                 setMembers(result.list ?? []);
-                setTotal(result.total ?? result.list?.length ?? 0);
+                setTotal(result.meta?.total ?? result.list?.length ?? 0);
             } catch (error) {
                 if (requestSeqRef.current !== requestSeq) return;
 

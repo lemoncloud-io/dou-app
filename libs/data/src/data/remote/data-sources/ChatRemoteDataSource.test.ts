@@ -35,7 +35,6 @@ describe('ChatRemoteDataSource', () => {
 
     it('chat:create 수신 시 데이터 모델을 { data, ref, cid } 형태로 래핑하여 emit 해야 한다', () => {
         const mockDetail = {
-            cid: 'c-1',
             ref: 'r-1',
             payload: { id: 'msg-1', text: 'hello' } as ChatView,
         };
@@ -45,7 +44,6 @@ describe('ChatRemoteDataSource', () => {
         expect(mockDomainEventBus.emit).toHaveBeenCalledWith('chat:create', {
             data: mockDetail.payload,
             ref: 'r-1',
-            cid: 'c-1',
         });
     });
 
@@ -64,7 +62,6 @@ describe('ChatRemoteDataSource', () => {
 
     it('chat:error 수신 시 에러 전용 포맷으로 변환하여 emit 해야 한다', () => {
         const mockDetail = {
-            cid: 'c-1',
             ref: 'err-ref',
             payload: { error: 'Message blocked' },
         };

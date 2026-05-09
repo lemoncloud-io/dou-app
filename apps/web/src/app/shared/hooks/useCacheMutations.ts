@@ -19,8 +19,6 @@ export const useCacheMutations = () => {
         inviteCloud: inviteCloudRepo,
     } = useRepositories();
 
-    //TODO
-
     const getClearAction = useCallback(
         (type: CacheType): (() => Promise<void>) => {
             switch (type) {

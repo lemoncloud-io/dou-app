@@ -1,34 +1,35 @@
 import { useEffect, useState } from 'react';
-import type { CacheCloudView } from '@chatic/app-messages';
 import { getMobileAppInfo } from '@chatic/app-messages';
-import { useRepositories } from '../data'; // 프로젝트 경로에 맞게 수정 필요
+import { useRepositories } from '../data';
+import type { DomainInviteCloud, DomainListResult } from '@chatic/data';
 
 export const useInviteClouds = () => {
-    const [inviteClouds, setInviteClouds] = useState<CacheCloudView[]>([]);
+    const [inviteClouds, setInviteClouds] = useState<DomainListResult<DomainInviteCloud>>();
     const [isLoading, setIsLoading] = useState(false);
 
     const { isOnMobileApp } = getMobileAppInfo();
-    const { inviteCloud } = useRepositories();
+    const { inviteCloud: inviteCloudRepository } = useRepositories();
 
     useEffect(() => {
         if (!isOnMobileApp) return;
 
         setIsLoading(true);
 
-        // Repository의 구독 메서드를 통해 초기 데이터 로드 및 이후 변경 사항을 자동 수신합니다.
-        const unsubscribe = inviteCloud.subscribeInviteClouds((data: CacheCloudView[]) => {
-            setInviteClouds(data);
+        const unsubscribe = inviteCloudRepository.subscribeList(result => {
+            if (result === null) return;
+
+            setInviteClouds(result);
             setIsLoading(false);
         });
 
-        // 컴포넌트 언마운트 시 메모리 누수 방지를 위해 구독을 해제합니다.
         return () => {
             unsubscribe();
         };
-    }, [isOnMobileApp, inviteCloud]);
+    }, [isOnMobileApp, inviteCloudRepository]);
 
     return {
         inviteClouds,
-        isLoading,
+        isLoading: isLoading || !inviteClouds,
+        isEmpty: inviteClouds && inviteClouds.list.length === 0,
     };
 };

@@ -18,8 +18,8 @@ import { useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/app-messages';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useDynamicProfile, useUserContext, UserType } from '@chatic/web-core';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
+import { useDynamicProfile, UserType, useUserContext } from '@chatic/web-core';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     DropdownMenu,
@@ -34,7 +34,7 @@ import { MessageBubble } from '../components/MessageBubble';
 import { ReadStatus } from '../components/ReadStatus';
 import type { ClientChatView } from '@chatic/data';
 import { FOREGROUND_RESYNC_EVENT_NAME } from '@chatic/data';
-import { useChannelMembers, useChannel, useChatMutations, useJoinPositions } from '../../../shared/hooks';
+import { useChannel, useChannelMembers, useChatMutations, useJoinPositions } from '../../../shared/hooks';
 import { useChats } from '../../../shared/hooks/useChats';
 
 // 입력 가능한 최대 글자 수
@@ -77,6 +77,7 @@ export const ChatRoomPage = () => {
     const {
         messages,
         isLoading: isChatLoading,
+        isEmpty: isChatEmpty,
         isLoadingMore,
         isError: isChatError,
         hasMore,
@@ -399,7 +400,7 @@ export const ChatRoomPage = () => {
                         <div className="flex min-h-full items-center justify-center">
                             <Loader2 size={24} className="animate-spin text-muted-foreground" />
                         </div>
-                    ) : messages.length === 0 ? (
+                    ) : isChatEmpty ? (
                         // 메시지가 없을 때 보여지는 빈 화면 (Empty State)
                         <div className="relative flex flex-1 flex-col items-center justify-center">
                             <div className="absolute left-0 right-0 top-2 text-center">

@@ -2,6 +2,7 @@ import { PermissionsAndroid, Platform } from 'react-native';
 
 import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import messaging, { AuthorizationStatus } from '@react-native-firebase/messaging';
+import notifee from '@notifee/react-native';
 import { logger } from './log';
 
 export const notificationService = {
@@ -54,18 +55,50 @@ export const notificationService = {
     },
 
     getInitialNotification: async (): Promise<FirebaseMessagingTypes.RemoteMessage | null> => {
+        notificationService.clearBadge();
         return messaging().getInitialNotification();
     },
 
     onMessage: (callback: (message: any) => void): (() => void) => {
+        notificationService.clearBadge();
         return messaging().onMessage(callback);
     },
 
     onNotificationOpenedApp: (callback: (message: any) => void) => {
+        notificationService.clearBadge();
         return messaging().onNotificationOpenedApp(callback);
     },
 
     onTokenRefresh: (callback: (token: string) => void) => {
         return messaging().onTokenRefresh(callback);
+    },
+
+    setBadgeCount: async (count: number): Promise<void> => {
+        try {
+            if (Platform.OS === 'ios') {
+                await notifee.setBadgeCount(count);
+            } else {
+                await notifee.setBadgeCount(count);
+            }
+        } catch (e) {
+            logger.error('NOTIFICATION', 'Set badge error.', e);
+        }
+    },
+
+    clearBadge: async (): Promise<void> => {
+        try {
+            await notifee.setBadgeCount(0);
+        } catch (e) {
+            logger.error('NOTIFICATION', 'Clear badge error.', e);
+        }
+    },
+
+    getBadgeCount: async (): Promise<number> => {
+        try {
+            return await notifee.getBadgeCount();
+        } catch (e) {
+            logger.error('NOTIFICATION', 'Get badge error.', e);
+            return 0;
+        }
     },
 };

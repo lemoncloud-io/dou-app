@@ -10,16 +10,14 @@ const createMemoryStorage = (): CacheStorage<'chat'> => {
         },
         async saveAll(items) {
             items.forEach(item => {
-                if (!item?.id) return;
-                map.set(item.id, { ...item });
+                if (item?.id) map.set(item.id, { ...item });
             });
             return items;
         },
         async replaceAll(items) {
             map.clear();
             items.forEach(item => {
-                if (!item?.id) return;
-                map.set(item.id, { ...item });
+                if (item?.id) map.set(item.id, { ...item });
             });
             return items;
         },
@@ -51,7 +49,7 @@ describe('ChatLocalDataSource', () => {
         const storage = createMemoryStorage();
         const dataSource = new ChatLocalDataSource(contextProvider, storage);
 
-        await dataSource.upsertChats([
+        await dataSource.upsertMany([
             { id: '1', channelId: 'ch-1', chatNo: 1, cid: 'cloud-a', createdAt: 1 },
             { id: '2', channelId: 'ch-1', chatNo: 3, cid: 'cloud-a', createdAt: 3 },
         ] as any);
@@ -65,7 +63,7 @@ describe('ChatLocalDataSource', () => {
         const storage = createMemoryStorage();
         const dataSource = new ChatLocalDataSource(contextProvider, storage);
 
-        await dataSource.upsertChat({
+        await dataSource.upsert({
             id: 'c1',
             channelId: 'ch-1',
             cid: 'cloud-a',
@@ -73,7 +71,7 @@ describe('ChatLocalDataSource', () => {
             chatNo: 10,
             createdAt: 1000,
         } as any);
-        await dataSource.updateChatPartial('c1', { content: 'after' } as any);
+        await dataSource.upsert({ id: 'c1', content: 'after' } as any);
 
         const loaded = await storage.load('c1');
         expect(loaded?.content).toBe('after');
@@ -85,21 +83,20 @@ describe('ChatLocalDataSource', () => {
         const dataSource = new ChatLocalDataSource(contextProvider, storage);
         const emissions: number[] = [];
 
-        const unsubscribe = dataSource.subscribeChatFeed({ channelId: 'ch-1', limit: 30 } as any, result =>
-            emissions.push(result?.list.length ?? -1)
-        );
+        // 단건 객체를 반환하므로 존재 여부에 따라 1 또는 0 기록
+        const unsubscribe = dataSource.subscribeItem('stream-1', result => emissions.push(result ? 1 : 0));
 
         await Promise.resolve();
-        await dataSource.upsertChat({
+        await dataSource.upsert({
             id: 'stream-1',
             channelId: 'ch-1',
             chatNo: 1,
             cid: 'cloud-a',
             createdAt: 1,
         } as any);
-        await dataSource.deleteChat('stream-1');
+        await dataSource.remove('stream-1');
         unsubscribe();
 
-        expect(emissions).toEqual([-1, 1, -1]);
+        expect(emissions).toEqual([0, 1, 0]);
     });
 });
