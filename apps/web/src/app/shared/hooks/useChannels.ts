@@ -44,118 +44,101 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     const userId = profile?.uid;
     const targetPlaceId = initialParams.sid;
     const cloudId = useWebSocketV2Store(s => s.cloudId);
+
     const prevCloudIdRef = useRef(cloudId);
-    const requestSeqRef = useRef(0);
     const currentParamsRef = useRef(initialParams);
 
     const [channels, setChannels] = useState<ClientChannelView[]>([]);
     const channelsRef = useRef(channels);
     channelsRef.current = channels;
+
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isError, setIsError] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+    //  로컬 캐시 스트림 구독 (즉시 렌더링)
+    useEffect(() => {
+        if (!targetPlaceId) {
+            setChannels([]);
+            setIsLoading(false);
+            return;
+        }
+
+        const payload = buildFetchPayload({ ...currentParamsRef.current, sid: targetPlaceId });
+
+        const unsubscribe = channelRepository.subscribeList(payload, result => {
+            if (result === null) return;
+            const nextChannels = sortChannels(
+                (result.list ?? []).map((channel: DomainChannel) => toClientChannel(channel, userId))
+            );
+            setChannels(nextChannels);
+            setIsLoading(false); // 캐시 렌더링 즉시 로딩 해제
+        });
+
+        return () => unsubscribe();
+    }, [targetPlaceId, channelRepository, userId]);
+
+    // 백그라운드 데이터 동기화
     const fetchChannels = useCallback(
-        async (params?: Partial<DomainChannelListPayload>, options?: { loading?: boolean }) => {
+        async (params?: Partial<DomainChannelListPayload>) => {
             const nextParams = { ...currentParamsRef.current, ...params };
             currentParamsRef.current = nextParams;
 
-            if (!nextParams.sid) {
-                setChannels([]);
-                setIsLoading(false);
-                setIsSyncing(false);
-                setIsError(false);
-                setErrorMessage(null);
-                return;
-            }
+            if (!nextParams.sid) return;
 
-            const requestSeq = requestSeqRef.current + 1;
-            requestSeqRef.current = requestSeq;
-
-            if (options?.loading) setIsLoading(true);
             setIsSyncing(true);
             setIsError(false);
             setErrorMessage(null);
 
             try {
-                const result = await channelRepository.fetchChannel(buildFetchPayload(nextParams), {
-                    cachePolicy: 'network-only',
+                await channelRepository.fetchChannel(buildFetchPayload(nextParams), {
+                    cachePolicy: 'cache-first',
                 });
-                if (requestSeqRef.current !== requestSeq) return;
-
-                const nextChannels = sortChannels(
-                    (result.list ?? []).map((channel: DomainChannel) => toClientChannel(channel, userId))
-                );
-                setChannels(nextChannels);
             } catch (error) {
-                if (requestSeqRef.current !== requestSeq) return;
-
                 const message = error instanceof Error ? error.message : String(error);
-                logger.error('CHANNEL', 'Failed to fetch channels from repository', {
-                    error,
-                    data: { placeId: nextParams.sid },
-                });
+                logger.error('CHANNEL', 'Failed to fetch channels from repository', { error });
                 setIsError(true);
                 setErrorMessage(message);
             } finally {
-                if (requestSeqRef.current === requestSeq) {
-                    setIsLoading(false);
-                    setIsSyncing(false);
-                }
+                setIsSyncing(false);
             }
         },
-        [channelRepository, userId]
+        [channelRepository]
     );
 
-    // cloud 전환 시 채널 초기화 — place auth 완료 후 placeId 변경으로 재요청
+    // 클라우드 전환 시 채널 초기화 및 백그라운드 동기화 요청
     useEffect(() => {
         if (prevCloudIdRef.current !== cloudId) {
             prevCloudIdRef.current = cloudId;
             setChannels([]);
             setIsLoading(true);
-            return;
+        } else {
+            currentParamsRef.current = initialParams;
         }
-        currentParamsRef.current = initialParams;
-        void fetchChannels(initialParams, { loading: true });
+        void fetchChannels(initialParams);
     }, [fetchChannels, targetPlaceId, cloudId, initialParams.detail, initialParams.limit, initialParams.page]);
 
+    // 채팅/조인 업데이트 등 간접적 이벤트에 대한 동기화 트리거
     useEffect(() => {
-        const unsubscribeUpdated = channelRepository.onChannelUpdated((channel: DomainChannel) => {
-            setChannels(prev => {
-                const nextChannel = toClientChannel(channel, userId);
-                const exists = prev.some(item => item.id === nextChannel.id);
-                if (!exists) return prev;
-
-                const next = prev.map(item => (item.id === nextChannel.id ? { ...item, ...nextChannel } : item));
-                return sortChannels(next);
-            });
-        });
-        const unsubscribeDeleted = channelRepository.onChannelDeleted((channel: DomainChannel) => {
-            setChannels(prev => prev.filter(item => item.id !== channel.id));
-        });
         const unsubscribeChatCreated = chatRepository.onChatCreated((chat: DomainChat) => {
-            const current = channelsRef.current;
-            if (!chat.channelId || current.length === 0) return;
-            if (current.some(channel => channel.id === chat.channelId)) {
+            if (!chat.channelId || channelsRef.current.length === 0) return;
+            if (channelsRef.current.some(channel => channel.id === chat.channelId)) {
                 void fetchChannels();
             }
         });
         const unsubscribeJoinUpdated = joinRepository.onJoinUpdated((join: DomainJoin) => {
-            const current = channelsRef.current;
-            if (!join.channelId || current.length === 0) return;
-            if (current.some(channel => channel.id === join.channelId)) {
+            if (!join.channelId || channelsRef.current.length === 0) return;
+            if (channelsRef.current.some(channel => channel.id === join.channelId)) {
                 void fetchChannels();
             }
         });
 
         return () => {
-            unsubscribeUpdated();
-            unsubscribeDeleted();
             unsubscribeChatCreated();
             unsubscribeJoinUpdated();
         };
-    }, [channelRepository, chatRepository, joinRepository, fetchChannels, userId]);
+    }, [chatRepository, joinRepository, fetchChannels]);
 
     return {
         channels,
@@ -163,7 +146,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         isSyncing,
         isError,
         errorMessage,
-        refresh: (options?: DomainChannelListPayload) => fetchChannels(options, { loading: false }),
-        sync: (options?: DomainChannelListPayload) => fetchChannels(options, { loading: false }),
+        refresh: (options?: DomainChannelListPayload) => fetchChannels(options),
+        sync: (options?: DomainChannelListPayload) => fetchChannels(options),
     };
 };
