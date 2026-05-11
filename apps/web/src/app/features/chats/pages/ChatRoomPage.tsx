@@ -537,13 +537,30 @@ export const ChatRoomPage = () => {
                                                                 <span>{t('chat.room.sending')}</span>
                                                             </span>
                                                         ) : message.isFailed ? (
-                                                            <button
-                                                                onClick={() => handleRetryMessage(message)}
-                                                                className="flex items-center gap-1 text-destructive"
-                                                            >
-                                                                <RotateCcw size={11} />
-                                                                <span>{t('chat.room.tapToRetry')}</span>
-                                                            </button>
+                                                            <div className="flex items-center gap-1 text-destructive">
+                                                                <AlertCircle size={11} />
+                                                                <span>{t('chat.room.failed')}</span>
+                                                                {message.isOwner && (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={() => handleRetryMessage(message)}
+                                                                            className="ml-2 flex items-center text-destructive"
+                                                                            title={t('chat.room.retry')}
+                                                                        >
+                                                                            <RotateCcw size={11} />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() =>
+                                                                                handleDeleteMessage(message.id)
+                                                                            }
+                                                                            className="ml-1 flex items-center text-destructive"
+                                                                            title={t('chat.room.delete')}
+                                                                        >
+                                                                            <X size={11} />
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                            </div>
                                                         ) : (
                                                             <>
                                                                 <span className="text-muted-foreground">
