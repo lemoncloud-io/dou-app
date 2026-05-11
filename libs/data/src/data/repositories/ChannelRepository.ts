@@ -42,7 +42,7 @@ export interface IChannelRepository extends ILocalCacheMutationRepository<Domain
     deleteChannel(payload: ChatDeleteChannelPayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
 
     /** 신규 채널을 생성하거나 대화를 시작합니다. */
-    startChat(payload: ChatStartPayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
+    createChannel(payload: ChatStartPayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
 
     /** 기존 채널에 사용자를 초대합니다. */
     inviteChannel(payload: ChatInvitePayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
@@ -126,7 +126,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         return domainChannel;
     }
 
-    public async startChat(payload: ChatStartPayload, options?: RepositoryRequestOptions): Promise<DomainChannel> {
+    public async createChannel(payload: ChatStartPayload, options?: RepositoryRequestOptions): Promise<DomainChannel> {
         const channel = await this.requestRemote<ChannelView>(
             ref => this.channelRemoteDataSource.startChat(payload, ref),
             options

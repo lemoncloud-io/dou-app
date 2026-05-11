@@ -11,15 +11,14 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
-
-import type { MySiteView } from '@lemoncloud/chatic-backend-api';
+import type { DomainSite } from '@chatic/data';
 
 interface SortablePlaceItemProps {
-    place: MySiteView;
+    place: DomainSite;
     isOwner: boolean;
-    onSettings: (place: MySiteView) => void;
-    onDelete: (place: MySiteView) => void;
-    onLeave: (place: MySiteView) => void;
+    onSettings: (place: DomainSite) => void;
+    onDelete: (place: DomainSite) => void;
+    onLeave: (place: DomainSite) => void;
 }
 
 export const SortablePlaceItem = ({ place, isOwner, onSettings, onDelete, onLeave }: SortablePlaceItemProps) => {

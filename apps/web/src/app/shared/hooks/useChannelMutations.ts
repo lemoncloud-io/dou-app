@@ -37,7 +37,7 @@ export const useChannelMutations = () => {
     const createChannel = useCallback(
         (payload: ChatStartPayload): Promise<ChannelView> => {
             if (!payload.stereo) return Promise.reject(new Error('stereo is required'));
-            return withPending('start', () => channelRepository.startChat(payload));
+            return withPending('start', () => channelRepository.createChannel(payload));
         },
         [channelRepository, withPending]
     );

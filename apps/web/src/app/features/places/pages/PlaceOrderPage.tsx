@@ -16,20 +16,22 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { cloudCore } from '@chatic/web-core';
-import { usePlaces } from '../../../shared/hooks';
+import { usePlaceMutations, usePlaces } from '../../../shared/hooks';
 
 import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../../chats/components/ConfirmDialog';
 import { SortablePlaceItem } from '../components';
 
 import type { DragEndEvent } from '@dnd-kit/core';
-import type { MySiteView } from '@lemoncloud/chatic-backend-api';
+import type { DomainSite } from '@chatic/data';
+import { logger } from '@chatic/app-messages';
 
 export const PlaceOrderPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { places: serverPlaces } = usePlaces();
-    const [places, setPlaces] = useState<MySiteView[]>(serverPlaces);
+    const { updatePlaceOrder, isPending } = usePlaceMutations(); // usePlaceMutations 훅 사용
+    const [places, setPlaces] = useState<DomainSite[]>(serverPlaces);
 
     useEffect(() => {
         if (serverPlaces.length === 0) return;
@@ -48,8 +50,8 @@ export const PlaceOrderPage = () => {
     }, [serverPlaces]);
 
     const myId = cloudCore.getCloudToken()?.id;
-    const [deleteTarget, setDeleteTarget] = useState<MySiteView | null>(null);
-    const [leaveTarget, setLeaveTarget] = useState<MySiteView | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<DomainSite | null>(null);
+    const [leaveTarget, setLeaveTarget] = useState<DomainSite | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -82,14 +84,18 @@ export const PlaceOrderPage = () => {
                 selectedCloudId,
                 reordered.map(p => p.id)
             );
+            // 플레이스 순서 변경 요청
+            updatePlaceOrder(reordered.map(p => p.id)).catch(error => {
+                logger.error('Failed to update place order:', error);
+            });
         }
     };
 
-    const handleSettings = (place: MySiteView) => {
+    const handleSettings = (place: DomainSite) => {
         navigate(`/places/${place.id}`);
     };
 
-    const handleDelete = (place: MySiteView) => {
+    const handleDelete = (place: DomainSite) => {
         setDeleteTarget(place);
     };
 
@@ -99,7 +105,7 @@ export const PlaceOrderPage = () => {
         setDeleteTarget(null);
     };
 
-    const handleLeave = (place: MySiteView) => {
+    const handleLeave = (place: DomainSite) => {
         setLeaveTarget(place);
     };
 
@@ -108,6 +114,9 @@ export const PlaceOrderPage = () => {
         // TODO: Implement leave API call
         setLeaveTarget(null);
     };
+
+    // 플레이스 순서 변경 중인지 확인
+    const isReordering = isPending['update-place-order'];
 
     return (
         <div className="flex min-h-screen flex-col bg-background pt-safe-top">
@@ -142,6 +151,12 @@ export const PlaceOrderPage = () => {
                         </div>
                     </SortableContext>
                 </DndContext>
+                {/* 순서 변경 중일 때 로딩 오버레이 표시 */}
+                {isReordering && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white">
+                        {t('placeOrder.reordering')}...
+                    </div>
+                )}
             </div>
 
             {/* Delete Place Dialog */}

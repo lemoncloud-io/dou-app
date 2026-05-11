@@ -37,8 +37,8 @@ const toClientChat = (chat: DomainChat, userId?: string): ClientChatView => {
         // 소유자 이름이 없을 경우 'Unknown User'로 표시하여 UI에서 명확하게 처리할 수 있도록 합니다.
         // '...'는 모호할 수 있으므로 더 명확한 문자열을 사용합니다.
         ownerName: chat.owner$?.name ?? 'Unknown User',
-        // 현재 사용자가 메시지 소유자인지 판단
-        isOwner: chat.ownerId === userId,
+        // 현재 사용자가 메시지 소유자인지 판단. 메시지가 전송 중(pending)일 경우에도 소유자로 간주합니다.
+        isOwner: (chat.isPending ?? false) || (chat.isFailed ?? false) || chat.ownerId === userId,
         // 메시지 전송 중 상태 (기본값 false)
         isPending: chat.isPending ?? false,
         isFailed: chat.isFailed ?? false,

@@ -392,7 +392,10 @@
             "sending": "Sending...",
             "sendFailed": "Failed to send message",
             "tapToRetry": "Tap to retry",
-            "newMessages": "{{count}} new messages"
+            "newMessages": "{{count}} new messages",
+            "retry": "Retry",
+            "delete": "Delete",
+            "failed": "Failed"
         },
         "settings": {
             "title": "Room Settings",
