@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 
+import type { DragEndEvent } from '@dnd-kit/core';
 import {
     closestCenter,
     DndContext,
@@ -21,8 +22,6 @@ import { usePlaceMutations, usePlaces } from '../../../shared/hooks';
 import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../../chats/components/ConfirmDialog';
 import { SortablePlaceItem } from '../components';
-
-import type { DragEndEvent } from '@dnd-kit/core';
 import type { DomainSite } from '@chatic/data';
 import { logger } from '@chatic/app-messages';
 
@@ -30,7 +29,7 @@ export const PlaceOrderPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { places: serverPlaces } = usePlaces();
-    const { updatePlaceOrder, isPending } = usePlaceMutations(); // usePlaceMutations 훅 사용
+    const { updatePlaceOrder } = usePlaceMutations();
     const [places, setPlaces] = useState<DomainSite[]>(serverPlaces);
 
     useEffect(() => {
@@ -115,9 +114,6 @@ export const PlaceOrderPage = () => {
         setLeaveTarget(null);
     };
 
-    // 플레이스 순서 변경 중인지 확인
-    const isReordering = isPending['update-place-order'];
-
     return (
         <div className="flex min-h-screen flex-col bg-background pt-safe-top">
             <PageHeader title={t('placeOrder.title')} />
@@ -151,12 +147,6 @@ export const PlaceOrderPage = () => {
                         </div>
                     </SortableContext>
                 </DndContext>
-                {/* 순서 변경 중일 때 로딩 오버레이 표시 */}
-                {isReordering && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white">
-                        {t('placeOrder.reordering')}...
-                    </div>
-                )}
             </div>
 
             {/* Delete Place Dialog */}
