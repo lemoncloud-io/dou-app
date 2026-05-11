@@ -1,12 +1,12 @@
 import type { ISocketDispatcher } from './dispatchers';
 import { SocketDispatcher } from './dispatchers';
-import { authHandler, chatHandler, modelHandler } from './handlers';
-import type { IEventBus } from '../../events/eventBus';
-import type { SocketEventMap } from '../../events/types';
+import { authHandler, chatHandler, modelHandler } from '../handlers';
+import type { IEventBus } from '../../../events/eventBus';
+import type { SocketEventMap } from '../../../events/types';
 import type { WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 
 // 1. 핸들러 모듈 전체를 Mocking 처리합니다.
-jest.mock('./handlers', () => ({
+jest.mock('../handlers', () => ({
     authHandler: jest.fn(),
     chatHandler: jest.fn(),
     modelHandler: jest.fn(),

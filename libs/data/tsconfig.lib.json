@@ -27,12 +27,6 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../web-core/tsconfig.lib.json"
-        },
-        {
-            "path": "../socket/tsconfig.lib.json"
-        },
-        {
             "path": "../app-messages/tsconfig.lib.json"
         }
     ]

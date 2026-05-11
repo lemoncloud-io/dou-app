@@ -427,7 +427,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                                         ))}
                                     </div>
                                 )
-                            ) : inviteClouds?.list.length === 0 ? (
+                            ) : inviteClouds?.meta.total === 0 ? (
                                 <div className="flex items-center justify-center px-3 py-6 text-sm text-muted-foreground">
                                     {t('cloudSessionSheet.emptyInvited')}
                                 </div>
