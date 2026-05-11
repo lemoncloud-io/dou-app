@@ -49,6 +49,18 @@ export interface ClientSocketV2 {
     send<T = unknown>(message: SocketMessage<T>): void;
 
     /**
+     * SocketMessage를 서버로 전송합니다. 응답을 기다리지 않습니다.
+     * @param message 전송할 SocketMessage
+     */
+    emit<T = unknown>(message: SocketMessage<T>): void;
+
+    /**
+     * SocketMessage를 서버로 전송합니다. 응답을 기다리지 않습니다.
+     * @param message 전송할 SocketMessage
+     */
+    emitAuthenticated<T = unknown>(message: SocketMessage<T>): void;
+
+    /**
      * 모든 수신 SocketMessage에 대한 리스너를 등록합니다.
      * @param listener 메시지를 처리할 콜백 함수
      * @returns 리스너를 제거하는 함수

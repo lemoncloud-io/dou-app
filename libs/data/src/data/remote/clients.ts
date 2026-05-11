@@ -64,7 +64,17 @@ export interface ISocketClient {
      * @param meta 추가 메타데이터 (선택)
      * @returns 서버 응답 데이터를 포함하는 Promise
      */
-    request<T = unknown, R = unknown>(type: string, data?: T, meta?: Record<string, unknown>): Promise<R>;
+    emit<T = unknown, R = unknown>(type: string, data?: T, meta?: Record<string, unknown>): Promise<R>;
+
+    /**
+     * 인증된 특정 타입의 요청을 보내고 응답을 기다립니다.
+     * 내부적으로 'mid'를 사용하여 요청과 응답을 매칭합니다.
+     * @param type 요청 타입 (예: 'chat.create')
+     * @param data 요청 데이터 (선택)
+     * @param meta 추가 메타데이터 (선택)
+     * @returns 서버 응답 데이터를 포함하는 Promise
+     */
+    emitAuthenticated<T = unknown, R = unknown>(type: string, data?: T, meta?: Record<string, unknown>): Promise<R>;
 
     /**
      * 모든 수신 SocketMessage에 대한 리스너를 등록합니다.
