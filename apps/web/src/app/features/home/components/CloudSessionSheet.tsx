@@ -427,13 +427,13 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                                         ))}
                                     </div>
                                 )
-                            ) : inviteClouds.length === 0 ? (
+                            ) : inviteClouds?.list.length === 0 ? (
                                 <div className="flex items-center justify-center px-3 py-6 text-sm text-muted-foreground">
                                     {t('cloudSessionSheet.emptyInvited')}
                                 </div>
                             ) : (
                                 <div className="flex flex-col gap-1 px-2">
-                                    {inviteClouds.map(inviteCloud => (
+                                    {inviteClouds?.list.map(inviteCloud => (
                                         <InviteCloudItem
                                             key={inviteCloud.id}
                                             inviteCloud={inviteCloud}
