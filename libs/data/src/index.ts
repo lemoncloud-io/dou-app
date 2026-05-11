@@ -6,7 +6,7 @@ export * from './data/local/data-sources';
 export * from './data/local/storages';
 export * from './data/remote/clients';
 export * from './data/remote/data-sources';
-export * from './data/remote/sockets/dispatchers';
+export * from './data/remote/sockets/dispatchers/dispatchers';
 export * from './data/remote/sockets/SocketRequestManager';
 export * from './data/repositories';
 export { FOREGROUND_RESYNC_EVENT_NAME } from './sync-events/syncEvent';

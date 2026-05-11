@@ -2697,10 +2697,10 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-sockets-api@^0.26.401":
-  version "0.26.401"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.401.tgz#07b9ff530a768288596cc5434bd8db2fd53707f4"
-  integrity sha512-I5NKeL/MBD50svLszh+4CaOWOfftzR+CTG+Sv1ahsKhoXXstqffJqj4lXKo2mK5VBH8glQoOFZHpZfSHY0MDBQ==
+"@lemoncloud/chatic-sockets-api@^0.26.404c":
+  version "0.26.404"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.404.tgz#23a698f94350b22c979cc26549551fea0b9f92b3"
+  integrity sha512-yS0DhKrVdwFQlX8E0Uz3RYZEvJwqhHbMNnn6sYVlYj+hgYn9SyYeBfYjI56vIuNeGNr6dGVAiGvq7zj1y5J7dQ==
   dependencies:
     lemon-model "^1.1.1"
 
@@ -3281,7 +3281,7 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@notifee/react-native@^9.1.8":
+"@notifee/react-native@*", "@notifee/react-native@^9.1.8":
   version "9.1.8"
   resolved "https://registry.yarnpkg.com/@notifee/react-native/-/react-native-9.1.8.tgz#3d55cb3fbcc21f9e35931e366afdf64b294da891"
   integrity sha512-Az/dueoPerJsbbjRxu8a558wKY+gONUrfoy3Hs++5OqbeMsR0dYe6P+4oN6twrLFyzAhEA1tEoZRvQTFDRmvQg==
