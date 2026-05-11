@@ -11,8 +11,13 @@ import type {
 import { BaseRepository } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
-import { createDomainListResult, type DomainChat, type DomainListResult } from '../domain';
-import { toDomainChat } from '../domain';
+import {
+    createDomainListResult,
+    type DomainChat,
+    type DomainListResult,
+    type DomainScope,
+    toDomainChat,
+} from '../domain';
 import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
 
 /** 채팅 메시지 도메인의 Repository 공개 계약입니다. */
@@ -60,13 +65,47 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
 
     /** 메시지 발신을 data source에 위임하고 응답을 기다립니다. */
     public async sendChat(payload: ChatSendPayload, options?: RepositoryRequestOptions): Promise<DomainChat> {
-        const chat = await this.requestRemote<ChatView>(
-            ref => this.chatRemoteDataSource.sendChat(payload, ref),
-            options
-        );
-        const domainChat = toDomainChat(chat, this.getDomainScope());
-        await this.chatLocalDataSource.upsert(domainChat, this.getRepositoryContext());
-        return domainChat;
+        const requestRef = options?.ref ?? `chat-send-${Date.now()}`;
+        const requestOptions: RepositoryRequestOptions = { ...options, ref: requestRef };
+        const repositoryContext = this.getRepositoryContext();
+        const domainScope = this.getDomainScope();
+
+        const optimisticChat = this.createOptimisticChat(payload, `optimistic-${requestRef}`, domainScope);
+        await this.chatLocalDataSource.upsert(optimisticChat, repositoryContext);
+
+        try {
+            const chat = await this.requestRemote<ChatView>(
+                ref => this.chatRemoteDataSource.sendChat(payload, ref),
+                requestOptions
+            );
+
+            const domainChat = toDomainChat(
+                {
+                    ...chat,
+                    isPending: false,
+                    isFailed: false,
+                },
+                domainScope
+            );
+
+            if (domainChat.id && optimisticChat.id !== domainChat.id) {
+                await this.chatLocalDataSource.remove(optimisticChat.id, repositoryContext);
+            }
+            await this.chatLocalDataSource.upsert(domainChat, repositoryContext);
+            return domainChat;
+        } catch (error) {
+            const failedAt = Date.now();
+            await this.chatLocalDataSource.upsert(
+                {
+                    ...optimisticChat,
+                    isPending: false,
+                    isFailed: true,
+                    updatedAt: failedAt,
+                },
+                repositoryContext
+            );
+            throw error;
+        }
     }
 
     /** 메시지 피드 조회를 data source에 위임하고 응답을 기다립니다. */
@@ -90,7 +129,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
 
                 const localResult = await this.chatLocalDataSource.fetchList(channelId, this.getRepositoryContext());
 
-                // 💡 수정: 데이터가 없더라도 cursorNo가 0일 때는 "유효한 초기 빈 캐시"로 판단하여 null이 아닌 빈 리스트 객체 반환
+                // 데이터가 없더라도 cursorNo가 0일 때는 "유효한 초기 빈 캐시"로 판단하여 null이 아닌 빈 리스트 객체 반환
                 if (!localResult || localResult.list.length === 0) {
                     if ((payload as { cursorNo?: number }).cursorNo === 0) {
                         return createDomainListResult([], {
@@ -104,7 +143,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
                     return null;
                 }
 
-                // 💡 메타데이터 분리 규격
+                // 메타데이터 분리 규격
                 return createDomainListResult(localResult.list, {
                     ...localResult.meta,
                     cursorNo: 0,
@@ -242,5 +281,29 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
                 'chat:list'
             );
         });
+    }
+
+    private createOptimisticChat(payload: ChatSendPayload, id: string, domainScope: DomainScope): DomainChat {
+        const now = Date.now();
+
+        return toDomainChat(
+            {
+                id,
+                userId: domainScope.uid,
+                cid: domainScope.cid,
+                channelId: payload.channelId || '',
+                content: payload.content,
+                contentType: payload.contentType ?? 'text',
+                parentId: (payload as { parentId?: string }).parentId,
+                ownerId: domainScope.uid,
+                createdAt: now,
+                updatedAt: now,
+                isOwner: true,
+                isPending: true,
+                isFailed: false,
+                chatNo: Number.MAX_SAFE_INTEGER, // 낙관적 메시지가 항상 가장 아래에 오도록 가장 큰 chatNo 설정
+            } as Partial<DomainChat>,
+            domainScope
+        );
     }
 }
