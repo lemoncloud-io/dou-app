@@ -127,6 +127,8 @@ export const ChatRoomPage = () => {
             // 서버에서 확정된 번호가 있고, 내가 마지막으로 읽은 번호보다 최신일 때만 실행
             if (
                 latestChatNo !== undefined &&
+                !latestMessage.isPending &&
+                !latestMessage.isFailed &&
                 (lastReadChatNoRef.current === null || latestChatNo > lastReadChatNoRef.current)
             ) {
                 lastReadChatNoRef.current = latestChatNo;
