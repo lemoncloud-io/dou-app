@@ -10,7 +10,6 @@ export type CacheStorageItem<TType extends CacheType> = CacheModelMap[TType];
 export interface CacheStorage<TType extends CacheType> {
     save(id: string, item: CacheStorageItem<TType>): Promise<CacheStorageItem<TType>>;
     saveAll(items: CacheStorageItem<TType>[]): Promise<CacheStorageItem<TType>[]>;
-    replaceAll(items: CacheStorageItem<TType>[]): Promise<CacheStorageItem<TType>[]>;
     load(id: string): Promise<CacheStorageItem<TType> | null>;
     loadAll(): Promise<CacheStorageItem<TType>[]>;
     delete(id: string): Promise<void>;

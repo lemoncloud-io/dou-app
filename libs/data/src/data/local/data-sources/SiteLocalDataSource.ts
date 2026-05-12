@@ -17,10 +17,7 @@ import { toDomainSite as toDomainSiteBase } from '../../domain';
 export interface ISiteLocalDataSource
     extends ICrudLocalDataSource<DomainSite>,
         IListLocalDataSource<DomainSite, WSSPayload | undefined>,
-        IStreamLocalDataSource<DomainSite, WSSPayload | undefined, DomainListResult<DomainSite>> {
-    /** 기존 사이트 캐시를 신규 목록으로 교체합니다.  */
-    replaceSites(sites: Array<Partial<DomainSite>>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
-}
+        IStreamLocalDataSource<DomainSite, WSSPayload | undefined, DomainListResult<DomainSite>> {}
 
 type SiteCache = CacheStorageItem<'site'>;
 
@@ -120,30 +117,6 @@ export class SiteLocalDataSource extends BaseLocalDataSource implements ISiteLoc
 
     public async clearAll(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         await this.cacheStorage.clearAll();
-        await this.emitAllStreams();
-    }
-
-    // =========================================================================
-    // 2. 특수 도메인 로직
-    // =========================================================================
-
-    public async replaceSites(
-        sites: Array<Partial<DomainSite>>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<void> {
-        const context = this.getContext(contextOverride);
-        const cid = context.cid || this.getCid(contextOverride);
-        const cacheSites = sites
-            .filter(site => !!site.id)
-            .map(site =>
-                toDomainSiteBase({ ...(site as Record<string, unknown>), cid } as Partial<DomainSite>, {
-                    cid,
-                    sid: context.sid,
-                    uid: context.uid,
-                })
-            )
-            .map(site => site as SiteCache);
-        await this.cacheStorage.replaceAll(cacheSites);
         await this.emitAllStreams();
     }
 

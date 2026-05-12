@@ -153,7 +153,7 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         const domainList = (remote.list || []).map(item => toDomainSite(item, this.getDomainScope()));
 
         // Site 도메인의 전체 교체 로직은 유지
-        await this.siteLocalDataSource.replaceSites(domainList, this.getRepositoryContext());
+        await this.siteLocalDataSource.upsertMany(domainList, this.getRepositoryContext());
 
         return createDomainListResult(domainList, {
             total: remote.total ?? domainList.length,
@@ -178,7 +178,7 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         });
         this.onDomainEvent('site:list', detail => {
             this.runInBackground(
-                () => this.siteLocalDataSource.replaceSites(detail.data.list || [], this.getRepositoryContext()),
+                () => this.siteLocalDataSource.upsertMany(detail.data.list || [], this.getRepositoryContext()),
                 'site:list'
             );
         });

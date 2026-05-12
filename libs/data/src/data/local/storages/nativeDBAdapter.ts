@@ -238,37 +238,6 @@ export const createNativeDBAdapter = <TType extends CacheType>(
         },
 
         /**
-         * 현재 스코프의 기존 데이터를 전부 비우고, 전달받은 새로운 데이터 배열로 완전히 교체합니다.
-         */
-        async replaceAll(items: Model[]): Promise<Model[]> {
-            const scope = resolveScopedContext(type, contextProvider);
-
-            // 스코프 내 기존 데이터 전체 삭제
-            await clearScopedData(scope);
-
-            // 새로운 데이터 일괄 저장
-            if (items.length > 0) {
-                const saveNonce = generateNonce();
-                await postAndWait(
-                    {
-                        type: 'SaveAllCacheData',
-                        nonce: saveNonce,
-                        data: {
-                            type,
-                            cid: scope.cid,
-                            uid: scope.uid,
-                            items: items.map(item => withCacheMeta(type, item)),
-                        },
-                    } as WebMessage,
-                    'OnSaveAllCacheData',
-                    saveNonce
-                );
-            }
-
-            return items;
-        },
-
-        /**
          * 특정 ID에 해당하는 데이터를 캐시에서 삭제합니다.
          */
         delete: async (id: string): Promise<void> => {
