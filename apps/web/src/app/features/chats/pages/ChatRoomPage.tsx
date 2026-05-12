@@ -32,10 +32,10 @@ import { useAppChecker } from '@chatic/device-utils';
 import { InviteFriendsDialog } from '../components';
 import { MessageBubble } from '../components/MessageBubble';
 import { ReadStatus } from '../components/ReadStatus';
-import type { ClientChatView } from '@chatic/data';
-import { FOREGROUND_RESYNC_EVENT_NAME } from '@chatic/data';
 import { useChannel, useChannelMembers, useChatMutations, useJoinPositions } from '../../../shared/hooks';
 import { useChats } from '../../../shared/hooks/useChats';
+import type { ClientChatView } from '../../../shared/types';
+import { FOREGROUND_RESYNC_EVENT_NAME } from '../../../shared/types';
 
 // 입력 가능한 최대 글자 수
 const MAX_INPUT_LENGTH = 5000;

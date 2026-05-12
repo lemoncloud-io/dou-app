@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { logger } from '@chatic/app-messages';
-import type { ClientChatView, DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/data';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
 import { useDynamicProfile } from '@chatic/web-core';
 import { useRepositories } from '../data';
+import type { ClientChatView } from '../types';
 
 // 기본 채팅 메시지 로드 제한 수
 const DEFAULT_CHAT_LIMIT = 50;

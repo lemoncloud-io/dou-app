@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { FOREGROUND_RESYNC_EVENT_NAME } from '@chatic/data';
+import { FOREGROUND_RESYNC_EVENT_NAME } from '../types';
 
 /**
  * 포그라운드 복귀 및 WebSocket 재연결 완료 시 데이터 재동기화를 트리거하는 공통 훅

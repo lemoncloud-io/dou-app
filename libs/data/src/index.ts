@@ -1,4 +1,3 @@
-export { useDataSync } from './useDataSync';
 export * from './data/events/eventBus';
 export * from './data/events/types';
 export * from './data/domain';
@@ -9,5 +8,3 @@ export * from './data/remote/data-sources';
 export * from './data/remote/sockets/dispatchers/dispatchers';
 export * from './data/remote/sockets/SocketRequestManager';
 export * from './data/repositories';
-export { FOREGROUND_RESYNC_EVENT_NAME } from './sync-events/syncEvent';
-export * from './types';
