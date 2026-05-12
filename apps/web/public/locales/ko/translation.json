@@ -288,7 +288,11 @@
         "statusReservedDescription": "클라우드 설정 중이에요. 최대 10분이 소요될 수 있어요.",
         "cloudReady": "클라우드가 준비되었어요!",
         "disconnectCloud": "클라우드 해제",
-        "disconnectCloudDesc": "클라우드 연결을 해제합니다"
+        "disconnectCloudDesc": "클라우드 연결을 해제합니다",
+        "authTimeout": "클라우드 인증 시간이 초과되었어요",
+        "placeLoadFailed": "플레이스 목록을 불러오지 못했어요",
+        "placeAuthFailed": "플레이스 인증에 실패했어요",
+        "channelLoadFailed": "채널 목록을 불러오지 못했어요"
     },
     "placeList": {
         "defaultPlace": "기본",

@@ -5,17 +5,17 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { AlertCircle, Check, Home, Loader2, Plus, User, X } from 'lucide-react';
 
-import { logger } from '@chatic/app-messages';
 import { cn } from '@chatic/lib/utils';
 import { useInterval } from '@chatic/shared';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudCore, reportError, toError, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
 import { cloudsKeys } from '@chatic/users';
 
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
+import { useCloudSwitchFlow } from '../../../shared/hooks/useCloudSwitchFlow';
 import { useInviteClouds } from '../../../shared/hooks/useInviteClouds';
 import { SubscriptionSelectDialog } from './SubscriptionSelectDialog';
 import { SubscriptionRequiredDialog } from './SubscriptionRequiredDialog';
@@ -267,14 +267,16 @@ const TabBar = ({ tab, onChange, inviteCount }: { tab: Tab; onChange: (t: Tab) =
 interface CloudSessionSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onCloudSwitchComplete?: (placeId: string) => void;
 }
 
-export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps) => {
+export const CloudSessionSheet = ({ open, onOpenChange, onCloudSwitchComplete }: CloudSessionSheetProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const queryClient = useQueryClient();
-    const { selectCloud, isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
+    const { isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
     const { inviteClouds } = useInviteClouds();
+    const { switchCloud } = useCloudSwitchFlow({ onPlaceSelected: onCloudSwitchComplete });
 
     const { isAvailable: isSubscriptionAvailable } = useIsSubscriptionAvailable();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedCloudId());
@@ -320,14 +322,15 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     };
 
     const handleSelectCloud = async (cloudId: string) => {
+        const previousCloudId = selectedId;
+        handleClose();
         try {
-            await selectCloud(cloudId);
+            await switchCloud(cloudId);
             setSelectedId(cloudId);
-            handleClose();
-        } catch (e) {
-            logger.error('SESSION', '[CloudSessionSheet] selectCloud failed', { error: e, data: { cloudId } });
-            reportError(toError(e));
-            toast({ title: t('cloudSessionSheet.switchFailed'), variant: 'destructive' });
+        } catch {
+            // 에러 로깅과 toast는 useCloudSwitchFlow 내부에서 처리됨
+            // 롤백 후 이전 cloud 선택 상태 복원
+            setSelectedId(previousCloudId);
         }
     };
 
