@@ -72,7 +72,7 @@ export const ChatRoomPage = () => {
         () => members.map(m => m.$join).filter((j): j is NonNullable<typeof j> => !!j),
         [members]
     );
-    const { getReadCount } = useJoinPositions(channelId ?? null, initialJoins);
+    const { getReadCount, isReady: isJoinReady } = useJoinPositions(channelId ?? null, initialJoins);
 
     const {
         messages,
@@ -609,16 +609,23 @@ export const ChatRoomPage = () => {
                                                                         {formatTime(message.timestamp)}
                                                                     </span>
                                                                     {message.chatNo !== undefined &&
-                                                                        (() => {
-                                                                            const { readCount, unreadCount } =
-                                                                                getReadCount(message.chatNo);
-                                                                            return (
-                                                                                <ReadStatus
-                                                                                    readCount={readCount}
-                                                                                    unreadCount={unreadCount}
-                                                                                />
-                                                                            );
-                                                                        })()}
+                                                                        (!isJoinReady ? (
+                                                                            <Loader2
+                                                                                size={11}
+                                                                                className="animate-spin text-muted-foreground"
+                                                                            />
+                                                                        ) : (
+                                                                            (() => {
+                                                                                const { readCount, unreadCount } =
+                                                                                    getReadCount(message.chatNo);
+                                                                                return (
+                                                                                    <ReadStatus
+                                                                                        readCount={readCount}
+                                                                                        unreadCount={unreadCount}
+                                                                                    />
+                                                                                );
+                                                                            })()
+                                                                        ))}
                                                                 </>
                                                             )}
                                                         </div>
