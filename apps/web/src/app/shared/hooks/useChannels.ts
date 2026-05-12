@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
-import type { ClientChannelView, DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
+import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
 import { useDynamicProfile } from '@chatic/web-core';
 
 import { useRepositories } from '../data';
+import type { ClientChannelView } from '../types';
+import { debounce } from '../utils/debounce';
 
 const DEFAULT_CHANNEL_LIMIT = 100;
 
@@ -121,16 +123,18 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
 
     // 채팅/조인 업데이트 등 간접적 이벤트에 대한 동기화 트리거
     useEffect(() => {
+        const debouncedFetchChannels = debounce(fetchChannels, 300);
+
         const unsubscribeChatCreated = chatRepository.onChatCreated((chat: DomainChat) => {
             if (!chat.channelId || channelsRef.current.length === 0) return;
             if (channelsRef.current.some(channel => channel.id === chat.channelId)) {
-                void fetchChannels();
+                void debouncedFetchChannels();
             }
         });
         const unsubscribeJoinUpdated = joinRepository.onJoinUpdated((join: DomainJoin) => {
             if (!join.channelId || channelsRef.current.length === 0) return;
             if (channelsRef.current.some(channel => channel.id === join.channelId)) {
-                void fetchChannels();
+                void debouncedFetchChannels();
             }
         });
 
