@@ -78,7 +78,8 @@ export class InviteCloudLocalDataSource extends BaseLocalDataSource implements I
 
     public async upsert(
         item: Partial<CacheCloudView>,
-        contextOverride?: LocalDataSourceContextOverride
+        contextOverride?: LocalDataSourceContextOverride,
+        emitStream = true
     ): Promise<void> {
         const id = item.id;
         if (!id) return;
@@ -88,32 +89,35 @@ export class InviteCloudLocalDataSource extends BaseLocalDataSource implements I
             const normalized = this.normalizeInviteCloud(id, { ...(existing ?? {}), ...item }, contextOverride);
             await this.cacheStorage.save(id, normalized);
         });
-        await this.emitAllStreams();
+        if (emitStream) {
+            this.debouncedEmitAllStreams();
+        }
     }
 
     public async upsertMany(
         items: Array<Partial<CacheCloudView>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
-        await Promise.all(items.map(item => this.upsert(item, contextOverride)));
+        await Promise.all(items.map(item => this.upsert(item, contextOverride, false)));
+        this.debouncedEmitAllStreams();
     }
 
     public async remove(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         if (!id) return;
         await this.runWithGlobalContext(contextOverride, () => this.cacheStorage.delete(id));
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     public async removeMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
         await this.runWithGlobalContext(contextOverride, () => this.cacheStorage.deleteAll(validIds));
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     public async clearAll(contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         await this.runWithGlobalContext(contextOverride, () => this.cacheStorage.clearAll());
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     // =========================================================================

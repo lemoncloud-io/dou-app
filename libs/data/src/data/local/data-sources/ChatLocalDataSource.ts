@@ -68,7 +68,11 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         return item ? toDomainChatBase(item, {} as any) : null; // scope 파라미터는 프로젝트 환경에 맞게 주입 필요
     }
 
-    public async upsert(chat: Partial<DomainChat>, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+    public async upsert(
+        chat: Partial<DomainChat>,
+        contextOverride?: LocalDataSourceContextOverride,
+        emitStream = true
+    ): Promise<void> {
         const id = chat.id;
         if (!id) return;
 
@@ -90,32 +94,35 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         );
 
         await this.cacheStorage.save(id, normalized as ChatCache);
-        await this.emitAllStreams();
+        if (emitStream) {
+            this.debouncedEmitAllStreams();
+        }
     }
 
     public async upsertMany(
         chats: Array<Partial<DomainChat>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
-        await Promise.all(chats.map(chat => this.upsert(chat, contextOverride)));
+        await Promise.all(chats.map(chat => this.upsert(chat, contextOverride, false)));
+        this.debouncedEmitAllStreams();
     }
 
     public async remove(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         if (!id) return;
         await this.cacheStorage.delete(id);
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     public async removeMany(ids: string[], _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
         await this.cacheStorage.deleteAll(validIds);
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     public async clearAll(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         await this.cacheStorage.clearAll();
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     // =========================================================================
