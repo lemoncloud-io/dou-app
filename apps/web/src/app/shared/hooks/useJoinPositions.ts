@@ -31,9 +31,54 @@ export const useJoinPositions = (channelId: string | null, initialJoins: JoinVie
     const positionsRef = useRef<Map<string, JoinPosition>>(new Map());
     const [version, setVersion] = useState(0);
     const [isReady, setIsReady] = useState(false);
+    const hasFreshJoinsRef = useRef(false);
 
-    // 초기 위치 맵 구성 (initialJoins가 변경될 때마다 갱신)
+    // 캐시에서 초기 위치 빠르게 로드 (network 응답 전에 즉시 표시)
     useEffect(() => {
+        if (!channelId) return;
+        hasFreshJoinsRef.current = false;
+        positionsRef.current = new Map();
+        setIsReady(false);
+
+        let cancelled = false;
+
+        const loadFromCache = async () => {
+            try {
+                const result = await joinRepository.fetchJoins({ channelId }, { cachePolicy: 'cache-only' });
+                if (cancelled || hasFreshJoinsRef.current) return;
+                const list = result?.list;
+                if (!list?.length) return;
+
+                const nextMap = new Map<string, JoinPosition>();
+                for (const join of list) {
+                    if (!join.userId || join.joined === 0) continue;
+                    nextMap.set(join.userId, {
+                        chatNo: join.chatNo ?? 0,
+                        joinedNo: join.joinedNo ?? 0,
+                    });
+                }
+                if (nextMap.size > 0) {
+                    positionsRef.current = nextMap;
+                    setIsReady(true);
+                    setVersion(v => v + 1);
+                }
+            } catch {
+                // 캐시 읽기 실패 — initialJoins 대기
+            }
+        };
+        void loadFromCache();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [joinRepository, channelId]);
+
+    // 초기 위치 맵 구성 (initialJoins가 network에서 도착할 때 갱신)
+    useEffect(() => {
+        // 빈 배열은 아직 로딩 중이므로 캐시 데이터를 유지
+        if (initialJoins.length === 0) return;
+
+        hasFreshJoinsRef.current = true;
         const nextMap = new Map<string, JoinPosition>();
 
         for (const join of initialJoins) {
@@ -45,7 +90,7 @@ export const useJoinPositions = (channelId: string | null, initialJoins: JoinVie
         }
 
         positionsRef.current = nextMap;
-        setIsReady(nextMap.size > 0 || initialJoins.length === 0);
+        setIsReady(nextMap.size > 0);
         setVersion(v => v + 1);
     }, [initialJoins]);
 
