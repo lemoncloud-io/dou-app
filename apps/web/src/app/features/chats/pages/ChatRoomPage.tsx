@@ -299,6 +299,32 @@ export const ChatRoomPage = () => {
         return `${period} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
     };
 
+    const isSameGroup = useCallback(
+        (msg1: ClientChatView, msg2: ClientChatView) => {
+            if (!msg1 || !msg2 || msg1.isSystem || msg2.isSystem) return false;
+
+            const sameOwner = msg1.ownerId === msg2.ownerId;
+
+            const d1 = msg1.timestamp;
+            const d2 = msg2.timestamp;
+            const sameTime =
+                d1.getFullYear() === d2.getFullYear() &&
+                d1.getMonth() === d2.getMonth() &&
+                d1.getDate() === d2.getDate() &&
+                d1.getHours() === d2.getHours() &&
+                d1.getMinutes() === d2.getMinutes();
+
+            const rc1 = msg1.chatNo !== undefined ? getReadCount(msg1.chatNo).readCount : -1;
+            const rc2 = msg2.chatNo !== undefined ? getReadCount(msg2.chatNo).readCount : -1;
+            const sameReadCount = rc1 === rc2;
+
+            const sameStatus = msg1.isFailed === msg2.isFailed && msg1.isPending === msg2.isPending;
+
+            return sameOwner && sameTime && sameReadCount && sameStatus;
+        },
+        [getReadCount]
+    );
+
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
@@ -457,7 +483,7 @@ export const ChatRoomPage = () => {
                                         </span>
                                     </div>
 
-                                    {dateMessages.map(message => {
+                                    {dateMessages.map((message, index) => {
                                         // 시스템 메시지 렌더링 (초대, 퇴장 등)
                                         if (message.isSystem) {
                                             const systemMatch = (message.content ?? '').match(/^(.+?)(님이.+)$/);
@@ -477,26 +503,38 @@ export const ChatRoomPage = () => {
                                             );
                                         }
 
+                                        const prevMessage = dateMessages[index - 1];
+                                        const nextMessage = dateMessages[index + 1];
+
+                                        const isSameAsPrev = prevMessage && isSameGroup(message, prevMessage);
+                                        const isSameAsNext = nextMessage && isSameGroup(message, nextMessage);
+
+                                        const showProfileAndName = !isSameAsPrev;
+                                        const showTimeAndStatus =
+                                            !isSameAsNext || message.isPending || message.isFailed;
+
                                         // 일반 메시지 렌더링
                                         return (
                                             <div
                                                 key={message.id}
-                                                className={`flex gap-1.5 ${message.isOwner ? 'justify-end' : 'justify-start'}`}
+                                                className={`flex gap-1.5 ${message.isOwner ? 'justify-end' : 'justify-start'} ${!showProfileAndName ? '-mt-1' : ''}`}
                                             >
-                                                {!message.isOwner && (
-                                                    <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
-                                                        <User className="size-4 text-muted-foreground" />
-                                                    </div>
-                                                )}
+                                                {!message.isOwner &&
+                                                    (showProfileAndName ? (
+                                                        <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                                                            <User className="size-4 text-muted-foreground" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="size-[39px] flex-shrink-0" />
+                                                    ))}
                                                 <div
                                                     className={`flex max-w-[75%] flex-col ${message.isOwner ? 'items-end' : 'items-start'}`}
                                                 >
-                                                    {!message.isOwner && (
+                                                    {!message.isOwner && showProfileAndName && (
                                                         <span className="mb-1 text-xs text-muted-foreground">
                                                             {message.ownerName}
                                                         </span>
                                                     )}
-                                                    {/* 실패 시: AlertCircle + 버블을 가로로 나란히 배치 */}
                                                     <div
                                                         className={`flex items-center gap-1.5 ${message.isOwner ? 'flex-row' : ''}`}
                                                     >
@@ -529,60 +567,62 @@ export const ChatRoomPage = () => {
                                                             }
                                                         />
                                                     </div>
-                                                    {/* 상태 표시 영역: 전송 중 / 실패 / 정상 */}
-                                                    <div
-                                                        className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${message.isOwner ? 'flex-row-reverse' : ''}`}
-                                                    >
-                                                        {message.isPending ? (
-                                                            <span className="flex items-center gap-1 text-muted-foreground/70">
-                                                                <Clock size={11} />
-                                                                <span>{t('chat.room.sending')}</span>
-                                                            </span>
-                                                        ) : message.isFailed ? (
-                                                            <div className="flex items-center gap-1 text-destructive">
-                                                                <AlertCircle size={11} />
-                                                                <span>{t('chat.room.failed')}</span>
-                                                                {message.isOwner && (
-                                                                    <>
-                                                                        <button
-                                                                            onClick={() => handleRetryMessage(message)}
-                                                                            className="ml-2 flex items-center text-destructive"
-                                                                            title={t('chat.room.retry')}
-                                                                        >
-                                                                            <RotateCcw size={11} />
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() =>
-                                                                                handleDeleteMessage(message.id)
-                                                                            }
-                                                                            className="ml-1 flex items-center text-destructive"
-                                                                            title={t('chat.room.delete')}
-                                                                        >
-                                                                            <X size={11} />
-                                                                        </button>
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <>
-                                                                <span className="text-muted-foreground">
-                                                                    {formatTime(message.timestamp)}
+                                                    {showTimeAndStatus && (
+                                                        <div
+                                                            className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${message.isOwner ? 'flex-row-reverse' : ''}`}
+                                                        >
+                                                            {message.isPending ? (
+                                                                <span className="flex items-center gap-1 text-muted-foreground/70">
+                                                                    <Clock size={11} />
+                                                                    <span>{t('chat.room.sending')}</span>
                                                                 </span>
-                                                                {message.chatNo !== undefined &&
-                                                                    (() => {
-                                                                        const { readCount, unreadCount } = getReadCount(
-                                                                            message.chatNo
-                                                                        );
-                                                                        return (
-                                                                            <ReadStatus
-                                                                                readCount={readCount}
-                                                                                unreadCount={unreadCount}
-                                                                            />
-                                                                        );
-                                                                    })()}
-                                                            </>
-                                                        )}
-                                                    </div>
+                                                            ) : message.isFailed ? (
+                                                                <div className="flex items-center gap-1 text-destructive">
+                                                                    <AlertCircle size={11} />
+                                                                    <span>{t('chat.room.failed')}</span>
+                                                                    {message.isOwner && (
+                                                                        <>
+                                                                            <button
+                                                                                onClick={() =>
+                                                                                    handleRetryMessage(message)
+                                                                                }
+                                                                                className="ml-2 flex items-center text-destructive"
+                                                                                title={t('chat.room.retry')}
+                                                                            >
+                                                                                <RotateCcw size={11} />
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() =>
+                                                                                    handleDeleteMessage(message.id)
+                                                                                }
+                                                                                className="ml-1 flex items-center text-destructive"
+                                                                                title={t('chat.room.delete')}
+                                                                            >
+                                                                                <X size={11} />
+                                                                            </button>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <>
+                                                                    <span className="text-muted-foreground">
+                                                                        {formatTime(message.timestamp)}
+                                                                    </span>
+                                                                    {message.chatNo !== undefined &&
+                                                                        (() => {
+                                                                            const { readCount, unreadCount } =
+                                                                                getReadCount(message.chatNo);
+                                                                            return (
+                                                                                <ReadStatus
+                                                                                    readCount={readCount}
+                                                                                    unreadCount={unreadCount}
+                                                                                />
+                                                                            );
+                                                                        })()}
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         );
