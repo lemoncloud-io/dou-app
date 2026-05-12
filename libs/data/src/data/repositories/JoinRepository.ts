@@ -2,6 +2,7 @@ import type { ChatReadPayload, ChatUpdateJoinPayload } from '@lemoncloud/chatic-
 import type { IJoinLocalDataSource } from '../local/data-sources';
 import type { IJoinRemoteDataSource } from '../remote/data-sources';
 import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
+import type ISyncRepository from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { DomainEventMap } from '../events/domain';
@@ -53,7 +54,7 @@ export interface IJoinRepository extends ILocalCacheMutationRepository<DomainJoi
 }
 
 /** Remote join API와 local join cache를 중재합니다. */
-export class JoinRepository extends BaseRepository implements IJoinRepository {
+export class JoinRepository extends BaseRepository implements IJoinRepository, ISyncRepository {
     constructor(
         private readonly joinRemoteDataSource: IJoinRemoteDataSource,
         private readonly joinLocalDataSource: IJoinLocalDataSource,
@@ -63,6 +64,9 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
     ) {
         super(requestManager, contextProvider, domainEventBus);
         this.initializeInternalListeners();
+    }
+    sync(id?: string, meta?: Record<string, unknown>): Promise<void> {
+        throw new Error('Method not implemented.');
     }
 
     public async fetchJoins(

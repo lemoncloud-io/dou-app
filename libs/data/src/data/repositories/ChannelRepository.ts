@@ -1,3 +1,4 @@
+import type ISyncRepository from './types';
 import {
     BaseRepository,
     type DataContextProvider,
@@ -70,7 +71,7 @@ export interface IChannelRepository extends ILocalCacheMutationRepository<Domain
     subscribeItem(id: string, callback: (channel: DomainChannel | null) => void): () => void;
 }
 
-export class ChannelRepository extends BaseRepository implements IChannelRepository {
+export class ChannelRepository extends BaseRepository implements IChannelRepository, ISyncRepository {
     constructor(
         private readonly channelRemoteDataSource: IChannelRemoteDataSource,
         private readonly channelLocalDataSource: IChannelLocalDataSource,
@@ -80,6 +81,10 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
     ) {
         super(requestManager, contextProvider, domainEventBus);
         this.initializeInternalListeners();
+    }
+
+    sync(id?: string, meta?: Record<string, unknown>): Promise<void> {
+        throw new Error('Method not implemented.');
     }
 
     // --- Remote API ---

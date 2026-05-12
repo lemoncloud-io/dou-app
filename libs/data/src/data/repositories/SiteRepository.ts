@@ -5,6 +5,7 @@ import type { DomainEventMap, ListResult } from '../events/types';
 import type { ISiteRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
+import type ISyncRepository from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import { createDomainListResult, type DomainListResult, type DomainSite, toDomainSite } from '../domain';
@@ -41,7 +42,7 @@ export interface ISiteRepository extends ILocalCacheMutationRepository<DomainSit
 }
 
 /** Remote site API와 local site cache를 중재합니다. */
-export class SiteRepository extends BaseRepository implements ISiteRepository {
+export class SiteRepository extends BaseRepository implements ISiteRepository, ISyncRepository {
     constructor(
         private readonly siteRemoteDataSource: ISiteRemoteDataSource,
         private readonly siteLocalDataSource: ISiteLocalDataSource,
@@ -51,6 +52,9 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
     ) {
         super(requestManager, contextProvider, domainEventBus);
         this.initializeInternalListeners();
+    }
+    sync(id?: string, meta?: Record<string, unknown>): Promise<void> {
+        throw new Error('Method not implemented.');
     }
 
     public async fetchSite(

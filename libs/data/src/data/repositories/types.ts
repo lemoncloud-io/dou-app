@@ -188,3 +188,17 @@ export abstract class BaseRepository {
         return this.domainEventBus.on(event, callback);
     }
 }
+
+/**
+ * SyncManager에 의해 동기화될 수 있는 Repository가 구현해야 하는 인터페이스입니다.
+ */
+interface ISyncRepository {
+    /**
+     * 특정 항목을 동기화합니다.
+     * @param id 동기화할 항목의 식별자; 없을 경우 전체로 식별
+     * @param meta 동기화에 필요한 추가 정보 (옵션)
+     */
+    sync(id?: string, meta?: Record<string, unknown>): Promise<void>;
+}
+
+export default ISyncRepository;
