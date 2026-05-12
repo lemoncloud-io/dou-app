@@ -18,7 +18,7 @@ import { ServiceUnavailableOverlay, SplashOverlay, WebSocketV2Connection } from 
 import { DataProvider } from './shared/data';
 import { Router } from './routes';
 import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
-import { useAutoSelectCloud } from './shared/hooks/useCloudSession';
+
 import { useForegroundTokenRefresh } from './shared/hooks/useForegroundTokenRefresh';
 import { useForegroundResync } from './shared/hooks/useForegroundResync';
 import i18n from '../i18n';
@@ -55,11 +55,6 @@ const queryClient = new QueryClient({
         },
     },
 });
-
-const AutoSelectCloud = () => {
-    useAutoSelectCloud();
-    return null;
-};
 
 const ForegroundTokenRefresh = ({ refreshToken }: { refreshToken: () => Promise<boolean> }) => {
     useForegroundTokenRefresh(refreshToken);
@@ -120,7 +115,6 @@ export function App() {
                                 <QueryClientProvider client={queryClient}>
                                     <ThemeProvider>
                                         <DataProvider>
-                                            <AutoSelectCloud />
                                             <ForegroundTokenRefresh refreshToken={refreshToken} />
                                             {isAuthenticated && <WebSocketV2Connection />}
                                             <ServiceUnavailableOverlay />
