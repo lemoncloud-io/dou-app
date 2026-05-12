@@ -52,11 +52,12 @@ export const usePlaces = () => {
 
     // cloudId가 변경되고 인증 완료 시 place 목록 재요청
     // place auth로 인한 isVerified 토글(같은 cloud)에서는 재요청하지 않음
+    // places가 이미 있으면 (파이프라인이 먼저 가져온 경우) loading skeleton 표시 안 함
     useEffect(() => {
         if (!cloudId || !isVerified) return;
         if (prevCloudIdRef.current === cloudId) return;
         prevCloudIdRef.current = cloudId;
-        void fetchPlaces({ loading: true });
+        void fetchPlaces({ loading: places.length === 0 });
     }, [fetchPlaces, cloudId, isVerified]);
 
     useEffect(() => {

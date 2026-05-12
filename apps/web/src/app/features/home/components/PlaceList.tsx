@@ -9,40 +9,18 @@ import { cn } from '@chatic/lib/utils';
 import { cloudCore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
 import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
+import { waitForVerified } from '../../../shared/utils/waitForVerified';
+
 // Module-level: 현재 WS 세션에서 place auth(refreshToken + auth:update)가 완료되었는지 추적
 // home → chatroom → home 재진입 시 불필요한 auth:update를 방지하여 stuck loading 예방
 let placeAuthDone = false;
 
-const DEFAULT_PLACE: MySiteView = { id: 'default', name: 'defaultPlace', stereo: 'work' } as MySiteView;
-
-/**
- * isVerified가 true로 전환될 때까지 대기하는 Promise
- * auth:update 응답을 기다리는 데 사용
- */
-const waitForVerified = (timeoutMs = 5000): Promise<boolean> => {
-    return new Promise(resolve => {
-        if (useWebSocketV2Store.getState().isVerified) {
-            resolve(true);
-            return;
-        }
-
-        const timer = setTimeout(() => {
-            unsub();
-            resolve(false);
-        }, timeoutMs);
-
-        const unsub = useWebSocketV2Store.subscribe(
-            s => s.isVerified,
-            verified => {
-                if (verified) {
-                    clearTimeout(timer);
-                    unsub();
-                    resolve(true);
-                }
-            }
-        );
-    });
+/** 외부(pipeline)에서 placeAuthDone 상태를 설정할 수 있도록 export */
+export const setPlaceAuthDone = (value: boolean) => {
+    placeAuthDone = value;
 };
+
+const DEFAULT_PLACE: MySiteView = { id: 'default', name: 'defaultPlace', stereo: 'work' } as MySiteView;
 
 interface PlaceItemProps {
     place: MySiteView;
@@ -237,8 +215,8 @@ export const PlaceList = ({
         handleSelectPlace(places[0].id);
     }, [places]);
 
-    // 순수 게스트 또는 cloud 미선택(default) 상태는 DEFAULT_PLACE만 표시
-    if (userType === UserType.TEMP_ACCOUNT || isDefaultMode) {
+    // 순수 게스트, cloud 미선택(default), 또는 cloud가 아예 선택되지 않은 상태는 DEFAULT_PLACE만 표시
+    if (userType === UserType.TEMP_ACCOUNT || isDefaultMode || (!selectedCloudId && !isInvited)) {
         return (
             <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
                 <PlaceItem place={DEFAULT_PLACE} isSelected isDisabled onSelectPlace={_id => _id} />

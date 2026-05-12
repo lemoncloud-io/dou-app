@@ -240,7 +240,11 @@ export const HomePage = () => {
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
             <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
             <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
-            <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
+            <CloudSessionSheet
+                open={isCloudSessionOpen}
+                onOpenChange={setIsCloudSessionOpen}
+                onCloudSwitchComplete={setSelectedPlaceId}
+            />
             <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
             {isSearchOpen && <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />}
             <ReportIssueDialog open={isReportIssueOpen} onOpenChange={setIsReportIssueOpen} />

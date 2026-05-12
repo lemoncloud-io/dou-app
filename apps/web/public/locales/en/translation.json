@@ -288,7 +288,11 @@
         "statusReservedDescription": "Setting up your cloud. This may take up to 10 minutes.",
         "cloudReady": "Your cloud is ready!",
         "disconnectCloud": "Disconnect Cloud",
-        "disconnectCloudDesc": "Disconnect from cloud"
+        "disconnectCloudDesc": "Disconnect from cloud",
+        "authTimeout": "Cloud authentication timed out",
+        "placeLoadFailed": "Failed to load places",
+        "placeAuthFailed": "Failed to authenticate place",
+        "channelLoadFailed": "Failed to load channels"
     },
     "placeList": {
         "defaultPlace": "Default",
