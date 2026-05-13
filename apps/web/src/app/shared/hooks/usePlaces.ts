@@ -13,7 +13,7 @@ export const usePlaces = () => {
     const { site: siteRepository } = useRepositories();
     const cloudId = useWebSocketV2Store(s => s.cloudId);
     const isVerified = useWebSocketV2Store(s => s.isVerified);
-    const prevCloudIdRef = useRef<string | undefined>();
+    const prevCloudIdRef = useRef<string | undefined>(undefined);
     const requestSeqRef = useRef(0);
 
     const [places, setPlaces] = useState<DomainSite[]>([]);
@@ -22,7 +22,7 @@ export const usePlaces = () => {
     const [isError, setIsError] = useState(false);
 
     const fetchPlaces = useCallback(
-        async (options?: { loading?: boolean }) => {
+        async (options?: { loading?: boolean; forceNetwork?: boolean }) => {
             const requestSeq = requestSeqRef.current + 1;
             requestSeqRef.current = requestSeq;
 
@@ -31,7 +31,9 @@ export const usePlaces = () => {
             setIsError(false);
 
             try {
-                const result = await siteRepository.fetchSite({}, { cachePolicy: 'network-only' });
+                // 초기 로딩 시에는 캐시 우선 사용, 갱신이 필요할 때만 network-only를 사용하도록 캐싱 최적화
+                const cachePolicy = options?.forceNetwork ? 'network-only' : 'cache-first';
+                const result = await siteRepository.fetchSite({}, { cachePolicy });
                 if (requestSeqRef.current !== requestSeq) return;
 
                 setPlaces((result.list ?? []) as DomainSite[]);
@@ -57,15 +59,16 @@ export const usePlaces = () => {
         if (!cloudId || !isVerified) return;
         if (prevCloudIdRef.current === cloudId) return;
         prevCloudIdRef.current = cloudId;
-        void fetchPlaces({ loading: places.length === 0 });
+        void fetchPlaces({ loading: places.length === 0, forceNetwork: false });
     }, [fetchPlaces, cloudId, isVerified]);
 
     useEffect(() => {
+        // 이벤트로 갱신이 필요할 때는 명시적으로 네트워크를 통해 최신 데이터를 가져옴
         const unsubCreate = siteRepository.onSiteCreated(() => {
-            void fetchPlaces();
+            void fetchPlaces({ forceNetwork: true });
         });
         const unsubUpdate = siteRepository.onSiteUpdated(() => {
-            void fetchPlaces();
+            void fetchPlaces({ forceNetwork: true });
         });
         return () => {
             unsubCreate();
@@ -78,7 +81,7 @@ export const usePlaces = () => {
         isLoading,
         isSyncing,
         isError,
-        refresh: () => void fetchPlaces(),
-        sync: () => void fetchPlaces(),
+        refresh: () => void fetchPlaces({ forceNetwork: true }),
+        sync: () => void fetchPlaces({ forceNetwork: true }),
     };
 };
