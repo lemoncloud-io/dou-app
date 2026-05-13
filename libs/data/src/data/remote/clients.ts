@@ -1,4 +1,5 @@
-import type { SocketMessage, WSSActionType, WSSEventDomainType } from '@lemoncloud/chatic-sockets-api';
+import type { WSSActionType, WSSEventDomainType } from '@lemoncloud/chatic-sockets-api';
+import type { SocketMessage } from '@lemoncloud/chatic-sockets-lib';
 
 /**
  * DataSource 계층에서 사용할 순수 소켓 통신 인터페이스
