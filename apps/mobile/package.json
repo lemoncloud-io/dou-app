@@ -89,7 +89,8 @@
         "@react-native-firebase/messaging": "*",
         "@react-native-firebase/auth": "*",
         "@testing-library/react": "*",
-        "@notifee/react-native": "*"
+        "@notifee/react-native": "*",
+        "@react-native-community/push-notification-ios": "*"
     },
     "devDependencies": {
         "better-sqlite3": "*"

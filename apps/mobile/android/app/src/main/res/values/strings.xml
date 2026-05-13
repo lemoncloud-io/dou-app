@@ -1,4 +1,4 @@
 <resources>
-    <string name="push_chat_message_title">[%1$s]</string>
-    <string name="push_chat_message_body">New message arrived.</string>
+    <string name="push_chat_message_title">%1$s</string>
+    <string name="push_chat_message_body">%1$s</string>
 </resources>

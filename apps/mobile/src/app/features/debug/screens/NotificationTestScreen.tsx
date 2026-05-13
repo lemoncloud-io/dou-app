@@ -34,10 +34,12 @@ export const NotificationTestScreen = () => {
     const insets = useSafeAreaInsets();
     const [logs, setLogs] = useState<LogItem[]>([]);
     const [token, setToken] = useState<string>('');
-
     const [installId, setInstallId] = useState<string>('');
     const [permissionStatus, setPermissionStatus] = useState<string>('Checking...');
     const [isExpanded, setIsExpanded] = useState(true);
+
+    // 수신된 Data 페이로드를 화면에 표시하기 위한 상태
+    const [receivedData, setReceivedData] = useState<any>(null);
 
     const flatListRef = useRef<FlatList>(null);
 
@@ -139,7 +141,6 @@ export const NotificationTestScreen = () => {
             if (token) {
                 setToken(token);
                 addLog('success', `${Platform.OS === 'ios' ? 'APNs' : 'FCM'} Token Received`);
-                console.log(`${Platform.OS === 'ios' ? 'APNs' : 'FCM'} Token:`, token);
             } else {
                 addLog(
                     'error',
@@ -162,7 +163,6 @@ export const NotificationTestScreen = () => {
             if (id) {
                 setInstallId(id);
                 addLog('success', 'Installation ID Received');
-                console.log('Installation ID:', id);
             } else {
                 addLog('error', 'Failed to get Installation ID (null)');
             }
@@ -202,6 +202,22 @@ export const NotificationTestScreen = () => {
     };
 
     /**
+     * 알림 데이터 파싱 헬퍼
+     */
+    const handleRemoteMessage = (tag: string, remoteMessage: any) => {
+        addLog('event', `[${tag}] RAW: ${JSON.stringify(remoteMessage)}`);
+
+        const notification = remoteMessage?.notification ? JSON.stringify(remoteMessage.notification) : 'none';
+        const data = remoteMessage?.data ? JSON.stringify(remoteMessage.data) : 'none';
+
+        addLog('event', `[${tag}] Notification: ${notification}`);
+        addLog('event', `[${tag}] Data: ${data}`);
+
+        if (remoteMessage?.data) {
+            setReceivedData(remoteMessage.data);
+        }
+    };
+    /**
      * 초기화 및 리스너 등록
      */
     useEffect(() => {
@@ -209,16 +225,17 @@ export const NotificationTestScreen = () => {
         checkPermission();
 
         const unsubscribeOnMessage = notificationService.onMessage(async remoteMessage => {
-            addLog('event', `[Foreground] ${JSON.stringify(remoteMessage.notification || remoteMessage.data)}`);
+            console.log(`TEST // ${remoteMessage}`);
+            handleRemoteMessage('OpenedApp', remoteMessage);
         });
 
         const unsubscribeOnNotificationOpenedApp = notificationService.onNotificationOpenedApp(remoteMessage => {
-            addLog('event', `[OpenedApp] ${JSON.stringify(remoteMessage.notification || remoteMessage.data)}`);
+            handleRemoteMessage('OpenedApp', remoteMessage);
         });
 
         const unsubscribeOnTokenRefresh = notificationService.onTokenRefresh(newToken => {
             setToken(newToken);
-            addLog('event', `[TokenRefresh] New Token: ${newToken.substring(0, 10)}...`);
+            addLog('event', `[TokenRefresh] New Token...`);
         });
 
         return () => {
@@ -286,7 +303,6 @@ export const NotificationTestScreen = () => {
                                 onPress={() => {
                                     if (token) {
                                         Clipboard.setString(token);
-                                        console.log('Full Token:', token);
                                         Alert.alert('Copied', 'Token copied to clipboard');
                                         addLog('info', 'Token copied to clipboard');
                                     }
@@ -296,7 +312,6 @@ export const NotificationTestScreen = () => {
                             </Text>
                         </View>
 
-                        {/* 3. Install ID 표시 영역 추가 */}
                         <View style={styles.deviceStatusRow}>
                             <Text style={styles.deviceStatusLabel}>Install ID:</Text>
                             <Text
@@ -306,7 +321,6 @@ export const NotificationTestScreen = () => {
                                 onPress={() => {
                                     if (installId) {
                                         Clipboard.setString(installId);
-                                        console.log('Full Install ID:', installId);
                                         Alert.alert('Copied', 'Install ID copied to clipboard');
                                         addLog('info', 'Install ID copied to clipboard');
                                     }
@@ -315,6 +329,19 @@ export const NotificationTestScreen = () => {
                                 {installId || '(Not Fetched)'}
                             </Text>
                         </View>
+
+                        {/* 가장 최근에 받은 Data 페이로드 표시 영역 */}
+                        {receivedData && (
+                            <View style={[styles.deviceStatusRow, { alignItems: 'flex-start', marginTop: 8 }]}>
+                                <Text style={[styles.deviceStatusLabel, { color: '#50E3C2' }]}>Last Data:</Text>
+                                <Text
+                                    style={[styles.deviceStatusValue, { fontSize: 10, color: '#50E3C2' }]}
+                                    numberOfLines={5}
+                                >
+                                    {JSON.stringify(receivedData, null, 2)}
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 )}
             </View>
@@ -358,7 +385,6 @@ export const NotificationTestScreen = () => {
                         <Text style={styles.buttonText}>Get Token</Text>
                     </TouchableOpacity>
 
-                    {/* 4. Get FID 버튼 추가 */}
                     <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: '#F39C12' }]}
                         onPress={handleGetInstallId}
@@ -392,7 +418,7 @@ const styles = StyleSheet.create({
     dot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
     statusText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
     toggleIcon: { color: '#888', fontSize: 12, marginLeft: 8 },
-    infoContainer: { marginTop: 4, gap: 8 }, // gap 살짝 늘려 가독성 확보
+    infoContainer: { marginTop: 4, gap: 8 },
     dividerHorizontal: { height: 1, backgroundColor: '#333', marginVertical: 8 },
     deviceStatusRow: { flexDirection: 'row', alignItems: 'center' },
     deviceStatusLabel: { color: '#888', fontSize: 11, width: 85 },

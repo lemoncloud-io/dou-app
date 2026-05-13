@@ -1,7 +1,2 @@
-/* 
-  Localizable.strings
-  Chatic
-
-  Created by Raine on 5/9/26.
-  
-*/
+"push_chat_message_title" = "%@";
+"push_chat_message_body" = "%@";

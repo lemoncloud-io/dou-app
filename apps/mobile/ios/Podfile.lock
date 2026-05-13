@@ -4290,6 +4290,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - RNCPushNotificationIOS (1.12.0):
+    - React-Core
   - RNDeviceInfo (15.0.1):
     - React-Core
   - RNFBApp (24.0.0):
@@ -4775,13 +4777,14 @@ DEPENDENCIES:
   - "RNAppleAuthentication (from `../../../node_modules/@invertase/react-native-apple-authentication`)"
   - "RNCAsyncStorage (from `../../../node_modules/@react-native-async-storage/async-storage`)"
   - "RNCClipboard (from `../../../node_modules/@react-native-clipboard/clipboard`)"
+  - "RNCPushNotificationIOS (from `../../../node_modules/@react-native-community/push-notification-ios`)"
   - RNDeviceInfo (from `../../../node_modules/react-native-device-info`)
   - "RNFBApp (from `../node_modules/@react-native-firebase/app`)"
   - "RNFBAuth (from `../node_modules/@react-native-firebase/auth`)"
   - "RNFBCrashlytics (from `../node_modules/@react-native-firebase/crashlytics`)"
   - "RNFBFirestore (from `../node_modules/@react-native-firebase/firestore`)"
   - "RNFBInstallations (from `../node_modules/@react-native-firebase/installations`)"
-  - "RNFBMessaging (from `../node_modules/@react-native-firebase/messaging`)"
+  - "RNFBMessaging (from `../../../node_modules/@react-native-firebase/messaging`)"
   - RNFS (from `../../../node_modules/react-native-fs`)
   - "RNGoogleSignin (from `../../../node_modules/@react-native-google-signin/google-signin`)"
   - RNLocalize (from `../../../node_modules/react-native-localize`)
@@ -5009,6 +5012,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/@react-native-async-storage/async-storage"
   RNCClipboard:
     :path: "../../../node_modules/@react-native-clipboard/clipboard"
+  RNCPushNotificationIOS:
+    :path: "../../../node_modules/@react-native-community/push-notification-ios"
   RNDeviceInfo:
     :path: "../../../node_modules/react-native-device-info"
   RNFBApp:
@@ -5022,7 +5027,7 @@ EXTERNAL SOURCES:
   RNFBInstallations:
     :path: "../node_modules/@react-native-firebase/installations"
   RNFBMessaging:
-    :path: "../node_modules/@react-native-firebase/messaging"
+    :path: "../../../node_modules/@react-native-firebase/messaging"
   RNFS:
     :path: "../../../node_modules/react-native-fs"
   RNGoogleSignin:
@@ -5163,6 +5168,7 @@ SPEC CHECKSUMS:
   RNAppleAuthentication: a89c9804592b38ed4ab11f0aee68d05ba12ad432
   RNCAsyncStorage: fd44f4b03e007e642e98df6726737bc66e9ba609
   RNCClipboard: e560338bf6cc4656a09ff90610b62ddc0dbdad65
+  RNCPushNotificationIOS: 85957a0534fd1309b4c028ccbe5b1baf9ab5cf57
   RNDeviceInfo: 36d7f232bfe7c9b5c494cb7793230424ed32c388
   RNFBApp: 31aefc995d81681e010f92e699a4e65ea29a5e72
   RNFBAuth: 28d2d0fe0a55e5bac0ace57a58e2fbb5b4325691
