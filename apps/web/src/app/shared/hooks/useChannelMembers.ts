@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { logger } from '@chatic/app-messages';
 import type { ChatUsersPayload } from '@lemoncloud/chatic-sockets-api';
 import { useRepositories } from '../data';
-import type { DomainUser } from '@chatic/data';
+import type { DomainUser, RepositoryCachePolicy } from '@chatic/data';
 
 /**
  * 특정 채널의 멤버 목록을 캐시 우선 전략으로 조회하고, 실시간으로 동기화하는 훅.
@@ -39,7 +39,7 @@ export const useChannelMembers = (initialParams: ChatUsersPayload) => {
      * 초기 데이터 로드 및 수동 새로고침을 담당하는 함수.
      */
     const fetchInitialMembers = useCallback(
-        (policy: 'cache-first' | 'network-only' = 'cache-first') => {
+        (policy: RepositoryCachePolicy) => {
             if (!targetChannelId) return;
 
             setIsError(false);
@@ -48,7 +48,7 @@ export const useChannelMembers = (initialParams: ChatUsersPayload) => {
             }
 
             userRepository
-                .fetchUsers({ channelId: targetChannelId }, { cachePolicy: policy })
+                .fetchUsers({ channelId: targetChannelId, detail: true }, { cachePolicy: policy })
                 .then(result => {
                     // fetchUsers가 캐시/네트워크에서 가져온 최신 데이터로 상태를 즉시 업데이트합니다.
                     // subscribeList가 백그라운드 업데이트를 처리하므로, 여기서의 업데이트는 초기 표시 속도를 위함입니다.
