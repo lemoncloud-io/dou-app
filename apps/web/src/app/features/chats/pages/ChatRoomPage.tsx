@@ -32,11 +32,10 @@ import { useAppChecker } from '@chatic/device-utils';
 import { InviteFriendsDialog } from '../components';
 import { MessageBubble } from '../components/MessageBubble';
 import { ReadStatus } from '../components/ReadStatus';
-import { useChannel, useChannelMembers, useChatMutations, useJoinPositions } from '../../../shared/hooks';
-import { useChats } from '../../../shared/hooks/useChats';
-import { useChatSyncStore } from '../../../shared/stores/useChatSyncStore';
+import { useChannel, useChannelMembers, useChatMutations, useChats, useJoinPositions } from '../../../shared/hooks';
 import type { ClientChatView } from '../../../shared/types';
 import { FOREGROUND_RESYNC_EVENT_NAME } from '../../../shared/types';
+import { debounce } from '../../../shared/utils/debounce';
 
 // 입력 가능한 최대 글자 수
 const MAX_INPUT_LENGTH = 5000;
@@ -48,37 +47,42 @@ export const ChatRoomPage = () => {
     const { channelId } = useParams<{ channelId: string }>();
 
     // UI 상태 관리
-    const [content, setContent] = useState(''); // 현재 입력 중인 메시지
-    const [inviteDialogOpen, setInviteDialogOpen] = useState(false); // 초대 모달 상태
-    const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null); // 긴 메시지 상세보기 상태
+    const [content, setContent] = useState('');
+    const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+    const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null);
 
     // DOM 접근을 위한 Ref
-    const messagesEndRef = useRef<HTMLDivElement>(null); // 스크롤 컨테이너
-    const inputRef = useRef<HTMLTextAreaElement>(null); // 텍스트 입력창
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
 
-    // 중복 읽음 처리(read 요청)를 방지하기 위해 마지막으로 읽음 처리한 메시지 번호를 저장
+    // 중복 읽음 처리 방지
     const lastReadChatNoRef = useRef<number | null>(null);
 
     const dynamicProfile = useDynamicProfile();
     const { userType } = useUserContext();
     const { isIOS } = useAppChecker();
 
-    // 채널 sync 상태 (ChatSyncScheduler → useChatSyncStore)
-    const syncState = useChatSyncStore(s => (channelId ? s.states[channelId] : undefined));
-    const isSyncing = syncState?.status === 'syncing';
+    // --- 데이터 패칭 Hooks ---
+    const stableChannelId = useMemo(() => channelId || 'default', [channelId]);
+    const stableChannelIdForChannelHook = useMemo(() => channelId || null, [channelId]);
 
-    // 데이터 패칭 Hooks
-    const { members, total: membersTotal } = useChannelMembers({ channelId: channelId || '', detail: true }); // 멤버 정보 패칭
-    const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(channelId || null); // 현재 채널 정보 패칭
+    const { members, total: membersTotal } = useChannelMembers({ channelId: stableChannelId, detail: true });
+    const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(stableChannelIdForChannelHook);
     const memberCount = membersTotal || channel?.memberCount || 0;
 
-    // JoinView 기반 readCount 계산
     const initialJoins = useMemo(
         () => members.map(m => m.$join).filter((j): j is NonNullable<typeof j> => !!j),
         [members]
     );
+    const { getReadCount, isReady: isJoinReady } = useJoinPositions(stableChannelIdForChannelHook, initialJoins);
 
-    const { getReadCount, isReady: isJoinReady } = useJoinPositions(channelId ?? null, initialJoins);
+    const memoizedChatParams = useMemo(
+        () => ({
+            channelId: stableChannelId,
+            limit: 100,
+        }),
+        [stableChannelId]
+    );
 
     const {
         messages,
@@ -88,25 +92,18 @@ export const ChatRoomPage = () => {
         isError: isChatError,
         hasMore,
         loadMore,
-    } = useChats({
-        channelId: channelId || '',
-        limit: 100,
-    });
+    } = useChats(memoizedChatParams);
 
-    // 메시지 전송 및 읽음 처리 관련 Mutation
     const { isPending, sendMessage, readMessage, deleteMessage } = useChatMutations();
     const isSending = isPending.send;
 
     useEffect(() => {
-        // 채널 정보를 불러오는 중이면 대기
         if (isChannelLoading) return;
-        // 로딩이 완료되었으나 채널 정보가 없거나 에러가 발생한 경우 방을 나감
         if (!channel || isChannelError) {
             void navigate('/', { replace: true });
         }
     }, [channel, isChannelLoading, isChannelError, navigate]);
 
-    // column-reverse 컨테이너에서 scrollTop=0이 최하단(최신 메시지)
     const scrollToBottom = (smooth = false) => {
         requestAnimationFrame(() => {
             if (messagesEndRef.current) {
@@ -118,40 +115,32 @@ export const ChatRoomPage = () => {
         });
     };
 
-    // 채팅 길이가 변할 때 최신 메시지 자동 읽음 처리
+    // 마지막 메시지가 변경될 때 자동 읽음 처리
+    const lastMessage = useMemo(() => (messages.length > 0 ? messages[messages.length - 1] : null), [messages]);
     useEffect(() => {
-        if (!channelId || messages.length === 0) return;
+        if (!stableChannelId || !lastMessage) return;
 
         const handleAutoRead = () => {
-            // 웹 브라우저나 앱이 완전히 백그라운드에 있을 때는 무시
             if (document.visibilityState === 'hidden') return;
-
-            // 목록의 가장 마지막 메시지 추출
-            const latestMessage = messages[messages.length - 1];
-            const latestChatNo = latestMessage?.chatNo;
-
-            // 서버에서 확정된 번호가 있고, 내가 마지막으로 읽은 번호보다 최신일 때만 실행
+            const latestChatNo = lastMessage.chatNo;
             if (
                 latestChatNo !== undefined &&
-                !latestMessage.isPending &&
-                !latestMessage.isFailed &&
+                !lastMessage.isPending &&
+                !lastMessage.isFailed &&
                 (lastReadChatNoRef.current === null || latestChatNo > lastReadChatNoRef.current)
             ) {
                 lastReadChatNoRef.current = latestChatNo;
-                readMessage({ channelId, chatNo: latestChatNo }).catch(error => {
+                readMessage({ channelId: stableChannelId, chatNo: latestChatNo }).catch(error => {
                     logger.error('CHAT', 'Failed to read latest message', {
                         error,
-                        data: { channelId, chatNo: latestChatNo },
+                        data: { channelId: stableChannelId, chatNo: latestChatNo },
                     });
                 });
             }
         };
 
-        // 새 메시지가 도착했을 때 즉시 체크
         handleAutoRead();
-        // PC 웹 / 모바일 브라우저 탭 활성화 대응
         document.addEventListener('visibilitychange', handleAutoRead);
-        // 모바일 네이티브 앱(웹뷰) 포그라운드 복귀 대응 (useForegroundResync 연동)
         window.addEventListener(FOREGROUND_RESYNC_EVENT_NAME, handleAutoRead);
 
         return () => {
@@ -160,13 +149,10 @@ export const ChatRoomPage = () => {
         };
     }, [messages.length, channelId, readMessage]);
 
-    // 새 메시지(전송/수신)가 추가될 때만 스크롤 — loadMore(오래된 메시지)는 스크롤하지 않음
     const prevMessageCountRef = useRef(messages.length);
     const prevLastMessageIdRef = useRef<string | undefined>(undefined);
     useEffect(() => {
         const lastMessage = messages[messages.length - 1];
-        // 최신 메시지 ID가 바뀌었고 + 메시지 수가 증가한 경우에만 하단 스크롤
-        // loadMore는 오래된 메시지만 추가하므로 최신 메시지 ID는 동일 → 스크롤 안 함
         if (messages.length > prevMessageCountRef.current && lastMessage?.id !== prevLastMessageIdRef.current) {
             scrollToBottom(false);
         }
@@ -174,9 +160,7 @@ export const ChatRoomPage = () => {
         prevMessageCountRef.current = messages.length;
     }, [messages.length]);
 
-    // 창 크기 변경(키보드 올라옴 등) 및 인풋 포커스 시 스크롤 조정 이벤트 등록
     useEffect(() => {
-        // 키보드 애니메이션(~300ms) 완료 후 스크롤 보정
         const handleScrollAdjust = () => setTimeout(() => scrollToBottom(), 150);
         const input = inputRef.current;
 
@@ -189,7 +173,6 @@ export const ChatRoomPage = () => {
         };
     }, []);
 
-    // 텍스트 영역의 내용 길이에 따라 자동으로 높이를 조절하는 로직 (최대 120px)
     useEffect(() => {
         if (inputRef.current) {
             inputRef.current.style.height = 'auto';
@@ -198,105 +181,83 @@ export const ChatRoomPage = () => {
         }
     }, [content]);
 
-    /**
-     * 메시지 전송 핸들러
-     */
     const handleSend = () => {
         const trimmed = content.trim().slice(0, MAX_INPUT_LENGTH);
-        if (!trimmed || !channelId) return;
+        if (!trimmed || !stableChannelId) return;
 
-        // UI 즉각 반응을 위해 입력창 비우고 에러 메시지 초기화
         setContent('');
 
-        // 백그라운드로 메시지 전송 요청 (내부적으로 로컬 DB 선저장되어 낙관적 업데이트 발동)
-        sendMessage({ channelId, content: trimmed })
+        sendMessage({ channelId: stableChannelId, content: trimmed })
             .then(newChat => {
-                // 서버 응답 성공 시 발급받은 번호로 내 메시지 읽음 처리
                 if (newChat && newChat.chatNo !== undefined) {
                     lastReadChatNoRef.current = newChat.chatNo;
-                    readMessage({ channelId, chatNo: newChat.chatNo }).catch(error => {
+                    readMessage({ channelId: stableChannelId, chatNo: newChat.chatNo }).catch(error => {
                         logger.error('CHAT', 'Failed to read sent message', {
                             error,
-                            data: { channelId, chatNo: newChat.chatNo },
+                            data: { channelId: stableChannelId, chatNo: newChat.chatNo },
                         });
                     });
                 }
             })
             .catch(error => {
-                logger.error('CHAT', 'Failed to send message', { error, data: { channelId } });
-                // 실패 시 입력했던 텍스트를 복구할 수 있도록 상태 저장
+                logger.error('CHAT', 'Failed to send message', { error, data: { channelId: stableChannelId } });
                 toast({ title: t('chat.room.sendFailed'), variant: 'destructive' });
             });
     };
 
-    /**
-     * 메시지 삭제 처리 (실패한 메시지 삭제)
-     * @param messageId 타겟 메시지 아이디
-     */
     const handleDeleteMessage = async (messageId?: string) => {
-        if (!channelId || !messageId) {
-            return;
-        }
-        await deleteMessage(messageId, channelId);
+        if (!stableChannelId || !messageId) return;
+        await deleteMessage(messageId, stableChannelId);
     };
 
     const handleRetryMessage = async (message: ClientChatView) => {
-        if (!channelId || !message.id) {
-            return;
-        }
+        if (!stableChannelId || !message.id) return;
         handleDeleteMessage(message.id)
-            .then(() => {
-                return sendMessage({ channelId, content: message.content ?? '' });
-            })
+            .then(() => sendMessage({ channelId: stableChannelId, content: message.content ?? '' }))
             .then(newChat => {
                 if (newChat && newChat.chatNo !== undefined) {
                     lastReadChatNoRef.current = newChat.chatNo;
-                    readMessage({ channelId, chatNo: newChat.chatNo }).catch(error => {
+                    readMessage({ channelId: stableChannelId, chatNo: newChat.chatNo }).catch(error => {
                         logger.error('CHAT', 'Failed to read retried message', {
                             error,
-                            data: { channelId, chatNo: newChat.chatNo },
+                            data: { channelId: stableChannelId, chatNo: newChat.chatNo },
                         });
                     });
                 }
             })
             .catch(error => {
-                logger.error('CHAT', 'Failed to retry message', { error, data: { channelId, messageId: message.id } });
+                logger.error('CHAT', 'Failed to retry message', {
+                    error,
+                    data: { channelId: stableChannelId, messageId: message.id },
+                });
             });
     };
 
-    /**
-     * 텍스트 영역 키보드 입력 핸들러
-     */
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        // IME(한글 등) 조합 중 중복 발생 방지
         if (e.nativeEvent.isComposing) return;
+        if (isMobile && e.key === 'Enter') return;
 
-        // 모바일 환경이면 엔터 키를 줄바꿈(기본 동작)으로만 사용하도록 이벤트 통과
-        if (isMobile && e.key === 'Enter') {
-            return;
-        }
-
-        // PC 환경이면 Shift 없이 Enter만 눌렀을 때 전송
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSend();
         }
     };
 
-    // 스크롤이 상단(과거 메시지 방향)에 가까워지면 이전 메시지 로드
     const handleScroll = useCallback(() => {
         const el = messagesEndRef.current;
         if (!el || !hasMore || isLoadingMore) return;
 
-        // flex-col-reverse: scrollTop은 0(하단)에서 음수(상단)로 이동
-        // 상단 도달 판정: 전체 스크롤 영역과 현재 위치의 차이가 임계값 이하
+        //스크롤 컨텐츠가 화면을 다 채우지 않은 경우 무한 로딩 방지
+        if (el.scrollHeight <= el.clientHeight) return;
+
         const distanceFromTop = el.scrollHeight - el.clientHeight - Math.abs(el.scrollTop);
         if (distanceFromTop < 200) {
             loadMore();
         }
     }, [hasMore, isLoadingMore, loadMore]);
 
-    // 날짜 및 시간 포맷팅 헬퍼 함수
+    const debouncedHandleScroll = useMemo(() => debounce(handleScroll, 100), [handleScroll]);
+
     const formatTime = (date: Date) => {
         const hours = date.getHours();
         const minutes = date.getMinutes();
@@ -310,7 +271,6 @@ export const ChatRoomPage = () => {
             if (!msg1 || !msg2 || msg1.isSystem || msg2.isSystem) return false;
 
             const sameOwner = msg1.ownerId === msg2.ownerId;
-
             const d1 = msg1.timestamp;
             const d2 = msg2.timestamp;
             const sameTime =
@@ -353,20 +313,20 @@ export const ChatRoomPage = () => {
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     };
 
-    // 메시지 목록을 날짜 단위로 그룹화
-    const groupedMessages = messages.reduce(
-        (groups, message) => {
-            const dateKey = getDateKey(message.timestamp);
-            if (!groups[dateKey]) {
-                groups[dateKey] = [];
-            }
-            groups[dateKey].push(message);
-            return groups;
-        },
-        {} as Record<string, typeof messages>
-    );
+    const groupedMessages = useMemo(() => {
+        return messages.reduce(
+            (groups, message) => {
+                const dateKey = getDateKey(message.timestamp);
+                if (!groups[dateKey]) {
+                    groups[dateKey] = [];
+                }
+                groups[dateKey].push(message);
+                return groups;
+            },
+            {} as Record<string, typeof messages>
+        );
+    }, [messages]);
 
-    // 에러 처리
     if (isChannelError || isChatError) {
         return (
             <div className="flex h-full items-center justify-center bg-background">
@@ -382,7 +342,6 @@ export const ChatRoomPage = () => {
 
     return (
         <div className="flex h-full flex-col pt-safe-top bg-background">
-            {/* 상단 헤더 영역 */}
             <header className="relative z-10 flex min-h-[48px] items-center justify-center border-b border-border px-4 py-3">
                 <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
                     <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
@@ -402,7 +361,7 @@ export const ChatRoomPage = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                                onClick={() => navigate(`/chats/${channelId}/settings`)}
+                                onClick={() => navigate(`/chats/${stableChannelId}/settings`)}
                                 className="cursor-pointer gap-2"
                             >
                                 <Settings size={16} />
@@ -413,98 +372,66 @@ export const ChatRoomPage = () => {
                 )}
             </header>
 
-            {isSyncing ? (
-                // 동기화 중 — 메시지 영역 전체를 대체하여 중앙 표시
-                <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3">
-                    <Loader2 size={24} className="animate-spin text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                        {syncState?.totalGap
-                            ? t('chat.room.syncingProgress', {
-                                  fetched: syncState.fetchedCount,
-                                  total: syncState.totalGap,
-                              })
-                            : t('chat.room.syncing')}
-                    </span>
-                </div>
-            ) : (
-                /* 메시지 목록 렌더링 영역 — column-reverse로 초기 스크롤 위치를 하단에 고정 */
-                <div
-                    ref={messagesEndRef}
-                    onScroll={handleScroll}
-                    className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-none"
-                >
-                    <div
-                        className={`flex flex-col gap-3 px-4 pb-4 pt-2 ${isChatLoading || messages.length === 0 ? 'min-h-full' : ''}`}
-                    >
-                        {/* 이전 메시지 로딩 인디케이터 */}
-                        {isLoadingMore && (
-                            <div className="flex justify-center py-3">
-                                <Loader2 size={20} className="animate-spin text-muted-foreground" />
-                            </div>
-                        )}
-
-                        {isChatLoading ? (
-                            // 초기 메시지 로딩 중
-                            <div className="flex min-h-full items-center justify-center">
-                                <Loader2 size={24} className="animate-spin text-muted-foreground" />
-                            </div>
-                        ) : isChatEmpty ? (
-                            // 메시지가 없을 때 보여지는 빈 화면 (Empty State)
-                            <div className="relative flex flex-1 flex-col items-center justify-center">
-                                <div className="absolute left-0 right-0 top-2 text-center">
-                                    <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
-                                        {formatDateSeparator(new Date())}
-                                    </span>
-                                </div>
-                                <div className="flex flex-col items-center gap-4">
-                                    {channel?.isSelfChat ? (
-                                        <>
-                                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-                                                <PenLine size={24} className="text-muted-foreground" />
-                                            </div>
-                                            <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
-                                                <p>{t('chat.room.emptyState.selfLine1')}</p>
-                                                <p>{t('chat.room.emptyState.selfLine2')}</p>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        channel?.ownerId === dynamicProfile?.uid &&
-                                        userType !== UserType.TEMP_ACCOUNT &&
-                                        userType !== UserType.SOCIAL_NO_CLOUD && (
-                                            <>
-                                                <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
-                                                    <p>{t('chat.room.emptyState.line1')}</p>
-                                                    <p>{t('chat.room.emptyState.line2')}</p>
-                                                </div>
-                                                <button
-                                                    onClick={() => setInviteDialogOpen(true)}
-                                                    className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
-                                                >
-                                                    <Plus size={20} />
-                                                    <span className="text-[16px] font-semibold">
-                                                        {t('chat.room.emptyState.inviteButton')}
-                                                    </span>
-                                                </button>
-                                            </>
-                                        )
-                                    )}
-                                </div>
-                            </div>
-                        ) : (
-                            // 날짜별로 그룹화된 메시지 렌더링
-                            Object.entries(groupedMessages)
-                                .sort(([a], [b]) => a.localeCompare(b))
-                                .map(([dateKey, dateMessages]) => (
-                                    <div key={dateKey} className="flex flex-col gap-3">
-                                        {/* 날짜 구분선 */}
-                                        <div className="py-2 text-center">
-                                            <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
-                                                {formatDateSeparator(dateMessages[0].timestamp)}
-                                            </span>
+            <div
+                ref={messagesEndRef}
+                onScroll={debouncedHandleScroll}
+                className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-none px-4 pb-4 pt-2 gap-3"
+            >
+                {isChatLoading ? (
+                    <div className="flex min-h-full items-center justify-center">
+                        <Loader2 size={24} className="animate-spin text-muted-foreground" />
+                    </div>
+                ) : isChatEmpty ? (
+                    <div className="relative flex min-h-full flex-1 flex-col items-center justify-center">
+                        <div className="absolute left-0 right-0 top-2 text-center">
+                            <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
+                                {formatDateSeparator(new Date())}
+                            </span>
+                        </div>
+                        <div className="flex flex-col items-center gap-4">
+                            {channel?.isSelfChat ? (
+                                <>
+                                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                                        <PenLine size={24} className="text-muted-foreground" />
+                                    </div>
+                                    <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
+                                        <p>{t('chat.room.emptyState.selfLine1')}</p>
+                                        <p>{t('chat.room.emptyState.selfLine2')}</p>
+                                    </div>
+                                </>
+                            ) : (
+                                channel?.ownerId === dynamicProfile?.uid &&
+                                userType !== UserType.TEMP_ACCOUNT &&
+                                userType !== UserType.SOCIAL_NO_CLOUD && (
+                                    <>
+                                        <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
+                                            <p>{t('chat.room.emptyState.line1')}</p>
+                                            <p>{t('chat.room.emptyState.line2')}</p>
                                         </div>
+                                        <button
+                                            onClick={() => setInviteDialogOpen(true)}
+                                            className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
+                                        >
+                                            <Plus size={20} />
+                                            <span className="text-[16px] font-semibold">
+                                                {t('chat.room.emptyState.inviteButton')}
+                                            </span>
+                                        </button>
+                                    </>
+                                )
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {Object.entries(groupedMessages)
+                            .sort(([a], [b]) => b.localeCompare(a))
+                            .map(([dateKey, dateMessages]) => {
+                                const reversedMessages = [...dateMessages].reverse();
 
-                                        {dateMessages.map((message, index) => {
-                                            // 시스템 메시지 렌더링 (초대, 퇴장 등)
+                                return (
+                                    <div key={dateKey} className="flex flex-col-reverse gap-3">
+                                        {reversedMessages.map((message, index) => {
                                             if (message.isSystem) {
                                                 const systemMatch = (message.content ?? '').match(/^(.+?)(님이.+)$/);
                                                 return (
@@ -525,17 +452,18 @@ export const ChatRoomPage = () => {
                                                 );
                                             }
 
-                                            const prevMessage = dateMessages[index - 1];
-                                            const nextMessage = dateMessages[index + 1];
+                                            const chronPrevMessage = reversedMessages[index + 1];
+                                            const chronNextMessage = reversedMessages[index - 1];
 
-                                            const isSameAsPrev = prevMessage && isSameGroup(message, prevMessage);
-                                            const isSameAsNext = nextMessage && isSameGroup(message, nextMessage);
+                                            const isSameAsPrev =
+                                                chronPrevMessage && isSameGroup(message, chronPrevMessage);
+                                            const isSameAsNext =
+                                                chronNextMessage && isSameGroup(message, chronNextMessage);
 
                                             const showProfileAndName = !isSameAsPrev;
                                             const showTimeAndStatus =
                                                 !isSameAsNext || message.isPending || message.isFailed;
 
-                                            // 일반 메시지 렌더링
                                             return (
                                                 <div
                                                     key={message.id}
@@ -634,7 +562,6 @@ export const ChatRoomPage = () => {
                                                                             {formatTime(message.timestamp)}
                                                                         </span>
                                                                         {message.chatNo !== undefined &&
-                                                                            memberCount > 1 &&
                                                                             (!isJoinReady ? (
                                                                                 <Loader2
                                                                                     size={11}
@@ -660,19 +587,31 @@ export const ChatRoomPage = () => {
                                                 </div>
                                             );
                                         })}
+                                        <div className="py-2 text-center pb-1">
+                                            <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
+                                                {formatDateSeparator(dateMessages[0].timestamp)}
+                                            </span>
+                                        </div>
                                     </div>
-                                ))
+                                );
+                            })}
+                        {isLoadingMore && (
+                            <div className="flex justify-center py-3">
+                                <Loader2 size={20} className="animate-spin text-muted-foreground" />
+                            </div>
                         )}
-                    </div>
-                </div>
-            )}
+                    </>
+                )}
+            </div>
 
-            {/* 초대 모달 */}
             {userType !== UserType.TEMP_ACCOUNT && userType !== UserType.SOCIAL_NO_CLOUD && !channel?.isSelfChat && (
-                <InviteFriendsDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} channelId={channelId} />
+                <InviteFriendsDialog
+                    open={inviteDialogOpen}
+                    onOpenChange={setInviteDialogOpen}
+                    channelId={stableChannelId}
+                />
             )}
 
-            {/* 입력창 영역 */}
             <div
                 onMouseDown={e => {
                     if (e.target === e.currentTarget) {
@@ -740,7 +679,6 @@ export const ChatRoomPage = () => {
                 </div>
             </div>
 
-            {/* 내용이 긴 메시지의 상세보기 모달 */}
             <Dialog open={!!expandedMessage} onOpenChange={open => !open && setExpandedMessage(null)}>
                 <DialogContent variant="slide-up" hideClose className="flex flex-col gap-0 bg-background">
                     <DialogDescription className="sr-only">View full message content</DialogDescription>

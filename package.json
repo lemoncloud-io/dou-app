@@ -225,7 +225,7 @@
         "postcss": "8.4.38",
         "prettier": "~3.6.2",
         "react-native-safe-area-context": "^5.0.0",
-        "react-native-svg": "~15.15.1",
+        "react-native-svg": "^15.15.5",
         "react-native-svg-transformer": "~1.5.1",
         "react-native-svg-web": "~1.0.9",
         "react-native-web": "~0.20.0",

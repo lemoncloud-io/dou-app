@@ -41,6 +41,7 @@ export interface IStreamLocalDataSource<TModel, TListQuery = void, TListResult =
 export abstract class BaseLocalDataSource {
     private nextSubscriberId = 0;
     private streamSubscribers = new Map<number, () => Promise<void>>();
+    private _emitTimeout: NodeJS.Timeout | null = null; // Added for debouncing
 
     protected constructor(protected readonly contextProvider: DataContextProvider) {}
 
@@ -89,8 +90,19 @@ export abstract class BaseLocalDataSource {
 
     /**
      * 로컬 캐시 상태 변경 직후, 현재 DataSource의 모든 구독자에게 최신 스냅샷을 재방출합니다.
+     * 이 메서드는 디바운싱되어 짧은 시간 내 여러 호출에도 한 번만 실제 스트림을 발행합니다.
      */
-    protected async emitAllStreams(): Promise<void> {
+    protected debouncedEmitAllStreams(delay = 200): void {
+        if (this._emitTimeout) {
+            clearTimeout(this._emitTimeout);
+        }
+        this._emitTimeout = setTimeout(() => {
+            void this._doEmitAllStreams();
+            this._emitTimeout = null;
+        }, delay);
+    }
+
+    private async _doEmitAllStreams(): Promise<void> {
         const subscribers = Array.from(this.streamSubscribers.values());
         await Promise.all(subscribers.map(subscriber => this.safeNotify(subscriber)));
     }

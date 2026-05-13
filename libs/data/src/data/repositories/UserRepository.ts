@@ -1,13 +1,15 @@
 import type { ChatUsersPayload, UserInvitePayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
-import type { MyInviteView, UserView } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { DomainEventMap, ListResult } from '../events/types';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
+import type ISyncRepository from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { IUserLocalDataSource } from '../local/data-sources';
 import { createDomainListResult, type DomainListResult, type DomainUser, toDomainUser } from '../domain';
+import type { UserView } from '@lemoncloud/chatic-socials-api';
 
 /**
  * 사용자 도메인의 Repository 공개 계약입니다.
@@ -49,7 +51,7 @@ export interface IUserRepository extends ILocalCacheMutationRepository<DomainUse
  * UserRemoteDataSource를 감싸는 사용자 Repository 구현체입니다.
  * chat 도메인에 걸친 사용자 조회/초대 요청도 사용자 API로 묶어 노출합니다.
  */
-export class UserRepository extends BaseRepository implements IUserRepository {
+export class UserRepository extends BaseRepository implements IUserRepository, ISyncRepository {
     constructor(
         private readonly userRemoteDataSource: IUserRemoteDataSource,
         private readonly userLocalDataSource: IUserLocalDataSource,
@@ -59,6 +61,9 @@ export class UserRepository extends BaseRepository implements IUserRepository {
     ) {
         super(requestManager, contextProvider, domainEventBus);
         this.initializeInternalListeners();
+    }
+    sync(id?: string, meta?: Record<string, unknown>): Promise<void> {
+        throw new Error('Method not implemented.');
     }
 
     public async fetchUsers(
@@ -95,7 +100,7 @@ export class UserRepository extends BaseRepository implements IUserRepository {
     }
 
     public requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView> {
-        return this.requestRemote(ref => this.userRemoteDataSource.requestInvite(payload, ref), options);
+        return this.requestRemote<MyInviteView>(ref => this.userRemoteDataSource.requestInvite(payload, ref), options);
     }
 
     public clearAll(): Promise<void> {

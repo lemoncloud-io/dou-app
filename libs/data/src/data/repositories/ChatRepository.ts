@@ -8,6 +8,7 @@ import type {
     LocalCacheBulkPatch,
     RepositoryRequestOptions,
 } from './types';
+import type ISyncRepository from './types';
 import { BaseRepository } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
@@ -51,7 +52,7 @@ export interface IChatRepository extends ILocalCacheMutationRepository<DomainCha
 }
 
 /** Remote chat API와 local message cache를 중재합니다. */
-export class ChatRepository extends BaseRepository implements IChatRepository {
+export class ChatRepository extends BaseRepository implements IChatRepository, ISyncRepository {
     constructor(
         private readonly chatRemoteDataSource: IChatRemoteDataSource,
         private readonly chatLocalDataSource: IChatLocalDataSource,
@@ -61,6 +62,9 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
     ) {
         super(requestManager, contextProvider, domainEventBus);
         this.initializeInternalListeners();
+    }
+    sync(id?: string, meta?: Record<string, unknown>): Promise<void> {
+        throw new Error('Method not implemented.');
     }
 
     /** 메시지 발신을 data source에 위임하고 응답을 기다립니다. */
@@ -82,16 +86,17 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
             const domainChat = toDomainChat(
                 {
                     ...chat,
+                    tempId: optimisticChat.id,
                     isPending: false,
                     isFailed: false,
                 },
                 domainScope
             );
 
+            await this.chatLocalDataSource.upsert(domainChat, repositoryContext);
             if (domainChat.id && optimisticChat.id !== domainChat.id) {
                 await this.chatLocalDataSource.remove(optimisticChat.id, repositoryContext);
             }
-            await this.chatLocalDataSource.upsert(domainChat, repositoryContext);
             return domainChat;
         } catch (error) {
             const failedAt = Date.now();
@@ -108,65 +113,41 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         }
     }
 
-    /** 메시지 피드 조회를 data source에 위임하고 응답을 기다립니다. */
+    /**
+     * 캐시 우선 + 백그라운드 동기화 전략으로 메시지 피드를 조회합니다.
+     */
     public async fetchChat(
         payload: ChatFeedPayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainChat>> {
-        return this.fetchWithCachePolicy<DomainListResult<DomainChat>>({
-            options,
-            backgroundLabel: 'chat',
-            fetchLocal: async () => {
-                const channelId = payload.channelId;
-                if (!channelId) return null;
+        const cachePolicy = options?.cachePolicy ?? 'cache-first';
 
-                // Chat은 cursor 연속성이 깨진 캐시를 신뢰하지 않고 remote를 우선합니다.
-                const continuity = await this.chatLocalDataSource.checkContinuity(
-                    channelId,
-                    this.getRepositoryContext()
-                );
-                if (continuity.hasGap) return null;
+        // 'network-only' 정책일 경우, 즉시 원격 조회를 실행하고 반환합니다.
+        if (cachePolicy === 'network-only') {
+            return this.fetchFromRemoteAndCache(payload, options);
+        }
 
-                const localResult = await this.chatLocalDataSource.fetchList(channelId, this.getRepositoryContext());
+        // 1. 로컬 캐시에서 페이지를 먼저 조회합니다.
+        const localResult = await this.chatLocalDataSource.fetchList(payload, this.getRepositoryContext());
+        const isLocalPageValid = localResult !== null && localResult.list.length > 0;
 
-                // 데이터가 없더라도 cursorNo가 0일 때는 "유효한 초기 빈 캐시"로 판단하여 null이 아닌 빈 리스트 객체 반환
-                if (!localResult || localResult.list.length === 0) {
-                    if ((payload as { cursorNo?: number }).cursorNo === 0) {
-                        return createDomainListResult([], {
-                            cursorNo: 0,
-                            limit: payload.limit,
-                            readNo: 0,
-                            total: 0,
-                            source: 'local',
-                        });
-                    }
-                    return null;
-                }
+        // 백그라운드에서 원격 동기화를 실행합니다.
+        // cache-first 또는 cache-and-network 정책일 때 백그라운드 동기화를 시도합니다.
+        if (cachePolicy === 'cache-first' || cachePolicy === 'cache-and-network') {
+            this.runInBackground(
+                () => this.fetchFromRemoteAndCache(payload, { ...options, ref: `${options?.ref}-bg-sync` }),
+                `bg-sync-chat-feed`
+            );
+        }
 
-                // 메타데이터 분리 규격
-                return createDomainListResult(localResult.list, {
-                    ...localResult.meta,
-                    cursorNo: 0,
-                    limit: payload.limit,
-                    readNo: 0,
-                    source: 'local',
-                });
-            },
-            fetchRemote: remoteOptions => this.fetchFromRemoteAndCache(payload, remoteOptions),
-            isLocalValid: local => {
-                // cursorNo가 0이면 항상 유효한 것으로 판정
-                if ((payload as { cursorNo?: number }).cursorNo === 0) return true;
-                return (local.list || []).length > 0;
-            },
-            fallback: () =>
-                createDomainListResult([], {
-                    cursorNo: 0,
-                    limit: payload.limit,
-                    readNo: 0,
-                    total: 0,
-                    source: 'fallback',
-                }),
-        });
+        // 결과 반환 전략
+        if (isLocalPageValid) {
+            // 캐시 우선 정책이고, 로컬에 유효한 페이지가 있으면 즉시 반환합니다.
+            return localResult;
+        } else {
+            // 로컬에 데이터가 없으면, 원격 fetch 결과를 기다려서 반환합니다.
+            return this.fetchFromRemoteAndCache(payload, options);
+        }
     }
 
     /** 현재 스코프의 chat 로컬 캐시를 초기화합니다. */
@@ -245,8 +226,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
             options
         );
         const domainList = ((remote?.list || []) as any[]).map(item => toDomainChat(item, this.getDomainScope()));
-        await this.chatLocalDataSource.upsertMany(domainList, this.getRepositoryContext());
-
         return createDomainListResult(domainList, {
             cursorNo: remote.cursorNo,
             readNo: remote.readNo,
@@ -289,6 +268,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         return toDomainChat(
             {
                 id,
+                tempId: id,
                 userId: domainScope.uid,
                 cid: domainScope.cid,
                 channelId: payload.channelId || '',

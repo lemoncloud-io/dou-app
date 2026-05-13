@@ -136,22 +136,6 @@ export const createIndexedDBAdapter = <TType extends CacheType>(
             return items;
         },
 
-        async replaceAll(items: Model[]): Promise<Model[]> {
-            const scope = resolveScopedContext(type, contextProvider);
-            const { store, transaction } = await getStore('readwrite');
-            const keys = await getScopeIndexKeys(store, scope);
-
-            keys.forEach(key => store.delete(key));
-            items.forEach(item => {
-                const id = (item as { id?: string }).id;
-                if (!id) return;
-                store.put(createSchema(scope.cid, scope.uid, id, item));
-            });
-
-            await promisifyTransaction(transaction);
-            return items;
-        },
-
         async load(id: string): Promise<Model | null> {
             const scope = resolveScopedContext(type, contextProvider);
             const key = buildKey(type, scope.cid, scope.uid, id);

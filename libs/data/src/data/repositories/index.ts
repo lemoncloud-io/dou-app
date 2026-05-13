@@ -26,6 +26,7 @@ export * from './InviteCloudRepository';
 export * from './JoinRepository';
 export * from './SiteRepository';
 export * from './types';
+export { default as ISyncRepository } from './types';
 export * from './UserRepository';
 
 /**

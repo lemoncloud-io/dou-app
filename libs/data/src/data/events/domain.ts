@@ -58,9 +58,10 @@ export interface DomainEventMap {
     // ------------------------------------------
     // 4. User Domain (사용자)
     // ------------------------------------------
-    'user:create': DomainPayload<UserView | MyInviteView>;
+    'user:create': DomainPayload<UserView>;
     'user:update': DomainPayload<UserView>;
     'user:delete': DomainPayload<UserView>;
+    'user:invite': DomainPayload<MyInviteView>;
     'user:list': DomainPayload<ListResult<UserView>>;
 
     // ------------------------------------------

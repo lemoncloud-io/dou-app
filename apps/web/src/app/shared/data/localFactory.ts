@@ -11,6 +11,10 @@ import {
     type LocalDataSources,
 } from '@chatic/data';
 
+export const isNativeApp = (): boolean => {
+    return false;
+};
+
 // DataContext 스냅샷 대신 DataContextProvider를 주입받습니다.
 export const getCacheStorage = <TType extends CacheType>(
     type: TType,
