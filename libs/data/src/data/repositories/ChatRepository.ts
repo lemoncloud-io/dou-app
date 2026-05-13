@@ -245,8 +245,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
             options
         );
         const domainList = ((remote?.list || []) as any[]).map(item => toDomainChat(item, this.getDomainScope()));
-        await this.chatLocalDataSource.upsertMany(domainList, this.getRepositoryContext());
-
         return createDomainListResult(domainList, {
             cursorNo: remote.cursorNo,
             readNo: remote.readNo,
