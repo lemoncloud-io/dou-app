@@ -4445,6 +4445,13 @@
     prompts "^2.4.2"
     semver "^7.5.2"
 
+"@react-native-community/push-notification-ios@^1.12.0":
+  version "1.12.0"
+  resolved "https://registry.yarnpkg.com/@react-native-community/push-notification-ios/-/push-notification-ios-1.12.0.tgz#d5ee6bb52b5952b0d0a5c139d34c0e5138fe0892"
+  integrity sha512-nu6ctimVlK4E3id3QHs9yZJ4vCP5UG3lRaBvSboJZ2IWU0XROcIJnNVIXsSH7C3hTlb84lNwPWir3y/TxRj0oA==
+  dependencies:
+    invariant "^2.2.4"
+
 "@react-native-documents/picker@*", "@react-native-documents/picker@^12.0.1":
   version "12.0.1"
   resolved "https://registry.yarnpkg.com/@react-native-documents/picker/-/picker-12.0.1.tgz#ea59796175308be9818dd9e8f14a41145c35042b"
@@ -4516,15 +4523,10 @@
   resolved "https://registry.yarnpkg.com/@react-native-firebase/installations/-/installations-23.8.8.tgz#ec00dc51c48c6d433cff9cd130c17e92c29ad4d8"
   integrity sha512-aagHBfWsjF0BPcHU8ge5CbaeRE2qgu2VuQ3HG8+GDmlYCQKW53wiNQtKqSDYVs2Tp/joJAaTUONhHvkKek9Mkg==
 
-"@react-native-firebase/messaging@*":
+"@react-native-firebase/messaging@*", "@react-native-firebase/messaging@^24.0.0":
   version "24.0.0"
   resolved "https://registry.yarnpkg.com/@react-native-firebase/messaging/-/messaging-24.0.0.tgz#185cd1d9f343fd6a2f077de05def34977fe63103"
   integrity sha512-rODaV83e8mR+Y9EPDblfSpy4rM+alriiq5306RyzPryhsyu+guj4fhGwZpESWwhmk9fKjsnshv++aFA50xFjhg==
-
-"@react-native-firebase/messaging@23.8.8":
-  version "23.8.8"
-  resolved "https://registry.yarnpkg.com/@react-native-firebase/messaging/-/messaging-23.8.8.tgz#1f998b06259a3d1bf6a222fd5166d84de17c2d46"
-  integrity sha512-7Po3/0M9SjYftWFZDueNqvbYDgycE/p7rYrcPDBjxWXsVPO98woLPIFRDuYIJDlTVFyYFjpCTF8kDIGBWPTFzQ==
 
 "@react-native-google-signin/google-signin@*":
   version "16.1.2"
