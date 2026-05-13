@@ -1,2 +1,2 @@
 "push_chat_message_title" = "%@";
-"push_chat_message_body" = "새로운 메시지가 도착했습니다.";
+"push_chat_message_body" = "%@";

@@ -1,2 +1,2 @@
 "push_chat_message_title" = "%@";
-"push_chat_message_body" = "New message arrived.";
+"push_chat_message_body" = "%@";
