@@ -211,7 +211,7 @@ export const DebugChatPage = () => {
     }, [cancelEditChat, chatRepository, editingChatContent, editingChatId, pushChatLog]);
 
     return (
-        <div className="min-h-screen bg-background p-4 text-foreground">
+        <div className="h-screen overflow-y-auto bg-background p-4 text-foreground">
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
                 <header className="rounded-2xl border border-border bg-card p-4">
                     <h1 className="text-xl font-semibold">Cache Stream Debug (Channel + Chat)</h1>

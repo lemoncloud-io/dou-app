@@ -227,8 +227,6 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
             options
         );
         const domainList = (remote.list || []).map(item => toDomainChannel(item, this.getDomainScope()));
-        await this.channelLocalDataSource.upsertMany(domainList, this.getRepositoryContext());
-
         return createDomainListResult(domainList, {
             total: remote.total ?? domainList.length,
             limit: remote.limit,

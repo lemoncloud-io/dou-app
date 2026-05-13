@@ -12,6 +12,7 @@ import type { CacheStorage, CacheStorageItem } from '../storages';
 import type { DomainChat, DomainListResult } from '../../domain';
 import { createDomainListResult } from '../../domain';
 import { toDomainChat as toDomainChatBase } from '../../domain';
+import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
 
 type ChatCache = CacheStorageItem<'chat'>;
 type ChatSortable = Partial<DomainChat> | ChatCache;
@@ -41,7 +42,7 @@ const sortByOldest = (left: ChatSortable, right: ChatSortable): number => -sortB
 
 export interface IChatLocalDataSource
     extends ICrudLocalDataSource<DomainChat>,
-        IListLocalDataSource<DomainChat, string, DomainListResult<DomainChat>>,
+        IListLocalDataSource<DomainChat, ChatFeedPayload, DomainListResult<DomainChat>>,
         IStreamLocalDataSource<DomainChat, string, DomainListResult<DomainChat>> {
     /** 채널 메시지의 연속성(누락 구간)을 검사합니다. */
     checkContinuity(
@@ -68,7 +69,11 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         return item ? toDomainChatBase(item, {} as any) : null; // scope 파라미터는 프로젝트 환경에 맞게 주입 필요
     }
 
-    public async upsert(chat: Partial<DomainChat>, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+    public async upsert(
+        chat: Partial<DomainChat>,
+        contextOverride?: LocalDataSourceContextOverride,
+        emitStream = true
+    ): Promise<void> {
         const id = chat.id;
         if (!id) return;
 
@@ -90,32 +95,35 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         );
 
         await this.cacheStorage.save(id, normalized as ChatCache);
-        await this.emitAllStreams();
+        if (emitStream) {
+            this.debouncedEmitAllStreams();
+        }
     }
 
     public async upsertMany(
         chats: Array<Partial<DomainChat>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
-        await Promise.all(chats.map(chat => this.upsert(chat, contextOverride)));
+        await Promise.all(chats.map(chat => this.upsert(chat, contextOverride, false)));
+        this.debouncedEmitAllStreams();
     }
 
     public async remove(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         if (!id) return;
         await this.cacheStorage.delete(id);
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     public async removeMany(ids: string[], _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
         await this.cacheStorage.deleteAll(validIds);
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     public async clearAll(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         await this.cacheStorage.clearAll();
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     // =========================================================================
@@ -123,10 +131,11 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
     // =========================================================================
 
     public async fetchList(
-        channelId: string,
+        payload: ChatFeedPayload,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainChat> | null> {
-        //  채널 ID가 없을 경우 빈 리스트 결과를 반환합니다.
+        const { channelId, cursorNo, limit = 50 } = payload;
+
         if (!channelId) {
             return createDomainListResult([], { total: 0, source: 'local' });
         }
@@ -134,13 +143,44 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         const allMessages = await this.cacheStorage.loadAll();
         const filteredMessages = allMessages.filter(chat => chat.channelId === channelId);
 
-        //  조회가 완료되었으나 데이터가 없는 경우 명시적으로 빈 리스트를 반환합니다.
         if (filteredMessages.length === 0) {
             return createDomainListResult([], { total: 0, source: 'local' });
         }
 
-        // 3. 정렬 및 도메인 모델 변환 수행 (Context Scope 주입)
-        const list = filteredMessages.sort(sortByOldest).map(item =>
+        // 최신 메시지가 뒤로 가도록 정렬 (chatNo 오름차순)
+        const sortedMessages = filteredMessages.sort(sortByOldest);
+
+        let pageList: ChatCache[];
+        let nextCursorNo: number | undefined = undefined;
+
+        if (cursorNo === undefined || cursorNo === 0) {
+            // 첫 페이지 요청 (가장 최신 메시지)
+            const startIndex = Math.max(0, sortedMessages.length - limit);
+            pageList = sortedMessages.slice(startIndex);
+        } else {
+            // 특정 커서 기준 이전 페이지 요청
+            const cursorIndex = sortedMessages.findIndex(chat => getChatNo(chat) === cursorNo);
+
+            if (cursorIndex === -1) {
+                // 캐시에 해당 커서가 없으면 빈 결과를 반환하여 remote fetch를 유도
+                return createDomainListResult([], { total: 0, source: 'local' });
+            }
+
+            const startIndex = Math.max(0, cursorIndex - limit);
+            pageList = sortedMessages.slice(startIndex, cursorIndex);
+        }
+
+        // 다음 페이지를 위한 커서 계산
+        if (pageList.length > 0) {
+            const oldestMessageInPage = pageList[0];
+            const oldestChatNo = getChatNo(oldestMessageInPage);
+            // 현재 페이지의 가장 오래된 메시지 chatNo가 전체에서 가장 오래된 메시지의 chatNo와 같지 않다면, 더 이전 페이지가 존재함
+            if (oldestChatNo !== getChatNo(sortedMessages[0])) {
+                nextCursorNo = oldestChatNo;
+            }
+        }
+
+        const list = pageList.map(item =>
             toDomainChatBase(item, {
                 cid: this.getCid(contextOverride),
                 sid: this.getSid(contextOverride) || '',
@@ -149,7 +189,9 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         );
 
         return createDomainListResult(list, {
-            total: list.length,
+            total: sortedMessages.length,
+            cursorNo: nextCursorNo,
+            limit,
             source: 'local',
         });
     }
@@ -163,7 +205,10 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         callback: LocalStreamCallback<DomainListResult<DomainChat> | null>,
         contextOverride?: LocalDataSourceContextOverride
     ): LocalStreamUnsubscribe {
-        return this.subscribeQueryStream(() => this.fetchList(channelId, contextOverride), callback);
+        // fetchList의 인자 타입이 변경되었으므로, 여기서는 channelId만으로 호출할 수 없습니다.
+        // subscribeList는 전체 목록을 스트리밍하는 역할이므로, 페이징 없이 모든 데이터를 가져오도록 payload를 구성합니다.
+        const payload: ChatFeedPayload = { channelId };
+        return this.subscribeQueryStream(() => this.fetchList(payload, contextOverride), callback);
     }
 
     public subscribeItem(
@@ -182,7 +227,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         channelId: string,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<{ hasGap: boolean; missingRanges: Array<{ from: number; to: number }> }> {
-        const messages = await this.fetchList(channelId, contextOverride);
+        const messages = await this.fetchList({ channelId }, contextOverride);
 
         const chatNos = (messages?.list || [])
             .map(getChatNo)

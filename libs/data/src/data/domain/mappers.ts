@@ -1,5 +1,5 @@
-import type { CloudView, UserView } from '@lemoncloud/chatic-backend-api';
-import type { ChannelView, ChatView, JoinView, SiteView } from '@lemoncloud/chatic-socials-api';
+import type { CloudView } from '@lemoncloud/chatic-backend-api';
+import type { ChannelView, ChatView, JoinView, SiteView, UserView } from '@lemoncloud/chatic-socials-api';
 import type { CacheStorageItem } from '../local/storages';
 import type {
     DomainChannel,
@@ -64,6 +64,7 @@ export const toDomainChat = (
     return {
         ...(source as ChatView),
         id: toStringSafe((source as { id?: string }).id),
+        tempId: toStringSafe((source as { tempId?: string }).tempId) || undefined,
         cid: toStringSafe((source as { cid?: string }).cid) || scope.cid,
         channelId: toStringSafe((source as { channelId?: string }).channelId),
         chatNo: toNumberSafe((source as { chatNo?: number }).chatNo, 0),

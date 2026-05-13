@@ -40,7 +40,11 @@ export class UserLocalDataSource extends BaseLocalDataSource implements IUserLoc
         return user ? toDomainUser(user) : null;
     }
 
-    public async upsert(user: Partial<DomainUser>, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+    public async upsert(
+        user: Partial<DomainUser>,
+        contextOverride?: LocalDataSourceContextOverride,
+        emitStream = true
+    ): Promise<void> {
         const id = user.id;
         if (!id) return;
 
@@ -61,32 +65,35 @@ export class UserLocalDataSource extends BaseLocalDataSource implements IUserLoc
 
         const cacheItem: CacheStorageItem<'user'> = normalized as CacheStorageItem<'user'>;
         await this.cacheStorage.save(id, cacheItem);
-        await this.emitAllStreams();
+        if (emitStream) {
+            this.debouncedEmitAllStreams();
+        }
     }
 
     public async upsertMany(
         users: Array<Partial<DomainUser>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
-        await Promise.all(users.map(user => this.upsert(user, contextOverride)));
+        await Promise.all(users.map(user => this.upsert(user, contextOverride, false)));
+        this.debouncedEmitAllStreams();
     }
 
     public async remove(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         if (!id) return;
         await this.cacheStorage.delete(id);
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     public async removeMany(ids: string[], _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
         await this.cacheStorage.deleteAll(validIds);
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     public async clearAll(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         await this.cacheStorage.clearAll();
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     // =========================================================================

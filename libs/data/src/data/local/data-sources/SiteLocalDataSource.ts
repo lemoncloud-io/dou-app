@@ -17,10 +17,7 @@ import { toDomainSite as toDomainSiteBase } from '../../domain';
 export interface ISiteLocalDataSource
     extends ICrudLocalDataSource<DomainSite>,
         IListLocalDataSource<DomainSite, WSSPayload | undefined>,
-        IStreamLocalDataSource<DomainSite, WSSPayload | undefined, DomainListResult<DomainSite>> {
-    /** 기존 사이트 캐시를 신규 목록으로 교체합니다.  */
-    replaceSites(sites: Array<Partial<DomainSite>>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
-}
+        IStreamLocalDataSource<DomainSite, WSSPayload | undefined, DomainListResult<DomainSite>> {}
 
 type SiteCache = CacheStorageItem<'site'>;
 
@@ -69,7 +66,7 @@ export class SiteLocalDataSource extends BaseLocalDataSource implements ISiteLoc
         );
         const cacheItem: SiteCache = normalized as SiteCache;
         await this.cacheStorage.save(id, cacheItem);
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     public async upsertMany(
@@ -101,50 +98,26 @@ export class SiteLocalDataSource extends BaseLocalDataSource implements ISiteLoc
 
         if (cacheItemsToSave.length > 0) {
             await this.cacheStorage.saveAll(cacheItemsToSave);
-            await this.emitAllStreams();
+            this.debouncedEmitAllStreams();
         }
     }
 
     public async remove(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         if (!id) return;
         await this.cacheStorage.delete(id);
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     public async removeMany(ids: string[], _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
         await this.cacheStorage.deleteAll(validIds);
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     public async clearAll(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         await this.cacheStorage.clearAll();
-        await this.emitAllStreams();
-    }
-
-    // =========================================================================
-    // 2. 특수 도메인 로직
-    // =========================================================================
-
-    public async replaceSites(
-        sites: Array<Partial<DomainSite>>,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<void> {
-        const context = this.getContext(contextOverride);
-        const cid = context.cid || this.getCid(contextOverride);
-        const cacheSites = sites
-            .filter(site => !!site.id)
-            .map(site =>
-                toDomainSiteBase({ ...(site as Record<string, unknown>), cid } as Partial<DomainSite>, {
-                    cid,
-                    sid: context.sid,
-                    uid: context.uid,
-                })
-            )
-            .map(site => site as SiteCache);
-        await this.cacheStorage.replaceAll(cacheSites);
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     // =========================================================================

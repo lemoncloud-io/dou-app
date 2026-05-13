@@ -21,7 +21,7 @@ import {
 import { useLogout } from '@chatic/auth';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
-import { useTotalUnreadCount } from '../../chats/hooks/useTotalUnreadCount';
+import { useTotalUnreadCount } from '../../../shared/hooks/useTotalUnreadCount';
 import { LanguageSelectSheet, LogoutDialog } from '../components';
 import { DEBUG_STORAGE_KEY } from '../consts';
 import { useCacheMutations } from '../../../shared/hooks/useCacheMutations';

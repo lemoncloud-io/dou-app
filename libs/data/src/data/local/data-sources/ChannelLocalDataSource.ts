@@ -66,32 +66,34 @@ export class ChannelLocalDataSource extends BaseLocalDataSource implements IChan
         );
 
         await this.cacheStorage.save(id, normalized as unknown as ChannelCache);
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams(); // Use debounced method
     }
 
     public async upsertMany(
         channels: Array<Partial<DomainChannel>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
+        // Call upsert without emitStream parameter
         await Promise.all(channels.map(channel => this.upsert(channel, contextOverride)));
+        this.debouncedEmitAllStreams(); // Emit once after all upserts are done
     }
 
     public async remove(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         if (!id) return;
         await this.cacheStorage.delete(id);
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams(); // Use debounced method
     }
 
     public async removeMany(ids: string[], _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
         await this.cacheStorage.deleteAll(validIds);
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams(); // Use debounced method
     }
 
     public async clearAll(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         await this.cacheStorage.clearAll();
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams(); // Use debounced method
     }
 
     // --- List & Stream ---
@@ -103,10 +105,6 @@ export class ChannelLocalDataSource extends BaseLocalDataSource implements IChan
         const allChannels = await this.cacheStorage.loadAll();
         const placeId = payload.sid ?? context.sid;
         const scopedChannels = placeId ? allChannels.filter(channel => channel.sid === placeId) : allChannels;
-
-        console.log(allChannels);
-        console.log(placeId);
-        console.log(scopedChannels);
 
         if (scopedChannels.length === 0) {
             return createDomainListResult([], { total: 0, source: 'local' });
