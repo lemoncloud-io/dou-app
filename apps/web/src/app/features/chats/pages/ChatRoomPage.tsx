@@ -47,15 +47,15 @@ export const ChatRoomPage = () => {
     const { channelId } = useParams<{ channelId: string }>();
 
     // UI 상태 관리
-    const [content, setContent] = useState(''); // 현재 입력 중인 메시지
-    const [inviteDialogOpen, setInviteDialogOpen] = useState(false); // 초대 모달 상태
-    const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null); // 긴 메시지 상세보기 상태
+    const [content, setContent] = useState('');
+    const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+    const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null);
 
     // DOM 접근을 위한 Ref
-    const messagesEndRef = useRef<HTMLDivElement>(null); // 스크롤 컨테이너
-    const inputRef = useRef<HTMLTextAreaElement>(null); // 텍스트 입력창
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
 
-    // 중복 읽음 처리(read 요청)를 방지하기 위해 마지막으로 읽은 메시지 번호를 저장
+    // 중복 읽음 처리 방지
     const lastReadChatNoRef = useRef<number | null>(null);
 
     const dynamicProfile = useDynamicProfile();
@@ -139,11 +139,8 @@ export const ChatRoomPage = () => {
             }
         };
 
-        // 새 메시지가 도착했을 때 즉시 체크
         handleAutoRead();
-        // PC 웹 / 모바일 브라우저 탭 활성화 대응
         document.addEventListener('visibilitychange', handleAutoRead);
-        // 모바일 네이티브 앱(웹뷰) 포그라운드 복귀 대응 (useForegroundResync 연동)
         window.addEventListener(FOREGROUND_RESYNC_EVENT_NAME, handleAutoRead);
 
         return () => {
@@ -152,13 +149,10 @@ export const ChatRoomPage = () => {
         };
     }, [messages.length, channelId, readMessage]);
 
-    // 새 메시지(전송/수신)가 추가될 때만 스크롤 — loadMore(오래된 메시지)는 스크롤하지 않음
     const prevMessageCountRef = useRef(messages.length);
     const prevLastMessageIdRef = useRef<string | undefined>(undefined);
     useEffect(() => {
         const lastMessage = messages[messages.length - 1];
-        // 최신 메시지 ID가 바뀌었고 + 메시지 수가 증가한 경우에만 하단 스크롤
-        // loadMore는 오래된 메시지만 추가하므로 최신 메시지 ID는 동일 → 스크롤 안 함
         if (messages.length > prevMessageCountRef.current && lastMessage?.id !== prevLastMessageIdRef.current) {
             scrollToBottom(false);
         }
@@ -166,9 +160,7 @@ export const ChatRoomPage = () => {
         prevMessageCountRef.current = messages.length;
     }, [messages.length]);
 
-    // 창 크기 변경(키보드 올라옴 등) 및 인풋 포커스 시 스크롤 조정 이벤트 등록
     useEffect(() => {
-        // 키보드 애니메이션(~300ms) 완료 후 스크롤 보정
         const handleScrollAdjust = () => setTimeout(() => scrollToBottom(), 150);
         const input = inputRef.current;
 
@@ -181,7 +173,6 @@ export const ChatRoomPage = () => {
         };
     }, []);
 
-    // 텍스트 영역의 내용 길이에 따라 자동으로 높이를 조절하는 로직 (최대 120px)
     useEffect(() => {
         if (inputRef.current) {
             inputRef.current.style.height = 'auto';
@@ -190,19 +181,14 @@ export const ChatRoomPage = () => {
         }
     }, [content]);
 
-    /**
-     * 메시지 전송 핸들러
-     */
     const handleSend = () => {
         const trimmed = content.trim().slice(0, MAX_INPUT_LENGTH);
         if (!trimmed || !stableChannelId) return;
 
-        // UI 즉각 반응을 위해 입력창 비우고 에러 메시지 초기화
         setContent('');
 
         sendMessage({ channelId: stableChannelId, content: trimmed })
             .then(newChat => {
-                // 서버 응답 성공 시 발급받은 번호로 내 메시지 읽음 처리
                 if (newChat && newChat.chatNo !== undefined) {
                     lastReadChatNoRef.current = newChat.chatNo;
                     readMessage({ channelId: stableChannelId, chatNo: newChat.chatNo }).catch(error => {
@@ -220,20 +206,14 @@ export const ChatRoomPage = () => {
     };
 
     const handleDeleteMessage = async (messageId?: string) => {
-        if (!stableChannelId || !messageId) {
-            return;
-        }
+        if (!stableChannelId || !messageId) return;
         await deleteMessage(messageId, stableChannelId);
     };
 
     const handleRetryMessage = async (message: ClientChatView) => {
-        if (!stableChannelId || !message.id) {
-            return;
-        }
+        if (!stableChannelId || !message.id) return;
         handleDeleteMessage(message.id)
-            .then(() => {
-                return sendMessage({ channelId: stableChannelId, content: message.content ?? '' });
-            })
+            .then(() => sendMessage({ channelId: stableChannelId, content: message.content ?? '' }))
             .then(newChat => {
                 if (newChat && newChat.chatNo !== undefined) {
                     lastReadChatNoRef.current = newChat.chatNo;
@@ -253,19 +233,10 @@ export const ChatRoomPage = () => {
             });
     };
 
-    /**
-     * 텍스트 영역 키보드 입력 핸들러
-     */
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        // IME(한글 등) 조합 중 중복 발생 방지
         if (e.nativeEvent.isComposing) return;
+        if (isMobile && e.key === 'Enter') return;
 
-        // 모바일 환경이면 엔터 키를 줄바꿈(기본 동작)으로만 사용하도록 이벤트 통과
-        if (isMobile && e.key === 'Enter') {
-            return;
-        }
-
-        // PC 환경이면 Shift 없이 Enter만 눌렀을 때 전송
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSend();
@@ -276,7 +247,9 @@ export const ChatRoomPage = () => {
         const el = messagesEndRef.current;
         if (!el || !hasMore || isLoadingMore) return;
 
-        // flex-col-reverse에서는 scrollTop이 음수이므로, 절대값을 사용해야 함
+        //스크롤 컨텐츠가 화면을 다 채우지 않은 경우 무한 로딩 방지
+        if (el.scrollHeight <= el.clientHeight) return;
+
         const distanceFromTop = el.scrollHeight - el.clientHeight - Math.abs(el.scrollTop);
         if (distanceFromTop < 200) {
             loadMore();
@@ -298,7 +271,6 @@ export const ChatRoomPage = () => {
             if (!msg1 || !msg2 || msg1.isSystem || msg2.isSystem) return false;
 
             const sameOwner = msg1.ownerId === msg2.ownerId;
-
             const d1 = msg1.timestamp;
             const d2 = msg2.timestamp;
             const sameTime =
@@ -400,229 +372,242 @@ export const ChatRoomPage = () => {
                 )}
             </header>
 
+            {/*  중간 래퍼를 제거하고 gap과 패딩 속성을 최상단 스크롤 영역으로 이동시켰습니다. */}
             <div
                 ref={messagesEndRef}
                 onScroll={debouncedHandleScroll}
-                className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-none"
+                className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-none px-4 pb-4 pt-2 gap-3"
             >
-                <div
-                    className={`flex flex-col gap-3 px-4 pb-4 pt-2 ${isChatLoading || messages.length === 0 ? 'min-h-full' : ''}`}
-                >
-                    {isLoadingMore && (
-                        <div className="flex justify-center py-3">
-                            <Loader2 size={20} className="animate-spin text-muted-foreground" />
+                {isChatLoading ? (
+                    <div className="flex min-h-full items-center justify-center">
+                        <Loader2 size={24} className="animate-spin text-muted-foreground" />
+                    </div>
+                ) : isChatEmpty ? (
+                    <div className="relative flex min-h-full flex-1 flex-col items-center justify-center">
+                        <div className="absolute left-0 right-0 top-2 text-center">
+                            <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
+                                {formatDateSeparator(new Date())}
+                            </span>
                         </div>
-                    )}
-
-                    {isChatLoading ? (
-                        <div className="flex min-h-full items-center justify-center">
-                            <Loader2 size={24} className="animate-spin text-muted-foreground" />
-                        </div>
-                    ) : isChatEmpty ? (
-                        <div className="relative flex flex-1 flex-col items-center justify-center">
-                            <div className="absolute left-0 right-0 top-2 text-center">
-                                <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
-                                    {formatDateSeparator(new Date())}
-                                </span>
-                            </div>
-                            <div className="flex flex-col items-center gap-4">
-                                {channel?.isSelfChat ? (
-                                    <>
-                                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-                                            <PenLine size={24} className="text-muted-foreground" />
-                                        </div>
-                                        <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
-                                            <p>{t('chat.room.emptyState.selfLine1')}</p>
-                                            <p>{t('chat.room.emptyState.selfLine2')}</p>
-                                        </div>
-                                    </>
-                                ) : (
-                                    channel?.ownerId === dynamicProfile?.uid &&
-                                    userType !== UserType.TEMP_ACCOUNT &&
-                                    userType !== UserType.SOCIAL_NO_CLOUD && (
-                                        <>
-                                            <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
-                                                <p>{t('chat.room.emptyState.line1')}</p>
-                                                <p>{t('chat.room.emptyState.line2')}</p>
-                                            </div>
-                                            <button
-                                                onClick={() => setInviteDialogOpen(true)}
-                                                className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
-                                            >
-                                                <Plus size={20} />
-                                                <span className="text-[16px] font-semibold">
-                                                    {t('chat.room.emptyState.inviteButton')}
-                                                </span>
-                                            </button>
-                                        </>
-                                    )
-                                )}
-                            </div>
-                        </div>
-                    ) : (
-                        Object.entries(groupedMessages)
-                            .sort(([a], [b]) => a.localeCompare(b))
-                            .map(([dateKey, dateMessages]) => (
-                                <div key={dateKey} className="flex flex-col gap-3">
-                                    <div className="py-2 text-center">
-                                        <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
-                                            {formatDateSeparator(dateMessages[0].timestamp)}
-                                        </span>
+                        <div className="flex flex-col items-center gap-4">
+                            {channel?.isSelfChat ? (
+                                <>
+                                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                                        <PenLine size={24} className="text-muted-foreground" />
                                     </div>
+                                    <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
+                                        <p>{t('chat.room.emptyState.selfLine1')}</p>
+                                        <p>{t('chat.room.emptyState.selfLine2')}</p>
+                                    </div>
+                                </>
+                            ) : (
+                                channel?.ownerId === dynamicProfile?.uid &&
+                                userType !== UserType.TEMP_ACCOUNT &&
+                                userType !== UserType.SOCIAL_NO_CLOUD && (
+                                    <>
+                                        <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
+                                            <p>{t('chat.room.emptyState.line1')}</p>
+                                            <p>{t('chat.room.emptyState.line2')}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setInviteDialogOpen(true)}
+                                            className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
+                                        >
+                                            <Plus size={20} />
+                                            <span className="text-[16px] font-semibold">
+                                                {t('chat.room.emptyState.inviteButton')}
+                                            </span>
+                                        </button>
+                                    </>
+                                )
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {/* [FIX 3] 날짜 정렬을 내림차순(최신 날짜가 먼저)으로 변경합니다. */}
+                        {Object.entries(groupedMessages)
+                            .sort(([a], [b]) => b.localeCompare(a))
+                            .map(([dateKey, dateMessages]) => {
+                                // [FIX 4] 메시지 배열을 역순으로 렌더링하여 flex-col-reverse의 네이티브 스크롤 앵커링을 타게 합니다.
+                                const reversedMessages = [...dateMessages].reverse();
 
-                                    {dateMessages.map((message, index) => {
-                                        if (message.isSystem) {
-                                            const systemMatch = (message.content ?? '').match(/^(.+?)(님이.+)$/);
+                                return (
+                                    <div key={dateKey} className="flex flex-col-reverse gap-3">
+                                        {reversedMessages.map((message, index) => {
+                                            if (message.isSystem) {
+                                                const systemMatch = (message.content ?? '').match(/^(.+?)(님이.+)$/);
+                                                return (
+                                                    <div key={message.id} className="flex justify-center py-1">
+                                                        <span className="rounded-full bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground">
+                                                            {systemMatch ? (
+                                                                <>
+                                                                    <span className="font-semibold">
+                                                                        {systemMatch[1]}
+                                                                    </span>
+                                                                    {systemMatch[2]}
+                                                                </>
+                                                            ) : (
+                                                                message.content
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            }
+
+                                            // [FIX 5] 배열이 역순이 되었으므로, 이전/다음 메시지 논리를 반대로 참조해야 합니다.
+                                            const chronPrevMessage = reversedMessages[index + 1]; // 시간상 이전(과거) 메시지
+                                            const chronNextMessage = reversedMessages[index - 1]; // 시간상 다음(미래) 메시지
+
+                                            const isSameAsPrev =
+                                                chronPrevMessage && isSameGroup(message, chronPrevMessage);
+                                            const isSameAsNext =
+                                                chronNextMessage && isSameGroup(message, chronNextMessage);
+
+                                            const showProfileAndName = !isSameAsPrev;
+                                            const showTimeAndStatus =
+                                                !isSameAsNext || message.isPending || message.isFailed;
+
                                             return (
-                                                <div key={message.id} className="flex justify-center py-1">
-                                                    <span className="rounded-full bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground">
-                                                        {systemMatch ? (
-                                                            <>
-                                                                <span className="font-semibold">{systemMatch[1]}</span>
-                                                                {systemMatch[2]}
-                                                            </>
+                                                <div
+                                                    key={message.id}
+                                                    className={`flex gap-1.5 ${message.isOwner ? 'justify-end' : 'justify-start'} ${!showProfileAndName ? '-mt-1' : ''}`}
+                                                >
+                                                    {!message.isOwner &&
+                                                        (showProfileAndName ? (
+                                                            <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                                                                <User className="size-4 text-muted-foreground" />
+                                                            </div>
                                                         ) : (
-                                                            message.content
+                                                            <div className="size-[39px] flex-shrink-0" />
+                                                        ))}
+                                                    <div
+                                                        className={`flex max-w-[75%] flex-col ${message.isOwner ? 'items-end' : 'items-start'}`}
+                                                    >
+                                                        {!message.isOwner && showProfileAndName && (
+                                                            <span className="mb-1 text-xs text-muted-foreground">
+                                                                {message.ownerName}
+                                                            </span>
                                                         )}
-                                                    </span>
+                                                        <div
+                                                            className={`flex items-center gap-1.5 ${message.isOwner ? 'flex-row' : ''}`}
+                                                        >
+                                                            {message.isFailed && message.isOwner && (
+                                                                <button
+                                                                    onClick={() => handleRetryMessage(message)}
+                                                                    className="flex flex-shrink-0 items-center"
+                                                                >
+                                                                    <AlertCircle
+                                                                        size={20}
+                                                                        className="text-destructive"
+                                                                    />
+                                                                </button>
+                                                            )}
+                                                            <MessageBubble
+                                                                content={message.content ?? ''}
+                                                                isMine={message.isOwner}
+                                                                status={
+                                                                    message.isFailed
+                                                                        ? 'failed'
+                                                                        : message.isPending
+                                                                          ? 'pending'
+                                                                          : undefined
+                                                                }
+                                                                onAction={
+                                                                    message.isFailed
+                                                                        ? () => handleRetryMessage(message)
+                                                                        : () =>
+                                                                              setExpandedMessage({
+                                                                                  content: message.content ?? '',
+                                                                                  ownerName: message.ownerName,
+                                                                              })
+                                                                }
+                                                            />
+                                                        </div>
+                                                        {showTimeAndStatus && (
+                                                            <div
+                                                                className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${message.isOwner ? 'flex-row-reverse' : ''}`}
+                                                            >
+                                                                {message.isPending ? (
+                                                                    <span className="flex items-center gap-1 text-muted-foreground/70">
+                                                                        <Clock size={11} />
+                                                                        <span>{t('chat.room.sending')}</span>
+                                                                    </span>
+                                                                ) : message.isFailed ? (
+                                                                    <div className="flex items-center gap-1 text-destructive">
+                                                                        <AlertCircle size={11} />
+                                                                        <span>{t('chat.room.failed')}</span>
+                                                                        {message.isOwner && (
+                                                                            <>
+                                                                                <button
+                                                                                    onClick={() =>
+                                                                                        handleRetryMessage(message)
+                                                                                    }
+                                                                                    className="ml-2 flex items-center text-destructive"
+                                                                                    title={t('chat.room.retry')}
+                                                                                >
+                                                                                    <RotateCcw size={11} />
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() =>
+                                                                                        handleDeleteMessage(message.id)
+                                                                                    }
+                                                                                    className="ml-1 flex items-center text-destructive"
+                                                                                    title={t('chat.room.delete')}
+                                                                                >
+                                                                                    <X size={11} />
+                                                                                </button>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <>
+                                                                        <span className="text-muted-foreground">
+                                                                            {formatTime(message.timestamp)}
+                                                                        </span>
+                                                                        {message.chatNo !== undefined &&
+                                                                            (!isJoinReady ? (
+                                                                                <Loader2
+                                                                                    size={11}
+                                                                                    className="animate-spin text-muted-foreground"
+                                                                                />
+                                                                            ) : (
+                                                                                (() => {
+                                                                                    const { readCount, unreadCount } =
+                                                                                        getReadCount(message.chatNo);
+                                                                                    return (
+                                                                                        <ReadStatus
+                                                                                            readCount={readCount}
+                                                                                            unreadCount={unreadCount}
+                                                                                        />
+                                                                                    );
+                                                                                })()
+                                                                            ))}
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             );
-                                        }
-
-                                        const prevMessage = dateMessages[index - 1];
-                                        const nextMessage = dateMessages[index + 1];
-
-                                        const isSameAsPrev = prevMessage && isSameGroup(message, prevMessage);
-                                        const isSameAsNext = nextMessage && isSameGroup(message, nextMessage);
-
-                                        const showProfileAndName = !isSameAsPrev;
-                                        const showTimeAndStatus =
-                                            !isSameAsNext || message.isPending || message.isFailed;
-
-                                        return (
-                                            <div
-                                                key={message.id}
-                                                className={`flex gap-1.5 ${message.isOwner ? 'justify-end' : 'justify-start'} ${!showProfileAndName ? '-mt-1' : ''}`}
-                                            >
-                                                {!message.isOwner &&
-                                                    (showProfileAndName ? (
-                                                        <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
-                                                            <User className="size-4 text-muted-foreground" />
-                                                        </div>
-                                                    ) : (
-                                                        <div className="size-[39px] flex-shrink-0" />
-                                                    ))}
-                                                <div
-                                                    className={`flex max-w-[75%] flex-col ${message.isOwner ? 'items-end' : 'items-start'}`}
-                                                >
-                                                    {!message.isOwner && showProfileAndName && (
-                                                        <span className="mb-1 text-xs text-muted-foreground">
-                                                            {message.ownerName}
-                                                        </span>
-                                                    )}
-                                                    <div
-                                                        className={`flex items-center gap-1.5 ${message.isOwner ? 'flex-row' : ''}`}
-                                                    >
-                                                        {message.isFailed && message.isOwner && (
-                                                            <button
-                                                                onClick={() => handleRetryMessage(message)}
-                                                                className="flex flex-shrink-0 items-center"
-                                                            >
-                                                                <AlertCircle size={20} className="text-destructive" />
-                                                            </button>
-                                                        )}
-                                                        <MessageBubble
-                                                            content={message.content ?? ''}
-                                                            isMine={message.isOwner}
-                                                            status={
-                                                                message.isFailed
-                                                                    ? 'failed'
-                                                                    : message.isPending
-                                                                      ? 'pending'
-                                                                      : undefined
-                                                            }
-                                                            onAction={
-                                                                message.isFailed
-                                                                    ? () => handleRetryMessage(message)
-                                                                    : () =>
-                                                                          setExpandedMessage({
-                                                                              content: message.content ?? '',
-                                                                              ownerName: message.ownerName,
-                                                                          })
-                                                            }
-                                                        />
-                                                    </div>
-                                                    {showTimeAndStatus && (
-                                                        <div
-                                                            className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${message.isOwner ? 'flex-row-reverse' : ''}`}
-                                                        >
-                                                            {message.isPending ? (
-                                                                <span className="flex items-center gap-1 text-muted-foreground/70">
-                                                                    <Clock size={11} />
-                                                                    <span>{t('chat.room.sending')}</span>
-                                                                </span>
-                                                            ) : message.isFailed ? (
-                                                                <div className="flex items-center gap-1 text-destructive">
-                                                                    <AlertCircle size={11} />
-                                                                    <span>{t('chat.room.failed')}</span>
-                                                                    {message.isOwner && (
-                                                                        <>
-                                                                            <button
-                                                                                onClick={() =>
-                                                                                    handleRetryMessage(message)
-                                                                                }
-                                                                                className="ml-2 flex items-center text-destructive"
-                                                                                title={t('chat.room.retry')}
-                                                                            >
-                                                                                <RotateCcw size={11} />
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={() =>
-                                                                                    handleDeleteMessage(message.id)
-                                                                                }
-                                                                                className="ml-1 flex items-center text-destructive"
-                                                                                title={t('chat.room.delete')}
-                                                                            >
-                                                                                <X size={11} />
-                                                                            </button>
-                                                                        </>
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                                <>
-                                                                    <span className="text-muted-foreground">
-                                                                        {formatTime(message.timestamp)}
-                                                                    </span>
-                                                                    {message.chatNo !== undefined &&
-                                                                        (!isJoinReady ? (
-                                                                            <Loader2
-                                                                                size={11}
-                                                                                className="animate-spin text-muted-foreground"
-                                                                            />
-                                                                        ) : (
-                                                                            (() => {
-                                                                                const { readCount, unreadCount } =
-                                                                                    getReadCount(message.chatNo);
-                                                                                return (
-                                                                                    <ReadStatus
-                                                                                        readCount={readCount}
-                                                                                        unreadCount={unreadCount}
-                                                                                    />
-                                                                                );
-                                                                            })()
-                                                                        ))}
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ))
-                    )}
-                </div>
+                                        })}
+                                        {/* [FIX 6] flex-col-reverse 상태이므로, 날짜 구분선이 배열 렌더링 마지막에 있어야 시각적으로 가장 위에 보입니다. */}
+                                        <div className="py-2 text-center pb-1">
+                                            <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
+                                                {formatDateSeparator(dateMessages[0].timestamp)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        {/* [FIX 7] 무한 스크롤 로딩 인디케이터 역시 가장 하단(시각적으로 최상단)에 배치합니다. */}
+                        {isLoadingMore && (
+                            <div className="flex justify-center py-3">
+                                <Loader2 size={20} className="animate-spin text-muted-foreground" />
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
 
             {userType !== UserType.TEMP_ACCOUNT && userType !== UserType.SOCIAL_NO_CLOUD && !channel?.isSelfChat && (
