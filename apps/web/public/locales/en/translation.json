@@ -399,7 +399,9 @@
             "newMessages": "{{count}} new messages",
             "retry": "Retry",
             "delete": "Delete",
-            "failed": "Failed"
+            "failed": "Failed",
+            "syncing": "Syncing...",
+            "syncingProgress": "Syncing... ({{fetched}}/{{total}})"
         },
         "settings": {
             "title": "Room Settings",

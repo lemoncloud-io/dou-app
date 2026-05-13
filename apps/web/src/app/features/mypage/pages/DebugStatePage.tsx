@@ -1,10 +1,12 @@
+import { useState } from 'react';
+
 import { ChevronLeft } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { useDelegatorId, useDynamicProfile, useWebCoreStore, useUserContext, cloudCore } from '@chatic/web-core';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { useClouds } from '@chatic/users';
+import { useClouds, useRegisterDeviceToken } from '@chatic/users';
 import { usePlaces } from '../../../shared/hooks';
 
 import { useChannels } from '../../../shared/hooks/useChannels';
@@ -47,6 +49,12 @@ export const DebugStatePage = () => {
     const { places } = usePlaces();
     const { channels } = useChannels({ sid: selectedCloudId, detail: true });
 
+    // Manual device token registration
+    const { mutateAsync: registerDeviceTokenMutate, isPending: isRegisteringToken } = useRegisterDeviceToken();
+    const [tokenRegisterResult, setTokenRegisterResult] = useState<string | null>(null);
+    const storedDeviceToken = deviceInfo?.deviceToken ?? localStorage.getItem('chatic-device-token') ?? undefined;
+    const hasDeviceTokenData = !!(deviceInfo?.deviceId && storedDeviceToken);
+
     const clouds = cloudsData?.list ?? [];
     const selectedCloud = clouds.find(c => c.id === selectedCloudId);
 
@@ -73,6 +81,48 @@ export const DebugStatePage = () => {
                         <Row label="Should Update" value={versionInfo?.shouldUpdate} />
                         <Row label="Latest Version" value={versionInfo?.latestVersion} />
                         <Row label="Is On Mobile App" value={isOnMobileApp} />
+
+                        {/* Manual Device Token Registration */}
+                        {hasDeviceTokenData && (
+                            <div className="flex flex-col gap-2 border-t border-border pt-3">
+                                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                    Register Device Token
+                                </span>
+                                <Row label="deviceId" value={deviceInfo?.deviceId} />
+                                <Row label="deviceToken" value={storedDeviceToken} />
+                                <Row label="platform" value={deviceInfo?.platform} />
+                                <Row label="installId" value={deviceInfo?.installId} />
+                                <Row label="application" value="chatic" />
+                                <button
+                                    disabled={isRegisteringToken}
+                                    onClick={async () => {
+                                        setTokenRegisterResult(null);
+                                        try {
+                                            const result = await registerDeviceTokenMutate({
+                                                deviceId: deviceInfo?.deviceId ?? '',
+                                                deviceToken: storedDeviceToken ?? '',
+                                                platform: deviceInfo?.platform,
+                                                installId: deviceInfo?.installId ?? undefined,
+                                                application: 'chatic',
+                                            });
+                                            setTokenRegisterResult(`OK — ${JSON.stringify(result).slice(0, 100)}`);
+                                        } catch (err) {
+                                            setTokenRegisterResult(
+                                                `Error: ${err instanceof Error ? err.message : String(err)}`
+                                            );
+                                        }
+                                    }}
+                                    className="self-start rounded-md bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground disabled:opacity-50"
+                                >
+                                    {isRegisteringToken ? 'Sending...' : 'Register Token'}
+                                </button>
+                                {tokenRegisterResult && (
+                                    <span className="break-all font-mono text-[11px] text-muted-foreground">
+                                        {tokenRegisterResult}
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </Section>
 
                     {/* WebCore State */}

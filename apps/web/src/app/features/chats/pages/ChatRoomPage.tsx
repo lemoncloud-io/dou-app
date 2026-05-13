@@ -34,6 +34,7 @@ import { MessageBubble } from '../components/MessageBubble';
 import { ReadStatus } from '../components/ReadStatus';
 import { useChannel, useChannelMembers, useChatMutations, useJoinPositions } from '../../../shared/hooks';
 import { useChats } from '../../../shared/hooks/useChats';
+import { useChatSyncStore } from '../../../shared/stores/useChatSyncStore';
 import type { ClientChatView } from '../../../shared/types';
 import { FOREGROUND_RESYNC_EVENT_NAME } from '../../../shared/types';
 
@@ -62,6 +63,10 @@ export const ChatRoomPage = () => {
     const { userType } = useUserContext();
     const { isIOS } = useAppChecker();
 
+    // 채널 sync 상태 (ChatSyncScheduler → useChatSyncStore)
+    const syncState = useChatSyncStore(s => (channelId ? s.states[channelId] : undefined));
+    const isSyncing = syncState?.status === 'syncing';
+
     // 데이터 패칭 Hooks
     const { members, total: membersTotal } = useChannelMembers({ channelId: channelId || '', detail: true }); // 멤버 정보 패칭
     const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(channelId || null); // 현재 채널 정보 패칭
@@ -72,6 +77,7 @@ export const ChatRoomPage = () => {
         () => members.map(m => m.$join).filter((j): j is NonNullable<typeof j> => !!j),
         [members]
     );
+
     const { getReadCount, isReady: isJoinReady } = useJoinPositions(channelId ?? null, initialJoins);
 
     const {
@@ -407,238 +413,259 @@ export const ChatRoomPage = () => {
                 )}
             </header>
 
-            {/* 메시지 목록 렌더링 영역 — column-reverse로 초기 스크롤 위치를 하단에 고정 */}
-            <div
-                ref={messagesEndRef}
-                onScroll={handleScroll}
-                className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-none"
-            >
+            {isSyncing ? (
+                // 동기화 중 — 메시지 영역 전체를 대체하여 중앙 표시
+                <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3">
+                    <Loader2 size={24} className="animate-spin text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                        {syncState?.totalGap
+                            ? t('chat.room.syncingProgress', {
+                                  fetched: syncState.fetchedCount,
+                                  total: syncState.totalGap,
+                              })
+                            : t('chat.room.syncing')}
+                    </span>
+                </div>
+            ) : (
+                /* 메시지 목록 렌더링 영역 — column-reverse로 초기 스크롤 위치를 하단에 고정 */
                 <div
-                    className={`flex flex-col gap-3 px-4 pb-4 pt-2 ${isChatLoading || messages.length === 0 ? 'min-h-full' : ''}`}
+                    ref={messagesEndRef}
+                    onScroll={handleScroll}
+                    className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-none"
                 >
-                    {/* 이전 메시지 로딩 인디케이터 */}
-                    {isLoadingMore && (
-                        <div className="flex justify-center py-3">
-                            <Loader2 size={20} className="animate-spin text-muted-foreground" />
-                        </div>
-                    )}
-
-                    {isChatLoading ? (
-                        // 초기 메시지 로딩 중
-                        <div className="flex min-h-full items-center justify-center">
-                            <Loader2 size={24} className="animate-spin text-muted-foreground" />
-                        </div>
-                    ) : isChatEmpty ? (
-                        // 메시지가 없을 때 보여지는 빈 화면 (Empty State)
-                        <div className="relative flex flex-1 flex-col items-center justify-center">
-                            <div className="absolute left-0 right-0 top-2 text-center">
-                                <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
-                                    {formatDateSeparator(new Date())}
-                                </span>
+                    <div
+                        className={`flex flex-col gap-3 px-4 pb-4 pt-2 ${isChatLoading || messages.length === 0 ? 'min-h-full' : ''}`}
+                    >
+                        {/* 이전 메시지 로딩 인디케이터 */}
+                        {isLoadingMore && (
+                            <div className="flex justify-center py-3">
+                                <Loader2 size={20} className="animate-spin text-muted-foreground" />
                             </div>
-                            <div className="flex flex-col items-center gap-4">
-                                {channel?.isSelfChat ? (
-                                    <>
-                                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-                                            <PenLine size={24} className="text-muted-foreground" />
-                                        </div>
-                                        <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
-                                            <p>{t('chat.room.emptyState.selfLine1')}</p>
-                                            <p>{t('chat.room.emptyState.selfLine2')}</p>
-                                        </div>
-                                    </>
-                                ) : (
-                                    channel?.ownerId === dynamicProfile?.uid &&
-                                    userType !== UserType.TEMP_ACCOUNT &&
-                                    userType !== UserType.SOCIAL_NO_CLOUD && (
+                        )}
+
+                        {isChatLoading ? (
+                            // 초기 메시지 로딩 중
+                            <div className="flex min-h-full items-center justify-center">
+                                <Loader2 size={24} className="animate-spin text-muted-foreground" />
+                            </div>
+                        ) : isChatEmpty ? (
+                            // 메시지가 없을 때 보여지는 빈 화면 (Empty State)
+                            <div className="relative flex flex-1 flex-col items-center justify-center">
+                                <div className="absolute left-0 right-0 top-2 text-center">
+                                    <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
+                                        {formatDateSeparator(new Date())}
+                                    </span>
+                                </div>
+                                <div className="flex flex-col items-center gap-4">
+                                    {channel?.isSelfChat ? (
                                         <>
-                                            <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
-                                                <p>{t('chat.room.emptyState.line1')}</p>
-                                                <p>{t('chat.room.emptyState.line2')}</p>
+                                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                                                <PenLine size={24} className="text-muted-foreground" />
                                             </div>
-                                            <button
-                                                onClick={() => setInviteDialogOpen(true)}
-                                                className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
-                                            >
-                                                <Plus size={20} />
-                                                <span className="text-[16px] font-semibold">
-                                                    {t('chat.room.emptyState.inviteButton')}
-                                                </span>
-                                            </button>
+                                            <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
+                                                <p>{t('chat.room.emptyState.selfLine1')}</p>
+                                                <p>{t('chat.room.emptyState.selfLine2')}</p>
+                                            </div>
                                         </>
-                                    )
-                                )}
-                            </div>
-                        </div>
-                    ) : (
-                        // 날짜별로 그룹화된 메시지 렌더링
-                        Object.entries(groupedMessages)
-                            .sort(([a], [b]) => a.localeCompare(b))
-                            .map(([dateKey, dateMessages]) => (
-                                <div key={dateKey} className="flex flex-col gap-3">
-                                    {/* 날짜 구분선 */}
-                                    <div className="py-2 text-center">
-                                        <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
-                                            {formatDateSeparator(dateMessages[0].timestamp)}
-                                        </span>
-                                    </div>
-
-                                    {dateMessages.map((message, index) => {
-                                        // 시스템 메시지 렌더링 (초대, 퇴장 등)
-                                        if (message.isSystem) {
-                                            const systemMatch = (message.content ?? '').match(/^(.+?)(님이.+)$/);
-                                            return (
-                                                <div key={message.id} className="flex justify-center py-1">
-                                                    <span className="rounded-full bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground">
-                                                        {systemMatch ? (
-                                                            <>
-                                                                <span className="font-semibold">{systemMatch[1]}</span>
-                                                                {systemMatch[2]}
-                                                            </>
-                                                        ) : (
-                                                            message.content
-                                                        )}
+                                    ) : (
+                                        channel?.ownerId === dynamicProfile?.uid &&
+                                        userType !== UserType.TEMP_ACCOUNT &&
+                                        userType !== UserType.SOCIAL_NO_CLOUD && (
+                                            <>
+                                                <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
+                                                    <p>{t('chat.room.emptyState.line1')}</p>
+                                                    <p>{t('chat.room.emptyState.line2')}</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => setInviteDialogOpen(true)}
+                                                    className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
+                                                >
+                                                    <Plus size={20} />
+                                                    <span className="text-[16px] font-semibold">
+                                                        {t('chat.room.emptyState.inviteButton')}
                                                     </span>
+                                                </button>
+                                            </>
+                                        )
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            // 날짜별로 그룹화된 메시지 렌더링
+                            Object.entries(groupedMessages)
+                                .sort(([a], [b]) => a.localeCompare(b))
+                                .map(([dateKey, dateMessages]) => (
+                                    <div key={dateKey} className="flex flex-col gap-3">
+                                        {/* 날짜 구분선 */}
+                                        <div className="py-2 text-center">
+                                            <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
+                                                {formatDateSeparator(dateMessages[0].timestamp)}
+                                            </span>
+                                        </div>
+
+                                        {dateMessages.map((message, index) => {
+                                            // 시스템 메시지 렌더링 (초대, 퇴장 등)
+                                            if (message.isSystem) {
+                                                const systemMatch = (message.content ?? '').match(/^(.+?)(님이.+)$/);
+                                                return (
+                                                    <div key={message.id} className="flex justify-center py-1">
+                                                        <span className="rounded-full bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground">
+                                                            {systemMatch ? (
+                                                                <>
+                                                                    <span className="font-semibold">
+                                                                        {systemMatch[1]}
+                                                                    </span>
+                                                                    {systemMatch[2]}
+                                                                </>
+                                                            ) : (
+                                                                message.content
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            }
+
+                                            const prevMessage = dateMessages[index - 1];
+                                            const nextMessage = dateMessages[index + 1];
+
+                                            const isSameAsPrev = prevMessage && isSameGroup(message, prevMessage);
+                                            const isSameAsNext = nextMessage && isSameGroup(message, nextMessage);
+
+                                            const showProfileAndName = !isSameAsPrev;
+                                            const showTimeAndStatus =
+                                                !isSameAsNext || message.isPending || message.isFailed;
+
+                                            // 일반 메시지 렌더링
+                                            return (
+                                                <div
+                                                    key={message.id}
+                                                    className={`flex gap-1.5 ${message.isOwner ? 'justify-end' : 'justify-start'} ${!showProfileAndName ? '-mt-1' : ''}`}
+                                                >
+                                                    {!message.isOwner &&
+                                                        (showProfileAndName ? (
+                                                            <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                                                                <User className="size-4 text-muted-foreground" />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="size-[39px] flex-shrink-0" />
+                                                        ))}
+                                                    <div
+                                                        className={`flex max-w-[75%] flex-col ${message.isOwner ? 'items-end' : 'items-start'}`}
+                                                    >
+                                                        {!message.isOwner && showProfileAndName && (
+                                                            <span className="mb-1 text-xs text-muted-foreground">
+                                                                {message.ownerName}
+                                                            </span>
+                                                        )}
+                                                        <div
+                                                            className={`flex items-center gap-1.5 ${message.isOwner ? 'flex-row' : ''}`}
+                                                        >
+                                                            {message.isFailed && message.isOwner && (
+                                                                <button
+                                                                    onClick={() => handleRetryMessage(message)}
+                                                                    className="flex flex-shrink-0 items-center"
+                                                                >
+                                                                    <AlertCircle
+                                                                        size={20}
+                                                                        className="text-destructive"
+                                                                    />
+                                                                </button>
+                                                            )}
+                                                            <MessageBubble
+                                                                content={message.content ?? ''}
+                                                                isMine={message.isOwner}
+                                                                status={
+                                                                    message.isFailed
+                                                                        ? 'failed'
+                                                                        : message.isPending
+                                                                          ? 'pending'
+                                                                          : undefined
+                                                                }
+                                                                onAction={
+                                                                    message.isFailed
+                                                                        ? () => handleRetryMessage(message)
+                                                                        : () =>
+                                                                              setExpandedMessage({
+                                                                                  content: message.content ?? '',
+                                                                                  ownerName: message.ownerName,
+                                                                              })
+                                                                }
+                                                            />
+                                                        </div>
+                                                        {showTimeAndStatus && (
+                                                            <div
+                                                                className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${message.isOwner ? 'flex-row-reverse' : ''}`}
+                                                            >
+                                                                {message.isPending ? (
+                                                                    <span className="flex items-center gap-1 text-muted-foreground/70">
+                                                                        <Clock size={11} />
+                                                                        <span>{t('chat.room.sending')}</span>
+                                                                    </span>
+                                                                ) : message.isFailed ? (
+                                                                    <div className="flex items-center gap-1 text-destructive">
+                                                                        <AlertCircle size={11} />
+                                                                        <span>{t('chat.room.failed')}</span>
+                                                                        {message.isOwner && (
+                                                                            <>
+                                                                                <button
+                                                                                    onClick={() =>
+                                                                                        handleRetryMessage(message)
+                                                                                    }
+                                                                                    className="ml-2 flex items-center text-destructive"
+                                                                                    title={t('chat.room.retry')}
+                                                                                >
+                                                                                    <RotateCcw size={11} />
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() =>
+                                                                                        handleDeleteMessage(message.id)
+                                                                                    }
+                                                                                    className="ml-1 flex items-center text-destructive"
+                                                                                    title={t('chat.room.delete')}
+                                                                                >
+                                                                                    <X size={11} />
+                                                                                </button>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <>
+                                                                        <span className="text-muted-foreground">
+                                                                            {formatTime(message.timestamp)}
+                                                                        </span>
+                                                                        {message.chatNo !== undefined &&
+                                                                            memberCount > 1 &&
+                                                                            (!isJoinReady ? (
+                                                                                <Loader2
+                                                                                    size={11}
+                                                                                    className="animate-spin text-muted-foreground"
+                                                                                />
+                                                                            ) : (
+                                                                                (() => {
+                                                                                    const { readCount, unreadCount } =
+                                                                                        getReadCount(message.chatNo);
+                                                                                    return (
+                                                                                        <ReadStatus
+                                                                                            readCount={readCount}
+                                                                                            unreadCount={unreadCount}
+                                                                                        />
+                                                                                    );
+                                                                                })()
+                                                                            ))}
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             );
-                                        }
-
-                                        const prevMessage = dateMessages[index - 1];
-                                        const nextMessage = dateMessages[index + 1];
-
-                                        const isSameAsPrev = prevMessage && isSameGroup(message, prevMessage);
-                                        const isSameAsNext = nextMessage && isSameGroup(message, nextMessage);
-
-                                        const showProfileAndName = !isSameAsPrev;
-                                        const showTimeAndStatus =
-                                            !isSameAsNext || message.isPending || message.isFailed;
-
-                                        // 일반 메시지 렌더링
-                                        return (
-                                            <div
-                                                key={message.id}
-                                                className={`flex gap-1.5 ${message.isOwner ? 'justify-end' : 'justify-start'} ${!showProfileAndName ? '-mt-1' : ''}`}
-                                            >
-                                                {!message.isOwner &&
-                                                    (showProfileAndName ? (
-                                                        <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
-                                                            <User className="size-4 text-muted-foreground" />
-                                                        </div>
-                                                    ) : (
-                                                        <div className="size-[39px] flex-shrink-0" />
-                                                    ))}
-                                                <div
-                                                    className={`flex max-w-[75%] flex-col ${message.isOwner ? 'items-end' : 'items-start'}`}
-                                                >
-                                                    {!message.isOwner && showProfileAndName && (
-                                                        <span className="mb-1 text-xs text-muted-foreground">
-                                                            {message.ownerName}
-                                                        </span>
-                                                    )}
-                                                    <div
-                                                        className={`flex items-center gap-1.5 ${message.isOwner ? 'flex-row' : ''}`}
-                                                    >
-                                                        {message.isFailed && message.isOwner && (
-                                                            <button
-                                                                onClick={() => handleRetryMessage(message)}
-                                                                className="flex flex-shrink-0 items-center"
-                                                            >
-                                                                <AlertCircle size={20} className="text-destructive" />
-                                                            </button>
-                                                        )}
-                                                        <MessageBubble
-                                                            content={message.content ?? ''}
-                                                            isMine={message.isOwner}
-                                                            status={
-                                                                message.isFailed
-                                                                    ? 'failed'
-                                                                    : message.isPending
-                                                                      ? 'pending'
-                                                                      : undefined
-                                                            }
-                                                            onAction={
-                                                                message.isFailed
-                                                                    ? () => handleRetryMessage(message)
-                                                                    : () =>
-                                                                          setExpandedMessage({
-                                                                              content: message.content ?? '',
-                                                                              ownerName: message.ownerName,
-                                                                          })
-                                                            }
-                                                        />
-                                                    </div>
-                                                    {showTimeAndStatus && (
-                                                        <div
-                                                            className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${message.isOwner ? 'flex-row-reverse' : ''}`}
-                                                        >
-                                                            {message.isPending ? (
-                                                                <span className="flex items-center gap-1 text-muted-foreground/70">
-                                                                    <Clock size={11} />
-                                                                    <span>{t('chat.room.sending')}</span>
-                                                                </span>
-                                                            ) : message.isFailed ? (
-                                                                <div className="flex items-center gap-1 text-destructive">
-                                                                    <AlertCircle size={11} />
-                                                                    <span>{t('chat.room.failed')}</span>
-                                                                    {message.isOwner && (
-                                                                        <>
-                                                                            <button
-                                                                                onClick={() =>
-                                                                                    handleRetryMessage(message)
-                                                                                }
-                                                                                className="ml-2 flex items-center text-destructive"
-                                                                                title={t('chat.room.retry')}
-                                                                            >
-                                                                                <RotateCcw size={11} />
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={() =>
-                                                                                    handleDeleteMessage(message.id)
-                                                                                }
-                                                                                className="ml-1 flex items-center text-destructive"
-                                                                                title={t('chat.room.delete')}
-                                                                            >
-                                                                                <X size={11} />
-                                                                            </button>
-                                                                        </>
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                                <>
-                                                                    <span className="text-muted-foreground">
-                                                                        {formatTime(message.timestamp)}
-                                                                    </span>
-                                                                    {message.chatNo !== undefined &&
-                                                                        (!isJoinReady ? (
-                                                                            <Loader2
-                                                                                size={11}
-                                                                                className="animate-spin text-muted-foreground"
-                                                                            />
-                                                                        ) : (
-                                                                            (() => {
-                                                                                const { readCount, unreadCount } =
-                                                                                    getReadCount(message.chatNo);
-                                                                                return (
-                                                                                    <ReadStatus
-                                                                                        readCount={readCount}
-                                                                                        unreadCount={unreadCount}
-                                                                                    />
-                                                                                );
-                                                                            })()
-                                                                        ))}
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ))
-                    )}
+                                        })}
+                                    </div>
+                                ))
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* 초대 모달 */}
             {userType !== UserType.TEMP_ACCOUNT && userType !== UserType.SOCIAL_NO_CLOUD && !channel?.isSelfChat && (

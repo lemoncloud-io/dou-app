@@ -102,11 +102,8 @@ export class ChannelLocalDataSource extends BaseLocalDataSource implements IChan
         const context = this.getContext(contextOverride);
         const allChannels = await this.cacheStorage.loadAll();
         const placeId = payload.sid ?? context.sid;
-        const scopedChannels = placeId ? allChannels.filter(channel => channel.sid === placeId) : allChannels;
-
-        console.log(allChannels);
-        console.log(placeId);
-        console.log(scopedChannels);
+        const scopedChannels =
+            placeId && placeId !== 'default' ? allChannels.filter(channel => channel.sid === placeId) : allChannels;
 
         if (scopedChannels.length === 0) {
             return createDomainListResult([], { total: 0, source: 'local' });

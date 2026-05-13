@@ -399,7 +399,9 @@
             "newMessages": "새 메시지 {{count}}개",
             "retry": "재전송",
             "delete": "삭제",
-            "failed": "전송 실패"
+            "failed": "전송 실패",
+            "syncing": "동기화 중...",
+            "syncingProgress": "동기화 중... ({{fetched}}/{{total}})"
         },
         "settings": {
             "title": "방 설정",

@@ -21,28 +21,53 @@ const promisifyTransaction = (transaction: IDBTransaction): Promise<void> =>
         transaction.onabort = () => reject(new Error('Transaction aborted'));
     });
 
-const openDB = async (): Promise<IDBDatabase> => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = event => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        let store: IDBObjectStore;
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-            store = db.createObjectStore(STORE_NAME, { keyPath: 'key' });
-        } else {
-            const transaction = (event.target as IDBOpenDBRequest).transaction;
-            if (!transaction) return;
-            store = transaction.objectStore(STORE_NAME);
-        }
+/** Cached DB connection — reused across all operations to avoid connection exhaustion in WKWebView. */
+let cachedDBPromise: Promise<IDBDatabase> | null = null;
 
-        if (store.indexNames.contains('type_cid')) {
-            store.deleteIndex('type_cid');
-        }
+const openDB = (): Promise<IDBDatabase> => {
+    if (cachedDBPromise) return cachedDBPromise;
 
-        if (!store.indexNames.contains(TYPE_CID_UID_INDEX)) {
-            store.createIndex(TYPE_CID_UID_INDEX, ['type', 'cid', 'uid'], { unique: false });
-        }
-    };
-    return promisifyRequest(request);
+    cachedDBPromise = new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = event => {
+            const db = (event.target as IDBOpenDBRequest).result;
+            let store: IDBObjectStore;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                store = db.createObjectStore(STORE_NAME, { keyPath: 'key' });
+            } else {
+                const transaction = (event.target as IDBOpenDBRequest).transaction;
+                if (!transaction) return;
+                store = transaction.objectStore(STORE_NAME);
+            }
+
+            if (store.indexNames.contains('type_cid')) {
+                store.deleteIndex('type_cid');
+            }
+
+            if (!store.indexNames.contains(TYPE_CID_UID_INDEX)) {
+                store.createIndex(TYPE_CID_UID_INDEX, ['type', 'cid', 'uid'], { unique: false });
+            }
+        };
+        request.onsuccess = () => {
+            const db = request.result;
+            // If the connection is closed unexpectedly (e.g. by the browser/WKWebView),
+            // reset the cache so the next operation will re-open.
+            db.onclose = () => {
+                cachedDBPromise = null;
+            };
+            db.onversionchange = () => {
+                db.close();
+                cachedDBPromise = null;
+            };
+            resolve(db);
+        };
+        request.onerror = () => {
+            cachedDBPromise = null;
+            reject(request.error);
+        };
+    });
+
+    return cachedDBPromise;
 };
 
 const buildKey = (type: CacheType, cid: string, uid: string, id: string): string => `${type}:${cid}:${uid}:${id}`;

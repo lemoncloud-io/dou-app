@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { logger } from '@chatic/app-messages';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DomainChat } from '@chatic/data';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
 import { useDynamicProfile } from '@chatic/web-core';
@@ -60,169 +59,82 @@ const sortMessages = (messages: ClientChatView[]) =>
 export const useChats = (initialParams: ChatFeedPayload) => {
     const { chat: chatRepository } = useRepositories();
     const profile = useDynamicProfile();
-    // 현재 로그인한 사용자의 ID
     const userId = profile?.uid;
-    // 초기 파라미터에서 대상 채널 ID 추출
     const targetChannelId = initialParams.channelId;
+    const pageSize = initialParams.limit ?? DEFAULT_CHAT_LIMIT;
 
-    // 서버에서 받아온 원본 DomainChat 메시지 목록 상태 (초기에는 null로 로딩 중을 나타냄)
+    // 캐시 전체를 ref에 저장 (state가 아니므로 re-render 유발 안 함)
+    const allCachedRef = useRef<DomainChat[]>([]);
+    // 화면에 표시할 메시지 (최신 displayLimit개)
     const [domainMessages, setDomainMessages] = useState<DomainChat[] | null>(null);
-    // 무한 스크롤을 위한 다음 메시지 커서 번호 (undefined는 더 이상 불러올 메시지가 없음을 의미)
-    const [feedCursorNo, setFeedCursorNo] = useState<number | undefined>(undefined);
+    // 표시할 메시지 수 (loadMore로 증가)
+    const [displayLimit, setDisplayLimit] = useState(pageSize);
 
-    // 로딩 및 에러 상태 관리
-    const [status, setStatus] = useState({
-        isLoadingMore: false, // 추가 메시지 로딩 중 여부
-        isError: false, // 에러 발생 여부
-    });
+    // ref에서 최신 displayLimit개를 잘라서 state에 반영
+    const applyDisplayWindow = useCallback((allMessages: DomainChat[], limit: number) => {
+        const sliced = allMessages.length > limit ? allMessages.slice(-limit) : allMessages;
+        setDomainMessages(sliced);
+    }, []);
 
     /**
-     * 실시간 채팅 업데이트를 구독하는 useEffect.
-     * targetChannelId가 변경될 때마다 구독을 설정하고 해제합니다.
+     * 실시간 채팅 업데이트를 구독 (캐시 전체를 받되, displayLimit만큼만 state에 반영)
+     * 서버 요청 없음 — subscribeList는 로컬 캐시만 관찰
      */
     useEffect(() => {
-        // 채널 ID가 없으면 메시지 목록을 비우고 구독하지 않음
         if (!targetChannelId) {
+            allCachedRef.current = [];
             setDomainMessages([]);
             return;
         }
 
-        // chatRepository를 통해 실시간 메시지 목록 구독
         const unsubscribe = chatRepository.subscribeList(targetChannelId, result => {
             if (result === null) return;
-            // DomainListResult 객체에서 list만 꺼내어 저장
-            // NOTE: 현재는 구독된 최신 전체 목록으로 메시지 상태를 완전히 대체하는 방식입니다.
-            // 만약 subscribeList가 증분 업데이트(새로운 메시지만 전달)를 제공한다면,
-            // 기존 메시지 목록에 새 메시지를 병합하는 로직이 필요할 수 있습니다.
-            setDomainMessages(result.list);
+            allCachedRef.current = result.list;
+            applyDisplayWindow(result.list, displayLimit);
         });
 
-        // 컴포넌트 언마운트 시 구독 해제
         return () => unsubscribe();
-    }, [targetChannelId, chatRepository]);
+    }, [targetChannelId, chatRepository, displayLimit, applyDisplayWindow]);
 
-    /**
-     * 초기 채팅 메시지를 로드하거나 새로고침할 때 사용되는 useEffect.
-     * targetChannelId 또는 initialParams.limit이 변경될 때 실행됩니다.
-     */
-    useEffect(() => {
-        // 채널 ID가 없으면 로드하지 않음
-        if (!targetChannelId) return;
-
-        // 새로운 로드 시작 시 에러 상태를 초기화합니다.
-        setStatus(prev => ({ ...prev, isError: false }));
-
-        // chatRepository를 통해 초기 채팅 메시지 목록을 불러옵니다.
-        // cachePolicy: 'network-only'를 사용하여 항상 최신 데이터를 가져옵니다.
-        chatRepository
-            .fetchChat(
-                { channelId: targetChannelId, limit: initialParams.limit ?? DEFAULT_CHAT_LIMIT },
-                { cachePolicy: 'network-only' }
-            )
-            .then(result => {
-                // 초기 로드 성공 시, 다음 메시지를 불러올 커서 번호를 meta 객체에서 참조하여 저장합니다.
-                setFeedCursorNo(result.meta?.cursorNo);
-            })
-            .catch(error => {
-                // 초기 로드 실패 시 에러 상태를 true로 설정합니다.
-                setStatus(prev => ({ ...prev, isError: true }));
-                logger.error('CHAT', 'Failed to sync chats', { error });
-            });
-    }, [targetChannelId, initialParams.limit, chatRepository]);
-
-    // 초기 메시지 로딩 중 여부 (domainMessages가 아직 null일 때)
     const isLoading = domainMessages === null;
-    // 메시지 목록이 비어있는지 여부
     const isEmpty = domainMessages !== null && domainMessages.length === 0;
 
-    /**
-     * 클라이언트 UI에 표시될 메시지 목록을 생성합니다.
-     * domainMessages가 변경되거나 userId가 변경될 때마다 ClientChatView로 변환하고 정렬합니다.
-     * useMemo를 사용하여 불필요한 재계산을 방지합니다.
-     */
     const messages = useMemo(() => {
-        // domainMessages가 아직 로딩 중이면 빈 배열 반환
         if (!domainMessages) return [];
-        // DomainChat 객체를 ClientChatView 형식으로 변환
         const clientMessages = domainMessages.map(chat => toClientChat(chat, userId));
-        // 변환된 메시지들을 정렬
         return sortMessages(clientMessages);
     }, [domainMessages, userId]);
 
     /**
-     * 추가 메시지를 로드하는 함수 (무한 스크롤).
-     * useCallback을 사용하여 불필요한 재렌더링을 방지합니다.
+     * loadMore: displayLimit을 pageSize만큼 늘려서 캐시에서 더 많은 과거 메시지 표시
      */
     const loadMore = useCallback(() => {
-        // 유효하지 않은 채널 ID, 커서 번호가 없거나 0이거나, 이미 로딩 중이면 함수 실행을 중단합니다.
-        if (!targetChannelId || feedCursorNo === undefined || feedCursorNo === 0 || status.isLoadingMore) return;
+        if (!targetChannelId) return;
+        setDisplayLimit(prev => {
+            const next = prev + pageSize;
+            applyDisplayWindow(allCachedRef.current, next);
+            return next;
+        });
+    }, [targetChannelId, pageSize, applyDisplayWindow]);
 
-        // 추가 로딩 시작 상태 설정 및 에러 상태 초기화
-        setStatus(prev => ({ ...prev, isLoadingMore: true, isError: false }));
-
-        // chatRepository를 통해 이전 채팅 메시지를 불러옵니다.
-        // 현재 feedCursorNo를 사용하여 이전 메시지를 요청합니다.
-        chatRepository
-            .fetchChat(
-                {
-                    channelId: targetChannelId,
-                    cursorNo: feedCursorNo,
-                    limit: initialParams.limit ?? DEFAULT_CHAT_LIMIT,
-                },
-                { cachePolicy: 'network-only' }
-            )
-            .then(result => {
-                // 성공 시, 다음 추가 로드를 위한 커서 번호를 업데이트합니다.
-                setFeedCursorNo(result.meta?.cursorNo);
-                // 기존 메시지 목록에 새로 불러온 메시지를 병합하고 정렬합니다.
-                // prev는 이전 domainMessages 상태를 참조합니다.
-                setDomainMessages(prev => [...(prev || []), ...result.list]);
-            })
-            .catch(error => {
-                logger.error('CHAT', 'Failed to load more chats', {
-                    error,
-                    data: { channelId: targetChannelId, cursorNo: feedCursorNo },
-                });
-                // 실패 시 에러 상태를 true로 설정합니다.
-                setStatus(prev => ({ ...prev, isError: true }));
-            })
-            .finally(() => {
-                // 성공/실패와 관계없이 로딩 상태를 해제합니다.
-                setStatus(prev => ({ ...prev, isLoadingMore: false }));
-            });
-    }, [targetChannelId, feedCursorNo, initialParams.limit, status.isLoadingMore, chatRepository]); // domainMessages는 함수형 업데이트를 사용하므로 의존성 배열에서 제거합니다.
+    const hasMore = allCachedRef.current.length > displayLimit;
 
     /**
-     * 채팅 목록을 새로고침하는 함수.
-     * useCallback을 사용하여 불필요한 재렌더링을 방지합니다.
+     * refresh: displayLimit 리셋 후 캐시에서 다시 표시
      */
     const refresh = useCallback(() => {
-        // 채널 ID가 없으면 실행하지 않음
         if (!targetChannelId) return;
-        // domainMessages를 null로 설정하여 isLoading 상태를 true로 만들고,
-        // useEffect (초기 로드)가 다시 실행되도록 유도합니다.
-        setDomainMessages(null);
-        chatRepository
-            .fetchChat(
-                { channelId: targetChannelId, limit: initialParams.limit ?? DEFAULT_CHAT_LIMIT },
-                { cachePolicy: 'network-only' }
-            )
-            .then(result => {
-                // 새로고침 성공 시, 다음 커서 번호를 업데이트합니다.
-                setFeedCursorNo(result.meta?.cursorNo);
-                // refresh 성공 시, domainMessages를 새로 불러온 목록으로 설정하여 즉시 업데이트합니다.
-                setDomainMessages(result.list);
-            })
-            .catch(() => setStatus(prev => ({ ...prev, isError: true }))); // 실패 시 에러 상태 설정
-    }, [targetChannelId, initialParams.limit, chatRepository]);
+        setDisplayLimit(pageSize);
+        applyDisplayWindow(allCachedRef.current, pageSize);
+    }, [targetChannelId, pageSize, applyDisplayWindow]);
 
     return {
         messages,
         isLoading,
         isEmpty,
-        isLoadingMore: status.isLoadingMore,
-        isError: status.isError,
-        hasMore: feedCursorNo !== undefined && feedCursorNo !== 0,
+        isLoadingMore: false,
+        isError: false,
+        hasMore,
         loadMore,
         refresh,
         sync: refresh,

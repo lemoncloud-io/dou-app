@@ -12,6 +12,8 @@ import type { CacheStorage, CacheStorageItem } from '../storages';
 import type { DomainChat, DomainListResult } from '../../domain';
 import { createDomainListResult } from '../../domain';
 import { toDomainChat as toDomainChatBase } from '../../domain';
+import { resolveScopedContext } from '../storages/utils';
+import { logger } from '@chatic/app-messages';
 
 type ChatCache = CacheStorageItem<'chat'>;
 type ChatSortable = Partial<DomainChat> | ChatCache;
@@ -97,7 +99,27 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         chats: Array<Partial<DomainChat>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
-        await Promise.all(chats.map(chat => this.upsert(chat, contextOverride)));
+        const validChats = chats.filter(chat => chat.id);
+        if (validChats.length === 0) return;
+
+        const context = this.getContext(contextOverride);
+        const cid = context.cid || this.getCid(contextOverride);
+        const scope = { cid, sid: context.sid || '', uid: context.uid };
+
+        const normalized = validChats.map(
+            chat => toDomainChatBase({ ...(chat as Record<string, unknown>), cid }, scope) as ChatCache
+        );
+
+        // 🔍 DEBUG: trace scope used by saveAll
+        const debugSaveScope = resolveScopedContext('chat', this.contextProvider);
+        logger.info(
+            'CACHE',
+            `[ChatLocal:upsertMany] count=${normalized.length}, scope={cid:${debugSaveScope.cid}, uid:${debugSaveScope.uid}}`
+        );
+
+        // 단일 IndexedDB 트랜잭션으로 배치 저장 후 구독자에게 한 번만 알림
+        await this.cacheStorage.saveAll(normalized);
+        await this.emitAllStreams();
     }
 
     public async remove(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
@@ -131,8 +153,17 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
             return createDomainListResult([], { total: 0, source: 'local' });
         }
 
+        // 🔍 DEBUG: trace scope used by loadAll
+        const debugScope = resolveScopedContext('chat', this.contextProvider);
+        const debugCtx = this.contextProvider.getContext();
+
         const allMessages = await this.cacheStorage.loadAll();
         const filteredMessages = allMessages.filter(chat => chat.channelId === channelId);
+
+        logger.info(
+            'CACHE',
+            `[ChatLocal:fetchList] channelId=${channelId}, scope={cid:${debugScope.cid}, uid:${debugScope.uid}}, ctx={cid:${debugCtx.cid}, uid:${debugCtx.uid}}, loadAll=${allMessages.length}, filtered=${filteredMessages.length}`
+        );
 
         //  조회가 완료되었으나 데이터가 없는 경우 명시적으로 빈 리스트를 반환합니다.
         if (filteredMessages.length === 0) {

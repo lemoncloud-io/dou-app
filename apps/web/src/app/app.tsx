@@ -15,6 +15,7 @@ import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore, useSplas
 import { initializeMessageListener, logger } from '@chatic/app-messages';
 
 import { ServiceUnavailableOverlay, SplashOverlay, WebSocketV2Connection } from './components';
+import { GlobalChatSync } from './components/GlobalChatSync';
 import { DataProvider } from './shared/data';
 import { Router } from './routes';
 import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
@@ -117,6 +118,7 @@ export function App() {
                                         <DataProvider>
                                             <ForegroundTokenRefresh refreshToken={refreshToken} />
                                             {isAuthenticated && <WebSocketV2Connection />}
+                                            {isAuthenticated && <GlobalChatSync />}
                                             <ServiceUnavailableOverlay />
                                             <DeviceTokenRegistration />
                                             <Router />
