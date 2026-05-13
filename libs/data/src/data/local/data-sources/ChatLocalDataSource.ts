@@ -126,7 +126,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
 
         // 단일 IndexedDB 트랜잭션으로 배치 저장 후 구독자에게 한 번만 알림
         await this.cacheStorage.saveAll(normalized);
-        await this.emitAllStreams();
+        this.debouncedEmitAllStreams();
     }
 
     public async remove(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
