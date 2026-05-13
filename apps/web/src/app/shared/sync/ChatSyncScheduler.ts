@@ -95,7 +95,12 @@ export class ChatSyncScheduler {
 
         for (const target of targets) {
             const existing = this.states.get(target.channelId);
-            if (existing?.status === 'synced' || existing?.status === 'syncing') {
+            if (existing?.status === 'syncing') {
+                skipped.push(target.channelId);
+                continue;
+            }
+            // synced이지만 serverChatNo가 증가했다면 → 새 메시지 존재 → 재등록
+            if (existing?.status === 'synced' && target.serverChatNo <= existing.serverChatNo) {
                 skipped.push(target.channelId);
                 continue;
             }
