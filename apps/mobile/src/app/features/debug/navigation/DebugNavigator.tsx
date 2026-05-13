@@ -59,7 +59,7 @@ export const DebugNavigator = () => {
                 name="NotificationTest"
                 component={NotificationTestScreen}
                 options={{
-                    title: 'FCM 테스트',
+                    title: '알림 테스트',
                     headerBackButtonDisplayMode: 'minimal',
                 }}
             />
