@@ -13,9 +13,7 @@ import {
 } from '@chatic/data';
 
 export const isNativeApp = (): boolean => {
-    return (
-        typeof window !== 'undefined' && (window as { ReactNativeWebView?: unknown }).ReactNativeWebView !== undefined
-    );
+    return false;
 };
 
 // DataContext 스냅샷 대신 DataContextProvider를 주입받습니다.
