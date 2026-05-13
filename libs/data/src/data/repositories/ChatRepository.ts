@@ -82,16 +82,17 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
             const domainChat = toDomainChat(
                 {
                     ...chat,
+                    tempId: optimisticChat.id,
                     isPending: false,
                     isFailed: false,
                 },
                 domainScope
             );
 
+            await this.chatLocalDataSource.upsert(domainChat, repositoryContext);
             if (domainChat.id && optimisticChat.id !== domainChat.id) {
                 await this.chatLocalDataSource.remove(optimisticChat.id, repositoryContext);
             }
-            await this.chatLocalDataSource.upsert(domainChat, repositoryContext);
             return domainChat;
         } catch (error) {
             const failedAt = Date.now();
@@ -263,6 +264,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         return toDomainChat(
             {
                 id,
+                tempId: id,
                 userId: domainScope.uid,
                 cid: domainScope.cid,
                 channelId: payload.channelId || '',

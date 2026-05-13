@@ -64,6 +64,7 @@ export const toDomainChat = (
     return {
         ...(source as ChatView),
         id: toStringSafe((source as { id?: string }).id),
+        tempId: toStringSafe((source as { tempId?: string }).tempId) || undefined,
         cid: toStringSafe((source as { cid?: string }).cid) || scope.cid,
         channelId: toStringSafe((source as { channelId?: string }).channelId),
         chatNo: toNumberSafe((source as { chatNo?: number }).chatNo, 0),

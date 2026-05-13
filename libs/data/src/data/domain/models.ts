@@ -25,6 +25,7 @@ export interface DomainChat extends ChatView {
     isFailed: boolean;
     createdAtMs: number;
     updatedAtMs: number;
+    tempId?: string;
 }
 
 export interface DomainJoin extends JoinView {

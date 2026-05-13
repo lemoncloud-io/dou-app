@@ -63,6 +63,7 @@ export interface CacheChannelView extends ChannelView, CacheViewBase {
 /** 채팅 메시지 뷰 (전송 상태 포함) */
 export interface CacheChatView extends ChatView, CacheViewBase {
     cid: string;
+    tempId?: string;
     isPending?: boolean; // 전송 중 여부
     isFailed?: boolean; // 전송 실패 여부
 }
