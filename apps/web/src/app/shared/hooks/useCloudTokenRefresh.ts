@@ -17,11 +17,13 @@ export const useCloudTokenRefresh = () => {
     const { emit, isConnected } = useWebSocketV2();
     const { setServiceUnavailable } = useServiceStatusStore();
     const wssType = useWebSocketV2Store(s => s.wssType);
+    const isDeviceRegistered = useWebSocketV2Store(s => s.isDeviceRegistered);
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const refreshingRef = useRef(false);
 
     useEffect(() => {
-        if (!isConnected || !isAuthenticated) return;
+        // Wait for device.save response before sending auth.update
+        if (!isConnected || !isAuthenticated || !isDeviceRegistered) return;
 
         const refresh = async () => {
             if (refreshingRef.current) return;
@@ -76,5 +78,5 @@ export const useCloudTokenRefresh = () => {
         }, REFRESH_INTERVAL_MS);
 
         return () => clearInterval(id);
-    }, [wssType, isAuthenticated, isConnected, isVerified, emit, setServiceUnavailable]);
+    }, [wssType, isAuthenticated, isConnected, isDeviceRegistered, isVerified, emit, setServiceUnavailable]);
 };

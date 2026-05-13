@@ -88,6 +88,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     const profile = useDynamicProfile();
     const userId = profile?.uid;
     const targetChannelId = initialParams.channelId;
+    const pageSize = initialParams.limit ?? DEFAULT_CHAT_LIMIT;
 
     const [domainMessages, setDomainMessages] = useState<DomainChat[] | null>(null);
     const [feedCursorNo, setFeedCursorNo] = useState<number | undefined>(undefined);
@@ -101,6 +102,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
      */
     useEffect(() => {
         if (!targetChannelId) {
+            allCachedRef.current = [];
             setDomainMessages([]);
             return;
         }
@@ -164,7 +166,6 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 { cachePolicy: 'cache-first' }
             )
             .then((result: DomainListResult<DomainChat>) => {
-                // 가져온 데이터를 기존 메시지 목록과 병합하여 상태 업데이트
                 setDomainMessages(prev => mergeAndSortMessages(prev || [], result.list));
                 setFeedCursorNo(result.meta?.cursorNo);
             })
@@ -180,10 +181,12 @@ export const useChats = (initialParams: ChatFeedPayload) => {
             });
     }, [targetChannelId, feedCursorNo, initialParams.limit, status.isLoadingMore, chatRepository]);
 
+    const hasMore = feedCursorNo !== undefined && feedCursorNo > 0;
+
     const refresh = useCallback(() => {
         if (!targetChannelId) return;
 
-        setDomainMessages(null); // 로딩 상태 시작
+        setDomainMessages(null);
         setStatus(prev => ({ ...prev, isError: false }));
 
         chatRepository
@@ -207,7 +210,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
         isEmpty,
         isLoadingMore: status.isLoadingMore,
         isError: status.isError,
-        hasMore: feedCursorNo !== undefined && feedCursorNo !== 0,
+        hasMore,
         loadMore,
         refresh,
         sync: refresh,

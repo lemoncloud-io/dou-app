@@ -12,6 +12,7 @@ export interface WebSocketV2State {
     wssType: WSSType | null;
     connectionId: string | null;
     isConnected: boolean;
+    isDeviceRegistered: boolean;
     isVerified: boolean;
     connectionStatus: ConnectionStatus;
     lastMessage: WSSEnvelope | null;
@@ -24,6 +25,7 @@ export interface WebSocketV2Store extends WebSocketV2State {
     setWssType: (wssType: WSSType | null) => void;
     setConnectionId: (connectionId: string | null) => void;
     setIsConnected: (isConnected: boolean) => void;
+    setIsDeviceRegistered: (isDeviceRegistered: boolean) => void;
     setIsVerified: (isVerified: boolean) => void;
     setConnectionStatus: (status: ConnectionStatus) => void;
     setLastMessage: (message: WSSEnvelope | null) => void;
@@ -37,6 +39,7 @@ const initialState: WebSocketV2State = {
     wssType: null,
     connectionId: null,
     isConnected: false,
+    isDeviceRegistered: false,
     isVerified: false,
     connectionStatus: 'disconnected',
     lastMessage: null,
@@ -52,6 +55,7 @@ export const useWebSocketV2Store = create<WebSocketV2Store>()(
         setWssType: wssType => set({ wssType }),
         setConnectionId: connectionId => set({ connectionId }),
         setIsConnected: isConnected => set({ isConnected }),
+        setIsDeviceRegistered: isDeviceRegistered => set({ isDeviceRegistered }),
         setIsVerified: isVerified => set({ isVerified }),
         setConnectionStatus: connectionStatus => set({ connectionStatus }),
         setLastMessage: lastMessage => set({ lastMessage }),

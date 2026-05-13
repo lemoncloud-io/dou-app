@@ -111,7 +111,7 @@ export abstract class BaseLocalDataSource {
         try {
             await notify();
         } catch (error) {
-            console.warn('[LocalDataSource] stream notify failed', error);
+            console.error('[LocalDataSource] stream notify failed', error);
         }
     }
 }

@@ -129,7 +129,7 @@ export abstract class BaseRepository {
 
     protected runInBackground(task: () => Promise<unknown>, label: string): void {
         void task().catch(error => {
-            console.warn(`[Repository:${label}] background task failed`, error);
+            console.error(`[Repository:${label}] background task failed`, error);
         });
     }
 

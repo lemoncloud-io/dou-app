@@ -1,5 +1,6 @@
 import type { DataContext, DataContextProvider } from '@chatic/data';
 import { DataContextHolder } from '@chatic/data';
+import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
@@ -27,6 +28,13 @@ export const useDataContextHolder = (
 
     // dataContext(상태)가 변경될 때마다 holder 내부 값을 업데이트
     useEffect(() => {
+        const prev = contextHolder.getContext();
+        if (prev.cid !== dataContext.cid || prev.uid !== dataContext.uid) {
+            logger.warn(
+                'CACHE',
+                `[DataContext] scope changed: cid=${prev.cid}→${dataContext.cid}, uid=${prev.uid}→${dataContext.uid}`
+            );
+        }
         contextHolder.setContext(dataContext);
     }, [contextHolder, dataContext]);
 

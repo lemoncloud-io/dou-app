@@ -7,7 +7,6 @@ import {
     createCacheStorages,
     createIndexedDBAdapter,
     createLocalDataSources,
-    createNativeDBAdapter,
     type DataContextProvider,
     type LocalDataSources,
 } from '@chatic/data';
@@ -21,7 +20,7 @@ export const getCacheStorage = <TType extends CacheType>(
     type: TType,
     contextProvider: DataContextProvider
 ): CacheStorage<TType> => {
-    return isNativeApp() ? createNativeDBAdapter(type, contextProvider) : createIndexedDBAdapter(type, contextProvider);
+    return createIndexedDBAdapter(type, contextProvider);
 };
 
 /**

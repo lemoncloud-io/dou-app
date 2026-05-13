@@ -372,7 +372,6 @@ export const ChatRoomPage = () => {
                 )}
             </header>
 
-            {/*  중간 래퍼를 제거하고 gap과 패딩 속성을 최상단 스크롤 영역으로 이동시켰습니다. */}
             <div
                 ref={messagesEndRef}
                 onScroll={debouncedHandleScroll}
@@ -425,11 +424,9 @@ export const ChatRoomPage = () => {
                     </div>
                 ) : (
                     <>
-                        {/* [FIX 3] 날짜 정렬을 내림차순(최신 날짜가 먼저)으로 변경합니다. */}
                         {Object.entries(groupedMessages)
                             .sort(([a], [b]) => b.localeCompare(a))
                             .map(([dateKey, dateMessages]) => {
-                                // [FIX 4] 메시지 배열을 역순으로 렌더링하여 flex-col-reverse의 네이티브 스크롤 앵커링을 타게 합니다.
                                 const reversedMessages = [...dateMessages].reverse();
 
                                 return (
@@ -455,9 +452,8 @@ export const ChatRoomPage = () => {
                                                 );
                                             }
 
-                                            // [FIX 5] 배열이 역순이 되었으므로, 이전/다음 메시지 논리를 반대로 참조해야 합니다.
-                                            const chronPrevMessage = reversedMessages[index + 1]; // 시간상 이전(과거) 메시지
-                                            const chronNextMessage = reversedMessages[index - 1]; // 시간상 다음(미래) 메시지
+                                            const chronPrevMessage = reversedMessages[index + 1];
+                                            const chronNextMessage = reversedMessages[index - 1];
 
                                             const isSameAsPrev =
                                                 chronPrevMessage && isSameGroup(message, chronPrevMessage);
@@ -591,7 +587,6 @@ export const ChatRoomPage = () => {
                                                 </div>
                                             );
                                         })}
-                                        {/* [FIX 6] flex-col-reverse 상태이므로, 날짜 구분선이 배열 렌더링 마지막에 있어야 시각적으로 가장 위에 보입니다. */}
                                         <div className="py-2 text-center pb-1">
                                             <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
                                                 {formatDateSeparator(dateMessages[0].timestamp)}
@@ -600,7 +595,6 @@ export const ChatRoomPage = () => {
                                     </div>
                                 );
                             })}
-                        {/* [FIX 7] 무한 스크롤 로딩 인디케이터 역시 가장 하단(시각적으로 최상단)에 배치합니다. */}
                         {isLoadingMore && (
                             <div className="flex justify-center py-3">
                                 <Loader2 size={20} className="animate-spin text-muted-foreground" />
