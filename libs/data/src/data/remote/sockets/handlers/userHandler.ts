@@ -3,6 +3,7 @@ import type { SiteView, UserView } from '@lemoncloud/chatic-socials-api';
 import { logger } from '@chatic/app-messages';
 import type { SocketEventMap } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 /**
  * 사용자 및 사이트 관련 메시지를 분석하여 각각의 도메인 이벤트로 분기 처리합니다.
@@ -56,7 +57,7 @@ export const userHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEve
         }
         // 타 사용자에 대한 초대 결과 처리
         case 'invite': {
-            eventBus.emit('user:create', { ...detail, payload: payload as UserView });
+            eventBus.emit('user:invite', { ...detail, payload: payload as MyInviteView });
             break;
         }
         default:

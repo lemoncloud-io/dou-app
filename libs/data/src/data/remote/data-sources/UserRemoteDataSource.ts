@@ -3,7 +3,7 @@ import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap, ListResult, SocketEventMap } from '../../events/types';
 import type { IWebSocketClient } from '../clients';
 import type { ChatUsersPayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
-import type { MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 
 export interface IUserRemoteDataSource {
     /** 특정 조건의 사용자 목록을 서버에 요청합니다. */
@@ -50,6 +50,13 @@ export class UserRemoteDataSource implements IUserRemoteDataSource {
         this.socketEventBus.on('user:delete', detail => {
             this.domainEventBus.emit('user:delete', {
                 data: detail.payload as UserView,
+                ref: detail.ref,
+            });
+        });
+
+        this.socketEventBus.on('user:invite', detail => {
+            this.domainEventBus.emit('user:invite', {
+                data: detail.payload as MyInviteView,
                 ref: detail.ref,
             });
         });

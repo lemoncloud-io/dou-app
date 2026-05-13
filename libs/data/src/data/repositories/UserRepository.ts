@@ -1,5 +1,5 @@
 import type { ChatUsersPayload, UserInvitePayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
-import type { MyInviteView, UserView } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { DomainEventMap, ListResult } from '../events/types';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
@@ -8,6 +8,7 @@ import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { IUserLocalDataSource } from '../local/data-sources';
 import { createDomainListResult, type DomainListResult, type DomainUser, toDomainUser } from '../domain';
+import type { UserView } from '@lemoncloud/chatic-socials-api';
 
 /**
  * 사용자 도메인의 Repository 공개 계약입니다.
@@ -95,7 +96,7 @@ export class UserRepository extends BaseRepository implements IUserRepository {
     }
 
     public requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView> {
-        return this.requestRemote(ref => this.userRemoteDataSource.requestInvite(payload, ref), options);
+        return this.requestRemote<MyInviteView>(ref => this.userRemoteDataSource.requestInvite(payload, ref), options);
     }
 
     public clearAll(): Promise<void> {

@@ -1,5 +1,5 @@
-import type { CloudView, UserView } from '@lemoncloud/chatic-backend-api';
-import type { ChannelView, ChatView, JoinView, SiteView } from '@lemoncloud/chatic-socials-api';
+import type { CloudView } from '@lemoncloud/chatic-backend-api';
+import type { ChannelView, UserView, ChatView, JoinView, SiteView } from '@lemoncloud/chatic-socials-api';
 import type { ChatMinePayload } from '@lemoncloud/chatic-sockets-api';
 
 export interface DomainScope {
@@ -50,7 +50,6 @@ export interface DomainChannelListPayload extends ChatMinePayload {
 export interface DomainUser extends UserView {
     id: string;
     cid: string;
-    channelIds: string[];
 }
 
 export interface DomainSite extends SiteView {

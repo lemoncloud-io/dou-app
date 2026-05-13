@@ -15,6 +15,7 @@ import type {
 } from '@lemoncloud/chatic-socials-api';
 
 import type { ListResult, Synced } from './common';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 /**
  * 인프라 계층: 서버로부터 웹소켓을 통해 수신되는 원시 데이터의 표준 래퍼(Wrapper) 규격입니다.
@@ -71,7 +72,7 @@ export interface SocketEventMap {
     'user:create': SocketEventDetail<Synced<UserView>>;
     'user:update': SocketEventDetail<Synced<UserView>>;
     'user:delete': SocketEventDetail<Synced<UserView>>;
-    'user:invite': SocketEventDetail<UserView>;
+    'user:invite': SocketEventDetail<MyInviteView>;
     'user:error': SocketEventDetail<ChatErrorPayload>;
 
     // ------------------------------------------
