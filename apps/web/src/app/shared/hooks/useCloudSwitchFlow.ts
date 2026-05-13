@@ -143,9 +143,11 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions) => {
                 }
 
                 // Step 3: Places 가져오기
-                logger.info('SESSION', '[CloudSwitchFlow] Step 3: fetchPlaces');
+                // 이전 cloud의 background refresh가 현재 scope에 오염시킨 데이터 제거
+                logger.info('SESSION', '[CloudSwitchFlow] Step 3: clearAll + fetchPlaces');
                 let places: DomainSite[] = [];
                 try {
+                    await siteRepository.clearAll();
                     const result = await siteRepository.fetchSite({}, { cachePolicy: 'network-only' });
                     places = (result.list ?? []) as DomainSite[];
                 } catch (e) {

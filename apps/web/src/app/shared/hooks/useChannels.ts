@@ -61,7 +61,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
 
     //  로컬 캐시 스트림 구독 (즉시 렌더링)
     useEffect(() => {
-        if (!targetPlaceId) {
+        if (!targetPlaceId || !cloudId) {
             setChannels([]);
             setIsLoading(false);
             return;
@@ -79,7 +79,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         });
 
         return () => unsubscribe();
-    }, [targetPlaceId, channelRepository, userId]);
+    }, [targetPlaceId, cloudId, channelRepository, userId]);
 
     // 백그라운드 데이터 동기화
     const fetchChannels = useCallback(

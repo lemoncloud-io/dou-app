@@ -59,7 +59,7 @@ export const usePlaces = () => {
         if (!cloudId || !isVerified) return;
         if (prevCloudIdRef.current === cloudId) return;
         prevCloudIdRef.current = cloudId;
-        void fetchPlaces({ loading: places.length === 0, forceNetwork: false });
+        void fetchPlaces({ loading: places.length === 0, forceNetwork: true });
     }, [fetchPlaces, cloudId, isVerified]);
 
     useEffect(() => {

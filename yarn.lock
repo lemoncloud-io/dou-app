@@ -4445,7 +4445,7 @@
     prompts "^2.4.2"
     semver "^7.5.2"
 
-"@react-native-community/push-notification-ios@^1.12.0":
+"@react-native-community/push-notification-ios@*", "@react-native-community/push-notification-ios@^1.12.0":
   version "1.12.0"
   resolved "https://registry.yarnpkg.com/@react-native-community/push-notification-ios/-/push-notification-ios-1.12.0.tgz#d5ee6bb52b5952b0d0a5c139d34c0e5138fe0892"
   integrity sha512-nu6ctimVlK4E3id3QHs9yZJ4vCP5UG3lRaBvSboJZ2IWU0XROcIJnNVIXsSH7C3hTlb84lNwPWir3y/TxRj0oA==
