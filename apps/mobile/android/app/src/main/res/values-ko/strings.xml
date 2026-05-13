@@ -1,4 +1,4 @@
 <resources>
-    <string name="push_chat_message_title">[%1$s]</string>
+    <string name="push_chat_message_title">%1$s</string>
     <string name="push_chat_message_body">새로운 메시지가 도착했습니다.</string>
 </resources>
