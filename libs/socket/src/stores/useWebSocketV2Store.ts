@@ -8,7 +8,7 @@ export type WSSType = 'relay' | 'cloud';
 
 export interface WebSocketV2State {
     id: string | null;
-    cloudId: string;
+    cloudId: string | null;
     wssType: WSSType | null;
     connectionId: string | null;
     isConnected: boolean;
@@ -35,7 +35,7 @@ export interface WebSocketV2Store extends WebSocketV2State {
 
 const initialState: WebSocketV2State = {
     id: null,
-    cloudId: 'default',
+    cloudId: null,
     wssType: null,
     connectionId: null,
     isConnected: false,

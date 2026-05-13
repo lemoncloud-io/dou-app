@@ -4,7 +4,7 @@ import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
-import { useEffect, useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useState } from 'react';
 
 export const useDataContextHolder = (
     injectedContext?: Partial<DataContext>
@@ -27,7 +27,8 @@ export const useDataContextHolder = (
     const [contextHolder] = useState(() => new DataContextHolder(dataContext));
 
     // dataContext(상태)가 변경될 때마다 holder 내부 값을 업데이트
-    useEffect(() => {
+    // useLayoutEffect를 사용하여 하위 컴포넌트의 useEffect(쿼리)보다 먼저 context를 동기화
+    useLayoutEffect(() => {
         const prev = contextHolder.getContext();
         if (prev.cid !== dataContext.cid || prev.uid !== dataContext.uid) {
             logger.warn(
