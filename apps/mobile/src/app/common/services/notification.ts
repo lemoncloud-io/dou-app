@@ -1,8 +1,8 @@
 import { PermissionsAndroid, Platform } from 'react-native';
-
 import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import messaging, { AuthorizationStatus } from '@react-native-firebase/messaging';
 import notifee from '@notifee/react-native';
+import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import { logger } from './log';
 
 export const notificationService = {
@@ -54,14 +54,60 @@ export const notificationService = {
         }
     },
 
-    getInitialNotification: async (): Promise<FirebaseMessagingTypes.RemoteMessage | null> => {
+    getInitialNotification: async (): Promise<any> => {
         notificationService.clearBadge();
+
+        if (Platform.OS === 'ios') {
+            const apnsInitial = await PushNotificationIOS.getInitialNotification();
+            if (apnsInitial) {
+                // APNs 초기 알림 포맷팅
+                return {
+                    notification: {
+                        title: apnsInitial.getTitle(),
+                        body: apnsInitial.getMessage(),
+                    },
+                    data: apnsInitial.getData(),
+                    isAPNs: true,
+                };
+            }
+        }
+
         return messaging().getInitialNotification();
     },
 
-    onMessage: (callback: (message: any) => void): (() => void) => {
+    onMessage: (callback: (message: any) => void) => {
         notificationService.clearBadge();
-        return messaging().onMessage(callback);
+
+        // FCM 리스너 등록
+        const unsubscribeFCM = messaging().onMessage(callback);
+
+        // iOS APNs 리스너 등록
+        if (Platform.OS === 'ios') {
+            const handleAPNs = (notification: any) => {
+                const normalizedMessage = {
+                    notification: {
+                        title: notification.getTitle(),
+                        body: notification.getMessage(),
+                    },
+                    data: notification.getData(),
+                    isAPNs: true, // 로그 식별용
+                };
+
+                callback(normalizedMessage);
+
+                // OS에 알림 처리 완료를 보고
+                notification.finish(PushNotificationIOS.FetchResult.NoData);
+            };
+
+            PushNotificationIOS.addEventListener('notification', handleAPNs);
+
+            return () => {
+                unsubscribeFCM();
+                PushNotificationIOS.removeEventListener('notification');
+            };
+        }
+
+        return unsubscribeFCM;
     },
 
     onNotificationOpenedApp: (callback: (message: any) => void) => {
@@ -75,11 +121,7 @@ export const notificationService = {
 
     setBadgeCount: async (count: number): Promise<void> => {
         try {
-            if (Platform.OS === 'ios') {
-                await notifee.setBadgeCount(count);
-            } else {
-                await notifee.setBadgeCount(count);
-            }
+            await notifee.setBadgeCount(count);
         } catch (e) {
             logger.error('NOTIFICATION', 'Set badge error.', e);
         }
