@@ -4,6 +4,7 @@ import type { DomainEventMap, ListResult } from '../events/types';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
+import type ISyncRepository from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { IUserLocalDataSource } from '../local/data-sources';
@@ -49,7 +50,7 @@ export interface IUserRepository extends ILocalCacheMutationRepository<DomainUse
  * UserRemoteDataSource를 감싸는 사용자 Repository 구현체입니다.
  * chat 도메인에 걸친 사용자 조회/초대 요청도 사용자 API로 묶어 노출합니다.
  */
-export class UserRepository extends BaseRepository implements IUserRepository {
+export class UserRepository extends BaseRepository implements IUserRepository, ISyncRepository {
     constructor(
         private readonly userRemoteDataSource: IUserRemoteDataSource,
         private readonly userLocalDataSource: IUserLocalDataSource,
@@ -59,6 +60,9 @@ export class UserRepository extends BaseRepository implements IUserRepository {
     ) {
         super(requestManager, contextProvider, domainEventBus);
         this.initializeInternalListeners();
+    }
+    sync(id?: string, meta?: Record<string, unknown>): Promise<void> {
+        throw new Error('Method not implemented.');
     }
 
     public async fetchUsers(

@@ -8,6 +8,7 @@ import type {
     LocalCacheBulkPatch,
     RepositoryRequestOptions,
 } from './types';
+import type ISyncRepository from './types';
 import { BaseRepository } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
@@ -51,7 +52,7 @@ export interface IChatRepository extends ILocalCacheMutationRepository<DomainCha
 }
 
 /** Remote chat API와 local message cache를 중재합니다. */
-export class ChatRepository extends BaseRepository implements IChatRepository {
+export class ChatRepository extends BaseRepository implements IChatRepository, ISyncRepository {
     constructor(
         private readonly chatRemoteDataSource: IChatRemoteDataSource,
         private readonly chatLocalDataSource: IChatLocalDataSource,
@@ -61,6 +62,9 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
     ) {
         super(requestManager, contextProvider, domainEventBus);
         this.initializeInternalListeners();
+    }
+    sync(id?: string, meta?: Record<string, unknown>): Promise<void> {
+        throw new Error('Method not implemented.');
     }
 
     /** 메시지 발신을 data source에 위임하고 응답을 기다립니다. */
