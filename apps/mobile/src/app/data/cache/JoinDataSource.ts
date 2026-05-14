@@ -1,17 +1,15 @@
-import { database, TABLES } from '../../../database';
-import type { ICacheDataSource } from './ICacheDataSource';
 import type { CacheJoinView, JoinQueryOptions } from '@chatic/app-messages';
+import type { ICacheDataSource } from './types';
+import { TABLES } from '../../database';
+import { database } from '../../services';
 
 /**
  * 참여(Join) 도메인 전용 데이터 소스 구현체
  * 유저가 어떤 채널에 참여하고 있는지, 혹은 채널에 어떤 유저들이 있는지
  * 양방향으로 빠르게 검색할 수 있도록 channel_id와 user_id를 추출하여 저장합니다.
  */
-export const joinDataSource: ICacheDataSource<CacheJoinView, JoinQueryOptions> = {
-    /**
-     * 단일 참여 정보를 조회합니다.
-     */
-    fetch: async (id, cid, uid) => {
+export class JoinDataSource implements ICacheDataSource<CacheJoinView, JoinQueryOptions> {
+    public async fetch(id: string, cid?: string, uid?: string): Promise<CacheJoinView | null> {
         let query = `SELECT data FROM ${TABLES.JOINS} WHERE id = ?`;
         const params: (string | number)[] = [id];
         if (cid) {
@@ -25,14 +23,9 @@ export const joinDataSource: ICacheDataSource<CacheJoinView, JoinQueryOptions> =
         const result = await database.execute(query, params);
         if (result.rows && result.rows.length > 0) return JSON.parse(result.rows[0].data as string) as CacheJoinView;
         return null;
-    },
+    }
 
-    /**
-     * 조건에 맞는 참여 목록을 조회합니다.
-     * @param cid
-     * @param query 특정 채널(channelId) 또는 특정 유저(userId) 필터링 조건
-     */
-    fetchAll: async (cid, query, uid) => {
+    public async fetchAll(cid?: string, query?: JoinQueryOptions, uid?: string): Promise<CacheJoinView[]> {
         let sql = `SELECT data FROM ${TABLES.JOINS}`;
         const params: (string | number)[] = [];
         const conditions: string[] = [];
@@ -58,11 +51,10 @@ export const joinDataSource: ICacheDataSource<CacheJoinView, JoinQueryOptions> =
         if (conditions.length > 0) sql += ` WHERE ` + conditions.join(' AND ');
 
         const result = await database.execute(sql, params);
-        return (result.rows || []).map(row => JSON.parse(row.data as string) as CacheJoinView);
-    },
+        return (result.rows || []).map((row: any) => JSON.parse(row.data as string) as CacheJoinView);
+    }
 
-    /** 검색 최적화를 위해 channel_id와 user_id를 별도 컬럼으로 분리하여 저장합니다. */
-    save: async (id, item, cid, uid) => {
+    public async save(id: string, item: CacheJoinView, cid: string, uid: string): Promise<void> {
         const sql = `INSERT OR REPLACE INTO ${TABLES.JOINS} (cid, uid, id, channel_id, user_id, data) VALUES (?, ?, ?, ?, ?, ?)`;
         const channelId = item.channelId || '';
         const userId = item.userId || '';
@@ -77,10 +69,9 @@ export const joinDataSource: ICacheDataSource<CacheJoinView, JoinQueryOptions> =
         });
 
         await database.execute(sql, [cid, uid, id, channelId, userId, dataToSave]);
-    },
+    }
 
-    /** 다수의 참여 정보를 트랜잭션으로 일괄 저장합니다. */
-    saveAll: async (items, cid, uid) => {
+    public async saveAll(items: { id: string; data: CacheJoinView }[], cid: string, uid: string): Promise<void> {
         if (items.length === 0) return;
         const sql = `INSERT OR REPLACE INTO ${TABLES.JOINS} (cid, uid, id, channel_id, user_id, data) VALUES (?, ?, ?, ?, ?, ?)`;
 
@@ -96,17 +87,19 @@ export const joinDataSource: ICacheDataSource<CacheJoinView, JoinQueryOptions> =
             ];
         });
         await database.executeBatch(commands);
-    },
+    }
 
-    remove: async (id, cid, uid) => {
+    public async remove(id: string, cid: string, uid: string): Promise<void> {
         await database.execute(`DELETE FROM ${TABLES.JOINS} WHERE id = ? AND cid = ? AND uid = ?`, [id, cid, uid]);
-    },
-    removeAll: async (ids, cid, uid) => {
+    }
+
+    public async removeAll(ids: string[], cid: string, uid: string): Promise<void> {
         if (ids.length === 0) return;
         const sql = `DELETE FROM ${TABLES.JOINS} WHERE id = ? AND cid = ? AND uid = ?`;
         await database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
-    },
-    clear: async (cid, uid) => {
+    }
+
+    public async clear(cid?: string, uid?: string): Promise<void> {
         const conditions: string[] = [];
         const params: string[] = [];
         if (cid) {
@@ -122,5 +115,5 @@ export const joinDataSource: ICacheDataSource<CacheJoinView, JoinQueryOptions> =
                 ? `DELETE FROM ${TABLES.JOINS} WHERE ${conditions.join(' AND ')}`
                 : `DELETE FROM ${TABLES.JOINS}`;
         await database.execute(sql, params);
-    },
-};
+    }
+}

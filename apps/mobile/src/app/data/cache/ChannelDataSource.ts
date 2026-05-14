@@ -1,29 +1,24 @@
-// src/storages/sqlite/channelDataSource.ts
-import { database, TABLES } from '../../../database';
-import type { ICacheDataSource } from './ICacheDataSource';
 import type { CacheChannelView, ChannelQueryOptions } from '@chatic/app-messages';
+import type { ICacheDataSource } from './types';
+import { database } from '../../services';
+import { TABLES } from '../../database';
 
-/**
- * 채널 객체에서(sid)를 안전하게 추출합니다.
- */
-const extractSid = (item: any): string => (item?.sid ? String(item.sid) : 'default');
-
-/**
- * 채널 객체에서 채널명(name)을 안전하게 추출합니다.
- */
-const extractName = (item: any): string => (item?.name ? String(item.name) : '');
-
-/**
- * 채널 도메인 전용 데이터 소스 구현체
- * 기본 CRUD 외에 사이트별 채널 목록 조회 및 키워드 검색 기능을 제공합니다.
- */
-export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryOptions> = {
+export class ChannelDataSource implements ICacheDataSource<CacheChannelView, ChannelQueryOptions> {
     /**
-     * 단일 채널 정보를 조회합니다.
-     * @param id 채널 고유 식별자
-     * @param cid 클라우드 식별자
+     * 채널 객체에서(sid)를 안전하게 추출합니다.
      */
-    fetch: async (id, cid, uid) => {
+    private extractSid(item: any): string {
+        return item?.sid ? String(item.sid) : 'default';
+    }
+
+    /**
+     * 채널 객체에서 채널명(name)을 안전하게 추출합니다.
+     */
+    private extractName(item: any): string {
+        return item?.name ? String(item.name) : '';
+    }
+
+    public async fetch(id: string, cid?: string, uid?: string): Promise<CacheChannelView | null> {
         let query = `SELECT data FROM ${TABLES.CHANNELS} WHERE id = ?`;
         const params: (string | number)[] = [id];
         if (cid) {
@@ -40,19 +35,13 @@ export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryO
             return JSON.parse(result.rows[0].data as string) as CacheChannelView;
         }
         return null;
-    },
+    }
 
-    /**
-     * 조건에 맞는 채널 목록을 조회합니다.
-     * @param cid 클라우드 식별자
-     * @param query 사이트 ID(sid) 필터링 및 이름(keyword) 검색 조건
-     */
-    fetchAll: async (cid, query, uid) => {
+    public async fetchAll(cid?: string, query?: ChannelQueryOptions, uid?: string): Promise<CacheChannelView[]> {
         let sql = `SELECT data FROM ${TABLES.CHANNELS}`;
         const params: (string | number)[] = [];
         const conditions: string[] = [];
 
-        // 클라우드별 격리 필터링
         if (cid) {
             conditions.push(`cid = ?`);
             params.push(cid);
@@ -61,12 +50,10 @@ export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryO
             conditions.push(`uid = ?`);
             params.push(uid);
         }
-        // 특정 사이트에 속한 채널 필터링
         if (query?.sid) {
             conditions.push(`sid = ?`);
             params.push(query.sid);
         }
-        // 채널명 키워드 검색 (name 컬럼 활용)
         if (query?.keyword) {
             conditions.push(`name LIKE ?`);
             params.push(`%${query.keyword}%`);
@@ -77,80 +64,46 @@ export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryO
         }
 
         const result = await database.execute(sql, params);
-        return (result.rows || []).map(row => JSON.parse(row.data as string) as CacheChannelView);
-    },
+        return (result.rows || []).map((row: any) => JSON.parse(row.data as string) as CacheChannelView);
+    }
 
-    /**
-     * 채널 정보를 저장하거나 업데이트합니다.
-     * 원본 JSON 데이터 외에 sid, name을 개별 컬럼으로 추출하여 인덱싱 성능을 확보합니다.
-     */
-    save: async (id, item, cid, uid) => {
+    public async save(id: string, item: CacheChannelView, cid: string, uid: string): Promise<void> {
         const sql = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, uid, id, sid, name, data) VALUES (?, ?, ?, ?, ?, ?)`;
-
-        const sid = extractSid(item);
-        const name = extractName(item);
-
-        const dataToSave = JSON.stringify({
-            ...item,
-            id,
-            cid,
-            uid,
-            sid,
-            name,
-        });
+        const sid = this.extractSid(item);
+        const name = this.extractName(item);
+        const dataToSave = JSON.stringify({ ...item, id, cid, uid, sid, name });
 
         await database.execute(sql, [cid, uid, id, sid, name, dataToSave]);
-    },
+    }
 
-    /**
-     * 다수의 채널 정보를 일괄 저장합니다.
-     */
-    saveAll: async (items, cid, uid) => {
+    public async saveAll(items: { id: string; data: CacheChannelView }[], cid: string, uid: string): Promise<void> {
         if (items.length === 0) return;
         const sql = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, uid, id, sid, name, data) VALUES (?, ?, ?, ?, ?, ?)`;
 
         const commands: [string, any[]][] = items.map(item => {
             const id = item.id;
             const channelData = item.data;
-
-            const sid = extractSid(channelData);
-            const name = extractName(channelData);
-
-            const dataToSave = JSON.stringify({
-                ...channelData,
-                id,
-                cid,
-                uid,
-                sid,
-                name,
-            });
+            const sid = this.extractSid(channelData);
+            const name = this.extractName(channelData);
+            const dataToSave = JSON.stringify({ ...channelData, id, cid, uid, sid, name });
 
             return [sql, [cid, uid, id, sid, name, dataToSave]];
         });
 
         await database.executeBatch(commands);
-    },
+    }
 
-    /**
-     *  단일 채널 삭제
-     */
-    remove: async (id, cid, uid) => {
+    public async remove(id: string, cid: string, uid: string): Promise<void> {
         await database.execute(`DELETE FROM ${TABLES.CHANNELS} WHERE id = ? AND cid = ? AND uid = ?`, [id, cid, uid]);
-    },
+    }
 
-    /**
-     *  다수 채널 일괄 삭제
-     */
-    removeAll: async (ids, cid, uid) => {
+    public async removeAll(ids: string[], cid: string, uid: string): Promise<void> {
         if (ids.length === 0) return;
         const sql = `DELETE FROM ${TABLES.CHANNELS} WHERE id = ? AND cid = ? AND uid = ?`;
         await database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
-    },
+    }
 
-    /**
-     *  채널 테이블 전체 초기화
-     */
-    clear: async (cid, uid) => {
+    public async clear(cid?: string, uid?: string): Promise<void> {
         const conditions: string[] = [];
         const params: string[] = [];
         if (cid) {
@@ -166,5 +119,5 @@ export const channelDataSource: ICacheDataSource<CacheChannelView, ChannelQueryO
                 ? `DELETE FROM ${TABLES.CHANNELS} WHERE ${conditions.join(' AND ')}`
                 : `DELETE FROM ${TABLES.CHANNELS}`;
         await database.execute(sql, params);
-    },
-};
+    }
+}
