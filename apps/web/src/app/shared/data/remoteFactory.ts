@@ -2,19 +2,28 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import type { IEventBus, ISocketDispatcher, IWebSocketClient, SocketEventMap } from '@chatic/data';
 import { createRemoteDataSources, type DomainEventMap, SocketDispatcher } from '@chatic/data';
-import type { WSSActionType, WSSEnvelope, WSSEventDomainType } from '@lemoncloud/chatic-sockets-api';
+import type { WSSActionType, WSSEventDomainType } from '@lemoncloud/chatic-sockets-api';
 
 /**
- * WebSocket 수신 메시지를 Dispatcher로 전달하는 전용 훅
+ * WebSocket 수신 메시지를 Dispatcher로 동기적으로 전달하는 전용 훅.
+ *
+ * 기존 useEffect + lastMessage 패턴은 React 배칭으로 인해
+ * 빠르게 연속 도착하는 메시지가 유실될 수 있었음.
+ * Zustand subscribe를 직접 사용하여 setLastMessage 호출 시점에
+ * 동기적으로 dispatch하여 모든 메시지를 처리합니다.
  */
 const useSocketListener = (dispatcher: ISocketDispatcher) => {
-    const lastMessage = useWebSocketV2Store((state: { lastMessage?: WSSEnvelope | null }) => state.lastMessage) ?? null;
-
     useEffect(() => {
-        if (lastMessage) {
-            dispatcher.dispatch(lastMessage);
-        }
-    }, [dispatcher, lastMessage]);
+        const unsubscribe = useWebSocketV2Store.subscribe(
+            s => s.lastMessage,
+            lastMessage => {
+                if (lastMessage) {
+                    dispatcher.dispatch(lastMessage);
+                }
+            }
+        );
+        return unsubscribe;
+    }, [dispatcher]);
 };
 
 /**

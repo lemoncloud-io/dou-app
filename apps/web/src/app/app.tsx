@@ -74,6 +74,19 @@ export function App() {
     // - Token init explicitly failed: avoid infinite loading (logout path handles the rest)
     const canRenderApp =
         isWebCoreReady && (!isAuthenticated || !!profile || (isTokenInitialized && initStatus === 'failed'));
+
+    useEffect(() => {
+        logger.info('APP', '[canRenderApp]', {
+            data: {
+                isWebCoreReady,
+                isAuthenticated,
+                hasProfile: !!profile,
+                isTokenInitialized,
+                initStatus,
+                canRenderApp,
+            },
+        });
+    }, [isWebCoreReady, isAuthenticated, profile, isTokenInitialized, initStatus, canRenderApp]);
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
     // 세션 내 스플래시가 이미 표시된 경우 즉시 렌더링 (1.5s 딜레이 스킵)

@@ -12,7 +12,8 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useOnboardingStore, useDynamicProfile, useUserContext, UserType } from '@chatic/web-core';
+import { useOnboardingStore, useDynamicProfile, useUserContext, UserType, cloudCore } from '@chatic/web-core';
+import { useWebSocketV2Store } from '@chatic/socket';
 import { useLogout } from '@chatic/auth';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
@@ -47,6 +48,7 @@ export const HomePage = () => {
     // === 데이터: 단일 소스 — usePlaces/useChannels를 한 번만 호출 ===
     const placesResult = usePlaces();
     const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+    const storeCloudId = useWebSocketV2Store(s => s.cloudId);
     const channelsResult = useChannels({ sid: selectedPlaceId || '', detail: true });
 
     // 파생 데이터
@@ -233,6 +235,12 @@ export const HomePage = () => {
                         showCreateButton={!isChannelsLoading && (isMyCloud || (isDefaultCloud && channelCount === 0))}
                         onCreateChannel={handleCreateChannel}
                         channelLimit={maxChannels}
+                        debugInfo={{
+                            paramSid: selectedPlaceId || '',
+                            storeCloudId,
+                            coreCloudId: cloudCore.getSelectedCloudId(),
+                            corePlaceId: cloudCore.getSelectedPlaceId(),
+                        }}
                     />
                 ) : null}
             </section>

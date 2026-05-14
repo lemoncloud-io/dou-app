@@ -175,9 +175,14 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      */
     initialize: async () => {
         set({ isInitialized: false, error: null });
+        logger.info('WEB_CORE', '[initialize] webCore.init starting');
         await webCore.init();
+        logger.info('WEB_CORE', '[initialize] webCore.init done, setting language');
         await webCore.setUseXLemonLanguage(true, LANGUAGE_KEY);
         const isAuthenticated = await webCore.isAuthenticated();
+        logger.info('WEB_CORE', '[initialize] isAuthenticated resolved', {
+            data: { isAuthenticated },
+        });
 
         const { isOnMobileApp } = getMobileAppInfo();
         if (isOnMobileApp) {
@@ -191,6 +196,9 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
             });
         }
         set({ isInitialized: true, isAuthenticated, isOnMobileApp });
+        logger.info('WEB_CORE', '[initialize] store updated', {
+            data: { isInitialized: true, isAuthenticated, isOnMobileApp },
+        });
     },
 
     /**

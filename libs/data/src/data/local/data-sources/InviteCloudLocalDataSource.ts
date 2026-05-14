@@ -18,11 +18,15 @@ export interface IInviteCloudLocalDataSource
         IListLocalDataSource<CacheCloudView, void, DomainListResult<CacheCloudView>>,
         IStreamLocalDataSource<CacheCloudView, void, DomainListResult<CacheCloudView>> {}
 
-/** 초대 cloud 캐시의 local-only CRUD를 담당합니다. */
+/**
+ * 초대 cloud 캐시의 local-only CRUD를 담당합니다.
+ *
+ * NOTE: invitecloud의 IndexedDB 파티셔닝(cid/uid='global')은 resolveScopedContext에서
+ * 자동 처리됩니다. 기존의 runWithGlobalContext 패턴은 공유 DataContextHolder를 임시로
+ * 변경하여, 비동기 작업 중 다른 DataSource(Site, Channel 등)가 오염된 context를 읽어
+ * cross-cloud 데이터 오염을 유발하므로 제거되었습니다.
+ */
 export class InviteCloudLocalDataSource extends BaseLocalDataSource implements IInviteCloudLocalDataSource {
-    private static readonly GLOBAL_CID = 'global';
-    private static readonly GLOBAL_UID = 'global';
-
     constructor(
         protected override readonly contextProvider: DataContextProvider,
         protected readonly cacheStorage: CacheStorage<'invitecloud'>
@@ -43,35 +47,16 @@ export class InviteCloudLocalDataSource extends BaseLocalDataSource implements I
         };
     }
 
-    /**
-     * Storage 접근 시 강제로 GLOBAL_CID 및 GLOBAL_UID를 주입하여 실행하는 래퍼 함수
-     */
-    private async runWithGlobalContext<T>(
-        override: LocalDataSourceContextOverride | undefined,
-        run: () => Promise<T>
-    ): Promise<T> {
-        const original = this.contextProvider.getContext();
-        const mergedOverride = {
-            ...(override || {}),
-            cid: InviteCloudLocalDataSource.GLOBAL_CID,
-            uid: InviteCloudLocalDataSource.GLOBAL_UID,
-        };
-
-        this.contextProvider.setContext({ ...original, ...mergedOverride });
-        try {
-            return await run();
-        } finally {
-            this.contextProvider.setContext(original);
-        }
-    }
-
     // =========================================================================
     // 1. 공통 CRUD 인터페이스 (ICrudLocalDataSource)
     // =========================================================================
 
-    public async getById(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<CacheCloudView | null> {
+    public async getById(
+        id: string,
+        _contextOverride?: LocalDataSourceContextOverride
+    ): Promise<CacheCloudView | null> {
         if (!id) return null;
-        const cached = await this.runWithGlobalContext(contextOverride, () => this.cacheStorage.load(id));
+        const cached = await this.cacheStorage.load(id);
         if (!cached) return null;
         return { ...cached };
     }
@@ -83,12 +68,9 @@ export class InviteCloudLocalDataSource extends BaseLocalDataSource implements I
     ): Promise<void> {
         const id = item.id;
         if (!id) return;
-        await this.runWithGlobalContext(contextOverride, async () => {
-            const existing = await this.cacheStorage.load(id);
-            // 병합 로직이 내장되어 있어 updatePartial 역할도 완벽히 수행합니다.
-            const normalized = this.normalizeInviteCloud(id, { ...(existing ?? {}), ...item }, contextOverride);
-            await this.cacheStorage.save(id, normalized);
-        });
+        const existing = await this.cacheStorage.load(id);
+        const normalized = this.normalizeInviteCloud(id, { ...(existing ?? {}), ...item }, contextOverride);
+        await this.cacheStorage.save(id, normalized);
         if (emitStream) {
             this.debouncedEmitAllStreams();
         }
@@ -102,21 +84,21 @@ export class InviteCloudLocalDataSource extends BaseLocalDataSource implements I
         this.debouncedEmitAllStreams();
     }
 
-    public async remove(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+    public async remove(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         if (!id) return;
-        await this.runWithGlobalContext(contextOverride, () => this.cacheStorage.delete(id));
+        await this.cacheStorage.delete(id);
         this.debouncedEmitAllStreams();
     }
 
-    public async removeMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+    public async removeMany(ids: string[], _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
-        await this.runWithGlobalContext(contextOverride, () => this.cacheStorage.deleteAll(validIds));
+        await this.cacheStorage.deleteAll(validIds);
         this.debouncedEmitAllStreams();
     }
 
-    public async clearAll(contextOverride?: LocalDataSourceContextOverride): Promise<void> {
-        await this.runWithGlobalContext(contextOverride, () => this.cacheStorage.clearAll());
+    public async clearAll(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        await this.cacheStorage.clearAll();
         this.debouncedEmitAllStreams();
     }
 
@@ -126,9 +108,9 @@ export class InviteCloudLocalDataSource extends BaseLocalDataSource implements I
 
     public async fetchList(
         _query: void,
-        contextOverride?: LocalDataSourceContextOverride
+        _contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<CacheCloudView> | null> {
-        const cached = await this.runWithGlobalContext(contextOverride, () => this.cacheStorage.loadAll());
+        const cached = await this.cacheStorage.loadAll();
         const list = cached.map(item => ({ ...item }));
 
         // 빈 리스트일 때 null을 리턴하지 않고 빈 배열 결과를 리턴하여 무한 로딩 UI 방지

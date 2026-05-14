@@ -57,6 +57,16 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             reportError(toError(error));
             const errorClassification: ErrorClassification = classifyError(error);
             if (errorClassification.shouldLogout) {
+                // Invite 세션에서는 auto-logout 방지 — cloud 토큰/상태 보존
+                // initStatus='failed' fallback으로 앱을 렌더하여 사용자가 수동 조치 가능
+                const { isInvited } = useWebCoreStore.getState();
+                if (isInvited) {
+                    logger.warn(
+                        'AUTH',
+                        'Token expired in invite session, skipping auto-logout to preserve cloud state'
+                    );
+                    return false;
+                }
                 logger.info('AUTH', 'Token completely expired or invalid - logging out');
                 await logout(wasInviteFlowRef.current ? { preserveUrl: true } : undefined);
                 return false;
@@ -88,17 +98,27 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
     const initialize = useCallback(async () => {
         // Prevent re-initialization if already initialized or failed
         if (!isAuthenticated || !webCoreReady || isInitializedRef.current || hasFailedRef.current) {
+            logger.info('AUTH', '[tokenRefresh] initialize skipped', {
+                data: {
+                    isAuthenticated,
+                    webCoreReady,
+                    isInitialized: isInitializedRef.current,
+                    hasFailed: hasFailedRef.current,
+                },
+            });
             return;
         }
 
-        logger.info('AUTH', 'Initializing: checking token validity');
+        logger.info('AUTH', '[tokenRefresh] Initializing: checking token validity');
         try {
             const refreshSuccess = await refreshToken();
             if (!refreshSuccess) {
+                logger.warn('AUTH', '[tokenRefresh] token refresh failed, marking as failed');
                 hasFailedRef.current = true;
                 setInitStatus('failed');
                 return;
             }
+            logger.info('AUTH', '[tokenRefresh] token refreshed, fetching profile');
 
             const profile = await fetchProfile();
             setProfile(profile);
@@ -127,9 +147,15 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
                         logger.error('PROFILE', 'Profile fetch failed even after token refresh', { error: retryError });
                         const retryErrorClassification: ErrorClassification = classifyError(retryError);
                         if (retryErrorClassification.shouldLogout) {
-                            logger.info('AUTH', 'Profile fetch still failing with auth error - logging out');
                             hasFailedRef.current = true;
                             setInitStatus('failed');
+                            // Invite 세션에서는 auto-logout 방지
+                            const { isInvited } = useWebCoreStore.getState();
+                            if (isInvited) {
+                                logger.warn('AUTH', 'Profile fetch failing in invite session, skipping auto-logout');
+                                return;
+                            }
+                            logger.info('AUTH', 'Profile fetch still failing with auth error - logging out');
                             await logout(wasInviteFlowRef.current ? { preserveUrl: true } : undefined);
                             return;
                         }

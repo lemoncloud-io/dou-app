@@ -148,6 +148,7 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions) => {
                 let places: DomainSite[] = [];
                 try {
                     await siteRepository.clearAll();
+                    await channelRepository.clearAll();
                     const result = await siteRepository.fetchSite({}, { cachePolicy: 'network-only' });
                     places = (result.list ?? []) as DomainSite[];
                 } catch (e) {

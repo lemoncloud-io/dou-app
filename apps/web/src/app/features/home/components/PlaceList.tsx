@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Check, Home, RefreshCw, Users } from 'lucide-react';
 
 import { logger } from '@chatic/app-messages';
-import { useWebSocketV2Store } from '@chatic/socket';
+import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { cn } from '@chatic/lib/utils';
 import { cloudCore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
 import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
@@ -99,6 +99,7 @@ export const PlaceList = ({
     const { t } = useTranslation();
     const { userType } = useUserContext();
     const isInvited = userType === UserType.INVITED || userType === UserType.INVITED_WITH_CLOUD;
+    const { emit } = useWebSocketV2();
     const wssType = useWebSocketV2Store(s => s.wssType);
     const cloudId = useWebSocketV2Store(s => s.cloudId);
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
@@ -125,8 +126,13 @@ export const PlaceList = ({
         if (switchingRef.current) return;
 
         // relay 모드: refreshToken 불필요, 단순 선택만
+        // localStorage도 갱신하여 contextHolder·GlobalChatSync 등이 stale sid를 읽지 않도록 함
+        // NOTE: wssType === null (초기화 전)인 경우 cloud path로 폴백 —
+        //       초대 직후 페이지 리로드 시 WebSocket connect가 setTimeout(0)으로 지연되어
+        //       wssType이 아직 null인 상태에서 이 함수가 호출될 수 있음
         const currentWssType = useWebSocketV2Store.getState().wssType;
-        if (currentWssType !== 'cloud') {
+        if (currentWssType === 'relay') {
+            cloudCore.saveSelectedSiteId(placeId);
             setSelectedId(placeId);
             onPlaceSelected?.(placeId);
             return;
@@ -134,7 +140,13 @@ export const PlaceList = ({
 
         const cloudToken = cloudCore.getCloudToken();
         const uid = cloudToken?.id;
-        if (!uid) return;
+        if (!uid) {
+            // cloud token 없음 → 단순 선택 fallback
+            cloudCore.saveSelectedSiteId(placeId);
+            setSelectedId(placeId);
+            onPlaceSelected?.(placeId);
+            return;
+        }
 
         switchingRef.current = true;
         setIsPending(true);
@@ -147,10 +159,18 @@ export const PlaceList = ({
             const { Token: _token, ...cloudProfile } = refreshed;
             useWebCoreStore.getState().setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
 
-            // useCloudTokenRefresh가 isVerified=false를 감지하여 auth:update 발송
+            // 1. 미인증 상태로 전환
             useWebSocketV2Store.getState().setIsVerified(false);
 
-            // auth:update 응답 대기 — isVerified가 true가 될 때까지
+            // 2. place 전용 토큰으로 auth:update 직접 전송
+            // useCloudTokenRefresh effect 재실행에 의존하지 않음
+            // (isVerified가 이미 false였을 경우 Zustand가 변경을 감지하지 않아 effect가 재실행되지 않는 문제 방지)
+            const identityToken = cloudCore.getIdentityToken();
+            if (identityToken) {
+                emit({ type: 'auth', action: 'update', payload: { token: identityToken } });
+            }
+
+            // 3. auth:update 응답 대기 — isVerified가 true가 될 때까지
             await waitForVerified(5000);
 
             placeAuthDone = true;
@@ -168,6 +188,17 @@ export const PlaceList = ({
     const initialPlaceNotifiedRef = useRef(false);
     useEffect(() => {
         if (initialPlaceNotifiedRef.current) return;
+
+        // default 모드 / guest → 항상 'default' place 사용, localStorage의 stale placeId 무시
+        // localStorage도 갱신하여 contextHolder·GlobalChatSync 등이 stale sid를 읽지 않도록 함
+        if (isDefaultMode || userType === UserType.TEMP_ACCOUNT) {
+            initialPlaceNotifiedRef.current = true;
+            cloudCore.saveSelectedSiteId('default');
+            setSelectedId('default');
+            onPlaceSelected?.('default');
+            return;
+        }
+
         const savedPlaceId = cloudCore.getSelectedPlaceId();
         if (savedPlaceId) {
             initialPlaceNotifiedRef.current = true;
@@ -179,9 +210,6 @@ export const PlaceList = ({
             } else {
                 void handleSelectPlace(savedPlaceId);
             }
-        } else if (isDefaultMode || userType === UserType.TEMP_ACCOUNT) {
-            initialPlaceNotifiedRef.current = true;
-            onPlaceSelected?.('default');
         }
     }, [isDefaultMode, userType]);
 
@@ -208,12 +236,13 @@ export const PlaceList = ({
         prevCloudIdRef.current = cloudId;
     }, [cloudId]);
 
-    // place 목록 로드 후 auto-selection
+    // place 목록 로드 후 auto-selection (cloud 모드 전용)
     useEffect(() => {
+        if (isDefaultMode) return;
         const hasSelected = !!cloudCore.getSelectedPlaceId();
         if (hasSelected || places.length === 0) return;
         handleSelectPlace(places[0].id);
-    }, [places]);
+    }, [places, isDefaultMode]);
 
     // 순수 게스트, cloud 미선택(default), 또는 cloud가 아예 선택되지 않은 상태는 DEFAULT_PLACE만 표시
     if (userType === UserType.TEMP_ACCOUNT || isDefaultMode || (!selectedCloudId && !isInvited)) {
@@ -232,6 +261,39 @@ export const PlaceList = ({
             </div>
         );
     }
+
+    const isDev = process.env.NODE_ENV === 'development';
+    const coreCloudId = cloudCore.getSelectedCloudId();
+
+    const placeDebugBar = isDev && (
+        <div className="mx-4 mb-2 rounded-md bg-muted/60 px-3 py-2 font-mono text-[11px] leading-[1.5] text-muted-foreground">
+            <div>
+                cloudId(store): <span className="font-semibold text-foreground">{cloudId || '(null)'}</span>
+            </div>
+            <div>
+                cloudId(core):{' '}
+                <span className={`font-semibold ${coreCloudId !== cloudId ? 'text-destructive' : 'text-foreground'}`}>
+                    {coreCloudId || '(null)'}
+                </span>
+            </div>
+            <div>
+                wssType: <span className="font-semibold text-foreground">{wssType || '(null)'}</span>
+            </div>
+            <div>
+                selectedId: <span className="font-semibold text-foreground">{selectedId || '(null)'}</span>
+            </div>
+            <div>places({rawPlaces.length}):</div>
+            {rawPlaces.map(p => {
+                const domainCid = (p as unknown as { cid?: string }).cid;
+                const isMismatch = domainCid && cloudId && domainCid !== cloudId;
+                return (
+                    <div key={p.id} className={`pl-2 ${isMismatch ? 'text-destructive font-semibold' : ''}`}>
+                        {isMismatch ? '[X] ' : ''}id={p.id} name={p.name} cid={domainCid || '?'}
+                    </div>
+                );
+            })}
+        </div>
+    );
 
     const header = (
         <div className="mb-[18px] flex items-center justify-between px-4">
@@ -261,6 +323,7 @@ export const PlaceList = ({
         return (
             <div>
                 {header}
+                {placeDebugBar}
                 <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 py-2">
                     {Array.from({ length: 3 }).map((_, i) => (
                         <div key={i} className="flex flex-col items-center gap-[5px]">
@@ -277,6 +340,7 @@ export const PlaceList = ({
         return (
             <div>
                 {header}
+                {placeDebugBar}
                 <div className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
                     <span>{t('placeList.errorLoading')}</span>
                     <button onClick={() => refresh()} className="flex items-center gap-1 text-foreground">
@@ -292,6 +356,7 @@ export const PlaceList = ({
         return (
             <div>
                 {header}
+                {placeDebugBar}
                 <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
                     {!isGuest && onCreatePlace && (
                         <button
@@ -335,6 +400,7 @@ export const PlaceList = ({
     return (
         <div>
             {header}
+            {placeDebugBar}
 
             <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
                 {places.map(place => (

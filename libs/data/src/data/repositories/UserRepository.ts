@@ -168,12 +168,26 @@ export class UserRepository extends BaseRepository implements IUserRepository, I
         payload: ChatUsersPayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainUser>> {
+        // 요청 시점의 context를 캡처 — await 중 cloud 전환이 발생해도 올바른 scope에 캐시 저장
+        const requestScope = this.getDomainScope();
+        const requestContext = this.getRepositoryContext();
+
         const remote = await this.requestRemote<ListResult<UserView>>(
             ref => this.userRemoteDataSource.fetchUsers(payload, ref),
             options
         );
-        const domainList = (remote.list || []).map(item => toDomainUser(item, this.getDomainScope()));
-        await this.userLocalDataSource.upsertMany(domainList, this.getRepositoryContext());
+        // 서버 응답의 cid(e.g. "global")는 cloud 파티셔닝 기준과 다를 수 있으므로
+        // requestScope.cid(= 요청 시점의 cloudId)로 강제 대체
+        const domainList = (remote.list || []).map(item => ({
+            ...toDomainUser(item, requestScope),
+            cid: requestScope.cid,
+        }));
+
+        // cloud가 전환되었으면 캐시 저장 스킵 — cross-cloud 오염 방지
+        const currentCid = this.getRepositoryContext().cid;
+        if (currentCid === requestContext.cid) {
+            await this.userLocalDataSource.upsertMany(domainList, requestContext);
+        }
 
         return createDomainListResult(domainList, {
             total: remote.total ?? domainList.length,

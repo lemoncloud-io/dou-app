@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { logger } from '@chatic/app-messages';
+import { useInterval } from '@chatic/shared';
 import type { ChatUsersPayload } from '@lemoncloud/chatic-sockets-api';
 import { useRepositories } from '../data';
 import type { DomainUser, RepositoryCachePolicy } from '@chatic/data';
+
+const MEMBER_POLL_INTERVAL_MS = 10_000;
 
 /**
  * 특정 채널의 멤버 목록을 캐시 우선 전략으로 조회하고, 실시간으로 동기화하는 훅.
@@ -103,6 +106,14 @@ export const useChannelMembers = (initialParams: ChatUsersPayload) => {
             unsubDeleted();
         };
     }, [joinRepository, targetChannelId, fetchInitialMembers, userRepository]);
+
+    // join 정보 주기적 폴링 (WebSocket push 누락 보완)
+    useInterval(
+        () => {
+            fetchInitialMembers('cache-first');
+        },
+        targetChannelId ? MEMBER_POLL_INTERVAL_MS : null
+    );
 
     const isLoading = members === null;
 

@@ -31,6 +31,7 @@ export const Router = () => {
     }, [isAuthenticated, handleRouterError]);
 
     if (!isInitialized) {
+        logger.warn('ROUTER', 'Router blocked: isInitialized is false, rendering null');
         return null;
     }
 
