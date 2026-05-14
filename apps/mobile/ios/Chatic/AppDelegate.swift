@@ -73,6 +73,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
         )
     }
 
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        UIApplication.shared.applicationIconBadgeNumber = 0
+    }
+
     // MARK: - Push Notifications (APNs)
 
     // APNs 디바이스 토큰 등록 성공 시
