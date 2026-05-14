@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RNFS from 'react-native-fs';
 import type { CacheType } from '@chatic/app-messages';
-import { cacheCrudService, sqliteDatabase } from '../../../services';
+import { useServices } from '../../../hooks';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -23,6 +23,7 @@ const DATA_TYPES: CacheType[] = ['channel', 'chat', 'user', 'join', 'site', 'inv
 
 export const StorageTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const { sqliteDatabase, cacheCrudService } = useServices();
 
     const [dataType, setDataType] = useState<CacheType>(DATA_TYPES[0]);
 

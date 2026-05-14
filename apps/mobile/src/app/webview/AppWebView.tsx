@@ -14,7 +14,7 @@ import {
     getDeviceInfoScript,
     getSafeAreaScript,
 } from './utils/injectionScripts';
-import { cacheCrudService, firebaseInstallationService } from '../services';
+import { useServices } from '../hooks/useServices';
 
 interface AppWebViewProps extends WebViewProps {}
 
@@ -26,6 +26,7 @@ const platformName = Platform.OS === 'ios' ? 'iOS' : 'Android';
 const userAgentSuffix = `(${APP_USER_AGENT_PREFIX}; ${appName}/${appVersion}; ${platformName}; Build:${buildNumber})`;
 
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
+    const { cacheCrudService, firebaseInstallationService } = useServices();
     const [injectionScript, setInjectionScript] = useState<string | null>(null);
     const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
     const insets = useSafeAreaInsets();
@@ -87,8 +88,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             setInjectionScript(script);
         };
         void prepareWebView();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [cacheCrudService, firebaseInstallationService, insets, keyboardHeight]);
 
     // insets 변경 시 명령형으로 재주입
     useEffect(() => {

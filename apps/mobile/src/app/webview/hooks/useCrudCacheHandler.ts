@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { cacheCrudService, logger } from '../../services';
+import { useServices } from '../../hooks';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type {
@@ -21,6 +21,8 @@ import type {
 } from '@chatic/app-messages';
 
 export const useCrudCacheHandler = (bridge: WebViewBridge) => {
+    const { cacheCrudService, logService: logger } = useServices();
+
     const handleFetchAllCache = useCallback(
         async (message: FetchAllCacheData) => {
             try {
@@ -51,7 +53,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                 });
             }
         },
-        [bridge]
+        [bridge, cacheCrudService, logger]
     );
 
     const handleFetchCache = useCallback(
@@ -85,7 +87,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                 });
             }
         },
-        [bridge]
+        [bridge, cacheCrudService, logger]
     );
 
     const handleSaveCache = useCallback(
@@ -119,7 +121,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                 });
             }
         },
-        [bridge]
+        [bridge, cacheCrudService, logger]
     );
 
     const handleSaveAllCache = useCallback(
@@ -154,7 +156,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                 });
             }
         },
-        [bridge]
+        [bridge, cacheCrudService, logger]
     );
 
     const handleDeleteCache = useCallback(
@@ -188,7 +190,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                 });
             }
         },
-        [bridge]
+        [bridge, cacheCrudService, logger]
     );
 
     const handleDeleteAllCache = useCallback(
@@ -222,7 +224,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                 });
             }
         },
-        [bridge]
+        [bridge, cacheCrudService, logger]
     );
 
     const handleClearCache = useCallback(
@@ -254,7 +256,7 @@ export const useCrudCacheHandler = (bridge: WebViewBridge) => {
                 });
             }
         },
-        [bridge]
+        [bridge, cacheCrudService, logger]
     );
 
     return {

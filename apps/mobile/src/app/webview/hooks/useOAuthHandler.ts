@@ -1,9 +1,10 @@
 import { useCallback } from 'react';
-import { oAuthService } from '../../services';
+import { useServices } from '../../hooks';
 import type { OAuthLoginProvider } from '@chatic/app-messages';
 import type { WebViewBridge } from './useBaseBridge';
 
 export const useOAuthHandler = (bridge: WebViewBridge) => {
+    const { oauthService: oAuthService } = useServices();
     /**
      * OAuth 로그인
      */
@@ -15,7 +16,7 @@ export const useOAuthHandler = (bridge: WebViewBridge) => {
                 data: { result },
             });
         },
-        [bridge]
+        [bridge, oAuthService]
     );
 
     /**
@@ -30,7 +31,7 @@ export const useOAuthHandler = (bridge: WebViewBridge) => {
                 data: { success },
             });
         },
-        [bridge]
+        [bridge, oAuthService]
     );
 
     return {

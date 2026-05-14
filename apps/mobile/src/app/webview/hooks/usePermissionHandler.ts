@@ -1,9 +1,10 @@
 import { useCallback } from 'react';
-import { permissionService, logger } from '../../services';
+import { useServices } from '../../hooks';
 import type { WebViewBridge } from './useBaseBridge';
 import type { AppMessageData, PermissionStatus, RequestPermission } from '@chatic/app-messages';
 
 export const usePermissionHandler = (bridge: WebViewBridge) => {
+    const { permissionService, logService: logger } = useServices();
     const handleRequestPermission = useCallback(
         async (data: RequestPermission['data']) => {
             const { permission } = data;
@@ -37,7 +38,7 @@ export const usePermissionHandler = (bridge: WebViewBridge) => {
                 bridge.post(response);
             }
         },
-        [bridge]
+        [bridge, permissionService, logger]
     );
 
     return {

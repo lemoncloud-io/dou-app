@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { Linking } from 'react-native';
 import RNFS from 'react-native-fs';
 
-import { deviceService, logger } from '../../services';
+import { useServices } from '../../hooks';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type {
@@ -17,9 +17,10 @@ import type {
 import type { Asset, CameraOptions, ImageLibraryOptions } from 'react-native-image-picker';
 
 export const useDeviceHandler = (bridge: WebViewBridge) => {
+    const { deviceService, logService: logger } = useServices();
     const handleOpenSettings = useCallback(async () => {
         await deviceService.openSettings();
-    }, []);
+    }, [deviceService]);
 
     const handleOpenShareSheet = useCallback(
         async (message: OpenShareSheet) => {
@@ -38,7 +39,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                 logger.error('DEVICE', 'OpenShareSheet error', e);
             }
         },
-        [bridge]
+        [bridge, deviceService, logger]
     );
 
     const handleOpenDocument = useCallback(
@@ -78,7 +79,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                 logger.error('DEVICE', 'OpenDocument error', e);
             }
         },
-        [bridge]
+        [bridge, deviceService, logger]
     );
 
     const handleOpenCamera = useCallback(
@@ -105,7 +106,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                 logger.error('DEVICE', 'OpenCamera error', e);
             }
         },
-        [bridge]
+        [bridge, deviceService, logger]
     );
 
     const handleOpenPhotoLibrary = useCallback(
@@ -132,7 +133,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                 logger.error('DEVICE', 'OpenPhotoLibrary error', e);
             }
         },
-        [bridge]
+        [bridge, deviceService, logger]
     );
 
     const handleGetContacts = useCallback(
@@ -160,7 +161,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                             postalAddresses: contact.postalAddresses,
                             prefix: contact.prefix || '',
                             suffix: contact.suffix || '',
-                            department: contact.department || '',
+                            department: contact.department || '',  
                             birthday: (contact.birthday || undefined) as any,
                             imAddresses: contact.imAddresses,
                             urlAddresses: contact.urlAddresses,
@@ -180,17 +181,20 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                 bridge.post(response);
             }
         },
-        [bridge]
+        [bridge, deviceService, logger]
     );
 
-    const handleOpenURL = useCallback(async (message: OpenURL) => {
-        try {
-            const { url } = message.data;
-            await Linking.openURL(url);
-        } catch (e) {
-            logger.error('DEVICE', 'OpenURL error', e);
-        }
-    }, []);
+    const handleOpenURL = useCallback(
+        async (message: OpenURL) => {
+            try {
+                const { url } = message.data;
+                await Linking.openURL(url);
+            } catch (e) {
+                logger.error('DEVICE', 'OpenURL error', e);
+            }
+        },
+        [logger]
+    );
 
     return {
         handleOpenSettings,

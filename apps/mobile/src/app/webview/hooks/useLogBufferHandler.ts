@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { logBufferService, logger } from '../../services';
+import { useServices } from '../../hooks';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type {
@@ -15,6 +15,8 @@ import type {
 } from '@chatic/app-messages';
 
 export const useLogBufferHandler = (bridge: WebViewBridge) => {
+    const { logBufferService, logService: logger } = useServices();
+
     const handleFetchAppLogBuffer = useCallback(
         async (message: FetchAppLogBuffer) => {
             try {

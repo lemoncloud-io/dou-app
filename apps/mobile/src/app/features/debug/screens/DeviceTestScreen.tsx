@@ -1,8 +1,9 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { FlatList, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { AppPermissionType } from '../../../services';
-import { deviceService, permissionService } from '../../../services';
+import { useServices } from '../../../hooks';
+
+import type { AppPermissionType } from '../../../services'; // Keep type import
 
 type LogType = 'info' | 'success' | 'error';
 
@@ -11,70 +12,78 @@ interface LogItem {
     type: LogType;
     message: string;
     timestamp: string;
+    data?: any; // Using 'any' for debug screen flexibility, as data can be various types.
 }
 
 export const DeviceTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const { deviceService, permissionService, logService: logger } = useServices();
     const [logs, setLogs] = useState<LogItem[]>([]);
     const flatListRef = useRef<FlatList>(null);
 
-    const addLog = (type: LogType, message: string) => {
-        const now = new Date();
-        const timeString = now.toLocaleTimeString('ko-KR', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-        });
+    const addLog = useCallback(
+        (type: LogType, message: string, data?: any) => {
+            // Using 'any' for debug screen flexibility
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ko-KR', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+            });
 
-        const newLog: LogItem = {
-            id: Date.now().toString() + Math.random(),
-            type,
-            message,
-            timestamp: timeString,
-        };
+            const newLog: LogItem = {
+                id: Date.now().toString() + Math.random(),
+                type,
+                message,
+                timestamp: timeString,
+                data,
+            };
 
-        setLogs(prev => [...prev, newLog]);
+            setLogs(prev => [...prev, newLog]);
 
-        setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-    };
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        },
+        [flatListRef]
+    ); // setLogs is a stable setter, no need to include
 
-    const handleClearLogs = () => {
+    const handleClearLogs = useCallback(() => {
         setLogs([]);
-    };
+    }, [setLogs]);
 
-    const handleOpenSettings = async () => {
+    const handleOpenSettings = useCallback(async () => {
         addLog('info', 'Opening Settings...');
         await deviceService.openSettings();
-    };
+    }, [addLog, deviceService]);
 
-    const handleOpenShareSheet = async () => {
+    const handleOpenShareSheet = useCallback(async () => {
         try {
             addLog('info', 'Opening Share Sheet...');
             const result = await deviceService.openShareSheet({
                 title: 'Share Test',
                 message: 'This is a test message from DeviceTestScreen',
             });
-            addLog('success', `Share Result: ${JSON.stringify(result)}`);
+            addLog('success', `Share Result: ${JSON.stringify(result)}`);  
         } catch (e: any) {
+             
             addLog('error', `Share Failed: ${e.message}`);
         }
-    };
+    }, [addLog, deviceService]);
 
-    const handleOpenDocument = async () => {
+    const handleOpenDocument = useCallback(async () => {
         try {
             addLog('info', 'Picking Document...');
             const results = await deviceService.openDocument(true); // Multi-selection allowed
             if (results.length > 0) {
                 addLog('success', `Picked ${results.length} files`);
                 results.forEach(doc => {
-                    addLog('info', `File: ${doc.name} (${doc.size} bytes)\nURI: ${doc.uri}`);
+                    addLog('info', `File: ${doc.name} (${doc.size} bytes)\nURI: ${doc.uri}`);  
                 });
             } else {
                 addLog('info', 'No document picked');
-            }
+            }  
         } catch (e: any) {
             if (e.message?.includes('cancelled')) {
                 addLog('info', 'Document picker cancelled');
@@ -82,24 +91,25 @@ export const DeviceTestScreen = () => {
                 addLog('error', `Pick Document Failed: ${e.message}`);
             }
         }
-    };
+    }, [addLog, deviceService]);
 
-    const handleGetContacts = async () => {
+    const handleGetContacts = useCallback(async () => {
         try {
             addLog('info', 'Getting Contacts...');
             const contacts = await deviceService.getContacts();
             if (contacts.length > 0) {
                 addLog('success', `Got ${contacts.length} contacts`);
-                addLog('info', JSON.stringify(contacts, null, 2));
+                addLog('info', JSON.stringify(contacts, null, 2));  
             } else {
                 addLog('info', 'No contacts found');
             }
         } catch (e: any) {
+             
             addLog('error', `Get Contacts Failed: ${e.message}`);
         }
-    };
+    }, [addLog, deviceService]);
 
-    const handleOpenCamera = async () => {
+    const handleOpenCamera = useCallback(async () => {
         try {
             addLog('info', 'Opening Camera...');
             const assets = await deviceService.openCamera({
@@ -110,17 +120,17 @@ export const DeviceTestScreen = () => {
             if (assets && assets.length > 0) {
                 addLog('success', 'Photo Captured');
                 assets.forEach(asset => {
-                    addLog('info', `Image: ${asset.width}x${asset.height}\nURI: ${asset.uri}`);
+                    addLog('info', `Image: ${asset.width}x${asset.height}\nURI: ${asset.uri}`);  
                 });
             } else {
                 addLog('info', 'Camera cancelled or no image captured');
-            }
+            }  
         } catch (e: any) {
             addLog('error', `Camera Failed: ${e.message}`);
         }
-    };
+    }, [addLog, deviceService]);
 
-    const handleOpenPhotoLibrary = async () => {
+    const handleOpenPhotoLibrary = useCallback(async () => {
         try {
             addLog('info', 'Opening Photo Library...');
             const assets = await deviceService.openPhotoLibrary({
@@ -131,41 +141,44 @@ export const DeviceTestScreen = () => {
             if (assets && assets.length > 0) {
                 addLog('success', `Selected ${assets.length} photos`);
                 assets.forEach(asset => {
-                    addLog('info', `Image: ${asset.width}x${asset.height}\nURI: ${asset.uri}`);
+                    addLog('info', `Image: ${asset.width}x${asset.height}\nURI: ${asset.uri}`);  
                 });
             } else {
                 addLog('info', 'Photo library cancelled or no selection');
-            }
+            }  
         } catch (e: any) {
             addLog('error', `Photo Library Failed: ${e.message}`);
         }
-    };
+    }, [addLog, deviceService]);
 
-    const handlePermission = async (type: 'camera' | 'photo' | 'contacts' | 'microphone') => {
-        const permissionMap: Record<typeof type, AppPermissionType> = {
-            camera: 'CAMERA',
-            photo: 'PHOTO_LIBRARY',
-            contacts: 'CONTACTS',
-            microphone: 'MICROPHONE',
-        };
-        const appPermission = permissionMap[type];
+    const handlePermission = useCallback(
+        async (type: 'camera' | 'photo' | 'contacts' | 'microphone') => {
+            const permissionMap: Record<typeof type, AppPermissionType> = {
+                camera: 'CAMERA',
+                photo: 'PHOTO_LIBRARY',
+                contacts: 'CONTACTS',
+                microphone: 'MICROPHONE',
+            };
+            const appPermission = permissionMap[type];
 
-        try {
-            addLog('info', `Checking ${appPermission}...`);
-            const isGranted = await permissionService.check(appPermission);
-            addLog('info', `Status: ${isGranted ? 'GRANTED' : 'NOT GRANTED'}`);
+            try {
+                addLog('info', `Checking ${appPermission}...`);
+                const isGranted = await permissionService.check(appPermission);
+                addLog('info', `Status: ${isGranted ? 'GRANTED' : 'NOT GRANTED'}`);
 
-            if (!isGranted) {
-                addLog('info', `Requesting ${appPermission}...`);
-                const result = await permissionService.request(appPermission);
-                addLog(result ? 'success' : 'error', `Request Result: ${result ? 'GRANTED' : 'DENIED/BLOCKED'}`);
-            } else {
-                addLog('success', 'Permission already granted.');
+                if (!isGranted) {
+                    addLog('info', `Requesting ${appPermission}...`);
+                    const result = await permissionService.request(appPermission);
+                    addLog(result ? 'success' : 'error', `Request Result: ${result ? 'GRANTED' : 'DENIED/BLOCKED'}`);
+                } else {
+                    addLog('success', 'Permission already granted.');
+                }
+            } catch (e: any) {
+                addLog('error', `Permission Error: ${e.message}`);
             }
-        } catch (e: any) {
-            addLog('error', `Permission Error: ${e.message}`);
-        }
-    };
+        },
+        [addLog, permissionService]
+    );
 
     const renderLogItem = ({ item }: { item: LogItem }) => {
         let color = '#888';

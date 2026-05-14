@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { OAuthLoginProvider, OAuthTokenResult } from '@chatic/app-messages';
-import { logger, oAuthService } from '../../../services';
+import { useServices } from '../../../hooks';
 
 type LogType = 'info' | 'error' | 'success' | 'warn';
 
@@ -20,16 +20,45 @@ interface LogItem {
     type: LogType;
     message: string;
     timestamp: string;
-    data?: any;
+    data?: any; // Using 'any' for debug screen flexibility, as data can be various types.
 }
 
 export const OAuthTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const { oauthService: oAuthService, logService: logger } = useServices();
     const [result, setResult] = useState<OAuthTokenResult | null>(null);
     const [loading, setLoading] = useState<OAuthLoginProvider | 'logout' | null>(null);
     const [logs, setLogs] = useState<LogItem[]>([]);
     const [isExpanded, setIsExpanded] = useState(true);
     const flatListRef = useRef<FlatList>(null);
+
+    const addLog = useCallback(
+        (type: LogType, message: string, data?: any) => {
+            // Using 'any' for debug screen flexibility
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ko-KR', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+            });
+
+            const newLog: LogItem = {
+                id: Date.now().toString() + Math.random(),
+                type,
+                message,
+                timestamp: timeString,
+                data,
+            };
+
+            setLogs(prev => [...prev, newLog]);
+
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        },
+        [flatListRef]
+    );
 
     useEffect(() => {
         const unsubscribe = logger.subscribe((level, tag, message, data, error) => {
@@ -46,55 +75,37 @@ export const OAuthTestScreen = () => {
         return () => {
             unsubscribe();
         };
-    }, []);
+    }, [logger, addLog]); // `addLog` is now declared before this useEffect
 
-    const addLog = (type: LogType, message: string, data?: any) => {
-        const now = new Date();
-        const timeString = now.toLocaleTimeString('ko-KR', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-        });
-
-        const newLog: LogItem = {
-            id: Date.now().toString() + Math.random(),
-            type,
-            message,
-            timestamp: timeString,
-            data,
-        };
-
-        setLogs(prev => [...prev, newLog]);
-
-        setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-    };
-
-    const handleLogin = async (provider: OAuthLoginProvider) => {
-        setLoading(provider);
-        setResult(null);
-        try {
-            const tokenResult = await oAuthService.login(provider);
-            if (tokenResult) {
-                setResult(tokenResult);
-                addLog('success', `${provider} Login Result`, tokenResult);
-            }
-        } finally {
-            setLoading(null);
-        }
-    };
-
-    const handleLogout = async (provider: OAuthLoginProvider) => {
-        setLoading('logout');
-        try {
-            await oAuthService.logout(provider);
+    const handleLogin = useCallback(
+        async (provider: OAuthLoginProvider) => {
+            setLoading(provider);
             setResult(null);
-        } finally {
-            setLoading(null);
-        }
-    };
+            try {
+                const tokenResult = await oAuthService.login(provider);
+                if (tokenResult) {
+                    setResult(tokenResult);
+                    addLog('success', `${provider} Login Result`, tokenResult);
+                }
+            } finally {
+                setLoading(null);
+            }
+        },
+        [addLog, oAuthService, setLoading, setResult]
+    );
+
+    const handleLogout = useCallback(
+        async (provider: OAuthLoginProvider) => {
+            setLoading('logout');
+            try {
+                await oAuthService.logout(provider);
+                setResult(null);
+            } finally {
+                setLoading(null);
+            }
+        },
+        [oAuthService, setLoading, setResult]
+    );
 
     const togglePanel = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);

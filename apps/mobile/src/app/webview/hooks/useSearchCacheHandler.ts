@@ -1,10 +1,12 @@
 import { useCallback } from 'react';
-import { cacheSearchService, logger } from '../../services';
+import { useServices } from '../../hooks';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type { AppMessageData, OnSearchGlobalCacheDataPayload, SearchGlobalCacheData } from '@chatic/app-messages';
 
 export const useSearchCacheHandler = (bridge: WebViewBridge) => {
+    const { cacheSearchService, logService: logger } = useServices();
+
     const handleSearchGlobalCache = useCallback(
         async (message: SearchGlobalCacheData) => {
             const { keyword, cid, uid } = message.data;
@@ -28,7 +30,7 @@ export const useSearchCacheHandler = (bridge: WebViewBridge) => {
                 });
             }
         },
-        [bridge]
+        [bridge, cacheSearchService, logger]
     );
 
     return { handleSearchGlobalCache };
