@@ -12,8 +12,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { logger, useSubscriptionIap } from '../../../common';
 import type { IapProductSubscription } from '@chatic/app-messages';
+import { logger } from '../../../services';
+import { useSubscriptionIap } from '../../../hooks';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);

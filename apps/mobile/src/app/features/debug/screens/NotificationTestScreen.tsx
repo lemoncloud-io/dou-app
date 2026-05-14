@@ -14,8 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { AuthorizationStatus } from '@react-native-firebase/messaging';
-import { notificationService } from '../../../common';
-import { firebaseInstallationService } from '../../../common/services/firebase/firebaseInstallation';
+import { firebaseInstallationService, notificationService } from '../../../services';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);

@@ -8,7 +8,7 @@ import {
     useOAuthHandler,
     usePermissionHandler,
     useSubscriptionIapHandler,
-} from '../../../common/webview/hooks';
+} from '../../../webview/hooks';
 import type { AppMessageData } from '@chatic/app-messages';
 
 type LogType = 'sent' | 'received' | 'info' | 'error';

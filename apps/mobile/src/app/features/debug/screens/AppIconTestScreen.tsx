@@ -1,8 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { FlatList, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { DEFAULT_APP_ICON_NAME, dynamicAppIconService } from '../../../common';
+import { DEFAULT_APP_ICON_NAME, dynamicAppIconService } from '../../../services';
 
 type LogType = 'info' | 'success' | 'error';
 

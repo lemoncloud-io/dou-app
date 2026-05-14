@@ -12,9 +12,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RNFS from 'react-native-fs';
-import { cacheCrudService } from '../../../common/storages';
-import { database } from '../../../common/storages/cache/sqlite';
 import type { CacheType } from '@chatic/app-messages';
+import { cacheCrudService, sqliteDatabase } from '../../../services';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -48,7 +47,8 @@ export const StorageTestScreen = () => {
 
     const fetchItems = useCallback(async () => {
         try {
-            const res = await cacheCrudService.fetchAll({ type: dataType, cid: undefined });
+            // Provide placeholder cid and uid for debug purposes
+            const res = await cacheCrudService.fetchAll({ type: dataType, cid: 'test_cid', uid: 'test_uid' });
             setItems(res || []);
             logResult('FetchAll', `Loaded ${res?.length || 0} items for ${dataType}.`);
         } catch (e) {
@@ -58,7 +58,8 @@ export const StorageTestScreen = () => {
 
     const handleClear = async () => {
         try {
-            await cacheCrudService.clear({ type: dataType });
+            // Provide placeholder cid and uid for debug purposes
+            await cacheCrudService.clear({ type: dataType, cid: 'test_cid', uid: 'test_uid' });
             logResult('Clear', `Successfully cleared all data in ${dataType}.`);
             await fetchItems();
         } catch (e) {
@@ -72,7 +73,7 @@ export const StorageTestScreen = () => {
             if (await RNFS.exists(backupPath)) {
                 await RNFS.unlink(backupPath);
             }
-            await database.backup(backupPath);
+            await sqliteDatabase.backup(backupPath);
             logResult('Backup', `DB backed up safely to:\n${backupPath}`);
         } catch (e) {
             logError('Backup Error', e);
@@ -85,7 +86,7 @@ export const StorageTestScreen = () => {
             if (!(await RNFS.exists(backupPath))) {
                 return logError('Restore Error', '백업 파일이 존재하지 않습니다. 먼저 Backup을 실행해주세요.');
             }
-            await database.restore(backupPath);
+            await sqliteDatabase.restore(backupPath);
             logResult('Restore', 'Database restored successfully! (Skipped mismatched schema)');
             await fetchItems(); // 복원 완료 후 화면 갱신
         } catch (e) {

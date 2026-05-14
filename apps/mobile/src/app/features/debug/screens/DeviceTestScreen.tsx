@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { FlatList, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { deviceService } from '../../../common';
-import { permissionService, type AppPermissionType } from '../../../common';
+import type { AppPermissionType } from '../../../services';
+import { deviceService, permissionService } from '../../../services';
 
 type LogType = 'info' | 'success' | 'error';
 
