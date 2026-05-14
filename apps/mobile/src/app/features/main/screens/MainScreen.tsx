@@ -1,14 +1,16 @@
 import React, { useRef } from 'react';
 
-import { AppWebView, DeepLinkErrorView, FullScreenLoader, t } from '../../../common';
-import { useAppBridge, useVersionCheckHandler } from '../../../common/webview/hooks';
+import { useAppBridge, useVersionCheckHandler } from '../../../webview/hooks';
 import type { WebView } from 'react-native-webview';
 import type { MainScreenProps } from '../navigation';
 import { StyleSheet, View } from 'react-native';
 
-import { useWebViewDeepLink } from '../../../common/webview/hooks/useWebViewDeepLink';
+import { useWebViewDeepLink } from '../../../webview/hooks/useWebViewDeepLink';
 import { useWebMessageRouter } from '../hooks/useWebMessageRouter';
-import { useWebViewNavigation } from '../../../common/webview/hooks/useWebViewNavigation';
+import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigation';
+import { AppWebView } from '../../../webview';
+import { DeepLinkErrorView, FullScreenLoader } from '../../core/components';
+import { t } from '../../../utils';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);

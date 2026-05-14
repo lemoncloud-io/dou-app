@@ -1,26 +1,27 @@
-import { useMemo, useCallback, useRef, useEffect } from 'react';
-import type { WebViewBridge } from '../../../common';
-import { logger, useLanguageStore, useThemeStore } from '../../../common';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import type { WebViewBridge } from '../../../webview';
 import {
-    useCrudCacheHandler,
     useAppIconHandler,
+    useCrudCacheHandler,
     useDeviceHandler,
     useFcmHandler,
+    useLogBufferHandler,
+    useLogHandler,
     useOAuthHandler,
     usePermissionHandler,
     usePreferenceCacheHandler,
     useSafeAreaHandler,
     useSearchCacheHandler,
     useSubscriptionIapHandler,
-    useLogHandler,
-    useLogBufferHandler,
-} from '../../../common/webview/hooks';
-import { useModalHandler } from '../../../common/webview/hooks/useModalHandler';
+} from '../../../webview/hooks';
+import { useModalHandler } from '../../../webview/hooks/useModalHandler';
 
 import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
 import type { MainScreenProps } from '../navigation';
-import { useAppStateHandler } from '../../../common/webview/hooks/useAppStateHandler';
+import { useAppStateHandler } from '../../../webview/hooks/useAppStateHandler';
+import { useLanguageStore, useThemeStore } from '../../../stores';
+import { logger } from '../../../services';
 
 /**
  * Props for the useWebMessageRouter hook.
