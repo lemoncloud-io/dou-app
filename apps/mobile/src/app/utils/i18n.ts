@@ -1,7 +1,7 @@
 import type { TranslationKey } from '@chatic/i18n-mobile';
 import { t as translate } from '@chatic/i18n-mobile';
 
-import { getAppLanguage } from '../utils';
+import { getAppLanguage } from './device';
 
 export type { TranslationKey } from '@chatic/i18n-mobile';
 
