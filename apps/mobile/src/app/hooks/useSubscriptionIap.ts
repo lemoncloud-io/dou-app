@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { type Purchase, type PurchaseError, purchaseErrorListener, purchaseUpdatedListener } from 'react-native-iap';
 
-import { logger } from '../index';
-import { subscriptionIapService } from '../services';
+import { useServices } from './index';
 import type { IapProductSubscription } from '@chatic/app-messages';
 
 /**
@@ -19,6 +18,7 @@ interface UseIapOptions {
  * In-app purchase hook
  */
 export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIapOptions = {}) => {
+    const { subscriptionIapService, logService } = useServices();
     const [products, setProducts] = useState<IapProductSubscription[]>([]);
     const [currentPurchases, setCurrentPurchases] = useState<Purchase[]>([]);
     const [loading, setLoading] = useState(false);
@@ -34,7 +34,7 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
     const refreshPurchases = useCallback(async () => {
         const purchases = await subscriptionIapService.getAvailablePurchases();
         setCurrentPurchases(purchases);
-    }, []);
+    }, [subscriptionIapService]);
 
     /**
      * Transaction processing
@@ -50,12 +50,12 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
                     callbacks.current.onPurchaseSuccess(purchase);
                 }
             } catch (e) {
-                logger.error('IAP', 'Failed to process transaction.', e);
+                logService.error('IAP', 'Failed to process transaction.', e as Error);
             } finally {
                 setLoading(false);
             }
         },
-        [refreshPurchases]
+        [refreshPurchases, logService]
     );
 
     /**
@@ -74,13 +74,13 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
                 setProducts(subscriptions);
                 setCurrentPurchases(availablePurchase);
             } catch (e) {
-                logger.error('IAP', 'Init error.', e);
+                logService.error('IAP', 'Init error.', e as Error);
             }
         };
 
         const updateSubscription = purchaseUpdatedListener(async purchase => {
             if (purchase.purchaseState === 'pending') {
-                logger.info('IAP', 'Transaction is pending. Waiting for approval.', purchase);
+                logService.info('IAP', `Transaction is pending. Waiting for approval. ${JSON.stringify(purchase)}`);
                 return;
             }
 
@@ -88,14 +88,20 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
                 if (purchase.transactionId) {
                     await handleCompleteTransaction(purchase);
                 } else {
-                    logger.warn('IAP', 'Purchase updated but transactionId is missing (iOS).', purchase);
+                    logService.warn(
+                        'IAP',
+                        `Purchase updated but transactionId is missing (iOS). ${JSON.stringify(purchase)}`
+                    );
                     setLoading(false);
                 }
             } else {
                 if (purchase.purchaseToken) {
                     await handleCompleteTransaction(purchase);
                 } else {
-                    logger.warn('IAP', 'Purchase updated but purchaseToken is missing (Android).', purchase);
+                    logService.warn(
+                        'IAP',
+                        `Purchase updated but purchaseToken is missing (Android). ${JSON.stringify(purchase)}`
+                    );
                     setLoading(false);
                 }
             }
@@ -111,7 +117,7 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
             updateSubscription.remove();
             errorSubscription.remove();
         };
-    }, [handleCompleteTransaction]);
+    }, [handleCompleteTransaction, subscriptionIapService, logService]);
 
     /**
      * 구매 신청
@@ -128,9 +134,8 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
 
         try {
             await subscriptionIapService.purchase(id, offerToken, oldPlanId, newPlanId);
-        } catch (e: any) {
-            logger.error('IAP', 'Purchase Request Failed', e);
-
+        } catch (e: unknown) {
+            logService.error('IAP', 'Purchase Request Failed', e as Error);
             setLoading(false);
         }
     };
@@ -144,11 +149,11 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
                 await subscriptionIapService.finish(purchase);
                 await refreshPurchases();
             } catch (e) {
-                logger.error('IAP', `Failed to finish purchase: ${purchase.productId}`, e);
+                logService.error('IAP', `Failed to finish purchase: ${purchase.productId}`, e as Error);
                 throw e;
             }
         },
-        [refreshPurchases]
+        [refreshPurchases, subscriptionIapService, logService]
     );
 
     /**
@@ -156,7 +161,7 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
      */
     const openSubscriptionManagement = useCallback(async () => {
         await subscriptionIapService.linkToManageSubscriptions();
-    }, []);
+    }, [subscriptionIapService]);
 
     return { products, currentPurchases, loading, handlePurchase, finishPurchase, openSubscriptionManagement };
 };
