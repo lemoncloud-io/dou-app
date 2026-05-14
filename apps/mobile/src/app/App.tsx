@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 
-import { FloatingMenu, useAppVersionCheck, useInitializeDeepLink, useThemeStore } from './common';
+import { FloatingMenu, notificationService, useAppVersionCheck, useInitializeDeepLink, useThemeStore } from './common';
 import { getDeepLinkManager } from '@chatic/deeplinks';
 import type { RootStackParamList } from './features/core/navigation';
 import { RootNavigator } from './features/core/navigation';
@@ -25,6 +25,7 @@ export const App = () => {
 
     // Signal that Firebase is ready for deep link processing immediately
     useEffect(() => {
+        notificationService.createNotificationChannel();
         getDeepLinkManager().setAppReady();
     }, []);
 
