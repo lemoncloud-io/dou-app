@@ -6,6 +6,10 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import { useRepositories } from '../data';
 import type { DomainSite } from '@chatic/data';
 
+// 컴포넌트 재마운트(네비게이션 복귀)와 실제 클라우드 전환을 구분하기 위한 모듈 레벨 변수
+// prevCloudIdRef는 unmount 시 리셋되므로 이 변수로 실제 전환 여부를 판단
+let lastFetchedCloudId: string | null | undefined;
+
 /**
  * 플레이스(Site) 목록을 repository를 통해 조회하고, 실시간 동기화 이벤트에 반응하는 훅
  */
@@ -59,7 +63,13 @@ export const usePlaces = () => {
         if (!cloudId || !isVerified) return;
         if (prevCloudIdRef.current === cloudId) return;
         prevCloudIdRef.current = cloudId;
-        void fetchPlaces({ loading: places.length === 0, forceNetwork: true });
+
+        // 실제 클라우드 전환 시에만 network-only (캐시 오염 방지)
+        // 단순 네비게이션 복귀(재마운트)는 cache-first (깜빡임 방지)
+        const isCloudSwitch = lastFetchedCloudId !== undefined && lastFetchedCloudId !== cloudId;
+        lastFetchedCloudId = cloudId;
+
+        void fetchPlaces({ loading: places.length === 0, forceNetwork: isCloudSwitch });
     }, [fetchPlaces, cloudId, isVerified]);
 
     useEffect(() => {

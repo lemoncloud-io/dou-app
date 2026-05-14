@@ -34,6 +34,7 @@ export const LoginPage = (): JSX.Element => {
     const [isAccepting, setIsAccepting] = useState(false);
     const [inviteError, setInviteError] = useState(false);
     const [missingDelegator, setMissingDelegator] = useState(false);
+    const [deviceRegError, setDeviceRegError] = useState(false);
     const loginCalled = useRef(false);
     const { mutateAsync: registerDevice, isPending: isRegisteringDevice } = useRegisterDevice();
     const { deviceId, isReady } = useDynamicDeviceId();
@@ -76,8 +77,7 @@ export const LoginPage = (): JSX.Element => {
             logger.error('AUTH', '[LoginPage] Device registration failed', { error });
             reportError(toError(error));
             toast({ title: t('auth.loginFailed'), variant: 'destructive' });
-            // Navigate to home to prevent permanent stuck on "preparing app"
-            window.location.replace('/');
+            setDeviceRegError(true);
         }
     }, [deviceId, registerDevice, setProfile, setIsAuthenticated, toast, t]);
 
@@ -115,23 +115,34 @@ export const LoginPage = (): JSX.Element => {
         const urlCloudName = urlParams.get('_cloudName') ?? undefined;
 
         setIsAccepting(true);
+        logger.info('AUTH', '[handleAccept] starting invite accept', {
+            data: { backend, wss, urlCloudId, urlCloudName },
+        });
 
         try {
             const data = await fetchInvite();
             if (!data) {
+                logger.warn('AUTH', '[handleAccept] fetchInvite returned null');
                 setIsAccepting(false);
                 return;
             }
+            logger.info('AUTH', '[handleAccept] fetchInvite succeeded', {
+                data: { cloudId: data.cloudId, hasToken: !!data.Token },
+            });
 
             const identityToken = data.Token?.identityToken;
             if (!identityToken) throw new Error('No identityToken');
 
             // 1. Register device only if not already authenticated (guest flow)
             const isAlreadyAuthenticated = useWebCoreStore.getState().isAuthenticated;
+            logger.info('AUTH', '[handleAccept] device registration check', {
+                data: { isAlreadyAuthenticated },
+            });
             if (!isAlreadyAuthenticated) {
                 const { Token, ...rest } = await registerDevice(deviceId);
                 await webCore.buildCredentialsByToken(Token);
                 setProfile(rest as unknown as UserProfile$);
+                logger.info('AUTH', '[handleAccept] device registered and profile set');
             }
 
             // 2. Save delegation token
@@ -145,6 +156,9 @@ export const LoginPage = (): JSX.Element => {
             if (effectiveCloudId) {
                 cloudCore.saveSelectedCloudId(effectiveCloudId);
             }
+            logger.info('AUTH', '[handleAccept] cloud state saved', {
+                data: { effectiveCloudId, hasDelegation: !!backend, hasCloudToken: !!data },
+            });
 
             // 4. Save invite cloud to cache
             if (effectiveCloudId) {
@@ -172,6 +186,9 @@ export const LoginPage = (): JSX.Element => {
 
             // 7. Authenticate
             setIsAuthenticated(true);
+            logger.info('AUTH', '[handleAccept] complete, reloading', {
+                data: { effectiveCloudId, invitedSiteId, isInvited: true },
+            });
             toast({ title: t('auth.loginSuccess') });
             window.location.replace('/');
         } catch (error) {
@@ -265,6 +282,27 @@ export const LoginPage = (): JSX.Element => {
                                 {t('inviteAccept.decline')}
                             </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (deviceRegError) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-[rgba(41,41,58,0.23)]">
+                <div className="relative mx-4 w-full max-w-[308px] rounded-[18px] bg-white/80 backdrop-blur-[4px] shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] px-[10px] pt-[26px] pb-[14px]">
+                    <div className="flex flex-col items-center pt-4 w-full gap-4">
+                        <p className="text-center text-[16px] font-medium text-[#84888f]">{t('auth.loginFailed')}</p>
+                        <button
+                            onClick={() => {
+                                setDeviceRegError(false);
+                                loginCalled.current = false;
+                            }}
+                            className="w-full max-w-[200px] h-[42px] rounded-full bg-[#b0ea10] text-[14px] font-semibold text-[#222325]"
+                        >
+                            {t('inviteAccept.goBack')}
+                        </button>
                     </div>
                 </div>
             </div>

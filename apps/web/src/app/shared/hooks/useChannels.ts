@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/app-messages';
+import { useInterval } from '@chatic/shared';
 import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
 import { useDynamicProfile } from '@chatic/web-core';
@@ -10,6 +11,7 @@ import type { ClientChannelView } from '../types';
 import { debounce } from '../utils/debounce';
 
 const DEFAULT_CHANNEL_LIMIT = 100;
+const CHANNEL_POLL_INTERVAL_MS = 15_000;
 
 const toClientChannel = (channel: DomainChannel, userId?: string): ClientChannelView => {
     const lastChatNo = channel.lastChat$?.chatNo ?? channel.chatNo ?? 0;
@@ -81,10 +83,14 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         return () => unsubscribe();
     }, [targetPlaceId, cloudId, channelRepository, userId]);
 
+    const userIdRef = useRef(userId);
+    userIdRef.current = userId;
+
     // 백그라운드 데이터 동기화
     const fetchChannels = useCallback(
-        async (params?: Partial<DomainChannelListPayload>) => {
-            const nextParams = { ...currentParamsRef.current, ...params };
+        async (params?: Partial<DomainChannelListPayload> & { forceNetwork?: boolean }) => {
+            const { forceNetwork, ...rest } = params ?? {};
+            const nextParams = { ...currentParamsRef.current, ...rest };
             currentParamsRef.current = nextParams;
 
             if (!nextParams.sid) return;
@@ -94,9 +100,20 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
             setErrorMessage(null);
 
             try {
-                await channelRepository.fetchChannel(buildFetchPayload(nextParams), {
-                    cachePolicy: 'cache-first',
+                const cachePolicy = forceNetwork ? 'network-only' : 'cache-first';
+                const result = await channelRepository.fetchChannel(buildFetchPayload(nextParams), {
+                    cachePolicy,
                 });
+                // fetchFromRemoteAndCache가 로컬 캐시에 직접 저장하지 않아
+                // subscribeList 콜백이 도메인 이벤트 타이밍에 의존함.
+                // 채널이 비어있으면 반환값으로 직접 보완하여 초기 로딩 지연 방지
+                if (channelsRef.current.length === 0 && (result.list ?? []).length > 0) {
+                    const nextChannels = sortChannels(
+                        (result.list ?? []).map((channel: DomainChannel) => toClientChannel(channel, userIdRef.current))
+                    );
+                    setChannels(nextChannels);
+                    setIsLoading(false);
+                }
             } catch (error) {
                 const message = error instanceof Error ? error.message : String(error);
                 logger.error('CHANNEL', 'Failed to fetch channels from repository', { error });
@@ -144,13 +161,21 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         };
     }, [chatRepository, joinRepository, fetchChannels]);
 
+    // 채널 목록 주기적 폴링 (WebSocket push 누락 시 unreadCount 등 보완)
+    useInterval(
+        () => {
+            void fetchChannels();
+        },
+        targetPlaceId && cloudId ? CHANNEL_POLL_INTERVAL_MS : null
+    );
+
     return {
         channels,
         isLoading,
         isSyncing,
         isError,
         errorMessage,
-        refresh: (options?: DomainChannelListPayload) => fetchChannels(options),
+        refresh: () => fetchChannels({ forceNetwork: true }),
         sync: (options?: DomainChannelListPayload) => fetchChannels(options),
     };
 };

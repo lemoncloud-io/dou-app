@@ -222,11 +222,27 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         payload: DomainChannelListPayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainChannel>> {
+        // 요청 시점의 context를 캡처 — await 중 cloud 전환이 발생해도 올바른 scope에 캐시 저장
+        const requestScope = this.getDomainScope();
+        const requestContext = this.getRepositoryContext();
+
         const remote = await this.requestRemote<ListResult<ChannelView>>(
             ref => this.channelRemoteDataSource.fetchChannel(payload, ref),
             options
         );
-        const domainList = (remote.list || []).map(item => toDomainChannel(item, this.getDomainScope()));
+        // 서버 응답의 cid(e.g. "global")는 cloud 파티셔닝 기준과 다를 수 있으므로
+        // requestScope.cid(= 요청 시점의 cloudId)로 강제 대체
+        const domainList = (remote.list || []).map(item => ({
+            ...toDomainChannel(item, requestScope),
+            cid: requestScope.cid,
+        }));
+
+        // cloud가 전환되었으면 캐시 저장 스킵 — cross-cloud 오염 방지
+        const currentCid = this.getRepositoryContext().cid;
+        if (currentCid === requestContext.cid) {
+            await this.channelLocalDataSource.upsertMany(domainList, requestContext);
+        }
+
         return createDomainListResult(domainList, {
             total: remote.total ?? domainList.length,
             limit: remote.limit,
@@ -254,11 +270,8 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
                 'channel:delete'
             )
         );
-        this.onDomainEvent('channel:list', detail =>
-            this.runInBackground(
-                () => this.channelLocalDataSource.upsertMany(detail.data.list || [], this.getRepositoryContext()),
-                'channel:list'
-            )
-        );
+        // NOTE: channel:list 캐시 저장은 fetchFromRemoteAndCache에서 요청 시점 context를 캡처하여 처리함.
+        // 여기서 중복 upsertMany를 수행하면 cloud 전환 중 도착한 이전 cloud 응답이
+        // 현재 cloud의 캐시 파티션에 저장되는 cross-cloud 오염이 발생함.
     }
 }
