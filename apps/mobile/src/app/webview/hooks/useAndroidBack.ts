@@ -2,10 +2,10 @@ import type React from 'react';
 import { useEffect } from 'react';
 import { Alert, BackHandler, Platform } from 'react-native';
 
-import { t } from '../../i18n';
 import { postAppMessage } from '../core';
 import { useLanguageStore } from '../../stores';
 import type { WebView } from 'react-native-webview';
+import { t } from '../../utils';
 
 export const useAndroidBack = (webViewRef: React.RefObject<WebView | null>, canGoBack: boolean) => {
     const language = useLanguageStore(state => state.language);

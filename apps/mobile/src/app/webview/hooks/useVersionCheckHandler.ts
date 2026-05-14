@@ -3,7 +3,7 @@ import DeviceInfo from 'react-native-device-info';
 import { Platform } from 'react-native';
 import Config from 'react-native-config';
 
-import { onVersionCheckComplete } from '../../hooks/useAppVersionCheck';
+import { onVersionCheckComplete } from '../../hooks';
 
 import type { WebViewBridge } from '../index';
 import type { AppMessageData, Env, Platform as AppPlatform } from '@chatic/app-messages';

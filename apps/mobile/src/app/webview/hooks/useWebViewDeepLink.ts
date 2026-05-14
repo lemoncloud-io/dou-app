@@ -3,8 +3,9 @@ import type { WebView } from 'react-native-webview';
 
 import { getDeepLinkManager } from '@chatic/deeplinks';
 
-import { logger, useDeepLinkStore } from '../../index';
 import { WEBVIEW_URL } from '../utils/constants';
+import { useDeepLinkStore } from '../../stores';
+import { logger } from '../../services';
 
 const webviewBaseUrl = new URL(WEBVIEW_URL);
 const toLocalUrl = (url: string): string => {

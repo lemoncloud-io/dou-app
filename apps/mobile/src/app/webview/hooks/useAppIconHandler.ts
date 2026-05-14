@@ -1,15 +1,16 @@
 import { useCallback } from 'react';
 
-import { DEFAULT_APP_ICON_NAME, dynamicAppIconService } from '../../services';
+import { provider } from '../../services';
+import { DEFAULT_APP_ICON_NAME } from '../../services';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type {
+    WebDefaultMessage,
     ChangeAppIcon,
     FetchAppIcon,
     OnChangeAppIconPayload,
     OnFetchAppIconPayload,
     OnFetchAppIconListPayload,
-    WebDefaultMessage,
 } from '@chatic/app-messages';
 
 const toErrorMessage = (error: unknown): string => {
@@ -22,7 +23,7 @@ export const useAppIconHandler = (bridge: WebViewBridge) => {
     const handleFetchAppIcon = useCallback(
         async (message: FetchAppIcon) => {
             try {
-                const currentIcon = await dynamicAppIconService.fetchCurrentIcon();
+                const currentIcon = await provider.dynamicAppIconService.fetchCurrentIcon();
                 bridge.post({
                     type: 'OnFetchAppIcon',
                     nonce: message.nonce,
@@ -42,7 +43,7 @@ export const useAppIconHandler = (bridge: WebViewBridge) => {
     //  사용 가능한 아이콘 목록 전체 조회
     const handleFetchAppIconList = useCallback(
         async (message: WebDefaultMessage<'FetchAppIconList'>) => {
-            const availableIcons = dynamicAppIconService.getAvailableIcons();
+            const availableIcons = provider.dynamicAppIconService.getAvailableIcons();
             bridge.post({
                 type: 'OnFetchAppIconList',
                 nonce: message.nonce,
@@ -57,8 +58,8 @@ export const useAppIconHandler = (bridge: WebViewBridge) => {
         async (message: ChangeAppIcon) => {
             try {
                 const requestedIcon = message.data.iconName ?? null;
-                const success = await dynamicAppIconService.setAppIcon(requestedIcon);
-                const currentIcon = await dynamicAppIconService.fetchCurrentIcon();
+                const success = await provider.dynamicAppIconService.setAppIcon(requestedIcon);
+                const currentIcon = await provider.dynamicAppIconService.fetchCurrentIcon();
 
                 bridge.post({
                     type: 'OnChangeAppIcon',

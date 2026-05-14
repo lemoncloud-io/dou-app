@@ -6,7 +6,7 @@ import Config from 'react-native-config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { APP_USER_AGENT_PREFIX, getAppLanguage } from '../utils';
-import { getVersionCheckResult } from '../hooks/useAppVersionCheck';
+import { getVersionCheckResult } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
 import {
     getCachedDataScript,
@@ -14,8 +14,7 @@ import {
     getDeviceInfoScript,
     getSafeAreaScript,
 } from './utils/injectionScripts';
-import { firebaseInstallationService } from '../services/firebase/firebaseInstallation';
-import { cacheCrudService } from '../storages';
+import { cacheCrudService, firebaseInstallationService } from '../services';
 
 interface AppWebViewProps extends WebViewProps {}
 

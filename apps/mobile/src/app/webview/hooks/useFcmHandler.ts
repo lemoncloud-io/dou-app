@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
 
-import { notificationService, logger } from '../../services';
+import { logger, provider } from '../../services';
 
 import type { WebViewBridge } from './useBaseBridge';
 import type { AppMessageData } from '@chatic/app-messages';
@@ -13,15 +13,15 @@ import type { AppMessageData } from '@chatic/app-messages';
 export const useFcmHandler = (bridge: WebViewBridge) => {
     const fetchFcmToken = useCallback(async () => {
         try {
-            const hasPermission = await notificationService.requestPermission();
+            const hasPermission = await provider.notificationService.requestPermission();
 
             if (hasPermission) {
                 let token;
                 if (Platform.OS === 'ios') {
-                    await notificationService.registerAPNs();
-                    token = await notificationService.getAPNSToken();
+                    await provider.notificationService.registerAPNs();
+                    token = await provider.notificationService.getAPNSToken();
                 } else {
-                    token = await notificationService.getToken();
+                    token = await provider.notificationService.getToken();
                 }
 
                 if (token) {
@@ -42,7 +42,7 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
 
     useEffect(() => {
         // 포그라운드 알림 수신
-        const unsubscribeOnMessage = notificationService.onMessage(async remoteMessage => {
+        const unsubscribeOnMessage = provider.notificationService.onMessage(async remoteMessage => {
             const message: AppMessageData<'OnReceiveNotification'> = {
                 type: 'OnReceiveNotification',
                 data: {
@@ -57,7 +57,7 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
         });
 
         // 앱 백그라운드 상태에서 알림 클릭
-        const unsubscribeOnOpened = notificationService.onNotificationOpenedApp(remoteMessage => {
+        const unsubscribeOnOpened = provider.notificationService.onNotificationOpenedApp(remoteMessage => {
             const message: AppMessageData<'OnOpenNotification'> = {
                 type: 'OnOpenNotification',
                 data: remoteMessage.data || {},
@@ -66,7 +66,7 @@ export const useFcmHandler = (bridge: WebViewBridge) => {
         });
 
         // 앱 종료 상태에서 알림 클릭 (Cold Start)
-        notificationService.getInitialNotification().then(remoteMessage => {
+        provider.notificationService.getInitialNotification().then(remoteMessage => {
             if (remoteMessage) {
                 /**
                  * TODO: Handle initial notification when webview is ready

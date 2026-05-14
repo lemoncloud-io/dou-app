@@ -1,16 +1,16 @@
 import { useCallback } from 'react';
-import { logger } from '../../services';
-
 import type { WebViewBridge } from './useBaseBridge';
 import type { AppMessageData, DeletePreference, FetchPreference, SavePreference } from '@chatic/app-messages';
-import { cachePreferenceService } from '../../storages';
 import { useLanguageStore, useThemeStore } from '../../stores';
+import { useServices } from '../../hooks';
 
 export const usePreferenceCacheHandler = (bridge: WebViewBridge) => {
+    const { preferenceService, logService } = useServices();
+
     const handleFetchPreference = useCallback(
         async (message: FetchPreference) => {
             try {
-                const value = await cachePreferenceService.getPreference(message.data.key);
+                const value = await preferenceService.get(message.data.key as any);
                 const response: AppMessageData<'OnFetchPreference'> = {
                     type: 'OnFetchPreference',
                     nonce: message.nonce,
@@ -21,7 +21,7 @@ export const usePreferenceCacheHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                logger.error('CACHE', `FetchPreference error: ${message.data.key}`, e);
+                logService.error('CACHE', `FetchPreference error: ${message.data.key}`, e as Error);
                 bridge.post({
                     type: 'OnFetchPreference',
                     nonce: message.nonce,
@@ -29,7 +29,7 @@ export const usePreferenceCacheHandler = (bridge: WebViewBridge) => {
                 });
             }
         },
-        [bridge]
+        [bridge, preferenceService, logService]
     );
 
     const handleSavePreference = useCallback(
@@ -39,15 +39,15 @@ export const usePreferenceCacheHandler = (bridge: WebViewBridge) => {
             try {
                 switch (key) {
                     case 'theme': {
-                        useThemeStore.getState().setTheme(value);
+                        useThemeStore.getState().setTheme(value as any);
                         break;
                     }
                     case 'language': {
-                        useLanguageStore.getState().setLanguage(value);
+                        useLanguageStore.getState().setLanguage(value as any);
                         break;
                     }
                     default:
-                        await cachePreferenceService.savePreference(key, value);
+                        await preferenceService.set(key as any, value);
                 }
 
                 const response: AppMessageData<'OnSavePreference'> = {
@@ -57,7 +57,7 @@ export const usePreferenceCacheHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                logger.error('CACHE', `SavePreference error: ${key}`, e);
+                logService.error('CACHE', `SavePreference error: ${key}`, e as Error);
                 bridge.post({
                     type: 'OnSavePreference',
                     nonce: message.nonce,
@@ -65,13 +65,13 @@ export const usePreferenceCacheHandler = (bridge: WebViewBridge) => {
                 });
             }
         },
-        [bridge]
+        [bridge, preferenceService, logService]
     );
 
     const handleDeletePreference = useCallback(
         async (message: DeletePreference) => {
             try {
-                await cachePreferenceService.removePreference(message.data.key);
+                await preferenceService.remove(message.data.key as any);
                 const response: AppMessageData<'OnDeletePreference'> = {
                     type: 'OnDeletePreference',
                     nonce: message.nonce,
@@ -82,7 +82,7 @@ export const usePreferenceCacheHandler = (bridge: WebViewBridge) => {
                 };
                 bridge.post(response);
             } catch (e) {
-                logger.error('CACHE', `DeletePreference error: ${message.data.key}`, e);
+                logService.error('CACHE', `DeletePreference error: ${message.data.key}`, e as Error);
                 bridge.post({
                     type: 'OnDeletePreference',
                     nonce: message.nonce,
@@ -90,7 +90,7 @@ export const usePreferenceCacheHandler = (bridge: WebViewBridge) => {
                 });
             }
         },
-        [bridge]
+        [bridge, preferenceService, logService]
     );
 
     return {
