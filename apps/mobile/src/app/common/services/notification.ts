@@ -1,11 +1,43 @@
 import { PermissionsAndroid, Platform } from 'react-native';
 import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import messaging, { AuthorizationStatus } from '@react-native-firebase/messaging';
-import notifee from '@notifee/react-native';
+import notifee, { AndroidImportance } from '@notifee/react-native';
 import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import { logger } from './log';
 
 export const notificationService = {
+    createNotificationChannel: async () => {
+        await notifee.createChannel({
+            id: 'dou_chat',
+            name: '새 메시지',
+            importance: AndroidImportance.HIGH,
+            sound: 'default',
+        });
+        await notifee.createChannel({
+            id: 'dou_chat_muted',
+            name: '새 메시지',
+            importance: AndroidImportance.LOW,
+        });
+
+        await notifee.createChannel({
+            id: 'dou_notice',
+            name: '서비스 공지사항',
+            importance: AndroidImportance.DEFAULT,
+        });
+
+        await notifee.createChannel({
+            id: 'dou_marketing',
+            name: '이벤트 및 혜택',
+            importance: AndroidImportance.LOW,
+        });
+
+        await notifee.createChannel({
+            id: 'dou_cloud',
+            name: '클라우드',
+            importance: AndroidImportance.HIGH,
+        });
+    },
+
     hasPermission: async (): Promise<FirebaseMessagingTypes.AuthorizationStatus> => {
         return messaging().hasPermission();
     },
