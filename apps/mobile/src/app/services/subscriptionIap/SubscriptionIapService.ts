@@ -4,38 +4,36 @@ import {
     finishTransaction,
     getAvailablePurchases,
     initConnection,
-    type Purchase,
     requestPurchase,
 } from 'react-native-iap';
+import type { Purchase } from 'react-native-iap';
+
 import { getReplacementMode, itemSkus } from './config';
-import { logger } from '../log';
-import type { IapProductSubscription } from '@chatic/app-messages';
+import type { ILogService } from '../log';
+import type { ISubscriptionIapService, IapProductSubscription } from './types';
 
-export const subscriptionIapService = {
-    /** 인앱결제 모듈 초기화 */
-    init: async (): Promise<boolean> => {
+export class SubscriptionIapService implements ISubscriptionIapService {
+    private readonly logService: ILogService;
+
+    constructor(logService: ILogService) {
+        this.logService = logService;
+    }
+
+    public async init(): Promise<boolean> {
         return initConnection();
-    },
+    }
 
-    /**
-     * 사용자의 과거 결제 내역(영수증)을 스토어에서 조회합니다.
-     * 프론트엔드(Web)에서 영수증 검증을 직접 수행하므로,
-     * 네이티브는 별도의 finish 처리 없이 날것의 영수증 데이터만 웹으로 반환합니다.
-     */
-    getAvailablePurchases: async (): Promise<Purchase[]> => {
+    public async getAvailablePurchases(): Promise<Purchase[]> {
         try {
-            logger.info('IAP', 'Fetching available purchases for restore...');
+            this.logService.info('IAP', 'Fetching available purchases for restore...');
             return await getAvailablePurchases();
         } catch (error) {
-            logger.error('IAP', 'Failed to get available purchases', error);
+            this.logService.error('IAP', 'Failed to get available purchases', error as Error);
             return [];
         }
-    },
+    }
 
-    /**
-     * 구독 상품 목록 불러오기
-     */
-    getSubscriptions: async (): Promise<IapProductSubscription[]> => {
+    public async getSubscriptions(): Promise<IapProductSubscription[]> {
         if (itemSkus.length === 0) return [];
 
         const products = await fetchProducts({ skus: itemSkus, type: 'subs' });
@@ -68,7 +66,7 @@ export const subscriptionIapService = {
                                 W: 'week',
                                 D: 'day',
                             };
-                            periodUnit = unitMap[unitChar];
+                            periodUnit = unitMap[unitChar as string];
                         }
                     }
 
@@ -119,23 +117,17 @@ export const subscriptionIapService = {
                 periodNumber: num ? Number(num) : undefined,
             };
         });
-    },
+    }
 
-    /**
-     * 구매 신청
-     * @param id 상품 코드 (sku)
-     * @param offerToken (Android 필수) 결제할 오퍼 토큰
-     * @param oldPlanId (Android) 현재 구독 중인 요금제 ID (basePlanId)
-     * @param newPlanId (Android) 새로 결제하려는 요금제 ID (basePlanId) - 업/다운 판별용
-     *
-     * 주의사항: oldPlanId, newPlanId가 존재하지 않을 경우, Android에서는 업그레이드/다운그레이드 모드가 기본 설정값을 따름 (WITH_TIME_PRORATION)
-     */
-    purchase: async (id: string, offerToken?: string, oldPlanId?: string, newPlanId?: string): Promise<void> => {
+    public async purchase(id: string, offerToken?: string, oldPlanId?: string, newPlanId?: string): Promise<void> {
         if (Platform.OS === 'android' && !offerToken) {
             throw new Error('Require offerToken for purchasing Android');
         }
 
-        console.log(id, offerToken, oldPlanId, newPlanId);
+        this.logService.info(
+            'IAP',
+            `Attempting purchase: id=${id}, offerToken=${offerToken}, oldPlanId=${oldPlanId}, newPlanId=${newPlanId}`
+        );
 
         const googleRequest: any =
             Platform.OS === 'android'
@@ -149,7 +141,7 @@ export const subscriptionIapService = {
         // Android 환경이면서, 업그레이드/다운그레이드에 필요한 데이터가 전부 존재할때
         if (Platform.OS === 'android' && oldPlanId && newPlanId && googleRequest) {
             // sku를 활용하여 이전 구매내역 찾기
-            const availablePurchases = await getAvailablePurchases();
+            const availablePurchases = await this.getAvailablePurchases();
             const oldPurchase = availablePurchases.find(p => p.productId === id);
 
             // 이전 구매내역이 존재할 경우 업그레이드/다운그레이드 관련 파라미터 추가
@@ -168,25 +160,18 @@ export const subscriptionIapService = {
                 google: googleRequest,
             },
         });
-    },
+    }
 
-    /**
-     * 구독 완료 트랜잭션 처리
-     * @param purchase 구매 정보
-     */
-    finish: async (purchase: Purchase): Promise<Purchase> => {
+    public async finish(purchase: Purchase): Promise<Purchase> {
         await finishTransaction({ purchase, isConsumable: false });
         return purchase;
-    },
+    }
 
-    /**
-     * 구독 관리 페이지 이동
-     */
-    linkToManageSubscriptions: async (): Promise<void> => {
+    public async linkToManageSubscriptions(): Promise<void> {
         const url =
             Platform.OS === 'ios'
                 ? 'https://apps.apple.com/account/subscriptions'
                 : 'https://play.google.com/store/account/subscriptions';
         await Linking.openURL(url);
-    },
-};
+    }
+}
