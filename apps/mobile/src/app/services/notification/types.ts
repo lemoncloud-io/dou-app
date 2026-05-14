@@ -2,6 +2,7 @@ import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 
 export interface INotificationService {
     hasPermission(): Promise<FirebaseMessagingTypes.AuthorizationStatus>;
+    createNotificationChannel(): Promise<void>;
     requestPermission(): Promise<boolean>;
     getAPNSToken(): Promise<string | null>;
     getToken(): Promise<string | null>;

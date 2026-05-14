@@ -3,10 +3,17 @@ import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import messaging, { AuthorizationStatus } from '@react-native-firebase/messaging';
 import notifee, { AndroidImportance } from '@notifee/react-native';
 import PushNotificationIOS from '@react-native-community/push-notification-ios';
-import { logger } from './log';
+import type { INotificationService } from './types';
+import type { ILogService } from '../log';
 
-export const notificationService = {
-    createNotificationChannel: async () => {
+export class NotificationService implements INotificationService {
+    constructor(private readonly logger: ILogService) {}
+
+    async hasPermission(): Promise<FirebaseMessagingTypes.AuthorizationStatus> {
+        return messaging().hasPermission();
+    }
+
+    async createNotificationChannel() {
         await notifee.createChannel({
             id: 'dou_chat',
             name: '새 메시지',
@@ -36,13 +43,9 @@ export const notificationService = {
             name: '클라우드',
             importance: AndroidImportance.HIGH,
         });
-    },
+    }
 
-    hasPermission: async (): Promise<FirebaseMessagingTypes.AuthorizationStatus> => {
-        return messaging().hasPermission();
-    },
-
-    requestPermission: async (): Promise<boolean> => {
+    async requestPermission(): Promise<boolean> {
         if (Platform.OS === 'android' && Platform.Version >= 33) {
             const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
             if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
@@ -52,42 +55,42 @@ export const notificationService = {
 
         const authStatus = await messaging().requestPermission();
         return authStatus === AuthorizationStatus.AUTHORIZED || authStatus === AuthorizationStatus.PROVISIONAL;
-    },
+    }
 
-    getAPNSToken: async () => {
+    async getAPNSToken(): Promise<string | null> {
         if (Platform.OS === 'ios') {
             return await messaging().getAPNSToken();
         }
         return null;
-    },
+    }
 
-    getToken: async (): Promise<string | null> => {
+    async getToken(): Promise<string | null> {
         try {
             return await messaging().getToken();
         } catch (e) {
-            logger.error('NOTIFICATION', 'Get token error.', e);
+            this.logger.error('NOTIFICATION', 'Get token error.', e);
             return null;
         }
-    },
+    }
 
-    deleteToken: async (): Promise<void> => {
+    async deleteToken(): Promise<void> {
         try {
             await messaging().deleteToken();
         } catch (e) {
-            logger.error('NOTIFICATION', 'Delete token error.', e);
+            this.logger.error('NOTIFICATION', 'Delete token error.', e);
         }
-    },
+    }
 
-    registerAPNs: async () => {
+    async registerAPNs(): Promise<void> {
         try {
             await messaging().registerDeviceForRemoteMessages();
         } catch (e) {
-            logger.error('NOTIFICATION', 'Register APNs error.', e);
+            this.logger.error('NOTIFICATION', 'Register APNs error.', e);
         }
-    },
+    }
 
-    getInitialNotification: async (): Promise<any> => {
-        notificationService.clearBadge();
+    async getInitialNotification(): Promise<any> {
+        this.clearBadge();
 
         if (Platform.OS === 'ios') {
             const apnsInitial = await PushNotificationIOS.getInitialNotification();
@@ -105,10 +108,10 @@ export const notificationService = {
         }
 
         return messaging().getInitialNotification();
-    },
+    }
 
-    onMessage: (callback: (message: any) => void) => {
-        notificationService.clearBadge();
+    onMessage(callback: (message: any) => void): () => void {
+        this.clearBadge();
 
         // FCM 리스너 등록
         const unsubscribeFCM = messaging().onMessage(callback);
@@ -140,39 +143,39 @@ export const notificationService = {
         }
 
         return unsubscribeFCM;
-    },
+    }
 
-    onNotificationOpenedApp: (callback: (message: any) => void) => {
-        notificationService.clearBadge();
+    onNotificationOpenedApp(callback: (message: any) => void): () => void {
+        this.clearBadge();
         return messaging().onNotificationOpenedApp(callback);
-    },
+    }
 
-    onTokenRefresh: (callback: (token: string) => void) => {
+    onTokenRefresh(callback: (token: string) => void): () => void {
         return messaging().onTokenRefresh(callback);
-    },
+    }
 
-    setBadgeCount: async (count: number): Promise<void> => {
+    async setBadgeCount(count: number): Promise<void> {
         try {
             await notifee.setBadgeCount(count);
         } catch (e) {
-            logger.error('NOTIFICATION', 'Set badge error.', e);
+            this.logger.error('NOTIFICATION', 'Set badge error.', e);
         }
-    },
+    }
 
-    clearBadge: async (): Promise<void> => {
+    async clearBadge(): Promise<void> {
         try {
             await notifee.setBadgeCount(0);
         } catch (e) {
-            logger.error('NOTIFICATION', 'Clear badge error.', e);
+            this.logger.error('NOTIFICATION', 'Clear badge error.', e);
         }
-    },
+    }
 
-    getBadgeCount: async (): Promise<number> => {
+    async getBadgeCount(): Promise<number> {
         try {
             return await notifee.getBadgeCount();
         } catch (e) {
-            logger.error('NOTIFICATION', 'Get badge error.', e);
+            this.logger.error('NOTIFICATION', 'Get badge error.', e);
             return 0;
         }
-    },
-};
+    }
+}

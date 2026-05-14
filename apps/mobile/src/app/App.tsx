@@ -5,10 +5,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 
-import { FloatingMenu, notificationService, useAppVersionCheck, useInitializeDeepLink, useThemeStore } from './common';
 import { getDeepLinkManager } from '@chatic/deeplinks';
 import type { RootStackParamList } from './features/core/navigation';
 import { RootNavigator } from './features/core/navigation';
+import { useAppVersionCheck, useInitializeDeepLink } from './hooks';
+import { useThemeStore } from './stores';
+import { notificationService } from './services';
+import { FloatingMenu } from './features/core/components';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 const SHOW_DEBUG_MENU = __DEV__ || Config.VITE_ENV !== 'PROD';
