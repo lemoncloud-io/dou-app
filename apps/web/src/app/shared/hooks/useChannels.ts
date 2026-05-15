@@ -4,7 +4,7 @@ import { logger } from '@chatic/app-messages';
 import { useInterval } from '@chatic/shared';
 import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
-import { useDynamicProfile } from '@chatic/web-core';
+import { cloudCore, useDynamicProfile } from '@chatic/web-core';
 
 import { useRepositories } from '../data';
 import type { ClientChannelView } from '../types';
@@ -47,7 +47,11 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     const profile = useDynamicProfile();
     const userId = profile?.uid;
     const targetPlaceId = initialParams.sid;
-    const cloudId = useWebSocketV2Store(s => s.cloudId);
+    const storeCloudId = useWebSocketV2Store(s => s.cloudId);
+    const isConnected = useWebSocketV2Store(s => s.isConnected);
+    // default cloud인 경우 WebSocket store에 cloudId가 설정되기 전에도 동작할 수 있도록 fallback
+    const selectedCloudId = cloudCore.getSelectedCloudId();
+    const cloudId = storeCloudId || (selectedCloudId === 'default' ? 'default' : null);
 
     const prevCloudIdRef = useRef(cloudId);
     const currentParamsRef = useRef(initialParams);
@@ -136,7 +140,15 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
             currentParamsRef.current = initialParams;
         }
         void fetchChannels(initialParams);
-    }, [fetchChannels, targetPlaceId, cloudId, initialParams.detail, initialParams.limit, initialParams.page]);
+    }, [
+        fetchChannels,
+        targetPlaceId,
+        cloudId,
+        isConnected,
+        initialParams.detail,
+        initialParams.limit,
+        initialParams.page,
+    ]);
 
     // 채팅/조인 업데이트 등 간접적 이벤트에 대한 동기화 트리거
     useEffect(() => {
