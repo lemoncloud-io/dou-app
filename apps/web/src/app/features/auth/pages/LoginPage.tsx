@@ -134,7 +134,12 @@ export const LoginPage = (): JSX.Element => {
                 const { Token, ...rest } = await registerDevice(deviceId);
                 await webCore.buildCredentialsByToken(Token);
                 setProfile(rest as unknown as UserProfile$);
-                effectiveDelegatorId = (rest as unknown as UserProfile$).uid;
+                // registerDevice 응답은 UserView 기반 — uid가 아닌 id 필드에 사용자 ID가 있음
+                // setProfile 후 store에서 delegatorId를 읽거나, 응답의 uid/id를 fallback으로 사용
+                effectiveDelegatorId =
+                    useWebCoreStore.getState().delegatorId ??
+                    (rest as unknown as UserProfile$).uid ??
+                    ((rest as Record<string, unknown>).id as string);
                 logger.info('AUTH', '[handleAccept] device registered', {
                     data: { uid: effectiveDelegatorId },
                 });
