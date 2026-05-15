@@ -43,6 +43,7 @@ export const useCloudSession = () => {
             // cloud가 변경된 경우에만 place 초기화 (같은 cloud 재선택 시 place 유지)
             if (previousCloudId !== cloudId) {
                 cloudCore.clearSelectedPlace();
+                cloudCore.clearPlaceOrder(cloudId);
             }
 
             const currentProfile = useWebCoreStore.getState().profile;

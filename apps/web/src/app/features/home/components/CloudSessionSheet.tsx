@@ -341,7 +341,7 @@ export const CloudSessionSheet = ({ open, onOpenChange, onCloudSwitchComplete }:
         handleClose();
     };
 
-    const isDefaultSelected = selectedId === 'default';
+    const isDefaultSelected = !selectedId || selectedId === 'default';
     const isLoading = isFetchingClouds && clouds.length === 0;
 
     return (

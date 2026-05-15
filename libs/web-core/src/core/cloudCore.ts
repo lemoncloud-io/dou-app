@@ -37,6 +37,7 @@ interface CloudCore {
     getCredential: () => AWSCredentials | null;
     savePlaceOrder: (cloudId: string, order: string[]) => void;
     getPlaceOrder: (cloudId: string) => string[] | null;
+    clearPlaceOrder: (cloudId: string) => void;
     buildRequest: (config: AxiosRequestConfig) => RequestBuilder;
     refreshToken: (target?: string) => Promise<UserTokenView>;
 }
@@ -87,6 +88,10 @@ export const cloudCore: CloudCore = {
     getPlaceOrder: (cloudId: string): string[] | null => {
         const raw = coreStorage.get(`${CLOUD_PLACE_ORDER_KEY_PREFIX}${cloudId}`);
         return raw ? (JSON.parse(raw) as string[]) : null;
+    },
+
+    clearPlaceOrder: (cloudId: string): void => {
+        coreStorage.remove(`${CLOUD_PLACE_ORDER_KEY_PREFIX}${cloudId}`);
     },
 
     clearDelegationToken: (): void => {

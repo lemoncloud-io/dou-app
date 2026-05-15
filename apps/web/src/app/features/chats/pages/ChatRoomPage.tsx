@@ -59,7 +59,8 @@ export const ChatRoomPage = () => {
     const lastReadChatNoRef = useRef<number | null>(null);
 
     const dynamicProfile = useDynamicProfile();
-    const { userType } = useUserContext();
+    const { userType, currentWSS } = useUserContext();
+    const isDefaultCloud = currentWSS === 'relay';
     const { isIOS } = useAppChecker();
 
     // --- 데이터 패칭 Hooks ---
@@ -561,7 +562,8 @@ export const ChatRoomPage = () => {
                                                                         <span className="text-muted-foreground">
                                                                             {formatTime(message.timestamp)}
                                                                         </span>
-                                                                        {message.chatNo !== undefined &&
+                                                                        {!isDefaultCloud &&
+                                                                            message.chatNo !== undefined &&
                                                                             (!isJoinReady ? (
                                                                                 <Loader2
                                                                                     size={11}
