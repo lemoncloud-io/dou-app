@@ -160,9 +160,11 @@ export class SiteRepository extends BaseRepository implements ISiteRepository, I
         );
         // 서버 응답의 cid(e.g. "global")는 cloud 파티셔닝 기준과 다를 수 있으므로
         // requestScope.cid(= 요청 시점의 cloudId)로 강제 대체
-        const domainList = (remote.list || []).map(item => ({
+        // 서버 응답의 배열 순서를 order 필드로 보존 — 로컬 캐시에서 읽을 때도 동일 순서 유지
+        const domainList = (remote.list || []).map((item, index) => ({
             ...toDomainSite(item, requestScope),
             cid: requestScope.cid,
+            order: index,
         }));
 
         // cloud가 전환되었으면 캐시 저장 스킵 — cross-cloud 오염 방지
