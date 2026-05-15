@@ -45,25 +45,29 @@ export const LoginPage = (): JSX.Element => {
 
     const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
-    const fetchInvite = useCallback(async (): Promise<UserTokenView | null> => {
-        const code = urlParams.get('code');
-        const backend = urlParams.get('_backend') ?? undefined;
-        if (!code) return null;
-        try {
-            if (!delegatorId) {
-                logger.error('AUTH', '[LoginPage] delegatorId not found');
-                setMissingDelegator(true);
+    const fetchInvite = useCallback(
+        async (overrideDelegatorId?: string): Promise<UserTokenView | null> => {
+            const code = urlParams.get('code');
+            const backend = urlParams.get('_backend') ?? undefined;
+            if (!code) return null;
+            try {
+                const effectiveDelegatorId = overrideDelegatorId ?? delegatorId;
+                if (!effectiveDelegatorId) {
+                    logger.error('AUTH', '[LoginPage] delegatorId not found');
+                    setMissingDelegator(true);
+                    return null;
+                }
+                return await loginWithInviteCode(code, effectiveDelegatorId, backend);
+            } catch (error) {
+                logger.error('AUTH', '[LoginPage] Fetch invite data failed', { error });
+                reportError(toError(error));
+                toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
+                setInviteError(true);
                 return null;
             }
-            return await loginWithInviteCode(code, delegatorId, backend);
-        } catch (error) {
-            logger.error('AUTH', '[LoginPage] Fetch invite data failed', { error });
-            reportError(toError(error));
-            toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
-            setInviteError(true);
-            return null;
-        }
-    }, [urlParams, toast, t, delegatorId]);
+        },
+        [urlParams, toast, t, delegatorId]
+    );
     const handleDeviceRegistration = useCallback(async () => {
         try {
             const { Token, ...rest } = await registerDevice(deviceId);
@@ -120,7 +124,24 @@ export const LoginPage = (): JSX.Element => {
         });
 
         try {
-            const data = await fetchInvite();
+            // 1. 디바이스 등록 먼저 — delegatorId(profile.uid) 확보 필수
+            let effectiveDelegatorId = delegatorId;
+            const isAlreadyAuthenticated = useWebCoreStore.getState().isAuthenticated;
+            logger.info('AUTH', '[handleAccept] device registration check', {
+                data: { isAlreadyAuthenticated, hasDelegatorId: !!effectiveDelegatorId },
+            });
+            if (!isAlreadyAuthenticated || !effectiveDelegatorId) {
+                const { Token, ...rest } = await registerDevice(deviceId);
+                await webCore.buildCredentialsByToken(Token);
+                setProfile(rest as unknown as UserProfile$);
+                effectiveDelegatorId = (rest as unknown as UserProfile$).uid;
+                logger.info('AUTH', '[handleAccept] device registered', {
+                    data: { uid: effectiveDelegatorId },
+                });
+            }
+
+            // 2. invite 수락 — delegatorId를 직접 전달
+            const data = await fetchInvite(effectiveDelegatorId);
             if (!data) {
                 logger.warn('AUTH', '[handleAccept] fetchInvite returned null');
                 setIsAccepting(false);
@@ -133,25 +154,11 @@ export const LoginPage = (): JSX.Element => {
             const identityToken = data.Token?.identityToken;
             if (!identityToken) throw new Error('No identityToken');
 
-            // 1. Register device only if not already authenticated (guest flow)
-            const isAlreadyAuthenticated = useWebCoreStore.getState().isAuthenticated;
-            logger.info('AUTH', '[handleAccept] device registration check', {
-                data: { isAlreadyAuthenticated },
-            });
-            if (!isAlreadyAuthenticated) {
-                const { Token, ...rest } = await registerDevice(deviceId);
-                await webCore.buildCredentialsByToken(Token);
-                setProfile(rest as unknown as UserProfile$);
-                logger.info('AUTH', '[handleAccept] device registered and profile set');
-            }
-
-            // 2. Save delegation token
+            // 3. Save delegation token
             cloudCore.saveDelegationToken({ backend, wss } as CloudDelegationTokenView);
 
-            // 3. Save cloud token
+            // 4. Save cloud token + selected cloud ID
             cloudCore.saveCloudToken(data as unknown as UserTokenView);
-
-            // 3-1. Save selected cloud ID (prefer URL param over server response)
             const effectiveCloudId = urlCloudId ?? data.cloudId;
             if (effectiveCloudId) {
                 cloudCore.saveSelectedCloudId(effectiveCloudId);
@@ -160,7 +167,7 @@ export const LoginPage = (): JSX.Element => {
                 data: { effectiveCloudId, hasDelegation: !!backend, hasCloudToken: !!data },
             });
 
-            // 4. Save invite cloud to cache
+            // 5. Save invite cloud to cache
             if (effectiveCloudId) {
                 const { isOnMobileApp } = getMobileAppInfo();
                 if (isOnMobileApp) {
@@ -174,17 +181,17 @@ export const LoginPage = (): JSX.Element => {
                 }
             }
 
-            // 5. Mark as invited
+            // 6. Mark as invited
             setIsInvitedSession(true);
 
-            // 6. Reset selected place, then pre-select the invited place
+            // 7. Reset selected place, then pre-select the invited place
             cloudCore.clearSelectedPlace();
             const invitedSiteId = urlParams.get('_siteId');
             if (invitedSiteId) {
                 cloudCore.saveSelectedSiteId(invitedSiteId);
             }
 
-            // 7. Authenticate
+            // 8. Authenticate
             setIsAuthenticated(true);
             logger.info('AUTH', '[handleAccept] complete, reloading', {
                 data: { effectiveCloudId, invitedSiteId, isInvited: true },
