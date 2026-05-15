@@ -98,49 +98,48 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     });
 
     /**
-     * 실시간 캐시 변경을 감지하고 UI 상태를 업데이트합니다.
+     * 로컬 캐시 구독 — chat:feed 를 직접 호출하지 않고,
+     * GlobalChatSync가 background sync를 담당합니다.
+     * 로컬 캐시 변경 시 자동으로 UI가 갱신됩니다.
      */
     useEffect(() => {
         if (!targetChannelId) {
-            allCachedRef.current = [];
             setDomainMessages([]);
             return;
         }
 
+        setDomainMessages(null); // 로딩 상태 시작
+
         const unsubscribe = chatRepository.subscribeList(targetChannelId, result => {
-            if (result === null) return;
-            // [FIXED] 덮어쓰는 대신, 기존 상태와 안전하게 병합합니다.
-            // 이렇게 하면 loadMore로 불러온 데이터가 유지되면서 실시간 업데이트도 반영됩니다.
+            if (result === null || result.list.length === 0) {
+                // 캐시 비어있음 — GlobalChatSync가 채울 때까지 빈 상태 표시
+                setDomainMessages(prev => prev ?? []);
+                return;
+            }
             setDomainMessages(prev => mergeAndSortMessages(prev || [], result.list));
         });
 
         return () => unsubscribe();
     }, [targetChannelId, chatRepository]);
 
-    /**
-     * 초기 메시지를 로드합니다.
-     */
+    // feedCursorNo: 현재 로드된 메시지의 최소 chatNo에서 파생
+    // loadMore 서버 응답 시 서버 cursor로 갱신됨
     useEffect(() => {
-        if (!targetChannelId) return;
+        if (feedCursorNo !== undefined) return; // loadMore에서 이미 설정됨
+        if (!domainMessages || domainMessages.length === 0) return;
 
-        setStatus(prev => ({ ...prev, isError: false }));
-        setDomainMessages(null); // 로딩 상태 시작
+        const chatNos = domainMessages
+            .map(m => m.chatNo)
+            .filter((n): n is number => n !== undefined && n > 0 && n !== Number.MAX_SAFE_INTEGER);
+        if (chatNos.length > 0) {
+            setFeedCursorNo(Math.min(...chatNos));
+        }
+    }, [domainMessages, feedCursorNo]);
 
-        chatRepository
-            .fetchChat(
-                { channelId: targetChannelId, limit: initialParams.limit ?? DEFAULT_CHAT_LIMIT },
-                { cachePolicy: 'cache-first' }
-            )
-            .then(result => {
-                // fetch 결과를 즉시 UI 상태에 반영
-                setDomainMessages(result.list);
-                setFeedCursorNo(result.meta?.cursorNo);
-            })
-            .catch(error => {
-                setStatus(prev => ({ ...prev, isError: true }));
-                logger.error('CHAT', 'Failed to fetch initial chats', { error });
-            });
-    }, [targetChannelId, initialParams.limit, chatRepository]);
+    // channelId가 변경되면 cursor 초기화
+    useEffect(() => {
+        setFeedCursorNo(undefined);
+    }, [targetChannelId]);
 
     const isLoading = domainMessages === null;
     const isEmpty = domainMessages !== null && domainMessages.length === 0;
@@ -152,7 +151,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     }, [domainMessages, userId]);
 
     const loadMore = useCallback(() => {
-        if (!targetChannelId || feedCursorNo === undefined || feedCursorNo === 0 || status.isLoadingMore) return;
+        if (!targetChannelId || feedCursorNo === undefined || feedCursorNo <= 1 || status.isLoadingMore) return;
 
         setStatus(prev => ({ ...prev, isLoadingMore: true, isError: false }));
 
@@ -161,12 +160,13 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 {
                     channelId: targetChannelId,
                     cursorNo: feedCursorNo,
-                    limit: initialParams.limit ?? DEFAULT_CHAT_LIMIT,
+                    limit: pageSize,
                 },
-                { cachePolicy: 'cache-first' }
+                { cachePolicy: 'network-only' }
             )
             .then((result: DomainListResult<DomainChat>) => {
                 setDomainMessages(prev => mergeAndSortMessages(prev || [], result.list));
+                // 서버 cursor로 갱신 — 0이면 더 이상 older 메시지 없음
                 setFeedCursorNo(result.meta?.cursorNo);
             })
             .catch(error => {
@@ -179,21 +179,19 @@ export const useChats = (initialParams: ChatFeedPayload) => {
             .finally(() => {
                 setStatus(prev => ({ ...prev, isLoadingMore: false }));
             });
-    }, [targetChannelId, feedCursorNo, initialParams.limit, status.isLoadingMore, chatRepository]);
+    }, [targetChannelId, feedCursorNo, pageSize, status.isLoadingMore, chatRepository]);
 
-    const hasMore = feedCursorNo !== undefined && feedCursorNo > 0;
+    const hasMore = feedCursorNo !== undefined && feedCursorNo > 1;
 
     const refresh = useCallback(() => {
         if (!targetChannelId) return;
 
         setDomainMessages(null);
+        setFeedCursorNo(undefined);
         setStatus(prev => ({ ...prev, isError: false }));
 
         chatRepository
-            .fetchChat(
-                { channelId: targetChannelId, limit: initialParams.limit ?? DEFAULT_CHAT_LIMIT },
-                { cachePolicy: 'network-only' }
-            )
+            .fetchChat({ channelId: targetChannelId, limit: pageSize }, { cachePolicy: 'network-only' })
             .then(result => {
                 setDomainMessages(result.list);
                 setFeedCursorNo(result.meta?.cursorNo);
@@ -202,7 +200,7 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 setStatus(prev => ({ ...prev, isError: true }));
                 logger.error('CHAT', 'Failed to refresh chats', { error });
             });
-    }, [targetChannelId, initialParams.limit, chatRepository]);
+    }, [targetChannelId, pageSize, chatRepository]);
 
     return {
         messages,

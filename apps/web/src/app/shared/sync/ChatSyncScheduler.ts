@@ -245,10 +245,9 @@ export class ChatSyncScheduler {
             return;
         }
 
-        const pageCount = Math.ceil(totalGap / this.limit);
         logger.info(
             'SYNC',
-            `[ChatSync] ${channelId} — syncing start (parallel): localMax=${localMax}, serverChatNo=${serverChatNo}, gap=${totalGap}, pages=${pageCount}`
+            `[ChatSync] ${channelId} — syncing start: localMax=${localMax}, serverChatNo=${serverChatNo}, gap=${totalGap}`
         );
 
         this.updateState(channelId, {
@@ -259,31 +258,71 @@ export class ChatSyncScheduler {
             fetchedCount: 0,
         });
 
-        // cursorNo를 미리 계산하여 병렬 fetch
-        // 서버 패턴: page 0 → cursor 없음 (최신부터), page i → cursor = serverChatNo - i*limit + 1
-        const cursors: (number | undefined)[] = [];
-        for (let i = 0; i < pageCount; i++) {
-            if (i === 0) {
-                cursors.push(undefined);
-            } else {
-                const cursor = serverChatNo - i * this.limit + 1;
-                cursors.push(cursor > localMax ? cursor : undefined);
+        // Phase 1: page 0 — cursor 없이 최신 메시지 fetch
+        const page0Result = await this.chatRepository.fetchChat(
+            { channelId, limit: this.limit },
+            { cachePolicy: 'network-only' }
+        );
+
+        if (signal.aborted) return;
+
+        let fetchedCount = page0Result.list.length;
+        this.updateState(channelId, { fetchedCount });
+
+        logger.debug('SYNC', `[ChatSync] ${channelId} — page 1/?: fetched=${page0Result.list.length}, cursor=none`);
+
+        // Defense: page 0 응답의 실제 max chatNo로 stale serverChatNo 보정
+        const actualMaxChatNo = page0Result.list.length > 0 ? Math.max(...page0Result.list.map(m => m.chatNo ?? 0)) : 0;
+
+        const effectiveServerChatNo =
+            actualMaxChatNo > 0 && actualMaxChatNo < serverChatNo ? actualMaxChatNo : serverChatNo;
+
+        if (effectiveServerChatNo < serverChatNo) {
+            logger.warn(
+                'SYNC',
+                `[ChatSync] ${channelId} — stale serverChatNo corrected: target=${serverChatNo}, actual=${effectiveServerChatNo}`
+            );
+        }
+
+        // Phase 2: page 0 이후 남은 gap 재계산
+        localMax = await this.getLocalMaxChatNo(channelId);
+        const remainingGap = effectiveServerChatNo - localMax;
+
+        if (remainingGap <= 0 || page0Result.list.length < this.limit) {
+            this.updateState(channelId, { status: 'synced', localMaxChatNo: localMax, fetchedCount });
+            logger.info('SYNC', `[ChatSync] ${channelId} — synced (single page): fetched=${fetchedCount}`);
+            return;
+        }
+
+        // Phase 3: 나머지 페이지 cursor 계산 (effectiveServerChatNo 기준, cursorNo > chatNo 방지)
+        const remainingPageCount = Math.ceil(remainingGap / this.limit);
+        const cursors: number[] = [];
+        for (let i = 1; i <= remainingPageCount; i++) {
+            const cursor = effectiveServerChatNo - i * this.limit + 1;
+            if (cursor > 0 && cursor > localMax) {
+                cursors.push(cursor);
             }
         }
 
-        let fetchedCount = 0;
+        if (cursors.length === 0) {
+            this.updateState(channelId, { status: 'synced', localMaxChatNo: localMax, fetchedCount });
+            logger.info('SYNC', `[ChatSync] ${channelId} — synced (no remaining cursors): fetched=${fetchedCount}`);
+            return;
+        }
+
+        // Phase 4: 나머지 페이지 병렬 fetch
         const results = await Promise.all(
             cursors.map(async (cursor, i) => {
                 if (signal.aborted) return null;
                 const result = await this.chatRepository.fetchChat(
-                    { channelId, limit: this.limit, ...(cursor !== undefined ? { cursorNo: cursor } : {}) },
+                    { channelId, limit: this.limit, cursorNo: cursor },
                     { cachePolicy: 'network-only' }
                 );
                 fetchedCount += result.list.length;
                 this.updateState(channelId, { fetchedCount });
                 logger.debug(
                     'SYNC',
-                    `[ChatSync] ${channelId} — page ${i + 1}/${pageCount}: fetched=${result.list.length}, cursor=${cursor ?? 'none'}`
+                    `[ChatSync] ${channelId} — page ${i + 2}/${cursors.length + 1}: fetched=${result.list.length}, cursor=${cursor}`
                 );
                 return result;
             })
@@ -291,11 +330,10 @@ export class ChatSyncScheduler {
 
         if (!signal.aborted) {
             localMax = await this.getLocalMaxChatNo(channelId);
-            const totalFetched = results.reduce((sum, r) => sum + (r?.list.length ?? 0), 0);
-            this.updateState(channelId, { status: 'synced', localMaxChatNo: localMax, fetchedCount: totalFetched });
+            this.updateState(channelId, { status: 'synced', localMaxChatNo: localMax, fetchedCount });
             logger.info(
                 'SYNC',
-                `[ChatSync] ${channelId} — synced (parallel): fetched=${totalFetched}, gap=${totalGap}, pages=${pageCount}`
+                `[ChatSync] ${channelId} — synced: fetched=${fetchedCount}, pages=${cursors.length + 1}`
             );
         }
     }
