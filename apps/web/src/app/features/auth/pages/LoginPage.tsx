@@ -48,7 +48,7 @@ export const LoginPage = (): JSX.Element => {
     const fetchInvite = useCallback(async (): Promise<UserTokenView | null> => {
         const code = urlParams.get('code');
         const backend = urlParams.get('_backend') ?? undefined;
-        if (!code || !profile?.uid) return null;
+        if (!code) return null;
         try {
             if (!delegatorId) {
                 logger.error('AUTH', '[LoginPage] delegatorId not found');
@@ -63,7 +63,7 @@ export const LoginPage = (): JSX.Element => {
             setInviteError(true);
             return null;
         }
-    }, [urlParams, toast, t, profile?.uid, delegatorId]);
+    }, [urlParams, toast, t, delegatorId]);
     const handleDeviceRegistration = useCallback(async () => {
         try {
             const { Token, ...rest } = await registerDevice(deviceId);
