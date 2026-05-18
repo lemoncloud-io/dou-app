@@ -75,6 +75,9 @@ export const LoginPage = (): JSX.Element => {
 
             await webCore.buildCredentialsByToken(Token);
             setProfile(rest as Parameters<typeof setProfile>[0]);
+            if (!cloudCore.getSelectedCloudId()) {
+                cloudCore.saveSelectedCloudId('default');
+            }
             setIsAuthenticated(true);
             window.location.replace('/');
         } catch (error) {
