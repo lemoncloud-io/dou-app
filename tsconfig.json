@@ -68,6 +68,9 @@
         },
         {
             "path": "./libs/data"
+        },
+        {
+            "path": "./libs/bridge"
         }
     ]
 }
