@@ -450,7 +450,9 @@ export const CloudSessionSheet = ({ open, onOpenChange, onCloudSwitchComplete }:
                         </div>
                     </div>
 
-                    {tab === 'my' && !isDefaultSelected && <AddAccountButton onClick={handleAddAccount} />}
+                    {tab === 'my' && !isDefaultSelected && clouds.length < 1 && (
+                        <AddAccountButton onClick={handleAddAccount} />
+                    )}
                 </SheetContent>
             </Sheet>
             <SubscriptionSelectDialog
