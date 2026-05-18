@@ -1,6 +1,5 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
-import { t } from '../../../common/i18n';
+import { t } from '../../../utils';
 
 interface DeepLinkErrorViewProps {
     onGoHome: () => void;

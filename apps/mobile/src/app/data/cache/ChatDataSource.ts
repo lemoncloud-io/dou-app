@@ -1,0 +1,137 @@
+import type { CacheChatView, ChatQueryOptions } from '@chatic/app-messages';
+import type { ICacheDataSource } from './types';
+import { TABLES } from '../../database';
+import { database } from '../../services';
+
+/**
+ * 채팅(Chat) 도메인 전용 데이터 소스 구현체
+ */
+export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQueryOptions> {
+    public async fetch(id: string, cid?: string, uid?: string): Promise<CacheChatView | null> {
+        let query = `SELECT data FROM ${TABLES.CHATS} WHERE id = ?`;
+        const params: (string | number)[] = [id];
+        if (cid) {
+            query += ` AND cid = ?`;
+            params.push(cid);
+        }
+        if (uid) {
+            query += ` AND uid = ?`;
+            params.push(uid);
+        }
+        const result = await database.execute(query, params);
+
+        if (result.rows && result.rows.length > 0) {
+            return JSON.parse(result.rows[0].data as string) as CacheChatView;
+        }
+        return null;
+    }
+
+    public async fetchAll(cid?: string, query?: ChatQueryOptions, uid?: string): Promise<CacheChatView[]> {
+        let sql = `SELECT data FROM ${TABLES.CHATS}`;
+        const params: (string | number)[] = [];
+        const conditions: string[] = [];
+
+        if (cid) {
+            conditions.push(`cid = ?`);
+            params.push(cid);
+        }
+        if (uid) {
+            conditions.push(`uid = ?`);
+            params.push(uid);
+        }
+        if (query?.channelId) {
+            conditions.push(`channel_id = ?`);
+            params.push(query.channelId);
+        }
+
+        if ((query as any)?.keyword) {
+            conditions.push(`content LIKE ?`);
+            params.push(`%${(query as any).keyword}%`);
+        }
+
+        if (conditions.length > 0) sql += ` WHERE ` + conditions.join(' AND ');
+
+        if (query?.sort) sql += ` ORDER BY chat_no ${query.sort.toUpperCase()}`;
+
+        const result = await database.execute(sql, params);
+
+        return (result.rows || []).map((row: any) => JSON.parse(row.data as string) as CacheChatView);
+    }
+
+    public async save(id: string, item: CacheChatView, cid: string, uid: string): Promise<void> {
+        const sql = `INSERT OR REPLACE INTO ${TABLES.CHATS} (cid, uid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+        const channelId = item.channelId || '';
+        const chatNo = item.chatNo || 0;
+        const createdAt = item.createdAt || 0;
+        const content = item.content || '';
+
+        const dataToSave = JSON.stringify({
+            ...item,
+            id,
+            cid,
+            uid,
+            channelId,
+            chatNo,
+            createdAt,
+        });
+
+        await database.execute(sql, [cid, uid, id, channelId, chatNo, createdAt, content, dataToSave]);
+    }
+
+    public async saveAll(items: { id: string; data: CacheChatView }[], cid: string, uid: string): Promise<void> {
+        if (items.length === 0) return;
+        const sql = `INSERT OR REPLACE INTO ${TABLES.CHATS} (cid, uid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+
+        const commands: [string, any[]][] = items.map(item => {
+            const id = item.id;
+            const chatData = item.data;
+
+            const channelId = chatData.channelId || '';
+            const chatNo = chatData.chatNo || 0;
+            const createdAt = chatData.createdAt || 0;
+            const content = chatData.content || '';
+
+            const dataToSave = JSON.stringify({
+                ...chatData,
+                id,
+                cid,
+                uid,
+                channelId,
+                chatNo,
+                createdAt,
+            });
+
+            return [sql, [cid, uid, id, channelId, chatNo, createdAt, content, dataToSave]];
+        });
+
+        await database.executeBatch(commands);
+    }
+
+    public async remove(id: string, cid: string, uid: string): Promise<void> {
+        await database.execute(`DELETE FROM ${TABLES.CHATS} WHERE id = ? AND cid = ? AND uid = ?`, [id, cid, uid]);
+    }
+
+    public async removeAll(ids: string[], cid: string, uid: string): Promise<void> {
+        if (ids.length === 0) return;
+        const sql = `DELETE FROM ${TABLES.CHATS} WHERE id = ? AND cid = ? AND uid = ?`;
+        await database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
+    }
+
+    public async clear(cid?: string, uid?: string): Promise<void> {
+        const conditions: string[] = [];
+        const params: string[] = [];
+        if (cid) {
+            conditions.push('cid = ?');
+            params.push(cid);
+        }
+        if (uid) {
+            conditions.push('uid = ?');
+            params.push(uid);
+        }
+        const sql =
+            conditions.length > 0
+                ? `DELETE FROM ${TABLES.CHATS} WHERE ${conditions.join(' AND ')}`
+                : `DELETE FROM ${TABLES.CHATS}`;
+        await database.execute(sql, params);
+    }
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Alert,
     FlatList,
@@ -14,8 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { AuthorizationStatus } from '@react-native-firebase/messaging';
-import { notificationService } from '../../../common';
-import { firebaseInstallationService } from '../../../common/services/firebase/firebaseInstallation';
+import { useServices } from '../../../hooks';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -32,6 +31,7 @@ interface LogItem {
 
 export const NotificationTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const { notificationService, firebaseInstallationService } = useServices();
     const [logs, setLogs] = useState<LogItem[]>([]);
     const [token, setToken] = useState<string>('');
     const [installId, setInstallId] = useState<string>('');
@@ -51,33 +51,36 @@ export const NotificationTestScreen = () => {
     /**
      * 로그 추가하기
      */
-    const addLog = (type: LogType, message: string) => {
-        const now = new Date();
-        const timeString = now.toLocaleTimeString('ko-KR', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-        });
+    const addLog = useCallback(
+        (type: LogType, message: string) => {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ko-KR', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+            });
 
-        const newLog: LogItem = {
-            id: Date.now().toString() + Math.random(),
-            type,
-            message,
-            timestamp: timeString,
-        };
+            const newLog: LogItem = {
+                id: Date.now().toString() + Math.random(),
+                type,
+                message,
+                timestamp: timeString,
+            };
 
-        setLogs(prev => [...prev, newLog]);
+            setLogs(prev => [...prev, newLog]);
 
-        setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-    };
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        },
+        [setLogs]
+    );
 
     /**
      * 권한 상태 확인
      */
-    const checkPermission = async () => {
+    const checkPermission = useCallback(async () => {
         try {
             const authStatus = await notificationService.hasPermission();
             let statusStr = '';
@@ -106,12 +109,12 @@ export const NotificationTestScreen = () => {
         } catch (error: any) {
             addLog('error', `Check Permission Failed: ${error.message}`);
         }
-    };
+    }, [addLog, notificationService, setPermissionStatus]);
 
     /**
      * 권한 요청
      */
-    const handleRequestPermission = async () => {
+    const handleRequestPermission = useCallback(async () => {
         try {
             addLog('info', 'Requesting permission...');
             const enabled = await notificationService.requestPermission();
@@ -120,12 +123,12 @@ export const NotificationTestScreen = () => {
         } catch (error: any) {
             addLog('error', `Request Permission Error: ${error.message}`);
         }
-    };
+    }, [addLog, checkPermission, notificationService]);
 
     /**
      * Device Token 가져오기
      */
-    const handleGetToken = async () => {
+    const handleGetToken = useCallback(async () => {
         try {
             addLog('info', `Fetching ${Platform.OS === 'ios' ? 'APNs' : 'FCM'} Token...`);
 
@@ -150,12 +153,12 @@ export const NotificationTestScreen = () => {
         } catch (error: any) {
             addLog('error', `Get Token Error: ${error.message}`);
         }
-    };
+    }, [addLog, notificationService, setToken]);
 
     /**
      * Firebase Installation ID 가져오기
      */
-    const handleGetInstallId = async () => {
+    const handleGetInstallId = useCallback(async () => {
         try {
             addLog('info', 'Fetching Firebase Installation ID...');
             const id = await firebaseInstallationService.getFirebaseId();
@@ -169,12 +172,12 @@ export const NotificationTestScreen = () => {
         } catch (error: any) {
             addLog('error', `Get Install ID Error: ${error.message}`);
         }
-    };
+    }, [addLog, firebaseInstallationService, setInstallId]);
 
     /**
      * iOS APNs 기기 등록 (수동)
      */
-    const handleRegisterDevice = async () => {
+    const handleRegisterDevice = useCallback(async () => {
         if (Platform.OS !== 'ios') {
             Alert.alert('Info', 'iOS Only');
             return;
@@ -186,12 +189,12 @@ export const NotificationTestScreen = () => {
         } catch (error: any) {
             addLog('error', `APNs Register Error: ${error.message}`);
         }
-    };
+    }, [addLog, notificationService]);
 
     /**
      * 토큰 삭제 (Refresh 테스트용)
      */
-    const handleDeleteToken = async () => {
+    const handleDeleteToken = useCallback(async () => {
         try {
             await notificationService.deleteToken();
             setToken('');
@@ -199,24 +202,27 @@ export const NotificationTestScreen = () => {
         } catch (error: any) {
             addLog('error', `Delete Token Error: ${error.message}`);
         }
-    };
+    }, [addLog, notificationService, setToken]);
 
     /**
      * 알림 데이터 파싱 헬퍼
      */
-    const handleRemoteMessage = (tag: string, remoteMessage: any) => {
-        addLog('event', `[${tag}] RAW: ${JSON.stringify(remoteMessage)}`);
+    const handleRemoteMessage = useCallback(
+        (tag: string, remoteMessage: any) => {
+            addLog('event', `[${tag}] RAW: ${JSON.stringify(remoteMessage)}`);
 
-        const notification = remoteMessage?.notification ? JSON.stringify(remoteMessage.notification) : 'none';
-        const data = remoteMessage?.data ? JSON.stringify(remoteMessage.data) : 'none';
+            const notification = remoteMessage?.notification ? JSON.stringify(remoteMessage.notification) : 'none';
+            const data = remoteMessage?.data ? JSON.stringify(remoteMessage.data) : 'none';
 
-        addLog('event', `[${tag}] Notification: ${notification}`);
-        addLog('event', `[${tag}] Data: ${data}`);
+            addLog('event', `[${tag}] Notification: ${notification}`);
+            addLog('event', `[${tag}] Data: ${data}`);
 
-        if (remoteMessage?.data) {
-            setReceivedData(remoteMessage.data);
-        }
-    };
+            if (remoteMessage?.data) {
+                setReceivedData(remoteMessage.data);
+            }
+        },
+        [addLog, setReceivedData]
+    );
     /**
      * 초기화 및 리스너 등록
      */
@@ -243,7 +249,7 @@ export const NotificationTestScreen = () => {
             unsubscribeOnNotificationOpenedApp();
             unsubscribeOnTokenRefresh();
         };
-    }, []);
+    }, [addLog, checkPermission, handleRemoteMessage, notificationService, setToken]);
 
     const renderLogItem = ({ item }: { item: LogItem }) => {
         let color = '#888';

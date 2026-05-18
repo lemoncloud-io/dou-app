@@ -1,0 +1,31 @@
+import { provider } from './provider';
+
+export * from './provider';
+export * from './device';
+export * from './dynamicAppIcon';
+export * from './notification';
+export * from './log';
+export * from './oauth';
+export * from './permission';
+export * from './firebase';
+export * from './subscriptionIap';
+export * from './preference';
+export * from './cache';
+export * from '../database';
+
+// Commonly used services
+export const logger = provider.logService;
+export const logBufferService = provider.logBufferService;
+export const deviceService = provider.deviceService;
+export const permissionService = provider.permissionService;
+export const notificationService = provider.notificationService;
+export const oAuthService = provider.oauthService;
+export const dynamicAppIconService = provider.dynamicAppIconService;
+export const firebaseCrashlyticsService = provider.firebaseCrashlyticsService;
+export const firebaseInstallationService = provider.firebaseInstallationService;
+export const subscriptionIapService = provider.subscriptionIapService;
+export const preferenceService = provider.preferenceService;
+export const cacheCrudService = provider.cacheCrudService;
+export const cacheSearchService = provider.cacheSearchService;
+export const sqliteDatabase = provider.sqliteDatabase;
+export const keyValueStorage = provider.keyValueStorage;

@@ -1,8 +1,8 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { DEFAULT_APP_ICON_NAME, dynamicAppIconService } from '../../../common';
+import { DEFAULT_APP_ICON_NAME } from '../../../services';
+import { useServices } from '../../../hooks';
 
 type LogType = 'info' | 'success' | 'error';
 
@@ -15,43 +15,47 @@ interface LogItem {
 
 export const AppIconTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const { dynamicAppIconService } = useServices();
     const [logs, setLogs] = useState<LogItem[]>([]);
 
     const [currentIconName, setCurrentIconName] = useState('unknown');
     const flatListRef = useRef<FlatList>(null);
 
     useEffect(() => {
-        handleFetchCurrentIcon();
-    }, []);
+        void handleFetchCurrentIcon();
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const addLog = (type: LogType, message: string) => {
-        const now = new Date();
-        const timeString = now.toLocaleTimeString('ko-KR', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-        });
+    const addLog = useCallback(
+        (type: LogType, message: string) => {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ko-KR', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+            });
 
-        const newLog: LogItem = {
-            id: Date.now().toString() + Math.random(),
-            type,
-            message,
-            timestamp: timeString,
-        };
+            const newLog: LogItem = {
+                id: Date.now().toString() + Math.random(),
+                type,
+                message,
+                timestamp: timeString,
+            };
 
-        setLogs(prev => [...prev, newLog]);
+            setLogs(prev => [...prev, newLog]);
 
-        setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-    };
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        },
+        [setLogs]
+    );
 
-    const handleClearLogs = () => {
+    const handleClearLogs = useCallback(() => {
         setLogs([]);
-    };
+    }, [setLogs]);
 
-    const handleFetchCurrentIcon = async () => {
+    const handleFetchCurrentIcon = useCallback(async () => {
         try {
             addLog('info', 'Fetching current app icon...');
             const name = await dynamicAppIconService.fetchCurrentIcon();
@@ -60,25 +64,27 @@ export const AppIconTestScreen = () => {
         } catch (e: any) {
             addLog('error', `Fetch Failed: ${e.message}`);
         }
-    };
+    }, [addLog, dynamicAppIconService]);
 
-    const handleSetIcon = async (iconName?: string | null) => {
-        try {
-            const targetName = iconName ?? DEFAULT_APP_ICON_NAME;
-            addLog('info', `Attempting to set icon: ${targetName}...`);
+    const handleSetIcon = useCallback(
+        async (iconName?: string | null) => {
+            try {
+                const targetName = iconName ?? DEFAULT_APP_ICON_NAME;
+                addLog('info', `Attempting to set icon: ${targetName}...`);
 
-            const isSuccess = await dynamicAppIconService.setAppIcon(iconName);
-
-            if (isSuccess) {
-                addLog('success', `Successfully changed to: ${targetName}`);
-                await handleFetchCurrentIcon();
-            } else {
-                addLog('error', `Failed to change icon to: ${targetName}`);
+                const isSuccess = await dynamicAppIconService.setAppIcon(iconName);
+                if (isSuccess) {
+                    addLog('success', `Successfully changed to: ${targetName}`);
+                    void handleFetchCurrentIcon();
+                } else {
+                    addLog('error', `Failed to change icon to: ${targetName}`);
+                }
+            } catch (e: any) {
+                addLog('error', `Exception caught: ${e.message}`);
             }
-        } catch (e: any) {
-            addLog('error', `Exception caught: ${e.message}`);
-        }
-    };
+        },
+        [addLog, dynamicAppIconService, handleFetchCurrentIcon]
+    );
 
     const renderLogItem = ({ item }: { item: LogItem }) => {
         let color = '#888';
