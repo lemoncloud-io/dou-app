@@ -225,7 +225,16 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
             ref => this.chatRemoteDataSource.fetchChat(payload, ref),
             options
         );
-        const domainList = ((remote?.list || []) as any[]).map(item => toDomainChat(item, this.getDomainScope()));
+        if (!remote) {
+            return createDomainListResult([], {
+                cursorNo: 0,
+                readNo: 0,
+                limit: payload.limit,
+                total: 0,
+                source: 'remote',
+            });
+        }
+        const domainList = ((remote.list || []) as any[]).map(item => toDomainChat(item, this.getDomainScope()));
         return createDomainListResult(domainList, {
             cursorNo: remote.cursorNo,
             readNo: remote.readNo,
@@ -255,6 +264,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
             );
         });
         this.onDomainEvent('chat:list', detail => {
+            if (!detail.data) return;
             this.runInBackground(
                 () => this.chatLocalDataSource.upsertMany(detail.data.list || [], this.getRepositoryContext()),
                 'chat:list'

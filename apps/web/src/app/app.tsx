@@ -1,5 +1,5 @@
 import type { ErrorInfo } from 'react';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { HelmetProvider } from 'react-helmet-async';
 import { I18nextProvider } from 'react-i18next';
@@ -10,11 +10,11 @@ import { Toaster as SonnerToaster } from 'sonner';
 import { ErrorFallback, GlobalLoader, LoadingFallback, useVersionCheck, VersionUpdateBanner } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
-import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore, useSplashStore } from '@chatic/web-core';
+import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
 
 import { initializeMessageListener, logger } from '@chatic/app-messages';
 
-import { ServiceUnavailableOverlay, SplashOverlay, WebSocketV2Connection } from './components';
+import { ServiceUnavailableOverlay, WebSocketV2Connection } from './components';
 import { GlobalChatSync } from './components/GlobalChatSync';
 import { DataProvider } from './shared/data';
 import { Router } from './routes';
@@ -89,15 +89,6 @@ export function App() {
     }, [isWebCoreReady, isAuthenticated, profile, isTokenInitialized, initStatus, canRenderApp]);
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
-    // 세션 내 스플래시가 이미 표시된 경우 즉시 렌더링 (1.5s 딜레이 스킵)
-    const { isShown: splashAlreadyShown } = useSplashStore();
-    const [isSplashReady, setIsSplashReady] = useState(splashAlreadyShown);
-    useEffect(() => {
-        if (!canRenderApp || splashAlreadyShown) return;
-        const timer = setTimeout(() => setIsSplashReady(true), 1500);
-        return () => clearTimeout(timer);
-    }, [canRenderApp]);
-
     useForegroundResync(refreshToken);
 
     useEffect(() => {
@@ -114,7 +105,7 @@ export function App() {
 
     return (
         <>
-            <SplashOverlay isAppReady={isSplashReady} />
+            {!canRenderApp && <LoadingFallback />}
             {canRenderApp && (
                 <I18nextProvider i18n={i18n}>
                     <VersionUpdateBanner

@@ -105,7 +105,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
 
             if (!nextParams.sid) return;
 
-            setIsSyncing(true);
+            if (forceNetwork) setIsSyncing(true);
             setIsError(false);
             setErrorMessage(null);
 
@@ -130,7 +130,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
                 setIsError(true);
                 setErrorMessage(message);
             } finally {
-                setIsSyncing(false);
+                if (forceNetwork) setIsSyncing(false);
             }
         },
         [channelRepository]
