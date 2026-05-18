@@ -1,14 +1,17 @@
 import type { CacheUserView, UserQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
-import { TABLES } from '../../database';
-import { database } from '../../services';
-
+import type { IDatabaseService } from '../../database/sqlite';
 /**
  * 유저(User) 프로필 도메인 전용 데이터 소스
  */
 export class UserDataSource implements ICacheDataSource<CacheUserView, UserQueryOptions> {
+    constructor(
+        private readonly database: IDatabaseService,
+        private readonly tableName: string
+    ) {}
+
     public async fetch(id: string, cid?: string, uid?: string): Promise<CacheUserView | null> {
-        let query = `SELECT data FROM ${TABLES.USERS} WHERE id = ?`;
+        let query = `SELECT data FROM ${this.tableName} WHERE id = ?`;
         const params: (string | number)[] = [id];
         if (cid) {
             query += ` AND cid = ?`;
@@ -19,7 +22,7 @@ export class UserDataSource implements ICacheDataSource<CacheUserView, UserQuery
             params.push(uid);
         }
 
-        const result = await database.execute(query, params);
+        const result = await this.database.execute(query, params);
         if (result.rows && result.rows.length > 0) return JSON.parse(result.rows[0].data as string) as CacheUserView;
         return null;
     }
@@ -41,38 +44,42 @@ export class UserDataSource implements ICacheDataSource<CacheUserView, UserQuery
 
         const query =
             conditions.length > 0
-                ? `SELECT data FROM ${TABLES.USERS} WHERE ${conditions.join(' AND ')}`
-                : `SELECT data FROM ${TABLES.USERS}`;
+                ? `SELECT data FROM ${this.tableName} WHERE ${conditions.join(' AND ')}`
+                : `SELECT data FROM ${this.tableName}`;
 
-        const result = await database.execute(query, params);
+        const result = await this.database.execute(query, params);
         return (result.rows || []).map((row: any) => JSON.parse(row.data as string) as CacheUserView);
     }
 
     public async save(id: string, item: CacheUserView, cid: string, uid: string): Promise<void> {
-        const sql = `INSERT OR REPLACE INTO ${TABLES.USERS} (cid, uid, id, data) VALUES (?, ?, ?, ?)`;
+        const sql = `INSERT OR REPLACE INTO ${this.tableName} (cid, uid, id, data) VALUES (?, ?, ?, ?)`;
         const dataToSave = JSON.stringify({ ...item, id, cid, uid });
-        await database.execute(sql, [cid, uid, id, dataToSave]);
+        await this.database.execute(sql, [cid, uid, id, dataToSave]);
     }
 
     public async saveAll(items: { id: string; data: CacheUserView }[], cid: string, uid: string): Promise<void> {
         if (items.length === 0) return;
-        const sql = `INSERT OR REPLACE INTO ${TABLES.USERS} (cid, uid, id, data) VALUES (?, ?, ?, ?)`;
+        const sql = `INSERT OR REPLACE INTO ${this.tableName} (cid, uid, id, data) VALUES (?, ?, ?, ?)`;
 
         const commands: [string, any[]][] = items.map(item => [
             sql,
             [cid, uid, item.id, JSON.stringify({ ...item.data, id: item.id, cid, uid })],
         ]);
-        await database.executeBatch(commands);
+        await this.database.executeBatch(commands);
     }
 
     public async remove(id: string, cid: string, uid: string): Promise<void> {
-        await database.execute(`DELETE FROM ${TABLES.USERS} WHERE id = ? AND cid = ? AND uid = ?`, [id, cid, uid]);
+        await this.database.execute(`DELETE FROM ${this.tableName} WHERE id = ? AND cid = ? AND uid = ?`, [
+            id,
+            cid,
+            uid,
+        ]);
     }
 
     public async removeAll(ids: string[], cid: string, uid: string): Promise<void> {
         if (ids.length === 0) return;
-        const sql = `DELETE FROM ${TABLES.USERS} WHERE id = ? AND cid = ? AND uid = ?`;
-        await database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
+        const sql = `DELETE FROM ${this.tableName} WHERE id = ? AND cid = ? AND uid = ?`;
+        await this.database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
     }
 
     public async clear(cid?: string, uid?: string): Promise<void> {
@@ -88,8 +95,8 @@ export class UserDataSource implements ICacheDataSource<CacheUserView, UserQuery
         }
         const query =
             conditions.length > 0
-                ? `DELETE FROM ${TABLES.USERS} WHERE ${conditions.join(' AND ')}`
-                : `DELETE FROM ${TABLES.USERS}`;
-        await database.execute(query, params);
+                ? `DELETE FROM ${this.tableName} WHERE ${conditions.join(' AND ')}`
+                : `DELETE FROM ${this.tableName}`;
+        await this.database.execute(query, params);
     }
 }

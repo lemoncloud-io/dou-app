@@ -1,7 +1,6 @@
 import type { CacheJoinView, JoinQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
-import { TABLES } from '../../database';
-import { database } from '../../services';
+import type { IDatabaseService } from '../../database/sqlite';
 
 /**
  * 참여(Join) 도메인 전용 데이터 소스 구현체
@@ -9,8 +8,13 @@ import { database } from '../../services';
  * 양방향으로 빠르게 검색할 수 있도록 channel_id와 user_id를 추출하여 저장합니다.
  */
 export class JoinDataSource implements ICacheDataSource<CacheJoinView, JoinQueryOptions> {
+    constructor(
+        private readonly database: IDatabaseService,
+        private readonly tableName: string
+    ) {}
+
     public async fetch(id: string, cid?: string, uid?: string): Promise<CacheJoinView | null> {
-        let query = `SELECT data FROM ${TABLES.JOINS} WHERE id = ?`;
+        let query = `SELECT data FROM ${this.tableName} WHERE id = ?`;
         const params: (string | number)[] = [id];
         if (cid) {
             query += ` AND cid = ?`;
@@ -20,13 +24,13 @@ export class JoinDataSource implements ICacheDataSource<CacheJoinView, JoinQuery
             query += ` AND uid = ?`;
             params.push(uid);
         }
-        const result = await database.execute(query, params);
+        const result = await this.database.execute(query, params);
         if (result.rows && result.rows.length > 0) return JSON.parse(result.rows[0].data as string) as CacheJoinView;
         return null;
     }
 
     public async fetchAll(cid?: string, query?: JoinQueryOptions, uid?: string): Promise<CacheJoinView[]> {
-        let sql = `SELECT data FROM ${TABLES.JOINS}`;
+        let sql = `SELECT data FROM ${this.tableName}`;
         const params: (string | number)[] = [];
         const conditions: string[] = [];
 
@@ -50,12 +54,12 @@ export class JoinDataSource implements ICacheDataSource<CacheJoinView, JoinQuery
 
         if (conditions.length > 0) sql += ` WHERE ` + conditions.join(' AND ');
 
-        const result = await database.execute(sql, params);
+        const result = await this.database.execute(sql, params);
         return (result.rows || []).map((row: any) => JSON.parse(row.data as string) as CacheJoinView);
     }
 
     public async save(id: string, item: CacheJoinView, cid: string, uid: string): Promise<void> {
-        const sql = `INSERT OR REPLACE INTO ${TABLES.JOINS} (cid, uid, id, channel_id, user_id, data) VALUES (?, ?, ?, ?, ?, ?)`;
+        const sql = `INSERT OR REPLACE INTO ${this.tableName} (cid, uid, id, channel_id, user_id, data) VALUES (?, ?, ?, ?, ?, ?)`;
         const channelId = item.channelId || '';
         const userId = item.userId || '';
 
@@ -68,12 +72,12 @@ export class JoinDataSource implements ICacheDataSource<CacheJoinView, JoinQuery
             userId,
         });
 
-        await database.execute(sql, [cid, uid, id, channelId, userId, dataToSave]);
+        await this.database.execute(sql, [cid, uid, id, channelId, userId, dataToSave]);
     }
 
     public async saveAll(items: { id: string; data: CacheJoinView }[], cid: string, uid: string): Promise<void> {
         if (items.length === 0) return;
-        const sql = `INSERT OR REPLACE INTO ${TABLES.JOINS} (cid, uid, id, channel_id, user_id, data) VALUES (?, ?, ?, ?, ?, ?)`;
+        const sql = `INSERT OR REPLACE INTO ${this.tableName} (cid, uid, id, channel_id, user_id, data) VALUES (?, ?, ?, ?, ?, ?)`;
 
         const commands: [string, any[]][] = items.map(item => {
             const id = item.id;
@@ -86,17 +90,21 @@ export class JoinDataSource implements ICacheDataSource<CacheJoinView, JoinQuery
                 [cid, uid, id, channelId, userId, JSON.stringify({ ...data, id, cid, uid, channelId, userId })],
             ];
         });
-        await database.executeBatch(commands);
+        await this.database.executeBatch(commands);
     }
 
     public async remove(id: string, cid: string, uid: string): Promise<void> {
-        await database.execute(`DELETE FROM ${TABLES.JOINS} WHERE id = ? AND cid = ? AND uid = ?`, [id, cid, uid]);
+        await this.database.execute(`DELETE FROM ${this.tableName} WHERE id = ? AND cid = ? AND uid = ?`, [
+            id,
+            cid,
+            uid,
+        ]);
     }
 
     public async removeAll(ids: string[], cid: string, uid: string): Promise<void> {
         if (ids.length === 0) return;
-        const sql = `DELETE FROM ${TABLES.JOINS} WHERE id = ? AND cid = ? AND uid = ?`;
-        await database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
+        const sql = `DELETE FROM ${this.tableName} WHERE id = ? AND cid = ? AND uid = ?`;
+        await this.database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
     }
 
     public async clear(cid?: string, uid?: string): Promise<void> {
@@ -112,8 +120,8 @@ export class JoinDataSource implements ICacheDataSource<CacheJoinView, JoinQuery
         }
         const sql =
             conditions.length > 0
-                ? `DELETE FROM ${TABLES.JOINS} WHERE ${conditions.join(' AND ')}`
-                : `DELETE FROM ${TABLES.JOINS}`;
-        await database.execute(sql, params);
+                ? `DELETE FROM ${this.tableName} WHERE ${conditions.join(' AND ')}`
+                : `DELETE FROM ${this.tableName}`;
+        await this.database.execute(sql, params);
     }
 }
