@@ -116,39 +116,66 @@ export const ChatRoomPage = () => {
         });
     };
 
-    // 마지막 메시지가 변경될 때 자동 읽음 처리
-    const lastMessage = useMemo(() => (messages.length > 0 ? messages[messages.length - 1] : null), [messages]);
+    // 1단계: 채널 진입 즉시 읽음 처리 — 메시지 로딩을 기다리지 않고 channel.chatNo로 바로 전송
+    const channelChatNo = channel?.chatNo;
     useEffect(() => {
-        if (!stableChannelId || !lastMessage) return;
+        if (!stableChannelId || !channelChatNo || document.visibilityState === 'hidden') return;
+        if (lastReadChatNoRef.current !== null && channelChatNo <= lastReadChatNoRef.current) return;
+
+        lastReadChatNoRef.current = channelChatNo;
+        readMessage({ channelId: stableChannelId, chatNo: channelChatNo }).catch(error => {
+            lastReadChatNoRef.current = null;
+            logger.error('CHAT', 'Failed to read on channel entry', {
+                error,
+                data: { channelId: stableChannelId, chatNo: channelChatNo },
+            });
+        });
+    }, [channelChatNo, stableChannelId, readMessage]);
+
+    // 2단계: 메시지 로딩 후 더 높은 chatNo가 있으면 보정 + 포그라운드 복귀 대응
+    const lastMessage = useMemo(() => (messages.length > 0 ? messages[messages.length - 1] : null), [messages]);
+    const lastChatNo = lastMessage?.isPending || lastMessage?.isFailed ? undefined : lastMessage?.chatNo;
+
+    useEffect(() => {
+        if (!stableChannelId || lastChatNo === undefined) return;
 
         const handleAutoRead = () => {
             if (document.visibilityState === 'hidden') return;
-            const latestChatNo = lastMessage.chatNo;
-            if (
-                latestChatNo !== undefined &&
-                !lastMessage.isPending &&
-                !lastMessage.isFailed &&
-                (lastReadChatNoRef.current === null || latestChatNo > lastReadChatNoRef.current)
-            ) {
-                lastReadChatNoRef.current = latestChatNo;
-                readMessage({ channelId: stableChannelId, chatNo: latestChatNo }).catch(error => {
-                    logger.error('CHAT', 'Failed to read latest message', {
-                        error,
-                        data: { channelId: stableChannelId, chatNo: latestChatNo },
-                    });
+            if (lastReadChatNoRef.current !== null && lastChatNo <= lastReadChatNoRef.current) return;
+
+            lastReadChatNoRef.current = lastChatNo;
+            readMessage({ channelId: stableChannelId, chatNo: lastChatNo }).catch(error => {
+                lastReadChatNoRef.current = null;
+                logger.error('CHAT', 'Failed to read latest message', {
+                    error,
+                    data: { channelId: stableChannelId, chatNo: lastChatNo },
                 });
+            });
+        };
+
+        const handleForegroundResync = () => {
+            handleAutoRead();
+            // sync 완료 후 새 메시지가 반영될 수 있으므로 지연 재시도
+            setTimeout(handleAutoRead, 1500);
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                // 포그라운드 복귀 시 ref 리셋 → 이전 요청이 유실됐을 경우 재전송 허용
+                lastReadChatNoRef.current = null;
+                handleAutoRead();
             }
         };
 
         handleAutoRead();
-        document.addEventListener('visibilitychange', handleAutoRead);
-        window.addEventListener(FOREGROUND_RESYNC_EVENT_NAME, handleAutoRead);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener(FOREGROUND_RESYNC_EVENT_NAME, handleForegroundResync);
 
         return () => {
-            document.removeEventListener('visibilitychange', handleAutoRead);
-            window.removeEventListener(FOREGROUND_RESYNC_EVENT_NAME, handleAutoRead);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener(FOREGROUND_RESYNC_EVENT_NAME, handleForegroundResync);
         };
-    }, [messages.length, channelId, readMessage]);
+    }, [lastChatNo, stableChannelId, readMessage]);
 
     const prevMessageCountRef = useRef(messages.length);
     const prevLastMessageIdRef = useRef<string | undefined>(undefined);
