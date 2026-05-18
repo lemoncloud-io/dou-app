@@ -1,10 +1,10 @@
 import type { CacheChannelView, ChannelQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
-import type { IDatabaseService } from '../../database/sqlite';
+import type { ISqliteDatabase } from '../../database';
 
 export class ChannelDataSource implements ICacheDataSource<CacheChannelView, ChannelQueryOptions> {
     constructor(
-        private readonly database: IDatabaseService,
+        private readonly database: ISqliteDatabase,
         private readonly tableName: string
     ) {}
 

@@ -1,6 +1,6 @@
 import type { CacheCloudView, InviteCloudQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
-import type { IDatabaseService } from '../../database/sqlite';
+import type { ISqliteDatabase } from '../../database';
 
 /**
  * 초대 클라우드(Invite Cloud) 도메인 전용 데이터 소스입니다.
@@ -9,7 +9,7 @@ import type { IDatabaseService } from '../../database/sqlite';
  */
 export class InviteCloudDataSource implements ICacheDataSource<CacheCloudView, InviteCloudQueryOptions> {
     constructor(
-        private readonly database: IDatabaseService,
+        private readonly database: ISqliteDatabase,
         private readonly tableName: string
     ) {}
 

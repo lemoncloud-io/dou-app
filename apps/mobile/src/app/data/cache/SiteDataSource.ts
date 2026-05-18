@@ -1,13 +1,13 @@
 import type { CacheSiteView, SiteQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
-import type { IDatabaseService } from '../../database/sqlite';
+import type { ISqliteDatabase } from '../../database';
 
 /**
  * 사이트(Site/Place) 도메인 전용 데이터 소스
  */
 export class SiteDataSource implements ICacheDataSource<CacheSiteView, SiteQueryOptions> {
     constructor(
-        private readonly database: IDatabaseService,
+        private readonly database: ISqliteDatabase,
         private readonly tableName: string
     ) {}
 

@@ -1,12 +1,12 @@
 import type { CacheUserView, UserQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
-import type { IDatabaseService } from '../../database/sqlite';
+import type { ISqliteDatabase } from '../../database';
 /**
  * 유저(User) 프로필 도메인 전용 데이터 소스
  */
 export class UserDataSource implements ICacheDataSource<CacheUserView, UserQueryOptions> {
     constructor(
-        private readonly database: IDatabaseService,
+        private readonly database: ISqliteDatabase,
         private readonly tableName: string
     ) {}
 

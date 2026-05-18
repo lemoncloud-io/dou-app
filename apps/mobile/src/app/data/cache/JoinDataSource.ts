@@ -1,7 +1,6 @@
 import type { CacheJoinView, JoinQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
-import type { IDatabaseService } from '../../database/sqlite';
-
+import type { ISqliteDatabase } from '../../database';
 /**
  * 참여(Join) 도메인 전용 데이터 소스 구현체
  * 유저가 어떤 채널에 참여하고 있는지, 혹은 채널에 어떤 유저들이 있는지
@@ -9,7 +8,7 @@ import type { IDatabaseService } from '../../database/sqlite';
  */
 export class JoinDataSource implements ICacheDataSource<CacheJoinView, JoinQueryOptions> {
     constructor(
-        private readonly database: IDatabaseService,
+        private readonly database: ISqliteDatabase,
         private readonly tableName: string
     ) {}
 

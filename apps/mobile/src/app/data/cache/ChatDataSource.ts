@@ -1,13 +1,13 @@
 import type { CacheChatView, ChatQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
-import type { IDatabaseService } from '../../database/sqlite';
+import type { ISqliteDatabase } from '../../database';
 
 /**
  * 채팅(Chat) 도메인 전용 데이터 소스 구현체
  */
 export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQueryOptions> {
     constructor(
-        private readonly database: IDatabaseService,
+        private readonly database: ISqliteDatabase,
         private readonly tableName: string
     ) {}
 

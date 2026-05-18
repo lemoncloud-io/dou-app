@@ -1,5 +1,5 @@
 import type { CacheType } from '@chatic/app-messages';
-import type { IDatabaseService } from '../../database/sqlite';
+import type { ISqliteDatabase } from '../../database';
 
 export interface CacheQuerySnapshot {
     ids: string[];
@@ -12,7 +12,7 @@ export interface CacheQuerySnapshot {
  */
 export class MetaDataSource {
     constructor(
-        private readonly database: IDatabaseService,
+        private readonly database: ISqliteDatabase,
         private readonly tableName: string
     ) {}
 
