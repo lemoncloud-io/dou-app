@@ -10,6 +10,10 @@ import type { DomainSite } from '@chatic/data';
 // prevCloudIdRef는 unmount 시 리셋되므로 이 변수로 실제 전환 여부를 판단
 let lastFetchedCloudId: string | null | undefined;
 
+// 모듈 레벨 캐시 — unmount/remount 시에도 이전 place 데이터를 즉시 표시하여 깜빡임 방지
+let placesCache: DomainSite[] | null = null;
+let placesCacheCloudId: string | null = null;
+
 /**
  * 플레이스(Site) 목록을 repository를 통해 조회하고, 실시간 동기화 이벤트에 반응하는 훅
  */
@@ -20,8 +24,12 @@ export const usePlaces = () => {
     const prevCloudIdRef = useRef<string | undefined>(undefined);
     const requestSeqRef = useRef(0);
 
-    const [places, setPlaces] = useState<DomainSite[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [places, setPlaces] = useState<DomainSite[]>(() =>
+        placesCacheCloudId === cloudId && placesCache ? placesCache : []
+    );
+    const [isLoading, setIsLoading] = useState(
+        () => !(placesCacheCloudId === cloudId && placesCache && placesCache.length > 0)
+    );
     const [isSyncing, setIsSyncing] = useState(false);
     const [isError, setIsError] = useState(false);
 
@@ -40,7 +48,10 @@ export const usePlaces = () => {
                 const result = await siteRepository.fetchSite({}, { cachePolicy });
                 if (requestSeqRef.current !== requestSeq) return;
 
-                setPlaces((result.list ?? []) as DomainSite[]);
+                const nextPlaces = (result.list ?? []) as DomainSite[];
+                placesCache = nextPlaces;
+                placesCacheCloudId = cloudId;
+                setPlaces(nextPlaces);
             } catch (error) {
                 if (requestSeqRef.current !== requestSeq) return;
 
@@ -64,12 +75,12 @@ export const usePlaces = () => {
         if (prevCloudIdRef.current === cloudId) return;
         prevCloudIdRef.current = cloudId;
 
-        // 실제 클라우드 전환 시에만 network-only (캐시 오염 방지)
-        // 단순 네비게이션 복귀(재마운트)는 cache-first (깜빡임 방지)
+        // 실제 클라우드 전환 시에만 network-only + 로더 표시
+        // 단순 네비게이션 복귀(재마운트)는 cache-first, 로더 없음
         const isCloudSwitch = lastFetchedCloudId !== undefined && lastFetchedCloudId !== cloudId;
         lastFetchedCloudId = cloudId;
 
-        void fetchPlaces({ loading: places.length === 0, forceNetwork: isCloudSwitch });
+        void fetchPlaces({ loading: isCloudSwitch || places.length === 0, forceNetwork: isCloudSwitch });
     }, [fetchPlaces, cloudId, isVerified]);
 
     useEffect(() => {

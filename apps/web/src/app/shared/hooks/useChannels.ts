@@ -13,6 +13,10 @@ import { debounce } from '../utils/debounce';
 const DEFAULT_CHANNEL_LIMIT = 100;
 const CHANNEL_POLL_INTERVAL_MS = 15_000;
 
+// 모듈 레벨 캐시 — unmount/remount 시에도 이전 채널 데이터를 즉시 표시하여 깜빡임 방지
+const channelCache = new Map<string, ClientChannelView[]>();
+const getChannelCacheKey = (cloudId: string | null, placeId?: string) => `${cloudId}:${placeId ?? ''}`;
+
 const toClientChannel = (channel: DomainChannel, userId?: string): ClientChannelView => {
     const lastChatNo = channel.lastChat$?.chatNo ?? channel.chatNo ?? 0;
     const lastMessageIsMine = channel.lastChat$?.ownerId === userId;
@@ -54,13 +58,15 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     const cloudId = storeCloudId || (selectedCloudId === 'default' ? 'default' : null);
 
     const prevCloudIdRef = useRef(cloudId);
+    const prevPlaceIdRef = useRef(targetPlaceId);
     const currentParamsRef = useRef(initialParams);
+    const cacheKey = getChannelCacheKey(cloudId, targetPlaceId);
 
-    const [channels, setChannels] = useState<ClientChannelView[]>([]);
+    const [channels, setChannels] = useState<ClientChannelView[]>(() => channelCache.get(cacheKey) ?? []);
     const channelsRef = useRef(channels);
     channelsRef.current = channels;
 
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(() => !channelCache.has(cacheKey));
     const [isSyncing, setIsSyncing] = useState(false);
     const [isError, setIsError] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -68,8 +74,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     //  로컬 캐시 스트림 구독 (즉시 렌더링)
     useEffect(() => {
         if (!targetPlaceId || !cloudId) {
-            setChannels([]);
-            setIsLoading(false);
+            // 모듈 캐시 데이터가 있으면 초기화하지 않음 (remount 시 일시적 빈 값 방지)
             return;
         }
 
@@ -80,8 +85,9 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
             const nextChannels = sortChannels(
                 (result.list ?? []).map((channel: DomainChannel) => toClientChannel(channel, userId))
             );
+            channelCache.set(getChannelCacheKey(cloudId, targetPlaceId), nextChannels);
             setChannels(nextChannels);
-            setIsLoading(false); // 캐시 렌더링 즉시 로딩 해제
+            setIsLoading(false);
         });
 
         return () => unsubscribe();
@@ -130,15 +136,23 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         [channelRepository]
     );
 
-    // 클라우드 전환 시 채널 초기화 및 백그라운드 동기화 요청
+    // 클라우드/플레이스 전환 시에만 채널 초기화 + 로더 표시
+    // 단순 갱신(remount, polling, isConnected 변경)은 기존 데이터 유지하며 백그라운드 동기화만
+    // 빈 값 → 실제 값은 "초기 세팅"이므로 전환으로 취급하지 않음
     useEffect(() => {
-        if (prevCloudIdRef.current !== cloudId) {
-            prevCloudIdRef.current = cloudId;
+        const isCloudSwitch = !!prevCloudIdRef.current && prevCloudIdRef.current !== cloudId;
+        const isPlaceSwitch = !!prevPlaceIdRef.current && prevPlaceIdRef.current !== targetPlaceId;
+
+        prevCloudIdRef.current = cloudId;
+        prevPlaceIdRef.current = targetPlaceId;
+
+        if (isCloudSwitch || isPlaceSwitch) {
             setChannels([]);
             setIsLoading(true);
         } else {
             currentParamsRef.current = initialParams;
         }
+
         void fetchChannels(initialParams);
     }, [
         fetchChannels,
