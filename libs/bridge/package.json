@@ -1,0 +1,36 @@
+{
+    "name": "@chatic/bridge",
+    "version": "0.0.1",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "scripts": {
+        "test": "jest",
+        "run:mock": "ts-node ./src/run-mock.ts"
+    },
+    "exports": {
+        ".": {
+            "types": "./src/index.ts",
+            "import": "./src/index.ts",
+            "default": "./src/index.ts"
+        },
+        "./package.json": "./package.json"
+    },
+    "targets": {
+        "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": [
+                "{workspaceRoot}/coverage/{projectRoot}"
+            ],
+            "options": {
+                "jestConfig": "libs/bridge/jest.config.ts",
+                "passWithNoTests": true
+            },
+            "configurations": {
+                "ci": {
+                    "ci": true,
+                    "codeCoverage": true
+                }
+            }
+        }
+    }
+}
