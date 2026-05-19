@@ -3,16 +3,22 @@ import { useIsFocused } from '@react-navigation/native';
 import type { CloseModal, OpenModal } from '@chatic/app-messages';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
+export interface ModalHandler {
+    openModal: (params: { url: string; type: 'sheet' | 'full'; heightRatio?: number; dragHandle?: boolean }) => void;
+    closeModal: () => void;
+    canGoBack: () => boolean;
+}
+
 /**
  * Hook to handle native modals triggered by the WebView.
  * It manages opening/closing native modals and synchronizes the modal's closed state
  * back to the WebView when the native screen regains focus.
  *
  * @param bridge The WebView bridge instance to send messages back to the web.
- * @param navigation The React Navigation object used to navigate to the modal screen.
+ * @param modalHandler An object with functions to control the native modal.
  * @returns Handlers to open and close the modal.
  */
-export const useModalHandler = (bridge: IAppBridgeHost, navigation: any) => {
+export const useModalHandler = (bridge: IAppBridgeHost, modalHandler: ModalHandler) => {
     const isFocused = useIsFocused();
     const isOpenModal = useRef(false);
 
@@ -31,9 +37,9 @@ export const useModalHandler = (bridge: IAppBridgeHost, navigation: any) => {
         (message: OpenModal) => {
             isOpenModal.current = true;
             const { url, type = 'sheet', heightRatio, dragHandle } = message.data;
-            navigation.navigate('Modal', { url, type, heightRatio, dragHandle });
+            modalHandler.openModal({ url, type, heightRatio, dragHandle });
         },
-        [navigation]
+        [modalHandler]
     );
 
     /**
@@ -41,11 +47,11 @@ export const useModalHandler = (bridge: IAppBridgeHost, navigation: any) => {
      */
     const handleCloseModal = useCallback(
         (_message: CloseModal) => {
-            if (navigation.canGoBack()) {
-                navigation.goBack();
+            if (modalHandler.canGoBack()) {
+                modalHandler.closeModal();
             }
         },
-        [navigation]
+        [modalHandler]
     );
 
     return { handleOpenModal, handleCloseModal };

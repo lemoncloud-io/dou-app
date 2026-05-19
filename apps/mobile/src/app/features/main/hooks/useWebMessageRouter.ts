@@ -13,7 +13,7 @@ import {
     useSearchCacheHandler,
     useSubscriptionIapHandler,
 } from '../../../webview/hooks';
-import { useModalHandler } from '../../../webview/hooks/useModalHandler';
+import { type ModalHandler, useModalHandler } from '../../../webview/hooks/useModalHandler';
 
 import type {
     ChangeAppIcon,
@@ -58,7 +58,6 @@ import type {
     SetCanGoBack,
     WebMessageType,
 } from '@chatic/app-messages';
-import type { MainScreenProps } from '../navigation';
 import { useAppStateHandler } from '../../../webview/hooks/useAppStateHandler';
 import { logger } from '../../../services';
 import type { IAppBridgeHost } from '@chatic/bridges';
@@ -69,10 +68,10 @@ import type { IAppBridgeHost } from '@chatic/bridges';
 export interface UseWebMessageRouterProps {
     /** Bridge instance for communicating with the WebView */
     bridge: IAppBridgeHost;
-    /** React Navigation object for navigating to native screens (e.g., Modals) */
-    navigation: MainScreenProps['navigation'];
+    /** Handler for modal operations */
+    modalHandler: ModalHandler;
     /** Callback to update the state indicating if the web layer can handle back navigation */
-    setWebCanGoBack: (message: SetCanGoBack) => void;
+    setWebCanGoBack: (back: boolean) => void;
 }
 
 /**
@@ -83,7 +82,7 @@ export interface UseWebMessageRouterProps {
  * @param props - Dependencies injected from the MainScreen (bridge, navigation, etc.)
  * @returns An object containing the message handler callback and IAP loading state.
  */
-export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: UseWebMessageRouterProps) => {
+export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: UseWebMessageRouterProps) => {
     // --- Domain-specific Handlers (memoized with useCallback) ---
     const { fetchSafeAreaInfo } = useSafeAreaHandler();
     const { handleFetchBackgroundStatus } = useAppStateHandler(bridge);
@@ -128,7 +127,7 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler();
     const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
 
-    const { handleOpenModal, handleCloseModal } = useModalHandler(bridge, navigation);
+    const { handleOpenModal, handleCloseModal } = useModalHandler(bridge, modalHandler);
 
     // --- Keep handlers fresh for async execution without triggering re-renders ---
     const handlersRef = useRef({
@@ -221,7 +220,7 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
 
     useEffect(() => {
         const handlerMap = {
-            SetCanGoBack: (message: SetCanGoBack) => handlersRef.current.setWebCanGoBack(message),
+            SetCanGoBack: (message: SetCanGoBack) => handlersRef.current.setWebCanGoBack(message.data.canGoBack),
             FetchFcmToken: (message: FetchFcmToken) => handlersRef.current.fetchFcmToken(message),
             FetchSafeArea: (message: FetchSafeArea) => handlersRef.current.fetchSafeAreaInfo(message),
             FetchBackgroundStatus: (message: FetchBackgroundStatus) =>

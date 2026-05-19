@@ -1,20 +1,16 @@
-import React, { useRef } from 'react';
-
-import { useAppBridge, useVersionCheckHandler } from '../../../webview/hooks';
+import React, { useMemo, useRef } from 'react';
 import type { WebView } from 'react-native-webview';
-import type { MainScreenProps } from '../navigation';
 import { StyleSheet, View } from 'react-native';
 
 import { useWebViewDeepLink } from '../../../webview/hooks/useWebViewDeepLink';
-import { useWebMessageRouter } from '../hooks/useWebMessageRouter';
 import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigation';
 import { AppWebView } from '../../../webview';
-import { DeepLinkErrorView, FullScreenLoader } from '../../core/components';
-import { t } from '../../../utils';
+import { DeepLinkErrorView } from '../../core/components';
+import type { MainScreenProps } from '../navigation';
+import type { ModalHandler } from '../../../webview/hooks/useModalHandler';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
-    const { bridge, onMessage } = useAppBridge(webViewRef);
 
     const { setWebCanGoBack, setNavCanGoBack } = useWebViewNavigation(webViewRef);
     const {
@@ -26,13 +22,20 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         handleDismissError,
     } = useWebViewDeepLink(webViewRef);
 
-    useVersionCheckHandler(bridge);
-
-    const { isIapLoading } = useWebMessageRouter({
-        bridge,
-        navigation,
-        setWebCanGoBack: setWebCanGoBack,
-    });
+    const modalHandler: ModalHandler = useMemo(
+        () => ({
+            openModal: ({ url, type, heightRatio, dragHandle }) => {
+                navigation.navigate('Modal', { url, type, heightRatio, dragHandle });
+            },
+            closeModal: () => {
+                if (navigation.canGoBack()) {
+                    navigation.goBack();
+                }
+            },
+            canGoBack: () => navigation.canGoBack(),
+        }),
+        [navigation]
+    );
 
     if (!isColdStartReady || !initialSource) {
         return <View style={loadingStyles.container}></View>;
@@ -48,13 +51,13 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                 ref={webViewRef}
                 source={initialSource}
                 scrollEnabled={false}
-                onMessage={onMessage}
                 onLoad={handleWebViewLoad}
                 onNavigationStateChange={navState => {
                     setNavCanGoBack(navState.canGoBack);
                 }}
+                modalHandler={modalHandler}
+                setWebCanGoBack={setWebCanGoBack}
             />
-            <FullScreenLoader visible={isIapLoading} message={t('loader.paymentProcessing')} />
         </View>
     );
 };

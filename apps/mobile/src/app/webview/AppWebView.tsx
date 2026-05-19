@@ -5,13 +5,19 @@ import DeviceInfo from 'react-native-device-info';
 import Config from 'react-native-config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { APP_USER_AGENT_PREFIX, getAppLanguage } from '../utils';
-import { getVersionCheckResult } from '../hooks';
+import { APP_USER_AGENT_PREFIX, getAppLanguage, t } from '../utils';
+import { getVersionCheckResult, useServices } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
 import { getConsoleOverrideScript, getDeviceInfoScript, getSafeAreaScript } from './utils/injectionScripts';
-import { useServices } from '../hooks/useServices';
+import { useWebMessageRouter } from '../features/main/hooks/useWebMessageRouter';
+import { useAppBridge, useVersionCheckHandler } from './hooks';
+import { FullScreenLoader } from '../features/core/components';
+import type { ModalHandler } from './hooks/useModalHandler';
 
-interface AppWebViewProps extends WebViewProps {}
+interface AppWebViewProps extends WebViewProps {
+    modalHandler: ModalHandler;
+    setWebCanGoBack: (back: boolean) => void;
+}
 
 // User agent suffix (sync) - appended to default system UA via applicationNameForUserAgent
 const appName = Config.VIEW_APP_NAME ?? '';
@@ -21,12 +27,21 @@ const platformName = Platform.OS === 'ios' ? 'iOS' : 'Android';
 const userAgentSuffix = `(${APP_USER_AGENT_PREFIX}; ${appName}/${appVersion}; ${platformName}; Build:${buildNumber})`;
 
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
+    const { modalHandler, setWebCanGoBack, ...restProps } = props;
+
     const { cacheCrudService, firebaseInstallationService } = useServices();
     const [injectionScript, setInjectionScript] = useState<string | null>(null);
-    const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
     const insets = useSafeAreaInsets();
     const keyboardHeight = useKeyboardHeight();
     const webViewRef = useRef<WebView | null>(null);
+    const { bridge, onMessage } = useAppBridge(webViewRef);
+    const { isIapLoading } = useWebMessageRouter({
+        bridge,
+        modalHandler,
+        setWebCanGoBack: setWebCanGoBack,
+    });
+
+    useVersionCheckHandler(bridge);
 
     // 최초 1회: deviceInfo 주입 (비동기 초기화 - getUserAgent 제거로 더 빠름)
     useEffect(() => {
@@ -84,10 +99,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     );
 
     // onLoad를 가로채서 로고 오버레이 해제 + 부모 핸들러 호출
-    const { onLoad: propsOnLoad, ...restProps } = props;
+    const { onLoad: propsOnLoad } = props;
     const handleWebViewLoad = useCallback(
         (event: Parameters<NonNullable<WebViewProps['onLoad']>>[0]) => {
-            setIsWebViewLoaded(true);
             propsOnLoad?.(event);
         },
         [propsOnLoad]
@@ -120,7 +134,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 mixedContentMode="always"
                 {...restProps}
                 onLoad={handleWebViewLoad}
+                onMessage={onMessage}
             />
+            <FullScreenLoader visible={isIapLoading} message={t('loader.paymentProcessing')} />
         </View>
     );
 });
@@ -134,15 +150,5 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: '#fff',
-    },
-    logoOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-    },
-    logo: {
-        width: 80,
-        height: 80,
     },
 });
