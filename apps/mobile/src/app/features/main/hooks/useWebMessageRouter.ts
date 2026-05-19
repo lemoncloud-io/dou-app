@@ -15,7 +15,49 @@ import {
 } from '../../../webview/hooks';
 import { useModalHandler } from '../../../webview/hooks/useModalHandler';
 
-import type { WebMessageType } from '@chatic/app-messages';
+import type {
+    ChangeAppIcon,
+    ClearAppLogBuffer,
+    ClearCacheData,
+    CloseModal,
+    DeleteAllCacheData,
+    DeleteCacheData,
+    DeletePreference,
+    FetchAllCacheData,
+    FetchAppIcon,
+    FetchAppIconList,
+    FetchAppLogBuffer,
+    FetchAppLogBufferSize,
+    FetchBackgroundStatus,
+    FetchCacheData,
+    FetchCurrentPurchases,
+    FetchFcmToken,
+    FetchPreference,
+    FetchProducts,
+    FetchSafeArea,
+    FinishPurchaseTransaction,
+    GetContacts,
+    OAuthLogin,
+    OAuthLogout,
+    OpenCamera,
+    OpenDocument,
+    OpenModal,
+    OpenPhotoLibrary,
+    OpenSettings,
+    OpenShareSheet,
+    OpenSubscriptionManagement,
+    OpenURL,
+    PollAppLogBuffer,
+    Purchase,
+    RequestPermission,
+    SaveAllCacheData,
+    SaveCacheData,
+    SavePreference,
+    SearchGlobalCacheData,
+    SendLog,
+    SetCanGoBack,
+    WebMessageType,
+} from '@chatic/app-messages';
 import type { MainScreenProps } from '../navigation';
 import { useAppStateHandler } from '../../../webview/hooks/useAppStateHandler';
 import { logger } from '../../../services';
@@ -30,7 +72,7 @@ export interface UseWebMessageRouterProps {
     /** React Navigation object for navigating to native screens (e.g., Modals) */
     navigation: MainScreenProps['navigation'];
     /** Callback to update the state indicating if the web layer can handle back navigation */
-    setWebCanGoBack: (canGoBack: boolean) => void;
+    setWebCanGoBack: (message: SetCanGoBack) => void;
 }
 
 /**
@@ -44,7 +86,7 @@ export interface UseWebMessageRouterProps {
 export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: UseWebMessageRouterProps) => {
     // --- Domain-specific Handlers (memoized with useCallback) ---
     const { fetchSafeAreaInfo } = useSafeAreaHandler();
-    const { syncAppStateToWeb } = useAppStateHandler(bridge);
+    const { handleFetchBackgroundStatus } = useAppStateHandler(bridge);
     const { fetchFcmToken } = useFcmHandler(bridge);
     const {
         fetchProducts,
@@ -93,7 +135,7 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
         setWebCanGoBack,
         fetchFcmToken,
         fetchSafeAreaInfo,
-        syncAppStateToWeb,
+        handleFetchBackgroundStatus,
         fetchProducts,
         fetchCurrentPurchases,
         handlePurchaseSubscription,
@@ -137,7 +179,7 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
             setWebCanGoBack,
             fetchFcmToken,
             fetchSafeAreaInfo,
-            syncAppStateToWeb,
+            handleFetchBackgroundStatus,
             fetchProducts,
             fetchCurrentPurchases,
             handlePurchaseSubscription,
@@ -179,47 +221,53 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
 
     useEffect(() => {
         const handlerMap = {
-            SetCanGoBack: (data: { canGoBack: boolean }) => handlersRef.current.setWebCanGoBack(data.canGoBack),
-            FetchFcmToken: () => handlersRef.current.fetchFcmToken(),
-            FetchSafeArea: () => handlersRef.current.fetchSafeAreaInfo(),
-            FetchBackgroundStatus: () => handlersRef.current.syncAppStateToWeb(),
-            FetchProducts: () => handlersRef.current.fetchProducts(),
-            FetchCurrentPurchases: () => handlersRef.current.fetchCurrentPurchases(),
-            Purchase: (data: any) => handlersRef.current.handlePurchaseSubscription(data),
-            FinishPurchaseTransaction: (data: { purchase: any }) =>
-                handlersRef.current.handleFinishPurchase(data.purchase),
-            OpenSubscriptionManagement: () => handlersRef.current.handleOpenSubscriptionManagement(),
-            OpenModal: (data: any) => handlersRef.current.handleOpenModal(data),
-            CloseModal: () => handlersRef.current.handleCloseModal(),
-            FetchCacheData: (data: any) => handlersRef.current.handleFetchCache(data),
-            FetchAllCacheData: (data: any) => handlersRef.current.handleFetchAllCache(data),
-            SaveCacheData: (data: any) => handlersRef.current.handleSaveCache(data),
-            SaveAllCacheData: (data: any) => handlersRef.current.handleSaveAllCache(data),
-            DeleteCacheData: (data: any) => handlersRef.current.handleDeleteCache(data),
-            DeleteAllCacheData: (data: any) => handlersRef.current.handleDeleteAllCache(data),
-            SearchGlobalCacheData: (data: any) => handlersRef.current.handleSearchGlobalCache({ data } as any),
-            ClearCacheData: (data: any) => handlersRef.current.handleClearCache(data),
-            FetchPreference: (data: any) => handlersRef.current.handleFetchPreference({ data } as any),
-            SavePreference: (data: any) => handlersRef.current.handleSavePreference({ data } as any),
-            DeletePreference: (data: any) => handlersRef.current.handleDeletePreference({ data } as any),
-            FetchAppLogBuffer: (data: any) => handlersRef.current.handleFetchAppLogBuffer(data),
-            PollAppLogBuffer: (data: any) => handlersRef.current.handlePollAppLogBuffer(data),
-            ClearAppLogBuffer: (data: any) => handlersRef.current.handleClearAppLogBuffer(),
-            FetchAppLogBufferSize: (data: any) => handlersRef.current.handleFetchAppLogBufferSize(),
-            SendLog: (data: any) => handlersRef.current.handleSendLog({ data } as any),
-            OpenSettings: () => handlersRef.current.handleOpenSettings(),
-            OpenShareSheet: (data: any) => handlersRef.current.handleOpenShareSheet(data),
-            OpenDocument: (data: any) => handlersRef.current.handleOpenDocument(data),
-            GetContacts: (data: any) => handlersRef.current.handleGetContacts(data),
-            OpenCamera: (data: any) => handlersRef.current.handleOpenCamera(data),
-            OpenPhotoLibrary: (data: any) => handlersRef.current.handleOpenPhotoLibrary(data),
-            RequestPermission: (data: any) => handlersRef.current.handleRequestPermission(data),
-            OAuthLogin: (data: { provider: any }) => handlersRef.current.handleOAuthLogin(data.provider),
-            OAuthLogout: (data: { provider: any }) => handlersRef.current.handleOAuthLogout(data.provider),
-            OpenURL: (data: any) => handlersRef.current.handleOpenURL(data),
-            FetchAppIcon: (data: any) => handlersRef.current.handleFetchAppIcon(),
-            FetchAppIconList: (data: any) => handlersRef.current.handleFetchAppIconList(),
-            ChangeAppIcon: (data: any) => handlersRef.current.handleChangeAppIcon(data),
+            SetCanGoBack: (message: SetCanGoBack) => handlersRef.current.setWebCanGoBack(message),
+            FetchFcmToken: (message: FetchFcmToken) => handlersRef.current.fetchFcmToken(message),
+            FetchSafeArea: (message: FetchSafeArea) => handlersRef.current.fetchSafeAreaInfo(message),
+            FetchBackgroundStatus: (message: FetchBackgroundStatus) =>
+                handlersRef.current.handleFetchBackgroundStatus(message),
+            FetchProducts: (message: FetchProducts) => handlersRef.current.fetchProducts(message),
+            FetchCurrentPurchases: (message: FetchCurrentPurchases) =>
+                handlersRef.current.fetchCurrentPurchases(message),
+            Purchase: (message: Purchase) => handlersRef.current.handlePurchaseSubscription(message),
+            FinishPurchaseTransaction: (message: FinishPurchaseTransaction) =>
+                handlersRef.current.handleFinishPurchase(message),
+            OpenSubscriptionManagement: (message: OpenSubscriptionManagement) =>
+                handlersRef.current.handleOpenSubscriptionManagement(message),
+            OpenModal: (message: OpenModal) => handlersRef.current.handleOpenModal(message),
+            CloseModal: (message: CloseModal) => handlersRef.current.handleCloseModal(message),
+            FetchCacheData: (message: FetchCacheData) => handlersRef.current.handleFetchCache(message),
+            FetchAllCacheData: (message: FetchAllCacheData) => handlersRef.current.handleFetchAllCache(message),
+            SaveCacheData: (message: SaveCacheData) => handlersRef.current.handleSaveCache(message),
+            SaveAllCacheData: (message: SaveAllCacheData) => handlersRef.current.handleSaveAllCache(message),
+            DeleteCacheData: (message: DeleteCacheData) => handlersRef.current.handleDeleteCache(message),
+            DeleteAllCacheData: (message: DeleteAllCacheData) => handlersRef.current.handleDeleteAllCache(message),
+            SearchGlobalCacheData: (message: SearchGlobalCacheData) =>
+                handlersRef.current.handleSearchGlobalCache(message),
+            ClearCacheData: (message: ClearCacheData) => handlersRef.current.handleClearCache(message),
+            FetchPreference: (message: FetchPreference) => handlersRef.current.handleFetchPreference(message),
+            SavePreference: (message: SavePreference) => handlersRef.current.handleSavePreference(message),
+            DeletePreference: (message: DeletePreference) => handlersRef.current.handleDeletePreference(message),
+            FetchAppLogBuffer: (message: FetchAppLogBuffer) => handlersRef.current.handleFetchAppLogBuffer(message),
+            PollAppLogBuffer: (message: PollAppLogBuffer) => handlersRef.current.handlePollAppLogBuffer(message),
+            ClearAppLogBuffer: (message: ClearAppLogBuffer) => handlersRef.current.handleClearAppLogBuffer(message),
+            FetchAppLogBufferSize: (message: FetchAppLogBufferSize) =>
+                handlersRef.current.handleFetchAppLogBufferSize(message),
+            SendLog: (message: SendLog) => handlersRef.current.handleSendLog(message),
+            OpenSettings: (message: OpenSettings) => handlersRef.current.handleOpenSettings(message),
+            OpenShareSheet: (message: OpenShareSheet) => handlersRef.current.handleOpenShareSheet(message),
+            OpenDocument: (message: OpenDocument) => handlersRef.current.handleOpenDocument(message),
+            GetContacts: (message: GetContacts) => handlersRef.current.handleGetContacts(message),
+            OpenCamera: (message: OpenCamera) => handlersRef.current.handleOpenCamera(message),
+            OpenPhotoLibrary: (message: OpenPhotoLibrary) => handlersRef.current.handleOpenPhotoLibrary(message),
+            RequestPermission: (message: RequestPermission) =>
+                handlersRef.current.handleRequestPermission(message.data),
+            OAuthLogin: (message: OAuthLogin) => handlersRef.current.handleOAuthLogin(message),
+            OAuthLogout: (message: OAuthLogout) => handlersRef.current.handleOAuthLogout(message),
+            OpenURL: (message: OpenURL) => handlersRef.current.handleOpenURL(message),
+            FetchAppIcon: (message: FetchAppIcon) => handlersRef.current.handleFetchAppIcon(message),
+            FetchAppIconList: (message: FetchAppIconList) => handlersRef.current.handleFetchAppIconList(message),
+            ChangeAppIcon: (message: ChangeAppIcon) => handlersRef.current.handleChangeAppIcon(message),
         };
 
         Object.entries(handlerMap).forEach(([type, handler]) => {
