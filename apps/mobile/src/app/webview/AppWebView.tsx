@@ -8,12 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_USER_AGENT_PREFIX, getAppLanguage } from '../utils';
 import { getVersionCheckResult } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
-import {
-    getCachedDataScript,
-    getConsoleOverrideScript,
-    getDeviceInfoScript,
-    getSafeAreaScript,
-} from './utils/injectionScripts';
+import { getConsoleOverrideScript, getDeviceInfoScript, getSafeAreaScript } from './utils/injectionScripts';
 import { useServices } from '../hooks/useServices';
 
 interface AppWebViewProps extends WebViewProps {}
@@ -36,11 +31,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     // 최초 1회: deviceInfo 주입 (비동기 초기화 - getUserAgent 제거로 더 빠름)
     useEffect(() => {
         const prepareWebView = async () => {
-            const [uniqueId, installationId, cachedClouds] = await Promise.all([
+            const [uniqueId, installationId] = await Promise.all([
                 DeviceInfo.getUniqueId(),
                 firebaseInstallationService.getFirebaseId(),
-                // NOTE: channels 캐시는 stale 데이터 노출 방지를 위해 제거 — 서버 fast path로 대체
-                cacheCrudService.fetchAll({ type: 'invitecloud' }).catch(() => []),
             ]);
 
             /**
@@ -63,25 +56,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 shouldUpdate: versionCheck?.hasUpdate ?? false,
             });
 
-            const dedup = <T extends { id?: string }>(items: T[]): T[] => {
-                const seen = new Set<string>();
-                return items.filter(item => {
-                    if (!item.id || seen.has(item.id)) return false;
-                    seen.add(item.id);
-                    return true;
-                });
-            };
-
-            const cachedDataScript = getCachedDataScript({
-                channels: [],
-                clouds: dedup(cachedClouds as { id?: string }[]),
-                timestamp: Date.now(),
-            });
-
             const script = `
                 ${getSafeAreaScript(insets, keyboardHeight)}
                 ${deviceInfoScript}
-                ${cachedDataScript}
                 ${getConsoleOverrideScript()}
             `;
 
