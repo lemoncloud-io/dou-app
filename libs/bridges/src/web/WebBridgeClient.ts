@@ -1,17 +1,6 @@
-import type { BridgeAdapter } from './adapters/BridgeAdapter';
-import type {
-    RequestType,
-    ResponseType,
-    EventType,
-    TypedRequestMessage,
-    TypedResponseMessage,
-    TypedEventMessage,
-    RequestPayloadMap,
-    ResponsePayloadMap,
-    EventPayloadMap,
-    BridgePairMap,
-} from '../common';
-import type { IWebBridgeClient } from './IWebBridgeClient';
+import type { BridgeAdapter } from './adapters';
+import type { RequestMessage, ResponseMessage, EventMessage, WebMessageType, EventMessageType } from '../common';
+import type { IWebBridgeClient, ExtractReqData, ExtractResData, ExtractEvtData } from './IWebBridgeClient';
 
 export interface WebBridgeClientConfig {
     adapter: BridgeAdapter;
@@ -45,23 +34,15 @@ export class WebBridgeClient implements IWebBridgeClient {
         this.adapter.onMessage(this.handleMessage);
     }
 
-    /**
-     * 어댑터로부터 수신된 메시지를 타입(Response vs Event)에 맞게 라우팅합니다.
-     */
-    private handleMessage = (message: TypedResponseMessage<ResponseType> | TypedEventMessage<EventType>): void => {
-        // 'success' 필드가 존재하면 Request에 대한 응답(Response)으로 간주
-        if ('success' in message) {
-            this.handleResponse(message as TypedResponseMessage<ResponseType>);
+    private handleMessage = (message: ResponseMessage | EventMessage): void => {
+        if ('success' in message && message.refId) {
+            this.handleResponse(message as ResponseMessage);
         } else {
-            // 그렇지 않다면 단방향 발송 이벤트(Event)로 간주
-            this.handleEvent(message as TypedEventMessage<EventType>);
+            this.handleEvent(message as EventMessage);
         }
     };
 
-    /**
-     * Request-Response 패턴의 응답을 처리합니다.
-     */
-    private handleResponse(message: TypedResponseMessage<ResponseType>): void {
+    private handleResponse(message: ResponseMessage): void {
         const pending = this.pendingRequests.get(message.refId);
         if (!pending) return;
 
@@ -69,71 +50,67 @@ export class WebBridgeClient implements IWebBridgeClient {
         this.pendingRequests.delete(message.refId);
 
         if (message.success) {
+            // 응답 객체의 data(추출된 페이로드)를 그대로 반환
             pending.resolve(message.data);
         } else {
             pending.reject(message.error);
         }
     }
 
-    /**
-     * App에서 발생한 단방향 이벤트를 구독자들에게 브로드캐스트합니다.
-     */
-    private handleEvent(message: TypedEventMessage<EventType>): void {
+    private handleEvent(message: EventMessage): void {
         const listeners = this.eventListeners.get(message.type);
-        listeners?.forEach(listener => listener(message.payload));
+        // 이벤트 객체의 호환성 필드인 data에서 페이로드 추출
+        const payload = (message as any).data !== undefined ? (message as any).data : undefined;
+        listeners?.forEach(listener => listener(payload));
     }
 
-    /**
-     * 모든 발송 메시지에 부여되는 고유 식별자(refId)를 생성합니다.
-     */
     private generateRefId(): string {
         return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
     }
 
-    public post<K extends RequestType>(type: K, payload?: RequestPayloadMap[K]): void {
-        const message: TypedRequestMessage<K> = {
+    public post<K extends WebMessageType>(type: K, payload?: ExtractReqData<K>): void {
+        const message = {
             type,
             refId: this.generateRefId(),
             version: this.version,
-            payload: (payload ?? {}) as RequestPayloadMap[K],
-        };
+            data: payload, // 전송 시 호환성 규격을 위해 data 필드에 탑재
+        } as unknown as RequestMessage;
+
         this.adapter.postMessage(message);
     }
 
-    public request<K extends RequestType>(
+    public request<K extends WebMessageType>(
         type: K,
-        payload?: RequestPayloadMap[K],
+        payload?: ExtractReqData<K>,
         customTimeoutMs?: number
-    ): Promise<ResponsePayloadMap[BridgePairMap[K]]> {
+    ): Promise<ExtractResData<K>> {
         return new Promise((resolve, reject) => {
             const refId = this.generateRefId();
-            const message: TypedRequestMessage<K> = {
+            const message = {
                 type,
                 refId,
                 version: this.version,
-                payload: (payload ?? {}) as RequestPayloadMap[K],
-            };
+                data: payload, // 전송 시 호환성 규격을 위해 data 필드에 탑재
+            } as unknown as RequestMessage;
 
-            // 타임아웃 타이머 설정
             const timeoutId = setTimeout(() => {
                 this.pendingRequests.delete(refId);
                 reject({ code: 'TIMEOUT', message: `Request timed out after ${customTimeoutMs ?? this.timeoutMs}ms` });
             }, customTimeoutMs ?? this.timeoutMs);
 
-            // 대기열에 등록 후 메시지 발송
             this.pendingRequests.set(refId, { resolve, reject, timeoutId });
             this.adapter.postMessage(message);
         });
     }
 
-    public send<K extends RequestType>(
-        message: { type: K; payload?: RequestPayloadMap[K] },
+    public send<K extends WebMessageType>(
+        message: { type: K; payload?: ExtractReqData<K> },
         customTimeoutMs?: number
-    ): Promise<ResponsePayloadMap[BridgePairMap[K]]> {
+    ): Promise<ExtractResData<K>> {
         return this.request(message.type, message.payload, customTimeoutMs);
     }
 
-    public onEvent<K extends EventType>(type: K, handler: (payload: EventPayloadMap[K]) => void): () => void {
+    public onEvent<K extends EventMessageType>(type: K, handler: (payload: ExtractEvtData<K>) => void): () => void {
         const typeStr = type as string;
         if (!this.eventListeners.has(typeStr)) {
             this.eventListeners.set(typeStr, new Set());
@@ -142,7 +119,6 @@ export class WebBridgeClient implements IWebBridgeClient {
         const listeners = this.eventListeners.get(typeStr)!;
         listeners.add(handler as any);
 
-        // 구독 해제(Cleanup) 함수 반환
         return () => {
             listeners.delete(handler as any);
             if (listeners.size === 0) this.eventListeners.delete(typeStr);
