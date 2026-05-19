@@ -1,8 +1,8 @@
-import { MockWebBridgeClient } from './web';
+import { MockBridgeAdapter, MockWebBridgeClient } from './web';
 import { MockAppBridgeHost } from './app';
-import { MockBridgeAdapter } from './web';
-import type { TypedRequestMessage, RequestType } from './common';
+import type { RequestType, TypedRequestMessage } from './common';
 import * as readline from 'readline';
+import type { PongPayload } from '@chatic/app-messages';
 
 // --- 기본 설정 ---
 const logger = {
@@ -36,22 +36,9 @@ const webClient = new MockWebBridgeClient({ adapter: webAdapter });
 // AppBridgeHost 핸들러 등록 (Mock Native 비즈니스 로직)
 // ======================================================================
 
-// 일반 Ping 테스트 핸들러 (빈 객체 왕복)
-appHost.registerHandler('Ping', async () => {
-    logger.app("[MockAppBridgeHost] 'Ping' 요청 수신. 'Pong'으로 응답합니다.");
-    // PongPayload 반환 (빈 객체)
-    return {};
-});
-
-// 대용량 LongPing 테스트 핸들러 (대규모 문자열 왕복)
-appHost.registerHandler('LongPing', async payload => {
-    logger.app(`[MockAppBridgeHost] 'LongPing' 수신 완료. (요청 데이터 길이: ${payload.payload.length} bytes)`);
-
-    // 네이티브에서 1MB 크기의 응답 데이터를 생성하여 반환
-    const responsePayload = 'B'.repeat(1024 * 1024 * 1);
-
-    // LongPongPayload 반환
-    return { payload: responsePayload };
+appHost.registerHandler('Ping', async payload => {
+    logger.app(`[MockAppBridgeHost] 'Ping' 수신. payload: ${payload.payload.length} bytes`);
+    return { payload: payload.payload };
 });
 
 // --- 2. 실행 CLI ---
@@ -83,12 +70,9 @@ async function handleMenuChoice(choice: string) {
         case '1': {
             logger.web("App으로 'Ping' 요청을 보냅니다...");
             try {
-                const startTime = performance.now();
-                // 타입 검증: 빈 객체 전송, PongPayload 구조 수신
-                const response = await webClient.request('Ping', { payload: '' });
-                const endTime = performance.now();
-                const rtt = (endTime - startTime).toFixed(2);
-                logger.web(`✅ 'Pong' 최종 응답 수신:`, response, `(⏱️ 왕복 시간: ${rtt}ms)`);
+                // 타입 검증: 'Ping'은 PingPayload를 인자로 받음
+                const response: PongPayload = await webClient.request('Ping', { payload: 'hello' });
+                logger.web(`✅ 'Pong' 응답 수신:`, response);
             } catch (error) {
                 logger.web('❌ 응답 실패:', error);
             }
@@ -97,27 +81,24 @@ async function handleMenuChoice(choice: string) {
 
         case '2':
             logger.app("Web으로 'OnReceiveNotification' 이벤트를 푸시합니다.");
-            // 타입 검증: OnReceiveNotification은 { notification: {...} } 페이로드를 요구함.
+            // 타입 검증: NotificationEventPayload 규격에 맞춰 전송
             appHost.pushEvent('OnReceiveNotification', {
                 notification: { title: 'Mock Push', body: '테스트 푸시입니다.' },
             });
             break;
 
         case '3': {
-            logger.web("App으로 'LongPing' (대용량 응답 대기) 요청을 보냅니다...");
+            logger.web("App으로 'Ping' (대용량 문자열) 요청을 보냅니다...");
             try {
-                const requestPayload = 'A'.repeat(1024 * 1024); // 1MB 크기 요청 데이터 생성
+                const requestPayload = 'A'.repeat(1024 * 1024); // 1MB
                 const startTime = performance.now();
 
-                // 타입 검증: LongPingPayload({ payload: string }) 전송, LongPongPayload 수신
-                const response = await webClient.request('LongPing', { payload: requestPayload });
+                // 타입 추론: request의 반환값은 PongPayload로 자동 결정됨
+                const response = await webClient.request('Ping', { payload: requestPayload });
 
                 const endTime = performance.now();
                 const rtt = (endTime - startTime).toFixed(2);
-
-                logger.web(
-                    `✅ 대용량 'LongPong' 응답 수신 성공! (응답 데이터 길이: ${response.payload.length} bytes, ⏱️ 왕복 시간: ${rtt}ms)`
-                );
+                logger.web(`✅ 응답 완료! 길이: ${response.payload.length}, ⏱️ ${rtt}ms`);
             } catch (error) {
                 logger.web('❌ 응답 실패:', error);
             }
