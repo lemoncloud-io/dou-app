@@ -1,12 +1,7 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-
-import type { WebViewBridge } from './useBaseBridge';
 import type {
-    AppMessageData,
-    ClearAppLogBuffer,
     FetchAppLogBuffer,
-    FetchAppLogBufferSize,
     OnClearAppLogBufferPayload,
     OnFetchAppLogBufferPayload,
     OnFetchAppLogBufferSizePayload,
@@ -14,122 +9,64 @@ import type {
     PollAppLogBuffer,
 } from '@chatic/app-messages';
 
-export const useLogBufferHandler = (bridge: WebViewBridge) => {
+export const useLogBufferHandler = () => {
     const { logBufferService, logService: logger } = useServices();
 
     const handleFetchAppLogBuffer = useCallback(
-        async (message: FetchAppLogBuffer) => {
+        async (payload: FetchAppLogBuffer['data']): Promise<OnFetchAppLogBufferPayload> => {
             try {
-                const logs = logBufferService.peek(message.data.count);
-                const response: AppMessageData<'OnFetchAppLogBuffer'> = {
-                    type: 'OnFetchAppLogBuffer',
-                    nonce: message.nonce,
-                    data: {
-                        logs,
-                        size: logBufferService.getSize(),
-                    } as OnFetchAppLogBufferPayload,
+                const logs = logBufferService.peek(payload.count);
+                return {
+                    logs,
+                    size: logBufferService.getSize(),
                 };
-                bridge.post(response);
             } catch (e) {
-                console.error('FetchAppLogBuffer error', e);
-                try {
-                    bridge.post({
-                        type: 'OnFetchAppLogBuffer',
-                        nonce: message.nonce,
-                        data: { logs: [], size: 0 } as OnFetchAppLogBufferPayload,
-                    });
-                } catch {
-                    logger.error('LOG_BUFFER', 'Failed to post OnFetchAppLogBuffer fallback');
-                }
+                logger.error(`LOG_BUFFER`, 'FetchAppLogBuffer error', e);
+                throw e;
             }
         },
-        [bridge]
+        [logBufferService, logger]
     );
 
     const handlePollAppLogBuffer = useCallback(
-        async (message: PollAppLogBuffer) => {
+        async (payload: PollAppLogBuffer['data']): Promise<OnPollAppLogBufferPayload> => {
             try {
-                const logs = await logBufferService.poll(message.data.count);
-                const response: AppMessageData<'OnPollAppLogBuffer'> = {
-                    type: 'OnPollAppLogBuffer',
-                    nonce: message.nonce,
-                    data: {
-                        logs,
-                        size: logBufferService.getSize(),
-                    } as OnPollAppLogBufferPayload,
+                const logs = await logBufferService.poll(payload.count);
+                return {
+                    logs,
+                    size: logBufferService.getSize(),
                 };
-                bridge.post(response);
             } catch (e) {
-                console.error('PollAppLogBuffer error', e);
-                try {
-                    bridge.post({
-                        type: 'OnPollAppLogBuffer',
-                        nonce: message.nonce,
-                        data: { logs: [], size: 0 } as OnPollAppLogBufferPayload,
-                    });
-                } catch {
-                    logger.error('LOG_BUFFER', 'Failed to post OnPollAppLogBuffer fallback');
-                }
+                logger.error('LOG_BUFFER', 'PollAppLogBuffer error', e);
+                throw e;
             }
         },
-        [bridge]
+        [logBufferService, logger]
     );
 
-    const handleClearAppLogBuffer = useCallback(
-        async (message: ClearAppLogBuffer) => {
-            try {
-                await logBufferService.clear();
-                const response: AppMessageData<'OnClearAppLogBuffer'> = {
-                    type: 'OnClearAppLogBuffer',
-                    nonce: message.nonce,
-                    data: {
-                        success: true,
-                        size: logBufferService.getSize(),
-                    } as OnClearAppLogBufferPayload,
-                };
-                bridge.post(response);
-            } catch (e) {
-                console.error('ClearAppLogBuffer error', e);
-                try {
-                    bridge.post({
-                        type: 'OnClearAppLogBuffer',
-                        nonce: message.nonce,
-                        data: { success: false, size: logBufferService.getSize() } as OnClearAppLogBufferPayload,
-                    });
-                } catch {
-                    logger.error('LOG_BUFFER', 'Failed to post OnClearAppLogBuffer fallback');
-                }
-            }
-        },
-        [bridge]
-    );
+    const handleClearAppLogBuffer = useCallback(async (): Promise<OnClearAppLogBufferPayload> => {
+        try {
+            await logBufferService.clear();
+            return {
+                success: true,
+                size: logBufferService.getSize(),
+            };
+        } catch (e) {
+            logger.error('LOG_BUFFER', 'ClearAppLogBuffer error', e);
+            throw e;
+        }
+    }, [logBufferService, logger]);
 
-    const handleFetchAppLogBufferSize = useCallback(
-        (message: FetchAppLogBufferSize) => {
-            try {
-                const response: AppMessageData<'OnFetchAppLogBufferSize'> = {
-                    type: 'OnFetchAppLogBufferSize',
-                    nonce: message.nonce,
-                    data: {
-                        size: logBufferService.getSize(),
-                    } as OnFetchAppLogBufferSizePayload,
-                };
-                bridge.post(response);
-            } catch (e) {
-                console.error('FetchAppLogBufferSize error', e);
-                try {
-                    bridge.post({
-                        type: 'OnFetchAppLogBufferSize',
-                        nonce: message.nonce,
-                        data: { size: 0 } as OnFetchAppLogBufferSizePayload,
-                    });
-                } catch {
-                    logger.error('LOG_BUFFER', 'Failed to post OnFetchAppLogBufferSize fallback');
-                }
-            }
-        },
-        [bridge]
-    );
+    const handleFetchAppLogBufferSize = useCallback(async (): Promise<OnFetchAppLogBufferSizePayload> => {
+        try {
+            return {
+                size: logBufferService.getSize(),
+            };
+        } catch (e) {
+            logger.error('LOG_BUFFER', 'FetchAppLogBufferSize error', e);
+            throw e;
+        }
+    }, [logBufferService, logger]);
 
     return {
         handleFetchAppLogBuffer,

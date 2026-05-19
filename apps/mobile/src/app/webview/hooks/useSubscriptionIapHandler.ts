@@ -3,15 +3,20 @@ import { useCallback } from 'react';
 import { useSubscriptionIap } from '../../hooks';
 import { logger } from '../../services';
 
-import type { WebViewBridge } from './useBaseBridge';
-import type { AppMessageData, PurchasePayload } from '@chatic/app-messages';
+import type { IAppBridgeHost } from '@chatic/bridges';
+import type {
+    OnFetchCurrentPurchasesPayload,
+    OnFetchProductsPayload,
+    OnFinishPurchaseTransactionPayload,
+    PurchasePayload,
+} from '@chatic/app-messages';
 import type { Purchase, PurchaseError } from 'react-native-iap';
 
 /**
  * 웹뷰에서 인앱결제 기능을 사용하기 위한 핸들러 훅
  * @param bridge
  */
-export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
+export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
     const { products, currentPurchases, handlePurchase, finishPurchase, openSubscriptionManagement, loading } =
         useSubscriptionIap({
             /**
@@ -19,13 +24,7 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
              * 웹 프론트엔드가 이 영수증을 받아 백엔드 서버 검증을 책임집니다.
              */
             onPurchaseSuccess: (purchase: Purchase) => {
-                const message: AppMessageData<'OnPurchaseSuccess'> = {
-                    type: 'OnPurchaseSuccess',
-                    data: {
-                        purchase: purchase,
-                    },
-                };
-                bridge.post(message);
+                bridge.pushEvent('OnPurchaseSuccess', { purchase });
             },
 
             /**
@@ -34,44 +33,30 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
              */
             onPurchaseError: (error: PurchaseError) => {
                 logger.error('IAP', 'Purchase failed:', error);
-                const message: AppMessageData<'OnPurchaseError'> = {
-                    type: 'OnPurchaseError',
-                    data: {
-                        error: error,
-                    },
-                };
-                bridge.post(message);
+                bridge.pushEvent('OnPurchaseError', { error });
             },
         });
 
     /**
      * 구독 상품 목록 조회
      */
-    const fetchProducts = useCallback(async () => {
-        const message: AppMessageData<'OnFetchProducts'> = {
-            type: 'OnFetchProducts',
-            data: { products },
-        };
-        bridge.post(message);
-    }, [bridge, products]);
+    const fetchProducts = useCallback(async (): Promise<OnFetchProductsPayload> => {
+        return { products };
+    }, [products]);
 
     /**
      * 현재 보유 중인 구독권 조회
      */
-    const fetchCurrentPurchases = useCallback(async () => {
-        const message: AppMessageData<'OnFetchCurrentPurchases'> = {
-            type: 'OnFetchCurrentPurchases',
-            data: { purchases: currentPurchases },
-        };
-        bridge.post(message);
-    }, [bridge, currentPurchases]);
+    const fetchCurrentPurchases = useCallback(async (): Promise<OnFetchCurrentPurchasesPayload> => {
+        return { purchases: currentPurchases };
+    }, [currentPurchases]);
 
     /**
      * 구독권 구매 수행
      */
     const handlePurchaseSubscription = useCallback(
-        async (data: PurchasePayload) => {
-            await handlePurchase(data.id, data.offerToken, data.oldPlanId, data.newPlanId);
+        async (payload: PurchasePayload) => {
+            await handlePurchase(payload.id, payload.offerToken, payload.oldPlanId, payload.newPlanId);
         },
         [handlePurchase]
     );
@@ -80,15 +65,11 @@ export const useSubscriptionIapHandler = (bridge: WebViewBridge) => {
      * 웹에서 서버 검증을 마친 후, 해당 트랜잭션을 스토어에서 완료(소비) 처리하도록 요청받는 핸들러
      */
     const handleFinishPurchase = useCallback(
-        async (purchase: Purchase) => {
-            await finishPurchase(purchase);
-            const message: AppMessageData<'OnFinishPurchaseTransaction'> = {
-                type: 'OnFinishPurchaseTransaction',
-                data: { purchase },
-            };
-            bridge.post(message);
+        async (payload: { purchase: Purchase }): Promise<OnFinishPurchaseTransactionPayload> => {
+            await finishPurchase(payload.purchase);
+            return { purchase: payload.purchase };
         },
-        [bridge, finishPurchase]
+        [finishPurchase]
     );
 
     /**

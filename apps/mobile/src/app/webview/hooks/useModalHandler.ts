@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useIsFocused } from '@react-navigation/native';
-import type { AppMessageData, OpenModal } from '@chatic/app-messages';
+import type { OpenModal } from '@chatic/app-messages';
+import type { IAppBridgeHost } from '@chatic/bridges';
 
 /**
  * Hook to handle native modals triggered by the WebView.
@@ -11,15 +12,14 @@ import type { AppMessageData, OpenModal } from '@chatic/app-messages';
  * @param navigation The React Navigation object used to navigate to the modal screen.
  * @returns Handlers to open and close the modal.
  */
-export const useModalHandler = (bridge: any, navigation: any) => {
+export const useModalHandler = (bridge: IAppBridgeHost, navigation: any) => {
     const isFocused = useIsFocused();
     const isOpenModal = useRef(false);
 
     // Sync state to the WebView when the native modal is closed and focus returns to this screen
     useEffect(() => {
         if (isFocused && isOpenModal.current) {
-            const message: AppMessageData<'OnCloseModal'> = { type: 'OnCloseModal' };
-            bridge.post(message);
+            bridge.pushEvent('OnCloseModal', undefined);
             isOpenModal.current = false;
         }
     }, [isFocused, bridge]);

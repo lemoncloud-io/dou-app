@@ -1,13 +1,12 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { WebViewBridge } from './useBaseBridge';
-import type { AppMessageData, PermissionStatus, RequestPermission } from '@chatic/app-messages';
+import type { OnRequestPermissionPayload, PermissionStatus, RequestPermission } from '@chatic/app-messages';
 
-export const usePermissionHandler = (bridge: WebViewBridge) => {
+export const usePermissionHandler = () => {
     const { permissionService, logService: logger } = useServices();
     const handleRequestPermission = useCallback(
-        async (data: RequestPermission['data']) => {
-            const { permission } = data;
+        async (payload: RequestPermission['data']): Promise<OnRequestPermissionPayload> => {
+            const { permission } = payload;
 
             try {
                 const isGranted = await permissionService.request(permission);
@@ -18,27 +17,19 @@ export const usePermissionHandler = (bridge: WebViewBridge) => {
                     status = checkResult ? 'GRANTED' : 'DENIED';
                 }
 
-                const response: AppMessageData<'OnRequestPermission'> = {
-                    type: 'OnRequestPermission',
-                    data: {
-                        permission,
-                        status,
-                    },
+                return {
+                    permission,
+                    status,
                 };
-                bridge.post(response);
             } catch (error) {
                 logger.error('PERMISSION', 'PermissionHandler error', error);
-                const response: AppMessageData<'OnRequestPermission'> = {
-                    type: 'OnRequestPermission',
-                    data: {
-                        permission,
-                        status: 'UNAVAILABLE',
-                    },
+                return {
+                    permission,
+                    status: 'UNAVAILABLE',
                 };
-                bridge.post(response);
             }
         },
-        [bridge, permissionService, logger]
+        [permissionService, logger]
     );
 
     return {

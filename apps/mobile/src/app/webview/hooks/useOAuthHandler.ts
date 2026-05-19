@@ -1,37 +1,40 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { OAuthLoginProvider } from '@chatic/app-messages';
-import type { WebViewBridge } from './useBaseBridge';
+import type { OAuthLoginProvider, OnOAuthLoginPayload, OnOAuthLogoutPayload } from '@chatic/app-messages';
 
-export const useOAuthHandler = (bridge: WebViewBridge) => {
-    const { oauthService: oAuthService } = useServices();
+export const useOAuthHandler = () => {
+    const { oauthService: oAuthService, logService: logger } = useServices();
     /**
      * OAuth 로그인
      */
-    const handleOAuthLogin: (provider: OAuthLoginProvider) => Promise<void> = useCallback(
-        async (provider: OAuthLoginProvider) => {
-            const result = await oAuthService.login(provider);
-            bridge.post({
-                type: 'OnOAuthLogin',
-                data: { result },
-            });
+    const handleOAuthLogin = useCallback(
+        async (provider: OAuthLoginProvider): Promise<OnOAuthLoginPayload> => {
+            try {
+                const result = await oAuthService.login(provider);
+                return { result };
+            } catch (error) {
+                logger.error('OAUTH', `Login error for provider ${provider}`, error);
+                throw error;
+            }
         },
-        [bridge, oAuthService]
+        [oAuthService, logger]
     );
 
     /**
      * OAuth 로그아웃
      * `Apple`의 경우 별도 logout 로직이 존재하지 않아 무조건 `true`를 반환
      */
-    const handleOAuthLogout: (provider: OAuthLoginProvider) => Promise<void> = useCallback(
-        async (provider: OAuthLoginProvider) => {
-            const success: boolean = await oAuthService.logout(provider);
-            bridge.post({
-                type: 'OnOAuthLogout',
-                data: { success },
-            });
+    const handleOAuthLogout = useCallback(
+        async (provider: OAuthLoginProvider): Promise<OnOAuthLogoutPayload> => {
+            try {
+                const success: boolean = await oAuthService.logout(provider);
+                return { success };
+            } catch (error) {
+                logger.error('OAUTH', `Logout error for provider ${provider}`, error);
+                throw error;
+            }
         },
-        [bridge, oAuthService]
+        [oAuthService, logger]
     );
 
     return {

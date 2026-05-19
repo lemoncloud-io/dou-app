@@ -1,36 +1,23 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
+import type { OnSearchGlobalCacheDataPayload, SearchGlobalCacheData } from '@chatic/app-messages';
 
-import type { WebViewBridge } from './useBaseBridge';
-import type { AppMessageData, OnSearchGlobalCacheDataPayload, SearchGlobalCacheData } from '@chatic/app-messages';
-
-export const useSearchCacheHandler = (bridge: WebViewBridge) => {
+export const useSearchCacheHandler = () => {
     const { cacheSearchService, logService: logger } = useServices();
 
     const handleSearchGlobalCache = useCallback(
-        async (message: SearchGlobalCacheData) => {
-            const { keyword, cid, uid } = message.data;
+        async (payload: SearchGlobalCacheData['data']): Promise<OnSearchGlobalCacheDataPayload> => {
+            const { keyword, cid, uid } = payload;
             try {
                 const items = await cacheSearchService.search(keyword, cid, uid);
-
-                const payload: OnSearchGlobalCacheDataPayload = { items };
-                const response: AppMessageData<'OnSearchGlobalCacheData'> = {
-                    type: 'OnSearchGlobalCacheData',
-                    nonce: message.nonce,
-                    data: payload,
-                };
-                bridge.post(response);
+                return { items };
             } catch (e) {
                 logger.error('CACHE', `Search execution failed for keyword: ${keyword}`, e);
-                const errorPayload: OnSearchGlobalCacheDataPayload = { items: [] };
-                bridge.post({
-                    type: 'OnSearchGlobalCacheData',
-                    nonce: message.nonce,
-                    data: errorPayload,
-                });
+                // Return empty array on error to prevent webview from hanging
+                return { items: [] };
             }
         },
-        [bridge, cacheSearchService, logger]
+        [cacheSearchService, logger]
     );
 
     return { handleSearchGlobalCache };
