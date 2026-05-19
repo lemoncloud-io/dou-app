@@ -28,7 +28,11 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
              * 웹 프론트엔드가 이 영수증을 받아 백엔드 서버 검증을 책임집니다.
              */
             onPurchaseSuccess: (purchase: Purchase) => {
-                bridge.pushEvent('OnPurchaseSuccess', { purchase });
+                // 단일 메시지 객체로 통합
+                bridge.pushEvent({
+                    type: 'OnPurchaseSuccess',
+                    data: { data: purchase },
+                } as any);
             },
 
             /**
@@ -37,7 +41,11 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
              */
             onPurchaseError: (error: PurchaseError) => {
                 logger.error('IAP', 'Purchase failed:', error);
-                bridge.pushEvent('OnPurchaseError', { error });
+                // 단일 메시지 객체로 통합
+                bridge.pushEvent({
+                    type: 'OnPurchaseError',
+                    data: { error },
+                } as any);
             },
         });
 
@@ -45,8 +53,8 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
      * 구독 상품 목록 조회
      */
     const fetchProducts = useCallback(
-        async (_message: FetchProducts): Promise<OnFetchProductsPayload> => {
-            return { products };
+        async (_message: FetchProducts): Promise<{ data: OnFetchProductsPayload }> => {
+            return { data: { products } };
         },
         [products]
     );
@@ -55,8 +63,8 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
      * 현재 보유 중인 구독권 조회
      */
     const fetchCurrentPurchases = useCallback(
-        async (_message: FetchCurrentPurchases): Promise<OnFetchCurrentPurchasesPayload> => {
-            return { purchases: currentPurchases };
+        async (_message: FetchCurrentPurchases): Promise<{ data: OnFetchCurrentPurchasesPayload }> => {
+            return { data: { purchases: currentPurchases } };
         },
         [currentPurchases]
     );
@@ -76,11 +84,11 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
      * 웹에서 서버 검증을 마친 후, 해당 트랜잭션을 스토어에서 완료(소비) 처리하도록 요청받는 핸들러
      */
     const handleFinishPurchase = useCallback(
-        async (message: FinishPurchaseTransaction): Promise<OnFinishPurchaseTransactionPayload> => {
+        async (message: FinishPurchaseTransaction): Promise<{ data: OnFinishPurchaseTransactionPayload }> => {
             const { purchase } = message.data;
 
             await finishPurchase(purchase);
-            return { purchase: purchase };
+            return { data: { purchase: purchase } };
         },
         [finishPurchase]
     );

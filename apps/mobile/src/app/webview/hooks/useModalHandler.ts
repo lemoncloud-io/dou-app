@@ -25,7 +25,11 @@ export const useModalHandler = (bridge: IAppBridgeHost, modalHandler: ModalHandl
     // Sync state to the WebView when the native modal is closed and focus returns to this screen
     useEffect(() => {
         if (isFocused && isOpenModal.current) {
-            bridge.pushEvent('OnCloseModal', undefined);
+            // pushEvent 파라미터를 단일 메시지 객체로 변경
+            bridge.pushEvent({
+                type: 'OnCloseModal',
+            } as any);
+
             isOpenModal.current = false;
         }
     }, [isFocused, bridge]);

@@ -6,15 +6,15 @@ export const useSearchCacheHandler = () => {
     const { cacheSearchService, logService: logger } = useServices();
 
     const handleSearchGlobalCache = useCallback(
-        async (payload: SearchGlobalCacheData): Promise<OnSearchGlobalCacheDataPayload> => {
-            const { keyword, cid, uid } = payload.data;
+        async (message: SearchGlobalCacheData): Promise<{ data: OnSearchGlobalCacheDataPayload }> => {
+            const { keyword, cid, uid } = message.data;
             try {
                 const items = await cacheSearchService.search(keyword, cid, uid);
-                return { items };
+                return { data: { items } };
             } catch (e) {
                 logger.error('CACHE', `Search execution failed for keyword: ${keyword}`, e);
                 // Return empty array on error to prevent webview from hanging
-                return { items: [] };
+                return { data: { items: [] } };
             }
         },
         [cacheSearchService, logger]

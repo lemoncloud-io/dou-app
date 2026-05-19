@@ -22,24 +22,28 @@ export const useCrudCacheHandler = () => {
     const { cacheCrudService, logService: logger } = useServices();
 
     const handleFetchAllCache = useCallback(
-        async (payload: FetchAllCacheData): Promise<OnFetchAllCacheDataPayload> => {
-            const data = payload.data;
+        async (message: FetchAllCacheData) => {
+            const data = message.data;
             try {
                 const items = await cacheCrudService.fetchAll(data);
                 return {
-                    type: data.type,
-                    cid: data.cid,
-                    uid: data.uid,
-                    items: items,
-                    query: data.query,
-                } as OnFetchAllCacheDataPayload;
+                    data: {
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
+                        items: items,
+                        query: data.query,
+                    } as OnFetchAllCacheDataPayload,
+                };
             } catch (e) {
                 logger.error('CACHE', `FetchAll error: ${data.type}`, e);
                 return {
-                    type: data.type,
-                    cid: data.cid,
-                    uid: data.uid,
-                    items: null,
+                    data: {
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
+                        items: null,
+                    } as OnFetchAllCacheDataPayload,
                 };
             }
         },
@@ -47,25 +51,29 @@ export const useCrudCacheHandler = () => {
     );
 
     const handleFetchCache = useCallback(
-        async (payload: FetchCacheData): Promise<OnFetchCacheDataPayload> => {
-            const data = payload.data;
+        async (message: FetchCacheData) => {
+            const data = message.data;
             try {
                 const item = await cacheCrudService.fetch(data);
                 return {
-                    type: data.type,
-                    cid: data.cid,
-                    uid: data.uid,
-                    id: data.id,
-                    item: item,
-                } as OnFetchCacheDataPayload;
+                    data: {
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
+                        id: data.id,
+                        item: item,
+                    } as OnFetchCacheDataPayload,
+                };
             } catch (e) {
                 logger.error('CACHE', `Fetch error: ${data.type} ${data.id}`, e);
                 return {
-                    type: data.type,
-                    cid: data.cid,
-                    uid: data.uid,
-                    id: data.id,
-                    item: null,
+                    data: {
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
+                        id: data.id,
+                        item: null,
+                    } as OnFetchCacheDataPayload,
                 };
             }
         },
@@ -73,25 +81,29 @@ export const useCrudCacheHandler = () => {
     );
 
     const handleSaveCache = useCallback(
-        async (payload: SaveCacheData): Promise<OnSaveCacheDataPayload> => {
-            const data = payload.data;
+        async (message: SaveCacheData) => {
+            const data = message.data;
             try {
                 const savedId = await cacheCrudService.save(data);
                 return {
-                    type: data.type,
-                    cid: data.cid,
-                    uid: data.uid,
-                    id: savedId,
-                    success: true,
+                    data: {
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
+                        id: savedId,
+                        success: true,
+                    } as OnSaveCacheDataPayload,
                 };
             } catch (e) {
                 logger.error('CACHE', `Save error: ${data.type} ${data.id}`, e);
                 return {
-                    type: data.type,
-                    cid: data.cid,
-                    uid: data.uid,
-                    id: null,
-                    success: false,
+                    data: {
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
+                        id: null,
+                        success: false,
+                    } as OnSaveCacheDataPayload,
                 };
             }
         },
@@ -99,26 +111,30 @@ export const useCrudCacheHandler = () => {
     );
 
     const handleSaveAllCache = useCallback(
-        async (payload: SaveAllCacheData): Promise<OnSaveAllCacheDataPayload> => {
-            const data = payload.data;
+        async (message: SaveAllCacheData) => {
+            const data = message.data;
             try {
                 const savedIds = await cacheCrudService.saveAll(data);
                 return {
-                    type: data.type,
-                    cid: data.cid,
-                    uid: data.uid,
-                    ids: savedIds,
-                    success: true,
-                    query: data.query,
+                    data: {
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
+                        ids: savedIds,
+                        success: true,
+                        query: data.query,
+                    } as OnSaveAllCacheDataPayload,
                 };
             } catch (e) {
                 logger.error('CACHE', `SaveAll error: ${data.type}`, e);
                 return {
-                    type: data.type,
-                    cid: data.cid,
-                    uid: data.uid,
-                    ids: [],
-                    success: false,
+                    data: {
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
+                        ids: [],
+                        success: false,
+                    } as OnSaveAllCacheDataPayload,
                 };
             }
         },
@@ -126,25 +142,29 @@ export const useCrudCacheHandler = () => {
     );
 
     const handleDeleteCache = useCallback(
-        async (payload: DeleteCacheData): Promise<OnDeleteCacheDataPayload> => {
-            const data = payload.data;
+        async (message: DeleteCacheData) => {
+            const data = message.data;
             try {
                 const deletedId = await cacheCrudService.delete(data);
                 return {
-                    type: data.type,
-                    cid: data.cid,
-                    uid: data.uid,
-                    id: deletedId,
-                    success: true,
+                    data: {
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
+                        id: deletedId,
+                        success: true,
+                    } as OnDeleteCacheDataPayload,
                 };
             } catch (e) {
                 logger.error('CACHE', `Delete error: ${data.type} ${data.id}`, e);
                 return {
-                    type: data.type,
-                    cid: data.cid,
-                    uid: data.uid,
-                    id: null,
-                    success: false,
+                    data: {
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
+                        id: null,
+                        success: false,
+                    } as OnDeleteCacheDataPayload,
                 };
             }
         },
@@ -152,25 +172,29 @@ export const useCrudCacheHandler = () => {
     );
 
     const handleDeleteAllCache = useCallback(
-        async (payload: DeleteAllCacheData): Promise<OnDeleteAllCacheDataPayload> => {
-            const data = payload.data;
+        async (message: DeleteAllCacheData) => {
+            const data = message.data;
             try {
                 const deletedIds = await cacheCrudService.deleteAll(data);
                 return {
-                    type: data.type,
-                    cid: data.cid,
-                    uid: data.uid,
-                    ids: deletedIds,
-                    success: true,
+                    data: {
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
+                        ids: deletedIds,
+                        success: true,
+                    } as OnDeleteAllCacheDataPayload,
                 };
             } catch (e) {
                 logger.error('CACHE', `DeleteAll error: ${data.type}`, e);
                 return {
-                    type: data.type,
-                    cid: data.cid,
-                    uid: data.uid,
-                    ids: [],
-                    success: false,
+                    data: {
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
+                        ids: [],
+                        success: false,
+                    } as OnDeleteAllCacheDataPayload,
                 };
             }
         },
@@ -178,23 +202,27 @@ export const useCrudCacheHandler = () => {
     );
 
     const handleClearCache = useCallback(
-        async (payload: ClearCacheData): Promise<OnClearCacheDataPayload> => {
-            const data = payload.data;
+        async (message: ClearCacheData) => {
+            const data = message.data;
             try {
                 await cacheCrudService.clear(data);
                 return {
-                    type: data.type,
-                    cid: data.cid,
-                    uid: data.uid,
-                    success: true,
+                    data: {
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
+                        success: true,
+                    } as OnClearCacheDataPayload,
                 };
             } catch (e) {
                 logger.error('CACHE', `Clear error: ${data.type}`, e);
                 return {
-                    type: data.type,
-                    cid: data.cid,
-                    uid: data.uid,
-                    success: false,
+                    data: {
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
+                        success: false,
+                    } as OnClearCacheDataPayload,
                 };
             }
         },

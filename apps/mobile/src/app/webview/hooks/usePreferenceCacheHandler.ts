@@ -14,22 +14,22 @@ export const usePreferenceCacheHandler = () => {
     const { preferenceService, logService } = useServices();
 
     const handleFetchPreference = useCallback(
-        async (payload: FetchPreference): Promise<OnFetchPreferencePayload> => {
-            const { key } = payload.data;
+        async (message: FetchPreference): Promise<{ data: OnFetchPreferencePayload }> => {
+            const { key } = message.data;
             try {
                 const value = await preferenceService.get(key as any);
-                return { key, value };
+                return { data: { key, value } };
             } catch (e) {
                 logService.error('CACHE', `FetchPreference error: ${key}`, e as Error);
-                return { key, value: null };
+                return { data: { key, value: null } };
             }
         },
         [preferenceService, logService]
     );
 
     const handleSavePreference = useCallback(
-        async (payload: SavePreference): Promise<OnSavePreferencePayload> => {
-            const { key, value } = payload.data;
+        async (message: SavePreference): Promise<{ data: OnSavePreferencePayload }> => {
+            const { key, value } = message.data;
 
             try {
                 switch (key) {
@@ -43,24 +43,24 @@ export const usePreferenceCacheHandler = () => {
                         await preferenceService.set(key as any, value);
                 }
 
-                return { key, success: true };
+                return { data: { key, success: true } };
             } catch (e) {
                 logService.error('CACHE', `SavePreference error: ${key}`, e as Error);
-                return { key, success: false };
+                return { data: { key, success: false } };
             }
         },
         [preferenceService, logService]
     );
 
     const handleDeletePreference = useCallback(
-        async (payload: DeletePreference): Promise<OnDeletePreferencePayload> => {
-            const { key } = payload.data;
+        async (message: DeletePreference): Promise<{ data: OnDeletePreferencePayload }> => {
+            const { key } = message.data;
             try {
                 await preferenceService.remove(key as any);
-                return { key, success: true };
+                return { data: { key, success: true } };
             } catch (e) {
                 logService.error('CACHE', `DeletePreference error: ${key}`, e as Error);
-                return { key, success: false };
+                return { data: { key, success: false } };
             }
         },
         [preferenceService, logService]

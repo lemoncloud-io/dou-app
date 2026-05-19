@@ -15,14 +15,16 @@ export const useLogBufferHandler = () => {
     const { logBufferService, logService: logger } = useServices();
 
     const handleFetchAppLogBuffer = useCallback(
-        async (payload: FetchAppLogBuffer): Promise<OnFetchAppLogBufferPayload> => {
+        async (payload: FetchAppLogBuffer): Promise<{ data: OnFetchAppLogBufferPayload }> => {
             const data = payload.data;
 
             try {
                 const logs = logBufferService.peek(data.count);
                 return {
-                    logs,
-                    size: logBufferService.getSize(),
+                    data: {
+                        logs,
+                        size: logBufferService.getSize(),
+                    },
                 };
             } catch (e) {
                 logger.error(`LOG_BUFFER`, 'FetchAppLogBuffer error', e);
@@ -33,14 +35,16 @@ export const useLogBufferHandler = () => {
     );
 
     const handlePollAppLogBuffer = useCallback(
-        async (payload: PollAppLogBuffer): Promise<OnPollAppLogBufferPayload> => {
+        async (payload: PollAppLogBuffer): Promise<{ data: OnPollAppLogBufferPayload }> => {
             const data = payload.data;
 
             try {
                 const logs = await logBufferService.poll(data.count);
                 return {
-                    logs,
-                    size: logBufferService.getSize(),
+                    data: {
+                        logs,
+                        size: logBufferService.getSize(),
+                    },
                 };
             } catch (e) {
                 logger.error('LOG_BUFFER', 'PollAppLogBuffer error', e);
@@ -51,12 +55,14 @@ export const useLogBufferHandler = () => {
     );
 
     const handleClearAppLogBuffer = useCallback(
-        async (_message: ClearAppLogBuffer): Promise<OnClearAppLogBufferPayload> => {
+        async (_message: ClearAppLogBuffer): Promise<{ data: OnClearAppLogBufferPayload }> => {
             try {
                 await logBufferService.clear();
                 return {
-                    success: true,
-                    size: logBufferService.getSize(),
+                    data: {
+                        success: true,
+                        size: logBufferService.getSize(),
+                    },
                 };
             } catch (e) {
                 logger.error('LOG_BUFFER', 'ClearAppLogBuffer error', e);
@@ -67,10 +73,12 @@ export const useLogBufferHandler = () => {
     );
 
     const handleFetchAppLogBufferSize = useCallback(
-        async (_message: FetchAppLogBufferSize): Promise<OnFetchAppLogBufferSizePayload> => {
+        async (_message: FetchAppLogBufferSize): Promise<{ data: OnFetchAppLogBufferSizePayload }> => {
             try {
                 return {
-                    size: logBufferService.getSize(),
+                    data: {
+                        size: logBufferService.getSize(),
+                    },
                 };
             } catch (e) {
                 logger.error('LOG_BUFFER', 'FetchAppLogBufferSize error', e);

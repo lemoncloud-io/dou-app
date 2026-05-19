@@ -4,6 +4,7 @@ import type { IAppBridgeHost } from '@chatic/bridges';
 import type {
     AppBackgroundStatus,
     FetchBackgroundStatus,
+    OnBackgroundStatusChanged,
     OnBackgroundStatusChangedPayload,
 } from '@chatic/app-messages';
 
@@ -53,11 +54,14 @@ export const useAppStateHandler = (bridge: IAppBridgeHost | null) => {
         }
 
         // 앱 상태가 변경될 때마다 웹으로 이벤트를 보냅니다.
-        bridge.pushEvent('OnBackgroundStatusChanged', {
-            status: appState as AppBackgroundStatus, // 'unknown'이 필터링되었으므로 타입 단언이 안전합니다.
-            isForeground,
-            isBackground,
-        });
+        bridge.pushEvent({
+            type: 'OnBackgroundStatusChanged',
+            data: {
+                status: appState as AppBackgroundStatus,
+                isForeground,
+                isBackground,
+            },
+        } as OnBackgroundStatusChanged);
     }, [appState, bridge, isForeground, isBackground]);
 
     return {

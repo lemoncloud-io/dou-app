@@ -17,15 +17,18 @@ export const useVersionCheckHandler = (bridge: IAppBridgeHost) => {
         const appVersion = DeviceInfo.getVersion();
 
         return onVersionCheckComplete(result => {
-            bridge.pushEvent('OnUpdateDeviceInfo', {
-                platform: Platform.OS.toLowerCase() as AppPlatform,
-                stage: (Config.VITE_ENV || 'PROD') as Env,
-                application: DeviceInfo.getApplicationName(),
-                currentVersion: appVersion,
-                latestVersion: result.latestVersion,
-                shouldUpdate: true,
-                appVersion: appVersion,
-            } as OnUpdateDeviceInfoPayload);
+            bridge.pushEvent({
+                type: 'OnUpdateDeviceInfo',
+                data: {
+                    platform: Platform.OS.toLowerCase() as AppPlatform,
+                    stage: (Config.VITE_ENV || 'PROD') as Env,
+                    application: DeviceInfo.getApplicationName(),
+                    currentVersion: appVersion,
+                    latestVersion: result.latestVersion,
+                    shouldUpdate: true,
+                    appVersion: appVersion,
+                } as OnUpdateDeviceInfoPayload,
+            } as any);
         });
     }, [bridge]);
 };

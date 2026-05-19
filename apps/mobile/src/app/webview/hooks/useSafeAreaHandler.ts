@@ -6,12 +6,14 @@ export const useSafeAreaHandler = () => {
     const insets = useSafeAreaInsets();
 
     const fetchSafeAreaInfo = useCallback(
-        (_message: FetchSafeArea): OnFetchSafeAreaPayload => {
+        (_message: FetchSafeArea): { data: OnFetchSafeAreaPayload } => {
             return {
-                top: insets.top,
-                bottom: insets.bottom,
-                left: insets.left,
-                right: insets.right,
+                data: {
+                    top: insets.top,
+                    bottom: insets.bottom,
+                    left: insets.left,
+                    right: insets.right,
+                },
             };
         },
         [insets]

@@ -11,7 +11,7 @@ import type { FetchFcmToken } from '@chatic/app-messages';
  * @param bridge
  */
 export const useFcmHandler = (bridge: IAppBridgeHost) => {
-    const fetchFcmToken = useCallback(async (_message: FetchFcmToken): Promise<{ token: string }> => {
+    const fetchFcmToken = useCallback(async (_message: FetchFcmToken): Promise<{ data: { token: string } }> => {
         try {
             const hasPermission = await provider.notificationService.requestPermission();
 
@@ -26,7 +26,7 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
 
                 if (token) {
                     logger.debug('NOTIFICATION', 'Success set token.' + token);
-                    return { token };
+                    return { data: { token } };
                 } else {
                     throw new Error('Failed to generate FCM Token');
                 }
@@ -45,30 +45,35 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
 
         // 포그라운드 알림 수신
         const unsubscribeOnMessage = provider.notificationService.onMessage(async remoteMessage => {
-            bridge.pushEvent('OnReceiveNotification', {
-                notification: {
-                    title: remoteMessage.notification?.title,
-                    body: remoteMessage.notification?.body,
-                    data: remoteMessage.data,
+            bridge.pushEvent({
+                type: 'OnReceiveNotification',
+                data: {
+                    notification: {
+                        title: remoteMessage.notification?.title,
+                        body: remoteMessage.notification?.body,
+                        data: remoteMessage.data,
+                    },
                 },
-            });
+            } as any);
         });
 
         // 앱 백그라운드 상태에서 알림 클릭
         const unsubscribeOnOpened = provider.notificationService.onNotificationOpenedApp(remoteMessage => {
-            bridge.pushEvent('OnOpenNotification', (remoteMessage.data || {}) as any);
+            bridge.pushEvent({
+                type: 'OnOpenNotification',
+                data: (remoteMessage.data || {}) as any,
+            } as any);
         });
 
         // 앱 종료 상태에서 알림 클릭 (Cold Start)
         provider.notificationService.getInitialNotification().then(remoteMessage => {
             if (remoteMessage) {
-                /**
-                 * TODO: Handle initial notification when webview is ready
-                 * @author dev@example.com
-                 */
                 setTimeout(() => {
-                    bridge.pushEvent('OnOpenNotification', {
-                        notification: remoteMessage.data || {},
+                    bridge.pushEvent({
+                        type: 'OnOpenNotification',
+                        data: {
+                            notification: remoteMessage.data || {},
+                        } as any,
                     } as any);
                 }, 1000);
             }

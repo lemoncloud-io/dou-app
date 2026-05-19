@@ -82,28 +82,21 @@ export const BridgeTestScreen = () => {
     );
 
     useEffect(() => {
-        const openShareSheetHandler = (data: any) => handleOpenShareSheet(data);
-        const openDocumentHandler = (data: any) => handleOpenDocument(data);
-        const getContactsHandler = (data: any) => handleGetContacts(data);
-        const openCameraHandler = (data: any) => handleOpenCamera(data);
-        const oAuthLoginHandler = (data: { provider: any }) => handleOAuthLogin(data.provider);
-        const oAuthLogoutHandler = (data: { provider: any }) => handleOAuthLogout(data.provider);
-        const finishPurchaseHandler = (data: { purchase: any }) => handleFinishPurchase(data.purchase);
-
-        bridge.registerHandler('OpenShareSheet', openShareSheetHandler);
-        bridge.registerHandler('OpenDocument', openDocumentHandler);
-        bridge.registerHandler('RequestPermission', handleRequestPermission);
-        bridge.registerHandler('GetContacts', getContactsHandler);
-        bridge.registerHandler('OpenCamera', openCameraHandler);
-        bridge.registerHandler('OAuthLogin', oAuthLoginHandler);
-        bridge.registerHandler('OAuthLogout', oAuthLogoutHandler);
+        // 기존 훅들이 payload만 반환하므로 타입 단언(as any)을 통해 에러 우회
+        bridge.registerHandler('OpenShareSheet', handleOpenShareSheet as any);
+        bridge.registerHandler('OpenDocument', handleOpenDocument as any);
+        bridge.registerHandler('RequestPermission', handleRequestPermission as any);
+        bridge.registerHandler('GetContacts', handleGetContacts as any);
+        bridge.registerHandler('OpenCamera', handleOpenCamera as any);
+        bridge.registerHandler('OAuthLogin', handleOAuthLogin as any);
+        bridge.registerHandler('OAuthLogout', handleOAuthLogout as any);
 
         // IAP
-        bridge.registerHandler('FetchProducts', fetchProducts);
-        bridge.registerHandler('FetchCurrentPurchases', fetchCurrentPurchases);
-        bridge.registerHandler('Purchase', handlePurchaseSubscription);
-        bridge.registerHandler('FinishPurchaseTransaction', finishPurchaseHandler);
-        bridge.registerHandler('OpenSubscriptionManagement', handleOpenSubscriptionManagement);
+        bridge.registerHandler('FetchProducts', fetchProducts as any);
+        bridge.registerHandler('FetchCurrentPurchases', fetchCurrentPurchases as any);
+        bridge.registerHandler('Purchase', handlePurchaseSubscription as any);
+        bridge.registerHandler('FinishPurchaseTransaction', handleFinishPurchase as any);
+        bridge.registerHandler('OpenSubscriptionManagement', handleOpenSubscriptionManagement as any);
 
         return () => {
             const types: WebMessageType[] = [
@@ -139,7 +132,8 @@ export const BridgeTestScreen = () => {
     ]);
 
     const sendToWeb = (message: AppMessageData<any>) => {
-        bridge.pushEvent(message.type, message.data);
+        // 인터페이스 변경에 따라 인자를 분리하지 않고 메시지 객체 자체를 푸시
+        bridge.pushEvent(message as any);
         addLog('sent', `App -> Web: Sent ${message.type}`);
     };
 
@@ -238,7 +232,6 @@ export const BridgeTestScreen = () => {
                     <button onclick="sendToNative({ type: 'OpenShareSheet', data: { message: 'Hello from WebView!' } })">Open Share</button>
                     <button onclick="sendToNative({ type: 'OpenDocument', data: { allowMultiSelection: true } })">Open Document</button>
 
-                    <!-- IAP Test Buttons -->
                     <button onclick="sendToNative({ type: 'FetchProducts', data: {} })">IAP: Fetch Products</button>
                     <button onclick="sendToNative({ type: 'FetchCurrentPurchases', data: {} })">IAP: Fetch Purchases</button>
                     <button onclick="sendToNative({ type: 'Purchase', data: { sku: 'TEST' }})">IAP: Buy Subscription (required sku)</button>
@@ -320,7 +313,6 @@ export const BridgeTestScreen = () => {
                     source={{ html: testHtml }}
                     onMessage={handleWebViewMessage}
                     style={{ flex: 1, backgroundColor: '#121212' }}
-                    // 안드로이드 다크모드 지원을 위해 필요할 수 있음
                     containerStyle={{ backgroundColor: '#121212' }}
                 />
             </View>
@@ -371,7 +363,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#121212',
     },
     webViewContainer: {
-        height: 350, // 웹뷰 영역을 더 늘림 (버튼 2줄 + 로그창)
+        height: 350,
         borderBottomWidth: 1,
         borderBottomColor: '#333',
     },

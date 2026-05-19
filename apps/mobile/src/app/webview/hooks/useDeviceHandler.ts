@@ -20,6 +20,7 @@ import type { Asset } from 'react-native-image-picker';
 
 export const useDeviceHandler = () => {
     const { deviceService, logService: logger } = useServices();
+
     const handleOpenSettings = useCallback(
         async (_message: OpenSettings) => {
             await deviceService.openSettings();
@@ -28,13 +29,15 @@ export const useDeviceHandler = () => {
     );
 
     const handleOpenShareSheet = useCallback(
-        async (message: OpenShareSheet): Promise<OnOpenShareSheet['data']> => {
+        async (message: OpenShareSheet): Promise<{ data: OnOpenShareSheet['data'] }> => {
             const data = message.data;
             try {
                 const result = await deviceService.openShareSheet(data);
                 return {
-                    action: result.action,
-                    activityType: result.activityType ?? null,
+                    data: {
+                        action: result.action,
+                        activityType: result.activityType ?? null,
+                    },
                 };
             } catch (e: any) {
                 logger.error('DEVICE', 'OpenShareSheet error', e);
@@ -45,7 +48,7 @@ export const useDeviceHandler = () => {
     );
 
     const handleOpenDocument = useCallback(
-        async (message: OpenDocument): Promise<OnOpenDocumentPayload> => {
+        async (message: OpenDocument): Promise<{ data: OnOpenDocumentPayload }> => {
             const data = message.data;
             try {
                 const results = await deviceService.openDocument(data.allowMultiSelection);
@@ -70,8 +73,10 @@ export const useDeviceHandler = () => {
                     })
                 );
                 return {
-                    documents: documents,
-                } as OnOpenDocumentPayload;
+                    data: {
+                        documents: documents,
+                    },
+                };
             } catch (e) {
                 logger.error('DEVICE', 'OpenDocument error', e);
                 throw e;
@@ -81,20 +86,21 @@ export const useDeviceHandler = () => {
     );
 
     const handleOpenCamera = useCallback(
-        async (_message: OpenCamera): Promise<OnOpenCamera['data']> => {
-            //TODO: Not Implement
+        async (_message: OpenCamera): Promise<{ data: OnOpenCamera['data'] }> => {
             try {
                 const assets: Asset[] = await deviceService.openCamera();
                 return {
-                    assets: assets.map(asset => ({
-                        uri: asset.uri,
-                        fileSize: asset.fileSize,
-                        width: asset.width,
-                        height: asset.height,
-                        fileName: asset.fileName,
-                        type: asset.type,
-                        base64: asset.base64,
-                    })),
+                    data: {
+                        assets: assets.map(asset => ({
+                            uri: asset.uri,
+                            fileSize: asset.fileSize,
+                            width: asset.width,
+                            height: asset.height,
+                            fileName: asset.fileName,
+                            type: asset.type,
+                            base64: asset.base64,
+                        })),
+                    },
                 };
             } catch (e) {
                 logger.error('DEVICE', 'OpenCamera error', e);
@@ -105,20 +111,21 @@ export const useDeviceHandler = () => {
     );
 
     const handleOpenPhotoLibrary = useCallback(
-        async (_message: OpenPhotoLibrary): Promise<OnOpenPhotoLibrary['data']> => {
-            //TODO: Not Implement
+        async (_message: OpenPhotoLibrary): Promise<{ data: OnOpenPhotoLibrary['data'] }> => {
             try {
                 const assets: Asset[] = await deviceService.openPhotoLibrary();
                 return {
-                    assets: assets.map(asset => ({
-                        uri: asset.uri,
-                        fileSize: asset.fileSize,
-                        width: asset.width,
-                        height: asset.height,
-                        fileName: asset.fileName,
-                        type: asset.type,
-                        base64: asset.base64,
-                    })),
+                    data: {
+                        assets: assets.map(asset => ({
+                            uri: asset.uri,
+                            fileSize: asset.fileSize,
+                            width: asset.width,
+                            height: asset.height,
+                            fileName: asset.fileName,
+                            type: asset.type,
+                            base64: asset.base64,
+                        })),
+                    },
                 };
             } catch (e) {
                 logger.error('DEVICE', 'OpenPhotoLibrary error', e);
@@ -129,38 +136,39 @@ export const useDeviceHandler = () => {
     );
 
     const handleGetContacts = useCallback(
-        async (_message: GetContacts): Promise<OnGetContacts['data']> => {
+        async (_message: GetContacts): Promise<{ data: OnGetContacts['data'] }> => {
             try {
                 const contacts = await deviceService.getContacts();
                 return {
-                    contacts: contacts.map(contact => ({
-                        recordID: contact.recordID,
-                        backTitle: contact.backTitle || '',
-                        company: contact.company || '',
-                        emailAddresses: contact.emailAddresses,
-                        displayName: contact.displayName || '',
-                        familyName: contact.familyName,
-                        givenName: contact.givenName || '',
-                        middleName: contact.middleName || '',
-                        jobTitle: contact.jobTitle || '',
-                        phoneNumbers: contact.phoneNumbers,
-                        hasThumbnail: contact.hasThumbnail,
-                        thumbnailPath: contact.thumbnailPath || '',
-                        isStarred: contact.isStarred,
-                        postalAddresses: contact.postalAddresses,
-                        prefix: contact.prefix || '',
-                        suffix: contact.suffix || '',
-                        department: contact.department || '',
-                        birthday: (contact.birthday || undefined) as any,
-                        imAddresses: contact.imAddresses,
-                        urlAddresses: contact.urlAddresses,
-                        note: contact.note || '',
-                    })),
+                    data: {
+                        contacts: contacts.map(contact => ({
+                            recordID: contact.recordID,
+                            backTitle: contact.backTitle || '',
+                            company: contact.company || '',
+                            emailAddresses: contact.emailAddresses,
+                            displayName: contact.displayName || '',
+                            familyName: contact.familyName,
+                            givenName: contact.givenName || '',
+                            middleName: contact.middleName || '',
+                            jobTitle: contact.jobTitle || '',
+                            phoneNumbers: contact.phoneNumbers,
+                            hasThumbnail: contact.hasThumbnail,
+                            thumbnailPath: contact.thumbnailPath || '',
+                            isStarred: contact.isStarred,
+                            postalAddresses: contact.postalAddresses,
+                            prefix: contact.prefix || '',
+                            suffix: contact.suffix || '',
+                            department: contact.department || '',
+                            birthday: (contact.birthday || undefined) as any,
+                            imAddresses: contact.imAddresses,
+                            urlAddresses: contact.urlAddresses,
+                            note: contact.note || '',
+                        })),
+                    },
                 };
             } catch (e) {
                 logger.error('DEVICE', 'GetContacts error', e);
-                // 에러 시에도 빈 배열로 응답 전송 (Web이 무한 대기하지 않도록)
-                return { contacts: [] };
+                return { data: { contacts: [] } };
             }
         },
         [deviceService, logger]

@@ -4,9 +4,10 @@ import type { OnRequestPermissionPayload, PermissionStatus, RequestPermission } 
 
 export const usePermissionHandler = () => {
     const { permissionService, logService: logger } = useServices();
+
     const handleRequestPermission = useCallback(
-        async (payload: RequestPermission['data']): Promise<OnRequestPermissionPayload> => {
-            const { permission } = payload;
+        async (message: RequestPermission): Promise<{ data: OnRequestPermissionPayload }> => {
+            const { permission } = message.data;
 
             try {
                 const isGranted = await permissionService.request(permission);
@@ -18,14 +19,18 @@ export const usePermissionHandler = () => {
                 }
 
                 return {
-                    permission,
-                    status,
+                    data: {
+                        permission,
+                        status,
+                    },
                 };
             } catch (error) {
                 logger.error('PERMISSION', 'PermissionHandler error', error);
                 return {
-                    permission,
-                    status: 'UNAVAILABLE',
+                    data: {
+                        permission,
+                        status: 'UNAVAILABLE',
+                    },
                 };
             }
         },

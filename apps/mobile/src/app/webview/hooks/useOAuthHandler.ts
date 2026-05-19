@@ -4,15 +4,16 @@ import type { OAuthLogin, OAuthLogout, OnOAuthLoginPayload, OnOAuthLogoutPayload
 
 export const useOAuthHandler = () => {
     const { oauthService: oAuthService, logService: logger } = useServices();
+
     /**
      * OAuth 로그인
      */
     const handleOAuthLogin = useCallback(
-        async (message: OAuthLogin): Promise<OnOAuthLoginPayload> => {
+        async (message: OAuthLogin): Promise<{ data: OnOAuthLoginPayload }> => {
             const { provider } = message.data;
             try {
                 const result = await oAuthService.login(provider);
-                return { result };
+                return { data: { result } };
             } catch (error) {
                 logger.error('OAUTH', `Login error for provider ${provider}`, error);
                 throw error;
@@ -26,12 +27,12 @@ export const useOAuthHandler = () => {
      * `Apple`의 경우 별도 logout 로직이 존재하지 않아 무조건 `true`를 반환
      */
     const handleOAuthLogout = useCallback(
-        async (message: OAuthLogout): Promise<OnOAuthLogoutPayload> => {
+        async (message: OAuthLogout): Promise<{ data: OnOAuthLogoutPayload }> => {
             const { provider } = message.data;
 
             try {
                 const success: boolean = await oAuthService.logout(provider);
-                return { success };
+                return { data: { success } };
             } catch (error) {
                 logger.error('OAUTH', `Logout error for provider ${provider}`, error);
                 throw error;
