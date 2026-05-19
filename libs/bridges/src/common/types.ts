@@ -1,5 +1,4 @@
-import type { WebMessageMap, WebMessageType } from '@chatic/app-messages';
-import type { AppMessageMap, AppMessageType } from '@chatic/app-messages';
+import type { AppMessageMap, AppMessageType, WebMessageMap, WebMessageType } from '@chatic/app-messages';
 
 // 재사용성을 위한 Export
 export type { WebMessageType, WebMessageMap } from '@chatic/app-messages';
@@ -37,7 +36,14 @@ export type PayloadMap = Record<string, any>;
 // ======================================================================
 export type EventMessageType = Extract<
     AppMessageType,
-    'OnBackPressed' | 'OnReceiveNotification' | 'OnOpenNotification'
+    | 'OnBackPressed'
+    | 'OnReceiveNotification'
+    | 'OnOpenNotification'
+    | 'OnBackgroundStatusChanged'
+    | 'OnCloseModal'
+    | 'OnPurchaseSuccess'
+    | 'OnPurchaseError'
+    | 'OnUpdateDeviceInfo'
 >;
 export type EventType = EventMessageType;
 
@@ -72,7 +78,7 @@ export interface BridgePairMap extends Record<WebMessageType, AppMessageType | '
     // 3. IAP
     FetchProducts: 'OnFetchProducts';
     FetchCurrentPurchases: 'OnFetchCurrentPurchases';
-    Purchase: 'OnPurchaseSuccess';
+    Purchase: 'void';
     FinishPurchaseTransaction: 'OnFinishPurchaseTransaction';
     OpenSubscriptionManagement: 'void';
 
