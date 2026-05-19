@@ -1,10 +1,17 @@
 import type { BridgeAdapter } from './BridgeAdapter';
-import type { MessageProtocol } from '../../common';
+import type { EventMessage, MessageProtocol, RequestMessage, ResponseMessage } from '../../common';
 import { JsonProtocol } from '../../common';
-import type { RequestMessage, ResponseMessage, EventMessage } from '../../common';
 
 declare global {
     interface Window {
+        webkit?: {
+            messageHandlers?: {
+                ChaticMessageHandler?: { postMessage: (message: string) => void };
+            };
+        };
+        ChaticMessageHandler?: {
+            postMessage?: (message: string) => void;
+        };
         ReactNativeWebView?: {
             postMessage(message: string): void;
         };
@@ -49,9 +56,16 @@ export class NativeBridgeAdapter implements BridgeAdapter {
     public postMessage(message: RequestMessage): void {
         try {
             const encoded = this.protocol.encode(message);
-            // ReactNativeWebView expects a string
             if (typeof encoded === 'string') {
-                window.ReactNativeWebView?.postMessage(encoded);
+                if (window.ChaticMessageHandler?.postMessage) {
+                    window.ChaticMessageHandler.postMessage(encoded);
+                } else if (window.webkit?.messageHandlers?.ChaticMessageHandler?.postMessage) {
+                    window.webkit.messageHandlers.ChaticMessageHandler.postMessage(encoded);
+                } else if (window.ReactNativeWebView?.postMessage) {
+                    window.ReactNativeWebView.postMessage(encoded);
+                } else {
+                    console.warn('[NativeBridgeAdapter] No native bridge interface found.');
+                }
             } else {
                 console.error(
                     '[NativeBridgeAdapter] Uint8Array is not directly supported by React Native postMessage without base64 or conversion.'
