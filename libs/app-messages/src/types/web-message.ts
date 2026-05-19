@@ -24,7 +24,6 @@ import type {
     SaveAllCacheDataPayload,
     SaveCacheDataPayload,
     SavePreferencePayload,
-    ScrollDataPayload,
     SearchGlobalCacheDataPayload,
     SendLogPayload,
     SetCanGoBackPayload,
@@ -33,7 +32,6 @@ import type {
 export const WebMessageTypes = {
     // 1. Device & System
     SetCanGoBack: 'SetCanGoBack',
-    Scroll: 'Scroll',
     OpenModal: 'OpenModal',
     CloseModal: 'CloseModal',
     OpenSettings: 'OpenSettings',
@@ -42,7 +40,6 @@ export const WebMessageTypes = {
     OpenDocument: 'OpenDocument',
     OpenCamera: 'OpenCamera',
     OpenPhotoLibrary: 'OpenPhotoLibrary',
-    FetchDeviceInfo: 'FetchDeviceInfo',
     FetchSafeArea: 'FetchSafeArea',
     FetchBackgroundStatus: 'FetchBackgroundStatus',
     RequestPermission: 'RequestPermission',
@@ -81,10 +78,6 @@ export const WebMessageTypes = {
     OAuthLogout: 'OAuthLogout',
 
     // 7. Common & Others
-    ShowLoader: 'ShowLoader',
-    HideLoader: 'HideLoader',
-    SyncCredential: 'SyncCredential',
-    PopWebView: 'PopWebView',
     FetchAppLogBuffer: 'FetchAppLogBuffer',
     PollAppLogBuffer: 'PollAppLogBuffer',
     ClearAppLogBuffer: 'ClearAppLogBuffer',
@@ -98,33 +91,31 @@ export type WebMessageType = (typeof WebMessageTypes)[keyof typeof WebMessageTyp
 export interface WebMessageMap {
     // 1. Device & System
     SetCanGoBack: SetCanGoBack;
-    Scroll: ScrollData;
     OpenModal: OpenModal;
-    CloseModal: WebDefaultMessage<'CloseModal'>;
+    CloseModal: CloseModal;
     OpenSettings: OpenSettings;
     OpenShareSheet: OpenShareSheet;
     GetContacts: GetContacts;
     OpenDocument: OpenDocument;
     OpenCamera: OpenCamera;
     OpenPhotoLibrary: OpenPhotoLibrary;
-    FetchDeviceInfo: WebDefaultMessage<'FetchDeviceInfo'>;
-    FetchSafeArea: WebDefaultMessage<'FetchSafeArea'>;
-    FetchBackgroundStatus: WebDefaultMessage<'FetchBackgroundStatus'>;
+    FetchSafeArea: FetchSafeArea;
+    FetchBackgroundStatus: FetchBackgroundStatus;
     RequestPermission: RequestPermission;
     OpenURL: OpenURL;
     FetchAppIcon: FetchAppIcon;
-    FetchAppIconList: WebDefaultMessage<'FetchAppIconList'>;
+    FetchAppIconList: FetchAppIconList;
     ChangeAppIcon: ChangeAppIcon;
 
     // 2. Notification
     FetchFcmToken: WebDefaultMessage<'FetchFcmToken'>;
 
     // 3. IAP
-    FetchProducts: WebDefaultMessage<'FetchProducts'>;
-    FetchCurrentPurchases: WebDefaultMessage<'FetchCurrentPurchases'>;
+    FetchProducts: FetchProducts;
+    FetchCurrentPurchases: FetchCurrentPurchases;
     Purchase: Purchase;
     FinishPurchaseTransaction: FinishPurchaseTransaction;
-    OpenSubscriptionManagement: WebDefaultMessage<'OpenSubscriptionManagement'>;
+    OpenSubscriptionManagement: OpenSubscriptionManagement;
 
     // 4. Cache
     FetchCacheData: FetchCacheData;
@@ -146,10 +137,6 @@ export interface WebMessageMap {
     OAuthLogout: OAuthLogout;
 
     // 7. Common & Others
-    ShowLoader: WebDefaultMessage<'ShowLoader'>;
-    HideLoader: WebDefaultMessage<'HideLoader'>;
-    SyncCredential: WebDefaultMessage<'SyncCredential'>;
-    PopWebView: WebDefaultMessage<'PopWebView'>;
     FetchAppLogBuffer: FetchAppLogBuffer;
     PollAppLogBuffer: PollAppLogBuffer;
     ClearAppLogBuffer: ClearAppLogBuffer;
@@ -173,13 +160,12 @@ export interface SetCanGoBack extends WebDefaultMessage<'SetCanGoBack'> {
     data: SetCanGoBackPayload;
 }
 
-export interface ScrollData extends WebDefaultMessage<'Scroll'> {
-    data: ScrollDataPayload;
-}
-
 export interface OpenModal extends WebDefaultMessage<'OpenModal'> {
     data: OpenModalPayload;
 }
+
+/** 네이티브 모달 닫기 요청 */
+export interface CloseModal extends WebDefaultMessage<'CloseModal'> {}
 
 export interface OpenSettings extends WebDefaultMessage<'OpenSettings'> {} // payload 없음
 export interface OpenShareSheet extends WebDefaultMessage<'OpenShareSheet'> {
@@ -203,6 +189,12 @@ export interface RequestPermission extends WebDefaultMessage<'RequestPermission'
     data: RequestPermissionPayload;
 }
 
+/** SafeArea 정보 요청 */
+export interface FetchSafeArea extends WebDefaultMessage<'FetchSafeArea'> {}
+
+/** 앱 포그라운드/백그라운드 상태 정보 요청 */
+export interface FetchBackgroundStatus extends WebDefaultMessage<'FetchBackgroundStatus'> {}
+
 /** 외부 URL 열기 (Native에서 Linking.openURL 처리) */
 export interface OpenURL extends WebDefaultMessage<'OpenURL'> {
     data: OpenURLPayload;
@@ -211,14 +203,29 @@ export interface OpenURL extends WebDefaultMessage<'OpenURL'> {
 /** 현재 앱 아이콘 정보 조회 */
 export interface FetchAppIcon extends WebDefaultMessage<'FetchAppIcon'> {}
 
+/** 사용 가능한 앱 아이콘 목록 요청 */
+export interface FetchAppIconList extends WebDefaultMessage<'FetchAppIconList'> {}
+
 /** 앱 아이콘 변경 */
 export interface ChangeAppIcon extends WebDefaultMessage<'ChangeAppIcon'> {
     data: ChangeAppIconPayload;
 }
 
 // ----------------------------------------------------------------------
+// 2. Notification Interfaces
+// ----------------------------------------------------------------------
+/** FCM 토큰 요청 */
+export interface FetchFcmToken extends WebDefaultMessage<'FetchFcmToken'> {}
+
+// ----------------------------------------------------------------------
 // 3. IAP Interfaces
 // ----------------------------------------------------------------------
+/** IAP 상품 목록 요청 */
+export interface FetchProducts extends WebDefaultMessage<'FetchProducts'> {}
+
+/** 현재 구매/구독중인 IAP 항목 요청 */
+export interface FetchCurrentPurchases extends WebDefaultMessage<'FetchCurrentPurchases'> {}
+
 export interface Purchase extends WebDefaultMessage<'Purchase'> {
     data: PurchasePayload;
 }
@@ -226,6 +233,9 @@ export interface Purchase extends WebDefaultMessage<'Purchase'> {
 export interface FinishPurchaseTransaction extends WebDefaultMessage<'FinishPurchaseTransaction'> {
     data: FinishPurchaseTransactionPayload;
 }
+
+/** 구독 관리 화면(App Store/Play Store) 열기 요청 */
+export interface OpenSubscriptionManagement extends WebDefaultMessage<'OpenSubscriptionManagement'> {}
 
 // ----------------------------------------------------------------------
 // 4. Cache Interfaces

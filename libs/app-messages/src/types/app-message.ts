@@ -1,8 +1,3 @@
-/**
- * App Message:
- * App(Native)에서 Web(WebView)으로 전달하는 메시지 규약
- */
-
 import type {
     OnBackgroundStatusChangedPayload,
     OnChangeAppIconPayload,
@@ -48,7 +43,6 @@ import type {
 // ======================================================================
 export const AppMessageTypes = {
     // 1. Device & System
-    OnSuccessSyncCredential: 'OnSuccessSyncCredential',
     OnUpdateDeviceInfo: 'OnUpdateDeviceInfo',
     OnFetchSafeArea: 'OnFetchSafeArea',
     OnBackgroundStatusChanged: 'OnBackgroundStatusChanged',
@@ -110,11 +104,10 @@ export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTyp
 // ======================================================================
 export interface AppMessageMap {
     // 1. Device & System
-    OnSuccessSyncCredential: AppDefaultMessage<'OnSuccessSyncCredential'>;
     OnUpdateDeviceInfo: OnUpdateDeviceInfo;
     OnFetchSafeArea: OnFetchSafeArea;
     OnBackgroundStatusChanged: OnBackgroundStatusChanged;
-    OnCloseModal: AppDefaultMessage<'OnCloseModal'>;
+    OnCloseModal: OnCloseModal;
     OnOpenShareSheet: OnOpenShareSheet;
     OnBackPressed: OnBackPressed;
     OnOpenDocument: OnOpenDocument;
@@ -191,6 +184,9 @@ export interface OnFetchSafeArea extends AppDefaultMessage<'OnFetchSafeArea'> {
 export interface OnBackgroundStatusChanged extends AppDefaultMessage<'OnBackgroundStatusChanged'> {
     data: OnBackgroundStatusChangedPayload;
 }
+/** 네이티브 모달이 닫혔을 때 발생하는 이벤트 */
+export interface OnCloseModal extends AppDefaultMessage<'OnCloseModal'> {}
+
 /** 공유 시트 실행 결과 반환 */
 export interface OnOpenShareSheet extends AppDefaultMessage<'OnOpenShareSheet'> {
     data: OnOpenShareSheetPayload;
