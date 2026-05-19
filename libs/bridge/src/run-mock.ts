@@ -6,10 +6,12 @@ import * as readline from 'readline';
 
 type MockReqMap = {
     Ping: { data: {} };
+    LongPing: { data: { payload: string } };
 };
 
 type MockResMap = {
     Pong: { data: {} };
+    LongPong: { data: { payload: string } };
 };
 
 type MockEvtMap = {
@@ -50,6 +52,15 @@ appHost.registerHandler('Ping', async () => {
     return {};
 });
 
+// LongPing 핸들러 등록 (대용량 문자열 핑퐁)
+appHost.registerHandler('LongPing', async () => {
+    const responsePayload = 'B'.repeat(1024 * 1024 * 5);
+    logger.app(
+        `[MockAppBridgeHost] 'LongPing' 요청 수신. 대용량 문자열(길이: ${responsePayload.length})로 응답합니다.`
+    );
+    return { payload: responsePayload };
+});
+
 // --- 2. 실행 CLI ---
 
 const rl = readline.createInterface({
@@ -66,7 +77,8 @@ Web과 App이 실제 비동기 브릿지처럼 콜백을 통해 통신합니다.
   1. Web -> App 요청 (Ping -> Pong) (Promise)
   2. Web -> App 단방향 요청 (Ping) (void)
   3. App -> Web 이벤트 푸시 (OnUpdate)
-  4. 종료 (Exit)
+  4. Web -> App 대용량 문자열 핑퐁 (LongPing)
+  5. 종료 (Exit)
 
 숫자 입력: `;
     rl.question(menu, answer => {
@@ -76,16 +88,20 @@ Web과 App이 실제 비동기 브릿지처럼 콜백을 통해 통신합니다.
 
 async function handleMenuChoice(choice: string) {
     switch (choice) {
-        case '1':
+        case '1': {
             logger.web("App으로 'Ping' 요청을 보냅니다...");
             try {
                 // 타입 검증: Ping은 {} 페이로드를 요구함
+                const startTime = performance.now();
                 const response = await webClient.request('Ping', {});
-                logger.web(`✅ 최종 응답 수신:`, response.data);
+                const endTime = performance.now();
+                const rtt = (endTime - startTime).toFixed(2);
+                logger.web(`✅ 최종 응답 수신:`, response.data, `(⏱️ 왕복 시간: ${rtt}ms)`);
             } catch (error) {
                 logger.web('❌ 응답 실패:', error);
             }
             break;
+        }
         case '2':
             logger.web("App으로 'Ping' 단방향 메시지를 보냅니다 (응답 대기 없음).");
             // 단방향 요청으로 Ping 전송
@@ -96,7 +112,26 @@ async function handleMenuChoice(choice: string) {
             // 타입 검증: OnUpdate는 { status: string } 페이로드를 요구함.
             appHost.pushEvent('OnUpdate', { status: 'updated' });
             break;
-        case '4':
+        case '4': {
+            logger.web("App으로 'LongPing' (대용량 문자열) 요청을 보냅니다...");
+            try {
+                const requestPayload = 'A'.repeat(1024 * 1024); // 1MB 크기의 요청 문자열
+                const startTime = performance.now();
+                const response = (await webClient.request('LongPing', { payload: requestPayload })) as {
+                    data: { payload: string };
+                };
+                const endTime = performance.now();
+                const rtt = (endTime - startTime).toFixed(2);
+
+                logger.web(
+                    `✅ 대용량 응답 수신 성공! (응답 데이터 길이: ${response.data.payload.length}, ⏱️ 왕복 시간: ${rtt}ms)`
+                );
+            } catch (error) {
+                logger.web('❌ 응답 실패:', error);
+            }
+            break;
+        }
+        case '5':
             logger.info('Mock 환경을 종료합니다.');
             rl.close();
             return;
