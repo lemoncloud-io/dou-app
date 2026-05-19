@@ -81,7 +81,9 @@ import type {
     OpenShareSheetPayload,
     OpenSubscriptionManagementPayload,
     OpenURLPayload,
+    PingPayload,
     PollAppLogBufferPayload,
+    PongPayload,
     PopWebViewPayload,
     PurchasePayload,
     RequestPermissionPayload,
@@ -191,6 +193,7 @@ export interface RequestPayloadMap extends PayloadMap {
     ClearAppLogBuffer: ClearAppLogBufferPayload;
     FetchAppLogBufferSize: FetchAppLogBufferSizePayload;
     SendLog: SendLogPayload;
+    Ping: PingPayload;
 }
 
 export type RequestType = Extract<keyof RequestPayloadMap, string>;
@@ -243,6 +246,7 @@ export interface ResponsePayloadMap extends PayloadMap {
     OnClearAppLogBuffer: OnClearAppLogBufferPayload;
     OnFetchAppLogBufferSize: OnFetchAppLogBufferSizePayload;
     OnSendLog: OnSendLogPayload;
+    Pong: PongPayload;
 }
 
 export type ResponseType = Extract<keyof ResponsePayloadMap, string>;
@@ -305,6 +309,7 @@ export interface BridgePairMap extends Record<RequestType, ResponseType> {
     ClearAppLogBuffer: 'OnClearAppLogBuffer';
     FetchAppLogBufferSize: 'OnFetchAppLogBufferSize';
     SendLog: 'OnSendLog';
+    Ping: 'Pong';
 }
 
 /**

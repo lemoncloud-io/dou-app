@@ -1,96 +1,97 @@
-import type { PayloadMap, ResponseMessage } from '../common';
+import type {
+    RequestType,
+    EventType,
+    ResponseType,
+    TypedRequestMessage,
+    TypedResponseMessage,
+    TypedEventMessage,
+} from '../common';
 import type { IAppBridgeHost } from './IAppBridgeHost';
 
 /**
- * AppBridgeHost의 Mock 구현체입니다.
- * 실제 AppBridgeHost와 동일한 로직을 가지지만,
- * 테스트 환경에서 사용하기 용이하도록 만들어졌습니다.
+ * 단위 테스트 및 로컬 웹 환경에서 App 역할을 대신 수행하는 Mock 구현체입니다.
+ * 네이티브 디바이스 없이도 WebClient가 정상적으로 통신하는지 검증할 수 있습니다.
  */
-export class MockAppBridgeHost<
-    TWebReqMap extends PayloadMap = PayloadMap,
-    TAppResMap extends PayloadMap = PayloadMap,
-    TAppEvtMap extends PayloadMap = PayloadMap,
-> implements IAppBridgeHost<TWebReqMap, TAppResMap, TAppEvtMap>
-{
+export class MockAppBridgeHost implements IAppBridgeHost {
     private handlers: Map<string, (payload: any) => Promise<any>> = new Map();
     private sendToWeb: (message: string) => void;
+    private version = '1.0.0-mock';
 
     constructor(config: { sendToWeb: (message: string) => void }) {
         this.sendToWeb = config.sendToWeb;
-        console.log('[MockAppBridgeHost] 초기화 및 Web으로 응답을 보낼 채널과 연결되었습니다.');
+        console.log('[MockAppBridgeHost] 초기화 완료: Web으로 응답을 보낼 Mock 채널과 연결되었습니다.');
     }
 
     public async handleMessage(data: string): Promise<void> {
-        console.log(`[MockAppBridgeHost] 메시지 수신 시도:`, data);
+        console.log(`[MockAppBridgeHost] Web으로부터 Request 수신:`, data);
         try {
-            const message = JSON.parse(data);
-            console.log(`[MockAppBridgeHost] 메시지 파싱 성공: type=${message.type}`);
-
+            const message = JSON.parse(data) as TypedRequestMessage<RequestType>;
             const handler = this.handlers.get(message.type);
 
             if (handler) {
-                console.log(`[MockAppBridgeHost] '${message.type}'에 대한 핸들러를 찾았습니다. 실행합니다.`);
+                console.log(`[MockAppBridgeHost] '${message.type}' 핸들러 실행 중...`);
                 const result = await handler(message.payload);
-                console.log(`[MockAppBridgeHost] 핸들러 실행 완료. 결과:`, result);
-                if (message.refId) {
-                    this.sendSuccessResponse(message.refId, message.version, result);
-                }
+                console.log(`[MockAppBridgeHost] 핸들러 실행 성공, Web으로 응답 반환:`, result);
+
+                this.sendSuccessResponse(message.refId, message.version, result, message.type);
             } else {
-                console.warn(`[MockAppBridgeHost] '${message.type}'에 대한 핸들러를 찾을 수 없습니다.`);
-                if (message.refId) {
-                    this.sendErrorResponse(
-                        message.refId,
-                        message.version,
-                        'NOT_FOUND',
-                        `Handler for ${message.type} not found in MockAppBridgeHost`
-                    );
-                }
+                console.warn(`[MockAppBridgeHost] '${message.type}'에 대한 핸들러가 등록되어 있지 않습니다.`);
+                this.sendErrorResponse(
+                    message.refId,
+                    message.version,
+                    'NOT_FOUND',
+                    `Handler for ${message.type} not found in MockAppBridgeHost`
+                );
             }
         } catch (e: any) {
             console.error('[MockAppBridgeHost] 메시지 처리 중 오류 발생:', e);
         }
     }
 
-    public registerHandler<K extends keyof TWebReqMap>(
-        type: K,
-        handler: (
-            payload: TWebReqMap[K] extends { data: infer D } ? D : TWebReqMap[K]
-        ) => Promise<
-            K extends keyof TAppResMap ? (TAppResMap[K] extends { data: infer D } ? D : TAppResMap[K]) : unknown
-        >
-    ): void {
-        console.log(`[MockAppBridgeHost] '${String(type)}' 타입에 대한 핸들러를 등록합니다.`);
-        this.handlers.set(type as string, handler as any);
+    public registerHandler<K extends RequestType>(type: K, handler: (payload: any) => Promise<any>): void {
+        console.log(`[MockAppBridgeHost] '${String(type)}' 타입 핸들러 등록 완료.`);
+        this.handlers.set(type as string, handler);
     }
 
-    public unregisterHandler(type: string): void {
-        console.log(`[MockAppBridgeHost] '${type}' 타입의 핸들러를 제거합니다.`);
-        this.handlers.delete(type);
+    public unregisterHandler(type: RequestType): void {
+        console.log(`[MockAppBridgeHost] '${type}' 타입 핸들러 제거 완료.`);
+        this.handlers.delete(type as string);
     }
 
-    public pushEvent<K extends keyof TAppEvtMap>(
-        type: K,
-        payload: TAppEvtMap[K] extends { data: infer D } ? D : TAppEvtMap[K],
-        version = '1.0.0-mock'
-    ): void {
-        console.log(`[MockAppBridgeHost] PUSH_EVENT: '${String(type)}'`, { payload, version });
-        const message = { type: type as string, version, payload };
+    public pushEvent<K extends EventType>(type: K, payload: any, version?: string): void {
+        console.log(`[MockAppBridgeHost] Web으로 Event Push 발송: '${String(type)}'`, payload);
+        const message: TypedEventMessage<K> = {
+            type,
+            version: version ?? this.version,
+            refId: this.generateRefId(),
+            payload,
+        };
         this.sendToWeb(JSON.stringify(message));
     }
 
-    private sendSuccessResponse(refId: string, version: string, data: any): void {
-        const response: ResponseMessage = { type: 'RESPONSE', refId, version, success: true, data };
+    private sendSuccessResponse(refId: string, version: string, data: any, requestType: string): void {
+        const response = {
+            type: requestType,
+            refId,
+            version,
+            success: true,
+            data,
+        } as unknown as TypedResponseMessage<ResponseType>;
         this.sendToWeb(JSON.stringify(response));
     }
 
     private sendErrorResponse(refId: string, version: string, code: string, message: string): void {
-        const response: ResponseMessage = {
-            type: 'RESPONSE',
+        const response = {
+            type: 'ERROR',
             refId,
             version,
             success: false,
             error: { code, message },
-        };
+        } as unknown as TypedResponseMessage<ResponseType>;
         this.sendToWeb(JSON.stringify(response));
+    }
+
+    private generateRefId(): string {
+        return Math.random().toString(36).substring(2, 10);
     }
 }

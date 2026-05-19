@@ -1,29 +1,15 @@
 import { MockWebBridgeClient } from './web';
 import { MockAppBridgeHost } from './app';
 import { MockBridgeAdapter } from './web';
-import type { RequestMessage } from './common';
+import type { TypedRequestMessage, RequestType } from './common';
 import * as readline from 'readline';
-
-type MockReqMap = {
-    Ping: { data: {} };
-    LongPing: { data: { payload: string } };
-};
-
-type MockResMap = {
-    Pong: { data: {} };
-    LongPong: { data: { payload: string } };
-};
-
-type MockEvtMap = {
-    OnUpdate: { data: { status: string } };
-};
 
 // --- 기본 설정 ---
 const logger = {
     web: (...args: any[]) => console.log('🌐 [Web]', ...args),
     app: (...args: any[]) => console.log('📱 [App]', ...args),
     info: (...args: any[]) => console.log('ℹ️  [Info]', ...args),
-    hr: () => console.log('\\n' + '-'.repeat(40) + '\\n'),
+    hr: () => console.log('\n' + '-'.repeat(40) + '\n'),
 };
 
 // --- 1. 환경 및 연결 구성 ---
@@ -36,28 +22,35 @@ const sendToWebChannel = (stringifiedMessage: string) => {
 };
 
 // 1b. Web -> App 방향의 통신 채널 (콜백)
-const sendToAppChannel = (message: RequestMessage) => {
+const sendToAppChannel = (message: TypedRequestMessage<RequestType>) => {
     logger.info(`[Channel] Web -> App 으로 메시지 전달: ${message.type}`);
     appHost.handleMessage(JSON.stringify(message));
 };
 
-// 1c. 제네릭이 적용된 강타입 Mock 객체 인스턴스화
-const appHost = new MockAppBridgeHost<MockReqMap, MockResMap, MockEvtMap>({ sendToWeb: sendToWebChannel });
+// 1c. 제네릭이 내재화된 강타입 Mock 객체 인스턴스화
+const appHost = new MockAppBridgeHost({ sendToWeb: sendToWebChannel });
 const webAdapter = new MockBridgeAdapter(sendToAppChannel);
-const webClient = new MockWebBridgeClient<MockReqMap, MockResMap, MockEvtMap>({ adapter: webAdapter });
+const webClient = new MockWebBridgeClient({ adapter: webAdapter });
 
-// Ping 핸들러 등록
+// ======================================================================
+// AppBridgeHost 핸들러 등록 (Mock Native 비즈니스 로직)
+// ======================================================================
+
+// 일반 Ping 테스트 핸들러 (빈 객체 왕복)
 appHost.registerHandler('Ping', async () => {
-    logger.app("[MockAppBridgeHost] 'Ping' 요청 수신. 빈 객체로 응답합니다.");
+    logger.app("[MockAppBridgeHost] 'Ping' 요청 수신. 'Pong'으로 응답합니다.");
+    // PongPayload 반환 (빈 객체)
     return {};
 });
 
-// LongPing 핸들러 등록 (대용량 문자열 핑퐁)
-appHost.registerHandler('LongPing', async () => {
-    const responsePayload = 'B'.repeat(1024 * 1024 * 5);
-    logger.app(
-        `[MockAppBridgeHost] 'LongPing' 요청 수신. 대용량 문자열(길이: ${responsePayload.length})로 응답합니다.`
-    );
+// 대용량 LongPing 테스트 핸들러 (대규모 문자열 왕복)
+appHost.registerHandler('LongPing', async payload => {
+    logger.app(`[MockAppBridgeHost] 'LongPing' 수신 완료. (요청 데이터 길이: ${payload.payload.length} bytes)`);
+
+    // 네이티브에서 1MB 크기의 응답 데이터를 생성하여 반환
+    const responsePayload = 'B'.repeat(1024 * 1024 * 1);
+
+    // LongPongPayload 반환
     return { payload: responsePayload };
 });
 
@@ -74,11 +67,10 @@ function displayMenu() {
 [강타입(Typed) 기반 Mock 테스트]
 Web과 App이 실제 비동기 브릿지처럼 콜백을 통해 통신합니다.
 
-  1. Web -> App 요청 (Ping -> Pong) (Promise)
-  2. Web -> App 단방향 요청 (Ping) (void)
-  3. App -> Web 이벤트 푸시 (OnUpdate)
-  4. Web -> App 대용량 문자열 핑퐁 (LongPing)
-  5. 종료 (Exit)
+  1. Web -> App 기본 핑퐁 테스트 (Ping) [Promise 반환]
+  2. App -> Web 이벤트 푸시 (OnReceiveNotification)
+  3. Web -> App 대용량 핑퐁 테스트 (LongPing) [1MB 왕복]
+  4. 종료 (Exit)
 
 숫자 입력: `;
     rl.question(menu, answer => {
@@ -91,50 +83,52 @@ async function handleMenuChoice(choice: string) {
         case '1': {
             logger.web("App으로 'Ping' 요청을 보냅니다...");
             try {
-                // 타입 검증: Ping은 {} 페이로드를 요구함
                 const startTime = performance.now();
-                const response = await webClient.request('Ping', {});
+                // 타입 검증: 빈 객체 전송, PongPayload 구조 수신
+                const response = await webClient.request('Ping', { payload: '' });
                 const endTime = performance.now();
                 const rtt = (endTime - startTime).toFixed(2);
-                logger.web(`✅ 최종 응답 수신:`, response.data, `(⏱️ 왕복 시간: ${rtt}ms)`);
+                logger.web(`✅ 'Pong' 최종 응답 수신:`, response, `(⏱️ 왕복 시간: ${rtt}ms)`);
             } catch (error) {
                 logger.web('❌ 응답 실패:', error);
             }
             break;
         }
+
         case '2':
-            logger.web("App으로 'Ping' 단방향 메시지를 보냅니다 (응답 대기 없음).");
-            // 단방향 요청으로 Ping 전송
-            webClient.post('Ping', {});
+            logger.app("Web으로 'OnReceiveNotification' 이벤트를 푸시합니다.");
+            // 타입 검증: OnReceiveNotification은 { notification: {...} } 페이로드를 요구함.
+            appHost.pushEvent('OnReceiveNotification', {
+                notification: { title: 'Mock Push', body: '테스트 푸시입니다.' },
+            });
             break;
-        case '3':
-            logger.app("Web으로 'OnUpdate' 이벤트를 푸시합니다.");
-            // 타입 검증: OnUpdate는 { status: string } 페이로드를 요구함.
-            appHost.pushEvent('OnUpdate', { status: 'updated' });
-            break;
-        case '4': {
-            logger.web("App으로 'LongPing' (대용량 문자열) 요청을 보냅니다...");
+
+        case '3': {
+            logger.web("App으로 'LongPing' (대용량 응답 대기) 요청을 보냅니다...");
             try {
-                const requestPayload = 'A'.repeat(1024 * 1024); // 1MB 크기의 요청 문자열
+                const requestPayload = 'A'.repeat(1024 * 1024); // 1MB 크기 요청 데이터 생성
                 const startTime = performance.now();
-                const response = (await webClient.request('LongPing', { payload: requestPayload })) as {
-                    data: { payload: string };
-                };
+
+                // 타입 검증: LongPingPayload({ payload: string }) 전송, LongPongPayload 수신
+                const response = await webClient.request('LongPing', { payload: requestPayload });
+
                 const endTime = performance.now();
                 const rtt = (endTime - startTime).toFixed(2);
 
                 logger.web(
-                    `✅ 대용량 응답 수신 성공! (응답 데이터 길이: ${response.data.payload.length}, ⏱️ 왕복 시간: ${rtt}ms)`
+                    `✅ 대용량 'LongPong' 응답 수신 성공! (응답 데이터 길이: ${response.payload.length} bytes, ⏱️ 왕복 시간: ${rtt}ms)`
                 );
             } catch (error) {
                 logger.web('❌ 응답 실패:', error);
             }
             break;
         }
-        case '5':
+
+        case '4':
             logger.info('Mock 환경을 종료합니다.');
             rl.close();
             return;
+
         default:
             console.log('잘못된 입력입니다.');
             break;
@@ -144,11 +138,11 @@ async function handleMenuChoice(choice: string) {
 }
 
 // --- 실행 ---
-logger.info('--- 대화형 Mock Bridge Environment 시작 (제네릭 내재화 모드) ---');
+logger.info('--- 대화형 Mock Bridge Environment 시작 (프로덕션 타입 동기화 모드) ---');
 
-// 타입 검증: OnUpdate 이벤트 구독 시 payload는 자동으로 { status: string } 으로 추론됨
-webClient.onEvent('OnUpdate', payload => {
-    logger.web(`✅ "OnUpdate" 이벤트 수신됨! Payload:`, payload);
+// 이벤트 구독 테스트
+webClient.onEvent('OnReceiveNotification', payload => {
+    logger.web(`✅ "OnReceiveNotification" 이벤트 수신됨! Payload:`, payload);
 });
 
 displayMenu();

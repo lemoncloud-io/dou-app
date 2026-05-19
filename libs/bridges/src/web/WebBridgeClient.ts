@@ -1,5 +1,16 @@
 import type { BridgeAdapter } from './adapters/BridgeAdapter';
-import type { RequestMessage, ResponseMessage, EventMessage, PayloadMap } from '../common';
+import type {
+    RequestType,
+    ResponseType,
+    EventType,
+    TypedRequestMessage,
+    TypedResponseMessage,
+    TypedEventMessage,
+    RequestPayloadMap,
+    ResponsePayloadMap,
+    EventPayloadMap,
+    BridgePairMap,
+} from '../common';
 import type { IWebBridgeClient } from './IWebBridgeClient';
 
 export interface WebBridgeClientConfig {
@@ -14,12 +25,10 @@ interface PendingRequest {
     timeoutId: ReturnType<typeof setTimeout>;
 }
 
-export class WebBridgeClient<
-    TWebReqMap extends PayloadMap = PayloadMap,
-    TAppResMap extends PayloadMap = PayloadMap,
-    TAppEvtMap extends PayloadMap = PayloadMap,
-> implements IWebBridgeClient<TWebReqMap, TAppResMap, TAppEvtMap>
-{
+/**
+ * Web(React 등) 환경에서 App(React Native, iOS, Android)과 통신하기 위한 브릿지 클라이언트 구현체입니다.
+ */
+export class WebBridgeClient implements IWebBridgeClient {
     private adapter: BridgeAdapter;
     private version: string;
     private timeoutMs: number;
@@ -31,22 +40,34 @@ export class WebBridgeClient<
         this.adapter = config.adapter;
         this.version = config.version ?? '2.0.0';
         this.timeoutMs = config.timeoutMs ?? 10000;
+
+        // 브릿지 어댑터로부터 들어오는 메시지 수신부 바인딩
         this.adapter.onMessage(this.handleMessage);
     }
 
-    private handleMessage = (message: ResponseMessage | EventMessage): void => {
-        if ('success' in message && message.refId) {
-            this.handleResponse(message as ResponseMessage);
+    /**
+     * 어댑터로부터 수신된 메시지를 타입(Response vs Event)에 맞게 라우팅합니다.
+     */
+    private handleMessage = (message: TypedResponseMessage<ResponseType> | TypedEventMessage<EventType>): void => {
+        // 'success' 필드가 존재하면 Request에 대한 응답(Response)으로 간주
+        if ('success' in message) {
+            this.handleResponse(message as TypedResponseMessage<ResponseType>);
         } else {
-            this.handleEvent(message as EventMessage);
+            // 그렇지 않다면 단방향 발송 이벤트(Event)로 간주
+            this.handleEvent(message as TypedEventMessage<EventType>);
         }
     };
 
-    private handleResponse(message: ResponseMessage): void {
+    /**
+     * Request-Response 패턴의 응답을 처리합니다.
+     */
+    private handleResponse(message: TypedResponseMessage<ResponseType>): void {
         const pending = this.pendingRequests.get(message.refId);
         if (!pending) return;
+
         clearTimeout(pending.timeoutId);
         this.pendingRequests.delete(message.refId);
+
         if (message.success) {
             pending.resolve(message.data);
         } else {
@@ -54,61 +75,74 @@ export class WebBridgeClient<
         }
     }
 
-    private handleEvent(message: EventMessage): void {
+    /**
+     * App에서 발생한 단방향 이벤트를 구독자들에게 브로드캐스트합니다.
+     */
+    private handleEvent(message: TypedEventMessage<EventType>): void {
         const listeners = this.eventListeners.get(message.type);
         listeners?.forEach(listener => listener(message.payload));
     }
 
+    /**
+     * 모든 발송 메시지에 부여되는 고유 식별자(refId)를 생성합니다.
+     */
     private generateRefId(): string {
         return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
     }
 
-    public post<K extends keyof TWebReqMap>(
-        type: K,
-        payload?: TWebReqMap[K] extends { data: infer D } ? D : TWebReqMap[K]
-    ): void {
-        const message: RequestMessage = { type: type as string, version: this.version, payload };
+    public post<K extends RequestType>(type: K, payload?: RequestPayloadMap[K]): void {
+        const message: TypedRequestMessage<K> = {
+            type,
+            refId: this.generateRefId(),
+            version: this.version,
+            payload: (payload ?? {}) as RequestPayloadMap[K],
+        };
         this.adapter.postMessage(message);
     }
 
-    public request<K extends keyof TWebReqMap>(
+    public request<K extends RequestType>(
         type: K,
-        payload?: TWebReqMap[K] extends { data: infer D } ? D : TWebReqMap[K],
+        payload?: RequestPayloadMap[K],
         customTimeoutMs?: number
-    ): Promise<{
-        data: K extends keyof TAppResMap ? (TAppResMap[K] extends { data: infer D } ? D : TAppResMap[K]) : unknown;
-    }> {
+    ): Promise<ResponsePayloadMap[BridgePairMap[K]]> {
         return new Promise((resolve, reject) => {
             const refId = this.generateRefId();
-            const message: RequestMessage = { type: type as string, refId, version: this.version, payload };
+            const message: TypedRequestMessage<K> = {
+                type,
+                refId,
+                version: this.version,
+                payload: (payload ?? {}) as RequestPayloadMap[K],
+            };
+
+            // 타임아웃 타이머 설정
             const timeoutId = setTimeout(() => {
                 this.pendingRequests.delete(refId);
-                reject({ code: 'TIMEOUT', message: `Request timed out after ${customTimeoutMs}ms` });
+                reject({ code: 'TIMEOUT', message: `Request timed out after ${customTimeoutMs ?? this.timeoutMs}ms` });
             }, customTimeoutMs ?? this.timeoutMs);
-            this.pendingRequests.set(refId, { resolve: (data: any) => resolve({ data }), reject, timeoutId });
+
+            // 대기열에 등록 후 메시지 발송
+            this.pendingRequests.set(refId, { resolve, reject, timeoutId });
             this.adapter.postMessage(message);
         });
     }
 
-    public send<K extends keyof TWebReqMap>(
-        message: { type: K; payload?: TWebReqMap[K] extends { data: infer D } ? D : TWebReqMap[K] },
+    public send<K extends RequestType>(
+        message: { type: K; payload?: RequestPayloadMap[K] },
         customTimeoutMs?: number
-    ): Promise<{
-        data: K extends keyof TAppResMap ? (TAppResMap[K] extends { data: infer D } ? D : TAppResMap[K]) : unknown;
-    }> {
+    ): Promise<ResponsePayloadMap[BridgePairMap[K]]> {
         return this.request(message.type, message.payload, customTimeoutMs);
     }
 
-    public onEvent<K extends keyof TAppEvtMap>(
-        type: K,
-        handler: (payload: TAppEvtMap[K] extends { data: infer D } ? D : TAppEvtMap[K]) => void
-    ): () => void {
+    public onEvent<K extends EventType>(type: K, handler: (payload: EventPayloadMap[K]) => void): () => void {
         const typeStr = type as string;
         if (!this.eventListeners.has(typeStr)) {
             this.eventListeners.set(typeStr, new Set());
         }
+
         const listeners = this.eventListeners.get(typeStr)!;
         listeners.add(handler as any);
+
+        // 구독 해제(Cleanup) 함수 반환
         return () => {
             listeners.delete(handler as any);
             if (listeners.size === 0) this.eventListeners.delete(typeStr);

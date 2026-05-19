@@ -186,6 +186,10 @@ export interface SendLogPayload {
     error?: any;
 }
 
+export interface PingPayload {
+    payload: string;
+}
+
 // ======================================================================
 // 2. App -> Web (Response) 페이로드 인터페이스
 // ======================================================================
@@ -402,6 +406,10 @@ export interface OnClearAppLogBufferPayload {
 
 export interface OnFetchAppLogBufferSizePayload {
     size: number;
+}
+
+export interface PongPayload {
+    payload: string;
 }
 
 export interface OnSetCanGoBackPayload {}

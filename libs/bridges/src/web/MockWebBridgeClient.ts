@@ -1,13 +1,22 @@
-import type { BridgeAdapter } from './adapters/BridgeAdapter';
-import type { RequestMessage, ResponseMessage, EventMessage, PayloadMap } from '../common';
+import type { BridgeAdapter } from './adapters';
+import type {
+    RequestType,
+    ResponseType,
+    EventType,
+    TypedRequestMessage,
+    TypedResponseMessage,
+    TypedEventMessage,
+    RequestPayloadMap,
+    ResponsePayloadMap,
+    EventPayloadMap,
+    BridgePairMap,
+} from '../common';
 import type { IWebBridgeClient } from './IWebBridgeClient';
 
-export class MockWebBridgeClient<
-    TWebReqMap extends PayloadMap = PayloadMap,
-    TAppResMap extends PayloadMap = PayloadMap,
-    TAppEvtMap extends PayloadMap = PayloadMap,
-> implements IWebBridgeClient<TWebReqMap, TAppResMap, TAppEvtMap>
-{
+/**
+ * 단위 테스트 및 로컬 웹 개발(Mock) 환경에서 사용되는 브릿지 클라이언트입니다.
+ */
+export class MockWebBridgeClient implements IWebBridgeClient {
     private adapter: BridgeAdapter;
     private version = '1.0.0-mock';
     private timeoutMs = 5000;
@@ -24,16 +33,21 @@ export class MockWebBridgeClient<
         console.log('[MockWebBridgeClient] 초기화 및 어댑터와 연결되었습니다.');
     }
 
-    private handleMessageFromApp = (message: ResponseMessage | EventMessage): void => {
+    /**
+     * App 역할을 하는 모의 어댑터로부터 메시지를 수신합니다.
+     */
+    private handleMessageFromApp = (
+        message: TypedResponseMessage<ResponseType> | TypedEventMessage<EventType>
+    ): void => {
         console.log(`[MockWebBridgeClient] App으로부터 메시지 수신:`, message);
-        if ('success' in message && message.refId) {
-            this.handleResponse(message as ResponseMessage);
+        if ('success' in message) {
+            this.handleResponse(message as TypedResponseMessage<ResponseType>);
         } else {
-            this.handleEvent(message as EventMessage);
+            this.handleEvent(message as TypedEventMessage<EventType>);
         }
     };
 
-    private handleResponse(message: ResponseMessage): void {
+    private handleResponse(message: TypedResponseMessage<ResponseType>): void {
         const pending = this.pendingRequests.get(message.refId);
         if (!pending) return;
 
@@ -49,7 +63,7 @@ export class MockWebBridgeClient<
         }
     }
 
-    private handleEvent(message: EventMessage): void {
+    private handleEvent(message: TypedEventMessage<EventType>): void {
         console.log(`[MockWebBridgeClient] '${message.type}' 이벤트 처리.`);
         const listeners = this.eventListeners.get(message.type);
         listeners?.forEach(listener => listener(message.payload));
@@ -57,25 +71,30 @@ export class MockWebBridgeClient<
 
     private generateRefId = () => Math.random().toString(36).substring(2, 9);
 
-    public post<K extends keyof TWebReqMap>(
-        type: K,
-        payload?: TWebReqMap[K] extends { data: infer D } ? D : TWebReqMap[K]
-    ): void {
-        console.log(`[MockWebBridgeClient] POST: type='${String(type)}'`, payload);
-        const message: RequestMessage = { type: type as string, version: this.version, payload };
+    public post<K extends RequestType>(type: K, payload?: RequestPayloadMap[K]): void {
+        console.log(`[MockWebBridgeClient] POST 발송: type='${String(type)}'`, payload);
+        const message: TypedRequestMessage<K> = {
+            type,
+            refId: this.generateRefId(),
+            version: this.version,
+            payload: (payload ?? {}) as RequestPayloadMap[K],
+        };
         this.adapter.postMessage(message);
     }
 
-    public request<K extends keyof TWebReqMap>(
+    public request<K extends RequestType>(
         type: K,
-        payload?: TWebReqMap[K] extends { data: infer D } ? D : TWebReqMap[K]
-    ): Promise<{
-        data: K extends keyof TAppResMap ? (TAppResMap[K] extends { data: infer D } ? D : TAppResMap[K]) : unknown;
-    }> {
-        console.log(`[MockWebBridgeClient] REQUEST: type='${String(type)}'`, payload);
+        payload?: RequestPayloadMap[K]
+    ): Promise<ResponsePayloadMap[BridgePairMap[K]]> {
+        console.log(`[MockWebBridgeClient] REQUEST 발송: type='${String(type)}'`, payload);
         return new Promise((resolve, reject) => {
             const refId = this.generateRefId();
-            const message: RequestMessage = { type: type as string, refId, version: this.version, payload };
+            const message: TypedRequestMessage<K> = {
+                type,
+                refId,
+                version: this.version,
+                payload: (payload ?? {}) as RequestPayloadMap[K],
+            };
 
             const timeoutId = setTimeout(() => {
                 this.pendingRequests.delete(refId);
@@ -83,7 +102,7 @@ export class MockWebBridgeClient<
             }, this.timeoutMs);
 
             this.pendingRequests.set(refId, {
-                resolve: (data: any) => resolve({ data }),
+                resolve,
                 reject,
                 timeoutId,
             });
@@ -92,25 +111,20 @@ export class MockWebBridgeClient<
         });
     }
 
-    public send<K extends keyof TWebReqMap>(message: {
+    public send<K extends RequestType>(message: {
         type: K;
-        payload?: TWebReqMap[K] extends { data: infer D } ? D : TWebReqMap[K];
-    }): Promise<{
-        data: K extends keyof TAppResMap ? (TAppResMap[K] extends { data: infer D } ? D : TAppResMap[K]) : unknown;
-    }> {
+        payload?: RequestPayloadMap[K];
+    }): Promise<ResponsePayloadMap[BridgePairMap[K]]> {
         return this.request(message.type, message.payload);
     }
 
-    public onEvent<K extends keyof TAppEvtMap>(
-        type: K,
-        handler: (payload: TAppEvtMap[K] extends { data: infer D } ? D : TAppEvtMap[K]) => void
-    ): () => void {
+    public onEvent<K extends EventType>(type: K, handler: (payload: EventPayloadMap[K]) => void): () => void {
         const typeStr = type as string;
         console.log(`[MockWebBridgeClient] '${typeStr}' 이벤트 구독 설정.`);
         if (!this.eventListeners.has(typeStr)) {
             this.eventListeners.set(typeStr, new Set());
         }
-        this.eventListeners.get(typeStr)!.add(handler as any);
+        this.eventListeners.get(typeStr)?.add(handler as any);
 
         return () => {
             this.eventListeners.get(typeStr)?.delete(handler as any);
