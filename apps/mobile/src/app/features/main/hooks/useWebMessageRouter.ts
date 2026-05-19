@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import type { WebViewBridge } from '../../../webview';
+import { useEffect, useRef } from 'react';
 import {
     useAppIconHandler,
     useCrudCacheHandler,
@@ -16,19 +15,18 @@ import {
 } from '../../../webview/hooks';
 import { useModalHandler } from '../../../webview/hooks/useModalHandler';
 
-import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
-import type { WebViewMessage } from 'react-native-webview/lib/WebViewTypes';
+import type { WebMessageType } from '@chatic/app-messages';
 import type { MainScreenProps } from '../navigation';
 import { useAppStateHandler } from '../../../webview/hooks/useAppStateHandler';
-import { useLanguageStore, useThemeStore } from '../../../stores';
 import { logger } from '../../../services';
+import type { IAppBridgeHost } from '@chatic/bridges';
 
 /**
  * Props for the useWebMessageRouter hook.
  */
 export interface UseWebMessageRouterProps {
     /** Bridge instance for communicating with the WebView */
-    bridge: WebViewBridge;
+    bridge: IAppBridgeHost;
     /** React Navigation object for navigating to native screens (e.g., Modals) */
     navigation: MainScreenProps['navigation'];
     /** Callback to update the state indicating if the web layer can handle back navigation */
@@ -44,16 +42,8 @@ export interface UseWebMessageRouterProps {
  * @returns An object containing the message handler callback and IAP loading state.
  */
 export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: UseWebMessageRouterProps) => {
-    // --- Message Queue State ---
-    const queueRef = useRef<WebMessageData<WebMessageType>[]>([]);
-    const isProcessingRef = useRef(false);
-
-    // --- Global App States ---
-    const setLanguage = useLanguageStore(state => state.setLanguage);
-    const setTheme = useThemeStore(state => state.setTheme);
-
     // --- Domain-specific Handlers (memoized with useCallback) ---
-    const { fetchSafeAreaInfo } = useSafeAreaHandler(bridge);
+    const { fetchSafeAreaInfo } = useSafeAreaHandler();
     const { syncAppStateToWeb } = useAppStateHandler(bridge);
     const { fetchFcmToken } = useFcmHandler(bridge);
     const {
@@ -73,14 +63,14 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
         handleDeleteCache,
         handleDeleteAllCache,
         handleClearCache,
-    } = useCrudCacheHandler(bridge);
+    } = useCrudCacheHandler();
 
-    const { handleFetchPreference, handleSavePreference, handleDeletePreference } = usePreferenceCacheHandler(bridge);
+    const { handleFetchPreference, handleSavePreference, handleDeletePreference } = usePreferenceCacheHandler();
     const { handleSendLog } = useLogHandler();
     const { handleFetchAppLogBuffer, handlePollAppLogBuffer, handleClearAppLogBuffer, handleFetchAppLogBufferSize } =
-        useLogBufferHandler(bridge);
+        useLogBufferHandler();
 
-    const { handleSearchGlobalCache } = useSearchCacheHandler(bridge);
+    const { handleSearchGlobalCache } = useSearchCacheHandler();
 
     const {
         handleOpenSettings,
@@ -90,11 +80,11 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
         handleOpenCamera,
         handleOpenPhotoLibrary,
         handleOpenURL,
-    } = useDeviceHandler(bridge);
+    } = useDeviceHandler();
 
-    const { handleRequestPermission } = usePermissionHandler(bridge);
-    const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler(bridge);
-    const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler(bridge);
+    const { handleRequestPermission } = usePermissionHandler();
+    const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler();
+    const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
 
     const { handleOpenModal, handleCloseModal } = useModalHandler(bridge, navigation);
 
@@ -187,182 +177,71 @@ export const useWebMessageRouter = ({ bridge, navigation, setWebCanGoBack }: Use
         };
     });
 
-    // --- Message Processing Queue ---
-    const processQueue = useCallback(async () => {
-        if (isProcessingRef.current) return;
-        isProcessingRef.current = true;
+    useEffect(() => {
+        const handlerMap = {
+            SetCanGoBack: (data: { canGoBack: boolean }) => handlersRef.current.setWebCanGoBack(data.canGoBack),
+            FetchFcmToken: () => handlersRef.current.fetchFcmToken(),
+            FetchSafeArea: () => handlersRef.current.fetchSafeAreaInfo(),
+            FetchBackgroundStatus: () => handlersRef.current.syncAppStateToWeb(),
+            FetchProducts: () => handlersRef.current.fetchProducts(),
+            FetchCurrentPurchases: () => handlersRef.current.fetchCurrentPurchases(),
+            Purchase: (data: any) => handlersRef.current.handlePurchaseSubscription(data),
+            FinishPurchaseTransaction: (data: { purchase: any }) =>
+                handlersRef.current.handleFinishPurchase(data.purchase),
+            OpenSubscriptionManagement: () => handlersRef.current.handleOpenSubscriptionManagement(),
+            OpenModal: (data: any) => handlersRef.current.handleOpenModal(data),
+            CloseModal: () => handlersRef.current.handleCloseModal(),
+            FetchCacheData: (data: any) => handlersRef.current.handleFetchCache(data),
+            FetchAllCacheData: (data: any) => handlersRef.current.handleFetchAllCache(data),
+            SaveCacheData: (data: any) => handlersRef.current.handleSaveCache(data),
+            SaveAllCacheData: (data: any) => handlersRef.current.handleSaveAllCache(data),
+            DeleteCacheData: (data: any) => handlersRef.current.handleDeleteCache(data),
+            DeleteAllCacheData: (data: any) => handlersRef.current.handleDeleteAllCache(data),
+            SearchGlobalCacheData: (data: any) => handlersRef.current.handleSearchGlobalCache({ data } as any),
+            ClearCacheData: (data: any) => handlersRef.current.handleClearCache(data),
+            FetchPreference: (data: any) => handlersRef.current.handleFetchPreference({ data } as any),
+            SavePreference: (data: any) => handlersRef.current.handleSavePreference({ data } as any),
+            DeletePreference: (data: any) => handlersRef.current.handleDeletePreference({ data } as any),
+            FetchAppLogBuffer: (data: any) => handlersRef.current.handleFetchAppLogBuffer(data),
+            PollAppLogBuffer: (data: any) => handlersRef.current.handlePollAppLogBuffer(data),
+            ClearAppLogBuffer: (data: any) => handlersRef.current.handleClearAppLogBuffer(),
+            FetchAppLogBufferSize: (data: any) => handlersRef.current.handleFetchAppLogBufferSize(),
+            SendLog: (data: any) => handlersRef.current.handleSendLog({ data } as any),
+            OpenSettings: () => handlersRef.current.handleOpenSettings(),
+            OpenShareSheet: (data: any) => handlersRef.current.handleOpenShareSheet(data),
+            OpenDocument: (data: any) => handlersRef.current.handleOpenDocument(data),
+            GetContacts: (data: any) => handlersRef.current.handleGetContacts(data),
+            OpenCamera: (data: any) => handlersRef.current.handleOpenCamera(data),
+            OpenPhotoLibrary: (data: any) => handlersRef.current.handleOpenPhotoLibrary(data),
+            RequestPermission: (data: any) => handlersRef.current.handleRequestPermission(data),
+            OAuthLogin: (data: { provider: any }) => handlersRef.current.handleOAuthLogin(data.provider),
+            OAuthLogout: (data: { provider: any }) => handlersRef.current.handleOAuthLogout(data.provider),
+            OpenURL: (data: any) => handlersRef.current.handleOpenURL(data),
+            FetchAppIcon: (data: any) => handlersRef.current.handleFetchAppIcon(),
+            FetchAppIconList: (data: any) => handlersRef.current.handleFetchAppIconList(),
+            ChangeAppIcon: (data: any) => handlersRef.current.handleChangeAppIcon(data),
+        };
 
-        while (queueRef.current.length > 0) {
-            const message = queueRef.current[0];
-            const handlers = handlersRef.current;
+        Object.entries(handlerMap).forEach(([type, handler]) => {
+            bridge.registerHandler(type as WebMessageType, handler as any);
+        });
 
-            try {
-                // Each case should be awaited to ensure sequential processing
-                switch (message.type) {
-                    // -- App Settings & UI State --
-                    case 'SetCanGoBack':
-                        handlers.setWebCanGoBack(message.data.canGoBack);
-                        break;
-                    // -- Push Notifications & Device Info --
-                    case 'FetchFcmToken':
-                        await handlers.fetchFcmToken();
-                        break;
-                    case 'FetchSafeArea':
-                        handlers.fetchSafeAreaInfo(); // This is sync, no await needed
-                        break;
-                    case 'FetchBackgroundStatus':
-                        handlers.syncAppStateToWeb(); // This is sync, no await needed
-                        break;
-                    // -- In-App Purchases (IAP) --
-                    case 'FetchProducts':
-                        await handlers.fetchProducts();
-                        break;
-                    case 'FetchCurrentPurchases':
-                        await handlers.fetchCurrentPurchases();
-                        break;
-                    case 'Purchase':
-                        await handlers.handlePurchaseSubscription(message.data);
-                        break;
-                    case 'FinishPurchaseTransaction':
-                        await handlers.handleFinishPurchase(message.data.purchase);
-                        break;
-                    case `OpenSubscriptionManagement`:
-                        await handlers.handleOpenSubscriptionManagement();
-                        break;
-                    // -- Native Modals --
-                    case 'OpenModal':
-                        handlers.handleOpenModal(message.data); // Navigation is sync
-                        break;
-                    case 'CloseModal':
-                        handlers.handleCloseModal(); // Navigation is sync
-                        break;
-                    // -- Cache Management --
-                    case 'FetchCacheData':
-                        await handlers.handleFetchCache(message);
-                        break;
-                    case 'FetchAllCacheData':
-                        await handlers.handleFetchAllCache(message);
-                        break;
-                    case 'SaveCacheData':
-                        await handlers.handleSaveCache(message);
-                        break;
-                    case 'SaveAllCacheData':
-                        await handlers.handleSaveAllCache(message);
-                        break;
-                    case 'DeleteCacheData':
-                        await handlers.handleDeleteCache(message);
-                        break;
-                    case 'DeleteAllCacheData':
-                        await handlers.handleDeleteAllCache(message);
-                        break;
-                    case `SearchGlobalCacheData`:
-                        await handlers.handleSearchGlobalCache(message);
-                        break;
-                    case 'ClearCacheData':
-                        await handlers.handleClearCache(message);
-                        break;
-                    // -- Preference Management --
-                    case 'FetchPreference':
-                        await handlers.handleFetchPreference(message);
-                        break;
-                    case 'SavePreference':
-                        await handlers.handleSavePreference(message);
-                        break;
-                    case 'DeletePreference':
-                        await handlers.handleDeletePreference(message);
-                        break;
-                    case 'FetchAppLogBuffer':
-                        await handlers.handleFetchAppLogBuffer(message);
-                        break;
-                    case 'PollAppLogBuffer':
-                        await handlers.handlePollAppLogBuffer(message);
-                        break;
-                    case 'ClearAppLogBuffer':
-                        await handlers.handleClearAppLogBuffer(message);
-                        break;
-                    case 'FetchAppLogBufferSize':
-                        await handlers.handleFetchAppLogBufferSize(message);
-                        break;
-                    case 'SendLog':
-                        handlers.handleSendLog(message); // Fire-and-forget is ok for logging
-                        break;
-                    // -- Native Device Features --
-                    case 'OpenSettings':
-                        await handlers.handleOpenSettings();
-                        break;
-                    case 'OpenShareSheet':
-                        await handlers.handleOpenShareSheet(message);
-                        break;
-                    case 'OpenDocument':
-                        await handlers.handleOpenDocument(message);
-                        break;
-                    case 'GetContacts':
-                        await handlers.handleGetContacts(message);
-                        break;
-                    case 'OpenCamera':
-                        await handlers.handleOpenCamera(message);
-                        break;
-                    case 'OpenPhotoLibrary':
-                        await handlers.handleOpenPhotoLibrary(message);
-                        break;
-                    case 'RequestPermission':
-                        await handlers.handleRequestPermission(message.data);
-                        break;
-                    // -- Authentication & External Links --
-                    case 'OAuthLogin':
-                        await handlers.handleOAuthLogin(message.data.provider);
-                        break;
-                    case 'OAuthLogout':
-                        await handlers.handleOAuthLogout(message.data.provider);
-                        break;
-                    case 'OpenURL':
-                        await handlers.handleOpenURL(message);
-                        break;
-                    case 'FetchAppIcon':
-                        await handlers.handleFetchAppIcon(message);
-                        break;
-                    case 'FetchAppIconList':
-                        await handlers.handleFetchAppIconList(message);
-                        break;
-                    case 'ChangeAppIcon':
-                        await handlers.handleChangeAppIcon(message);
-                        break;
-                    default:
-                        if ((message as any).type === '__console__') {
-                            const m = message as any;
-                            if (m.level === 'error') {
-                                logger.error('WEBVIEW', m.msg, m.data);
-                            } else {
-                                logger.info('WEBVIEW', m.msg, m.data);
-                            }
-                        } else {
-                            console.error(`Received unhandled message type: ${message.type}`);
-                        }
-                }
-            } catch (error) {
-                logger.error('BRIDGE', `Error processing message type ${message.type}:`, error);
-            } finally {
-                queueRef.current.shift();
+        // Special handling for console logs from webview
+        bridge.registerHandler('__console__' as any, async (message: any) => {
+            if (message.level === 'error') {
+                logger.error('WEBVIEW', message.msg, message.data);
+            } else {
+                logger.info('WEBVIEW', message.msg, message.data);
             }
-        }
+        });
 
-        isProcessingRef.current = false;
-    }, []);
+        return () => {
+            Object.keys(handlerMap).forEach(type => {
+                bridge.unregisterHandler(type as WebMessageType);
+            });
+            bridge.unregisterHandler('__console__' as any);
+        };
+    }, [bridge]);
 
-    /**
-     * The main message receiver.
-     */
-    const handleMessage = useMemo(() => {
-        return bridge.receive(
-            (message: WebMessageData<WebMessageType>) => {
-                queueRef.current.push(message);
-                void processQueue();
-            },
-            (error: unknown, nativeEvent: WebViewMessage) => {
-                logger.error('BRIDGE', `Failed to parse message: ${nativeEvent.data}`, error);
-            }
-        );
-    }, [bridge, processQueue]);
-
-    return { handleMessage, isIapLoading };
+    return { isIapLoading };
 };

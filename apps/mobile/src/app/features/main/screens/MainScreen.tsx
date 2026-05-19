@@ -14,7 +14,7 @@ import { t } from '../../../utils';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
-    const { bridge } = useAppBridge(webViewRef);
+    const { bridge, onMessage } = useAppBridge(webViewRef);
 
     const { setWebCanGoBack, setNavCanGoBack } = useWebViewNavigation(webViewRef);
     const {
@@ -28,7 +28,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
 
     useVersionCheckHandler(bridge);
 
-    const { handleMessage, isIapLoading } = useWebMessageRouter({
+    const { isIapLoading } = useWebMessageRouter({
         bridge,
         navigation,
         setWebCanGoBack: setWebCanGoBack,
@@ -48,7 +48,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
                 ref={webViewRef}
                 source={initialSource}
                 scrollEnabled={false}
-                onMessage={handleMessage}
+                onMessage={onMessage}
                 onLoad={handleWebViewLoad}
                 onNavigationStateChange={navState => {
                     setNavCanGoBack(navState.canGoBack);

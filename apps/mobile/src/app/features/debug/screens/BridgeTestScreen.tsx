@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import type { WebViewMessageEvent } from 'react-native-webview';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -9,7 +10,7 @@ import {
     usePermissionHandler,
     useSubscriptionIapHandler,
 } from '../../../webview/hooks';
-import type { AppMessageData } from '@chatic/app-messages';
+import type { AppMessageData, WebMessageType } from '@chatic/app-messages';
 
 type LogType = 'sent' | 'received' | 'info' | 'error';
 
@@ -23,13 +24,13 @@ interface LogItem {
 export const BridgeTestScreen = () => {
     const insets = useSafeAreaInsets();
     const webViewRef = useRef<WebView>(null);
-    const { bridge } = useAppBridge(webViewRef);
+    const { bridge, onMessage: originalOnMessage } = useAppBridge(webViewRef);
     const [logs, setLogs] = useState<LogItem[]>([]);
     const flatListRef = useRef<FlatList>(null);
 
-    const { handleOpenShareSheet, handleOpenDocument, handleGetContacts, handleOpenCamera } = useDeviceHandler(bridge);
-    const { handleRequestPermission } = usePermissionHandler(bridge);
-    const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler(bridge);
+    const { handleOpenShareSheet, handleOpenDocument, handleGetContacts, handleOpenCamera } = useDeviceHandler();
+    const { handleRequestPermission } = usePermissionHandler();
+    const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler();
     const {
         fetchProducts,
         fetchCurrentPurchases,
@@ -38,7 +39,7 @@ export const BridgeTestScreen = () => {
         handleOpenSubscriptionManagement,
     } = useSubscriptionIapHandler(bridge);
 
-    const addLog = (type: LogType, message: string) => {
+    const addLog = useCallback((type: LogType, message: string) => {
         const now = new Date();
         const timeString = now.toLocaleTimeString('ko-KR', {
             hour12: false,
@@ -59,66 +60,86 @@ export const BridgeTestScreen = () => {
         setTimeout(() => {
             flatListRef.current?.scrollToEnd({ animated: true });
         }, 100);
-    };
+    }, []);
 
     const handleClearLogs = () => {
         setLogs([]);
     };
 
-    const handleWebViewMessage = bridge.receive(
-        message => {
-            addLog('received', `[Web -> App] Type: ${message.type}`);
-
-            switch (message.type) {
-                case 'OpenShareSheet':
-                    void handleOpenShareSheet(message);
-                    break;
-                case 'OpenDocument':
-                    void handleOpenDocument(message);
-                    break;
-                case 'RequestPermission':
-                    void handleRequestPermission(message.data);
-                    break;
-                case 'GetContacts':
-                    void handleGetContacts(message);
-                    break;
-                case 'OpenCamera':
-                    void handleOpenCamera(message);
-                    break;
-                case 'OAuthLogin':
-                    void handleOAuthLogin(message.data.provider);
-                    break;
-                case 'OAuthLogout':
-                    void handleOAuthLogout(message.data.provider);
-                    break;
-                // --- IAP 연동 ---
-                case 'FetchProducts':
-                    void fetchProducts();
-                    break;
-                case 'FetchCurrentPurchases':
-                    void fetchCurrentPurchases();
-                    break;
-                case 'Purchase':
-                    void handlePurchaseSubscription(message.data);
-                    break;
-                case 'FinishPurchaseTransaction':
-                    void handleFinishPurchase(message.data.purchase);
-                    break;
-                case 'OpenSubscriptionManagement':
-                    void handleOpenSubscriptionManagement();
-                    break;
-                default:
-                    addLog('info', `Unhandled message type: ${message.type}`);
-                    break;
+    const handleWebViewMessage = useCallback(
+        (event: WebViewMessageEvent) => {
+            try {
+                const parsed = JSON.parse(event.nativeEvent.data);
+                if (parsed.type && parsed.nonce && parsed.success === undefined) {
+                    addLog('received', `[Web -> App] Type: ${parsed.type}`);
+                }
+            } catch {
+                //
             }
+            originalOnMessage(event);
         },
-        error => {
-            addLog('error', `Web -> App Error: ${error}`);
-        }
+        [addLog, originalOnMessage]
     );
 
+    useEffect(() => {
+        const openShareSheetHandler = (data: any) => handleOpenShareSheet(data);
+        const openDocumentHandler = (data: any) => handleOpenDocument(data);
+        const getContactsHandler = (data: any) => handleGetContacts(data);
+        const openCameraHandler = (data: any) => handleOpenCamera(data);
+        const oAuthLoginHandler = (data: { provider: any }) => handleOAuthLogin(data.provider);
+        const oAuthLogoutHandler = (data: { provider: any }) => handleOAuthLogout(data.provider);
+        const finishPurchaseHandler = (data: { purchase: any }) => handleFinishPurchase(data.purchase);
+
+        bridge.registerHandler('OpenShareSheet', openShareSheetHandler);
+        bridge.registerHandler('OpenDocument', openDocumentHandler);
+        bridge.registerHandler('RequestPermission', handleRequestPermission);
+        bridge.registerHandler('GetContacts', getContactsHandler);
+        bridge.registerHandler('OpenCamera', openCameraHandler);
+        bridge.registerHandler('OAuthLogin', oAuthLoginHandler);
+        bridge.registerHandler('OAuthLogout', oAuthLogoutHandler);
+
+        // IAP
+        bridge.registerHandler('FetchProducts', fetchProducts);
+        bridge.registerHandler('FetchCurrentPurchases', fetchCurrentPurchases);
+        bridge.registerHandler('Purchase', handlePurchaseSubscription);
+        bridge.registerHandler('FinishPurchaseTransaction', finishPurchaseHandler);
+        bridge.registerHandler('OpenSubscriptionManagement', handleOpenSubscriptionManagement);
+
+        return () => {
+            const types: WebMessageType[] = [
+                'OpenShareSheet',
+                'OpenDocument',
+                'RequestPermission',
+                'GetContacts',
+                'OpenCamera',
+                'OAuthLogin',
+                'OAuthLogout',
+                'FetchProducts',
+                'FetchCurrentPurchases',
+                'Purchase',
+                'FinishPurchaseTransaction',
+                'OpenSubscriptionManagement',
+            ];
+            types.forEach(type => bridge.unregisterHandler(type));
+        };
+    }, [
+        bridge,
+        handleOpenShareSheet,
+        handleOpenDocument,
+        handleRequestPermission,
+        handleGetContacts,
+        handleOpenCamera,
+        handleOAuthLogin,
+        handleOAuthLogout,
+        fetchProducts,
+        fetchCurrentPurchases,
+        handlePurchaseSubscription,
+        handleFinishPurchase,
+        handleOpenSubscriptionManagement,
+    ]);
+
     const sendToWeb = (message: AppMessageData<any>) => {
-        bridge.post(message);
+        bridge.pushEvent(message.type, message.data);
         addLog('sent', `App -> Web: Sent ${message.type}`);
     };
 
