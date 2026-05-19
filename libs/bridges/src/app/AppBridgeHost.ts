@@ -71,7 +71,6 @@ export class AppBridgeHost implements IAppBridgeHost {
         }
 
         try {
-            // 호환성: 페이로드가 'data' 필드 안에 담겨 오므로 이를 추출하여 핸들러에 전달
             const payload = (message as any).data !== undefined ? (message as any).data : undefined;
             const result = await handler(payload);
 
