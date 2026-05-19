@@ -3,8 +3,6 @@ import { AppBridgeHost } from '@chatic/bridges';
 import { type RefObject, useCallback, useMemo } from 'react';
 import type { WebView, WebViewMessageEvent } from 'react-native-webview';
 
-export { AppBridgeHost };
-
 export const useAppBridgeHost = (webViewRef: RefObject<WebView | null>) => {
     const appBridgeHost: IAppBridgeHost = useMemo(
         () =>
