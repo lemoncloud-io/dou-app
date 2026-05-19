@@ -1,273 +1,57 @@
-import type {
-    ChangeAppIconPayload,
-    ClearAppLogBufferPayload,
-    ClearCacheDataPayload,
-    CloseModalPayload,
-    DeleteAllCacheDataPayload,
-    DeleteCacheDataPayload,
-    DeletePreferencePayload,
-    FetchAllCacheDataPayload,
-    FetchAppIconListPayload,
-    FetchAppIconPayload,
-    FetchAppLogBufferPayload,
-    FetchAppLogBufferSizePayload,
-    FetchBackgroundStatusPayload,
-    FetchCacheDataPayload,
-    FetchCurrentPurchasesPayload,
-    FetchDeviceInfoPayload,
-    FetchFcmTokenPayload,
-    FetchPreferencePayload,
-    FetchProductsPayload,
-    FetchSafeAreaPayload,
-    FinishPurchaseTransactionPayload,
-    GetContactsPayload,
-    HideLoaderPayload,
-    OAuthLoginPayload,
-    OAuthLogoutPayload,
-    OnBackgroundStatusChangedPayload,
-    OnBackPressedPayload,
-    OnChangeAppIconPayload,
-    OnClearAppLogBufferPayload,
-    OnClearCacheDataPayload,
-    OnCloseModalPayload,
-    OnDeleteAllCacheDataPayload,
-    OnDeleteCacheDataPayload,
-    OnDeletePreferencePayload,
-    OnFetchAllCacheDataPayload,
-    OnFetchAppIconListPayload,
-    OnFetchAppIconPayload,
-    OnFetchAppLogBufferPayload,
-    OnFetchAppLogBufferSizePayload,
-    OnFetchCacheDataPayload,
-    OnFetchCurrentPurchasesPayload,
-    OnFetchFcmTokenPayload,
-    OnFetchPreferencePayload,
-    OnFetchProductsPayload,
-    OnFetchSafeAreaPayload,
-    OnFinishPurchaseTransactionPayload,
-    OnGetContactsPayload,
-    OnHideLoaderPayload,
-    OnNotificationPayload,
-    OnOAuthLoginPayload,
-    OnOAuthLogoutPayload,
-    OnOpenCameraPayload,
-    OnOpenDocumentPayload,
-    OnOpenModalPayload,
-    OnOpenPhotoLibraryPayload,
-    OnOpenSettingsPayload,
-    OnOpenShareSheetPayload,
-    OnOpenSubscriptionManagementPayload,
-    OnOpenURLPayload,
-    OnPollAppLogBufferPayload,
-    OnPopWebViewPayload,
-    OnPurchaseSuccessPayload,
-    OnReceiveAppLogPayload,
-    OnRequestPermissionPayload,
-    OnSaveAllCacheDataPayload,
-    OnSaveCacheDataPayload,
-    OnSavePreferencePayload,
-    OnScrollPayload,
-    OnSearchGlobalCacheDataPayload,
-    OnSendLogPayload,
-    OnSetCanGoBackPayload,
-    OnShowLoaderPayload,
-    OnSuccessSyncCredentialPayload,
-    OnUpdateDeviceInfoPayload,
-    OpenCameraPayload,
-    OpenDocumentPayload,
-    OpenModalPayload,
-    OpenPhotoLibraryPayload,
-    OpenSettingsPayload,
-    OpenShareSheetPayload,
-    OpenSubscriptionManagementPayload,
-    OpenURLPayload,
-    PingPayload,
-    PollAppLogBufferPayload,
-    PongPayload,
-    PopWebViewPayload,
-    PurchasePayload,
-    RequestPermissionPayload,
-    SaveAllCacheDataPayload,
-    SaveCacheDataPayload,
-    SavePreferencePayload,
-    ScrollDataPayload,
-    SearchGlobalCacheDataPayload,
-    SendLogPayload,
-    SetCanGoBackPayload,
-    ShowLoaderPayload,
-    SyncCredentialPayload,
-} from './payload';
+import type { WebMessageMap, WebMessageType } from '@chatic/app-messages';
+import type { AppMessageMap, AppMessageType } from '@chatic/app-messages';
+
+// 재사용성을 위한 Export
+export type { WebMessageType, WebMessageMap } from '@chatic/app-messages';
+export type { AppMessageType, AppMessageMap } from '@chatic/app-messages';
+
+// 기존 호스트(Mock 포함) 및 run-mock.ts 와의 호환성을 위한 Alias
+export type RequestType = WebMessageType;
+export type ResponseType = AppMessageType;
 
 /**
  * 브릿지 통신에서 사용되는 모든 메시지의 최상위 기본 규격(Base)입니다.
- * @template TType - 메시지의 고유 식별자 타입 (기본값: string)
+ * 기존의 WebDefaultMessage / AppDefaultMessage 의 nonce 를 유지하면서 확장합니다.
  */
 export interface BaseMessage<TType extends string = string> {
-    /**
-     * 메시지의 종류를 나타내는 고유 식별자입니다.
-     * Request, Response, Event에 따라 특정 리터럴 타입으로 좁혀집니다.
-     */
     type: TType;
-
-    /**
-     * 메시지의 고유 식별 ID입니다.
-     * 양방향 통신(Request-Response) 시 요청과 응답을 1:1로 정확히 매칭하기 위해 필수적으로 사용됩니다.
-     */
     refId: string;
-
-    /**
-     * 통신 프로토콜 또는 메시지 규약의 버전 정보입니다.
-     * 앱과 웹 간의 하위 호환성 관리를 위해 사용됩니다.
-     */
     version: string;
+    nonce?: string; // 하위 호환성 및 Web-App 간 에코(Echo)용으로 유지
 }
 
 /**
- * 브릿지 통신 실패 시(success: false) 반환되는 표준 에러 객체 규격입니다.
+ * 브릿지 통신 실패 시 반환되는 표준 에러 객체 규격입니다.
  */
 export interface BridgeError {
-    /**
-     * 에러 유형을 프로그램 레벨에서 식별하기 위한 고유 에러 코드입니다.
-     * (예: 'TIMEOUT', 'NOT_FOUND', 'UNAUTHORIZED')
-     */
     code: string;
-
-    /**
-     * 개발자 또는 디버깅 환경에서 읽을 수 있는 명시적인 에러 메시지입니다.
-     */
     message: string;
-
-    /**
-     * 에러 발생 상황에 대한 추가적인 상세 컨텍스트나 메타데이터입니다. (optional)
-     */
     details?: unknown;
 }
 
+// AppBridgeHost 및 제네릭 환경에서 범용적으로 쓰이는 PayloadMap 호환성 유지
 export type PayloadMap = Record<string, any>;
 
-// Request (Web -> App) 타입 및 페이로드 매핑
-export interface RequestPayloadMap extends PayloadMap {
-    SetCanGoBack: SetCanGoBackPayload;
-    Scroll: ScrollDataPayload;
-    OpenModal: OpenModalPayload;
-    CloseModal: CloseModalPayload;
-    OpenSettings: OpenSettingsPayload;
-    OpenShareSheet: OpenShareSheetPayload;
-    GetContacts: GetContactsPayload;
-    OpenDocument: OpenDocumentPayload;
-    OpenCamera: OpenCameraPayload;
-    OpenPhotoLibrary: OpenPhotoLibraryPayload;
-    FetchDeviceInfo: FetchDeviceInfoPayload;
-    FetchSafeArea: FetchSafeAreaPayload;
-    FetchBackgroundStatus: FetchBackgroundStatusPayload;
-    RequestPermission: RequestPermissionPayload;
-    OpenURL: OpenURLPayload;
-    FetchAppIcon: FetchAppIconPayload;
-    FetchAppIconList: FetchAppIconListPayload;
-    ChangeAppIcon: ChangeAppIconPayload;
-    FetchFcmToken: FetchFcmTokenPayload;
-    FetchProducts: FetchProductsPayload;
-    FetchCurrentPurchases: FetchCurrentPurchasesPayload;
-    Purchase: PurchasePayload;
-    FinishPurchaseTransaction: FinishPurchaseTransactionPayload;
-    OpenSubscriptionManagement: OpenSubscriptionManagementPayload;
-    FetchCacheData: FetchCacheDataPayload;
-    FetchAllCacheData: FetchAllCacheDataPayload;
-    SaveCacheData: SaveCacheDataPayload;
-    SaveAllCacheData: SaveAllCacheDataPayload;
-    DeleteCacheData: DeleteCacheDataPayload;
-    DeleteAllCacheData: DeleteAllCacheDataPayload;
-    ClearCacheData: ClearCacheDataPayload;
-    SearchGlobalCacheData: SearchGlobalCacheDataPayload;
-    FetchPreference: FetchPreferencePayload;
-    SavePreference: SavePreferencePayload;
-    DeletePreference: DeletePreferencePayload;
-    OAuthLogin: OAuthLoginPayload;
-    OAuthLogout: OAuthLogoutPayload;
-    ShowLoader: ShowLoaderPayload;
-    HideLoader: HideLoaderPayload;
-    SyncCredential: SyncCredentialPayload;
-    PopWebView: PopWebViewPayload;
-    FetchAppLogBuffer: FetchAppLogBufferPayload;
-    PollAppLogBuffer: PollAppLogBufferPayload;
-    ClearAppLogBuffer: ClearAppLogBufferPayload;
-    FetchAppLogBufferSize: FetchAppLogBufferSizePayload;
-    SendLog: SendLogPayload;
-    Ping: PingPayload;
-}
+// ======================================================================
+// 이벤트 타입 분류 (AppMessage 중 Web의 요청 없이 발생하는 단방향 이벤트)
+// ======================================================================
+export type EventMessageType = Extract<
+    AppMessageType,
+    'OnBackPressed' | 'OnReceiveNotification' | 'OnOpenNotification'
+>;
+export type EventType = EventMessageType;
 
-export type RequestType = Extract<keyof RequestPayloadMap, string>;
-
-// Response (App -> Web) 타입 및 페이로드 매핑
-export interface ResponsePayloadMap extends PayloadMap {
-    OnSetCanGoBack: OnSetCanGoBackPayload;
-    OnScroll: OnScrollPayload;
-    OnOpenModal: OnOpenModalPayload;
-    OnCloseModal: OnCloseModalPayload;
-    OnOpenSettings: OnOpenSettingsPayload;
-    OnOpenShareSheet: OnOpenShareSheetPayload;
-    OnGetContacts: OnGetContactsPayload;
-    OnOpenDocument: OnOpenDocumentPayload;
-    OnOpenCamera: OnOpenCameraPayload;
-    OnOpenPhotoLibrary: OnOpenPhotoLibraryPayload;
-    OnUpdateDeviceInfo: OnUpdateDeviceInfoPayload;
-    OnFetchSafeArea: OnFetchSafeAreaPayload;
-    OnBackgroundStatusChanged: OnBackgroundStatusChangedPayload;
-    OnRequestPermission: OnRequestPermissionPayload;
-    OnOpenURL: OnOpenURLPayload;
-    OnFetchAppIcon: OnFetchAppIconPayload;
-    OnFetchAppIconList: OnFetchAppIconListPayload;
-    OnChangeAppIcon: OnChangeAppIconPayload;
-    OnFetchFcmToken: OnFetchFcmTokenPayload;
-    OnFetchProducts: OnFetchProductsPayload;
-    OnFetchCurrentPurchases: OnFetchCurrentPurchasesPayload;
-    OnPurchaseSuccess: OnPurchaseSuccessPayload;
-    OnFinishPurchaseTransaction: OnFinishPurchaseTransactionPayload;
-    OnOpenSubscriptionManagement: OnOpenSubscriptionManagementPayload;
-    OnFetchCacheData: OnFetchCacheDataPayload;
-    OnFetchAllCacheData: OnFetchAllCacheDataPayload;
-    OnSaveCacheData: OnSaveCacheDataPayload;
-    OnSaveAllCacheData: OnSaveAllCacheDataPayload;
-    OnDeleteCacheData: OnDeleteCacheDataPayload;
-    OnDeleteAllCacheData: OnDeleteAllCacheDataPayload;
-    OnClearCacheData: OnClearCacheDataPayload;
-    OnSearchGlobalCacheData: OnSearchGlobalCacheDataPayload;
-    OnFetchPreference: OnFetchPreferencePayload;
-    OnSavePreference: OnSavePreferencePayload;
-    OnDeletePreference: OnDeletePreferencePayload;
-    OnOAuthLogin: OnOAuthLoginPayload;
-    OnOAuthLogout: OnOAuthLogoutPayload;
-    OnShowLoader: OnShowLoaderPayload;
-    OnHideLoader: OnHideLoaderPayload;
-    OnSuccessSyncCredential: OnSuccessSyncCredentialPayload;
-    OnPopWebView: OnPopWebViewPayload;
-    OnFetchAppLogBuffer: OnFetchAppLogBufferPayload;
-    OnPollAppLogBuffer: OnPollAppLogBufferPayload;
-    OnClearAppLogBuffer: OnClearAppLogBufferPayload;
-    OnFetchAppLogBufferSize: OnFetchAppLogBufferSizePayload;
-    OnSendLog: OnSendLogPayload;
-    Pong: PongPayload;
-}
-
-export type ResponseType = Extract<keyof ResponsePayloadMap, string>;
-
-// Event (App -> Web) 타입 및 페이로드 매핑
-export interface EventPayloadMap extends PayloadMap {
-    OnBackPressed: OnBackPressedPayload;
-    OnReceiveNotification: OnNotificationPayload;
-    OnOpenNotification: OnNotificationPayload;
-    OnReceiveAppLog: OnReceiveAppLogPayload;
-}
-
-export type EventType = Extract<keyof EventPayloadMap, string>;
-
-// Request - Response 매핑 관계 구조체
-export interface BridgePairMap extends Record<RequestType, ResponseType> {
-    SetCanGoBack: 'OnSetCanGoBack';
-    Scroll: 'OnScroll';
-    OpenModal: 'OnOpenModal';
+// ======================================================================
+// Pair Relation Mapping (Request <-> Response 1:1 매칭)
+// 응답이 없는 단방향 요청의 경우 'void'로 매핑합니다.
+// ======================================================================
+export interface BridgePairMap extends Record<WebMessageType, AppMessageType | 'void'> {
+    // 1. Device & System
+    SetCanGoBack: 'void';
+    Scroll: 'void';
+    OpenModal: 'void';
     CloseModal: 'OnCloseModal';
-    OpenSettings: 'OnOpenSettings';
+    OpenSettings: 'void';
     OpenShareSheet: 'OnOpenShareSheet';
     GetContacts: 'OnGetContacts';
     OpenDocument: 'OnOpenDocument';
@@ -277,16 +61,22 @@ export interface BridgePairMap extends Record<RequestType, ResponseType> {
     FetchSafeArea: 'OnFetchSafeArea';
     FetchBackgroundStatus: 'OnBackgroundStatusChanged';
     RequestPermission: 'OnRequestPermission';
-    OpenURL: 'OnOpenURL';
+    OpenURL: 'void';
     FetchAppIcon: 'OnFetchAppIcon';
     FetchAppIconList: 'OnFetchAppIconList';
     ChangeAppIcon: 'OnChangeAppIcon';
+
+    // 2. Notification
     FetchFcmToken: 'OnFetchFcmToken';
+
+    // 3. IAP
     FetchProducts: 'OnFetchProducts';
     FetchCurrentPurchases: 'OnFetchCurrentPurchases';
     Purchase: 'OnPurchaseSuccess';
     FinishPurchaseTransaction: 'OnFinishPurchaseTransaction';
-    OpenSubscriptionManagement: 'OnOpenSubscriptionManagement';
+    OpenSubscriptionManagement: 'void';
+
+    // 4. Cache
     FetchCacheData: 'OnFetchCacheData';
     FetchAllCacheData: 'OnFetchAllCacheData';
     SaveCacheData: 'OnSaveCacheData';
@@ -295,39 +85,63 @@ export interface BridgePairMap extends Record<RequestType, ResponseType> {
     DeleteAllCacheData: 'OnDeleteAllCacheData';
     ClearCacheData: 'OnClearCacheData';
     SearchGlobalCacheData: 'OnSearchGlobalCacheData';
+
+    // 5. Preference
     FetchPreference: 'OnFetchPreference';
     SavePreference: 'OnSavePreference';
     DeletePreference: 'OnDeletePreference';
+
+    // 6. Auth
     OAuthLogin: 'OnOAuthLogin';
     OAuthLogout: 'OnOAuthLogout';
-    ShowLoader: 'OnShowLoader';
-    HideLoader: 'OnHideLoader';
+
+    // 7. Common & Others
+    ShowLoader: 'void';
+    HideLoader: 'void';
     SyncCredential: 'OnSuccessSyncCredential';
-    PopWebView: 'OnPopWebView';
+    PopWebView: 'void';
     FetchAppLogBuffer: 'OnFetchAppLogBuffer';
     PollAppLogBuffer: 'OnPollAppLogBuffer';
     ClearAppLogBuffer: 'OnClearAppLogBuffer';
     FetchAppLogBufferSize: 'OnFetchAppLogBufferSize';
-    SendLog: 'OnSendLog';
+    SendLog: 'void';
     Ping: 'Pong';
 }
 
+// ======================================================================
+// Final Message Structures (Type Guards)
+// ======================================================================
+
 /**
  * [Request] Web -> App
+ * 기존 web-message.ts에 정의된 규격(nonce, data 등)을 BaseMessage와 안전하게 결합(&)
  */
-export interface TypedRequestMessage<K extends RequestType> extends BaseMessage<K> {
-    payload: RequestPayloadMap[K];
-}
+export type TypedRequestMessage<K extends WebMessageType> = BaseMessage<K> & WebMessageMap[K];
 
 /**
  * [Event] App -> Web
+ * 기존 app-message.ts에 정의된 이벤트 규격을 BaseMessage와 안전하게 결합(&)
  */
-export interface TypedEventMessage<K extends EventType> extends BaseMessage<K> {
-    payload: EventPayloadMap[K];
-}
+export type TypedEventMessage<K extends EventMessageType> = BaseMessage<K> & AppMessageMap[K];
 
 /**
  * [Response] App -> Web
+ * AppMessageMap의 구조체 내부에 있는 'data' 페이로드의 타입을 동적으로 추론하여 응답 규격에 주입
  */
-export type TypedResponseMessage<K extends ResponseType> = BaseMessage<K> &
-    ({ success: true; data: ResponsePayloadMap[K] } | { success: false; error: BridgeError });
+type ExtractResponseData<K extends WebMessageType> = BridgePairMap[K] extends AppMessageType
+    ? AppMessageMap[BridgePairMap[K]] extends { data: infer D }
+        ? D
+        : undefined
+    : undefined;
+
+export type TypedResponseMessage<K extends WebMessageType> = BaseMessage<
+    BridgePairMap[K] extends string ? BridgePairMap[K] : 'void'
+> &
+    ({ success: true; data: ExtractResponseData<K> } | { success: false; error: BridgeError });
+
+// ======================================================================
+// 하위 모듈들(Adapter, Client, Host)과의 완벽한 호환성을 위한 포괄 타입 선언
+// ======================================================================
+export type RequestMessage = TypedRequestMessage<WebMessageType>;
+export type EventMessage = TypedEventMessage<EventMessageType>;
+export type ResponseMessage = TypedResponseMessage<WebMessageType>;

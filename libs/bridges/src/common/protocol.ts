@@ -1,11 +1,10 @@
 import type {
-    RequestType,
-    ResponseType,
+    BaseMessage,
     EventType,
+    RequestType,
+    TypedEventMessage,
     TypedRequestMessage,
     TypedResponseMessage,
-    TypedEventMessage,
-    BaseMessage,
 } from './types';
 
 /**
@@ -13,7 +12,7 @@ import type {
  */
 export type AnyBridgeMessage =
     | TypedRequestMessage<RequestType>
-    | TypedResponseMessage<ResponseType>
+    | TypedResponseMessage<RequestType>
     | TypedEventMessage<EventType>;
 
 /**
