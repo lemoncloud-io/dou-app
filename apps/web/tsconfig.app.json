@@ -26,6 +26,9 @@
             "path": "../../libs/policy-content/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/bridges/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/device-utils/tsconfig.lib.json"
         },
         {
