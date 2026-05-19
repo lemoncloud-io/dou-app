@@ -2,9 +2,9 @@ import type { BridgeAdapter } from './adapters';
 import type {
     EventMessage,
     EventMessageType,
-    ExtractEvtData,
-    ExtractReqData,
-    ExtractResData,
+    ExtractEvtMessage,
+    ExtractReqMessage,
+    ExtractResMessage,
     RequestMessage,
     ResponseMessage,
 } from '../common';
@@ -23,15 +23,12 @@ interface PendingRequest {
     timeoutId: ReturnType<typeof setTimeout>;
 }
 
-/**
- * Web(React 등) 환경에서 App(React Native, iOS, Android)과 통신하기 위한 브릿지 클라이언트 구현체입니다.
- */
 export class WebBridgeClient implements IWebBridgeClient {
     private adapter: BridgeAdapter;
     private version: string;
     private timeoutMs: number;
 
-    private eventListeners: Map<string, Set<(payload: any) => void>> = new Map();
+    private eventListeners: Map<string, Set<(message: any) => void>> = new Map();
     private pendingRequests: Map<string, PendingRequest> = new Map();
 
     constructor(config: WebBridgeClientConfig) {
@@ -66,20 +63,19 @@ export class WebBridgeClient implements IWebBridgeClient {
 
     private handleEvent(message: EventMessage): void {
         const listeners = this.eventListeners.get(message.type);
-        const payload = (message as any).data !== undefined ? (message as any).data : undefined;
-        listeners?.forEach(listener => listener(payload));
+        listeners?.forEach(listener => listener(message));
     }
 
     private generateRefId(): string {
         return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
     }
 
-    public post<K extends WebMessageType>(type: K, payload?: ExtractReqData<K>): void {
+    public post<K extends WebMessageType>(type: K, messageParams?: Omit<ExtractReqMessage<K>, 'type'>): void {
         const message = {
             type,
             refId: this.generateRefId(),
             version: this.version,
-            data: payload,
+            ...messageParams,
         } as unknown as RequestMessage;
 
         this.adapter.postMessage(message);
@@ -87,16 +83,16 @@ export class WebBridgeClient implements IWebBridgeClient {
 
     public request<K extends WebMessageType>(
         type: K,
-        payload?: ExtractReqData<K>,
+        messageParams?: Omit<ExtractReqMessage<K>, 'type'>,
         customTimeoutMs?: number
-    ): Promise<ExtractResData<K>> {
+    ): Promise<ExtractResMessage<K>> {
         return new Promise((resolve, reject) => {
             const refId = this.generateRefId();
             const message = {
                 type,
                 refId,
                 version: this.version,
-                data: payload,
+                ...messageParams,
             } as unknown as RequestMessage;
 
             const timeoutId = setTimeout(() => {
@@ -110,13 +106,14 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     public send<K extends WebMessageType>(
-        message: { type: K; payload?: ExtractReqData<K> },
+        message: ExtractReqMessage<K>,
         customTimeoutMs?: number
-    ): Promise<ExtractResData<K>> {
-        return this.request(message.type, message.payload, customTimeoutMs);
+    ): Promise<ExtractResMessage<K>> {
+        const { type, ...rest } = message;
+        return this.request(type as K, rest as Omit<ExtractReqMessage<K>, 'type'>, customTimeoutMs);
     }
 
-    public onEvent<K extends EventMessageType>(type: K, handler: (payload: ExtractEvtData<K>) => void): () => void {
+    public onEvent<K extends EventMessageType>(type: K, handler: (message: ExtractEvtMessage<K>) => void): () => void {
         const typeStr = type as string;
         if (!this.eventListeners.has(typeStr)) {
             this.eventListeners.set(typeStr, new Set());

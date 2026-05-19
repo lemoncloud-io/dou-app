@@ -2,7 +2,7 @@ import { MockBridgeAdapter, MockWebBridgeClient } from './web';
 import { MockAppBridgeHost } from './app';
 import type { RequestType, TypedRequestMessage } from './common';
 import * as readline from 'readline';
-import type { PingPayload, PongPayload } from '@chatic/app-messages';
+import type { Ping, Pong } from '@chatic/app-messages';
 
 // --- 기본 설정 ---
 const logger = {
@@ -36,11 +36,18 @@ const webClient = new MockWebBridgeClient({ adapter: webAdapter });
 // AppBridgeHost 핸들러 등록 (Mock Native 비즈니스 로직)
 // ======================================================================
 
-appHost.registerHandler('Ping', async (payload: unknown) => {
-    // The handler receives an 'unknown' payload and must assert its type for type safety.
-    const pingPayload = payload as PingPayload;
-    logger.app(`[MockAppBridgeHost] 'Ping' 수신. payload: ${pingPayload.payload.length} bytes`);
-    return { payload: pingPayload.payload };
+appHost.registerHandler('Ping', async (payload: Ping): Promise<Pong> => {
+    // 이제 데이터(payload)만 추출되지 않고 메시지 전체(RequestMessage)가 들어옵니다.
+    // 기존 호환성을 위해 message 내부의 payload(또는 data)를 꺼내 사용합니다.
+    const pingData = payload.data;
+    logger.app(`[MockAppBridgeHost] 'Ping' 수신. payload: ${pingData.payload?.length ?? 0} bytes`);
+
+    // 응답으로 감싸질 결과(result) 데이터를 반환합니다.
+    return {
+        data: {
+            payload: pingData.payload,
+        },
+    } as Pong;
 });
 
 // --- 2. 실행 CLI ---
@@ -72,8 +79,8 @@ async function handleMenuChoice(choice: string) {
         case '1': {
             logger.web("App으로 'Ping' 요청을 보냅니다...");
             try {
-                // 타입 검증: 'Ping'은 PingPayload를 인자로 받음
-                const response: PongPayload = await webClient.request('Ping', { payload: 'hello' });
+                // 파라미터는 Omit<ExtractReqMessage<K>, 'type'> 형태이므로 동일하게 사용 가능합니다.
+                const response = (await webClient.request('Ping', { data: { payload: 'hello' } })) as any;
                 logger.web(`✅ 'Pong' 응답 수신:`, response);
             } catch (error) {
                 logger.web('❌ 응답 실패:', error);
@@ -83,10 +90,11 @@ async function handleMenuChoice(choice: string) {
 
         case '2':
             logger.app("Web으로 'OnReceiveNotification' 이벤트를 푸시합니다.");
-            // 타입 검증: NotificationEventPayload 규격에 맞춰 전송
-            appHost.pushEvent('OnReceiveNotification', {
+            // 인터페이스 변경에 따라 분리된 파라미터가 아닌, type이 포함된 전체 객체를 전달합니다.
+            appHost.pushEvent({
+                type: 'OnReceiveNotification',
                 notification: { title: 'Mock Push', body: '테스트 푸시입니다.' },
-            });
+            } as any);
             break;
 
         case '3': {
@@ -95,12 +103,15 @@ async function handleMenuChoice(choice: string) {
                 const requestPayload = 'A'.repeat(1024 * 1024); // 1MB
                 const startTime = performance.now();
 
-                // 타입 추론: request의 반환값은 PongPayload로 자동 결정됨
-                const response = await webClient.request('Ping', { payload: requestPayload });
+                // response 역시 전체 메시지 규격으로 반환됩니다.
+                const response = (await webClient.request('Ping', { data: { payload: requestPayload } })) as any;
 
                 const endTime = performance.now();
                 const rtt = (endTime - startTime).toFixed(2);
-                logger.web(`✅ 응답 완료! 길이: ${response.payload.length}, ⏱️ ${rtt}ms`);
+
+                // 실제 반환된 구조(응답이 data에 매핑되는지 여부)에 따라 접근 경로가 달라질 수 있습니다.
+                const responsePayloadLength = response.payload?.length ?? response.data?.payload?.length ?? 0;
+                logger.web(`✅ 응답 완료! 길이: ${responsePayloadLength}, ⏱️ ${rtt}ms`);
             } catch (error) {
                 logger.web('❌ 응답 실패:', error);
             }
@@ -123,9 +134,9 @@ async function handleMenuChoice(choice: string) {
 // --- 실행 ---
 logger.info('--- 대화형 Mock Bridge Environment 시작 (프로덕션 타입 동기화 모드) ---');
 
-// 이벤트 구독 테스트
-webClient.onEvent('OnReceiveNotification', payload => {
-    logger.web(`✅ "OnReceiveNotification" 이벤트 수신됨! Payload:`, payload);
+// 이벤트 구독 테스트 (이제 payload가 아닌 event message 전체를 수신합니다)
+webClient.onEvent('OnReceiveNotification', message => {
+    logger.web(`✅ "OnReceiveNotification" 이벤트 수신됨! Message:`, message);
 });
 
 displayMenu();

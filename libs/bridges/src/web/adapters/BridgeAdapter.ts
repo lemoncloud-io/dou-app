@@ -1,4 +1,4 @@
-import type { EventMessage, RequestType, ResponseMessage, TypedRequestMessage } from '../../common';
+import type { EventMessage, RequestMessage, ResponseMessage } from '../../common';
 
 /**
  * 웹(Web)과 앱(App) 환경 간의 물리적 통신 채널을 추상화한 어댑터 인터페이스입니다.
@@ -9,7 +9,7 @@ export interface BridgeAdapter {
      * [Web -> App] 메시지를 전송합니다.
      * @param message 전송할 Request 규격의 메시지 객체
      */
-    postMessage(message: TypedRequestMessage<RequestType>): void;
+    postMessage(message: RequestMessage): void;
 
     /**
      * [App -> Web] 들어오는 메시지를 수신하기 위해 핸들러를 등록합니다.

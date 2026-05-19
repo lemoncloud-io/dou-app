@@ -2,24 +2,21 @@ import type { BridgeAdapter } from './adapters';
 import type {
     EventMessage,
     EventMessageType,
-    ExtractEvtData,
-    ExtractReqData,
-    ExtractResData,
+    ExtractEvtMessage,
+    ExtractReqMessage,
+    ExtractResMessage,
     RequestMessage,
     ResponseMessage,
 } from '../common';
 import type { IWebBridgeClient } from './IWebBridgeClient';
 import type { WebMessageType } from '@chatic/app-messages';
 
-/**
- * 단위 테스트 및 로컬 웹 개발(Mock) 환경에서 사용되는 브릿지 클라이언트입니다.
- */
 export class MockWebBridgeClient implements IWebBridgeClient {
     private adapter: BridgeAdapter;
     private version = '1.0.0-mock';
     private timeoutMs = 5000;
 
-    private eventListeners: Map<string, Set<(payload: any) => void>> = new Map();
+    private eventListeners: Map<string, Set<(message: any) => void>> = new Map();
     private pendingRequests: Map<
         string,
         { resolve: (value: any) => void; reject: (reason: any) => void; timeoutId: NodeJS.Timeout }
@@ -49,7 +46,7 @@ export class MockWebBridgeClient implements IWebBridgeClient {
 
         if (message.success) {
             console.log(`[MockWebBridgeClient] 요청 '${message.refId}'에 대한 성공 응답 처리.`);
-            pending.resolve(message.data);
+            pending.resolve(message.data); // 결과적으로 받은 전체 객체 반환
         } else {
             console.log(`[MockWebBridgeClient] 요청 '${message.refId}'에 대한 실패 응답 처리.`);
             pending.reject(message.error);
@@ -59,32 +56,34 @@ export class MockWebBridgeClient implements IWebBridgeClient {
     private handleEvent(message: EventMessage): void {
         console.log(`[MockWebBridgeClient] '${message.type}' 이벤트 처리.`);
         const listeners = this.eventListeners.get(message.type);
-        const payload = (message as any).data !== undefined ? (message as any).data : undefined;
-        listeners?.forEach(listener => listener(payload));
+        listeners?.forEach(listener => listener(message));
     }
 
     private generateRefId = () => Math.random().toString(36).substring(2, 9);
 
-    public post<K extends WebMessageType>(type: K, payload?: ExtractReqData<K>): void {
-        console.log(`[MockWebBridgeClient] POST 발송: type='${String(type)}'`, payload);
+    public post<K extends WebMessageType>(type: K, messageParams?: Omit<ExtractReqMessage<K>, 'type'>): void {
+        console.log(`[MockWebBridgeClient] POST 발송: type='${String(type)}'`, messageParams);
         const message = {
             type,
             refId: this.generateRefId(),
             version: this.version,
-            data: payload,
+            ...messageParams,
         } as unknown as RequestMessage;
         this.adapter.postMessage(message);
     }
 
-    public request<K extends WebMessageType>(type: K, payload?: ExtractReqData<K>): Promise<ExtractResData<K>> {
-        console.log(`[MockWebBridgeClient] REQUEST 발송: type='${String(type)}'`, payload);
+    public request<K extends WebMessageType>(
+        type: K,
+        messageParams?: Omit<ExtractReqMessage<K>, 'type'>
+    ): Promise<ExtractResMessage<K>> {
+        console.log(`[MockWebBridgeClient] REQUEST 발송: type='${String(type)}'`, messageParams);
         return new Promise((resolve, reject) => {
             const refId = this.generateRefId();
             const message = {
                 type,
                 refId,
                 version: this.version,
-                data: payload,
+                ...messageParams,
             } as unknown as RequestMessage;
 
             const timeoutId = setTimeout(() => {
@@ -97,14 +96,12 @@ export class MockWebBridgeClient implements IWebBridgeClient {
         });
     }
 
-    public send<K extends WebMessageType>(message: {
-        type: K;
-        payload?: ExtractReqData<K>;
-    }): Promise<ExtractResData<K>> {
-        return this.request(message.type, message.payload);
+    public send<K extends WebMessageType>(message: ExtractReqMessage<K>): Promise<ExtractResMessage<K>> {
+        const { type, ...rest } = message;
+        return this.request(type as K, rest as Omit<ExtractReqMessage<K>, 'type'>);
     }
 
-    public onEvent<K extends EventMessageType>(type: K, handler: (payload: ExtractEvtData<K>) => void): () => void {
+    public onEvent<K extends EventMessageType>(type: K, handler: (message: ExtractEvtMessage<K>) => void): () => void {
         const typeStr = type as string;
         console.log(`[MockWebBridgeClient] '${typeStr}' 이벤트 구독 설정.`);
         if (!this.eventListeners.has(typeStr)) {

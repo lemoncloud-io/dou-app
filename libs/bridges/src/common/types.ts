@@ -113,18 +113,16 @@ export interface BridgePairMap extends Record<WebMessageType, AppMessageType | '
 // Generic Type Extractors
 // ======================================================================
 
-/** [Request] Web -> App 요청에서 `data` 페이로드의 타입을 추론합니다. */
-export type ExtractReqData<K extends WebMessageType> = WebMessageMap[K] extends { data: infer D } ? D : undefined;
+/** [Request] Web -> App 요청 시 정의된 메시지 전체 규격을 가져옵니다. */
+export type ExtractReqMessage<K extends WebMessageType> = WebMessageMap[K];
 
-/** [Response] App -> Web 응답에서 `data` 페이로드의 타입을 추론합니다. */
-export type ExtractResData<K extends WebMessageType> = BridgePairMap[K] extends keyof AppMessageMap
-    ? AppMessageMap[BridgePairMap[K]] extends { data: infer D }
-        ? D
-        : void
+/** [Response] App -> Web 응답 시 정의된 메시지 전체 규격을 가져옵니다. */
+export type ExtractResMessage<K extends WebMessageType> = BridgePairMap[K] extends keyof AppMessageMap
+    ? AppMessageMap[BridgePairMap[K]]
     : void;
 
-/** [Event] App -> Web 이벤트에서 `data` 페이로드의 타입을 추론합니다. */
-export type ExtractEvtData<K extends EventMessageType> = AppMessageMap[K] extends { data: infer D } ? D : undefined;
+/** [Event] App -> Web 이벤트 시 정의된 메시지 전체 규격을 가져옵니다. */
+export type ExtractEvtMessage<K extends EventMessageType> = AppMessageMap[K];
 
 // ======================================================================
 // Final Message Structures (Type Guards)

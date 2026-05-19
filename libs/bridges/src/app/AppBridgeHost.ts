@@ -1,7 +1,16 @@
-import type { EventMessage, EventMessageType, MessageProtocol, RequestMessage, ResponseMessage } from '../common';
+import type {
+    EventMessage,
+    EventMessageType,
+    ExtractEvtMessage,
+    ExtractReqMessage,
+    ExtractResMessage,
+    MessageProtocol,
+    RequestMessage,
+    ResponseMessage,
+} from '../common';
 import { JsonProtocol } from '../common';
 import type { WebMessageType } from '@chatic/app-messages';
-import type { ExtractEvtData, ExtractReqData, ExtractResData, IAppBridgeHost } from './IAppBridgeHost';
+import type { IAppBridgeHost } from './IAppBridgeHost';
 
 export interface AppBridgeHostConfig {
     protocol?: MessageProtocol;
@@ -14,7 +23,7 @@ export class AppBridgeHost implements IAppBridgeHost {
     private sendToWeb: (message: string) => void;
     private version: string;
 
-    private handlers: Map<string, (payload: any) => Promise<any>> = new Map();
+    private handlers: Map<string, (message: any) => Promise<any>> = new Map();
 
     constructor(config: AppBridgeHostConfig) {
         this.protocol = config.protocol ?? JsonProtocol;
@@ -35,7 +44,7 @@ export class AppBridgeHost implements IAppBridgeHost {
 
     public registerHandler<K extends WebMessageType>(
         type: K,
-        handler: (payload: ExtractReqData<K>) => Promise<ExtractResData<K>>
+        handler: (message: ExtractReqMessage<K>) => Promise<ExtractResMessage<K>>
     ): void {
         this.handlers.set(type as string, handler);
     }
@@ -44,15 +53,14 @@ export class AppBridgeHost implements IAppBridgeHost {
         this.handlers.delete(type as string);
     }
 
-    public pushEvent<K extends EventMessageType>(type: K, payload: ExtractEvtData<K>, version?: string): void {
-        const message = {
-            type,
-            version: version ?? this.version,
+    public pushEvent<K extends EventMessageType>(message: ExtractEvtMessage<K>): void {
+        const eventMsg = {
+            version: this.version,
             refId: this.generateRefId(),
-            data: payload, // 호환성을 위해 data 필드 내부에 탑재
+            ...message,
         } as unknown as EventMessage;
 
-        const encoded = this.protocol.encode(message);
+        const encoded = this.protocol.encode(eventMsg);
         this.sendToWeb(encoded as string);
     }
 
@@ -65,9 +73,8 @@ export class AppBridgeHost implements IAppBridgeHost {
         }
 
         try {
-            const payload = (message as any).data !== undefined ? (message as any).data : undefined;
-            const result = await handler(payload);
-
+            // payload를 분리하지 않고 전체 message를 넘깁니다.
+            const result = await handler(message);
             this.sendSuccessResponse(message, result);
         } catch (error: any) {
             this.sendErrorResponse(
