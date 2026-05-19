@@ -1,6 +1,14 @@
 import type { BridgeAdapter } from './adapters';
-import type { EventMessage, EventMessageType, RequestMessage, ResponseMessage } from '../common';
-import type { ExtractEvtData, ExtractReqData, ExtractResData, IWebBridgeClient } from './IWebBridgeClient';
+import type {
+    EventMessage,
+    EventMessageType,
+    ExtractEvtData,
+    ExtractReqData,
+    ExtractResData,
+    RequestMessage,
+    ResponseMessage,
+} from '../common';
+import type { IWebBridgeClient } from './IWebBridgeClient';
 import type { WebMessageType } from '@chatic/app-messages';
 
 export interface WebBridgeClientConfig {
@@ -31,7 +39,6 @@ export class WebBridgeClient implements IWebBridgeClient {
         this.version = config.version ?? '2.0.0';
         this.timeoutMs = config.timeoutMs ?? 10000;
 
-        // 브릿지 어댑터로부터 들어오는 메시지 수신부 바인딩
         this.adapter.onMessage(this.handleMessage);
     }
 
@@ -51,7 +58,6 @@ export class WebBridgeClient implements IWebBridgeClient {
         this.pendingRequests.delete(message.refId);
 
         if (message.success) {
-            // 응답 객체의 data(추출된 페이로드)를 그대로 반환
             pending.resolve(message.data);
         } else {
             pending.reject(message.error);
@@ -60,7 +66,6 @@ export class WebBridgeClient implements IWebBridgeClient {
 
     private handleEvent(message: EventMessage): void {
         const listeners = this.eventListeners.get(message.type);
-        // 이벤트 객체의 호환성 필드인 data에서 페이로드 추출
         const payload = (message as any).data !== undefined ? (message as any).data : undefined;
         listeners?.forEach(listener => listener(payload));
     }
@@ -74,7 +79,7 @@ export class WebBridgeClient implements IWebBridgeClient {
             type,
             refId: this.generateRefId(),
             version: this.version,
-            data: payload, // 전송 시 호환성 규격을 위해 data 필드에 탑재
+            data: payload,
         } as unknown as RequestMessage;
 
         this.adapter.postMessage(message);
@@ -91,7 +96,7 @@ export class WebBridgeClient implements IWebBridgeClient {
                 type,
                 refId,
                 version: this.version,
-                data: payload, // 전송 시 호환성 규격을 위해 data 필드에 탑재
+                data: payload,
             } as unknown as RequestMessage;
 
             const timeoutId = setTimeout(() => {
