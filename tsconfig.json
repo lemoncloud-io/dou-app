@@ -70,7 +70,7 @@
             "path": "./libs/data"
         },
         {
-            "path": "./libs/bridge"
+            "path": "./libs/bridges"
         }
     ]
 }
