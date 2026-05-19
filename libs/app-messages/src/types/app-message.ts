@@ -4,42 +4,43 @@
  */
 
 import type {
-    OnUpdateDeviceInfoPayload,
-    OnFetchSafeAreaPayload,
     OnBackgroundStatusChangedPayload,
-    OnOpenShareSheetPayload,
-    OnOpenDocumentPayload,
-    OnGetContactsPayload,
-    OnOpenCameraPayload,
-    OnOpenPhotoLibraryPayload,
-    OnRequestPermissionPayload,
     OnChangeAppIconPayload,
-    OnFetchAppIconPayload,
-    OnFetchAppIconListPayload,
-    OnFetchFcmTokenPayload,
-    OnNotificationPayload,
-    OnFetchProductsPayload,
-    OnFetchCurrentPurchasesPayload,
-    OnPurchaseSuccessPayload,
-    OnPurchaseErrorPayload,
-    OnFinishPurchaseTransactionPayload,
-    OnFetchAllCacheDataPayload,
-    OnFetchCacheDataPayload,
-    OnSaveCacheDataPayload,
-    OnSaveAllCacheDataPayload,
-    OnDeleteCacheDataPayload,
-    OnDeleteAllCacheDataPayload,
+    OnClearAppLogBufferPayload,
     OnClearCacheDataPayload,
-    OnSearchGlobalCacheDataPayload,
-    OnFetchPreferencePayload,
-    OnSavePreferencePayload,
+    OnDeleteAllCacheDataPayload,
+    OnDeleteCacheDataPayload,
     OnDeletePreferencePayload,
+    OnFetchAllCacheDataPayload,
+    OnFetchAppIconListPayload,
+    OnFetchAppIconPayload,
+    OnFetchAppLogBufferPayload,
+    OnFetchAppLogBufferSizePayload,
+    OnFetchCacheDataPayload,
+    OnFetchCurrentPurchasesPayload,
+    OnFetchFcmTokenPayload,
+    OnFetchPreferencePayload,
+    OnFetchProductsPayload,
+    OnFetchSafeAreaPayload,
+    OnFinishPurchaseTransactionPayload,
+    OnGetContactsPayload,
+    OnNotificationPayload,
     OnOAuthLoginPayload,
     OnOAuthLogoutPayload,
-    OnFetchAppLogBufferPayload,
+    OnOpenCameraPayload,
+    OnOpenDocumentPayload,
+    OnOpenPhotoLibraryPayload,
+    OnOpenShareSheetPayload,
     OnPollAppLogBufferPayload,
-    OnClearAppLogBufferPayload,
-    OnFetchAppLogBufferSizePayload,
+    OnPurchaseErrorPayload,
+    OnPurchaseSuccessPayload,
+    OnRequestPermissionPayload,
+    OnSaveAllCacheDataPayload,
+    OnSaveCacheDataPayload,
+    OnSavePreferencePayload,
+    OnSearchGlobalCacheDataPayload,
+    OnUpdateDeviceInfoPayload,
+    PongPayload,
 } from './model';
 
 // ======================================================================
@@ -62,6 +63,7 @@ export const AppMessageTypes = {
     OnFetchAppIcon: 'OnFetchAppIcon',
     OnFetchAppIconList: 'OnFetchAppIconList',
     OnChangeAppIcon: 'OnChangeAppIcon',
+    Pong: 'Pong',
 
     // 2. Notification
     OnFetchFcmToken: 'OnFetchFcmToken',
@@ -123,6 +125,7 @@ export interface AppMessageMap {
     OnFetchAppIcon: OnFetchAppIcon;
     OnFetchAppIconList: OnFetchAppIconList;
     OnChangeAppIcon: OnChangeAppIcon;
+    Pong: Pong;
 
     // 2. Notification
     OnFetchFcmToken: OnFetchFcmToken;
@@ -225,6 +228,10 @@ export interface OnFetchAppIconList extends AppDefaultMessage<'OnFetchAppIconLis
 /** 앱 아이콘 변경 결과 반환 */
 export interface OnChangeAppIcon extends AppDefaultMessage<'OnChangeAppIcon'> {
     data: OnChangeAppIconPayload;
+}
+
+export interface Pong extends AppDefaultMessage<'Pong'> {
+    data: PongPayload;
 }
 
 // ======================================================================

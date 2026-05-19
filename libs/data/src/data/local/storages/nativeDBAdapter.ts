@@ -54,7 +54,7 @@ const messageTypesToListen: AppMessageType[] = [
 ];
 
 messageTypesToListen.forEach(type => {
-    useAppMessageStore.getState().addHandler(type, handleIncomingMessages as any);
+    useAppMessageStore.getState().addHandler(type, handleIncomingMessages);
 });
 
 /**
@@ -65,13 +65,6 @@ export const generateNonce = (): string => {
         return crypto.randomUUID();
     }
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-};
-
-/**
- * 웹 환경에서 네이티브 앱으로 메시지를 전송하는 래퍼(Wrapper) 함수입니다.
- */
-const sendMessage = (message: WebMessage): void => {
-    postMessage(message);
 };
 
 /**
@@ -96,7 +89,7 @@ const postAndWait = <T extends AppMessage>(request: WebMessage): Promise<T> => {
             timer,
         });
 
-        sendMessage(request);
+        postMessage(request);
     });
 };
 

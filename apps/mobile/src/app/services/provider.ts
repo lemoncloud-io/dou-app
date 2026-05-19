@@ -30,7 +30,7 @@ import {
 } from '../data/cache';
 import type { AppLogInfo } from '@chatic/app-messages';
 import type { IKeyValueStorage, ISqliteDatabase } from '../database';
-import { MmkvStorage, SqliteDatabase } from '../database';
+import { MmkvStorage, SqliteDatabase, TABLES } from '../database';
 import type { ILogBufferService } from './log/buffer';
 import { createRingBuffer } from './log/utils/ringBuffer';
 
@@ -78,13 +78,13 @@ class DependencyProvider {
         this.preferenceService = new PreferenceService(this.logService, this.keyValueStorage);
 
         // Data Sources
-        const channelDataSource = new ChannelDataSource();
-        const chatDataSource = new ChatDataSource();
-        const joinDataSource = new JoinDataSource();
-        const metaDataSource = new MetaDataSource();
-        const siteDataSource = new SiteDataSource();
-        const userDataSource = new UserDataSource();
-        const inviteCloudDataSource = new InviteCloudDataSource();
+        const channelDataSource = new ChannelDataSource(this.sqliteDatabase, TABLES.CHANNELS);
+        const chatDataSource = new ChatDataSource(this.sqliteDatabase, TABLES.CHATS);
+        const joinDataSource = new JoinDataSource(this.sqliteDatabase, TABLES.JOINS);
+        const metaDataSource = new MetaDataSource(this.sqliteDatabase, TABLES.METAS);
+        const siteDataSource = new SiteDataSource(this.sqliteDatabase, TABLES.SITES);
+        const userDataSource = new UserDataSource(this.sqliteDatabase, TABLES.USERS);
+        const inviteCloudDataSource = new InviteCloudDataSource(this.sqliteDatabase, TABLES.INVITE_CLOUDS);
 
         // Cache Services
         this.cacheCrudService = new CacheCrudService(

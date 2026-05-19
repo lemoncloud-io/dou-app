@@ -1,41 +1,33 @@
 import type {
-    // 1. Device & System
-    OpenModalPayload,
-    OpenShareSheetPayload,
-    OpenDocumentPayload,
-    OpenCameraPayload,
-    OpenPhotoLibraryPayload,
-    RequestPermissionPayload,
-    ScrollDataPayload,
-    SetCanGoBackPayload,
-    OpenURLPayload,
     ChangeAppIconPayload,
-
-    // 3. IAP
-    PurchasePayload,
-    FinishPurchaseTransactionPayload,
-
-    // 4. Cache
-    FetchCacheDataPayload,
-    FetchAllCacheDataPayload,
-    SaveCacheDataPayload,
-    SaveAllCacheDataPayload,
-    DeleteCacheDataPayload,
-    DeleteAllCacheDataPayload,
     ClearCacheDataPayload,
-    SearchGlobalCacheDataPayload,
-
-    // 5. Preference
-    FetchPreferencePayload,
-    SavePreferencePayload,
+    DeleteAllCacheDataPayload,
+    DeleteCacheDataPayload,
     DeletePreferencePayload,
-
-    // 6. Auth
+    FetchAllCacheDataPayload,
+    FetchAppLogBufferPayload,
+    FetchCacheDataPayload,
+    FetchPreferencePayload,
+    FinishPurchaseTransactionPayload,
     OAuthLoginPayload,
     OAuthLogoutPayload,
-    FetchAppLogBufferPayload,
+    OpenCameraPayload,
+    OpenDocumentPayload,
+    OpenModalPayload,
+    OpenPhotoLibraryPayload,
+    OpenShareSheetPayload,
+    OpenURLPayload,
+    PingPayload,
     PollAppLogBufferPayload,
+    PurchasePayload,
+    RequestPermissionPayload,
+    SaveAllCacheDataPayload,
+    SaveCacheDataPayload,
+    SavePreferencePayload,
+    ScrollDataPayload,
+    SearchGlobalCacheDataPayload,
     SendLogPayload,
+    SetCanGoBackPayload,
 } from './model';
 
 export const WebMessageTypes = {
@@ -98,6 +90,7 @@ export const WebMessageTypes = {
     ClearAppLogBuffer: 'ClearAppLogBuffer',
     FetchAppLogBufferSize: 'FetchAppLogBufferSize',
     SendLog: 'SendLog',
+    Ping: 'Ping',
 } as const;
 
 export type WebMessageType = (typeof WebMessageTypes)[keyof typeof WebMessageTypes];
@@ -162,6 +155,7 @@ export interface WebMessageMap {
     ClearAppLogBuffer: ClearAppLogBuffer;
     FetchAppLogBufferSize: FetchAppLogBufferSize;
     SendLog: SendLog;
+    Ping: Ping;
 }
 
 export type WebMessageData<T extends WebMessageType> = WebMessageMap[T];
@@ -311,4 +305,8 @@ export interface FetchAppLogBufferSize extends WebDefaultMessage<'FetchAppLogBuf
 
 export interface SendLog extends WebDefaultMessage<'SendLog'> {
     data: SendLogPayload;
+}
+
+export interface Ping extends WebDefaultMessage<'Ping'> {
+    data: PingPayload;
 }

@@ -345,3 +345,10 @@ export interface OnChangeAppIconPayload {
     /** 변경 실패 사유 */
     error?: string;
 }
+
+export interface PingPayload {
+    payload: string;
+}
+export interface PongPayload {
+    payload: string;
+}

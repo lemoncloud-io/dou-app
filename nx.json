@@ -29,7 +29,7 @@
                     "watchDepsName": "watch-deps"
                 }
             },
-            "exclude": ["libs/socket/*", "libs/chats/*", "libs/deeplinks/*"]
+            "exclude": ["libs/socket/*", "libs/chats/*", "libs/deeplinks/*", "libs/bridge/*"]
         },
         {
             "plugin": "@nx/react-native/plugin",
@@ -73,7 +73,7 @@
         },
         {
             "plugin": "@nx/js/typescript",
-            "include": ["libs/socket/*", "libs/chats/*", "libs/deeplinks/*"],
+            "include": ["libs/socket/*", "libs/chats/*", "libs/deeplinks/*", "libs/bridge/*"],
             "options": {
                 "typecheck": {
                     "targetName": "typecheck"
@@ -97,6 +97,11 @@
                 "linter": "eslint",
                 "unitTestRunner": "none"
             }
+        }
+    },
+    "targetDefaults": {
+        "test": {
+            "dependsOn": ["^build"]
         }
     }
 }
