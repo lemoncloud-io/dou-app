@@ -1,12 +1,6 @@
-import type {
-    EventMessage,
-    EventMessageType,
-    MessageProtocol,
-    RequestMessage,
-    ResponseMessage,
-    WebMessageType,
-} from '../common';
+import type { EventMessage, EventMessageType, MessageProtocol, RequestMessage, ResponseMessage } from '../common';
 import { JsonProtocol } from '../common';
+import type { WebMessageType } from '@chatic/app-messages';
 import type { ExtractEvtData, ExtractReqData, ExtractResData, IAppBridgeHost } from './IAppBridgeHost';
 
 export interface AppBridgeHostConfig {

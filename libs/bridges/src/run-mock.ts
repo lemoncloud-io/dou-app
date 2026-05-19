@@ -2,7 +2,7 @@ import { MockBridgeAdapter, MockWebBridgeClient } from './web';
 import { MockAppBridgeHost } from './app';
 import type { RequestType, TypedRequestMessage } from './common';
 import * as readline from 'readline';
-import type { PongPayload } from '@chatic/app-messages';
+import type { PingPayload, PongPayload } from '@chatic/app-messages';
 
 // --- 기본 설정 ---
 const logger = {
@@ -36,9 +36,11 @@ const webClient = new MockWebBridgeClient({ adapter: webAdapter });
 // AppBridgeHost 핸들러 등록 (Mock Native 비즈니스 로직)
 // ======================================================================
 
-appHost.registerHandler('Ping', async payload => {
-    logger.app(`[MockAppBridgeHost] 'Ping' 수신. payload: ${payload.payload.length} bytes`);
-    return { payload: payload.payload };
+appHost.registerHandler('Ping', async (payload: unknown) => {
+    // The handler receives an 'unknown' payload and must assert its type for type safety.
+    const pingPayload = payload as PingPayload;
+    logger.app(`[MockAppBridgeHost] 'Ping' 수신. payload: ${pingPayload.payload.length} bytes`);
+    return { payload: pingPayload.payload };
 });
 
 // --- 2. 실행 CLI ---

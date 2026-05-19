@@ -1,14 +1,5 @@
-import type { WebMessageMap, AppMessageMap, WebMessageType } from '@chatic/app-messages';
-import type { BridgePairMap, EventMessageType } from '../common';
-
-export type ExtractReqData<K extends WebMessageType> = WebMessageMap[K] extends { data: infer D } ? D : undefined;
-export type ExtractResData<K extends WebMessageType> = BridgePairMap[K] extends keyof AppMessageMap
-    ? AppMessageMap[BridgePairMap[K]] extends { data: infer D }
-        ? D
-        : void
-    : void;
-export type ExtractEvtData<K extends EventMessageType> = AppMessageMap[K] extends { data: infer D } ? D : undefined;
-// ------------------------------------
+import type { WebMessageType } from '@chatic/app-messages';
+import type { EventMessageType, ExtractEvtData, ExtractReqData, ExtractResData } from '../common';
 
 /**
  * Web 환경에서 App(Native)과 통신하기 위한 브릿지 클라이언트 표준 인터페이스입니다.

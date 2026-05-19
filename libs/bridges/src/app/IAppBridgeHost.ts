@@ -1,14 +1,5 @@
-import type { WebMessageType, WebMessageMap, EventMessageType, AppMessageMap, BridgePairMap } from '../common';
-
-export type ExtractReqData<K extends WebMessageType> = WebMessageMap[K] extends { data: infer D } ? D : undefined;
-export type ExtractResData<K extends WebMessageType> = BridgePairMap[K] extends keyof AppMessageMap
-    ? AppMessageMap[BridgePairMap[K]] extends { data: infer D }
-        ? D
-        : void
-    : void;
-
-export type ExtractEvtData<K extends EventMessageType> = AppMessageMap[K] extends { data: infer D } ? D : undefined;
-// ------------------------------------
+import type { EventMessageType, ExtractEvtData, ExtractReqData, ExtractResData } from '../common/types';
+import type { WebMessageType } from '@chatic/app-messages';
 
 /**
  * App(Native) 환경에서 Web(React 등)의 요청을 수신하고 처리하는 호스트(Host) 인터페이스입니다.

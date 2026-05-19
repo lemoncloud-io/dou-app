@@ -1,6 +1,14 @@
 import type { BridgeAdapter } from './adapters';
-import type { EventMessage, EventMessageType, RequestMessage, ResponseMessage } from '../common';
-import type { ExtractEvtData, ExtractReqData, ExtractResData, IWebBridgeClient } from './IWebBridgeClient';
+import type {
+    EventMessage,
+    EventMessageType,
+    ExtractEvtData,
+    ExtractReqData,
+    ExtractResData,
+    RequestMessage,
+    ResponseMessage,
+} from '../common';
+import type { IWebBridgeClient } from './IWebBridgeClient';
 import type { WebMessageType } from '@chatic/app-messages';
 
 /**

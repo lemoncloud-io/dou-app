@@ -1,5 +1,6 @@
-import type { EventMessage, EventMessageType, RequestMessage, ResponseMessage, WebMessageType } from '../common';
+import type { EventMessage, EventMessageType, RequestMessage, ResponseMessage } from '../common';
 import type { ExtractEvtData, ExtractReqData, ExtractResData, IAppBridgeHost } from './IAppBridgeHost';
+import type { WebMessageType } from '@chatic/app-messages';
 
 export class MockAppBridgeHost implements IAppBridgeHost {
     private handlers: Map<string, (payload: any) => Promise<any>> = new Map();
