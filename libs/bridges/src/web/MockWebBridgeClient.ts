@@ -1,6 +1,7 @@
 import type { BridgeAdapter } from './adapters';
-import type { EventMessage, EventMessageType, RequestMessage, ResponseMessage, WebMessageType } from '../common';
+import type { EventMessage, EventMessageType, RequestMessage, ResponseMessage } from '../common';
 import type { ExtractEvtData, ExtractReqData, ExtractResData, IWebBridgeClient } from './IWebBridgeClient';
+import type { WebMessageType } from '@chatic/app-messages';
 
 /**
  * 단위 테스트 및 로컬 웹 개발(Mock) 환경에서 사용되는 브릿지 클라이언트입니다.

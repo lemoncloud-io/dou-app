@@ -1,6 +1,6 @@
-import type { WebMessageType, EventMessageType, WebMessageMap, AppMessageMap, BridgePairMap } from '../common';
+import type { WebMessageMap, AppMessageMap, WebMessageType } from '@chatic/app-messages';
+import type { BridgePairMap, EventMessageType } from '../common';
 
-// --- 데이터 추출용 유틸리티 타입 ---
 export type ExtractReqData<K extends WebMessageType> = WebMessageMap[K] extends { data: infer D } ? D : undefined;
 export type ExtractResData<K extends WebMessageType> = BridgePairMap[K] extends keyof AppMessageMap
     ? AppMessageMap[BridgePairMap[K]] extends { data: infer D }

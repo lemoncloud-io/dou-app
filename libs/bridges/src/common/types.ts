@@ -1,10 +1,5 @@
 import type { AppMessageMap, AppMessageType, WebMessageMap, WebMessageType } from '@chatic/app-messages';
 
-// 재사용성을 위한 Export
-export type { WebMessageType, WebMessageMap } from '@chatic/app-messages';
-export type { AppMessageType, AppMessageMap } from '@chatic/app-messages';
-
-// 기존 호스트(Mock 포함) 및 run-mock.ts 와의 호환성을 위한 Alias
 export type RequestType = WebMessageType;
 export type ResponseType = AppMessageType;
 
