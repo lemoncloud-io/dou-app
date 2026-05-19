@@ -22,22 +22,23 @@ export const useCrudCacheHandler = () => {
     const { cacheCrudService, logService: logger } = useServices();
 
     const handleFetchAllCache = useCallback(
-        async (payload: FetchAllCacheData['data']): Promise<OnFetchAllCacheDataPayload> => {
+        async (payload: FetchAllCacheData): Promise<OnFetchAllCacheDataPayload> => {
+            const data = payload.data;
             try {
-                const items = await cacheCrudService.fetchAll(payload);
+                const items = await cacheCrudService.fetchAll(data);
                 return {
-                    type: payload.type,
-                    cid: payload.cid,
-                    uid: payload.uid,
+                    type: data.type,
+                    cid: data.cid,
+                    uid: data.uid,
                     items: items,
-                    query: payload.query,
+                    query: data.query,
                 } as OnFetchAllCacheDataPayload;
             } catch (e) {
-                logger.error('CACHE', `FetchAll error: ${payload.type}`, e);
+                logger.error('CACHE', `FetchAll error: ${data.type}`, e);
                 return {
-                    type: payload.type,
-                    cid: payload.cid,
-                    uid: payload.uid,
+                    type: data.type,
+                    cid: data.cid,
+                    uid: data.uid,
                     items: null,
                 };
             }
@@ -46,23 +47,24 @@ export const useCrudCacheHandler = () => {
     );
 
     const handleFetchCache = useCallback(
-        async (payload: FetchCacheData['data']): Promise<OnFetchCacheDataPayload> => {
+        async (payload: FetchCacheData): Promise<OnFetchCacheDataPayload> => {
+            const data = payload.data;
             try {
-                const item = await cacheCrudService.fetch(payload);
+                const item = await cacheCrudService.fetch(data);
                 return {
-                    type: payload.type,
-                    cid: payload.cid,
-                    uid: payload.uid,
-                    id: payload.id,
+                    type: data.type,
+                    cid: data.cid,
+                    uid: data.uid,
+                    id: data.id,
                     item: item,
                 } as OnFetchCacheDataPayload;
             } catch (e) {
-                logger.error('CACHE', `Fetch error: ${payload.type} ${payload.id}`, e);
+                logger.error('CACHE', `Fetch error: ${data.type} ${data.id}`, e);
                 return {
-                    type: payload.type,
-                    cid: payload.cid,
-                    uid: payload.uid,
-                    id: payload.id,
+                    type: data.type,
+                    cid: data.cid,
+                    uid: data.uid,
+                    id: data.id,
                     item: null,
                 };
             }
@@ -71,22 +73,23 @@ export const useCrudCacheHandler = () => {
     );
 
     const handleSaveCache = useCallback(
-        async (payload: SaveCacheData['data']): Promise<OnSaveCacheDataPayload> => {
+        async (payload: SaveCacheData): Promise<OnSaveCacheDataPayload> => {
+            const data = payload.data;
             try {
-                const savedId = await cacheCrudService.save(payload);
+                const savedId = await cacheCrudService.save(data);
                 return {
-                    type: payload.type,
-                    cid: payload.cid,
-                    uid: payload.uid,
+                    type: data.type,
+                    cid: data.cid,
+                    uid: data.uid,
                     id: savedId,
                     success: true,
                 };
             } catch (e) {
-                logger.error('CACHE', `Save error: ${payload.type} ${payload.id}`, e);
+                logger.error('CACHE', `Save error: ${data.type} ${data.id}`, e);
                 return {
-                    type: payload.type,
-                    cid: payload.cid,
-                    uid: payload.uid,
+                    type: data.type,
+                    cid: data.cid,
+                    uid: data.uid,
                     id: null,
                     success: false,
                 };
@@ -96,23 +99,24 @@ export const useCrudCacheHandler = () => {
     );
 
     const handleSaveAllCache = useCallback(
-        async (payload: SaveAllCacheData['data']): Promise<OnSaveAllCacheDataPayload> => {
+        async (payload: SaveAllCacheData): Promise<OnSaveAllCacheDataPayload> => {
+            const data = payload.data;
             try {
-                const savedIds = await cacheCrudService.saveAll(payload);
+                const savedIds = await cacheCrudService.saveAll(data);
                 return {
-                    type: payload.type,
-                    cid: payload.cid,
-                    uid: payload.uid,
+                    type: data.type,
+                    cid: data.cid,
+                    uid: data.uid,
                     ids: savedIds,
                     success: true,
-                    query: payload.query,
+                    query: data.query,
                 };
             } catch (e) {
-                logger.error('CACHE', `SaveAll error: ${payload.type}`, e);
+                logger.error('CACHE', `SaveAll error: ${data.type}`, e);
                 return {
-                    type: payload.type,
-                    cid: payload.cid,
-                    uid: payload.uid,
+                    type: data.type,
+                    cid: data.cid,
+                    uid: data.uid,
                     ids: [],
                     success: false,
                 };
@@ -122,22 +126,23 @@ export const useCrudCacheHandler = () => {
     );
 
     const handleDeleteCache = useCallback(
-        async (payload: DeleteCacheData['data']): Promise<OnDeleteCacheDataPayload> => {
+        async (payload: DeleteCacheData): Promise<OnDeleteCacheDataPayload> => {
+            const data = payload.data;
             try {
-                const deletedId = await cacheCrudService.delete(payload);
+                const deletedId = await cacheCrudService.delete(data);
                 return {
-                    type: payload.type,
-                    cid: payload.cid,
-                    uid: payload.uid,
+                    type: data.type,
+                    cid: data.cid,
+                    uid: data.uid,
                     id: deletedId,
                     success: true,
                 };
             } catch (e) {
-                logger.error('CACHE', `Delete error: ${payload.type} ${payload.id}`, e);
+                logger.error('CACHE', `Delete error: ${data.type} ${data.id}`, e);
                 return {
-                    type: payload.type,
-                    cid: payload.cid,
-                    uid: payload.uid,
+                    type: data.type,
+                    cid: data.cid,
+                    uid: data.uid,
                     id: null,
                     success: false,
                 };
@@ -147,22 +152,23 @@ export const useCrudCacheHandler = () => {
     );
 
     const handleDeleteAllCache = useCallback(
-        async (payload: DeleteAllCacheData['data']): Promise<OnDeleteAllCacheDataPayload> => {
+        async (payload: DeleteAllCacheData): Promise<OnDeleteAllCacheDataPayload> => {
+            const data = payload.data;
             try {
-                const deletedIds = await cacheCrudService.deleteAll(payload);
+                const deletedIds = await cacheCrudService.deleteAll(data);
                 return {
-                    type: payload.type,
-                    cid: payload.cid,
-                    uid: payload.uid,
+                    type: data.type,
+                    cid: data.cid,
+                    uid: data.uid,
                     ids: deletedIds,
                     success: true,
                 };
             } catch (e) {
-                logger.error('CACHE', `DeleteAll error: ${payload.type}`, e);
+                logger.error('CACHE', `DeleteAll error: ${data.type}`, e);
                 return {
-                    type: payload.type,
-                    cid: payload.cid,
-                    uid: payload.uid,
+                    type: data.type,
+                    cid: data.cid,
+                    uid: data.uid,
                     ids: [],
                     success: false,
                 };
@@ -172,21 +178,22 @@ export const useCrudCacheHandler = () => {
     );
 
     const handleClearCache = useCallback(
-        async (payload: ClearCacheData['data']): Promise<OnClearCacheDataPayload> => {
+        async (payload: ClearCacheData): Promise<OnClearCacheDataPayload> => {
+            const data = payload.data;
             try {
-                await cacheCrudService.clear(payload);
+                await cacheCrudService.clear(data);
                 return {
-                    type: payload.type,
-                    cid: payload.cid,
-                    uid: payload.uid,
+                    type: data.type,
+                    cid: data.cid,
+                    uid: data.uid,
                     success: true,
                 };
             } catch (e) {
-                logger.error('CACHE', `Clear error: ${payload.type}`, e);
+                logger.error('CACHE', `Clear error: ${data.type}`, e);
                 return {
-                    type: payload.type,
-                    cid: payload.cid,
-                    uid: payload.uid,
+                    type: data.type,
+                    cid: data.cid,
+                    uid: data.uid,
                     success: false,
                 };
             }

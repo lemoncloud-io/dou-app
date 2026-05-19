@@ -4,13 +4,14 @@ import { Platform } from 'react-native';
 import { logger, provider } from '../../services';
 
 import type { IAppBridgeHost } from '@chatic/bridges';
+import type { FetchFcmToken } from '@chatic/app-messages';
 
 /**
  * 웹뷰에서 FCM 기능을 사용하기 위한 핸들러 훅
  * @param bridge
  */
 export const useFcmHandler = (bridge: IAppBridgeHost) => {
-    const fetchFcmToken = useCallback(async (): Promise<{ token: string }> => {
+    const fetchFcmToken = useCallback(async (_message: FetchFcmToken): Promise<{ token: string }> => {
         try {
             const hasPermission = await provider.notificationService.requestPermission();
 

@@ -14,8 +14,8 @@ export const usePreferenceCacheHandler = () => {
     const { preferenceService, logService } = useServices();
 
     const handleFetchPreference = useCallback(
-        async (payload: FetchPreference['data']): Promise<OnFetchPreferencePayload> => {
-            const { key } = payload;
+        async (payload: FetchPreference): Promise<OnFetchPreferencePayload> => {
+            const { key } = payload.data;
             try {
                 const value = await preferenceService.get(key as any);
                 return { key, value };
@@ -28,8 +28,8 @@ export const usePreferenceCacheHandler = () => {
     );
 
     const handleSavePreference = useCallback(
-        async (payload: SavePreference['data']): Promise<OnSavePreferencePayload> => {
-            const { key, value } = payload;
+        async (payload: SavePreference): Promise<OnSavePreferencePayload> => {
+            const { key, value } = payload.data;
 
             try {
                 switch (key) {
@@ -53,8 +53,8 @@ export const usePreferenceCacheHandler = () => {
     );
 
     const handleDeletePreference = useCallback(
-        async (payload: DeletePreference['data']): Promise<OnDeletePreferencePayload> => {
-            const { key } = payload;
+        async (payload: DeletePreference): Promise<OnDeletePreferencePayload> => {
+            const { key } = payload.data;
             try {
                 await preferenceService.remove(key as any);
                 return { key, success: true };

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useIsFocused } from '@react-navigation/native';
-import type { OpenModal } from '@chatic/app-messages';
+import type { CloseModal, OpenModal } from '@chatic/app-messages';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
 /**
@@ -28,9 +28,9 @@ export const useModalHandler = (bridge: IAppBridgeHost, navigation: any) => {
      * Opens a native modal screen with the provided configuration.
      */
     const handleOpenModal = useCallback(
-        (data: OpenModal['data']) => {
+        (message: OpenModal) => {
             isOpenModal.current = true;
-            const { url, type = 'sheet', heightRatio, dragHandle } = data;
+            const { url, type = 'sheet', heightRatio, dragHandle } = message.data;
             navigation.navigate('Modal', { url, type, heightRatio, dragHandle });
         },
         [navigation]
@@ -39,11 +39,14 @@ export const useModalHandler = (bridge: IAppBridgeHost, navigation: any) => {
     /**
      * Closes the currently open native modal if possible.
      */
-    const handleCloseModal = useCallback(() => {
-        if (navigation.canGoBack()) {
-            navigation.goBack();
-        }
-    }, [navigation]);
+    const handleCloseModal = useCallback(
+        (_message: CloseModal) => {
+            if (navigation.canGoBack()) {
+                navigation.goBack();
+            }
+        },
+        [navigation]
+    );
 
     return { handleOpenModal, handleCloseModal };
 };

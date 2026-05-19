@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { OAuthLoginProvider, OnOAuthLoginPayload, OnOAuthLogoutPayload } from '@chatic/app-messages';
+import type { OAuthLogin, OAuthLogout, OnOAuthLoginPayload, OnOAuthLogoutPayload } from '@chatic/app-messages';
 
 export const useOAuthHandler = () => {
     const { oauthService: oAuthService, logService: logger } = useServices();
@@ -8,12 +8,13 @@ export const useOAuthHandler = () => {
      * OAuth 로그인
      */
     const handleOAuthLogin = useCallback(
-        async (provider: OAuthLoginProvider): Promise<OnOAuthLoginPayload> => {
+        async (payload: OAuthLogin): Promise<OnOAuthLoginPayload> => {
+            const data = payload.data;
             try {
-                const result = await oAuthService.login(provider);
+                const result = await oAuthService.login(data.provider);
                 return { result };
             } catch (error) {
-                logger.error('OAUTH', `Login error for provider ${provider}`, error);
+                logger.error('OAUTH', `Login error for provider ${data.provider}`, error);
                 throw error;
             }
         },
@@ -25,12 +26,14 @@ export const useOAuthHandler = () => {
      * `Apple`의 경우 별도 logout 로직이 존재하지 않아 무조건 `true`를 반환
      */
     const handleOAuthLogout = useCallback(
-        async (provider: OAuthLoginProvider): Promise<OnOAuthLogoutPayload> => {
+        async (payload: OAuthLogout): Promise<OnOAuthLogoutPayload> => {
+            const data = payload.data;
+
             try {
-                const success: boolean = await oAuthService.logout(provider);
+                const success: boolean = await oAuthService.logout(data.provider);
                 return { success };
             } catch (error) {
-                logger.error('OAUTH', `Logout error for provider ${provider}`, error);
+                logger.error('OAUTH', `Logout error for provider ${data.provider}`, error);
                 throw error;
             }
         },

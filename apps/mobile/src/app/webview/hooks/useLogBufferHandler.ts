@@ -1,7 +1,9 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
 import type {
+    ClearAppLogBuffer,
     FetchAppLogBuffer,
+    FetchAppLogBufferSize,
     OnClearAppLogBufferPayload,
     OnFetchAppLogBufferPayload,
     OnFetchAppLogBufferSizePayload,
@@ -13,9 +15,11 @@ export const useLogBufferHandler = () => {
     const { logBufferService, logService: logger } = useServices();
 
     const handleFetchAppLogBuffer = useCallback(
-        async (payload: FetchAppLogBuffer['data']): Promise<OnFetchAppLogBufferPayload> => {
+        async (payload: FetchAppLogBuffer): Promise<OnFetchAppLogBufferPayload> => {
+            const data = payload.data;
+
             try {
-                const logs = logBufferService.peek(payload.count);
+                const logs = logBufferService.peek(data.count);
                 return {
                     logs,
                     size: logBufferService.getSize(),
@@ -29,9 +33,11 @@ export const useLogBufferHandler = () => {
     );
 
     const handlePollAppLogBuffer = useCallback(
-        async (payload: PollAppLogBuffer['data']): Promise<OnPollAppLogBufferPayload> => {
+        async (payload: PollAppLogBuffer): Promise<OnPollAppLogBufferPayload> => {
+            const data = payload.data;
+
             try {
-                const logs = await logBufferService.poll(payload.count);
+                const logs = await logBufferService.poll(data.count);
                 return {
                     logs,
                     size: logBufferService.getSize(),
@@ -44,29 +50,35 @@ export const useLogBufferHandler = () => {
         [logBufferService, logger]
     );
 
-    const handleClearAppLogBuffer = useCallback(async (): Promise<OnClearAppLogBufferPayload> => {
-        try {
-            await logBufferService.clear();
-            return {
-                success: true,
-                size: logBufferService.getSize(),
-            };
-        } catch (e) {
-            logger.error('LOG_BUFFER', 'ClearAppLogBuffer error', e);
-            throw e;
-        }
-    }, [logBufferService, logger]);
+    const handleClearAppLogBuffer = useCallback(
+        async (_message: ClearAppLogBuffer): Promise<OnClearAppLogBufferPayload> => {
+            try {
+                await logBufferService.clear();
+                return {
+                    success: true,
+                    size: logBufferService.getSize(),
+                };
+            } catch (e) {
+                logger.error('LOG_BUFFER', 'ClearAppLogBuffer error', e);
+                throw e;
+            }
+        },
+        [logBufferService, logger]
+    );
 
-    const handleFetchAppLogBufferSize = useCallback(async (): Promise<OnFetchAppLogBufferSizePayload> => {
-        try {
-            return {
-                size: logBufferService.getSize(),
-            };
-        } catch (e) {
-            logger.error('LOG_BUFFER', 'FetchAppLogBufferSize error', e);
-            throw e;
-        }
-    }, [logBufferService, logger]);
+    const handleFetchAppLogBufferSize = useCallback(
+        async (_message: FetchAppLogBufferSize): Promise<OnFetchAppLogBufferSizePayload> => {
+            try {
+                return {
+                    size: logBufferService.getSize(),
+                };
+            } catch (e) {
+                logger.error('LOG_BUFFER', 'FetchAppLogBufferSize error', e);
+                throw e;
+            }
+        },
+        [logBufferService, logger]
+    );
 
     return {
         handleFetchAppLogBuffer,

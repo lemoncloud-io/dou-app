@@ -5,10 +5,14 @@ import { logger } from '../../services';
 
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type {
+    FetchCurrentPurchases,
+    FetchProducts,
+    FinishPurchaseTransaction,
     OnFetchCurrentPurchasesPayload,
     OnFetchProductsPayload,
     OnFinishPurchaseTransactionPayload,
-    PurchasePayload,
+    OpenSubscriptionManagement,
+    Purchase as PurchaseMessage,
 } from '@chatic/app-messages';
 import type { Purchase, PurchaseError } from 'react-native-iap';
 
@@ -40,23 +44,30 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
     /**
      * 구독 상품 목록 조회
      */
-    const fetchProducts = useCallback(async (): Promise<OnFetchProductsPayload> => {
-        return { products };
-    }, [products]);
+    const fetchProducts = useCallback(
+        async (_message: FetchProducts): Promise<OnFetchProductsPayload> => {
+            return { products };
+        },
+        [products]
+    );
 
     /**
      * 현재 보유 중인 구독권 조회
      */
-    const fetchCurrentPurchases = useCallback(async (): Promise<OnFetchCurrentPurchasesPayload> => {
-        return { purchases: currentPurchases };
-    }, [currentPurchases]);
+    const fetchCurrentPurchases = useCallback(
+        async (_message: FetchCurrentPurchases): Promise<OnFetchCurrentPurchasesPayload> => {
+            return { purchases: currentPurchases };
+        },
+        [currentPurchases]
+    );
 
     /**
      * 구독권 구매 수행
      */
     const handlePurchaseSubscription = useCallback(
-        async (payload: PurchasePayload) => {
-            await handlePurchase(payload.id, payload.offerToken, payload.oldPlanId, payload.newPlanId);
+        async (message: PurchaseMessage) => {
+            const { id, offerToken, oldPlanId, newPlanId } = message.data;
+            await handlePurchase(id, offerToken, oldPlanId, newPlanId);
         },
         [handlePurchase]
     );
@@ -65,9 +76,11 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
      * 웹에서 서버 검증을 마친 후, 해당 트랜잭션을 스토어에서 완료(소비) 처리하도록 요청받는 핸들러
      */
     const handleFinishPurchase = useCallback(
-        async (payload: { purchase: Purchase }): Promise<OnFinishPurchaseTransactionPayload> => {
-            await finishPurchase(payload.purchase);
-            return { purchase: payload.purchase };
+        async (message: FinishPurchaseTransaction): Promise<OnFinishPurchaseTransactionPayload> => {
+            const { purchase } = message.data;
+
+            await finishPurchase(purchase);
+            return { purchase: purchase };
         },
         [finishPurchase]
     );
@@ -75,9 +88,12 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
     /**
      * 구독 관리 페이지 이동 핸들러
      */
-    const handleOpenSubscriptionManagement = useCallback(async () => {
-        await openSubscriptionManagement();
-    }, [openSubscriptionManagement]);
+    const handleOpenSubscriptionManagement = useCallback(
+        async (_message: OpenSubscriptionManagement) => {
+            await openSubscriptionManagement();
+        },
+        [openSubscriptionManagement]
+    );
 
     return {
         fetchProducts,

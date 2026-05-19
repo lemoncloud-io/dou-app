@@ -1,18 +1,20 @@
 import { useCallback } from 'react';
 
-import { provider } from '../../services';
-import { DEFAULT_APP_ICON_NAME } from '../../services';
+import { DEFAULT_APP_ICON_NAME, provider } from '../../services';
 
 import type {
     ChangeAppIcon,
+    FetchAppIcon,
+    FetchAppIconList,
     OnChangeAppIconPayload,
-    OnFetchAppIconPayload,
     OnFetchAppIconListPayload,
+    OnFetchAppIconPayload,
 } from '@chatic/app-messages';
+import { toErrorMessage } from '../../utils';
 
 export const useAppIconHandler = () => {
     //  현재 적용된 아이콘 이름만 조회
-    const handleFetchAppIcon = useCallback(async (): Promise<OnFetchAppIconPayload> => {
+    const handleFetchAppIcon = useCallback(async (_message: FetchAppIcon): Promise<OnFetchAppIconPayload> => {
         try {
             const currentIcon = await provider.dynamicAppIconService.fetchCurrentIcon();
             return { iconName: currentIcon, supported: true };
@@ -22,15 +24,19 @@ export const useAppIconHandler = () => {
     }, []);
 
     //  사용 가능한 아이콘 목록 전체 조회
-    const handleFetchAppIconList = useCallback(async (): Promise<OnFetchAppIconListPayload> => {
-        const availableIcons = provider.dynamicAppIconService.getAvailableIcons();
-        return { availableIcons };
-    }, []);
+    const handleFetchAppIconList = useCallback(
+        async (_message: FetchAppIconList): Promise<OnFetchAppIconListPayload> => {
+            const availableIcons = provider.dynamicAppIconService.getAvailableIcons();
+            return { availableIcons };
+        },
+        []
+    );
 
     //  앱 아이콘 변경 실행
-    const handleChangeAppIcon = useCallback(async (payload: ChangeAppIcon['data']): Promise<OnChangeAppIconPayload> => {
+    const handleChangeAppIcon = useCallback(async (message: ChangeAppIcon): Promise<OnChangeAppIconPayload> => {
+        const { iconName } = message.data;
         try {
-            const requestedIcon = payload.iconName ?? null;
+            const requestedIcon = iconName ?? null;
             const success = await provider.dynamicAppIconService.setAppIcon(requestedIcon);
             const currentIcon = await provider.dynamicAppIconService.fetchCurrentIcon();
 

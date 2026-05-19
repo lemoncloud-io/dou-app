@@ -6,8 +6,8 @@ export const useSearchCacheHandler = () => {
     const { cacheSearchService, logService: logger } = useServices();
 
     const handleSearchGlobalCache = useCallback(
-        async (payload: SearchGlobalCacheData['data']): Promise<OnSearchGlobalCacheDataPayload> => {
-            const { keyword, cid, uid } = payload;
+        async (payload: SearchGlobalCacheData): Promise<OnSearchGlobalCacheDataPayload> => {
+            const { keyword, cid, uid } = payload.data;
             try {
                 const items = await cacheSearchService.search(keyword, cid, uid);
                 return { items };

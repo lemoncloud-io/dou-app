@@ -4,29 +4,34 @@ import RNFS from 'react-native-fs';
 import { useServices } from '../../hooks';
 import type {
     GetContacts,
+    OnGetContacts,
+    OnOpenCamera,
+    OnOpenDocumentPayload,
+    OnOpenPhotoLibrary,
+    OnOpenShareSheet,
     OpenCamera,
     OpenDocument,
     OpenPhotoLibrary,
+    OpenSettings,
     OpenShareSheet,
     OpenURL,
-    OnGetContacts,
-    OnOpenCamera,
-    OnOpenDocument,
-    OnOpenPhotoLibrary,
-    OnOpenShareSheet,
 } from '@chatic/app-messages';
-import type { Asset, CameraOptions, ImageLibraryOptions } from 'react-native-image-picker';
+import type { Asset } from 'react-native-image-picker';
 
 export const useDeviceHandler = () => {
     const { deviceService, logService: logger } = useServices();
-    const handleOpenSettings = useCallback(async () => {
-        await deviceService.openSettings();
-    }, [deviceService]);
+    const handleOpenSettings = useCallback(
+        async (_message: OpenSettings) => {
+            await deviceService.openSettings();
+        },
+        [deviceService]
+    );
 
     const handleOpenShareSheet = useCallback(
-        async (payload: OpenShareSheet['data']): Promise<OnOpenShareSheet['data']> => {
+        async (message: OpenShareSheet): Promise<OnOpenShareSheet['data']> => {
+            const data = message.data;
             try {
-                const result = await deviceService.openShareSheet(payload);
+                const result = await deviceService.openShareSheet(data);
                 return {
                     action: result.action,
                     activityType: result.activityType ?? null,
@@ -40,14 +45,15 @@ export const useDeviceHandler = () => {
     );
 
     const handleOpenDocument = useCallback(
-        async (payload: OpenDocument['data']): Promise<OnOpenDocument['data']> => {
+        async (message: OpenDocument): Promise<OnOpenDocumentPayload> => {
+            const data = message.data;
             try {
-                const results = await deviceService.openDocument(payload.allowMultiSelection);
+                const results = await deviceService.openDocument(data.allowMultiSelection);
 
                 const documents = await Promise.all(
                     results.map(async doc => {
                         let base64: string | undefined;
-                        if (payload.includeBase64 && doc.uri) {
+                        if (data.includeBase64 && doc.uri) {
                             try {
                                 base64 = await RNFS.readFile(doc.uri, 'base64');
                             } catch (readError) {
@@ -63,7 +69,9 @@ export const useDeviceHandler = () => {
                         };
                     })
                 );
-                return { documents };
+                return {
+                    documents: documents,
+                } as OnOpenDocumentPayload;
             } catch (e) {
                 logger.error('DEVICE', 'OpenDocument error', e);
                 throw e;
@@ -73,9 +81,10 @@ export const useDeviceHandler = () => {
     );
 
     const handleOpenCamera = useCallback(
-        async (payload: OpenCamera['data']): Promise<OnOpenCamera['data']> => {
+        async (_message: OpenCamera): Promise<OnOpenCamera['data']> => {
+            //TODO: Not Implement
             try {
-                const assets: Asset[] = await deviceService.openCamera(payload as CameraOptions);
+                const assets: Asset[] = await deviceService.openCamera();
                 return {
                     assets: assets.map(asset => ({
                         uri: asset.uri,
@@ -96,9 +105,10 @@ export const useDeviceHandler = () => {
     );
 
     const handleOpenPhotoLibrary = useCallback(
-        async (payload: OpenPhotoLibrary['data']): Promise<OnOpenPhotoLibrary['data']> => {
+        async (_message: OpenPhotoLibrary): Promise<OnOpenPhotoLibrary['data']> => {
+            //TODO: Not Implement
             try {
-                const assets: Asset[] = await deviceService.openPhotoLibrary(payload as ImageLibraryOptions);
+                const assets: Asset[] = await deviceService.openPhotoLibrary();
                 return {
                     assets: assets.map(asset => ({
                         uri: asset.uri,
@@ -119,7 +129,7 @@ export const useDeviceHandler = () => {
     );
 
     const handleGetContacts = useCallback(
-        async (_payload: GetContacts): Promise<OnGetContacts['data']> => {
+        async (_message: GetContacts): Promise<OnGetContacts['data']> => {
             try {
                 const contacts = await deviceService.getContacts();
                 return {
@@ -157,9 +167,9 @@ export const useDeviceHandler = () => {
     );
 
     const handleOpenURL = useCallback(
-        async (payload: OpenURL['data']): Promise<void> => {
+        async (_message: OpenURL): Promise<void> => {
+            const { url } = _message.data;
             try {
-                const { url } = payload;
                 await Linking.openURL(url);
             } catch (e) {
                 logger.error('DEVICE', 'OpenURL error', e);
