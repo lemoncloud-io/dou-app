@@ -10,7 +10,7 @@ import {
     usePermissionHandler,
     useSubscriptionIapHandler,
 } from '../../../webview/hooks';
-import type { AppMessageData, WebMessageType } from '@chatic/app-messages';
+import type { WebMessageType } from '@chatic/app-messages';
 
 type LogType = 'sent' | 'received' | 'info' | 'error';
 
@@ -70,11 +70,11 @@ export const BridgeTestScreen = () => {
         (event: WebViewMessageEvent) => {
             try {
                 const parsed = JSON.parse(event.nativeEvent.data);
-                if (parsed.type && parsed.nonce && parsed.success === undefined) {
+                if (parsed.type && parsed.refId && parsed.success === undefined) {
                     addLog('received', `[Web -> App] Type: ${parsed.type}`);
                 }
             } catch {
-                //
+                /* empty */
             }
             originalOnMessage(event);
         },
@@ -82,7 +82,6 @@ export const BridgeTestScreen = () => {
     );
 
     useEffect(() => {
-        // 기존 훅들이 payload만 반환하므로 타입 단언(as any)을 통해 에러 우회
         bridge.registerHandler('OpenShareSheet', handleOpenShareSheet as any);
         bridge.registerHandler('OpenDocument', handleOpenDocument as any);
         bridge.registerHandler('RequestPermission', handleRequestPermission as any);
@@ -131,10 +130,21 @@ export const BridgeTestScreen = () => {
         handleOpenSubscriptionManagement,
     ]);
 
-    const sendToWeb = (message: AppMessageData<any>) => {
-        // 인터페이스 변경에 따라 인자를 분리하지 않고 메시지 객체 자체를 푸시
-        bridge.pushEvent(message as any);
-        addLog('sent', `App -> Web: Sent ${message.type}`);
+    // 이벤트 테스트용 함수 (새 규격에 맞는 이벤트 사용)
+    const sendTestEventToWeb = () => {
+        const testEvent = {
+            type: 'OnReceiveNotification',
+            success: true,
+            data: {
+                notification: {
+                    title: 'Native Push',
+                    body: 'App에서 Web으로 테스트 이벤트를 전송했습니다.',
+                },
+            },
+        } as const;
+
+        bridge.pushEvent<'OnReceiveNotification'>(testEvent);
+        addLog('sent', `App -> Web: Sent ${testEvent.type}`);
     };
 
     const renderLogItem = ({ item }: { item: LogItem }) => {
@@ -219,23 +229,23 @@ export const BridgeTestScreen = () => {
                 </style>
             </head>
             <body>
-                <h2>WebView Area</h2>
+                <h2>WebView Area (Mock)</h2>
 
                 <div class="button-container">
-                    <button onclick="sendToNative({ type: 'OAuthLogin', data: { provider: 'google' } })">Google Login</button>
-                    <button onclick="sendToNative({ type: 'OAuthLogin', data: { provider: 'apple' } })">Apple Login</button>
-                    <button onclick="sendToNative({ type: 'OAuthLogout', data: { provider: 'google' } })">Google Logout</button>
-                    <button onclick="sendToNative({ type: 'OAuthLogout', data: { provider: 'apple' } })">Apple Logout</button>
-                    <button onclick="sendToNative({ type: 'GetContacts', data: {} })">Get Contacts</button>
-                    <button onclick="sendToNative({ type: 'OpenCamera', data: { mediaType: 'photo' } })">Open Camera</button>
-                    <button onclick="sendToNative({ type: 'RequestPermission', data: { permission: 'CAMERA' } })">Req Cam Perm</button>
-                    <button onclick="sendToNative({ type: 'OpenShareSheet', data: { message: 'Hello from WebView!' } })">Open Share</button>
-                    <button onclick="sendToNative({ type: 'OpenDocument', data: { allowMultiSelection: true } })">Open Document</button>
+                    <button onclick="sendToNative({ type: 'OAuthLogin', payload: { provider: 'google' } })">Google Login</button>
+                    <button onclick="sendToNative({ type: 'OAuthLogin', payload: { provider: 'apple' } })">Apple Login</button>
+                    <button onclick="sendToNative({ type: 'OAuthLogout', payload: { provider: 'google' } })">Google Logout</button>
+                    <button onclick="sendToNative({ type: 'OAuthLogout', payload: { provider: 'apple' } })">Apple Logout</button>
+                    <button onclick="sendToNative({ type: 'GetContacts' })">Get Contacts</button>
+                    <button onclick="sendToNative({ type: 'OpenCamera', payload: { mediaType: 'photo' } })">Open Camera</button>
+                    <button onclick="sendToNative({ type: 'RequestPermission', payload: { permission: 'CAMERA' } })">Req Cam Perm</button>
+                    <button onclick="sendToNative({ type: 'OpenShareSheet', payload: { message: 'Hello from WebView!' } })">Open Share</button>
+                    <button onclick="sendToNative({ type: 'OpenDocument', payload: { allowMultiSelection: true } })">Open Document</button>
 
-                    <button onclick="sendToNative({ type: 'FetchProducts', data: {} })">IAP: Fetch Products</button>
-                    <button onclick="sendToNative({ type: 'FetchCurrentPurchases', data: {} })">IAP: Fetch Purchases</button>
-                    <button onclick="sendToNative({ type: 'Purchase', data: { sku: 'TEST' }})">IAP: Buy Subscription (required sku)</button>
-                    <button onclick="sendToNative({ type: 'OpenSubscriptionManagement', data: {} })">IAP: Manage</button>
+                    <button onclick="sendToNative({ type: 'FetchProducts' })">IAP: Fetch Products</button>
+                    <button onclick="sendToNative({ type: 'FetchCurrentPurchases' })">IAP: Fetch Purchases</button>
+                    <button onclick="sendToNative({ type: 'Purchase', payload: { id: 'TEST_SKU' }})">IAP: Buy Subscription</button>
+                    <button onclick="sendToNative({ type: 'OpenSubscriptionManagement' })">IAP: Manage</button>
                 </div>
 
                 <div id="log" class="log-container">
@@ -274,6 +284,10 @@ export const BridgeTestScreen = () => {
                 document.addEventListener('message', handleMessage);
 
                 function sendToNative(msg) {
+                    // 메타데이터 자동 주입 (웹 브릿지 클라이언트의 역할을 모방)
+                    msg.refId = Math.random().toString(36).substring(2, 9);
+                    msg.version = '2.0.0';
+
                     const messageStr = JSON.stringify(msg);
                     let sent = false;
 
@@ -342,14 +356,9 @@ export const BridgeTestScreen = () => {
                 >
                     <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: '#4A90E2' }]}
-                        onPress={() =>
-                            sendToWeb({
-                                type: 'OnAppLog',
-                                data: { level: 'info', tag: 'NATIVE', message: 'Hello Web!', timestamp: Date.now() },
-                            })
-                        }
+                        onPress={sendTestEventToWeb}
                     >
-                        <Text style={styles.buttonText}>App to Web</Text>
+                        <Text style={styles.buttonText}>App to Web Push (Notification)</Text>
                     </TouchableOpacity>
                 </ScrollView>
             </View>
