@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import type { OAuthLoginProvider } from '@chatic/app-messages';
 import {
     getMobileAppInfo,
     initializeMessageListener,
@@ -7,7 +8,6 @@ import {
     postMessage,
     useAppMessageStore,
 } from '@chatic/app-messages';
-import type { OAuthLoginProvider } from '@chatic/app-messages';
 
 import { updateProfile } from '../api';
 import { LANGUAGE_KEY, cloudCore, webCore, coreStorage, startWebCoreInit, resetWebCoreInit } from '../core';
@@ -323,12 +323,6 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      */
     updateProfile: async (uid: string, user: Record<string, unknown>) => {
         await updateProfile(uid, user);
-        // TODO: set updated profile
-        // set(state => {
-        //     const profile = { ...state.profile, $user: user };
-        //     const userName = user['name'];
-        //     return { ...state, profile, userName };
-        // });
     },
 
     /**

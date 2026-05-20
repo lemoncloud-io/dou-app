@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import type { WebView } from 'react-native-webview';
 import { useAndroidBack } from './index';
+import type { IAppBridgeHost } from '@chatic/bridges';
 
 /**
  * Hook to manage the back navigation state of the WebView.
  * Used to determine whether the Android hardware back button should navigate back within the web, or exit the app.
- * @param webViewRef - Reference to the WebView component to send back events to
  */
-export const useWebViewNavigation = (webViewRef: React.RefObject<WebView | null>) => {
+export const useWebViewNavigation = (bridge: IAppBridgeHost) => {
     // State indicating if the web app has open dialogs/modals or internal routing history to go back to
     const [webCanGoBack, setWebCanGoBack] = useState(false);
 
@@ -19,7 +18,7 @@ export const useWebViewNavigation = (webViewRef: React.RefObject<WebView | null>
     const canGoBack = webCanGoBack || navCanGoBack;
 
     // Register Android hardware back button listener
-    useAndroidBack(webViewRef, canGoBack);
+    useAndroidBack(bridge, canGoBack);
 
     return {
         setWebCanGoBack,

@@ -1,13 +1,13 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { WebViewBridge } from './useBaseBridge';
-import type { AppMessageData, PermissionStatus, RequestPermission } from '@chatic/app-messages';
+import type { PermissionStatus, WebMessageData } from '@chatic/app-messages';
 
-export const usePermissionHandler = (bridge: WebViewBridge) => {
+export const usePermissionHandler = () => {
     const { permissionService, logService: logger } = useServices();
+
     const handleRequestPermission = useCallback(
-        async (data: RequestPermission['data']) => {
-            const { permission } = data;
+        async (message: WebMessageData<'RequestPermission'>) => {
+            const { permission } = message.data;
 
             try {
                 const isGranted = await permissionService.request(permission);
@@ -18,27 +18,24 @@ export const usePermissionHandler = (bridge: WebViewBridge) => {
                     status = checkResult ? 'GRANTED' : 'DENIED';
                 }
 
-                const response: AppMessageData<'OnRequestPermission'> = {
-                    type: 'OnRequestPermission',
+                return {
+                    type: 'OnRequestPermission' as const,
+                    success: true,
                     data: {
                         permission,
                         status,
                     },
                 };
-                bridge.post(response);
-            } catch (error) {
+            } catch (error: any) {
                 logger.error('PERMISSION', 'PermissionHandler error', error);
-                const response: AppMessageData<'OnRequestPermission'> = {
-                    type: 'OnRequestPermission',
-                    data: {
-                        permission,
-                        status: 'UNAVAILABLE',
-                    },
+                return {
+                    type: 'OnRequestPermission' as const,
+                    success: false,
+                    error: { code: 'PERMISSION_ERROR', message: error.message },
                 };
-                bridge.post(response);
             }
         },
-        [bridge, permissionService, logger]
+        [permissionService, logger]
     );
 
     return {

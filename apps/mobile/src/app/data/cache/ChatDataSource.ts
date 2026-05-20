@@ -1,14 +1,18 @@
 import type { CacheChatView, ChatQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
-import { TABLES } from '../../database';
-import { database } from '../../services';
+import type { ISqliteDatabase } from '../../database';
 
 /**
  * 채팅(Chat) 도메인 전용 데이터 소스 구현체
  */
 export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQueryOptions> {
+    constructor(
+        private readonly database: ISqliteDatabase,
+        private readonly tableName: string
+    ) {}
+
     public async fetch(id: string, cid?: string, uid?: string): Promise<CacheChatView | null> {
-        let query = `SELECT data FROM ${TABLES.CHATS} WHERE id = ?`;
+        let query = `SELECT data FROM ${this.tableName} WHERE id = ?`;
         const params: (string | number)[] = [id];
         if (cid) {
             query += ` AND cid = ?`;
@@ -18,7 +22,7 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
             query += ` AND uid = ?`;
             params.push(uid);
         }
-        const result = await database.execute(query, params);
+        const result = await this.database.execute(query, params);
 
         if (result.rows && result.rows.length > 0) {
             return JSON.parse(result.rows[0].data as string) as CacheChatView;
@@ -27,7 +31,7 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
     }
 
     public async fetchAll(cid?: string, query?: ChatQueryOptions, uid?: string): Promise<CacheChatView[]> {
-        let sql = `SELECT data FROM ${TABLES.CHATS}`;
+        let sql = `SELECT data FROM ${this.tableName}`;
         const params: (string | number)[] = [];
         const conditions: string[] = [];
 
@@ -53,13 +57,13 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
 
         if (query?.sort) sql += ` ORDER BY chat_no ${query.sort.toUpperCase()}`;
 
-        const result = await database.execute(sql, params);
+        const result = await this.database.execute(sql, params);
 
         return (result.rows || []).map((row: any) => JSON.parse(row.data as string) as CacheChatView);
     }
 
     public async save(id: string, item: CacheChatView, cid: string, uid: string): Promise<void> {
-        const sql = `INSERT OR REPLACE INTO ${TABLES.CHATS} (cid, uid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+        const sql = `INSERT OR REPLACE INTO ${this.tableName} (cid, uid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
         const channelId = item.channelId || '';
         const chatNo = item.chatNo || 0;
         const createdAt = item.createdAt || 0;
@@ -75,12 +79,12 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
             createdAt,
         });
 
-        await database.execute(sql, [cid, uid, id, channelId, chatNo, createdAt, content, dataToSave]);
+        await this.database.execute(sql, [cid, uid, id, channelId, chatNo, createdAt, content, dataToSave]);
     }
 
     public async saveAll(items: { id: string; data: CacheChatView }[], cid: string, uid: string): Promise<void> {
         if (items.length === 0) return;
-        const sql = `INSERT OR REPLACE INTO ${TABLES.CHATS} (cid, uid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+        const sql = `INSERT OR REPLACE INTO ${this.tableName} (cid, uid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
         const commands: [string, any[]][] = items.map(item => {
             const id = item.id;
@@ -104,17 +108,21 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
             return [sql, [cid, uid, id, channelId, chatNo, createdAt, content, dataToSave]];
         });
 
-        await database.executeBatch(commands);
+        await this.database.executeBatch(commands);
     }
 
     public async remove(id: string, cid: string, uid: string): Promise<void> {
-        await database.execute(`DELETE FROM ${TABLES.CHATS} WHERE id = ? AND cid = ? AND uid = ?`, [id, cid, uid]);
+        await this.database.execute(`DELETE FROM ${this.tableName} WHERE id = ? AND cid = ? AND uid = ?`, [
+            id,
+            cid,
+            uid,
+        ]);
     }
 
     public async removeAll(ids: string[], cid: string, uid: string): Promise<void> {
         if (ids.length === 0) return;
-        const sql = `DELETE FROM ${TABLES.CHATS} WHERE id = ? AND cid = ? AND uid = ?`;
-        await database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
+        const sql = `DELETE FROM ${this.tableName} WHERE id = ? AND cid = ? AND uid = ?`;
+        await this.database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
     }
 
     public async clear(cid?: string, uid?: string): Promise<void> {
@@ -130,8 +138,8 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
         }
         const sql =
             conditions.length > 0
-                ? `DELETE FROM ${TABLES.CHATS} WHERE ${conditions.join(' AND ')}`
-                : `DELETE FROM ${TABLES.CHATS}`;
-        await database.execute(sql, params);
+                ? `DELETE FROM ${this.tableName} WHERE ${conditions.join(' AND ')}`
+                : `DELETE FROM ${this.tableName}`;
+        await this.database.execute(sql, params);
     }
 }

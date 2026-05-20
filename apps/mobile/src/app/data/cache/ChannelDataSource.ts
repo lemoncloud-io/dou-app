@@ -1,9 +1,13 @@
 import type { CacheChannelView, ChannelQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
-import { database } from '../../services';
-import { TABLES } from '../../database';
+import type { ISqliteDatabase } from '../../database';
 
 export class ChannelDataSource implements ICacheDataSource<CacheChannelView, ChannelQueryOptions> {
+    constructor(
+        private readonly database: ISqliteDatabase,
+        private readonly tableName: string
+    ) {}
+
     /**
      * 채널 객체에서(sid)를 안전하게 추출합니다.
      */
@@ -19,7 +23,7 @@ export class ChannelDataSource implements ICacheDataSource<CacheChannelView, Cha
     }
 
     public async fetch(id: string, cid?: string, uid?: string): Promise<CacheChannelView | null> {
-        let query = `SELECT data FROM ${TABLES.CHANNELS} WHERE id = ?`;
+        let query = `SELECT data FROM ${this.tableName} WHERE id = ?`;
         const params: (string | number)[] = [id];
         if (cid) {
             query += ` AND cid = ?`;
@@ -30,7 +34,7 @@ export class ChannelDataSource implements ICacheDataSource<CacheChannelView, Cha
             params.push(uid);
         }
 
-        const result = await database.execute(query, params);
+        const result = await this.database.execute(query, params);
         if (result.rows && result.rows.length > 0) {
             return JSON.parse(result.rows[0].data as string) as CacheChannelView;
         }
@@ -38,7 +42,7 @@ export class ChannelDataSource implements ICacheDataSource<CacheChannelView, Cha
     }
 
     public async fetchAll(cid?: string, query?: ChannelQueryOptions, uid?: string): Promise<CacheChannelView[]> {
-        let sql = `SELECT data FROM ${TABLES.CHANNELS}`;
+        let sql = `SELECT data FROM ${this.tableName}`;
         const params: (string | number)[] = [];
         const conditions: string[] = [];
 
@@ -63,22 +67,22 @@ export class ChannelDataSource implements ICacheDataSource<CacheChannelView, Cha
             sql += ` WHERE ` + conditions.join(' AND ');
         }
 
-        const result = await database.execute(sql, params);
+        const result = await this.database.execute(sql, params);
         return (result.rows || []).map((row: any) => JSON.parse(row.data as string) as CacheChannelView);
     }
 
     public async save(id: string, item: CacheChannelView, cid: string, uid: string): Promise<void> {
-        const sql = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, uid, id, sid, name, data) VALUES (?, ?, ?, ?, ?, ?)`;
+        const sql = `INSERT OR REPLACE INTO ${this.tableName} (cid, uid, id, sid, name, data) VALUES (?, ?, ?, ?, ?, ?)`;
         const sid = this.extractSid(item);
         const name = this.extractName(item);
         const dataToSave = JSON.stringify({ ...item, id, cid, uid, sid, name });
 
-        await database.execute(sql, [cid, uid, id, sid, name, dataToSave]);
+        await this.database.execute(sql, [cid, uid, id, sid, name, dataToSave]);
     }
 
     public async saveAll(items: { id: string; data: CacheChannelView }[], cid: string, uid: string): Promise<void> {
         if (items.length === 0) return;
-        const sql = `INSERT OR REPLACE INTO ${TABLES.CHANNELS} (cid, uid, id, sid, name, data) VALUES (?, ?, ?, ?, ?, ?)`;
+        const sql = `INSERT OR REPLACE INTO ${this.tableName} (cid, uid, id, sid, name, data) VALUES (?, ?, ?, ?, ?, ?)`;
 
         const commands: [string, any[]][] = items.map(item => {
             const id = item.id;
@@ -90,17 +94,21 @@ export class ChannelDataSource implements ICacheDataSource<CacheChannelView, Cha
             return [sql, [cid, uid, id, sid, name, dataToSave]];
         });
 
-        await database.executeBatch(commands);
+        await this.database.executeBatch(commands);
     }
 
     public async remove(id: string, cid: string, uid: string): Promise<void> {
-        await database.execute(`DELETE FROM ${TABLES.CHANNELS} WHERE id = ? AND cid = ? AND uid = ?`, [id, cid, uid]);
+        await this.database.execute(`DELETE FROM ${this.tableName} WHERE id = ? AND cid = ? AND uid = ?`, [
+            id,
+            cid,
+            uid,
+        ]);
     }
 
     public async removeAll(ids: string[], cid: string, uid: string): Promise<void> {
         if (ids.length === 0) return;
-        const sql = `DELETE FROM ${TABLES.CHANNELS} WHERE id = ? AND cid = ? AND uid = ?`;
-        await database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
+        const sql = `DELETE FROM ${this.tableName} WHERE id = ? AND cid = ? AND uid = ?`;
+        await this.database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
     }
 
     public async clear(cid?: string, uid?: string): Promise<void> {
@@ -116,8 +124,8 @@ export class ChannelDataSource implements ICacheDataSource<CacheChannelView, Cha
         }
         const sql =
             conditions.length > 0
-                ? `DELETE FROM ${TABLES.CHANNELS} WHERE ${conditions.join(' AND ')}`
-                : `DELETE FROM ${TABLES.CHANNELS}`;
-        await database.execute(sql, params);
+                ? `DELETE FROM ${this.tableName} WHERE ${conditions.join(' AND ')}`
+                : `DELETE FROM ${this.tableName}`;
+        await this.database.execute(sql, params);
     }
 }

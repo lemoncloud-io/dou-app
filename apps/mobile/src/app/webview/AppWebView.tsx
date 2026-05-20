@@ -1,20 +1,19 @@
-import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Image, Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import { WebView, type WebViewProps } from 'react-native-webview';
 import DeviceInfo from 'react-native-device-info';
 import Config from 'react-native-config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { APP_USER_AGENT_PREFIX, getAppLanguage } from '../utils';
-import { getVersionCheckResult } from '../hooks';
+import { APP_USER_AGENT_PREFIX, getAppLanguage, t } from '../utils';
+import { getVersionCheckResult, useServices } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
-import {
-    getCachedDataScript,
-    getConsoleOverrideScript,
-    getDeviceInfoScript,
-    getSafeAreaScript,
-} from './utils/injectionScripts';
-import { useServices } from '../hooks/useServices';
+import { getConsoleOverrideScript, getDeviceInfoScript, getSafeAreaScript } from './utils/injectionScripts';
+import { useWebMessageRouter } from './hooks/useWebMessageRouter';
+import { useVersionCheckHandler } from './hooks';
+import { FullScreenLoader } from '../features/core/components';
+import type { ModalHandler } from './hooks/useModalHandler';
+import type { IAppBridgeHost } from '@chatic/bridges';
 import { useThemeStore } from '../stores';
 
 const LIGHT_BG = '#ffffff';
@@ -26,15 +25,18 @@ const useIsDarkMode = () => {
     return theme === 'dark' || (theme === 'system' && systemColorScheme === 'dark');
 };
 
-const WebViewLoadingOverlay = ({ isDark }: { isDark: boolean }) => (
-    <View style={[styles.logoOverlay, { backgroundColor: isDark ? DARK_BG : LIGHT_BG }]}>
+const ResumeOverlay = ({ isDark }: { isDark: boolean }) => (
+    <View style={[styles.resumeOverlay, { backgroundColor: isDark ? DARK_BG : LIGHT_BG }]}>
         <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
     </View>
 );
 
-interface AppWebViewProps extends WebViewProps {}
+interface AppWebViewProps extends WebViewProps {
+    bridge: IAppBridgeHost;
+    modalHandler: ModalHandler;
+    setWebCanGoBack: (back: boolean) => void;
+}
 
-// User agent suffix (sync) - appended to default system UA via applicationNameForUserAgent
 const appName = Config.VIEW_APP_NAME ?? '';
 const appVersion = DeviceInfo.getVersion();
 const buildNumber = DeviceInfo.getBuildNumber();
@@ -42,18 +44,31 @@ const platformName = Platform.OS === 'ios' ? 'iOS' : 'Android';
 const userAgentSuffix = `(${APP_USER_AGENT_PREFIX}; ${appName}/${appVersion}; ${platformName}; Build:${buildNumber})`;
 
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
+    const { bridge, onMessage, modalHandler, setWebCanGoBack, ...restProps } = props;
+
     const { cacheCrudService, firebaseInstallationService } = useServices();
-    const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
+    const [injectionScript, setInjectionScript] = useState<string | null>(null);
     const isDark = useIsDarkMode();
     const bgColor = isDark ? DARK_BG : LIGHT_BG;
     const insets = useSafeAreaInsets();
     const keyboardHeight = useKeyboardHeight();
     const webViewRef = useRef<WebView | null>(null);
 
-    // iOS: content process가 OS에 의해 종료된 경우 오버레이 표시 + 리로드
+    const { isIapLoading } = useWebMessageRouter({
+        bridge,
+        modalHandler,
+        setWebCanGoBack,
+    });
+
+    useVersionCheckHandler(bridge);
+
+    // iOS: content process가 OS에 의해 종료된 경우 리로드
     const handleContentProcessDidTerminate = useCallback(() => {
-        setIsWebViewLoaded(false);
-        webViewRef.current?.reload();
+        setInjectionScript(prev => {
+            // force re-render of loading state, then reload
+            webViewRef.current?.reload();
+            return prev;
+        });
     }, []);
 
     // iOS WKWebView 백그라운드 복귀 시 흰 화면 방지
@@ -86,49 +101,13 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         };
     }, []);
 
-    // Phase 1: Sync injection script — 첫 렌더에 즉시 사용 가능, async 대기 없음
-    // CHATIC_APP_PLATFORM + ChaticMessageHandler 브릿지가 웹앱 부팅의 핵심 (getMobileAppInfo)
-    // DEVICE_ID/INSTALLATION_ID는 webCore.init()에 불필요하므로 Phase 2로 지연
-    const syncInjectionScript = useMemo(() => {
-        const versionCheck = getVersionCheckResult();
-        const deviceInfoScript = getDeviceInfoScript({
-            platform: Platform.OS.toLowerCase(),
-            applicationName: DeviceInfo.getApplicationName(),
-            stage: Config.VITE_ENV || 'PROD',
-            uniqueId: '',
-            deviceModel: DeviceInfo.getDeviceId() || '',
-            appVersion: DeviceInfo.getVersion(),
-            buildNumber: DeviceInfo.getBuildNumber(),
-            appLanguage: getAppLanguage(),
-            installationId: '',
-            latestVersion: versionCheck?.latestVersion ?? '',
-            shouldUpdate: versionCheck?.hasUpdate ?? false,
-        });
-        return `
-            ${getSafeAreaScript(insets, keyboardHeight)}
-            ${deviceInfoScript}
-            ${getCachedDataScript({ channels: [], clouds: [], timestamp: 0 })}
-            ${getConsoleOverrideScript()}
-        `;
-    }, [insets, keyboardHeight]);
-
-    // Phase 2: 비동기 디바이스 정보 — WebView는 이미 로드 시작, 준비되면 주입
-    const [injectionScript, setInjectionScript] = useState<string | null>(null);
-
     useEffect(() => {
-        const prepareAsyncData = async () => {
-            const [uniqueId, installationId, cachedClouds] = await Promise.all([
+        const prepareWebView = async () => {
+            const [uniqueId, installationId] = await Promise.all([
                 DeviceInfo.getUniqueId(),
                 firebaseInstallationService.getFirebaseId(),
-                // NOTE: channels 캐시는 stale 데이터 노출 방지를 위해 제거 — 서버 fast path로 대체
-                cacheCrudService.fetchAll({ type: 'invitecloud' }).catch(() => []),
             ]);
 
-            /**
-             * TODO
-             * 디바이스 아이디 검증을 위해 임시로 uniqueId를 installationId로 교체하였음
-             * 안정화 이후 `DeviceInfo.getUniqueId()` 사용할 것
-             */
             const versionCheck = getVersionCheckResult();
             const deviceInfoScript = getDeviceInfoScript({
                 platform: Platform.OS.toLowerCase(),
@@ -144,51 +123,22 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 shouldUpdate: versionCheck?.hasUpdate ?? false,
             });
 
-            const dedup = <T extends { id?: string }>(items: T[]): T[] => {
-                const seen = new Set<string>();
-                return items.filter(item => {
-                    if (!item.id || seen.has(item.id)) return false;
-                    seen.add(item.id);
-                    return true;
-                });
-            };
-
-            const cachedDataScript = getCachedDataScript({
-                channels: [],
-                clouds: dedup(cachedClouds as { id?: string }[]),
-                timestamp: Date.now(),
-            });
-
             const script = `
                 ${getSafeAreaScript(insets, keyboardHeight)}
                 ${deviceInfoScript}
-                ${cachedDataScript}
                 ${getConsoleOverrideScript()}
             `;
 
             setInjectionScript(script);
-
-            // 이미 로드 중인 WebView에 비동기 값을 즉시 주입
-            const composedId = `${uniqueId || 'default'}:${installationId || 'default'}`;
-            const dedupedClouds = dedup(cachedClouds as { id?: string }[]);
-            webViewRef.current?.injectJavaScript(`
-                window.CHATIC_APP_DEVICE_ID = '${composedId}';
-                window.CHATIC_APP_INSTALLATION_ID = '${installationId || ''}';
-                window.CHATIC_CACHED_CLOUDS = ${JSON.stringify(dedupedClouds)};
-                window.CHATIC_CACHED_TIMESTAMP = ${Date.now()};
-                true;
-            `);
         };
-        void prepareAsyncData();
+        void prepareWebView();
     }, [cacheCrudService, firebaseInstallationService, insets, keyboardHeight]);
 
-    // insets 변경 시 명령형으로 재주입
     useEffect(() => {
-        if (!webViewRef.current) return;
+        if (!webViewRef.current || !injectionScript) return;
         webViewRef.current.injectJavaScript(getSafeAreaScript(insets, keyboardHeight));
-    }, [insets, keyboardHeight]);
+    }, [insets, keyboardHeight, injectionScript]);
 
-    // 깔끔한 다중 Ref 동기화
     const setRefs = useCallback(
         (node: WebView | null) => {
             webViewRef.current = node;
@@ -198,26 +148,35 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         [ref]
     );
 
-    // 웹 React 렌더 완료(WebAppReady) 수신 시 오버레이 해제
-    const { onMessage: propsOnMessage, ...restProps } = props;
-    const handleWebViewMessage = useCallback(
+    const { onLoad: propsOnLoad } = props;
+    const handleWebViewLoad = useCallback(
+        (event: Parameters<NonNullable<WebViewProps['onLoad']>>[0]) => {
+            propsOnLoad?.(event);
+        },
+        [propsOnLoad]
+    );
+
+    // ResumeReady 메시지를 가로채서 오버레이 해제, 나머지는 bridge onMessage로 전달
+    const handleMessage = useCallback(
         (event: Parameters<NonNullable<WebViewProps['onMessage']>>[0]) => {
             try {
                 const data = JSON.parse(event.nativeEvent.data);
-                if (!isWebViewLoaded && data?.type === 'WebAppReady') {
-                    setIsWebViewLoaded(true);
-                }
                 if (data?.type === 'ResumeReady') {
                     if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
                     setShowResumeOverlay(false);
+                    return;
                 }
             } catch {
                 // ignore parse errors
             }
-            propsOnMessage?.(event);
+            onMessage?.(event);
         },
-        [propsOnMessage, isWebViewLoaded]
+        [onMessage]
     );
+
+    if (!injectionScript) {
+        return <View style={[styles.loadingContainer, { backgroundColor: bgColor }]} />;
+    }
 
     return (
         <View style={styles.webViewContainer}>
@@ -230,8 +189,8 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 domStorageEnabled={true}
                 allowsBackForwardNavigationGestures={true}
                 applicationNameForUserAgent={userAgentSuffix}
-                injectedJavaScript={injectionScript ?? syncInjectionScript}
-                injectedJavaScriptBeforeContentLoaded={injectionScript ?? syncInjectionScript}
+                injectedJavaScript={injectionScript}
+                injectedJavaScriptBeforeContentLoaded={injectionScript}
                 hideKeyboardAccessoryView={true}
                 forceDarkOn={false}
                 originWhitelist={['*']}
@@ -240,11 +199,12 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 allowUniversalAccessFromFileURLs={true}
                 mixedContentMode="always"
                 {...restProps}
-                onMessage={handleWebViewMessage}
+                onLoad={handleWebViewLoad}
+                onMessage={handleMessage}
                 onContentProcessDidTerminate={handleContentProcessDidTerminate}
             />
-            {!isWebViewLoaded && <WebViewLoadingOverlay isDark={isDark} />}
-            {isWebViewLoaded && showResumeOverlay && <WebViewLoadingOverlay isDark={isDark} />}
+            <FullScreenLoader visible={isIapLoading} message={t('loader.paymentProcessing')} />
+            {showResumeOverlay && <ResumeOverlay isDark={isDark} />}
         </View>
     );
 });
@@ -253,7 +213,12 @@ const styles = StyleSheet.create({
     webViewContainer: {
         flex: 1,
     },
-    logoOverlay: {
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    resumeOverlay: {
         ...StyleSheet.absoluteFillObject,
         justifyContent: 'center',
         alignItems: 'center',
@@ -261,18 +226,5 @@ const styles = StyleSheet.create({
     logo: {
         width: 96,
         height: 96,
-    },
-    debugBadge: {
-        position: 'absolute',
-        bottom: 80,
-        backgroundColor: 'rgba(255,0,0,0.8)',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 4,
-    },
-    debugText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: 'bold',
     },
 });

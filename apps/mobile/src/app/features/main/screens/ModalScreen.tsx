@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { type RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { ModalScreenParams } from '../../core/navigation';
-import { AppWebView } from '../../../webview';
+import { SimpleWebView } from '../../../webview/SimpleWebView';
 
 type ModalScreenRouteProp = RouteProp<{ params: ModalScreenParams }, 'params'>;
 
@@ -94,7 +94,7 @@ export const ModalScreen = () => {
                 )}
 
                 <View style={styles.webviewContainer}>
-                    <AppWebView source={{ uri: url }} />
+                    <SimpleWebView source={{ uri: url }} />
                 </View>
             </Animated.View>
         </View>

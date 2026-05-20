@@ -1,0 +1,31 @@
+import type { WebMessageType, WebMessageData, EventMessageType, AppMessageData } from '@chatic/app-messages';
+import type { ResponseMessage } from '../common';
+
+/**
+ * Web 환경에서 App(Native)과 통신하기 위한 브릿지 클라이언트 표준 인터페이스입니다.
+ */
+export interface IWebBridgeClient {
+    /**
+     * [Web -> App] 응답을 기다리지 않는 단방향 전송 (Fire-and-Forget)
+     */
+    post<K extends WebMessageType>(type: K, messageParams?: Omit<WebMessageData<K>, 'type'>): void;
+
+    /**
+     * [Web -> App] 앱에 요청을 보내고 결과를 비동기로 대기 (Request-Response)
+     */
+    request<K extends WebMessageType>(
+        type: K,
+        messageParams?: Omit<WebMessageData<K>, 'type'>,
+        customTimeoutMs?: number
+    ): Promise<ResponseMessage>;
+
+    /**
+     * `request`의 별칭(alias)
+     */
+    send<K extends WebMessageType>(message: WebMessageData<K>, customTimeoutMs?: number): Promise<ResponseMessage>;
+
+    /**
+     * [App -> Web] 네이티브에서 발생하는 단방향 이벤트를 구독 (Event Subscription)
+     */
+    onEvent<K extends EventMessageType>(type: K, handler: (message: AppMessageData<K>) => void): () => void;
+}

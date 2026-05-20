@@ -1,8 +1,9 @@
-import { useWebViewBridge } from '../index';
+import { useAppBridgeHost } from './useBaseBridge';
 import type { WebView } from 'react-native-webview';
+import type { RefObject } from 'react';
 
-export const useAppBridge = (webViewRef: React.RefObject<WebView | null>) => {
-    const bridge = useWebViewBridge(webViewRef);
+export const useAppBridge = (webViewRef: RefObject<WebView | null>) => {
+    const { appBridgeHost, onMessage } = useAppBridgeHost(webViewRef);
 
-    return { bridge };
+    return { bridge: appBridgeHost, onMessage };
 };

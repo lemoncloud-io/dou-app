@@ -8,10 +8,10 @@ export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error';
 export interface AppLogInfo {
     tag: string; // 로그 식별 태그
     message?: string; // 로그 메시지
-    data?: any; // 첨부 데이터
+    data?: unknown; // 첨부 데이터
     timestamp?: number; // 발생 시각 (ms)
     level?: AppLogLevel; // 로그 레벨
-    error?: any; // 에러 객체
+    error?: unknown; // 에러 객체
 }
 
 /** [요청] Web -> App 로그 전달 페이로드 */
@@ -19,8 +19,8 @@ export interface SendLogPayload {
     level?: AppLogLevel;
     tag?: string;
     message: string;
-    data?: any;
-    error?: any;
+    data?: unknown;
+    error?: unknown;
 }
 
 /** [요청] 로그 버퍼 조회 페이로드 */

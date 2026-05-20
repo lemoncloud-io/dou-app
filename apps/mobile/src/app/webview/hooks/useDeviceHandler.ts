@@ -1,94 +1,82 @@
 import { useCallback } from 'react';
 import { Linking } from 'react-native';
 import RNFS from 'react-native-fs';
-
 import { useServices } from '../../hooks';
+import type { WebMessageData } from '@chatic/app-messages';
+import type { Asset } from 'react-native-image-picker';
 
-import type { WebViewBridge } from './useBaseBridge';
-import type {
-    AppMessageData,
-    GetContacts,
-    OpenCamera,
-    OpenDocument,
-    OpenPhotoLibrary,
-    OpenShareSheet,
-    OpenURL,
-} from '@chatic/app-messages';
-import type { Asset, CameraOptions, ImageLibraryOptions } from 'react-native-image-picker';
-
-export const useDeviceHandler = (bridge: WebViewBridge) => {
+export const useDeviceHandler = () => {
     const { deviceService, logService: logger } = useServices();
-    const handleOpenSettings = useCallback(async () => {
-        await deviceService.openSettings();
-    }, [deviceService]);
+
+    const handleOpenSettings = useCallback(
+        async (_message: WebMessageData<'OpenSettings'>) => {
+            await deviceService.openSettings();
+            return { type: 'OnOpenSettings' as const, success: true };
+        },
+        [deviceService]
+    );
 
     const handleOpenShareSheet = useCallback(
-        async (message: OpenShareSheet) => {
+        async (message: WebMessageData<'OpenShareSheet'>) => {
+            const data = message.data;
             try {
-                const result = await deviceService.openShareSheet(message.data);
-                const response: AppMessageData<'OnOpenShareSheet'> = {
-                    type: 'OnOpenShareSheet',
-                    nonce: message.nonce,
-                    data: {
-                        action: result.action,
-                        activityType: result.activityType ?? null,
-                    },
+                const result = await deviceService.openShareSheet(data);
+                return {
+                    type: 'OnOpenShareSheet' as const,
+                    success: true,
+                    data: { action: result.action, activityType: result.activityType ?? null },
                 };
-                bridge.post(response);
             } catch (e: any) {
                 logger.error('DEVICE', 'OpenShareSheet error', e);
+                return {
+                    type: 'OnOpenShareSheet' as const,
+                    success: false,
+                    error: { code: 'SHARE_ERROR', message: e.message },
+                };
             }
         },
-        [bridge, deviceService, logger]
+        [deviceService, logger]
     );
 
     const handleOpenDocument = useCallback(
-        async (message: OpenDocument) => {
+        async (message: WebMessageData<'OpenDocument'>) => {
+            const data = message.data;
             try {
-                const results = await deviceService.openDocument(message.data.allowMultiSelection);
+                const results = await deviceService.openDocument(data.allowMultiSelection);
 
                 const documents = await Promise.all(
                     results.map(async doc => {
                         let base64: string | undefined;
-                        if (message.data.includeBase64 && doc.uri) {
+                        if (data.includeBase64 && doc.uri) {
                             try {
                                 base64 = await RNFS.readFile(doc.uri, 'base64');
                             } catch (readError) {
                                 logger.warn('DEVICE', `Failed to read document base64: ${doc.name}`, readError);
                             }
                         }
-                        return {
-                            uri: doc.uri,
-                            name: doc.name,
-                            type: doc.type,
-                            size: doc.size,
-                            base64,
-                        };
+                        return { uri: doc.uri, name: doc.name, type: doc.type, size: doc.size, base64 };
                     })
                 );
-
-                const response: AppMessageData<'OnOpenDocument'> = {
-                    type: 'OnOpenDocument',
-                    nonce: message.nonce,
-                    data: {
-                        documents,
-                    },
-                };
-                bridge.post(response);
-            } catch (e) {
+                return { type: 'OnOpenDocument' as const, success: true, data: { documents } };
+            } catch (e: any) {
                 logger.error('DEVICE', 'OpenDocument error', e);
+                return {
+                    type: 'OnOpenDocument' as const,
+                    success: false,
+                    error: { code: 'DOC_ERROR', message: e.message },
+                };
             }
         },
-        [bridge, deviceService, logger]
+        [deviceService, logger]
     );
 
     const handleOpenCamera = useCallback(
-        async (message: OpenCamera) => {
+        async (_message: WebMessageData<'OpenCamera'>) => {
             try {
-                const assets: Asset[] = await deviceService.openCamera(message.data as CameraOptions);
-                const response: AppMessageData<'OnOpenCamera'> = {
-                    type: 'OnOpenCamera',
-                    nonce: message.nonce,
+                const assets: Asset[] = await deviceService.openCamera();
+                return {
+                    type: 'OnOpenCamera' as const,
+                    success: true,
                     data: {
                         assets: assets.map(asset => ({
                             uri: asset.uri,
@@ -101,21 +89,25 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                         })),
                     },
                 };
-                bridge.post(response);
-            } catch (e) {
+            } catch (e: any) {
                 logger.error('DEVICE', 'OpenCamera error', e);
+                return {
+                    type: 'OnOpenCamera' as const,
+                    success: false,
+                    error: { code: 'CAMERA_ERROR', message: e.message },
+                };
             }
         },
-        [bridge, deviceService, logger]
+        [deviceService, logger]
     );
 
     const handleOpenPhotoLibrary = useCallback(
-        async (message: OpenPhotoLibrary) => {
+        async (_message: WebMessageData<'OpenPhotoLibrary'>) => {
             try {
-                const assets: Asset[] = await deviceService.openPhotoLibrary(message.data as ImageLibraryOptions);
-                const response: AppMessageData<'OnOpenPhotoLibrary'> = {
-                    type: 'OnOpenPhotoLibrary',
-                    nonce: message.nonce,
+                const assets: Asset[] = await deviceService.openPhotoLibrary();
+                return {
+                    type: 'OnOpenPhotoLibrary' as const,
+                    success: true,
                     data: {
                         assets: assets.map(asset => ({
                             uri: asset.uri,
@@ -128,21 +120,25 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                         })),
                     },
                 };
-                bridge.post(response);
-            } catch (e) {
+            } catch (e: any) {
                 logger.error('DEVICE', 'OpenPhotoLibrary error', e);
+                return {
+                    type: 'OnOpenPhotoLibrary' as const,
+                    success: false,
+                    error: { code: 'LIBRARY_ERROR', message: e.message },
+                };
             }
         },
-        [bridge, deviceService, logger]
+        [deviceService, logger]
     );
 
     const handleGetContacts = useCallback(
-        async (message: GetContacts) => {
+        async (_message: WebMessageData<'GetContacts'>) => {
             try {
                 const contacts = await deviceService.getContacts();
-                const response: AppMessageData<'OnGetContacts'> = {
-                    type: 'OnGetContacts',
-                    nonce: message.nonce,
+                return {
+                    type: 'OnGetContacts' as const,
+                    success: true,
                     data: {
                         contacts: contacts.map(contact => ({
                             recordID: contact.recordID,
@@ -161,7 +157,7 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                             postalAddresses: contact.postalAddresses,
                             prefix: contact.prefix || '',
                             suffix: contact.suffix || '',
-                            department: contact.department || '',  
+                            department: contact.department || '',
                             birthday: (contact.birthday || undefined) as any,
                             imAddresses: contact.imAddresses,
                             urlAddresses: contact.urlAddresses,
@@ -169,28 +165,31 @@ export const useDeviceHandler = (bridge: WebViewBridge) => {
                         })),
                     },
                 };
-                bridge.post(response);
-            } catch (e) {
+            } catch (e: any) {
                 logger.error('DEVICE', 'GetContacts error', e);
-                // 에러 시에도 빈 배열로 응답 전송 (Web이 무한 대기하지 않도록)
-                const response: AppMessageData<'OnGetContacts'> = {
-                    type: 'OnGetContacts',
-                    nonce: message.nonce,
-                    data: { contacts: [] },
+                return {
+                    type: 'OnGetContacts' as const,
+                    success: false,
+                    error: { code: 'CONTACT_ERROR', message: e.message },
                 };
-                bridge.post(response);
             }
         },
-        [bridge, deviceService, logger]
+        [deviceService, logger]
     );
 
     const handleOpenURL = useCallback(
-        async (message: OpenURL) => {
+        async (message: WebMessageData<'OpenURL'>) => {
+            const { url } = message.data;
             try {
-                const { url } = message.data;
                 await Linking.openURL(url);
-            } catch (e) {
+                return { type: 'OnOpenURL' as const, success: true };
+            } catch (e: any) {
                 logger.error('DEVICE', 'OpenURL error', e);
+                return {
+                    type: 'OnOpenURL' as const,
+                    success: false,
+                    error: { code: 'LINK_ERROR', message: e.message },
+                };
             }
         },
         [logger]

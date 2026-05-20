@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import type { WebViewMessageEvent } from 'react-native-webview';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -9,7 +10,7 @@ import {
     usePermissionHandler,
     useSubscriptionIapHandler,
 } from '../../../webview/hooks';
-import type { AppMessageData } from '@chatic/app-messages';
+import type { WebMessageType } from '@chatic/app-messages';
 
 type LogType = 'sent' | 'received' | 'info' | 'error';
 
@@ -23,13 +24,13 @@ interface LogItem {
 export const BridgeTestScreen = () => {
     const insets = useSafeAreaInsets();
     const webViewRef = useRef<WebView>(null);
-    const { bridge } = useAppBridge(webViewRef);
+    const { bridge, onMessage: originalOnMessage } = useAppBridge(webViewRef);
     const [logs, setLogs] = useState<LogItem[]>([]);
     const flatListRef = useRef<FlatList>(null);
 
-    const { handleOpenShareSheet, handleOpenDocument, handleGetContacts, handleOpenCamera } = useDeviceHandler(bridge);
-    const { handleRequestPermission } = usePermissionHandler(bridge);
-    const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler(bridge);
+    const { handleOpenShareSheet, handleOpenDocument, handleGetContacts, handleOpenCamera } = useDeviceHandler();
+    const { handleRequestPermission } = usePermissionHandler();
+    const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler();
     const {
         fetchProducts,
         fetchCurrentPurchases,
@@ -38,7 +39,7 @@ export const BridgeTestScreen = () => {
         handleOpenSubscriptionManagement,
     } = useSubscriptionIapHandler(bridge);
 
-    const addLog = (type: LogType, message: string) => {
+    const addLog = useCallback((type: LogType, message: string) => {
         const now = new Date();
         const timeString = now.toLocaleTimeString('ko-KR', {
             hour12: false,
@@ -59,67 +60,91 @@ export const BridgeTestScreen = () => {
         setTimeout(() => {
             flatListRef.current?.scrollToEnd({ animated: true });
         }, 100);
-    };
+    }, []);
 
     const handleClearLogs = () => {
         setLogs([]);
     };
 
-    const handleWebViewMessage = bridge.receive(
-        message => {
-            addLog('received', `[Web -> App] Type: ${message.type}`);
-
-            switch (message.type) {
-                case 'OpenShareSheet':
-                    void handleOpenShareSheet(message);
-                    break;
-                case 'OpenDocument':
-                    void handleOpenDocument(message);
-                    break;
-                case 'RequestPermission':
-                    void handleRequestPermission(message.data);
-                    break;
-                case 'GetContacts':
-                    void handleGetContacts(message);
-                    break;
-                case 'OpenCamera':
-                    void handleOpenCamera(message);
-                    break;
-                case 'OAuthLogin':
-                    void handleOAuthLogin(message.data.provider);
-                    break;
-                case 'OAuthLogout':
-                    void handleOAuthLogout(message.data.provider);
-                    break;
-                // --- IAP 연동 ---
-                case 'FetchProducts':
-                    void fetchProducts();
-                    break;
-                case 'FetchCurrentPurchases':
-                    void fetchCurrentPurchases();
-                    break;
-                case 'Purchase':
-                    void handlePurchaseSubscription(message.data);
-                    break;
-                case 'FinishPurchaseTransaction':
-                    void handleFinishPurchase(message.data.purchase);
-                    break;
-                case 'OpenSubscriptionManagement':
-                    void handleOpenSubscriptionManagement();
-                    break;
-                default:
-                    addLog('info', `Unhandled message type: ${message.type}`);
-                    break;
+    const handleWebViewMessage = useCallback(
+        (event: WebViewMessageEvent) => {
+            try {
+                const parsed = JSON.parse(event.nativeEvent.data);
+                if (parsed.type && parsed.refId && parsed.success === undefined) {
+                    addLog('received', `[Web -> App] Type: ${parsed.type}`);
+                }
+            } catch {
+                /* empty */
             }
+            originalOnMessage(event);
         },
-        error => {
-            addLog('error', `Web -> App Error: ${error}`);
-        }
+        [addLog, originalOnMessage]
     );
 
-    const sendToWeb = (message: AppMessageData<any>) => {
-        bridge.post(message);
-        addLog('sent', `App -> Web: Sent ${message.type}`);
+    useEffect(() => {
+        bridge.registerHandler('OpenShareSheet', handleOpenShareSheet as any);
+        bridge.registerHandler('OpenDocument', handleOpenDocument as any);
+        bridge.registerHandler('RequestPermission', handleRequestPermission as any);
+        bridge.registerHandler('GetContacts', handleGetContacts as any);
+        bridge.registerHandler('OpenCamera', handleOpenCamera as any);
+        bridge.registerHandler('OAuthLogin', handleOAuthLogin as any);
+        bridge.registerHandler('OAuthLogout', handleOAuthLogout as any);
+
+        // IAP
+        bridge.registerHandler('FetchProducts', fetchProducts as any);
+        bridge.registerHandler('FetchCurrentPurchases', fetchCurrentPurchases as any);
+        bridge.registerHandler('Purchase', handlePurchaseSubscription as any);
+        bridge.registerHandler('FinishPurchaseTransaction', handleFinishPurchase as any);
+        bridge.registerHandler('OpenSubscriptionManagement', handleOpenSubscriptionManagement as any);
+
+        return () => {
+            const types: WebMessageType[] = [
+                'OpenShareSheet',
+                'OpenDocument',
+                'RequestPermission',
+                'GetContacts',
+                'OpenCamera',
+                'OAuthLogin',
+                'OAuthLogout',
+                'FetchProducts',
+                'FetchCurrentPurchases',
+                'Purchase',
+                'FinishPurchaseTransaction',
+                'OpenSubscriptionManagement',
+            ];
+            types.forEach(type => bridge.unregisterHandler(type));
+        };
+    }, [
+        bridge,
+        handleOpenShareSheet,
+        handleOpenDocument,
+        handleRequestPermission,
+        handleGetContacts,
+        handleOpenCamera,
+        handleOAuthLogin,
+        handleOAuthLogout,
+        fetchProducts,
+        fetchCurrentPurchases,
+        handlePurchaseSubscription,
+        handleFinishPurchase,
+        handleOpenSubscriptionManagement,
+    ]);
+
+    // 이벤트 테스트용 함수 (새 규격에 맞는 이벤트 사용)
+    const sendTestEventToWeb = () => {
+        const testEvent = {
+            type: 'OnReceiveNotification',
+            success: true,
+            data: {
+                notification: {
+                    title: 'Native Push',
+                    body: 'App에서 Web으로 테스트 이벤트를 전송했습니다.',
+                },
+            },
+        } as const;
+
+        bridge.pushEvent<'OnReceiveNotification'>(testEvent);
+        addLog('sent', `App -> Web: Sent ${testEvent.type}`);
     };
 
     const renderLogItem = ({ item }: { item: LogItem }) => {
@@ -204,24 +229,23 @@ export const BridgeTestScreen = () => {
                 </style>
             </head>
             <body>
-                <h2>WebView Area</h2>
+                <h2>WebView Area (Mock)</h2>
 
                 <div class="button-container">
                     <button onclick="sendToNative({ type: 'OAuthLogin', data: { provider: 'google' } })">Google Login</button>
                     <button onclick="sendToNative({ type: 'OAuthLogin', data: { provider: 'apple' } })">Apple Login</button>
                     <button onclick="sendToNative({ type: 'OAuthLogout', data: { provider: 'google' } })">Google Logout</button>
                     <button onclick="sendToNative({ type: 'OAuthLogout', data: { provider: 'apple' } })">Apple Logout</button>
-                    <button onclick="sendToNative({ type: 'GetContacts', data: {} })">Get Contacts</button>
+                    <button onclick="sendToNative({ type: 'GetContacts' })">Get Contacts</button>
                     <button onclick="sendToNative({ type: 'OpenCamera', data: { mediaType: 'photo' } })">Open Camera</button>
                     <button onclick="sendToNative({ type: 'RequestPermission', data: { permission: 'CAMERA' } })">Req Cam Perm</button>
                     <button onclick="sendToNative({ type: 'OpenShareSheet', data: { message: 'Hello from WebView!' } })">Open Share</button>
                     <button onclick="sendToNative({ type: 'OpenDocument', data: { allowMultiSelection: true } })">Open Document</button>
 
-                    <!-- IAP Test Buttons -->
-                    <button onclick="sendToNative({ type: 'FetchProducts', data: {} })">IAP: Fetch Products</button>
-                    <button onclick="sendToNative({ type: 'FetchCurrentPurchases', data: {} })">IAP: Fetch Purchases</button>
-                    <button onclick="sendToNative({ type: 'Purchase', data: { sku: 'TEST' }})">IAP: Buy Subscription (required sku)</button>
-                    <button onclick="sendToNative({ type: 'OpenSubscriptionManagement', data: {} })">IAP: Manage</button>
+                    <button onclick="sendToNative({ type: 'FetchProducts' })">IAP: Fetch Products</button>
+                    <button onclick="sendToNative({ type: 'FetchCurrentPurchases' })">IAP: Fetch Purchases</button>
+                    <button onclick="sendToNative({ type: 'Purchase', data: { id: 'TEST_SKU' }})">IAP: Buy Subscription</button>
+                    <button onclick="sendToNative({ type: 'OpenSubscriptionManagement' })">IAP: Manage</button>
                 </div>
 
                 <div id="log" class="log-container">
@@ -260,6 +284,10 @@ export const BridgeTestScreen = () => {
                 document.addEventListener('message', handleMessage);
 
                 function sendToNative(msg) {
+                    // 메타데이터 자동 주입 (웹 브릿지 클라이언트의 역할을 모방)
+                    msg.refId = Math.random().toString(36).substring(2, 9);
+                    msg.version = '2.0.0';
+
                     const messageStr = JSON.stringify(msg);
                     let sent = false;
 
@@ -299,7 +327,6 @@ export const BridgeTestScreen = () => {
                     source={{ html: testHtml }}
                     onMessage={handleWebViewMessage}
                     style={{ flex: 1, backgroundColor: '#121212' }}
-                    // 안드로이드 다크모드 지원을 위해 필요할 수 있음
                     containerStyle={{ backgroundColor: '#121212' }}
                 />
             </View>
@@ -329,14 +356,9 @@ export const BridgeTestScreen = () => {
                 >
                     <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: '#4A90E2' }]}
-                        onPress={() =>
-                            sendToWeb({
-                                type: 'OnAppLog',
-                                data: { level: 'info', tag: 'NATIVE', message: 'Hello Web!', timestamp: Date.now() },
-                            })
-                        }
+                        onPress={sendTestEventToWeb}
                     >
-                        <Text style={styles.buttonText}>App to Web</Text>
+                        <Text style={styles.buttonText}>App to Web Push (Notification)</Text>
                     </TouchableOpacity>
                 </ScrollView>
             </View>
@@ -350,7 +372,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#121212',
     },
     webViewContainer: {
-        height: 350, // 웹뷰 영역을 더 늘림 (버튼 2줄 + 로그창)
+        height: 350,
         borderBottomWidth: 1,
         borderBottomColor: '#333',
     },

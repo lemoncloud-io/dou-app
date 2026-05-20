@@ -1,36 +1,45 @@
-import React, { useRef } from 'react';
-
-import { useAppBridge, useVersionCheckHandler } from '../../../webview/hooks';
+import React, { useMemo, useRef } from 'react';
 import type { WebView } from 'react-native-webview';
-import type { MainScreenProps } from '../navigation';
-import { useColorScheme, View } from 'react-native';
+import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useWebViewDeepLink } from '../../../webview/hooks/useWebViewDeepLink';
-import { useWebMessageRouter } from '../hooks/useWebMessageRouter';
 import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigation';
 import { AppWebView } from '../../../webview';
-import { DeepLinkErrorView, FullScreenLoader } from '../../core/components';
+import { DeepLinkErrorView } from '../../core/components';
+import type { MainScreenProps } from '../navigation';
+import type { ModalHandler } from '../../../webview/hooks/useModalHandler';
+import { useAppBridge } from '../../../webview/hooks';
 import { useThemeStore } from '../../../stores';
-import { t } from '../../../utils';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
-    const { bridge } = useAppBridge(webViewRef);
+    const { bridge, onMessage } = useAppBridge(webViewRef);
     const systemColorScheme = useColorScheme();
     const theme = useThemeStore(s => s.theme);
     const isDark = theme === 'dark' || (theme === 'system' && systemColorScheme === 'dark');
 
-    const { setWebCanGoBack, setNavCanGoBack } = useWebViewNavigation(webViewRef);
+    const { setWebCanGoBack, setNavCanGoBack } = useWebViewNavigation(bridge);
     const { initialSource, handleWebViewLoad, deepLinkError, deepLinkErrorReason, handleDismissError } =
         useWebViewDeepLink(webViewRef);
 
-    useVersionCheckHandler(bridge);
+    const modalHandler: ModalHandler = useMemo(
+        () => ({
+            openModal: ({ url, type, heightRatio, dragHandle }) => {
+                navigation.navigate('Modal', { url, type, heightRatio, dragHandle });
+            },
+            closeModal: () => {
+                if (navigation.canGoBack()) {
+                    navigation.goBack();
+                }
+            },
+            canGoBack: () => navigation.canGoBack(),
+        }),
+        [navigation]
+    );
 
-    const { handleMessage, isIapLoading } = useWebMessageRouter({
-        bridge,
-        navigation,
-        setWebCanGoBack: setWebCanGoBack,
-    });
+    if (!initialSource) {
+        return <View style={[loadingStyles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]} />;
+    }
 
     if (deepLinkError) {
         return <DeepLinkErrorView onGoHome={handleDismissError} reason={deepLinkErrorReason} />;
@@ -41,14 +50,24 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
             <AppWebView
                 ref={webViewRef}
                 source={initialSource}
+                bridge={bridge}
+                onMessage={onMessage}
                 scrollEnabled={false}
-                onMessage={handleMessage}
                 onLoad={handleWebViewLoad}
                 onNavigationStateChange={navState => {
                     setNavCanGoBack(navState.canGoBack);
                 }}
+                modalHandler={modalHandler}
+                setWebCanGoBack={setWebCanGoBack}
             />
-            <FullScreenLoader visible={isIapLoading} message={t('loader.paymentProcessing')} />
         </View>
     );
 };
+
+const loadingStyles = StyleSheet.create({
+    container: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+});

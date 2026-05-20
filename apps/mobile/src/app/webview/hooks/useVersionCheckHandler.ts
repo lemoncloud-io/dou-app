@@ -4,22 +4,20 @@ import { Platform } from 'react-native';
 import Config from 'react-native-config';
 
 import { onVersionCheckComplete } from '../../hooks';
-
-import type { WebViewBridge } from '../index';
-import type { AppMessageData, Env, Platform as AppPlatform } from '@chatic/app-messages';
+import type { IAppBridgeHost } from '@chatic/bridges';
+import type { Env, OnUpdateDeviceInfoPayload, Platform as AppPlatform } from '@chatic/app-messages';
 
 /**
  * Sends version check result to WebView via OnUpdateDeviceInfo bridge message.
  * Covers the case where the version check completes after WebView has loaded.
  */
-export const useVersionCheckHandler = (bridge: WebViewBridge) => {
+export const useVersionCheckHandler = (bridge: IAppBridgeHost) => {
     useEffect(() => {
         if (!bridge) return;
-
         const appVersion = DeviceInfo.getVersion();
 
-        const unsubscribe = onVersionCheckComplete(result => {
-            const message: AppMessageData<'OnUpdateDeviceInfo'> = {
+        return onVersionCheckComplete(result => {
+            bridge.pushEvent({
                 type: 'OnUpdateDeviceInfo',
                 data: {
                     platform: Platform.OS.toLowerCase() as AppPlatform,
@@ -28,13 +26,9 @@ export const useVersionCheckHandler = (bridge: WebViewBridge) => {
                     currentVersion: appVersion,
                     latestVersion: result.latestVersion,
                     shouldUpdate: true,
-                    appVersion,
-                    webVersion: '',
-                },
-            };
-            bridge.post(message);
+                    appVersion: appVersion,
+                } as OnUpdateDeviceInfoPayload,
+            } as any);
         });
-
-        return unsubscribe;
     }, [bridge]);
 };

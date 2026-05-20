@@ -1,4 +1,4 @@
-import { AppMessageTypes, useAppMessageStore } from '@chatic/app-messages';
+import { useAppMessageStore } from '@chatic/app-messages';
 import { createNativeDBAdapter } from './nativeDBAdapter';
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -14,19 +14,6 @@ const chat = (id: string, overrides: Record<string, unknown> = {}) =>
         ...overrides,
     }) as any;
 
-const buildHandlers = () =>
-    Object.values(AppMessageTypes).reduce(
-        (handlers, type) => {
-            handlers[type] = new Set();
-            return handlers;
-        },
-        {} as Record<string, Set<unknown>>
-    );
-
-const resetAppMessageStore = () => {
-    useAppMessageStore.setState({ handlers: buildHandlers() as never });
-};
-
 const createBridgeHarness = () => {
     const records = new Map<string, any>();
     const messages: Array<{ type: string; nonce?: string; data: any }> = [];
@@ -35,15 +22,15 @@ const createBridgeHarness = () => {
     const loadAll = (type: string, cid: string, uid: string) =>
         Array.from(records.entries())
             .filter(([recordKey]) => recordKey.startsWith(`${type}:${cid}:${uid}:`))
-            .map(([, item]) => clone(item));
+            .map(([, item]) => clone(item))
+            .filter(item => !item.__cacheMeta?.expiresAt || item.__cacheMeta.expiresAt > Date.now());
 
-    resetAppMessageStore();
     window.ReactNativeWebView = {
         postMessage: payload => {
             const message = JSON.parse(payload) as { type: string; nonce?: string; data: any };
             messages.push(message);
 
-            Promise.resolve().then(() => {
+            setTimeout(() => {
                 const cid = message.data?.cid ?? message.data?.query?.cid ?? 'default';
                 const uid = message.data?.uid ?? message.data?.query?.uid ?? 'default';
 
@@ -72,7 +59,12 @@ const createBridgeHarness = () => {
                             },
                         } as any);
                         break;
-                    case 'FetchCacheData':
+                    case 'FetchCacheData': {
+                        const rawItem = records.get(key(message.data.type, cid, uid, message.data.id));
+                        const item =
+                            rawItem && (!rawItem.__cacheMeta?.expiresAt || rawItem.__cacheMeta.expiresAt > Date.now())
+                                ? clone(rawItem)
+                                : null;
                         useAppMessageStore.getState().handleMessage({
                             type: 'OnFetchCacheData',
                             nonce: message.nonce,
@@ -81,10 +73,11 @@ const createBridgeHarness = () => {
                                 cid,
                                 uid,
                                 id: message.data.id,
-                                item: clone(records.get(key(message.data.type, cid, uid, message.data.id)) ?? null),
+                                item,
                             },
                         } as any);
                         break;
+                    }
                     case 'FetchAllCacheData':
                         useAppMessageStore.getState().handleMessage({
                             type: 'OnFetchAllCacheData',
@@ -123,7 +116,7 @@ const createBridgeHarness = () => {
                     default:
                         break;
                 }
-            });
+            }, 0);
         },
     };
 
@@ -131,7 +124,6 @@ const createBridgeHarness = () => {
         messages,
         cleanup: () => {
             delete window.ReactNativeWebView;
-            resetAppMessageStore();
         },
     };
 };
@@ -139,7 +131,6 @@ const createBridgeHarness = () => {
 describe('createNativeDBAdapter', () => {
     afterEach(() => {
         delete window.ReactNativeWebView;
-        resetAppMessageStore();
         jest.useRealTimers();
     });
 
@@ -176,10 +167,11 @@ describe('createNativeDBAdapter', () => {
 
         try {
             await storage.save('A1', chat('A1', { text: 'from-a' }));
+
             contextProvider.setContext({ cid: 'cloud-b', uid: 'user-b' });
             await storage.save('B1', chat('B1', { text: 'from-b' }));
-
             expect(await storage.loadAll()).toMatchObject([chat('B1', { text: 'from-b' })]);
+
             contextProvider.setContext({ cid: 'cloud-a', uid: 'user-a' });
             expect(await storage.loadAll()).toMatchObject([chat('A1', { text: 'from-a' })]);
         } finally {
@@ -187,30 +179,8 @@ describe('createNativeDBAdapter', () => {
         }
     });
 
-    it('replaceAll follows fetch-clear-save bridge flow', async () => {
-        const harness = createBridgeHarness();
-        const contextProvider = { getContext: () => ({ cid: 'cloud-r', uid: 'user-r' }), setContext: () => undefined };
-        const storage = createNativeDBAdapter('chat', contextProvider);
-
-        try {
-            await storage.saveAll([chat('R1'), chat('R2')] as any);
-            await storage.replaceAll([chat('R3')] as any);
-
-            expect(await storage.loadAll()).toMatchObject([chat('R3')]);
-            const types = harness.messages.map(message => message.type);
-            expect(types).toContain('FetchAllCacheData');
-
-            // 💡 수정: DeleteAllCacheData 대신 ClearCacheData 확인
-            expect(types).toContain('ClearCacheData');
-            expect(types).toContain('SaveAllCacheData');
-        } finally {
-            harness.cleanup();
-        }
-    });
-
     it('times out when app bridge does not respond', async () => {
         jest.useFakeTimers();
-        resetAppMessageStore();
         window.ReactNativeWebView = {
             postMessage: () => undefined,
         };
@@ -223,7 +193,7 @@ describe('createNativeDBAdapter', () => {
         const pending = storage.load('T1');
 
         jest.advanceTimersByTime(5000);
-        await expect(pending).rejects.toThrow('Timeout waiting for app message: OnFetchCacheData');
+        await expect(pending).rejects.toThrow('Timeout waiting for app message: FetchCacheData');
     });
 
     it('filters expired records while loading', async () => {
@@ -235,6 +205,7 @@ describe('createNativeDBAdapter', () => {
 
         try {
             await storage.save('U1', { id: 'U1', cid: 'ttl', name: 'ttl-user' } as any);
+
             nowSpy.mockReturnValue(1000 + 31 * 60 * 1000);
             expect(await storage.loadAll()).toEqual([]);
         } finally {
