@@ -2,7 +2,7 @@ import type { BridgeAdapter } from './BridgeAdapter';
 import type { EventMessage, RequestMessage, ResponseMessage } from '../../common';
 
 export class MockBridgeAdapter implements BridgeAdapter {
-    private onMessageHandlers: ((message: ResponseMessage | EventMessage) => void)[] = [];
+    private onMessageHandlers = new Set<(message: ResponseMessage | EventMessage) => void>();
     private sendToAppCallback?: (message: RequestMessage) => void;
 
     constructor(sendToAppCallback?: (message: RequestMessage) => void) {
@@ -13,14 +13,14 @@ export class MockBridgeAdapter implements BridgeAdapter {
     public postMessage(message: RequestMessage): void {
         console.log(`[MockBridgeAdapter] Web -> App 메시지 전송: [${message.type}]`);
         if (this.sendToAppCallback) {
-            setTimeout(() => this.sendToAppCallback!(message), 10);
+            setTimeout(() => this.sendToAppCallback?.(message), 10);
         }
     }
 
     public onMessage(handler: (message: ResponseMessage | EventMessage) => void): () => void {
-        this.onMessageHandlers.push(handler);
+        this.onMessageHandlers.add(handler);
         return () => {
-            this.onMessageHandlers = this.onMessageHandlers.filter(h => h !== handler);
+            this.onMessageHandlers.delete(handler);
         };
     }
 
