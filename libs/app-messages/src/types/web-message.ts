@@ -96,7 +96,7 @@ export type WebMessageType = keyof WebMessagePayloadMap;
  */
 export type WebDefaultMessage<T extends WebMessageType> = BaseMessage & {
     type: T;
-} & (WebMessagePayloadMap[T] extends never ? { payload?: never } : { payload: WebMessagePayloadMap[T] });
+} & (WebMessagePayloadMap[T] extends never ? { data?: never } : { data: WebMessagePayloadMap[T] });
 
 export type WebMessageData<T extends WebMessageType> = WebDefaultMessage<T>;
 

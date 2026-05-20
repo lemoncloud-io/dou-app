@@ -59,45 +59,46 @@ export class AppBridgeHost implements IAppBridgeHost {
     private async processRequest(message: RequestMessage): Promise<void> {
         const handler = this.handlers.get(message.type);
 
+        // 핸들러가 등록되지 않은 경우 즉시 에러 전송
         if (!handler) {
-            this.sendErrorResponse(message, 'NOT_FOUND', `등록된 핸들러를 찾을 수 없습니다: ${message.type}`);
+            const response = {
+                type: 'ERROR',
+                refId: message.refId,
+                version: message.version,
+                success: false,
+                error: { code: 'NOT_FOUND', message: `등록된 핸들러를 찾을 수 없습니다: ${message.type}` },
+            } as unknown as ResponseMessage;
+            this.sendToWeb(this.protocol.encode(response) as string);
             return;
         }
 
         try {
+            // 핸들러 실행
             const result = await handler(message);
-            this.sendSuccessResponse(message, result);
+
+            // 브릿지 메타데이터만 추가하여 전송
+            const response = {
+                ...result,
+                refId: message.refId,
+                version: message.version,
+            } as unknown as ResponseMessage;
+
+            this.sendToWeb(this.protocol.encode(response) as string);
         } catch (error: any) {
-            this.sendErrorResponse(
-                message,
-                error?.code ?? 'INTERNAL_ERROR',
-                error?.message ?? '네이티브 내부 처리 중 에러가 발생했습니다.'
-            );
+            // 핸들러 내부에서 예상치 못한 치명적 예외(Uncaught Exception)가 발생했을 때를 위한 안전망(Fallback)
+            const response = {
+                type: 'ERROR',
+                refId: message.refId,
+                version: message.version,
+                success: false,
+                error: {
+                    code: error?.code ?? 'INTERNAL_ERROR',
+                    message: error?.message ?? '네이티브 내부 처리 중 에러가 발생했습니다.',
+                },
+            } as unknown as ResponseMessage;
+
+            this.sendToWeb(this.protocol.encode(response) as string);
         }
-    }
-
-    private sendSuccessResponse(message: RequestMessage, responsePayload: any): void {
-        const response = {
-            ...responsePayload, // 전개 연산자를 위로 배치
-            refId: message.refId,
-            version: message.version,
-            nonce: message.nonce,
-        } as unknown as ResponseMessage;
-
-        this.sendToWeb(this.protocol.encode(response) as string);
-    }
-
-    private sendErrorResponse(message: RequestMessage, code: string, errorMessage: string): void {
-        const response = {
-            ...message,
-            refId: message.refId,
-            version: message.version,
-            nonce: message.nonce,
-            success: false,
-            error: { code, message: errorMessage },
-        } as unknown as ResponseMessage;
-
-        this.sendToWeb(this.protocol.encode(response) as string);
     }
 
     private generateRefId(): string {
