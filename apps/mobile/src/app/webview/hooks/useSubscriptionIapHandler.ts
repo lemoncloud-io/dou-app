@@ -73,7 +73,7 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
      */
     const handlePurchaseSubscription = useCallback(
         async (message: WebMessageData<'Purchase'>) => {
-            const { id, offerToken, oldPlanId, newPlanId } = message.payload;
+            const { id, offerToken, oldPlanId, newPlanId } = message.data;
             try {
                 await handlePurchase(id, offerToken, oldPlanId, newPlanId);
                 return { type: 'void' as const, success: true };
@@ -94,7 +94,7 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
      */
     const handleFinishPurchase = useCallback(
         async (message: WebMessageData<'FinishPurchaseTransaction'>) => {
-            const { purchase } = message.payload;
+            const { purchase } = message.data;
             try {
                 await finishPurchase(purchase);
                 return {

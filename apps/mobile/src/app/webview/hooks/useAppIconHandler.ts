@@ -36,7 +36,7 @@ export const useAppIconHandler = () => {
     // 앱 아이콘 변경 실행
     const handleChangeAppIcon = useCallback(async (message: WebMessageData<'ChangeAppIcon'>) => {
         // 새 규격에 따라 요청 데이터는 data가 아닌 payload 안에 존재합니다.
-        const { iconName } = message.payload;
+        const { iconName } = message.data;
 
         try {
             const requestedIcon = iconName ?? null;

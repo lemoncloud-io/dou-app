@@ -18,7 +18,7 @@ export const useDeviceHandler = () => {
 
     const handleOpenShareSheet = useCallback(
         async (message: WebMessageData<'OpenShareSheet'>) => {
-            const data = message.payload;
+            const data = message.data;
             try {
                 const result = await deviceService.openShareSheet(data);
                 return {
@@ -40,7 +40,7 @@ export const useDeviceHandler = () => {
 
     const handleOpenDocument = useCallback(
         async (message: WebMessageData<'OpenDocument'>) => {
-            const data = message.payload;
+            const data = message.data;
             try {
                 const results = await deviceService.openDocument(data.allowMultiSelection);
 
@@ -179,7 +179,7 @@ export const useDeviceHandler = () => {
 
     const handleOpenURL = useCallback(
         async (message: WebMessageData<'OpenURL'>) => {
-            const { url } = message.payload;
+            const { url } = message.data;
             try {
                 await Linking.openURL(url);
                 return { type: 'OnOpenURL' as const, success: true };

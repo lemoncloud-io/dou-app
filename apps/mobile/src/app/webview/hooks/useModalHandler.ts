@@ -28,7 +28,7 @@ export const useModalHandler = (bridge: IAppBridgeHost, modalHandler: ModalHandl
     const handleOpenModal = useCallback(
         async (message: WebMessageData<'OpenModal'>) => {
             isOpenModal.current = true;
-            const { url, type = 'sheet', heightRatio, dragHandle } = message.payload;
+            const { url, type = 'sheet', heightRatio, dragHandle } = message.data;
             modalHandler.openModal({ url, type, heightRatio, dragHandle });
 
             return { type: 'OnOpenModal' as const, success: true };

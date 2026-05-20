@@ -7,7 +7,7 @@ export const useCrudCacheHandler = () => {
 
     const handleFetchAllCache = useCallback(
         async (message: WebMessageData<'FetchAllCacheData'>) => {
-            const data = message.payload;
+            const data = message.data;
             try {
                 const items = await cacheCrudService.fetchAll(data);
                 return {
@@ -29,7 +29,7 @@ export const useCrudCacheHandler = () => {
 
     const handleFetchCache = useCallback(
         async (message: WebMessageData<'FetchCacheData'>) => {
-            const data = message.payload;
+            const data = message.data;
             try {
                 const item = await cacheCrudService.fetch(data);
                 return {
@@ -51,7 +51,7 @@ export const useCrudCacheHandler = () => {
 
     const handleSaveCache = useCallback(
         async (message: WebMessageData<'SaveCacheData'>) => {
-            const data = message.payload;
+            const data = message.data;
             try {
                 const savedId = await cacheCrudService.save(data);
                 return {
@@ -73,7 +73,7 @@ export const useCrudCacheHandler = () => {
 
     const handleSaveAllCache = useCallback(
         async (message: WebMessageData<'SaveAllCacheData'>) => {
-            const data = message.payload;
+            const data = message.data;
             try {
                 const savedIds = await cacheCrudService.saveAll(data);
                 return {
@@ -102,7 +102,7 @@ export const useCrudCacheHandler = () => {
 
     const handleDeleteCache = useCallback(
         async (message: WebMessageData<'DeleteCacheData'>) => {
-            const data = message.payload;
+            const data = message.data;
             try {
                 const deletedId = await cacheCrudService.delete(data);
                 return {
@@ -124,7 +124,7 @@ export const useCrudCacheHandler = () => {
 
     const handleDeleteAllCache = useCallback(
         async (message: WebMessageData<'DeleteAllCacheData'>) => {
-            const data = message.payload;
+            const data = message.data;
             try {
                 const deletedIds = await cacheCrudService.deleteAll(data);
                 return {
@@ -146,7 +146,7 @@ export const useCrudCacheHandler = () => {
 
     const handleClearCache = useCallback(
         async (message: WebMessageData<'ClearCacheData'>) => {
-            const data = message.payload;
+            const data = message.data;
             try {
                 await cacheCrudService.clear(data);
                 return {

@@ -8,7 +8,7 @@ export const usePreferenceCacheHandler = () => {
 
     const handleFetchPreference = useCallback(
         async (message: WebMessageData<'FetchPreference'>) => {
-            const { key } = message.payload;
+            const { key } = message.data;
             try {
                 const value = await preferenceService.get(key as any);
                 return { type: 'OnFetchPreference' as const, success: true, data: { key, value } };
@@ -26,7 +26,7 @@ export const usePreferenceCacheHandler = () => {
 
     const handleSavePreference = useCallback(
         async (message: WebMessageData<'SavePreference'>) => {
-            const { key, value } = message.payload;
+            const { key, value } = message.data;
 
             try {
                 switch (key) {
@@ -55,7 +55,7 @@ export const usePreferenceCacheHandler = () => {
 
     const handleDeletePreference = useCallback(
         async (message: WebMessageData<'DeletePreference'>) => {
-            const { key } = message.payload;
+            const { key } = message.data;
             try {
                 await preferenceService.remove(key as any);
                 return { type: 'OnDeletePreference' as const, success: true, data: { key, success: true } };

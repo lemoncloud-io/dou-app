@@ -7,7 +7,7 @@ export const useLogBufferHandler = () => {
 
     const handleFetchAppLogBuffer = useCallback(
         async (message: WebMessageData<'FetchAppLogBuffer'>) => {
-            const data = message.payload;
+            const data = message.data;
             try {
                 const logs = logBufferService.peek(data.count);
                 return {
@@ -32,7 +32,7 @@ export const useLogBufferHandler = () => {
 
     const handlePollAppLogBuffer = useCallback(
         async (message: WebMessageData<'PollAppLogBuffer'>) => {
-            const data = message.payload;
+            const data = message.data;
             try {
                 const logs = await logBufferService.poll(data.count);
                 return {

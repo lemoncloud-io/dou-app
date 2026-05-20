@@ -10,7 +10,7 @@ export const useOAuthHandler = () => {
      */
     const handleOAuthLogin = useCallback(
         async (message: WebMessageData<'OAuthLogin'>) => {
-            const { provider } = message.payload;
+            const { provider } = message.data;
             try {
                 const result = await oAuthService.login(provider);
                 return {
@@ -35,7 +35,7 @@ export const useOAuthHandler = () => {
      */
     const handleOAuthLogout = useCallback(
         async (message: WebMessageData<'OAuthLogout'>) => {
-            const { provider } = message.payload;
+            const { provider } = message.data;
             try {
                 const success: boolean = await oAuthService.logout(provider);
                 return {

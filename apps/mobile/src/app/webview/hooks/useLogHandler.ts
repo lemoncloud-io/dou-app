@@ -4,7 +4,7 @@ import type { WebMessageData } from '@chatic/app-messages';
 
 export const useLogHandler = () => {
     const handleSendLog = useCallback(async (message: WebMessageData<'SendLog'>) => {
-        const { level = 'info', message: logMessage, data, error, tag } = message.payload;
+        const { level = 'info', message: logMessage, data, error, tag } = message.data;
         const forwardedData = { tag, data };
 
         switch (level) {

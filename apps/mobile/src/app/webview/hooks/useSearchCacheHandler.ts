@@ -7,7 +7,7 @@ export const useSearchCacheHandler = () => {
 
     const handleSearchGlobalCache = useCallback(
         async (message: WebMessageData<'SearchGlobalCacheData'>) => {
-            const { keyword, cid, uid } = message.payload;
+            const { keyword, cid, uid } = message.data;
             try {
                 const items = await cacheSearchService.search(keyword, cid, uid);
                 return { type: 'OnSearchGlobalCacheData' as const, success: true, data: { items } };

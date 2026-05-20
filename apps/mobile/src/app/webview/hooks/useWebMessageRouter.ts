@@ -180,7 +180,7 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
         const handlerMap: {
             [K in WebMessageType]?: (message: WebMessageData<K>) => any;
         } = {
-            SetCanGoBack: message => handlersRef.current.setWebCanGoBack(message.payload.canGoBack),
+            SetCanGoBack: message => handlersRef.current.setWebCanGoBack(message.data.canGoBack),
             FetchFcmToken: message => handlersRef.current.fetchFcmToken(message),
             FetchSafeArea: message => handlersRef.current.fetchSafeAreaInfo(message),
             FetchBackgroundStatus: message => handlersRef.current.handleFetchBackgroundStatus(message),

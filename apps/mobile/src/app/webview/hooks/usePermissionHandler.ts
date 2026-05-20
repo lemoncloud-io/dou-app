@@ -7,7 +7,7 @@ export const usePermissionHandler = () => {
 
     const handleRequestPermission = useCallback(
         async (message: WebMessageData<'RequestPermission'>) => {
-            const { permission } = message.payload;
+            const { permission } = message.data;
 
             try {
                 const isGranted = await permissionService.request(permission);
