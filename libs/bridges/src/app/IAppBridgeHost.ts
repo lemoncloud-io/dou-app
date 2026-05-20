@@ -1,5 +1,5 @@
 import type { WebMessageType, WebMessageData, EventMessageType, AppMessageData } from '@chatic/app-messages';
-import type { BridgeResponseMessage } from '../common';
+import type { ResponseMessage } from '../common';
 
 /**
  * App(Native) 환경에서 Web(React 등)의 요청을 수신하고 처리하는 호스트(Host) 인터페이스입니다.
@@ -16,7 +16,7 @@ export interface IAppBridgeHost {
      */
     registerHandler<K extends WebMessageType>(
         type: K,
-        handler: (message: WebMessageData<K>) => Promise<BridgeResponseMessage<K>>
+        handler: (message: WebMessageData<K>) => Promise<ResponseMessage>
     ): void;
 
     /**

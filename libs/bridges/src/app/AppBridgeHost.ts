@@ -1,6 +1,5 @@
 import type { EventMessage, MessageProtocol, RequestMessage, ResponseMessage } from '../common';
 import { JsonProtocol } from '../common';
-import type { BridgeResponseMessage } from '../common/types';
 import type { AppMessageData, EventMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { IAppBridgeHost } from './IAppBridgeHost';
 
@@ -36,7 +35,7 @@ export class AppBridgeHost implements IAppBridgeHost {
 
     public registerHandler<K extends WebMessageType>(
         type: K,
-        handler: (message: WebMessageData<K>) => Promise<BridgeResponseMessage<K>>
+        handler: (message: WebMessageData<K>) => Promise<ResponseMessage>
     ): void {
         this.handlers.set(type as string, handler);
     }

@@ -1,6 +1,5 @@
 import type { BridgeAdapter } from './adapters';
 import type { EventMessage, RequestMessage, ResponseMessage } from '../common';
-import type { BridgeResponseMessage } from '../common/types';
 import type { IWebBridgeClient } from './IWebBridgeClient';
 import type { AppMessageData, EventMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
 
@@ -78,7 +77,7 @@ export class WebBridgeClient implements IWebBridgeClient {
         type: K,
         messageParams?: Omit<WebMessageData<K>, 'type'>,
         customTimeoutMs?: number
-    ): Promise<BridgeResponseMessage<K>> {
+    ): Promise<ResponseMessage> {
         return new Promise((resolve, reject) => {
             const refId = messageParams?.refId ?? this.generateRefId();
             const message = {
@@ -101,7 +100,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     public send<K extends WebMessageType>(
         message: WebMessageData<K>,
         customTimeoutMs?: number
-    ): Promise<BridgeResponseMessage<K>> {
+    ): Promise<ResponseMessage> {
         const { type, ...rest } = message;
         return this.request(type as K, rest as Omit<WebMessageData<K>, 'type'>, customTimeoutMs);
     }

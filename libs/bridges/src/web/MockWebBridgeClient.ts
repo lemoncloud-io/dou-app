@@ -1,6 +1,5 @@
 import type { BridgeAdapter } from './adapters';
 import type { EventMessage, RequestMessage, ResponseMessage } from '../common';
-import type { BridgeResponseMessage } from '../common/types';
 import type { IWebBridgeClient } from './IWebBridgeClient';
 import type { WebMessageType, WebMessageData, EventMessageType, AppMessageData } from '@chatic/app-messages';
 
@@ -69,7 +68,7 @@ export class MockWebBridgeClient implements IWebBridgeClient {
     public request<K extends WebMessageType>(
         type: K,
         messageParams?: Omit<WebMessageData<K>, 'type'>
-    ): Promise<BridgeResponseMessage<K>> {
+    ): Promise<ResponseMessage> {
         console.log(`[MockWebBridgeClient] REQUEST 발송: type='${String(type)}'`, messageParams);
         return new Promise((resolve, reject) => {
             const refId = messageParams?.refId ?? this.generateRefId();
@@ -90,7 +89,7 @@ export class MockWebBridgeClient implements IWebBridgeClient {
         });
     }
 
-    public send<K extends WebMessageType>(message: WebMessageData<K>): Promise<BridgeResponseMessage<K>> {
+    public send<K extends WebMessageType>(message: WebMessageData<K>): Promise<ResponseMessage> {
         const { type, ...rest } = message;
         return this.request(type as K, rest as Omit<WebMessageData<K>, 'type'>);
     }
