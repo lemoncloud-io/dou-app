@@ -8,11 +8,13 @@ import { AppWebView } from '../../../webview';
 import { DeepLinkErrorView } from '../../core/components';
 import type { MainScreenProps } from '../navigation';
 import type { ModalHandler } from '../../../webview/hooks/useModalHandler';
+import { useAppBridge } from '../../../webview/hooks';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
+    const { bridge, onMessage } = useAppBridge(webViewRef);
 
-    const { setWebCanGoBack, setNavCanGoBack } = useWebViewNavigation(webViewRef);
+    const { setWebCanGoBack, setNavCanGoBack } = useWebViewNavigation(bridge);
     const {
         initialSource,
         handleWebViewLoad,
@@ -50,6 +52,8 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
             <AppWebView
                 ref={webViewRef}
                 source={initialSource}
+                bridge={bridge}
+                onMessage={onMessage}
                 scrollEnabled={false}
                 onLoad={handleWebViewLoad}
                 onNavigationStateChange={navState => {
