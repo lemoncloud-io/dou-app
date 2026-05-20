@@ -3,28 +3,26 @@ import React, { useRef } from 'react';
 import { useAppBridge, useVersionCheckHandler } from '../../../webview/hooks';
 import type { WebView } from 'react-native-webview';
 import type { MainScreenProps } from '../navigation';
-import { StyleSheet, View } from 'react-native';
+import { useColorScheme, View } from 'react-native';
 
 import { useWebViewDeepLink } from '../../../webview/hooks/useWebViewDeepLink';
 import { useWebMessageRouter } from '../hooks/useWebMessageRouter';
 import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigation';
 import { AppWebView } from '../../../webview';
 import { DeepLinkErrorView, FullScreenLoader } from '../../core/components';
+import { useThemeStore } from '../../../stores';
 import { t } from '../../../utils';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
     const { bridge } = useAppBridge(webViewRef);
+    const systemColorScheme = useColorScheme();
+    const theme = useThemeStore(s => s.theme);
+    const isDark = theme === 'dark' || (theme === 'system' && systemColorScheme === 'dark');
 
     const { setWebCanGoBack, setNavCanGoBack } = useWebViewNavigation(webViewRef);
-    const {
-        initialSource,
-        handleWebViewLoad,
-        isColdStartReady,
-        deepLinkError,
-        deepLinkErrorReason,
-        handleDismissError,
-    } = useWebViewDeepLink(webViewRef);
+    const { initialSource, handleWebViewLoad, deepLinkError, deepLinkErrorReason, handleDismissError } =
+        useWebViewDeepLink(webViewRef);
 
     useVersionCheckHandler(bridge);
 
@@ -34,16 +32,12 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         setWebCanGoBack: setWebCanGoBack,
     });
 
-    if (!isColdStartReady || !initialSource) {
-        return <View style={loadingStyles.container}></View>;
-    }
-
     if (deepLinkError) {
         return <DeepLinkErrorView onGoHome={handleDismissError} reason={deepLinkErrorReason} />;
     }
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
+        <View style={{ flex: 1, backgroundColor: isDark ? '#121212' : '#ffffff' }}>
             <AppWebView
                 ref={webViewRef}
                 source={initialSource}
@@ -58,16 +52,3 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         </View>
     );
 };
-
-const loadingStyles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#ffffff',
-    },
-    logo: {
-        width: 80,
-        height: 80,
-    },
-});

@@ -55,10 +55,8 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     const isConnected = useWebSocketV2Store(s => s.isConnected);
     // default cloud인 경우 WebSocket store에 cloudId가 설정되기 전에도 동작할 수 있도록 fallback
     const selectedCloudId = cloudCore.getSelectedCloudId();
-    const cloudId = storeCloudId || (selectedCloudId === 'default' ? 'default' : null);
+    const cloudId = storeCloudId || selectedCloudId || null;
 
-    const prevCloudIdRef = useRef(cloudId);
-    const prevPlaceIdRef = useRef(targetPlaceId);
     const currentParamsRef = useRef(initialParams);
     const cacheKey = getChannelCacheKey(cloudId, targetPlaceId);
 
@@ -67,6 +65,21 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     channelsRef.current = channels;
 
     const [isLoading, setIsLoading] = useState(() => !channelCache.has(cacheKey));
+
+    // 렌더 단계에서 cloud/place 전환 감지 — useEffect가 아닌 렌더 중에 상태를 초기화하여
+    // 이전 place의 채널이 한 프레임 보이는 현상(flash) 방지
+    const [prevCloudId, setPrevCloudId] = useState(cloudId);
+    const [prevPlaceId, setPrevPlaceId] = useState(targetPlaceId);
+
+    const isCloudSwitch = !!prevCloudId && prevCloudId !== cloudId;
+    const isPlaceSwitch = !!prevPlaceId && prevPlaceId !== targetPlaceId;
+
+    if (isCloudSwitch || isPlaceSwitch) {
+        setChannels([]);
+        setIsLoading(true);
+    }
+    if (prevCloudId !== cloudId) setPrevCloudId(cloudId);
+    if (prevPlaceId !== targetPlaceId) setPrevPlaceId(targetPlaceId);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isError, setIsError] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -87,7 +100,12 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
             );
             channelCache.set(getChannelCacheKey(cloudId, targetPlaceId), nextChannels);
             setChannels(nextChannels);
-            setIsLoading(false);
+            // 데이터가 있을 때만 isLoading 해제 — 캐시 미스(빈 배열)로 조기 해제되면
+            // fetchChannels 네트워크 응답 전에 "채널 없음" 빈 상태가 잠깐 보임.
+            // 빈 place의 isLoading 해제는 fetchChannels에서 처리.
+            if (nextChannels.length > 0) {
+                setIsLoading(false);
+            }
         });
 
         return () => unsubscribe();
@@ -122,7 +140,6 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
                         (result.list ?? []).map((channel: DomainChannel) => toClientChannel(channel, userIdRef.current))
                     );
                     setChannels(nextChannels);
-                    setIsLoading(false);
                 }
             } catch (error) {
                 const message = error instanceof Error ? error.message : String(error);
@@ -130,29 +147,19 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
                 setIsError(true);
                 setErrorMessage(message);
             } finally {
+                // 네트워크 fetch 완료 후 항상 isLoading 해제 — 빈 place도 "채널 없음"을 표시하려면
+                // 네트워크 확인 후에만 로딩을 끝내야 함
+                setIsLoading(false);
                 if (forceNetwork) setIsSyncing(false);
             }
         },
         [channelRepository]
     );
 
-    // 클라우드/플레이스 전환 시에만 채널 초기화 + 로더 표시
-    // 단순 갱신(remount, polling, isConnected 변경)은 기존 데이터 유지하며 백그라운드 동기화만
-    // 빈 값 → 실제 값은 "초기 세팅"이므로 전환으로 취급하지 않음
+    // 채널 데이터 동기화 — cloud/place 전환 시 초기화는 위 렌더 단계에서 처리,
+    // 여기서는 fetchChannels만 호출
     useEffect(() => {
-        const isCloudSwitch = !!prevCloudIdRef.current && prevCloudIdRef.current !== cloudId;
-        const isPlaceSwitch = !!prevPlaceIdRef.current && prevPlaceIdRef.current !== targetPlaceId;
-
-        prevCloudIdRef.current = cloudId;
-        prevPlaceIdRef.current = targetPlaceId;
-
-        if (isCloudSwitch || isPlaceSwitch) {
-            setChannels([]);
-            setIsLoading(true);
-        } else {
-            currentParamsRef.current = initialParams;
-        }
-
+        currentParamsRef.current = initialParams;
         void fetchChannels(initialParams);
     }, [
         fetchChannels,

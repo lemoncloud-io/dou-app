@@ -57,7 +57,13 @@ export const SortablePlaceItem = ({ place, isOwner, onSettings, onDelete, onLeav
                     )}
                 >
                     {place.thumbnail ? (
-                        <img src={place.thumbnail} alt={place.name} className="h-full w-full object-cover" />
+                        <img
+                            src={place.thumbnail}
+                            alt={place.name}
+                            loading="lazy"
+                            decoding="async"
+                            className="h-full w-full object-cover"
+                        />
                     ) : (
                         <Users size={14} className={isOwner ? 'text-primary-foreground' : 'text-muted-foreground'} />
                     )}

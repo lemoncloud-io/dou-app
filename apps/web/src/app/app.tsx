@@ -12,7 +12,7 @@ import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
 
-import { initializeMessageListener, logger } from '@chatic/app-messages';
+import { initializeMessageListener, logger, postMessage } from '@chatic/app-messages';
 
 import { ServiceUnavailableOverlay, WebSocketV2Connection } from './components';
 import { GlobalChatSync } from './components/GlobalChatSync';
@@ -66,27 +66,17 @@ export function App() {
     const isWebCoreReady = useInitWebCore();
     const { isAuthenticated, profile } = useWebCoreStore();
     const { isInitialized: isTokenInitialized, initStatus, refreshToken } = useTokenRefresh(isWebCoreReady);
-    // Render immediately whenever we have something to show:
-    // - Unauthenticated users: public routes
-    // - Mobile WebView bootstrap cache: explicit opt-in
-    // - Cached profile in localStorage: render app, let token refresh / profile
-    //   fetch run in the background (do NOT block UI on network work)
-    // - Token init explicitly failed: avoid infinite loading (logout path handles the rest)
-    const canRenderApp =
-        isWebCoreReady && (!isAuthenticated || !!profile || (isTokenInitialized && initStatus === 'failed'));
 
-    useEffect(() => {
-        logger.info('APP', '[canRenderApp]', {
-            data: {
-                isWebCoreReady,
-                isAuthenticated,
-                hasProfile: !!profile,
-                isTokenInitialized,
-                initStatus,
-                canRenderApp,
-            },
-        });
-    }, [isWebCoreReady, isAuthenticated, profile, isTokenInitialized, initStatus, canRenderApp]);
+    const minTimeElapsed = true;
+
+    // Fast path: cached profile in localStorage → render app immediately.
+    // webCore.init() and token refresh continue in the background.
+    // If session turns out to be expired, isAuthenticated flips to false → redirect to login.
+    const canRenderApp =
+        (isWebCoreReady && (!isAuthenticated || !!profile || (isTokenInitialized && initStatus === 'failed'))) ||
+        !!profile;
+    const showSplash = !canRenderApp || !minTimeElapsed;
+
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
     useForegroundResync(refreshToken);
@@ -98,6 +88,11 @@ export function App() {
         };
     }, []);
 
+    // React 마운트 완료 → 네이티브 APP LOADER 해제
+    useEffect(() => {
+        postMessage({ type: 'WebAppReady' });
+    }, []);
+
     const handleError = useCallback((error: Error, info: ErrorInfo): void => {
         logger.error('APP', 'Application Error', { error, data: info });
         reportError(error, { componentStack: info.componentStack ?? undefined });
@@ -105,7 +100,7 @@ export function App() {
 
     return (
         <>
-            {!canRenderApp && <LoadingFallback />}
+            {showSplash && <LoadingFallback />}
             {canRenderApp && (
                 <I18nextProvider i18n={i18n}>
                     <VersionUpdateBanner
@@ -121,8 +116,8 @@ export function App() {
                                     <ThemeProvider>
                                         <DataProvider>
                                             <ForegroundTokenRefresh refreshToken={refreshToken} />
-                                            {isAuthenticated && <WebSocketV2Connection />}
-                                            {isAuthenticated && <GlobalChatSync />}
+                                            {isAuthenticated && isWebCoreReady && <WebSocketV2Connection />}
+                                            {isAuthenticated && isWebCoreReady && <GlobalChatSync />}
                                             <ServiceUnavailableOverlay />
                                             <DeviceTokenRegistration />
                                             <Router />

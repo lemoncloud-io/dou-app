@@ -1,5 +1,5 @@
-import React, { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Image, Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import { WebView, type WebViewProps } from 'react-native-webview';
 import DeviceInfo from 'react-native-device-info';
 import Config from 'react-native-config';
@@ -15,6 +15,22 @@ import {
     getSafeAreaScript,
 } from './utils/injectionScripts';
 import { useServices } from '../hooks/useServices';
+import { useThemeStore } from '../stores';
+
+const LIGHT_BG = '#ffffff';
+const DARK_BG = '#121212';
+
+const useIsDarkMode = () => {
+    const systemColorScheme = useColorScheme();
+    const theme = useThemeStore(s => s.theme);
+    return theme === 'dark' || (theme === 'system' && systemColorScheme === 'dark');
+};
+
+const WebViewLoadingOverlay = ({ isDark }: { isDark: boolean }) => (
+    <View style={[styles.logoOverlay, { backgroundColor: isDark ? DARK_BG : LIGHT_BG }]}>
+        <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+    </View>
+);
 
 interface AppWebViewProps extends WebViewProps {}
 
@@ -27,15 +43,44 @@ const userAgentSuffix = `(${APP_USER_AGENT_PREFIX}; ${appName}/${appVersion}; ${
 
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const { cacheCrudService, firebaseInstallationService } = useServices();
-    const [injectionScript, setInjectionScript] = useState<string | null>(null);
     const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
+    const isDark = useIsDarkMode();
+    const bgColor = isDark ? DARK_BG : LIGHT_BG;
     const insets = useSafeAreaInsets();
     const keyboardHeight = useKeyboardHeight();
     const webViewRef = useRef<WebView | null>(null);
 
-    // 최초 1회: deviceInfo 주입 (비동기 초기화 - getUserAgent 제거로 더 빠름)
+    // Phase 1: Sync injection script — 첫 렌더에 즉시 사용 가능, async 대기 없음
+    // CHATIC_APP_PLATFORM + ChaticMessageHandler 브릿지가 웹앱 부팅의 핵심 (getMobileAppInfo)
+    // DEVICE_ID/INSTALLATION_ID는 webCore.init()에 불필요하므로 Phase 2로 지연
+    const syncInjectionScript = useMemo(() => {
+        const versionCheck = getVersionCheckResult();
+        const deviceInfoScript = getDeviceInfoScript({
+            platform: Platform.OS.toLowerCase(),
+            applicationName: DeviceInfo.getApplicationName(),
+            stage: Config.VITE_ENV || 'PROD',
+            uniqueId: '',
+            deviceModel: DeviceInfo.getDeviceId() || '',
+            appVersion: DeviceInfo.getVersion(),
+            buildNumber: DeviceInfo.getBuildNumber(),
+            appLanguage: getAppLanguage(),
+            installationId: '',
+            latestVersion: versionCheck?.latestVersion ?? '',
+            shouldUpdate: versionCheck?.hasUpdate ?? false,
+        });
+        return `
+            ${getSafeAreaScript(insets, keyboardHeight)}
+            ${deviceInfoScript}
+            ${getCachedDataScript({ channels: [], clouds: [], timestamp: 0 })}
+            ${getConsoleOverrideScript()}
+        `;
+    }, [insets, keyboardHeight]);
+
+    // Phase 2: 비동기 디바이스 정보 — WebView는 이미 로드 시작, 준비되면 주입
+    const [injectionScript, setInjectionScript] = useState<string | null>(null);
+
     useEffect(() => {
-        const prepareWebView = async () => {
+        const prepareAsyncData = async () => {
             const [uniqueId, installationId, cachedClouds] = await Promise.all([
                 DeviceInfo.getUniqueId(),
                 firebaseInstallationService.getFirebaseId(),
@@ -86,15 +131,26 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             `;
 
             setInjectionScript(script);
+
+            // 이미 로드 중인 WebView에 비동기 값을 즉시 주입
+            const composedId = `${uniqueId || 'default'}:${installationId || 'default'}`;
+            const dedupedClouds = dedup(cachedClouds as { id?: string }[]);
+            webViewRef.current?.injectJavaScript(`
+                window.CHATIC_APP_DEVICE_ID = '${composedId}';
+                window.CHATIC_APP_INSTALLATION_ID = '${installationId || ''}';
+                window.CHATIC_CACHED_CLOUDS = ${JSON.stringify(dedupedClouds)};
+                window.CHATIC_CACHED_TIMESTAMP = ${Date.now()};
+                true;
+            `);
         };
-        void prepareWebView();
+        void prepareAsyncData();
     }, [cacheCrudService, firebaseInstallationService, insets, keyboardHeight]);
 
     // insets 변경 시 명령형으로 재주입
     useEffect(() => {
-        if (!webViewRef.current || !injectionScript) return;
+        if (!webViewRef.current) return;
         webViewRef.current.injectJavaScript(getSafeAreaScript(insets, keyboardHeight));
-    }, [insets, keyboardHeight, injectionScript]);
+    }, [insets, keyboardHeight]);
 
     // 깔끔한 다중 Ref 동기화
     const setRefs = useCallback(
@@ -106,34 +162,38 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         [ref]
     );
 
-    // onLoad를 가로채서 로고 오버레이 해제 + 부모 핸들러 호출
-    const { onLoad: propsOnLoad, ...restProps } = props;
-    const handleWebViewLoad = useCallback(
-        (event: Parameters<NonNullable<WebViewProps['onLoad']>>[0]) => {
-            setIsWebViewLoaded(true);
-            propsOnLoad?.(event);
+    // 웹 React 렌더 완료(WebAppReady) 수신 시 오버레이 해제
+    const { onMessage: propsOnMessage, ...restProps } = props;
+    const handleWebViewMessage = useCallback(
+        (event: Parameters<NonNullable<WebViewProps['onMessage']>>[0]) => {
+            if (!isWebViewLoaded) {
+                try {
+                    const data = JSON.parse(event.nativeEvent.data);
+                    if (data?.type === 'WebAppReady') {
+                        setIsWebViewLoaded(true);
+                    }
+                } catch {
+                    // ignore parse errors
+                }
+            }
+            propsOnMessage?.(event);
         },
-        [propsOnLoad]
+        [propsOnMessage, isWebViewLoaded]
     );
-
-    // injectionScript가 없으면 WebView를 렌더링할 수 없음 - 흰 화면
-    if (!injectionScript) {
-        return <View style={styles.loadingContainer}></View>;
-    }
 
     return (
         <View style={styles.webViewContainer}>
             <WebView
                 ref={setRefs}
-                style={{ backgroundColor: '#ffffff' }}
+                style={{ backgroundColor: bgColor }}
                 startInLoadingState={false}
                 showsVerticalScrollIndicator={false}
                 javaScriptEnabled={true}
                 domStorageEnabled={true}
                 allowsBackForwardNavigationGestures={true}
                 applicationNameForUserAgent={userAgentSuffix}
-                injectedJavaScript={injectionScript}
-                injectedJavaScriptBeforeContentLoaded={injectionScript}
+                injectedJavaScript={injectionScript ?? syncInjectionScript}
+                injectedJavaScriptBeforeContentLoaded={injectionScript ?? syncInjectionScript}
                 hideKeyboardAccessoryView={true}
                 forceDarkOn={false}
                 originWhitelist={['*']}
@@ -142,8 +202,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 allowUniversalAccessFromFileURLs={true}
                 mixedContentMode="always"
                 {...restProps}
-                onLoad={handleWebViewLoad}
+                onMessage={handleWebViewMessage}
             />
+            {!isWebViewLoaded && <WebViewLoadingOverlay isDark={isDark} />}
         </View>
     );
 });
@@ -152,20 +213,26 @@ const styles = StyleSheet.create({
     webViewContainer: {
         flex: 1,
     },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-    },
     logoOverlay: {
         ...StyleSheet.absoluteFillObject,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#fff',
     },
     logo: {
-        width: 80,
-        height: 80,
+        width: 96,
+        height: 96,
+    },
+    debugBadge: {
+        position: 'absolute',
+        bottom: 80,
+        backgroundColor: 'rgba(255,0,0,0.8)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 4,
+    },
+    debugText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: 'bold',
     },
 });

@@ -1,10 +1,11 @@
-import { ArrowLeftRight, Bell, ChevronDown, CircleAlert, EllipsisVertical, Search, User } from 'lucide-react';
+import { ArrowLeftRight, Bell, Bug, ChevronDown, CircleAlert, EllipsisVertical, Search, User } from 'lucide-react';
 
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -35,6 +36,7 @@ import { CreatePlaceDialog } from '../components/CreatePlaceDialog';
 import { PlaceList } from '../components/PlaceList';
 
 const IS_LOCAL = import.meta.env.VITE_ENV === 'LOCAL';
+const IS_DEV = import.meta.env.VITE_ENV !== 'PROD';
 
 export const HomePage = () => {
     const { t } = useTranslation();
@@ -47,8 +49,10 @@ export const HomePage = () => {
 
     // === 데이터: 단일 소스 — usePlaces/useChannels를 한 번만 호출 ===
     const placesResult = usePlaces();
-    const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(() => cloudCore.getSelectedPlaceId());
+    const selectedPlaceId = useWebSocketV2Store(s => s.selectedPlaceId);
     const storeCloudId = useWebSocketV2Store(s => s.cloudId);
+    const wssType = useWebSocketV2Store(s => s.wssType);
+    const isVerified = useWebSocketV2Store(s => s.isVerified);
     const channelsResult = useChannels({ sid: selectedPlaceId || '', detail: true });
 
     // 파생 데이터
@@ -83,6 +87,7 @@ export const HomePage = () => {
     const [isCloudSessionOpen, setIsCloudSessionOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isReportIssueOpen, setIsReportIssueOpen] = useState(false);
+    const [isDebugOpen, setIsDebugOpen] = useState(false);
     const [limitDialogType, setLimitDialogType] = useState<'place' | 'channel' | null>(null);
 
     const handleLogout = () => {
@@ -130,6 +135,8 @@ export const HomePage = () => {
                                         <img
                                             src={displayImageUrl}
                                             alt="Profile"
+                                            loading="lazy"
+                                            decoding="async"
                                             className="h-full w-full object-cover"
                                         />
                                     ) : (
@@ -157,7 +164,13 @@ export const HomePage = () => {
                     >
                         <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                             {displayImageUrl ? (
-                                <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
+                                <img
+                                    src={displayImageUrl}
+                                    alt="Profile"
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="h-full w-full object-cover"
+                                />
                             ) : (
                                 <User size={20} className="text-muted-foreground" />
                             )}
@@ -213,7 +226,6 @@ export const HomePage = () => {
                     isLoading={placesResult.isLoading}
                     isError={placesResult.isError}
                     onRefreshPlaces={placesResult.refresh}
-                    onPlaceSelected={setSelectedPlaceId}
                     onNavigateToOrder={() => navigate('/places/order')}
                     onCreatePlace={handleCreatePlace}
                     isGuest={userType === UserType.TEMP_ACCOUNT}
@@ -235,12 +247,6 @@ export const HomePage = () => {
                         showCreateButton={!isChannelsLoading && (isMyCloud || (isDefaultCloud && channelCount === 0))}
                         onCreateChannel={handleCreateChannel}
                         channelLimit={maxChannels}
-                        debugInfo={{
-                            paramSid: selectedPlaceId || '',
-                            storeCloudId,
-                            coreCloudId: cloudCore.getSelectedCloudId(),
-                            corePlaceId: cloudCore.getSelectedPlaceId(),
-                        }}
                     />
                 ) : null}
             </section>
@@ -248,11 +254,7 @@ export const HomePage = () => {
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
             <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
             <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
-            <CloudSessionSheet
-                open={isCloudSessionOpen}
-                onOpenChange={setIsCloudSessionOpen}
-                onCloudSwitchComplete={setSelectedPlaceId}
-            />
+            <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
             <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
             {isSearchOpen && <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />}
             <ReportIssueDialog open={isReportIssueOpen} onOpenChange={setIsReportIssueOpen} />
@@ -262,6 +264,100 @@ export const HomePage = () => {
                 type={limitDialogType ?? 'place'}
                 maxCount={limitDialogType === 'channel' ? maxChannels : maxPlaces}
             />
+            {IS_DEV && (
+                <>
+                    <button
+                        onClick={() => setIsDebugOpen(true)}
+                        className="fixed bottom-[110px] right-4 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-muted/80 text-muted-foreground shadow-md backdrop-blur-sm active:bg-muted"
+                    >
+                        <Bug size={14} />
+                    </button>
+                    <Dialog open={isDebugOpen} onOpenChange={setIsDebugOpen}>
+                        <DialogContent className="max-h-[80vh] overflow-y-auto">
+                            <DialogTitle>Debug Info</DialogTitle>
+                            <DialogDescription className="sr-only">Development debug information</DialogDescription>
+                            <div className="space-y-4 font-mono text-[12px] leading-[1.6] text-muted-foreground">
+                                {/* Session */}
+                                <div>
+                                    <div className="mb-1 font-sans text-[13px] font-semibold text-foreground">
+                                        Session
+                                    </div>
+                                    <div>
+                                        cloudId(store):{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {storeCloudId || '(null)'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        cloudId(core):{' '}
+                                        <span
+                                            className={`font-semibold ${cloudCore.getSelectedCloudId() !== storeCloudId ? 'text-destructive' : 'text-foreground'}`}
+                                        >
+                                            {cloudCore.getSelectedCloudId() || '(null)'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        wssType:{' '}
+                                        <span className="font-semibold text-foreground">{wssType || '(null)'}</span>
+                                    </div>
+                                    <div>
+                                        isVerified:{' '}
+                                        <span
+                                            className={`font-semibold ${isVerified ? 'text-foreground' : 'text-destructive'}`}
+                                        >
+                                            {String(isVerified)}
+                                        </span>
+                                    </div>
+                                </div>
+                                {/* Place */}
+                                <div>
+                                    <div className="mb-1 font-sans text-[13px] font-semibold text-foreground">
+                                        Place ({placesResult.places.length})
+                                    </div>
+                                    <div>
+                                        selectedPlaceId(store):{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {selectedPlaceId || '(null)'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        selectedPlaceId(core):{' '}
+                                        <span
+                                            className={`font-semibold ${cloudCore.getSelectedPlaceId() !== selectedPlaceId ? 'text-destructive' : 'text-foreground'}`}
+                                        >
+                                            {cloudCore.getSelectedPlaceId() || '(null)'}
+                                        </span>
+                                    </div>
+                                    {placesResult.places.map(p => {
+                                        const cid = (p as unknown as { cid?: string }).cid;
+                                        const mismatch = cid && storeCloudId && cid !== storeCloudId;
+                                        return (
+                                            <div
+                                                key={p.id}
+                                                className={`pl-2 ${mismatch ? 'font-semibold text-destructive' : ''}`}
+                                            >
+                                                {mismatch ? '[X] ' : ''}id={p.id} name={p.name} cid={cid || '?'}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {/* Channel */}
+                                <div>
+                                    <div className="mb-1 font-sans text-[13px] font-semibold text-foreground">
+                                        Channel ({channelsResult.channels.length})
+                                    </div>
+                                    <div>
+                                        sid(param):{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {selectedPlaceId || '(empty)'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                </>
+            )}
             <BottomNavigation totalUnread={totalUnread} />
         </div>
     );

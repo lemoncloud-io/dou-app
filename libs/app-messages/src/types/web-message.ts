@@ -89,6 +89,7 @@ export const WebMessageTypes = {
     OAuthLogout: 'OAuthLogout',
 
     // 7. Common & Others
+    WebAppReady: 'WebAppReady',
     ShowLoader: 'ShowLoader',
     HideLoader: 'HideLoader',
     SyncCredential: 'SyncCredential',
@@ -153,6 +154,7 @@ export interface WebMessageMap {
     OAuthLogout: OAuthLogout;
 
     // 7. Common & Others
+    WebAppReady: WebDefaultMessage<'WebAppReady'>;
     ShowLoader: WebDefaultMessage<'ShowLoader'>;
     HideLoader: WebDefaultMessage<'HideLoader'>;
     SyncCredential: WebDefaultMessage<'SyncCredential'>;

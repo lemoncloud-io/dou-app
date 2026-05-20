@@ -14,12 +14,19 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 
 if (!isDevelopment) {
     const currentPrefix = `i18next_res_${I18N_VERSION}_`;
-    Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('i18next_res_') && !key.startsWith(currentPrefix)) {
-            localStorage.removeItem(key);
-            logger.info('I18N', `Cleaned up old i18n cache: ${key}`);
-        }
-    });
+    const cleanupOldCache = () => {
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('i18next_res_') && !key.startsWith(currentPrefix)) {
+                localStorage.removeItem(key);
+                logger.info('I18N', `Cleaned up old i18n cache: ${key}`);
+            }
+        });
+    };
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(cleanupOldCache);
+    } else {
+        setTimeout(cleanupOldCache, 0);
+    }
 }
 
 i18n.use(ChainedBackend)

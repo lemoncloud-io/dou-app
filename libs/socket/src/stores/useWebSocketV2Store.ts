@@ -9,6 +9,7 @@ export type WSSType = 'relay' | 'cloud';
 export interface WebSocketV2State {
     id: string | null;
     cloudId: string | null;
+    selectedPlaceId: string | null;
     wssType: WSSType | null;
     connectionId: string | null;
     isConnected: boolean;
@@ -22,6 +23,7 @@ export interface WebSocketV2State {
 export interface WebSocketV2Store extends WebSocketV2State {
     setId: (id: string | null) => void;
     setCloudId: (cloudId: string) => void;
+    setSelectedPlaceId: (selectedPlaceId: string | null) => void;
     setWssType: (wssType: WSSType | null) => void;
     setConnectionId: (connectionId: string | null) => void;
     setIsConnected: (isConnected: boolean) => void;
@@ -36,6 +38,7 @@ export interface WebSocketV2Store extends WebSocketV2State {
 const initialState: WebSocketV2State = {
     id: null,
     cloudId: null,
+    selectedPlaceId: null,
     wssType: null,
     connectionId: null,
     isConnected: false,
@@ -52,6 +55,7 @@ export const useWebSocketV2Store = create<WebSocketV2Store>()(
 
         setId: id => set({ id }),
         setCloudId: cloudId => set({ cloudId }),
+        setSelectedPlaceId: selectedPlaceId => set({ selectedPlaceId }),
         setWssType: wssType => set({ wssType }),
         setConnectionId: connectionId => set({ connectionId }),
         setIsConnected: isConnected => set({ isConnected }),

@@ -3,8 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import type { DomainChannel } from '@chatic/data';
 import { useWebSocketV2Store } from '@chatic/socket';
 
-import { cloudCore } from '@chatic/web-core';
-
 import { useRepositories } from '../shared/data';
 import { useChatSync } from '../shared/hooks/useChatSync';
 
@@ -47,7 +45,7 @@ export const GlobalChatSync = () => {
             const { isVerified } = useWebSocketV2Store.getState();
             if (!isVerified) return;
 
-            const sid = cloudCore.getSelectedPlaceId() || undefined;
+            const sid = useWebSocketV2Store.getState().selectedPlaceId || undefined;
             void channelRepository.fetchChannel({ sid }, { cachePolicy: 'network-only' });
         };
         document.addEventListener('visibilitychange', handler);

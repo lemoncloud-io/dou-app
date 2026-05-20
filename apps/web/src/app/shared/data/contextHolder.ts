@@ -2,7 +2,7 @@ import type { DataContext, DataContextProvider } from '@chatic/data';
 import { DataContextHolder } from '@chatic/data';
 import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 import { useLayoutEffect, useMemo, useState } from 'react';
 
@@ -11,7 +11,7 @@ export const useDataContextHolder = (
 ): { contextHolder: DataContextProvider; dataContext: DataContext } => {
     const cloudId = useWebSocketV2Store((state: { cloudId?: string | null }) => state.cloudId);
     const profileUid = useWebCoreStore(state => (state.profile as UserProfile$ | null | undefined)?.uid);
-    const selectedPlaceId = cloudCore.getSelectedPlaceId() || undefined;
+    const selectedPlaceId = useWebSocketV2Store(state => state.selectedPlaceId) || undefined;
 
     // React 의존성 추적을 위한 순수 객체 (Snapshot)
     const dataContext = useMemo<DataContext>(() => {

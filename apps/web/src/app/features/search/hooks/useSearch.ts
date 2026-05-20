@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { logger } from '@chatic/app-messages';
-import { cloudCore, useDynamicProfile } from '@chatic/web-core';
+import { useWebSocketV2Store } from '@chatic/socket';
+import { useDynamicProfile } from '@chatic/web-core';
 import { usePlaces } from '../../../shared/hooks';
 
 import { IndexedDBChannelAdapter } from '../../chats/storages/IndexedDBChannelAdapter';
@@ -28,7 +29,7 @@ export const useSearch = (query: string) => {
     const userId = profile?.uid ?? '';
 
     const { places: apiPlaces } = usePlaces();
-    const searchPlaceId = cloudCore.getSelectedPlaceId() || '';
+    const searchPlaceId = useWebSocketV2Store(s => s.selectedPlaceId) || '';
     const { channels: apiChannels } = useChannels({ sid: searchPlaceId, detail: true });
 
     const [results, setResults] = useState<SearchResults>({ places: [], chats: [] });

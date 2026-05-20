@@ -91,15 +91,6 @@ const ChannelItem = ({ channel }: { channel: DomainChannel }) => {
     );
 };
 
-const isDev = process.env.NODE_ENV === 'development';
-
-interface ChannelDebugInfo {
-    paramSid: string;
-    storeCloudId: string | null;
-    coreCloudId: string | null;
-    corePlaceId: string | null;
-}
-
 interface ChannelListProps {
     channels: DomainChannel[];
     isLoading: boolean;
@@ -110,7 +101,6 @@ interface ChannelListProps {
     showCreateButton?: boolean;
     onCreateChannel?: () => void;
     channelLimit?: number;
-    debugInfo?: ChannelDebugInfo;
 }
 
 export const ChannelList = ({
@@ -123,40 +113,8 @@ export const ChannelList = ({
     showCreateButton,
     onCreateChannel,
     channelLimit,
-    debugInfo,
 }: ChannelListProps) => {
     const { t } = useTranslation();
-
-    const debugBar = isDev && debugInfo && (
-        <div className="mb-2 rounded-md bg-muted/60 px-3 py-2 font-mono text-[11px] leading-[1.5] text-muted-foreground">
-            <div>
-                sid(param): <span className="font-semibold text-foreground">{debugInfo.paramSid || '(empty)'}</span>
-            </div>
-            <div>
-                cloudId(store):{' '}
-                <span className="font-semibold text-foreground">{debugInfo.storeCloudId || '(null)'}</span>
-            </div>
-            <div>
-                cloudId(core):{' '}
-                <span
-                    className={`font-semibold ${debugInfo.coreCloudId !== debugInfo.storeCloudId ? 'text-destructive' : 'text-foreground'}`}
-                >
-                    {debugInfo.coreCloudId || '(null)'}
-                </span>
-            </div>
-            <div>
-                placeId(core):{' '}
-                <span
-                    className={`font-semibold ${debugInfo.corePlaceId !== debugInfo.paramSid ? 'text-destructive' : 'text-foreground'}`}
-                >
-                    {debugInfo.corePlaceId || '(null)'}
-                </span>
-            </div>
-            <div>
-                channels: <span className="font-semibold text-foreground">{channels.length}</span>
-            </div>
-        </div>
-    );
 
     const header = (
         <div className="mb-[18px] flex items-center justify-between">
@@ -207,7 +165,6 @@ export const ChannelList = ({
         return (
             <div className="flex flex-col items-center gap-2 py-8">
                 {header}
-                {debugBar}
                 <p className="text-sm text-destructive">{t('channelList.errorLoading')}</p>
                 {errorMessage && (
                     <p className="max-w-[280px] break-words text-center text-xs text-muted-foreground">
@@ -225,7 +182,6 @@ export const ChannelList = ({
         return (
             <div className="space-y-0">
                 {header}
-                {debugBar}
                 <ChannelSkeleton />
                 <ChannelSkeleton />
                 <ChannelSkeleton />
@@ -237,7 +193,6 @@ export const ChannelList = ({
         return (
             <div>
                 {header}
-                {debugBar}
                 <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
             </div>
         );
@@ -246,7 +201,6 @@ export const ChannelList = ({
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             {header}
-            {debugBar}
             <div className="flex-1 overflow-y-auto">
                 <div className="flex flex-col gap-[18px] px-1">
                     {channels.map((channel: DomainChannel) => (
