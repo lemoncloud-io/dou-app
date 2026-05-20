@@ -30,6 +30,17 @@
                 }
             })();
         </script>
+        <!-- Prevent white flash on iOS WebView resume / repaint -->
+        <style>
+            html,
+            body {
+                background-color: #ffffff;
+            }
+            html.dark,
+            html.dark body {
+                background-color: #121212;
+            }
+        </style>
         <!-- Preconnect: Google Fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Platform, StyleSheet, useColorScheme, View } from 'react-native';
+import { AppState, Image, Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import { WebView, type WebViewProps } from 'react-native-webview';
 import DeviceInfo from 'react-native-device-info';
 import Config from 'react-native-config';
@@ -49,6 +49,42 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const insets = useSafeAreaInsets();
     const keyboardHeight = useKeyboardHeight();
     const webViewRef = useRef<WebView | null>(null);
+
+    // iOS: content process가 OS에 의해 종료된 경우 오버레이 표시 + 리로드
+    const handleContentProcessDidTerminate = useCallback(() => {
+        setIsWebViewLoaded(false);
+        webViewRef.current?.reload();
+    }, []);
+
+    // iOS WKWebView 백그라운드 복귀 시 흰 화면 방지
+    // 렌더링 레이어가 suspend → repaint 되는 동안 테마 색상 오버레이로 가림
+    const [showResumeOverlay, setShowResumeOverlay] = useState(false);
+    const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', nextState => {
+            if (nextState === 'background' || nextState === 'inactive') {
+                if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+                setShowResumeOverlay(true);
+            } else if (nextState === 'active') {
+                // WebView에 repaint 신호 요청 — 실제 paint 완료 후 ResumeReady 메시지로 오버레이 해제
+                webViewRef.current?.injectJavaScript(`
+                    requestAnimationFrame(function() {
+                        requestAnimationFrame(function() {
+                            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ResumeReady' }));
+                        });
+                    });
+                    true;
+                `);
+                // Fallback: JS 메시지가 안 오는 경우 (content process 종료 등) 최대 1.5초 후 해제
+                resumeTimeoutRef.current = setTimeout(() => setShowResumeOverlay(false), 1500);
+            }
+        });
+        return () => {
+            subscription.remove();
+            if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+        };
+    }, []);
 
     // Phase 1: Sync injection script — 첫 렌더에 즉시 사용 가능, async 대기 없음
     // CHATIC_APP_PLATFORM + ChaticMessageHandler 브릿지가 웹앱 부팅의 핵심 (getMobileAppInfo)
@@ -166,15 +202,17 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const { onMessage: propsOnMessage, ...restProps } = props;
     const handleWebViewMessage = useCallback(
         (event: Parameters<NonNullable<WebViewProps['onMessage']>>[0]) => {
-            if (!isWebViewLoaded) {
-                try {
-                    const data = JSON.parse(event.nativeEvent.data);
-                    if (data?.type === 'WebAppReady') {
-                        setIsWebViewLoaded(true);
-                    }
-                } catch {
-                    // ignore parse errors
+            try {
+                const data = JSON.parse(event.nativeEvent.data);
+                if (!isWebViewLoaded && data?.type === 'WebAppReady') {
+                    setIsWebViewLoaded(true);
                 }
+                if (data?.type === 'ResumeReady') {
+                    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+                    setShowResumeOverlay(false);
+                }
+            } catch {
+                // ignore parse errors
             }
             propsOnMessage?.(event);
         },
@@ -203,8 +241,10 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 mixedContentMode="always"
                 {...restProps}
                 onMessage={handleWebViewMessage}
+                onContentProcessDidTerminate={handleContentProcessDidTerminate}
             />
             {!isWebViewLoaded && <WebViewLoadingOverlay isDark={isDark} />}
+            {isWebViewLoaded && showResumeOverlay && <WebViewLoadingOverlay isDark={isDark} />}
         </View>
     );
 });
