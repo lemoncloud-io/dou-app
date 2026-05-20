@@ -29,6 +29,9 @@
     "references": [
         {
             "path": "../app-messages/tsconfig.lib.json"
+        },
+        {
+            "path": "../bridges/tsconfig.lib.json"
         }
     ]
 }
