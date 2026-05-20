@@ -1,8 +1,10 @@
 import { MockBridgeAdapter, MockWebBridgeClient } from './web';
 import { MockAppBridgeHost } from './app';
-import type { RequestType, TypedRequestMessage } from './common';
 import * as readline from 'readline';
-import type { Ping, Pong } from '@chatic/app-messages';
+
+// 새로 정의된 공통 및 규격 타입 임포트
+import type { RequestMessage } from './common';
+import type { AppMessageData } from '@chatic/app-messages';
 
 // --- 기본 설정 ---
 const logger = {
@@ -22,7 +24,7 @@ const sendToWebChannel = (stringifiedMessage: string) => {
 };
 
 // 1b. Web -> App 방향의 통신 채널 (콜백)
-const sendToAppChannel = (message: TypedRequestMessage<RequestType>) => {
+const sendToAppChannel = (message: RequestMessage) => {
     logger.info(`[Channel] Web -> App 으로 메시지 전달: ${message.type}`);
     appHost.handleMessage(JSON.stringify(message));
 };
@@ -36,18 +38,19 @@ const webClient = new MockWebBridgeClient({ adapter: webAdapter });
 // AppBridgeHost 핸들러 등록 (Mock Native 비즈니스 로직)
 // ======================================================================
 
-appHost.registerHandler('Ping', async (payload: Ping): Promise<Pong> => {
-    // 이제 데이터(payload)만 추출되지 않고 메시지 전체(RequestMessage)가 들어옵니다.
-    // 기존 호환성을 위해 message 내부의 payload(또는 data)를 꺼내 사용합니다.
-    const pingData = payload.data;
-    logger.app(`[MockAppBridgeHost] 'Ping' 수신. payload: ${pingData.payload?.length ?? 0} bytes`);
+appHost.registerHandler('Ping', async message => {
+    // 타입 시스템에 의해 message.payload가 PingPayload임이 보장되므로 옵셔널 체이닝(?.) 제거
+    const pingPayload = message.payload.payload;
+    logger.app(`[MockAppBridgeHost] 'Ping' 수신. payload 길이: ${pingPayload.length} bytes`);
 
-    // 응답으로 감싸질 결과(result) 데이터를 반환합니다.
+    // HandlerResponse<'Ping'> 규격에 따라 refId, version 등의 메타데이터 없이 순수 응답만 반환
     return {
+        type: 'Pong',
+        success: true,
         data: {
-            payload: pingData.payload,
+            payload: pingPayload,
         },
-    } as Pong;
+    };
 });
 
 // --- 2. 실행 CLI ---
@@ -79,9 +82,13 @@ async function handleMenuChoice(choice: string) {
         case '1': {
             logger.web("App으로 'Ping' 요청을 보냅니다...");
             try {
-                // 파라미터는 Omit<ExtractReqMessage<K>, 'type'> 형태이므로 동일하게 사용 가능합니다.
-                const response = (await webClient.request('Ping', { data: { payload: 'hello' } })) as any;
-                logger.web(`✅ 'Pong' 응답 수신:`, response);
+                // 타입 추론에 의해 response는 AppMessageData<'Pong'> 타입이 됩니다. ('any' 캐스팅 제거)
+                const response = await webClient.request('Ping', {
+                    payload: {
+                        payload: 'A',
+                    },
+                });
+                logger.web(`✅ 'Pong' 응답 수신:`, response.data);
             } catch (error) {
                 logger.web('❌ 응답 실패:', error);
             }
@@ -90,11 +97,14 @@ async function handleMenuChoice(choice: string) {
 
         case '2':
             logger.app("Web으로 'OnReceiveNotification' 이벤트를 푸시합니다.");
-            // 인터페이스 변경에 따라 분리된 파라미터가 아닌, type이 포함된 전체 객체를 전달합니다.
-            appHost.pushEvent({
+            // App 이벤트 푸시는 AppMessageData<'OnReceiveNotification'> 전체 구조를 요구합니다.
+            appHost.pushEvent<'OnReceiveNotification'>({
                 type: 'OnReceiveNotification',
-                notification: { title: 'Mock Push', body: '테스트 푸시입니다.' },
-            } as any);
+                success: true,
+                data: {
+                    notification: { title: 'Mock Push', body: '테스트 푸시입니다.' },
+                },
+            } as AppMessageData<'OnReceiveNotification'>);
             break;
 
         case '3': {
@@ -103,14 +113,17 @@ async function handleMenuChoice(choice: string) {
                 const requestPayload = 'A'.repeat(1024 * 1024); // 1MB
                 const startTime = performance.now();
 
-                // response 역시 전체 메시지 규격으로 반환됩니다.
-                const response = (await webClient.request('Ping', { data: { payload: requestPayload } })) as any;
+                const response = await webClient.request('Ping', {
+                    payload: {
+                        payload: requestPayload,
+                    },
+                });
 
                 const endTime = performance.now();
                 const rtt = (endTime - startTime).toFixed(2);
 
-                // 실제 반환된 구조(응답이 data에 매핑되는지 여부)에 따라 접근 경로가 달라질 수 있습니다.
-                const responsePayloadLength = response.payload?.length ?? response.data?.payload?.length ?? 0;
+                // App의 응답 데이터는 'data' 필드에 위치합니다.
+                const responsePayloadLength = response.data?.payload?.length ?? 0;
                 logger.web(`✅ 응답 완료! 길이: ${responsePayloadLength}, ⏱️ ${rtt}ms`);
             } catch (error) {
                 logger.web('❌ 응답 실패:', error);
@@ -134,9 +147,10 @@ async function handleMenuChoice(choice: string) {
 // --- 실행 ---
 logger.info('--- 대화형 Mock Bridge Environment 시작 (프로덕션 타입 동기화 모드) ---');
 
-// 이벤트 구독 테스트 (이제 payload가 아닌 event message 전체를 수신합니다)
+// 이벤트 구독 테스트 (App에서 발송하는 전체 AppMessageData 규격을 수신합니다)
 webClient.onEvent('OnReceiveNotification', message => {
-    logger.web(`✅ "OnReceiveNotification" 이벤트 수신됨! Message:`, message);
+    // message는 AppMessageData<'OnReceiveNotification'> 타입으로 자동 추론됩니다.
+    logger.web(`✅ "OnReceiveNotification" 이벤트 수신됨! Message:`, message.data);
 });
 
 displayMenu();
