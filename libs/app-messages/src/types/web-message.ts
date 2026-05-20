@@ -28,295 +28,79 @@ import type {
     SendLogPayload,
     SetCanGoBackPayload,
 } from './model';
+import type { BaseMessage } from './types';
 
-export const WebMessageTypes = {
+/** 메시지 타입과 해당 Payload 타입을 매핑하는 인터페이스입니다. Payload가 없는 경우 never로 정의합니다. */
+export interface WebMessagePayloadMap {
     // 1. Device & System
-    SetCanGoBack: 'SetCanGoBack',
-    OpenModal: 'OpenModal',
-    CloseModal: 'CloseModal',
-    OpenSettings: 'OpenSettings',
-    OpenShareSheet: 'OpenShareSheet',
-    GetContacts: 'GetContacts',
-    OpenDocument: 'OpenDocument',
-    OpenCamera: 'OpenCamera',
-    OpenPhotoLibrary: 'OpenPhotoLibrary',
-    FetchSafeArea: 'FetchSafeArea',
-    FetchBackgroundStatus: 'FetchBackgroundStatus',
-    RequestPermission: 'RequestPermission',
-    OpenURL: 'OpenURL',
-    FetchAppIcon: 'FetchAppIcon',
-    FetchAppIconList: 'FetchAppIconList',
-    ChangeAppIcon: 'ChangeAppIcon',
+    SetCanGoBack: SetCanGoBackPayload;
+    OpenModal: OpenModalPayload;
+    CloseModal: never;
+    OpenSettings: never;
+    OpenShareSheet: OpenShareSheetPayload;
+    GetContacts: never;
+    OpenDocument: OpenDocumentPayload;
+    OpenCamera: OpenCameraPayload;
+    OpenPhotoLibrary: OpenPhotoLibraryPayload;
+    FetchSafeArea: never;
+    FetchBackgroundStatus: never;
+    RequestPermission: RequestPermissionPayload;
+    OpenURL: OpenURLPayload;
+    FetchAppIcon: never;
+    FetchAppIconList: never;
+    ChangeAppIcon: ChangeAppIconPayload;
 
     // 2. Notification
-    FetchFcmToken: 'FetchFcmToken',
+    FetchFcmToken: never;
 
     // 3. IAP
-    FetchProducts: 'FetchProducts',
-    FetchCurrentPurchases: 'FetchCurrentPurchases',
-    Purchase: 'Purchase',
-    FinishPurchaseTransaction: 'FinishPurchaseTransaction',
-    OpenSubscriptionManagement: 'OpenSubscriptionManagement',
-
-    // 4. CacheData
-    FetchCacheData: 'FetchCacheData',
-    FetchAllCacheData: 'FetchAllCacheData',
-    SaveCacheData: 'SaveCacheData',
-    SaveAllCacheData: 'SaveAllCacheData',
-    DeleteCacheData: 'DeleteCacheData',
-    DeleteAllCacheData: 'DeleteAllCacheData',
-    ClearCacheData: 'ClearCacheData',
-    SearchGlobalCacheData: 'SearchGlobalCacheData',
-
-    // 5. Preference
-    FetchPreference: 'FetchPreference',
-    SavePreference: 'SavePreference',
-    DeletePreference: 'DeletePreference',
-
-    // 6. Auth
-    OAuthLogin: 'OAuthLogin',
-    OAuthLogout: 'OAuthLogout',
-
-    // 7. Common & Others
-    FetchAppLogBuffer: 'FetchAppLogBuffer',
-    PollAppLogBuffer: 'PollAppLogBuffer',
-    ClearAppLogBuffer: 'ClearAppLogBuffer',
-    FetchAppLogBufferSize: 'FetchAppLogBufferSize',
-    SendLog: 'SendLog',
-    Ping: 'Ping',
-} as const;
-
-export type WebMessageType = (typeof WebMessageTypes)[keyof typeof WebMessageTypes];
-
-export interface WebMessageMap {
-    // 1. Device & System
-    SetCanGoBack: SetCanGoBack;
-    OpenModal: OpenModal;
-    CloseModal: CloseModal;
-    OpenSettings: OpenSettings;
-    OpenShareSheet: OpenShareSheet;
-    GetContacts: GetContacts;
-    OpenDocument: OpenDocument;
-    OpenCamera: OpenCamera;
-    OpenPhotoLibrary: OpenPhotoLibrary;
-    FetchSafeArea: FetchSafeArea;
-    FetchBackgroundStatus: FetchBackgroundStatus;
-    RequestPermission: RequestPermission;
-    OpenURL: OpenURL;
-    FetchAppIcon: FetchAppIcon;
-    FetchAppIconList: FetchAppIconList;
-    ChangeAppIcon: ChangeAppIcon;
-
-    // 2. Notification
-    FetchFcmToken: WebDefaultMessage<'FetchFcmToken'>;
-
-    // 3. IAP
-    FetchProducts: FetchProducts;
-    FetchCurrentPurchases: FetchCurrentPurchases;
-    Purchase: Purchase;
-    FinishPurchaseTransaction: FinishPurchaseTransaction;
-    OpenSubscriptionManagement: OpenSubscriptionManagement;
+    FetchProducts: never;
+    FetchCurrentPurchases: never;
+    Purchase: PurchasePayload;
+    FinishPurchaseTransaction: FinishPurchaseTransactionPayload;
+    OpenSubscriptionManagement: never;
 
     // 4. Cache
-    FetchCacheData: FetchCacheData;
-    FetchAllCacheData: FetchAllCacheData;
-    SaveCacheData: SaveCacheData;
-    SaveAllCacheData: SaveAllCacheData;
-    DeleteCacheData: DeleteCacheData;
-    DeleteAllCacheData: DeleteAllCacheData;
-    ClearCacheData: ClearCacheData;
-    SearchGlobalCacheData: SearchGlobalCacheData;
+    FetchCacheData: FetchCacheDataPayload;
+    FetchAllCacheData: FetchAllCacheDataPayload;
+    SaveCacheData: SaveCacheDataPayload;
+    SaveAllCacheData: SaveAllCacheDataPayload;
+    DeleteCacheData: DeleteCacheDataPayload;
+    DeleteAllCacheData: DeleteAllCacheDataPayload;
+    ClearCacheData: ClearCacheDataPayload;
+    SearchGlobalCacheData: SearchGlobalCacheDataPayload;
 
     // 5. Preference
-    FetchPreference: FetchPreference;
-    SavePreference: SavePreference;
-    DeletePreference: DeletePreference;
+    FetchPreference: FetchPreferencePayload;
+    SavePreference: SavePreferencePayload;
+    DeletePreference: DeletePreferencePayload;
 
     // 6. Auth
-    OAuthLogin: OAuthLogin;
-    OAuthLogout: OAuthLogout;
+    OAuthLogin: OAuthLoginPayload;
+    OAuthLogout: OAuthLogoutPayload;
 
     // 7. Common & Others
-    FetchAppLogBuffer: FetchAppLogBuffer;
-    PollAppLogBuffer: PollAppLogBuffer;
-    ClearAppLogBuffer: ClearAppLogBuffer;
-    FetchAppLogBufferSize: FetchAppLogBufferSize;
-    SendLog: SendLog;
-    Ping: Ping;
+    FetchAppLogBuffer: FetchAppLogBufferPayload;
+    PollAppLogBuffer: PollAppLogBufferPayload;
+    ClearAppLogBuffer: never;
+    FetchAppLogBufferSize: never;
+    SendLog: SendLogPayload;
+    Ping: PingPayload;
 }
 
-export type WebMessageData<T extends WebMessageType> = WebMessageMap[T];
-export type WebMessage = WebMessageData<WebMessageType>;
+/** WebMessagePayloadMap의 Key들을 조합하여 가능한 모든 웹 메시지 타입(String Union)을 자동 생성합니다. */
+export type WebMessageType = keyof WebMessagePayloadMap;
 
-export interface WebDefaultMessage<T extends WebMessageType> {
+/** * WebMessagePayloadMap을 기반으로 payload 타입을 자동 추론하는 메시지 규격입니다.
+ * Payload가 never인 경우 payload 속성을 제외(또는 undefined) 처리합니다.
+ */
+export type WebDefaultMessage<T extends WebMessageType> = BaseMessage & {
     type: T;
-    nonce?: string;
-}
+} & (WebMessagePayloadMap[T] extends never ? { payload?: never } : { payload: WebMessagePayloadMap[T] });
 
-// ----------------------------------------------------------------------
-// 1. Device & System Interfaces
-// ----------------------------------------------------------------------
-export interface SetCanGoBack extends WebDefaultMessage<'SetCanGoBack'> {
-    data: SetCanGoBackPayload;
-}
+export type WebMessageData<T extends WebMessageType> = WebDefaultMessage<T>;
 
-export interface OpenModal extends WebDefaultMessage<'OpenModal'> {
-    data: OpenModalPayload;
-}
-
-/** 네이티브 모달 닫기 요청 */
-export interface CloseModal extends WebDefaultMessage<'CloseModal'> {}
-
-export interface OpenSettings extends WebDefaultMessage<'OpenSettings'> {} // payload 없음
-export interface OpenShareSheet extends WebDefaultMessage<'OpenShareSheet'> {
-    data: OpenShareSheetPayload;
-}
-
-export interface OpenDocument extends WebDefaultMessage<'OpenDocument'> {
-    data: OpenDocumentPayload;
-}
-
-export interface GetContacts extends WebDefaultMessage<'GetContacts'> {} // payload 없음
-export interface OpenCamera extends WebDefaultMessage<'OpenCamera'> {
-    data: OpenCameraPayload;
-}
-
-export interface OpenPhotoLibrary extends WebDefaultMessage<'OpenPhotoLibrary'> {
-    data: OpenPhotoLibraryPayload;
-}
-
-export interface RequestPermission extends WebDefaultMessage<'RequestPermission'> {
-    data: RequestPermissionPayload;
-}
-
-/** SafeArea 정보 요청 */
-export interface FetchSafeArea extends WebDefaultMessage<'FetchSafeArea'> {}
-
-/** 앱 포그라운드/백그라운드 상태 정보 요청 */
-export interface FetchBackgroundStatus extends WebDefaultMessage<'FetchBackgroundStatus'> {}
-
-/** 외부 URL 열기 (Native에서 Linking.openURL 처리) */
-export interface OpenURL extends WebDefaultMessage<'OpenURL'> {
-    data: OpenURLPayload;
-}
-
-/** 현재 앱 아이콘 정보 조회 */
-export interface FetchAppIcon extends WebDefaultMessage<'FetchAppIcon'> {}
-
-/** 사용 가능한 앱 아이콘 목록 요청 */
-export interface FetchAppIconList extends WebDefaultMessage<'FetchAppIconList'> {}
-
-/** 앱 아이콘 변경 */
-export interface ChangeAppIcon extends WebDefaultMessage<'ChangeAppIcon'> {
-    data: ChangeAppIconPayload;
-}
-
-// ----------------------------------------------------------------------
-// 2. Notification Interfaces
-// ----------------------------------------------------------------------
-/** FCM 토큰 요청 */
-export interface FetchFcmToken extends WebDefaultMessage<'FetchFcmToken'> {}
-
-// ----------------------------------------------------------------------
-// 3. IAP Interfaces
-// ----------------------------------------------------------------------
-/** IAP 상품 목록 요청 */
-export interface FetchProducts extends WebDefaultMessage<'FetchProducts'> {}
-
-/** 현재 구매/구독중인 IAP 항목 요청 */
-export interface FetchCurrentPurchases extends WebDefaultMessage<'FetchCurrentPurchases'> {}
-
-export interface Purchase extends WebDefaultMessage<'Purchase'> {
-    data: PurchasePayload;
-}
-
-export interface FinishPurchaseTransaction extends WebDefaultMessage<'FinishPurchaseTransaction'> {
-    data: FinishPurchaseTransactionPayload;
-}
-
-/** 구독 관리 화면(App Store/Play Store) 열기 요청 */
-export interface OpenSubscriptionManagement extends WebDefaultMessage<'OpenSubscriptionManagement'> {}
-
-// ----------------------------------------------------------------------
-// 4. Cache Interfaces
-// ----------------------------------------------------------------------
-export interface FetchCacheData extends WebDefaultMessage<'FetchCacheData'> {
-    data: FetchCacheDataPayload;
-}
-
-export interface FetchAllCacheData extends WebDefaultMessage<'FetchAllCacheData'> {
-    data: FetchAllCacheDataPayload;
-}
-
-export interface SaveCacheData extends WebDefaultMessage<'SaveCacheData'> {
-    data: SaveCacheDataPayload;
-}
-
-export interface SaveAllCacheData extends WebDefaultMessage<'SaveAllCacheData'> {
-    data: SaveAllCacheDataPayload;
-}
-
-export interface DeleteCacheData extends WebDefaultMessage<'DeleteCacheData'> {
-    data: DeleteCacheDataPayload;
-}
-
-export interface DeleteAllCacheData extends WebDefaultMessage<'DeleteAllCacheData'> {
-    data: DeleteAllCacheDataPayload;
-}
-
-export interface ClearCacheData extends WebDefaultMessage<'ClearCacheData'> {
-    data: ClearCacheDataPayload;
-}
-
-export interface SearchGlobalCacheData extends WebDefaultMessage<'SearchGlobalCacheData'> {
-    data: SearchGlobalCacheDataPayload;
-}
-
-// ----------------------------------------------------------------------
-// 5. Preference Interfaces
-// ----------------------------------------------------------------------
-export interface FetchPreference extends WebDefaultMessage<'FetchPreference'> {
-    data: FetchPreferencePayload;
-}
-
-export interface SavePreference extends WebDefaultMessage<'SavePreference'> {
-    data: SavePreferencePayload;
-}
-
-export interface DeletePreference extends WebDefaultMessage<'DeletePreference'> {
-    data: DeletePreferencePayload;
-}
-
-// ----------------------------------------------------------------------
-// 6. Auth Interfaces
-// ----------------------------------------------------------------------
-export interface OAuthLogin extends WebDefaultMessage<'OAuthLogin'> {
-    data: OAuthLoginPayload;
-}
-
-export interface OAuthLogout extends WebDefaultMessage<'OAuthLogout'> {
-    data: OAuthLogoutPayload;
-}
-
-// ----------------------------------------------------------------------
-// 7. Common & Others Interfaces
-// ----------------------------------------------------------------------
-export interface FetchAppLogBuffer extends WebDefaultMessage<'FetchAppLogBuffer'> {
-    data: FetchAppLogBufferPayload;
-}
-
-export interface PollAppLogBuffer extends WebDefaultMessage<'PollAppLogBuffer'> {
-    data: PollAppLogBufferPayload;
-}
-
-export interface ClearAppLogBuffer extends WebDefaultMessage<'ClearAppLogBuffer'> {}
-
-export interface FetchAppLogBufferSize extends WebDefaultMessage<'FetchAppLogBufferSize'> {}
-
-export interface SendLog extends WebDefaultMessage<'SendLog'> {
-    data: SendLogPayload;
-}
-
-export interface Ping extends WebDefaultMessage<'Ping'> {
-    data: PingPayload;
-}
+/** 가능한 모든 웹 메시지 타입(Union)을 나타냅니다. */
+export type WebMessage = {
+    [K in WebMessageType]: WebDefaultMessage<K>;
+}[WebMessageType];
