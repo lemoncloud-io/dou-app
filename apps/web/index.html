@@ -7,6 +7,11 @@
 
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="theme-color" id="theme-color-meta" content="#ffffff" />
+        <!-- Perf timing baseline -->
+        <script>
+            window.__T0 = Date.now();
+            console.log('[PERF] HTML_START ' + window.__T0);
+        </script>
         <!-- Theme detection script - must run before any content renders -->
         <script>
             (function () {
@@ -25,6 +30,20 @@
                 }
             })();
         </script>
+        <!-- Prevent white flash on iOS WebView resume / repaint -->
+        <style>
+            html,
+            body {
+                background-color: #ffffff;
+            }
+            html.dark,
+            html.dark body {
+                background-color: #121212;
+            }
+        </style>
+        <!-- Preconnect: Google Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <!-- Favicon -->
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />

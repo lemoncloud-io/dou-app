@@ -11,6 +11,8 @@ import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 import { waitForVerified } from '../../../shared/utils/waitForVerified';
 
+const setStoreSelectedPlaceId = (placeId: string | null) => useWebSocketV2Store.getState().setSelectedPlaceId(placeId);
+
 // Module-level: 현재 WS 세션에서 place auth(refreshToken + auth:update)가 완료되었는지 추적
 // home → chatroom → home 재진입 시 불필요한 auth:update를 방지하여 stuck loading 예방
 let placeAuthDone = false;
@@ -51,7 +53,13 @@ const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemPr
                     )}
                 >
                     {place.thumbnail ? (
-                        <img src={place.thumbnail} alt={displayName} className="h-full w-full object-cover" />
+                        <img
+                            src={place.thumbnail}
+                            alt={displayName}
+                            loading="lazy"
+                            decoding="async"
+                            className="h-full w-full object-cover"
+                        />
                     ) : isDefaultPlace ? (
                         <Home size={20} className={selected ? 'text-white' : 'text-muted-foreground'} />
                     ) : (
@@ -102,7 +110,7 @@ export const PlaceList = ({
     const { emit } = useWebSocketV2();
     const wssType = useWebSocketV2Store(s => s.wssType);
     const cloudId = useWebSocketV2Store(s => s.cloudId);
-    const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedPlaceId());
+    const selectedId = useWebSocketV2Store(s => s.selectedPlaceId);
     const [isPending, setIsPending] = useState(false);
     const switchingRef = useRef(false);
 
@@ -133,7 +141,7 @@ export const PlaceList = ({
         const currentWssType = useWebSocketV2Store.getState().wssType;
         if (currentWssType === 'relay') {
             cloudCore.saveSelectedSiteId(placeId);
-            setSelectedId(placeId);
+            setStoreSelectedPlaceId(placeId);
             onPlaceSelected?.(placeId);
             return;
         }
@@ -143,7 +151,7 @@ export const PlaceList = ({
         if (!uid) {
             // cloud token 없음 → 단순 선택 fallback
             cloudCore.saveSelectedSiteId(placeId);
-            setSelectedId(placeId);
+            setStoreSelectedPlaceId(placeId);
             onPlaceSelected?.(placeId);
             return;
         }
@@ -174,7 +182,7 @@ export const PlaceList = ({
             await waitForVerified(5000);
 
             placeAuthDone = true;
-            setSelectedId(placeId);
+            setStoreSelectedPlaceId(placeId);
             onPlaceSelected?.(placeId);
         } catch (e) {
             logger.error('PLACE', 'Failed to select place', { error: e, data: { placeId } });
@@ -194,18 +202,17 @@ export const PlaceList = ({
         if (isDefaultMode || userType === UserType.TEMP_ACCOUNT) {
             initialPlaceNotifiedRef.current = true;
             cloudCore.saveSelectedSiteId('default');
-            setSelectedId('default');
+            setStoreSelectedPlaceId('default');
             onPlaceSelected?.('default');
             return;
         }
 
-        const savedPlaceId = cloudCore.getSelectedPlaceId();
+        const savedPlaceId = useWebSocketV2Store.getState().selectedPlaceId;
         if (savedPlaceId) {
             initialPlaceNotifiedRef.current = true;
             // 이미 인증 완료 + 현재 세션에서 place auth가 된 상태면 auth:update 스킵
             // (home → chatroom → home 재진입 시 불필요한 setIsVerified(false) 방지)
             if (useWebSocketV2Store.getState().isVerified && placeAuthDone) {
-                setSelectedId(savedPlaceId);
                 onPlaceSelected?.(savedPlaceId);
             } else {
                 void handleSelectPlace(savedPlaceId);
@@ -218,9 +225,9 @@ export const PlaceList = ({
     useEffect(() => {
         if (prevCloudIdRef.current && prevCloudIdRef.current !== cloudId) {
             placeAuthDone = false;
-            setSelectedId(null);
+            setStoreSelectedPlaceId(null);
             initialPlaceNotifiedRef.current = false;
-            // 저장된 placeId 클리어 — cloudCore.getSelectedPlaceId()를 읽는 다른 hook이
+            // 저장된 placeId 클리어 — store를 읽는 다른 hook이
             // 이전 cloud의 placeId로 chat:mine을 보내는 것을 방지
             cloudCore.saveSelectedSiteId('');
 
@@ -228,6 +235,8 @@ export const PlaceList = ({
             const currentCloudId = cloudCore.getSelectedCloudId();
             if (currentCloudId === 'default') {
                 initialPlaceNotifiedRef.current = true;
+                cloudCore.saveSelectedSiteId('default');
+                setStoreSelectedPlaceId('default');
                 onPlaceSelected?.('default');
             } else {
                 onPlaceSelected?.('');
@@ -239,9 +248,16 @@ export const PlaceList = ({
     // place 목록 로드 후 auto-selection (cloud 모드 전용)
     useEffect(() => {
         if (isDefaultMode) return;
-        const hasSelected = !!cloudCore.getSelectedPlaceId();
-        if (hasSelected || places.length === 0) return;
-        handleSelectPlace(places[0].id);
+        if (places.length === 0) return;
+        const currentPlaceId = useWebSocketV2Store.getState().selectedPlaceId;
+        // Pipeline(useCloudSwitchFlow)이 이미 place를 선택한 경우 — store에서 확인
+        // (authPlace가 store 업데이트 완료 후 effect가 실행되면 hasSelected=true로
+        //  조기 return하여 selectedId가 null로 남는 경합 방지)
+        if (currentPlaceId && places.some(p => p.id === currentPlaceId)) {
+            return;
+        }
+        // 저장된 place가 없거나 목록에 없으면 첫 번째 place 자동 선택
+        void handleSelectPlace(places[0].id);
     }, [places, isDefaultMode]);
 
     // 순수 게스트, cloud 미선택(default), 또는 cloud가 아예 선택되지 않은 상태는 DEFAULT_PLACE만 표시
@@ -261,39 +277,6 @@ export const PlaceList = ({
             </div>
         );
     }
-
-    const isDev = process.env.NODE_ENV === 'development';
-    const coreCloudId = cloudCore.getSelectedCloudId();
-
-    const placeDebugBar = isDev && (
-        <div className="mx-4 mb-2 rounded-md bg-muted/60 px-3 py-2 font-mono text-[11px] leading-[1.5] text-muted-foreground">
-            <div>
-                cloudId(store): <span className="font-semibold text-foreground">{cloudId || '(null)'}</span>
-            </div>
-            <div>
-                cloudId(core):{' '}
-                <span className={`font-semibold ${coreCloudId !== cloudId ? 'text-destructive' : 'text-foreground'}`}>
-                    {coreCloudId || '(null)'}
-                </span>
-            </div>
-            <div>
-                wssType: <span className="font-semibold text-foreground">{wssType || '(null)'}</span>
-            </div>
-            <div>
-                selectedId: <span className="font-semibold text-foreground">{selectedId || '(null)'}</span>
-            </div>
-            <div>places({rawPlaces.length}):</div>
-            {rawPlaces.map(p => {
-                const domainCid = (p as unknown as { cid?: string }).cid;
-                const isMismatch = domainCid && cloudId && domainCid !== cloudId;
-                return (
-                    <div key={p.id} className={`pl-2 ${isMismatch ? 'text-destructive font-semibold' : ''}`}>
-                        {isMismatch ? '[X] ' : ''}id={p.id} name={p.name} cid={domainCid || '?'}
-                    </div>
-                );
-            })}
-        </div>
-    );
 
     const header = (
         <div className="mb-[18px] flex items-center justify-between px-4">
@@ -323,7 +306,6 @@ export const PlaceList = ({
         return (
             <div>
                 {header}
-                {placeDebugBar}
                 <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 py-2">
                     {Array.from({ length: 3 }).map((_, i) => (
                         <div key={i} className="flex flex-col items-center gap-[5px]">
@@ -340,7 +322,6 @@ export const PlaceList = ({
         return (
             <div>
                 {header}
-                {placeDebugBar}
                 <div className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
                     <span>{t('placeList.errorLoading')}</span>
                     <button onClick={() => refresh()} className="flex items-center gap-1 text-foreground">
@@ -356,7 +337,6 @@ export const PlaceList = ({
         return (
             <div>
                 {header}
-                {placeDebugBar}
                 <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
                     {!isGuest && onCreatePlace && (
                         <button
@@ -400,7 +380,6 @@ export const PlaceList = ({
     return (
         <div>
             {header}
-            {placeDebugBar}
 
             <div className="scrollbar-hide flex gap-[14px] overflow-x-auto px-4 pb-1 pt-1">
                 {places.map(place => (

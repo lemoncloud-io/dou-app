@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from 'react';
 import type { WebView } from 'react-native-webview';
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useWebViewDeepLink } from '../../../webview/hooks/useWebViewDeepLink';
 import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigation';
@@ -9,20 +9,18 @@ import { DeepLinkErrorView } from '../../core/components';
 import type { MainScreenProps } from '../navigation';
 import type { ModalHandler } from '../../../webview/hooks/useModalHandler';
 import { useAppBridge } from '../../../webview/hooks';
+import { useThemeStore } from '../../../stores';
 
 export const MainScreen = ({ navigation }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
     const { bridge, onMessage } = useAppBridge(webViewRef);
+    const systemColorScheme = useColorScheme();
+    const theme = useThemeStore(s => s.theme);
+    const isDark = theme === 'dark' || (theme === 'system' && systemColorScheme === 'dark');
 
     const { setWebCanGoBack, setNavCanGoBack } = useWebViewNavigation(bridge);
-    const {
-        initialSource,
-        handleWebViewLoad,
-        isColdStartReady,
-        deepLinkError,
-        deepLinkErrorReason,
-        handleDismissError,
-    } = useWebViewDeepLink(webViewRef);
+    const { initialSource, handleWebViewLoad, deepLinkError, deepLinkErrorReason, handleDismissError } =
+        useWebViewDeepLink(webViewRef);
 
     const modalHandler: ModalHandler = useMemo(
         () => ({
@@ -39,8 +37,16 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         [navigation]
     );
 
-    if (!isColdStartReady || !initialSource) {
-        return <View style={loadingStyles.container}></View>;
+    if (!initialSource) {
+        return (
+            <View style={[loadingStyles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
+                <Image
+                    source={require('../../../../assets/logo.png')}
+                    style={loadingStyles.logo}
+                    resizeMode="contain"
+                />
+            </View>
+        );
     }
 
     if (deepLinkError) {
@@ -48,7 +54,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     }
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
+        <View style={{ flex: 1, backgroundColor: isDark ? '#121212' : '#ffffff' }}>
             <AppWebView
                 ref={webViewRef}
                 source={initialSource}
@@ -71,10 +77,9 @@ const loadingStyles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#ffffff',
     },
     logo: {
-        width: 80,
-        height: 80,
+        width: 96,
+        height: 96,
     },
 });

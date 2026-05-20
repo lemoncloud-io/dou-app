@@ -4,6 +4,7 @@ import {
     AccountInfoPage,
     AccountManagePage,
     CloudProfileEditPage,
+    DebugCacheTestPage,
     DebugLoginPage,
     DebugLogBufferPage,
     DebugPage,
@@ -34,6 +35,7 @@ export const MyPageRoutes = () => {
             <Route path="debug/dashboard" element={<DebugChatPage />} />
             <Route path="debug/state" element={<DebugStatePage />} />
             <Route path="debug/log-buffer" element={<DebugLogBufferPage />} />
+            <Route path="debug/cache-test" element={<DebugCacheTestPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="policy" element={<PolicyListPage />} />
             <Route path="policy/terms" element={<TermsPage />} />

@@ -67,6 +67,36 @@ export const usePlaces = () => {
         [siteRepository]
     );
 
+    // isVerified 전이라도 IndexedDB 캐시에서 places를 즉시 읽기 (cache-only로 네트워크 요청 없음)
+    // useChannels와 동일하게 인증 대기 없이 로컬 캐시 우선 표시
+    useEffect(() => {
+        if (!cloudId || isVerified) return;
+        // 모듈 캐시가 이미 현재 cloudId에 대해 유효하면 스킵
+        if (placesCacheCloudId === cloudId && placesCache && placesCache.length > 0) return;
+
+        let cancelled = false;
+        const loadCache = async () => {
+            try {
+                const result = await siteRepository.fetchSite({}, { cachePolicy: 'cache-only' });
+                if (cancelled) return;
+                const nextPlaces = (result.list ?? []) as DomainSite[];
+                if (nextPlaces.length > 0) {
+                    placesCache = nextPlaces;
+                    placesCacheCloudId = cloudId;
+                    setPlaces(nextPlaces);
+                    setIsLoading(false);
+                }
+            } catch {
+                // 캐시 읽기 실패는 무시 — isVerified 후 정상 fetch에서 처리
+            }
+        };
+        void loadCache();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [cloudId, isVerified, siteRepository]);
+
     // cloudId가 변경되고 인증 완료 시 place 목록 재요청
     // place auth로 인한 isVerified 토글(같은 cloud)에서는 재요청하지 않음
     // places가 이미 있으면 (파이프라인이 먼저 가져온 경우) loading skeleton 표시 안 함
@@ -80,7 +110,12 @@ export const usePlaces = () => {
         const isCloudSwitch = lastFetchedCloudId !== undefined && lastFetchedCloudId !== cloudId;
         lastFetchedCloudId = cloudId;
 
-        void fetchPlaces({ loading: isCloudSwitch || places.length === 0, forceNetwork: isCloudSwitch });
+        // 모듈 캐시가 현재 cloudId와 일치하면 loading skeleton 안 보여줌
+        const hasValidModuleCache = placesCacheCloudId === cloudId && placesCache && placesCache.length > 0;
+        void fetchPlaces({
+            loading: !hasValidModuleCache && (isCloudSwitch || places.length === 0),
+            forceNetwork: isCloudSwitch,
+        });
     }, [fetchPlaces, cloudId, isVerified]);
 
     useEffect(() => {

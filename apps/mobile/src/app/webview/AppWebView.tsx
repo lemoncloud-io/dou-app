@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { AppState, Image, Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import { WebView, type WebViewProps } from 'react-native-webview';
 import DeviceInfo from 'react-native-device-info';
 import Config from 'react-native-config';
@@ -14,6 +14,22 @@ import { useVersionCheckHandler } from './hooks';
 import { FullScreenLoader } from '../features/core/components';
 import type { ModalHandler } from './hooks/useModalHandler';
 import type { IAppBridgeHost } from '@chatic/bridges';
+import { useThemeStore } from '../stores';
+
+const LIGHT_BG = '#ffffff';
+const DARK_BG = '#121212';
+
+const useIsDarkMode = () => {
+    const systemColorScheme = useColorScheme();
+    const theme = useThemeStore(s => s.theme);
+    return theme === 'dark' || (theme === 'system' && systemColorScheme === 'dark');
+};
+
+const ResumeOverlay = ({ isDark }: { isDark: boolean }) => (
+    <View style={[styles.resumeOverlay, { backgroundColor: isDark ? DARK_BG : LIGHT_BG }]}>
+        <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+    </View>
+);
 
 interface AppWebViewProps extends WebViewProps {
     bridge: IAppBridgeHost;
@@ -32,9 +48,13 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
 
     const { cacheCrudService, firebaseInstallationService } = useServices();
     const [injectionScript, setInjectionScript] = useState<string | null>(null);
+    const isDark = useIsDarkMode();
+    const bgColor = isDark ? DARK_BG : LIGHT_BG;
     const insets = useSafeAreaInsets();
     const keyboardHeight = useKeyboardHeight();
     const webViewRef = useRef<WebView | null>(null);
+
+    const [isWebAppReady, setIsWebAppReady] = useState(false);
 
     const { isIapLoading } = useWebMessageRouter({
         bridge,
@@ -43,6 +63,45 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     });
 
     useVersionCheckHandler(bridge);
+
+    // iOS: content process가 OS에 의해 종료된 경우 리로드
+    const handleContentProcessDidTerminate = useCallback(() => {
+        setInjectionScript(prev => {
+            // force re-render of loading state, then reload
+            webViewRef.current?.reload();
+            return prev;
+        });
+    }, []);
+
+    // iOS WKWebView 백그라운드 복귀 시 흰 화면 방지
+    // 렌더링 레이어가 suspend → repaint 되는 동안 테마 색상 오버레이로 가림
+    const [showResumeOverlay, setShowResumeOverlay] = useState(false);
+    const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', nextState => {
+            if (nextState === 'background' || nextState === 'inactive') {
+                if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+                setShowResumeOverlay(true);
+            } else if (nextState === 'active') {
+                // WebView에 repaint 신호 요청 — 실제 paint 완료 후 ResumeReady 메시지로 오버레이 해제
+                webViewRef.current?.injectJavaScript(`
+                    requestAnimationFrame(function() {
+                        requestAnimationFrame(function() {
+                            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ResumeReady' }));
+                        });
+                    });
+                    true;
+                `);
+                // Fallback: JS 메시지가 안 오는 경우 (content process 종료 등) 최대 1.5초 후 해제
+                resumeTimeoutRef.current = setTimeout(() => setShowResumeOverlay(false), 1500);
+            }
+        });
+        return () => {
+            subscription.remove();
+            if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+        };
+    }, []);
 
     useEffect(() => {
         const prepareWebView = async () => {
@@ -99,15 +158,41 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         [propsOnLoad]
     );
 
+    // WebAppReady / ResumeReady 메시지를 가로채서 처리, 나머지는 bridge onMessage로 전달
+    const handleMessage = useCallback(
+        (event: Parameters<NonNullable<WebViewProps['onMessage']>>[0]) => {
+            try {
+                const data = JSON.parse(event.nativeEvent.data);
+                if (data?.type === 'WebAppReady') {
+                    setIsWebAppReady(true);
+                    return;
+                }
+                if (data?.type === 'ResumeReady') {
+                    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+                    setShowResumeOverlay(false);
+                    return;
+                }
+            } catch {
+                // ignore parse errors
+            }
+            onMessage?.(event);
+        },
+        [onMessage]
+    );
+
     if (!injectionScript) {
-        return <View style={styles.loadingContainer}></View>;
+        return (
+            <View style={[styles.loadingContainer, { backgroundColor: bgColor }]}>
+                <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+            </View>
+        );
     }
 
     return (
         <View style={styles.webViewContainer}>
             <WebView
                 ref={setRefs}
-                style={{ backgroundColor: '#ffffff' }}
+                style={{ backgroundColor: bgColor }}
                 startInLoadingState={false}
                 showsVerticalScrollIndicator={false}
                 javaScriptEnabled={true}
@@ -125,9 +210,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 mixedContentMode="always"
                 {...restProps}
                 onLoad={handleWebViewLoad}
-                onMessage={onMessage}
+                onMessage={handleMessage}
+                onContentProcessDidTerminate={handleContentProcessDidTerminate}
             />
             <FullScreenLoader visible={isIapLoading} message={t('loader.paymentProcessing')} />
+            {(!isWebAppReady || showResumeOverlay) && <ResumeOverlay isDark={isDark} />}
         </View>
     );
 });
@@ -140,6 +227,14 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#fff',
+    },
+    resumeOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    logo: {
+        width: 96,
+        height: 96,
     },
 });

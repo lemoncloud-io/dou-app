@@ -21,7 +21,7 @@ import { setPlaceAuthDone } from '../../features/home/components/PlaceList';
  */
 const resolveTargetPlace = (places: DomainSite[]): string | null => {
     if (places.length === 0) return null;
-    const savedPlaceId = cloudCore.getSelectedPlaceId();
+    const savedPlaceId = useWebSocketV2Store.getState().selectedPlaceId;
     if (savedPlaceId && places.some(p => p.id === savedPlaceId)) {
         return savedPlaceId;
     }
@@ -38,6 +38,7 @@ const authPlace = async (placeId: string): Promise<void> => {
     // relay 모드: refreshToken 불필요, 단순 저장만
     if (wssType !== 'cloud') {
         cloudCore.saveSelectedSiteId(placeId);
+        useWebSocketV2Store.getState().setSelectedPlaceId(placeId);
         setPlaceAuthDone(true);
         return;
     }
@@ -49,6 +50,7 @@ const authPlace = async (placeId: string): Promise<void> => {
     const target = `${uid}@${placeId}`;
     const refreshed = await cloudCore.refreshToken(target);
     cloudCore.saveSelectedSiteId(placeId);
+    useWebSocketV2Store.getState().setSelectedPlaceId(placeId);
 
     const currentProfile = useWebCoreStore.getState().profile;
     const { Token: _token, ...cloudProfile } = refreshed;

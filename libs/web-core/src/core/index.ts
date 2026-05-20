@@ -156,3 +156,46 @@ export const webCore = WebCoreFactory.create({
     region: REGION,
     storage: isReactNativeWebView() ? localStorage : sessionStorage,
 });
+
+/**
+ * Eagerly start webCore.init() at module load time.
+ * This overlaps the ~800ms init with React mounting instead of waiting
+ * for a useEffect callback.
+ *
+ * - On success: `_initDone = true`, subsequent calls resolve immediately.
+ * - On failure: retries in useWebCoreStore.initialize() call fresh init.
+ */
+let _pendingInit: Promise<void> | null = null;
+let _initDone = false;
+
+export const startWebCoreInit = (): Promise<void> => {
+    if (_initDone) return Promise.resolve();
+    if (_pendingInit) return _pendingInit;
+    _pendingInit = webCore
+        .init()
+        .then(() => {
+            _initDone = true;
+        })
+        .finally(() => {
+            _pendingInit = null;
+        });
+    return _pendingInit;
+};
+
+/**
+ * Reset init state so the next startWebCoreInit() call triggers a fresh webCore.init().
+ *
+ * Called during logout — on SPA navigation (especially mobile WebView) the module
+ * may NOT be re-evaluated, leaving _initDone = true while webCore is in a post-logout
+ * state. Without this reset, webCore.buildRequest() can hang because the internal
+ * HTTP client was torn down by webCore.logout().
+ */
+export const resetWebCoreInit = (): void => {
+    _initDone = false;
+    _pendingInit = null;
+};
+
+// Fire at module evaluation — before React mounts
+startWebCoreInit().catch(() => {
+    // intentionally empty — suppress unhandled rejection on module load
+});

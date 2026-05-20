@@ -9,11 +9,13 @@ import {
     loginWithInviteCode,
     reportError,
     setIsInvitedSession,
+    startWebCoreInit,
     toError,
     useDelegatorId,
     useWebCoreStore,
     webCore,
 } from '@chatic/web-core';
+import { useWebSocketV2Store } from '@chatic/socket';
 import { LoadingFallback } from '@chatic/shared';
 
 import { getMobileAppInfo, logger } from '@chatic/app-messages';
@@ -70,6 +72,8 @@ export const LoginPage = (): JSX.Element => {
     );
     const handleDeviceRegistration = useCallback(async () => {
         try {
+            // 로그아웃 후 SPA 내비게이션 시 webCore가 미초기화 상태일 수 있음
+            await startWebCoreInit();
             const { Token, ...rest } = await registerDevice(deviceId);
             if (!Token.identityToken) throw new Error('No identityToken in response');
 
@@ -78,8 +82,10 @@ export const LoginPage = (): JSX.Element => {
             if (!cloudCore.getSelectedCloudId()) {
                 cloudCore.saveSelectedCloudId('default');
             }
+            // SPA 전환 — 풀 페이지 리로드 대신 URL만 변경 후 상태 업데이트.
+            // webCore.init() 재실행 + JS 번들 재파싱을 피하여 ~2초 절약.
+            window.history.replaceState(null, '', '/');
             setIsAuthenticated(true);
-            window.location.replace('/');
         } catch (error) {
             logger.error('AUTH', '[LoginPage] Device registration failed', { error });
             reportError(toError(error));
@@ -134,6 +140,7 @@ export const LoginPage = (): JSX.Element => {
                 data: { isAlreadyAuthenticated, hasDelegatorId: !!effectiveDelegatorId },
             });
             if (!isAlreadyAuthenticated || !effectiveDelegatorId) {
+                await startWebCoreInit();
                 const { Token, ...rest } = await registerDevice(deviceId);
                 await webCore.buildCredentialsByToken(Token);
                 setProfile(rest as unknown as UserProfile$);
@@ -201,18 +208,20 @@ export const LoginPage = (): JSX.Element => {
 
             // 7. Reset selected place, then pre-select the invited place
             cloudCore.clearSelectedPlace();
+            useWebSocketV2Store.getState().setSelectedPlaceId(null);
             const invitedSiteId = urlParams.get('_siteId');
             if (invitedSiteId) {
                 cloudCore.saveSelectedSiteId(invitedSiteId);
+                useWebSocketV2Store.getState().setSelectedPlaceId(invitedSiteId);
             }
 
-            // 8. Authenticate
-            setIsAuthenticated(true);
-            logger.info('AUTH', '[handleAccept] complete, reloading', {
+            // 8. Authenticate (SPA 전환 — 풀 페이지 리로드 회피)
+            logger.info('AUTH', '[handleAccept] complete, navigating to home', {
                 data: { effectiveCloudId, invitedSiteId, isInvited: true },
             });
             toast({ title: t('auth.loginSuccess') });
-            window.location.replace('/');
+            window.history.replaceState(null, '', '/');
+            setIsAuthenticated(true);
         } catch (error) {
             logger.error('AUTH', '[LoginPage] Accept invite failed', { error });
             reportError(toError(error));

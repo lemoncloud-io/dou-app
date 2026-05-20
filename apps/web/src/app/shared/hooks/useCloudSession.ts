@@ -79,6 +79,7 @@ export const useAutoSelectCloud = () => {
             const currentCloudId = cloudCore.getSelectedCloudId();
             if (!currentCloudId) {
                 cloudCore.saveSelectedCloudId('default');
+                useWebSocketV2Store.getState().setCloudId('default');
                 autoSelectedRef.current = true;
             }
             return;

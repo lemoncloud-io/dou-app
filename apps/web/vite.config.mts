@@ -62,7 +62,30 @@ const htmlEnvInjectionPlugin = () => {
                 </script>
             `;
 
-            return html.replace(/<body>/, `${envScript}\n<body>`);
+            // Preconnect links for API endpoints
+            const preconnectKeys = ['VITE_OAUTH_ENDPOINT', 'VITE_DOU_ENDPOINT'];
+            const preconnectTags = preconnectKeys
+                .map(key => process.env[key])
+                .filter((url): url is string => !!url)
+                .map(url => {
+                    try {
+                        return new URL(url).origin;
+                    } catch {
+                        return null;
+                    }
+                })
+                .filter((origin): origin is string => !!origin)
+                .filter((origin, i, arr) => arr.indexOf(origin) === i)
+                .map(origin => `<link rel="preconnect" href="${origin}" crossorigin />`)
+                .join('\n');
+
+            html = html.replace(/<body>/, `${envScript}\n<body>`);
+
+            if (preconnectTags) {
+                html = html.replace(/<\/head>/, `${preconnectTags}\n</head>`);
+            }
+
+            return html;
         },
     };
 };

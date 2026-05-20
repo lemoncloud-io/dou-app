@@ -80,6 +80,11 @@ export interface WebMessagePayloadMap {
     OAuthLogout: OAuthLogoutPayload;
 
     // 7. Common & Others
+    WebAppReady: never;
+    ShowLoader: never;
+    HideLoader: never;
+    SyncCredential: never;
+    PopWebView: never;
     FetchAppLogBuffer: FetchAppLogBufferPayload;
     PollAppLogBuffer: PollAppLogBufferPayload;
     ClearAppLogBuffer: never;

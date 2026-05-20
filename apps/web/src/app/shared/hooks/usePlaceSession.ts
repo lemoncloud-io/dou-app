@@ -1,4 +1,5 @@
 import { useIssueCloudToken } from '@chatic/auth';
+import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 
 export const getPlaceSession = () => {
@@ -24,7 +25,8 @@ export const usePlaceSession = () => {
         // 서버가 반환하지 않는 로컬 커스텀 필드(thumbnail 등)를 보존
         const existing = cloudCore.getCloudToken();
         cloudCore.saveCloudToken(existing ? ({ ...existing, ...userToken } as typeof userToken) : userToken);
-        cloudCore.saveSelectedCloudId(placeId);
+        cloudCore.saveSelectedSiteId(placeId);
+        useWebSocketV2Store.getState().setSelectedPlaceId(placeId);
 
         const { Token, ...profile } = userToken;
         setProfile(profile);

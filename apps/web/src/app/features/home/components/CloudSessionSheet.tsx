@@ -42,7 +42,13 @@ const ProfileSection = () => {
         <div className="flex flex-col items-center gap-[9px] py-4">
             <div className="flex h-[54px] w-[54px] items-center justify-center overflow-hidden rounded-full border border-background bg-secondary">
                 {photo ? (
-                    <img src={photo} alt={name} className="h-full w-full object-cover" />
+                    <img
+                        src={photo}
+                        alt={name}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-full w-full object-cover"
+                    />
                 ) : (
                     <User size={20} className="text-placeholder" />
                 )}

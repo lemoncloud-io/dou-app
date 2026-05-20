@@ -1,10 +1,16 @@
 import { create } from 'zustand';
 
 import type { OAuthLoginProvider } from '@chatic/app-messages';
-import { getMobileAppInfo, initializeMessageListener, logger, postMessage } from '@chatic/app-messages';
+import {
+    getMobileAppInfo,
+    initializeMessageListener,
+    logger,
+    postMessage,
+    useAppMessageStore,
+} from '@chatic/app-messages';
 
 import { updateProfile } from '../api';
-import { cloudCore, coreStorage, LANGUAGE_KEY, webCore } from '../core';
+import { LANGUAGE_KEY, cloudCore, webCore, coreStorage, startWebCoreInit, resetWebCoreInit } from '../core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 export type UserView = Partial<UserProfile$>;
@@ -143,7 +149,7 @@ const initialState: Pick<WebCoreStore, keyof WebCoreState> = (() => {
 
     return {
         isInitialized: false,
-        isAuthenticated: false,
+        isAuthenticated: !!profile,
         isOnMobileApp: false,
         isGuest,
         isInvited,
@@ -169,11 +175,13 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      */
     initialize: async () => {
         set({ isInitialized: false, error: null });
-        logger.info('WEB_CORE', '[initialize] webCore.init starting');
-        await webCore.init();
-        logger.info('WEB_CORE', '[initialize] webCore.init done, setting language');
-        await webCore.setUseXLemonLanguage(true, LANGUAGE_KEY);
-        const isAuthenticated = await webCore.isAuthenticated();
+        logger.info('WEB_CORE', '[initialize] awaiting webCore.init (eager)');
+        await startWebCoreInit();
+        logger.info('WEB_CORE', '[initialize] webCore.init done, setting language + auth in parallel');
+        const [, isAuthenticated] = await Promise.all([
+            webCore.setUseXLemonLanguage(true, LANGUAGE_KEY),
+            webCore.isAuthenticated(),
+        ]);
         logger.info('WEB_CORE', '[initialize] isAuthenticated resolved', {
             data: { isAuthenticated },
         });
@@ -181,6 +189,13 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         const { isOnMobileApp } = getMobileAppInfo();
         if (isOnMobileApp) {
             initializeMessageListener();
+
+            // Add handler for mobile app token sync response
+            const appMessageStore = useAppMessageStore.getState();
+            appMessageStore.addHandler('OnSuccessSyncCredential', message => {
+                logger.info('AUTH', 'Mobile token sync successful', message);
+                // TODO: Process token data from mobile app
+            });
         }
         set({ isInitialized: true, isAuthenticated, isOnMobileApp });
         logger.info('WEB_CORE', '[initialize] store updated', {
@@ -219,6 +234,9 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
 
         await webCore.logout();
         cloudCore.clearSession();
+        // SPA 내비게이션 시 모듈이 재평가되지 않아 _initDone이 true로 남을 수 있음
+        // → 다음 startWebCoreInit() 호출 시 webCore.init()이 실행되도록 리셋
+        resetWebCoreInit();
         // isInvited는 유지 — 로그아웃 후 재로그인 시 초대 상태 복원에 필요
         localStorage.removeItem('chatic-device-token');
 
@@ -305,12 +323,6 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      */
     updateProfile: async (uid: string, user: Record<string, unknown>) => {
         await updateProfile(uid, user);
-        // TODO: set updated profile
-        // set(state => {
-        //     const profile = { ...state.profile, $user: user };
-        //     const userName = user['name'];
-        //     return { ...state, profile, userName };
-        // });
     },
 
     /**
