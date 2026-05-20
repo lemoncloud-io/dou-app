@@ -232,19 +232,19 @@ export const BridgeTestScreen = () => {
                 <h2>WebView Area (Mock)</h2>
 
                 <div class="button-container">
-                    <button onclick="sendToNative({ type: 'OAuthLogin', payload: { provider: 'google' } })">Google Login</button>
-                    <button onclick="sendToNative({ type: 'OAuthLogin', payload: { provider: 'apple' } })">Apple Login</button>
-                    <button onclick="sendToNative({ type: 'OAuthLogout', payload: { provider: 'google' } })">Google Logout</button>
-                    <button onclick="sendToNative({ type: 'OAuthLogout', payload: { provider: 'apple' } })">Apple Logout</button>
+                    <button onclick="sendToNative({ type: 'OAuthLogin', data: { provider: 'google' } })">Google Login</button>
+                    <button onclick="sendToNative({ type: 'OAuthLogin', data: { provider: 'apple' } })">Apple Login</button>
+                    <button onclick="sendToNative({ type: 'OAuthLogout', data: { provider: 'google' } })">Google Logout</button>
+                    <button onclick="sendToNative({ type: 'OAuthLogout', data: { provider: 'apple' } })">Apple Logout</button>
                     <button onclick="sendToNative({ type: 'GetContacts' })">Get Contacts</button>
-                    <button onclick="sendToNative({ type: 'OpenCamera', payload: { mediaType: 'photo' } })">Open Camera</button>
-                    <button onclick="sendToNative({ type: 'RequestPermission', payload: { permission: 'CAMERA' } })">Req Cam Perm</button>
-                    <button onclick="sendToNative({ type: 'OpenShareSheet', payload: { message: 'Hello from WebView!' } })">Open Share</button>
-                    <button onclick="sendToNative({ type: 'OpenDocument', payload: { allowMultiSelection: true } })">Open Document</button>
+                    <button onclick="sendToNative({ type: 'OpenCamera', data: { mediaType: 'photo' } })">Open Camera</button>
+                    <button onclick="sendToNative({ type: 'RequestPermission', data: { permission: 'CAMERA' } })">Req Cam Perm</button>
+                    <button onclick="sendToNative({ type: 'OpenShareSheet', data: { message: 'Hello from WebView!' } })">Open Share</button>
+                    <button onclick="sendToNative({ type: 'OpenDocument', data: { allowMultiSelection: true } })">Open Document</button>
 
                     <button onclick="sendToNative({ type: 'FetchProducts' })">IAP: Fetch Products</button>
                     <button onclick="sendToNative({ type: 'FetchCurrentPurchases' })">IAP: Fetch Purchases</button>
-                    <button onclick="sendToNative({ type: 'Purchase', payload: { id: 'TEST_SKU' }})">IAP: Buy Subscription</button>
+                    <button onclick="sendToNative({ type: 'Purchase', data: { id: 'TEST_SKU' }})">IAP: Buy Subscription</button>
                     <button onclick="sendToNative({ type: 'OpenSubscriptionManagement' })">IAP: Manage</button>
                 </div>
 
