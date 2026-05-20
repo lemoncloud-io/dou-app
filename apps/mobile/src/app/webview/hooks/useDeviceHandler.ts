@@ -2,54 +2,45 @@ import { useCallback } from 'react';
 import { Linking } from 'react-native';
 import RNFS from 'react-native-fs';
 import { useServices } from '../../hooks';
-import type {
-    GetContacts,
-    OnGetContacts,
-    OnOpenCamera,
-    OnOpenDocumentPayload,
-    OnOpenPhotoLibrary,
-    OnOpenShareSheet,
-    OpenCamera,
-    OpenDocument,
-    OpenPhotoLibrary,
-    OpenSettings,
-    OpenShareSheet,
-    OpenURL,
-} from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/app-messages';
 import type { Asset } from 'react-native-image-picker';
 
 export const useDeviceHandler = () => {
     const { deviceService, logService: logger } = useServices();
 
     const handleOpenSettings = useCallback(
-        async (_message: OpenSettings) => {
+        async (_message: WebMessageData<'OpenSettings'>) => {
             await deviceService.openSettings();
+            return { type: 'OnOpenSettings' as const, success: true };
         },
         [deviceService]
     );
 
     const handleOpenShareSheet = useCallback(
-        async (message: OpenShareSheet): Promise<{ data: OnOpenShareSheet['data'] }> => {
-            const data = message.data;
+        async (message: WebMessageData<'OpenShareSheet'>) => {
+            const data = message.payload;
             try {
                 const result = await deviceService.openShareSheet(data);
                 return {
-                    data: {
-                        action: result.action,
-                        activityType: result.activityType ?? null,
-                    },
+                    type: 'OnOpenShareSheet' as const,
+                    success: true,
+                    data: { action: result.action, activityType: result.activityType ?? null },
                 };
             } catch (e: any) {
                 logger.error('DEVICE', 'OpenShareSheet error', e);
-                throw e;
+                return {
+                    type: 'OnOpenShareSheet' as const,
+                    success: false,
+                    error: { code: 'SHARE_ERROR', message: e.message },
+                };
             }
         },
         [deviceService, logger]
     );
 
     const handleOpenDocument = useCallback(
-        async (message: OpenDocument): Promise<{ data: OnOpenDocumentPayload }> => {
-            const data = message.data;
+        async (message: WebMessageData<'OpenDocument'>) => {
+            const data = message.payload;
             try {
                 const results = await deviceService.openDocument(data.allowMultiSelection);
 
@@ -63,33 +54,29 @@ export const useDeviceHandler = () => {
                                 logger.warn('DEVICE', `Failed to read document base64: ${doc.name}`, readError);
                             }
                         }
-                        return {
-                            uri: doc.uri,
-                            name: doc.name,
-                            type: doc.type,
-                            size: doc.size,
-                            base64,
-                        };
+                        return { uri: doc.uri, name: doc.name, type: doc.type, size: doc.size, base64 };
                     })
                 );
-                return {
-                    data: {
-                        documents: documents,
-                    },
-                };
-            } catch (e) {
+                return { type: 'OnOpenDocument' as const, success: true, data: { documents } };
+            } catch (e: any) {
                 logger.error('DEVICE', 'OpenDocument error', e);
-                throw e;
+                return {
+                    type: 'OnOpenDocument' as const,
+                    success: false,
+                    error: { code: 'DOC_ERROR', message: e.message },
+                };
             }
         },
         [deviceService, logger]
     );
 
     const handleOpenCamera = useCallback(
-        async (_message: OpenCamera): Promise<{ data: OnOpenCamera['data'] }> => {
+        async (_message: WebMessageData<'OpenCamera'>) => {
             try {
                 const assets: Asset[] = await deviceService.openCamera();
                 return {
+                    type: 'OnOpenCamera' as const,
+                    success: true,
                     data: {
                         assets: assets.map(asset => ({
                             uri: asset.uri,
@@ -102,19 +89,25 @@ export const useDeviceHandler = () => {
                         })),
                     },
                 };
-            } catch (e) {
+            } catch (e: any) {
                 logger.error('DEVICE', 'OpenCamera error', e);
-                throw e;
+                return {
+                    type: 'OnOpenCamera' as const,
+                    success: false,
+                    error: { code: 'CAMERA_ERROR', message: e.message },
+                };
             }
         },
         [deviceService, logger]
     );
 
     const handleOpenPhotoLibrary = useCallback(
-        async (_message: OpenPhotoLibrary): Promise<{ data: OnOpenPhotoLibrary['data'] }> => {
+        async (_message: WebMessageData<'OpenPhotoLibrary'>) => {
             try {
                 const assets: Asset[] = await deviceService.openPhotoLibrary();
                 return {
+                    type: 'OnOpenPhotoLibrary' as const,
+                    success: true,
                     data: {
                         assets: assets.map(asset => ({
                             uri: asset.uri,
@@ -127,19 +120,25 @@ export const useDeviceHandler = () => {
                         })),
                     },
                 };
-            } catch (e) {
+            } catch (e: any) {
                 logger.error('DEVICE', 'OpenPhotoLibrary error', e);
-                throw e;
+                return {
+                    type: 'OnOpenPhotoLibrary' as const,
+                    success: false,
+                    error: { code: 'LIBRARY_ERROR', message: e.message },
+                };
             }
         },
         [deviceService, logger]
     );
 
     const handleGetContacts = useCallback(
-        async (_message: GetContacts): Promise<{ data: OnGetContacts['data'] }> => {
+        async (_message: WebMessageData<'GetContacts'>) => {
             try {
                 const contacts = await deviceService.getContacts();
                 return {
+                    type: 'OnGetContacts' as const,
+                    success: true,
                     data: {
                         contacts: contacts.map(contact => ({
                             recordID: contact.recordID,
@@ -166,22 +165,31 @@ export const useDeviceHandler = () => {
                         })),
                     },
                 };
-            } catch (e) {
+            } catch (e: any) {
                 logger.error('DEVICE', 'GetContacts error', e);
-                return { data: { contacts: [] } };
+                return {
+                    type: 'OnGetContacts' as const,
+                    success: false,
+                    error: { code: 'CONTACT_ERROR', message: e.message },
+                };
             }
         },
         [deviceService, logger]
     );
 
     const handleOpenURL = useCallback(
-        async (_message: OpenURL): Promise<void> => {
-            const { url } = _message.data;
+        async (message: WebMessageData<'OpenURL'>) => {
+            const { url } = message.payload;
             try {
                 await Linking.openURL(url);
-            } catch (e) {
+                return { type: 'OnOpenURL' as const, success: true };
+            } catch (e: any) {
                 logger.error('DEVICE', 'OpenURL error', e);
-                throw e;
+                return {
+                    type: 'OnOpenURL' as const,
+                    success: false,
+                    error: { code: 'LINK_ERROR', message: e.message },
+                };
             }
         },
         [logger]

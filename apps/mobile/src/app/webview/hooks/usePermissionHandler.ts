@@ -1,13 +1,13 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { OnRequestPermissionPayload, PermissionStatus, RequestPermission } from '@chatic/app-messages';
+import type { PermissionStatus, WebMessageData } from '@chatic/app-messages';
 
 export const usePermissionHandler = () => {
     const { permissionService, logService: logger } = useServices();
 
     const handleRequestPermission = useCallback(
-        async (message: RequestPermission): Promise<{ data: OnRequestPermissionPayload }> => {
-            const { permission } = message.data;
+        async (message: WebMessageData<'RequestPermission'>) => {
+            const { permission } = message.payload;
 
             try {
                 const isGranted = await permissionService.request(permission);
@@ -19,18 +19,19 @@ export const usePermissionHandler = () => {
                 }
 
                 return {
+                    type: 'OnRequestPermission' as const,
+                    success: true,
                     data: {
                         permission,
                         status,
                     },
                 };
-            } catch (error) {
+            } catch (error: any) {
                 logger.error('PERMISSION', 'PermissionHandler error', error);
                 return {
-                    data: {
-                        permission,
-                        status: 'UNAVAILABLE',
-                    },
+                    type: 'OnRequestPermission' as const,
+                    success: false,
+                    error: { code: 'PERMISSION_ERROR', message: error.message },
                 };
             }
         },

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { OAuthLogin, OAuthLogout, OnOAuthLoginPayload, OnOAuthLogoutPayload } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/app-messages';
 
 export const useOAuthHandler = () => {
     const { oauthService: oAuthService, logService: logger } = useServices();
@@ -9,14 +9,22 @@ export const useOAuthHandler = () => {
      * OAuth 로그인
      */
     const handleOAuthLogin = useCallback(
-        async (message: OAuthLogin): Promise<{ data: OnOAuthLoginPayload }> => {
-            const { provider } = message.data;
+        async (message: WebMessageData<'OAuthLogin'>) => {
+            const { provider } = message.payload;
             try {
                 const result = await oAuthService.login(provider);
-                return { data: { result } };
-            } catch (error) {
+                return {
+                    type: 'OnOAuthLogin' as const,
+                    success: true,
+                    data: { result },
+                };
+            } catch (error: any) {
                 logger.error('OAUTH', `Login error for provider ${provider}`, error);
-                throw error;
+                return {
+                    type: 'OnOAuthLogin' as const,
+                    success: false,
+                    error: { code: 'OAUTH_LOGIN_ERROR', message: error.message },
+                };
             }
         },
         [oAuthService, logger]
@@ -24,18 +32,24 @@ export const useOAuthHandler = () => {
 
     /**
      * OAuth 로그아웃
-     * `Apple`의 경우 별도 logout 로직이 존재하지 않아 무조건 `true`를 반환
      */
     const handleOAuthLogout = useCallback(
-        async (message: OAuthLogout): Promise<{ data: OnOAuthLogoutPayload }> => {
-            const { provider } = message.data;
-
+        async (message: WebMessageData<'OAuthLogout'>) => {
+            const { provider } = message.payload;
             try {
                 const success: boolean = await oAuthService.logout(provider);
-                return { data: { success } };
-            } catch (error) {
+                return {
+                    type: 'OnOAuthLogout' as const,
+                    success: true,
+                    data: { success },
+                };
+            } catch (error: any) {
                 logger.error('OAUTH', `Logout error for provider ${provider}`, error);
-                throw error;
+                return {
+                    type: 'OnOAuthLogout' as const,
+                    success: false,
+                    error: { code: 'OAUTH_LOGOUT_ERROR', message: error.message },
+                };
             }
         },
         [oAuthService, logger]

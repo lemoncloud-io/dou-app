@@ -4,14 +4,14 @@ import { Platform } from 'react-native';
 import { logger, provider } from '../../services';
 
 import type { IAppBridgeHost } from '@chatic/bridges';
-import type { FetchFcmToken } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/app-messages';
 
 /**
  * 웹뷰에서 FCM 기능을 사용하기 위한 핸들러 훅
  * @param bridge
  */
 export const useFcmHandler = (bridge: IAppBridgeHost) => {
-    const fetchFcmToken = useCallback(async (_message: FetchFcmToken): Promise<{ data: { token: string } }> => {
+    const fetchFcmToken = useCallback(async (_message: WebMessageData<'FetchFcmToken'>) => {
         try {
             const hasPermission = await provider.notificationService.requestPermission();
 
@@ -26,7 +26,7 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
 
                 if (token) {
                     logger.debug('NOTIFICATION', 'Success set token.' + token);
-                    return { data: { token } };
+                    return { type: 'OnFetchFcmToken' as const, success: true, data: { token } };
                 } else {
                     throw new Error('Failed to generate FCM Token');
                 }
@@ -36,7 +36,11 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
             }
         } catch (e: any) {
             logger.error('NOTIFICATION', 'Set FCM token error.', e);
-            throw e;
+            return {
+                type: 'OnFetchFcmToken' as const,
+                success: false,
+                error: { code: 'FCM_ERROR', message: e.message },
+            };
         }
     }, []);
 
@@ -45,8 +49,9 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
 
         // 포그라운드 알림 수신
         const unsubscribeOnMessage = provider.notificationService.onMessage(async remoteMessage => {
-            bridge.pushEvent({
+            bridge.pushEvent<'OnReceiveNotification'>({
                 type: 'OnReceiveNotification',
+                success: true,
                 data: {
                     notification: {
                         title: remoteMessage.notification?.title,
@@ -54,27 +59,31 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
                         data: remoteMessage.data,
                     },
                 },
-            } as any);
+            });
         });
 
         // 앱 백그라운드 상태에서 알림 클릭
         const unsubscribeOnOpened = provider.notificationService.onNotificationOpenedApp(remoteMessage => {
-            bridge.pushEvent({
+            bridge.pushEvent<'OnOpenNotification'>({
                 type: 'OnOpenNotification',
-                data: (remoteMessage.data || {}) as any,
-            } as any);
+                success: true,
+                data: {
+                    notification: remoteMessage.data || {},
+                },
+            });
         });
 
         // 앱 종료 상태에서 알림 클릭 (Cold Start)
         provider.notificationService.getInitialNotification().then(remoteMessage => {
             if (remoteMessage) {
                 setTimeout(() => {
-                    bridge.pushEvent({
+                    bridge.pushEvent<'OnOpenNotification'>({
                         type: 'OnOpenNotification',
+                        success: true,
                         data: {
                             notification: remoteMessage.data || {},
-                        } as any,
-                    } as any);
+                        },
+                    });
                 }, 1000);
             }
         });
