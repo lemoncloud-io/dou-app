@@ -99,9 +99,11 @@ export interface ChannelQueryOptions extends BaseQueryOptions {
 
 /** 채팅 목록 조회 쿼리 */
 export interface ChatQueryOptions extends BaseQueryOptions {
-    channelId?: string; // 특정 채널 내 메시지 필터
-    sort?: 'asc' | 'desc'; // 정렬 순서
-    keyword?: string; // 검색 키워드
+    channelId?: string;
+    sort?: 'asc' | 'desc';
+    keyword?: string;
+    limit?: number;
+    cursorNo?: number;
 }
 
 export interface InviteCloudQueryOptions extends BaseQueryOptions {}

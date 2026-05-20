@@ -48,14 +48,28 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
             params.push(query.channelId);
         }
 
-        if ((query as any)?.keyword) {
+        if (query?.keyword) {
             conditions.push(`content LIKE ?`);
-            params.push(`%${(query as any).keyword}%`);
+            params.push(`%${query.keyword}%`);
+        }
+
+        // 페이징 커서 조건 추가 (cursorNo 미만)
+        if (query?.cursorNo !== undefined && query.cursorNo !== null) {
+            conditions.push(`chat_no < ?`);
+            params.push(query.cursorNo);
         }
 
         if (conditions.length > 0) sql += ` WHERE ` + conditions.join(' AND ');
 
-        if (query?.sort) sql += ` ORDER BY chat_no ${query.sort.toUpperCase()}`;
+        // 정렬 기준 설정 (채팅의 경우 기본적으로 DESC가 적합하므로 없을 경우 폴백 처리)
+        const sortOrder = query?.sort ? query.sort.toUpperCase() : 'DESC';
+        sql += ` ORDER BY chat_no ${sortOrder}`;
+
+        // 페이징 Limit 조건 추가
+        if (query?.limit !== undefined && query.limit !== null) {
+            sql += ` LIMIT ?`;
+            params.push(query.limit);
+        }
 
         const result = await this.database.execute(sql, params);
 
