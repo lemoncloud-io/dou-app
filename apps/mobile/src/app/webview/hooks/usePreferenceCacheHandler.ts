@@ -1,96 +1,74 @@
 import { useCallback } from 'react';
-import type { WebViewBridge } from './useBaseBridge';
-import type { AppMessageData, DeletePreference, FetchPreference, SavePreference } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/app-messages';
 import { useLanguageStore, useThemeStore } from '../../stores';
 import { useServices } from '../../hooks';
 
-export const usePreferenceCacheHandler = (bridge: WebViewBridge) => {
+export const usePreferenceCacheHandler = () => {
     const { preferenceService, logService } = useServices();
 
     const handleFetchPreference = useCallback(
-        async (message: FetchPreference) => {
+        async (message: WebMessageData<'FetchPreference'>) => {
+            const { key } = message.data;
             try {
-                const value = await preferenceService.get(message.data.key as any);
-                const response: AppMessageData<'OnFetchPreference'> = {
-                    type: 'OnFetchPreference',
-                    nonce: message.nonce,
-                    data: {
-                        key: message.data.key,
-                        value,
-                    },
+                const value = await preferenceService.get(key as any);
+                return { type: 'OnFetchPreference' as const, success: true, data: { key, value } };
+            } catch (e: any) {
+                logService.error('CACHE', `FetchPreference error: ${key}`, e as Error);
+                return {
+                    type: 'OnFetchPreference' as const,
+                    success: false,
+                    error: { code: 'PREF_FETCH_ERROR', message: e.message },
                 };
-                bridge.post(response);
-            } catch (e) {
-                logService.error('CACHE', `FetchPreference error: ${message.data.key}`, e as Error);
-                bridge.post({
-                    type: 'OnFetchPreference',
-                    nonce: message.nonce,
-                    data: { key: message.data.key, value: null },
-                });
             }
         },
-        [bridge, preferenceService, logService]
+        [preferenceService, logService]
     );
 
     const handleSavePreference = useCallback(
-        async (message: SavePreference) => {
+        async (message: WebMessageData<'SavePreference'>) => {
             const { key, value } = message.data;
 
             try {
                 switch (key) {
-                    case 'theme': {
+                    case 'theme':
                         useThemeStore.getState().setTheme(value as any);
                         break;
-                    }
-                    case 'language': {
+                    case 'language':
                         useLanguageStore.getState().setLanguage(value as any);
                         break;
-                    }
                     default:
                         await preferenceService.set(key as any, value);
                 }
 
-                const response: AppMessageData<'OnSavePreference'> = {
-                    type: 'OnSavePreference',
-                    nonce: message.nonce,
-                    data: { key, success: true },
-                };
-                bridge.post(response);
-            } catch (e) {
+                return { type: 'OnSavePreference' as const, success: true, data: { key, success: true } };
+            } catch (e: any) {
                 logService.error('CACHE', `SavePreference error: ${key}`, e as Error);
-                bridge.post({
-                    type: 'OnSavePreference',
-                    nonce: message.nonce,
-                    data: { key, success: false },
-                });
+                return {
+                    type: 'OnSavePreference' as const,
+                    success: false,
+                    error: { code: 'PREF_SAVE_ERROR', message: e.message },
+                };
             }
         },
-        [bridge, preferenceService, logService]
+        [preferenceService, logService]
     );
 
     const handleDeletePreference = useCallback(
-        async (message: DeletePreference) => {
+        async (message: WebMessageData<'DeletePreference'>) => {
+            const { key } = message.data;
             try {
-                await preferenceService.remove(message.data.key as any);
-                const response: AppMessageData<'OnDeletePreference'> = {
-                    type: 'OnDeletePreference',
-                    nonce: message.nonce,
-                    data: {
-                        key: message.data.key,
-                        success: true,
-                    },
+                await preferenceService.remove(key as any);
+                return { type: 'OnDeletePreference' as const, success: true, data: { key, success: true } };
+            } catch (e: any) {
+                logService.error('CACHE', `DeletePreference error: ${key}`, e as Error);
+                return {
+                    type: 'OnDeletePreference' as const,
+                    success: false,
+                    error: { code: 'PREF_DELETE_ERROR', message: e.message },
                 };
-                bridge.post(response);
-            } catch (e) {
-                logService.error('CACHE', `DeletePreference error: ${message.data.key}`, e as Error);
-                bridge.post({
-                    type: 'OnDeletePreference',
-                    nonce: message.nonce,
-                    data: { key: message.data.key, success: false },
-                });
             }
         },
-        [bridge, preferenceService, logService]
+        [preferenceService, logService]
     );
 
     return {

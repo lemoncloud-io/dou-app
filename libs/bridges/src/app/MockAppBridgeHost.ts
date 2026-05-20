@@ -1,8 +1,9 @@
-import type { EventMessage, EventMessageType, RequestMessage, ResponseMessage, WebMessageType } from '../common';
-import type { ExtractEvtData, ExtractReqData, ExtractResData, IAppBridgeHost } from './IAppBridgeHost';
+import type { EventMessage, RequestMessage, ResponseMessage } from '../common';
+import type { IAppBridgeHost } from './IAppBridgeHost';
+import type { WebMessageType, WebMessageData, EventMessageType, AppMessageData } from '@chatic/app-messages';
 
 export class MockAppBridgeHost implements IAppBridgeHost {
-    private handlers: Map<string, (payload: any) => Promise<any>> = new Map();
+    private handlers: Map<string, (message: any) => Promise<any>> = new Map();
     private sendToWeb: (message: string) => void;
     private version = '1.0.0-mock';
 
@@ -19,8 +20,7 @@ export class MockAppBridgeHost implements IAppBridgeHost {
 
             if (handler) {
                 console.log(`[MockAppBridgeHost] '${message.type}' 핸들러 실행 중...`);
-                const payload = (message as any).data !== undefined ? (message as any).data : undefined;
-                const result = await handler(payload);
+                const result = await handler(message);
                 console.log(`[MockAppBridgeHost] 핸들러 실행 성공, Web으로 응답 반환:`, result);
 
                 this.sendSuccessResponse(message, result);
@@ -39,7 +39,7 @@ export class MockAppBridgeHost implements IAppBridgeHost {
 
     public registerHandler<K extends WebMessageType>(
         type: K,
-        handler: (payload: ExtractReqData<K>) => Promise<ExtractResData<K>>
+        handler: (message: WebMessageData<K>) => Promise<ResponseMessage>
     ): void {
         console.log(`[MockAppBridgeHost] '${String(type)}' 타입 핸들러 등록 완료.`);
         this.handlers.set(type as string, handler);
@@ -50,25 +50,22 @@ export class MockAppBridgeHost implements IAppBridgeHost {
         this.handlers.delete(type as string);
     }
 
-    public pushEvent<K extends EventMessageType>(type: K, payload: ExtractEvtData<K>, version?: string): void {
-        console.log(`[MockAppBridgeHost] Web으로 Event Push 발송: '${String(type)}'`, payload);
-        const message = {
-            type,
-            version: version ?? this.version,
+    public pushEvent<K extends EventMessageType>(message: AppMessageData<K>): void {
+        console.log(`[MockAppBridgeHost] Web으로 Event Push 발송:`, message);
+        const eventMsg = {
+            ...message,
+            version: this.version,
             refId: this.generateRefId(),
-            data: payload,
         } as unknown as EventMessage;
-        this.sendToWeb(JSON.stringify(message));
+        this.sendToWeb(JSON.stringify(eventMsg));
     }
 
-    private sendSuccessResponse(message: RequestMessage, data: any): void {
+    private sendSuccessResponse(message: RequestMessage, responsePayload: any): void {
         const response = {
-            type: `${message.type}Response`,
             refId: message.refId,
             version: message.version,
             nonce: message.nonce,
-            success: true,
-            data,
+            ...responsePayload,
         } as unknown as ResponseMessage;
         this.sendToWeb(JSON.stringify(response));
     }

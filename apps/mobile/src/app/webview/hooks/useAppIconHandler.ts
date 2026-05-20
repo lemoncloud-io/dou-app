@@ -1,86 +1,66 @@
 import { useCallback } from 'react';
 
-import { provider } from '../../services';
-import { DEFAULT_APP_ICON_NAME } from '../../services';
+import { DEFAULT_APP_ICON_NAME, provider } from '../../services';
+import type { WebMessageData } from '@chatic/app-messages';
+import { toErrorMessage } from '../../utils';
 
-import type { WebViewBridge } from './useBaseBridge';
-import type {
-    WebDefaultMessage,
-    ChangeAppIcon,
-    FetchAppIcon,
-    OnChangeAppIconPayload,
-    OnFetchAppIconPayload,
-    OnFetchAppIconListPayload,
-} from '@chatic/app-messages';
+export const useAppIconHandler = () => {
+    // 현재 적용된 아이콘 이름만 조회
+    const handleFetchAppIcon = useCallback(async (_message: WebMessageData<'FetchAppIcon'>) => {
+        try {
+            const currentIcon = await provider.dynamicAppIconService.fetchCurrentIcon();
+            return {
+                type: 'OnFetchAppIcon' as const,
+                success: true,
+                data: { iconName: currentIcon, supported: true },
+            };
+        } catch (error) {
+            return {
+                type: 'OnFetchAppIcon' as const,
+                success: true,
+                data: { iconName: DEFAULT_APP_ICON_NAME, supported: false, error: toErrorMessage(error) },
+            };
+        }
+    }, []);
 
-const toErrorMessage = (error: unknown): string => {
-    if (error instanceof Error) return error.message;
-    return String(error);
-};
+    // 사용 가능한 아이콘 목록 전체 조회
+    const handleFetchAppIconList = useCallback(async (_message: WebMessageData<'FetchAppIconList'>) => {
+        const availableIcons = provider.dynamicAppIconService.getAvailableIcons();
+        return {
+            type: 'OnFetchAppIconList' as const,
+            success: true,
+            data: { availableIcons },
+        };
+    }, []);
 
-export const useAppIconHandler = (bridge: WebViewBridge) => {
-    //  현재 적용된 아이콘 이름만 조회
-    const handleFetchAppIcon = useCallback(
-        async (message: FetchAppIcon) => {
-            try {
-                const currentIcon = await provider.dynamicAppIconService.fetchCurrentIcon();
-                bridge.post({
-                    type: 'OnFetchAppIcon',
-                    nonce: message.nonce,
-                    data: { iconName: currentIcon, supported: true } as OnFetchAppIconPayload,
-                });
-            } catch (error) {
-                bridge.post({
-                    type: 'OnFetchAppIcon',
-                    nonce: message.nonce,
-                    data: { iconName: DEFAULT_APP_ICON_NAME, supported: false, error: toErrorMessage(error) },
-                });
-            }
-        },
-        [bridge]
-    );
+    // 앱 아이콘 변경 실행
+    const handleChangeAppIcon = useCallback(async (message: WebMessageData<'ChangeAppIcon'>) => {
+        // 새 규격에 따라 요청 데이터는 data가 아닌 payload 안에 존재합니다.
+        const { iconName } = message.data;
 
-    //  사용 가능한 아이콘 목록 전체 조회
-    const handleFetchAppIconList = useCallback(
-        async (message: WebDefaultMessage<'FetchAppIconList'>) => {
-            const availableIcons = provider.dynamicAppIconService.getAvailableIcons();
-            bridge.post({
-                type: 'OnFetchAppIconList',
-                nonce: message.nonce,
-                data: { availableIcons } as OnFetchAppIconListPayload,
-            });
-        },
-        [bridge]
-    );
+        try {
+            const requestedIcon = iconName ?? null;
+            const success = await provider.dynamicAppIconService.setAppIcon(requestedIcon);
+            const currentIcon = await provider.dynamicAppIconService.fetchCurrentIcon();
 
-    //  앱 아이콘 변경 실행
-    const handleChangeAppIcon = useCallback(
-        async (message: ChangeAppIcon) => {
-            try {
-                const requestedIcon = message.data.iconName ?? null;
-                const success = await provider.dynamicAppIconService.setAppIcon(requestedIcon);
-                const currentIcon = await provider.dynamicAppIconService.fetchCurrentIcon();
-
-                bridge.post({
-                    type: 'OnChangeAppIcon',
-                    nonce: message.nonce,
-                    data: {
-                        success,
-                        requestedIconName: requestedIcon,
-                        iconName: currentIcon,
-                        supported: true,
-                    } as OnChangeAppIconPayload,
-                });
-            } catch (error) {
-                bridge.post({
-                    type: 'OnChangeAppIcon',
-                    nonce: message.nonce,
-                    data: { success: false, error: toErrorMessage(error) },
-                });
-            }
-        },
-        [bridge]
-    );
+            return {
+                type: 'OnChangeAppIcon' as const,
+                success: true,
+                data: {
+                    success,
+                    requestedIconName: requestedIcon,
+                    iconName: currentIcon,
+                    supported: true,
+                },
+            };
+        } catch (error) {
+            return {
+                type: 'OnChangeAppIcon' as const,
+                success: true,
+                data: { success: false, error: toErrorMessage(error) },
+            };
+        }
+    }, []);
 
     return {
         handleFetchAppIcon,

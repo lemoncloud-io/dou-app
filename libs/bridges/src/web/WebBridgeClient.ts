@@ -1,6 +1,7 @@
 import type { BridgeAdapter } from './adapters';
-import type { RequestMessage, ResponseMessage, EventMessage, WebMessageType, EventMessageType } from '../common';
-import type { IWebBridgeClient, ExtractReqData, ExtractResData, ExtractEvtData } from './IWebBridgeClient';
+import type { EventMessage, RequestMessage, ResponseMessage } from '../common';
+import type { IWebBridgeClient } from './IWebBridgeClient';
+import type { AppMessageData, EventMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
 
 export interface WebBridgeClientConfig {
     adapter: BridgeAdapter;
@@ -14,23 +15,19 @@ interface PendingRequest {
     timeoutId: ReturnType<typeof setTimeout>;
 }
 
-/**
- * Web(React 등) 환경에서 App(React Native, iOS, Android)과 통신하기 위한 브릿지 클라이언트 구현체입니다.
- */
 export class WebBridgeClient implements IWebBridgeClient {
     private adapter: BridgeAdapter;
     private version: string;
     private timeoutMs: number;
 
-    private eventListeners: Map<string, Set<(payload: any) => void>> = new Map();
-    private pendingRequests: Map<string, PendingRequest> = new Map();
+    private eventListeners = new Map<string, Set<(message: any) => void>>();
+    private pendingRequests = new Map<string, PendingRequest>();
 
     constructor(config: WebBridgeClientConfig) {
         this.adapter = config.adapter;
         this.version = config.version ?? '2.0.0';
         this.timeoutMs = config.timeoutMs ?? 10000;
 
-        // 브릿지 어댑터로부터 들어오는 메시지 수신부 바인딩
         this.adapter.onMessage(this.handleMessage);
     }
 
@@ -43,15 +40,14 @@ export class WebBridgeClient implements IWebBridgeClient {
     };
 
     private handleResponse(message: ResponseMessage): void {
-        const pending = this.pendingRequests.get(message.refId);
+        const pending = this.pendingRequests.get(message.refId!);
         if (!pending) return;
 
         clearTimeout(pending.timeoutId);
-        this.pendingRequests.delete(message.refId);
+        this.pendingRequests.delete(message.refId!);
 
         if (message.success) {
-            // 응답 객체의 data(추출된 페이로드)를 그대로 반환
-            pending.resolve(message.data);
+            pending.resolve(message);
         } else {
             pending.reject(message.error);
         }
@@ -59,21 +55,19 @@ export class WebBridgeClient implements IWebBridgeClient {
 
     private handleEvent(message: EventMessage): void {
         const listeners = this.eventListeners.get(message.type);
-        // 이벤트 객체의 호환성 필드인 data에서 페이로드 추출
-        const payload = (message as any).data !== undefined ? (message as any).data : undefined;
-        listeners?.forEach(listener => listener(payload));
+        listeners?.forEach(listener => listener(message));
     }
 
     private generateRefId(): string {
         return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
     }
 
-    public post<K extends WebMessageType>(type: K, payload?: ExtractReqData<K>): void {
+    public post<K extends WebMessageType>(type: K, messageParams?: Omit<WebMessageData<K>, 'type'>): void {
         const message = {
             type,
-            refId: this.generateRefId(),
             version: this.version,
-            data: payload, // 전송 시 호환성 규격을 위해 data 필드에 탑재
+            ...messageParams,
+            refId: messageParams?.refId ?? this.generateRefId(),
         } as unknown as RequestMessage;
 
         this.adapter.postMessage(message);
@@ -81,16 +75,16 @@ export class WebBridgeClient implements IWebBridgeClient {
 
     public request<K extends WebMessageType>(
         type: K,
-        payload?: ExtractReqData<K>,
+        messageParams?: Omit<WebMessageData<K>, 'type'>,
         customTimeoutMs?: number
-    ): Promise<ExtractResData<K>> {
+    ): Promise<ResponseMessage> {
         return new Promise((resolve, reject) => {
-            const refId = this.generateRefId();
+            const refId = messageParams?.refId ?? this.generateRefId();
             const message = {
                 type,
-                refId,
                 version: this.version,
-                data: payload, // 전송 시 호환성 규격을 위해 data 필드에 탑재
+                ...messageParams,
+                refId, // pendingRequest 매핑 무결성을 위해 하단 배치
             } as unknown as RequestMessage;
 
             const timeoutId = setTimeout(() => {
@@ -104,13 +98,14 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     public send<K extends WebMessageType>(
-        message: { type: K; payload?: ExtractReqData<K> },
+        message: WebMessageData<K>,
         customTimeoutMs?: number
-    ): Promise<ExtractResData<K>> {
-        return this.request(message.type, message.payload, customTimeoutMs);
+    ): Promise<ResponseMessage> {
+        const { type, ...rest } = message;
+        return this.request(type as K, rest as Omit<WebMessageData<K>, 'type'>, customTimeoutMs);
     }
 
-    public onEvent<K extends EventMessageType>(type: K, handler: (payload: ExtractEvtData<K>) => void): () => void {
+    public onEvent<K extends EventMessageType>(type: K, handler: (message: AppMessageData<K>) => void): () => void {
         const typeStr = type as string;
         if (!this.eventListeners.has(typeStr)) {
             this.eventListeners.set(typeStr, new Set());

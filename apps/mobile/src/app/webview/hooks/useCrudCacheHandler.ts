@@ -1,262 +1,169 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
+import type { WebMessageData } from '@chatic/app-messages';
 
-import type { WebViewBridge } from './useBaseBridge';
-import type {
-    AppMessageData,
-    ClearCacheData,
-    DeleteAllCacheData,
-    DeleteCacheData,
-    FetchAllCacheData,
-    FetchCacheData,
-    OnClearCacheDataPayload,
-    OnDeleteAllCacheDataPayload,
-    OnDeleteCacheDataPayload,
-    OnFetchAllCacheDataPayload,
-    OnFetchCacheDataPayload,
-    OnSaveAllCacheDataPayload,
-    OnSaveCacheDataPayload,
-    SaveAllCacheData,
-    SaveCacheData,
-} from '@chatic/app-messages';
-
-export const useCrudCacheHandler = (bridge: WebViewBridge) => {
+export const useCrudCacheHandler = () => {
     const { cacheCrudService, logService: logger } = useServices();
 
     const handleFetchAllCache = useCallback(
-        async (message: FetchAllCacheData) => {
+        async (message: WebMessageData<'FetchAllCacheData'>) => {
+            const data = message.data;
             try {
-                const items = await cacheCrudService.fetchAll(message.data);
-                const response: AppMessageData<'OnFetchAllCacheData'> = {
-                    type: 'OnFetchAllCacheData',
-                    nonce: message.nonce,
-                    data: {
-                        type: message.data.type,
-                        cid: message.data.cid,
-                        uid: message.data.uid,
-                        items,
-                        query: message.data.query,
-                    } as OnFetchAllCacheDataPayload,
+                const items = await cacheCrudService.fetchAll(data);
+                return {
+                    type: 'OnFetchAllCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, items, query: data.query },
                 };
-                bridge.post(response);
             } catch (e) {
-                logger.error('CACHE', `FetchAll error: ${message.data.type}`, e);
-                bridge.post({
-                    type: 'OnFetchAllCacheData',
-                    nonce: message.nonce,
-                    data: {
-                        type: message.data.type,
-                        cid: message.data.cid,
-                        uid: message.data.uid,
-                        items: null,
-                    } as OnFetchAllCacheDataPayload,
-                });
+                logger.error('CACHE', `FetchAll error: ${data.type}`, e);
+                return {
+                    type: 'OnFetchAllCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, items: null },
+                };
             }
         },
-        [bridge, cacheCrudService, logger]
+        [cacheCrudService, logger]
     );
 
     const handleFetchCache = useCallback(
-        async (message: FetchCacheData) => {
+        async (message: WebMessageData<'FetchCacheData'>) => {
+            const data = message.data;
             try {
-                const item = await cacheCrudService.fetch(message.data);
-                const response: AppMessageData<'OnFetchCacheData'> = {
-                    type: 'OnFetchCacheData',
-                    nonce: message.nonce,
-                    data: {
-                        type: message.data.type,
-                        cid: message.data.cid,
-                        uid: message.data.uid,
-                        id: message.data.id,
-                        item,
-                    } as OnFetchCacheDataPayload,
+                const item = await cacheCrudService.fetch(data);
+                return {
+                    type: 'OnFetchCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, id: data.id, item },
                 };
-                bridge.post(response);
             } catch (e) {
-                logger.error('CACHE', `Fetch error: ${message.data.type} ${message.data.id}`, e);
-                bridge.post({
-                    type: 'OnFetchCacheData',
-                    nonce: message.nonce,
-                    data: {
-                        type: message.data.type,
-                        cid: message.data.cid,
-                        uid: message.data.uid,
-                        id: message.data.id,
-                        item: null,
-                    } as OnFetchCacheDataPayload,
-                });
+                logger.error('CACHE', `Fetch error: ${data.type} ${data.id}`, e);
+                return {
+                    type: 'OnFetchCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, id: data.id, item: null },
+                };
             }
         },
-        [bridge, cacheCrudService, logger]
+        [cacheCrudService, logger]
     );
 
     const handleSaveCache = useCallback(
-        async (message: SaveCacheData) => {
+        async (message: WebMessageData<'SaveCacheData'>) => {
+            const data = message.data;
             try {
-                const savedId = await cacheCrudService.save(message.data);
-                const response: AppMessageData<'OnSaveCacheData'> = {
-                    type: 'OnSaveCacheData',
-                    nonce: message.nonce,
-                    data: {
-                        type: message.data.type,
-                        cid: message.data.cid,
-                        uid: message.data.uid,
-                        id: savedId,
-                        success: true,
-                    } as OnSaveCacheDataPayload,
+                const savedId = await cacheCrudService.save(data);
+                return {
+                    type: 'OnSaveCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, id: savedId, success: true },
                 };
-                bridge.post(response);
             } catch (e) {
-                logger.error('CACHE', `Save error: ${message.data.type} ${message.data.id}`, e);
-                bridge.post({
-                    type: 'OnSaveCacheData',
-                    nonce: message.nonce,
-                    data: {
-                        type: message.data.type,
-                        cid: message.data.cid,
-                        uid: message.data.uid,
-                        id: null,
-                        success: false,
-                    } as OnSaveCacheDataPayload,
-                });
+                logger.error('CACHE', `Save error: ${data.type} ${data.id}`, e);
+                return {
+                    type: 'OnSaveCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, id: null, success: false },
+                };
             }
         },
-        [bridge, cacheCrudService, logger]
+        [cacheCrudService, logger]
     );
 
     const handleSaveAllCache = useCallback(
-        async (message: SaveAllCacheData) => {
+        async (message: WebMessageData<'SaveAllCacheData'>) => {
+            const data = message.data;
             try {
-                const savedIds = await cacheCrudService.saveAll(message.data);
-                const response: AppMessageData<'OnSaveAllCacheData'> = {
-                    type: 'OnSaveAllCacheData',
-                    nonce: message.nonce,
+                const savedIds = await cacheCrudService.saveAll(data);
+                return {
+                    type: 'OnSaveAllCacheData' as const,
+                    success: true,
                     data: {
-                        type: message.data.type,
-                        cid: message.data.cid,
-                        uid: message.data.uid,
+                        type: data.type,
+                        cid: data.cid,
+                        uid: data.uid,
                         ids: savedIds,
                         success: true,
-                        query: message.data.query,
-                    } as OnSaveAllCacheDataPayload,
+                        query: data.query,
+                    },
                 };
-                bridge.post(response);
             } catch (e) {
-                logger.error('CACHE', `SaveAll error: ${message.data.type}`, e);
-                bridge.post({
-                    type: 'OnSaveAllCacheData',
-                    nonce: message.nonce,
-                    data: {
-                        type: message.data.type,
-                        cid: message.data.cid,
-                        uid: message.data.uid,
-                        ids: [],
-                        success: false,
-                    } as OnSaveAllCacheDataPayload,
-                });
+                logger.error('CACHE', `SaveAll error: ${data.type}`, e);
+                return {
+                    type: 'OnSaveAllCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, ids: [], success: false },
+                };
             }
         },
-        [bridge, cacheCrudService, logger]
+        [cacheCrudService, logger]
     );
 
     const handleDeleteCache = useCallback(
-        async (message: DeleteCacheData) => {
+        async (message: WebMessageData<'DeleteCacheData'>) => {
+            const data = message.data;
             try {
-                const deletedId = await cacheCrudService.delete(message.data);
-                const response: AppMessageData<'OnDeleteCacheData'> = {
-                    type: 'OnDeleteCacheData',
-                    nonce: message.nonce,
-                    data: {
-                        type: message.data.type,
-                        cid: message.data.cid,
-                        uid: message.data.uid,
-                        id: deletedId,
-                        success: true,
-                    } as OnDeleteCacheDataPayload,
+                const deletedId = await cacheCrudService.delete(data);
+                return {
+                    type: 'OnDeleteCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, id: deletedId, success: true },
                 };
-                bridge.post(response);
             } catch (e) {
-                logger.error('CACHE', `Delete error: ${message.data.type} ${message.data.id}`, e);
-                bridge.post({
-                    type: 'OnDeleteCacheData',
-                    nonce: message.nonce,
-                    data: {
-                        type: message.data.type,
-                        cid: message.data.cid,
-                        uid: message.data.uid,
-                        id: null,
-                        success: false,
-                    } as OnDeleteCacheDataPayload,
-                });
+                logger.error('CACHE', `Delete error: ${data.type} ${data.id}`, e);
+                return {
+                    type: 'OnDeleteCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, id: null, success: false },
+                };
             }
         },
-        [bridge, cacheCrudService, logger]
+        [cacheCrudService, logger]
     );
 
     const handleDeleteAllCache = useCallback(
-        async (message: DeleteAllCacheData) => {
+        async (message: WebMessageData<'DeleteAllCacheData'>) => {
+            const data = message.data;
             try {
-                const deletedIds = await cacheCrudService.deleteAll(message.data);
-                const response: AppMessageData<'OnDeleteAllCacheData'> = {
-                    type: 'OnDeleteAllCacheData',
-                    nonce: message.nonce,
-                    data: {
-                        type: message.data.type,
-                        cid: message.data.cid,
-                        uid: message.data.uid,
-                        ids: deletedIds,
-                        success: true,
-                    } as OnDeleteAllCacheDataPayload,
+                const deletedIds = await cacheCrudService.deleteAll(data);
+                return {
+                    type: 'OnDeleteAllCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, ids: deletedIds, success: true },
                 };
-                bridge.post(response);
             } catch (e) {
-                logger.error('CACHE', `DeleteAll error: ${message.data.type}`, e);
-                bridge.post({
-                    type: 'OnDeleteAllCacheData',
-                    nonce: message.nonce,
-                    data: {
-                        type: message.data.type,
-                        cid: message.data.cid,
-                        uid: message.data.uid,
-                        ids: [],
-                        success: false,
-                    } as OnDeleteAllCacheDataPayload,
-                });
+                logger.error('CACHE', `DeleteAll error: ${data.type}`, e);
+                return {
+                    type: 'OnDeleteAllCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, ids: [], success: false },
+                };
             }
         },
-        [bridge, cacheCrudService, logger]
+        [cacheCrudService, logger]
     );
 
     const handleClearCache = useCallback(
-        async (message: ClearCacheData) => {
+        async (message: WebMessageData<'ClearCacheData'>) => {
+            const data = message.data;
             try {
-                await cacheCrudService.clear(message.data);
-                const response: AppMessageData<'OnClearCacheData'> = {
-                    type: 'OnClearCacheData',
-                    nonce: message.nonce,
-                    data: {
-                        type: message.data.type,
-                        cid: message.data.cid,
-                        uid: message.data.uid,
-                        success: true,
-                    } as OnClearCacheDataPayload,
+                await cacheCrudService.clear(data);
+                return {
+                    type: 'OnClearCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, success: true },
                 };
-                bridge.post(response);
             } catch (e) {
-                logger.error('CACHE', `Clear error: ${message.data.type}`, e);
-                bridge.post({
-                    type: 'OnClearCacheData',
-                    nonce: message.nonce,
-                    data: {
-                        type: message.data.type,
-                        cid: message.data.cid,
-                        uid: message.data.uid,
-                        success: false,
-                    } as OnClearCacheDataPayload,
-                });
+                logger.error('CACHE', `Clear error: ${data.type}`, e);
+                return {
+                    type: 'OnClearCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, success: false },
+                };
             }
         },
-        [bridge, cacheCrudService, logger]
+        [cacheCrudService, logger]
     );
 
     return {

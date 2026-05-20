@@ -1,19 +1,10 @@
-import type {
-    BaseMessage,
-    EventType,
-    RequestType,
-    TypedEventMessage,
-    TypedRequestMessage,
-    TypedResponseMessage,
-} from './types';
+import type { RequestMessage, ResponseMessage, EventMessage } from './types';
+import type { BaseMessage } from '@chatic/app-messages'; // 실제 경로에 맞게 수정
 
 /**
  * 브릿지 통신을 통해 오갈 수 있는 모든 메시지 규격의 유니온 타입입니다.
  */
-export type AnyBridgeMessage =
-    | TypedRequestMessage<RequestType>
-    | TypedResponseMessage<RequestType>
-    | TypedEventMessage<EventType>;
+export type AnyBridgeMessage = RequestMessage | ResponseMessage | EventMessage;
 
 /**
  * Web과 App 간 메시지를 주고받을 때 데이터의 직렬화(인코딩)와 역직렬화(디코딩)를 담당하는 프로토콜 인터페이스입니다.
@@ -47,7 +38,7 @@ export const JsonProtocol: MessageProtocol = {
 
             return JSON.parse(text) as AnyBridgeMessage;
         } catch (error) {
-            // 웹뷰 환경에서는 외부 스크립트(확장 프로그램 등)에 의해 잘못된 포맷의 이벤트가 주입될 수 있으므로 예외 처리가 필수입니다.
+            // 웹뷰 환경에서는 외부 스크립트(확장 프로그램 등)에 의해 잘못된 포맷의 이벤트가 주입될 수 있으므로 예외 처리 필수
             console.error('[JsonProtocol] 메시지 디코딩(파싱) 실패:', error);
             return null;
         }

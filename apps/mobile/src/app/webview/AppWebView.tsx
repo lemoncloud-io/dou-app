@@ -5,15 +5,22 @@ import DeviceInfo from 'react-native-device-info';
 import Config from 'react-native-config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { APP_USER_AGENT_PREFIX, getAppLanguage } from '../utils';
-import { getVersionCheckResult } from '../hooks';
+import { APP_USER_AGENT_PREFIX, getAppLanguage, t } from '../utils';
+import { getVersionCheckResult, useServices } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
 import { getConsoleOverrideScript, getDeviceInfoScript, getSafeAreaScript } from './utils/injectionScripts';
-import { useServices } from '../hooks/useServices';
+import { useWebMessageRouter } from './hooks/useWebMessageRouter';
+import { useVersionCheckHandler } from './hooks';
+import { FullScreenLoader } from '../features/core/components';
+import type { ModalHandler } from './hooks/useModalHandler';
+import type { IAppBridgeHost } from '@chatic/bridges';
 
-interface AppWebViewProps extends WebViewProps {}
+interface AppWebViewProps extends WebViewProps {
+    bridge: IAppBridgeHost;
+    modalHandler: ModalHandler;
+    setWebCanGoBack: (back: boolean) => void;
+}
 
-// User agent suffix (sync) - appended to default system UA via applicationNameForUserAgent
 const appName = Config.VIEW_APP_NAME ?? '';
 const appVersion = DeviceInfo.getVersion();
 const buildNumber = DeviceInfo.getBuildNumber();
@@ -21,14 +28,22 @@ const platformName = Platform.OS === 'ios' ? 'iOS' : 'Android';
 const userAgentSuffix = `(${APP_USER_AGENT_PREFIX}; ${appName}/${appVersion}; ${platformName}; Build:${buildNumber})`;
 
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
+    const { bridge, onMessage, modalHandler, setWebCanGoBack, ...restProps } = props;
+
     const { cacheCrudService, firebaseInstallationService } = useServices();
     const [injectionScript, setInjectionScript] = useState<string | null>(null);
-    const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
     const insets = useSafeAreaInsets();
     const keyboardHeight = useKeyboardHeight();
     const webViewRef = useRef<WebView | null>(null);
 
-    // 최초 1회: deviceInfo 주입 (비동기 초기화 - getUserAgent 제거로 더 빠름)
+    const { isIapLoading } = useWebMessageRouter({
+        bridge,
+        modalHandler,
+        setWebCanGoBack,
+    });
+
+    useVersionCheckHandler(bridge);
+
     useEffect(() => {
         const prepareWebView = async () => {
             const [uniqueId, installationId] = await Promise.all([
@@ -36,11 +51,6 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 firebaseInstallationService.getFirebaseId(),
             ]);
 
-            /**
-             * TODO
-             * 디바이스 아이디 검증을 위해 임시로 uniqueId를 installationId로 교체하였음
-             * 안정화 이후 `DeviceInfo.getUniqueId()` 사용할 것
-             */
             const versionCheck = getVersionCheckResult();
             const deviceInfoScript = getDeviceInfoScript({
                 platform: Platform.OS.toLowerCase(),
@@ -67,13 +77,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         void prepareWebView();
     }, [cacheCrudService, firebaseInstallationService, insets, keyboardHeight]);
 
-    // insets 변경 시 명령형으로 재주입
     useEffect(() => {
         if (!webViewRef.current || !injectionScript) return;
         webViewRef.current.injectJavaScript(getSafeAreaScript(insets, keyboardHeight));
     }, [insets, keyboardHeight, injectionScript]);
 
-    // 깔끔한 다중 Ref 동기화
     const setRefs = useCallback(
         (node: WebView | null) => {
             webViewRef.current = node;
@@ -83,17 +91,14 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         [ref]
     );
 
-    // onLoad를 가로채서 로고 오버레이 해제 + 부모 핸들러 호출
-    const { onLoad: propsOnLoad, ...restProps } = props;
+    const { onLoad: propsOnLoad } = props;
     const handleWebViewLoad = useCallback(
         (event: Parameters<NonNullable<WebViewProps['onLoad']>>[0]) => {
-            setIsWebViewLoaded(true);
             propsOnLoad?.(event);
         },
         [propsOnLoad]
     );
 
-    // injectionScript가 없으면 WebView를 렌더링할 수 없음 - 흰 화면
     if (!injectionScript) {
         return <View style={styles.loadingContainer}></View>;
     }
@@ -120,7 +125,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 mixedContentMode="always"
                 {...restProps}
                 onLoad={handleWebViewLoad}
+                onMessage={onMessage}
             />
+            <FullScreenLoader visible={isIapLoading} message={t('loader.paymentProcessing')} />
         </View>
     );
 });
@@ -134,15 +141,5 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: '#fff',
-    },
-    logoOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-    },
-    logo: {
-        width: 80,
-        height: 80,
     },
 });
