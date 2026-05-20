@@ -1,14 +1,7 @@
-import type {
-    EventMessage,
-    EventMessageType,
-    ExtractEvtMessage,
-    ExtractReqMessage,
-    ExtractResMessage,
-    RequestMessage,
-    ResponseMessage,
-} from '../common';
+import type { EventMessage, RequestMessage, ResponseMessage } from '../common';
+import type { BridgeResponseMessage } from '../common/types';
 import type { IAppBridgeHost } from './IAppBridgeHost';
-import type { WebMessageType } from '@chatic/app-messages';
+import type { WebMessageType, WebMessageData, EventMessageType, AppMessageData } from '@chatic/app-messages';
 
 export class MockAppBridgeHost implements IAppBridgeHost {
     private handlers: Map<string, (message: any) => Promise<any>> = new Map();
@@ -28,7 +21,6 @@ export class MockAppBridgeHost implements IAppBridgeHost {
 
             if (handler) {
                 console.log(`[MockAppBridgeHost] '${message.type}' 핸들러 실행 중...`);
-                // payload를 분리하지 않고 전체 message를 넘깁니다.
                 const result = await handler(message);
                 console.log(`[MockAppBridgeHost] 핸들러 실행 성공, Web으로 응답 반환:`, result);
 
@@ -48,7 +40,7 @@ export class MockAppBridgeHost implements IAppBridgeHost {
 
     public registerHandler<K extends WebMessageType>(
         type: K,
-        handler: (message: ExtractReqMessage<K>) => Promise<ExtractResMessage<K>>
+        handler: (message: WebMessageData<K>) => Promise<BridgeResponseMessage<K>>
     ): void {
         console.log(`[MockAppBridgeHost] '${String(type)}' 타입 핸들러 등록 완료.`);
         this.handlers.set(type as string, handler);
@@ -59,24 +51,22 @@ export class MockAppBridgeHost implements IAppBridgeHost {
         this.handlers.delete(type as string);
     }
 
-    public pushEvent<K extends EventMessageType>(message: ExtractEvtMessage<K>): void {
+    public pushEvent<K extends EventMessageType>(message: AppMessageData<K>): void {
         console.log(`[MockAppBridgeHost] Web으로 Event Push 발송:`, message);
         const eventMsg = {
+            ...message,
             version: this.version,
             refId: this.generateRefId(),
-            ...message,
         } as unknown as EventMessage;
         this.sendToWeb(JSON.stringify(eventMsg));
     }
 
-    private sendSuccessResponse(message: RequestMessage, data: any): void {
+    private sendSuccessResponse(message: RequestMessage, responsePayload: any): void {
         const response = {
-            type: `${message.type}Response`,
             refId: message.refId,
             version: message.version,
             nonce: message.nonce,
-            success: true,
-            data,
+            ...responsePayload,
         } as unknown as ResponseMessage;
         this.sendToWeb(JSON.stringify(response));
     }

@@ -1,15 +1,7 @@
-import type {
-    EventMessage,
-    EventMessageType,
-    ExtractEvtMessage,
-    ExtractReqMessage,
-    ExtractResMessage,
-    MessageProtocol,
-    RequestMessage,
-    ResponseMessage,
-} from '../common';
+import type { EventMessage, MessageProtocol, RequestMessage, ResponseMessage } from '../common';
 import { JsonProtocol } from '../common';
-import type { WebMessageType } from '@chatic/app-messages';
+import type { BridgeResponseMessage } from '../common/types';
+import type { AppMessageData, EventMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { IAppBridgeHost } from './IAppBridgeHost';
 
 export interface AppBridgeHostConfig {
@@ -44,7 +36,7 @@ export class AppBridgeHost implements IAppBridgeHost {
 
     public registerHandler<K extends WebMessageType>(
         type: K,
-        handler: (message: ExtractReqMessage<K>) => Promise<ExtractResMessage<K>>
+        handler: (message: WebMessageData<K>) => Promise<BridgeResponseMessage<K>>
     ): void {
         this.handlers.set(type as string, handler);
     }
@@ -53,11 +45,11 @@ export class AppBridgeHost implements IAppBridgeHost {
         this.handlers.delete(type as string);
     }
 
-    public pushEvent<K extends EventMessageType>(message: ExtractEvtMessage<K>): void {
+    public pushEvent<K extends EventMessageType>(message: AppMessageData<K>): void {
         const eventMsg = {
+            ...message, // 전개 연산자를 위로 배치하여 덮어쓰기 방지
             version: this.version,
             refId: this.generateRefId(),
-            ...message,
         } as unknown as EventMessage;
 
         const encoded = this.protocol.encode(eventMsg);
@@ -73,7 +65,6 @@ export class AppBridgeHost implements IAppBridgeHost {
         }
 
         try {
-            // payload를 분리하지 않고 전체 message를 넘깁니다.
             const result = await handler(message);
             this.sendSuccessResponse(message, result);
         } catch (error: any) {
@@ -85,14 +76,12 @@ export class AppBridgeHost implements IAppBridgeHost {
         }
     }
 
-    private sendSuccessResponse(message: RequestMessage, data: any): void {
+    private sendSuccessResponse(message: RequestMessage, responsePayload: any): void {
         const response = {
-            type: `${message.type}`,
+            ...responsePayload, // 전개 연산자를 위로 배치
             refId: message.refId,
             version: message.version,
-            nonce: message.nonce, // 이전 버전 호환성을 위한 에코(Echo)
-            success: true,
-            data,
+            nonce: message.nonce,
         } as unknown as ResponseMessage;
 
         this.sendToWeb(this.protocol.encode(response) as string);
@@ -100,7 +89,7 @@ export class AppBridgeHost implements IAppBridgeHost {
 
     private sendErrorResponse(message: RequestMessage, code: string, errorMessage: string): void {
         const response = {
-            type: 'ERROR',
+            ...message,
             refId: message.refId,
             version: message.version,
             nonce: message.nonce,
