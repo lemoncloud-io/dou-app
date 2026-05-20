@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { logger, postMessage } from '@chatic/app-messages';
+import { logger } from '@chatic/app-messages';
 
 import { fetchProfile, refreshAuthToken, reportError } from '../api';
 import { useWebCoreStore } from '../stores';
-import { classifyError, toError } from '../utils';
-
 import type { ErrorClassification } from '../utils';
+import { classifyError, toError } from '../utils';
 
 type InitializationStatus = 'pending' | 'success' | 'failed';
 
@@ -21,7 +20,7 @@ const isInviteFlow = (): boolean => {
 };
 
 export const useTokenRefresh = (webCoreReady: boolean) => {
-    const { isAuthenticated, isOnMobileApp, setProfile, logout } = useWebCoreStore();
+    const { isAuthenticated, setProfile, logout } = useWebCoreStore();
 
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const isRefreshingRef = useRef(false);
@@ -44,12 +43,6 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
         lastRefreshTime.current = now;
 
         try {
-            if (isOnMobileApp) {
-                // NOTE: send message to MobileApp
-                postMessage({ type: 'SyncCredential' });
-                return true;
-            }
-
             await refreshAuthToken();
             return true;
         } catch (error) {
