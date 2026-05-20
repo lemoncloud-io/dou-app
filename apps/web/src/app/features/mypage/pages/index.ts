@@ -4,6 +4,7 @@ export * from './CloudProfileEditPage';
 export * from './LicensesPage';
 export * from './DebugLoginPage';
 export * from './DebugLogBufferPage';
+export * from './DebugCacheTestPage';
 export * from './DebugPage';
 export * from './DebugStatePage';
 export * from './LoginPage';
