@@ -54,6 +54,8 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const keyboardHeight = useKeyboardHeight();
     const webViewRef = useRef<WebView | null>(null);
 
+    const [isWebAppReady, setIsWebAppReady] = useState(false);
+
     const { isIapLoading } = useWebMessageRouter({
         bridge,
         modalHandler,
@@ -156,11 +158,15 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         [propsOnLoad]
     );
 
-    // ResumeReady 메시지를 가로채서 오버레이 해제, 나머지는 bridge onMessage로 전달
+    // WebAppReady / ResumeReady 메시지를 가로채서 처리, 나머지는 bridge onMessage로 전달
     const handleMessage = useCallback(
         (event: Parameters<NonNullable<WebViewProps['onMessage']>>[0]) => {
             try {
                 const data = JSON.parse(event.nativeEvent.data);
+                if (data?.type === 'WebAppReady') {
+                    setIsWebAppReady(true);
+                    return;
+                }
                 if (data?.type === 'ResumeReady') {
                     if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
                     setShowResumeOverlay(false);
@@ -175,7 +181,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     );
 
     if (!injectionScript) {
-        return <View style={[styles.loadingContainer, { backgroundColor: bgColor }]} />;
+        return (
+            <View style={[styles.loadingContainer, { backgroundColor: bgColor }]}>
+                <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+            </View>
+        );
     }
 
     return (
@@ -204,7 +214,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 onContentProcessDidTerminate={handleContentProcessDidTerminate}
             />
             <FullScreenLoader visible={isIapLoading} message={t('loader.paymentProcessing')} />
-            {showResumeOverlay && <ResumeOverlay isDark={isDark} />}
+            {(!isWebAppReady || showResumeOverlay) && <ResumeOverlay isDark={isDark} />}
         </View>
     );
 });

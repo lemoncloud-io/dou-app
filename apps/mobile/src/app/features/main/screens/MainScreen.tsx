@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from 'react';
 import type { WebView } from 'react-native-webview';
-import { StyleSheet, useColorScheme, View } from 'react-native';
+import { Image, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useWebViewDeepLink } from '../../../webview/hooks/useWebViewDeepLink';
 import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigation';
@@ -38,7 +38,15 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     );
 
     if (!initialSource) {
-        return <View style={[loadingStyles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]} />;
+        return (
+            <View style={[loadingStyles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
+                <Image
+                    source={require('../../../../assets/logo.png')}
+                    style={loadingStyles.logo}
+                    resizeMode="contain"
+                />
+            </View>
+        );
     }
 
     if (deepLinkError) {
@@ -69,5 +77,9 @@ const loadingStyles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    logo: {
+        width: 96,
+        height: 96,
     },
 });
