@@ -14,6 +14,7 @@ import { createDomainListResult } from '../../domain';
 import { toDomainChat as toDomainChatBase } from '../../domain';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
 import { resolveScopedContext } from '../storages/utils';
+import type { CacheChatView } from '@chatic/app-messages';
 import { logger } from '@chatic/app-messages';
 
 type ChatCache = CacheStorageItem<'chat'>;
@@ -24,34 +25,10 @@ const getChatNo = (chat: ChatSortable): number | undefined => {
     return typeof chatNo === 'number' ? chatNo : undefined;
 };
 
-const getChatSortTime = (chat: ChatSortable): number => {
-    const createdAt = (chat as { createdAt?: string | number }).createdAt;
-    if (typeof createdAt === 'number') return createdAt;
-    if (createdAt) return new Date(createdAt).getTime();
-    return 0;
-};
-
-const sortByNewest = (left: ChatSortable, right: ChatSortable): number => {
-    const leftNo = getChatNo(left);
-    const rightNo = getChatNo(right);
-    if (leftNo !== undefined && rightNo !== undefined) return rightNo - leftNo;
-    if (leftNo !== undefined) return -1;
-    if (rightNo !== undefined) return 1;
-    return getChatSortTime(right) - getChatSortTime(left);
-};
-
-const sortByOldest = (left: ChatSortable, right: ChatSortable): number => -sortByNewest(left, right);
-
 export interface IChatLocalDataSource
     extends ICrudLocalDataSource<DomainChat>,
         IListLocalDataSource<DomainChat, ChatFeedPayload, DomainListResult<DomainChat>>,
-        IStreamLocalDataSource<DomainChat, string, DomainListResult<DomainChat>> {
-    /** 채널 메시지의 연속성(누락 구간)을 검사합니다. */
-    checkContinuity(
-        channelId: string,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<{ hasGap: boolean; missingRanges: Array<{ from: number; to: number }> }>;
-}
+        IStreamLocalDataSource<DomainChat, string, DomainListResult<DomainChat>> {}
 
 export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLocalDataSource {
     constructor(
@@ -155,59 +132,25 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         payload: ChatFeedPayload,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainChat> | null> {
-        const { channelId, cursorNo, limit = 50 } = payload;
+        const { channelId, limit } = payload;
 
         if (!channelId) {
             return createDomainListResult([], { total: 0, source: 'local' });
         }
 
-        // 🔍 DEBUG: trace scope used by loadAll
-        const debugScope = resolveScopedContext('chat', this.contextProvider);
-        const debugCtx = this.contextProvider.getContext();
+        // 스토리지 계층에 쿼리 옵션을 위임하여 필터링/정렬/페이징된 결과를 직접 받아옵니다.
+        const pageList: CacheChatView[] = await this.cacheStorage.loadAll({ ...payload, limit });
 
-        const allMessages = await this.cacheStorage.loadAll();
-        const filteredMessages = allMessages.filter(chat => chat.channelId === channelId);
+        logger.info('CACHE', `[ChatLocal:fetchList] channelId=${channelId}, loaded=${pageList.length}`);
 
-        logger.info(
-            'CACHE',
-            `[ChatLocal:fetchList] channelId=${channelId}, scope={cid:${debugScope.cid}, uid:${debugScope.uid}}, ctx={cid:${debugCtx.cid}, uid:${debugCtx.uid}}, loadAll=${allMessages.length}, filtered=${filteredMessages.length}`
-        );
-
-        if (filteredMessages.length === 0) {
+        if (pageList.length === 0) {
             return createDomainListResult([], { total: 0, source: 'local' });
         }
 
-        // 최신 메시지가 뒤로 가도록 정렬 (chatNo 오름차순)
-        const sortedMessages = filteredMessages.sort(sortByOldest);
-
-        let pageList: ChatCache[];
+        // 반환된 개수가 limit과 같다면 다음 페이지가 있을 것으로 간주하고 커서 번호를 설정합니다.
         let nextCursorNo: number | undefined = undefined;
-
-        if (cursorNo === undefined || cursorNo === 0) {
-            // 첫 페이지 요청 (가장 최신 메시지)
-            const startIndex = Math.max(0, sortedMessages.length - limit);
-            pageList = sortedMessages.slice(startIndex);
-        } else {
-            // 특정 커서 기준 이전 페이지 요청
-            const cursorIndex = sortedMessages.findIndex(chat => getChatNo(chat) === cursorNo);
-
-            if (cursorIndex === -1) {
-                // 캐시에 해당 커서가 없으면 빈 결과를 반환하여 remote fetch를 유도
-                return createDomainListResult([], { total: 0, source: 'local' });
-            }
-
-            const startIndex = Math.max(0, cursorIndex - limit);
-            pageList = sortedMessages.slice(startIndex, cursorIndex);
-        }
-
-        // 다음 페이지를 위한 커서 계산
-        if (pageList.length > 0) {
-            const oldestMessageInPage = pageList[0];
-            const oldestChatNo = getChatNo(oldestMessageInPage);
-            // 현재 페이지의 가장 오래된 메시지 chatNo가 전체에서 가장 오래된 메시지의 chatNo와 같지 않다면, 더 이전 페이지가 존재함
-            if (oldestChatNo !== getChatNo(sortedMessages[0])) {
-                nextCursorNo = oldestChatNo;
-            }
+        if (pageList.length === limit) {
+            nextCursorNo = getChatNo(pageList[0]);
         }
 
         const list = pageList.map(item =>
@@ -219,7 +162,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         );
 
         return createDomainListResult(list, {
-            total: sortedMessages.length,
+            total: pageList.length,
             cursorNo: nextCursorNo,
             limit,
             source: 'local',
@@ -247,38 +190,5 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         contextOverride?: LocalDataSourceContextOverride
     ): LocalStreamUnsubscribe {
         return this.subscribeQueryStream(() => this.getById(id, contextOverride), callback);
-    }
-
-    // =========================================================================
-    // 4. 도메인 특수 로직
-    // =========================================================================
-
-    public async checkContinuity(
-        channelId: string,
-        contextOverride?: LocalDataSourceContextOverride
-    ): Promise<{ hasGap: boolean; missingRanges: Array<{ from: number; to: number }> }> {
-        const messages = await this.fetchList({ channelId }, contextOverride);
-
-        const chatNos = (messages?.list || [])
-            .map(getChatNo)
-            .filter((chatNo): chatNo is number => chatNo !== undefined)
-            .sort((a, b) => a - b);
-
-        if (chatNos.length < 2) {
-            return { hasGap: false, missingRanges: [] };
-        }
-
-        const missingRanges: Array<{ from: number; to: number }> = [];
-        for (let index = 1; index < chatNos.length; index += 1) {
-            const previous = chatNos[index - 1];
-            const current = chatNos[index];
-            if (current - previous <= 1) continue;
-            missingRanges.push({ from: previous + 1, to: current - 1 });
-        }
-
-        return {
-            hasGap: missingRanges.length > 0,
-            missingRanges,
-        };
     }
 }
