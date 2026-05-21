@@ -5,14 +5,31 @@ import {
     type CacheStorage,
     type CacheStorageFactory,
     createCacheStorages,
-    createIndexedDBAdapter,
     createLocalDataSources,
     type DataContextProvider,
     type LocalDataSources,
+    IndexedDBDatabase,
+    IndexedDBAdapter,
+    NativeDBAdapter,
+    ChatQueryExecutor,
 } from '@chatic/data';
+import { webBridge } from '../bridges';
 
 export const isNativeApp = (): boolean => {
+    /**
+     * TODO: Replace this
+     * typeof window !== 'undefined' && !!(window as any).ReactNativeWebView;
+     */
     return false;
+};
+
+// 모듈 수준의 단일 database 인스턴스 (공유 커넥션 보장)
+let sharedDatabase: IndexedDBDatabase | null = null;
+const getSharedDatabase = (): IndexedDBDatabase => {
+    if (!sharedDatabase) {
+        sharedDatabase = new IndexedDBDatabase();
+    }
+    return sharedDatabase;
 };
 
 // DataContext 스냅샷 대신 DataContextProvider를 주입받습니다.
@@ -20,7 +37,21 @@ export const getCacheStorage = <TType extends CacheType>(
     type: TType,
     contextProvider: DataContextProvider
 ): CacheStorage<TType> => {
-    return createIndexedDBAdapter(type, contextProvider);
+    const isNative = isNativeApp();
+    if (isNative) {
+        return new NativeDBAdapter(webBridge, type, contextProvider);
+    }
+
+    const db = getSharedDatabase();
+    if (type === 'chat') {
+        return new IndexedDBAdapter(
+            db,
+            'chat',
+            contextProvider,
+            new ChatQueryExecutor()
+        ) as unknown as CacheStorage<TType>;
+    }
+    return new IndexedDBAdapter(db, type, contextProvider);
 };
 
 /**
