@@ -49,18 +49,18 @@ export const StorageTestScreen = () => {
     const fetchItems = useCallback(async () => {
         try {
             // Provide placeholder cid and uid for debug purposes
-            const res = await cacheCrudService.fetchAll({ type: dataType, cid: 'test_cid', uid: 'test_uid' });
+            const res = await cacheCrudService.fetchAll({ type: dataType });
             setItems(res || []);
             logResult('FetchAll', `Loaded ${res?.length || 0} items for ${dataType}.`);
         } catch (e) {
             logError('FetchAll', e);
         }
-    }, [dataType]);
+    }, [cacheCrudService, dataType]);
 
     const handleClear = async () => {
         try {
             // Provide placeholder cid and uid for debug purposes
-            await cacheCrudService.clear({ type: dataType, cid: 'test_cid', uid: 'test_uid' });
+            await cacheCrudService.clear({ type: dataType });
             logResult('Clear', `Successfully cleared all data in ${dataType}.`);
             await fetchItems();
         } catch (e) {
