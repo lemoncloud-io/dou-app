@@ -1,26 +1,11 @@
 import type { CacheModelMap, CacheQueryMap, CacheType, PagingMeta } from '@chatic/app-messages';
 import type { ICacheCrudService } from './types';
 import type { ILogService } from '../log';
-import type { ICacheDataSource, MetaDataSource } from '../../data/cache';
+import type { ICacheDataSource } from '../../data/cache';
 
-const generateMetaKey = (query: any): string => {
-    if (!query) return 'default';
-    return JSON.stringify(query);
-};
+const resolveScopedUid = (type: CacheType, uid?: string): string => 'default';
 
-const resolveScopedUid = (type: CacheType, uid?: string): string =>
-    type === 'invitecloud' ? 'global' : (uid ?? 'default');
-
-const resolveScopedCid = (type: CacheType, cid?: string): string =>
-    type === 'invitecloud' ? 'global' : (cid ?? 'default');
-
-/**
- * 쿼리 객체에 페이징을 유발하는 파라미터가 있는지 검사합니다.
- */
-const isPaginatedQuery = (query?: any): boolean => {
-    if (!query) return false;
-    return query.limit !== undefined || query.page !== undefined || query.cursorNo !== undefined;
-};
+const resolveScopedCid = (type: CacheType, cid?: string): string => 'default';
 
 export class CacheCrudService implements ICacheCrudService {
     private readonly logService: ILogService;
@@ -33,7 +18,6 @@ export class CacheCrudService implements ICacheCrudService {
         CacheModelMap['invitecloud'],
         CacheQueryMap['invitecloud']
     >;
-    private readonly metaDataSource: MetaDataSource;
 
     constructor(
         logService: ILogService,
@@ -42,8 +26,7 @@ export class CacheCrudService implements ICacheCrudService {
         joinDataSource: ICacheDataSource<CacheModelMap['join'], CacheQueryMap['join']>,
         siteDataSource: ICacheDataSource<CacheModelMap['site'], CacheQueryMap['site']>,
         userDataSource: ICacheDataSource<CacheModelMap['user'], CacheQueryMap['user']>,
-        inviteCloudDataSource: ICacheDataSource<CacheModelMap['invitecloud'], CacheQueryMap['invitecloud']>,
-        metaDataSource: MetaDataSource
+        inviteCloudDataSource: ICacheDataSource<CacheModelMap['invitecloud'], CacheQueryMap['invitecloud']>
     ) {
         this.logService = logService;
         this.chatDataSource = chatDataSource;
@@ -52,7 +35,6 @@ export class CacheCrudService implements ICacheCrudService {
         this.siteDataSource = siteDataSource;
         this.userDataSource = userDataSource;
         this.inviteCloudDataSource = inviteCloudDataSource;
-        this.metaDataSource = metaDataSource;
     }
 
     public async fetch<K extends CacheType>(payload: {
@@ -101,20 +83,8 @@ export class CacheCrudService implements ICacheCrudService {
         const scopedCid = resolveScopedCid(type, cid);
 
         try {
-            // 페이징 파라미터가 존재하는 경우에만 메타데이터(스냅샷) 매칭을 수행합니다.
-            if (cid && query && isPaginatedQuery(query)) {
-                const metaKey = generateMetaKey(query);
-                const cachedMeta = await this.metaDataSource.fetch(type, cid, scopedUid, metaKey);
-
-                if (cachedMeta && cachedMeta.ids && cachedMeta.ids.length > 0) {
-                    const snapshotItems = await Promise.all(
-                        cachedMeta.ids.map(id => this.fetch({ type, id, cid, uid: scopedUid }))
-                    );
-                    return snapshotItems.filter(Boolean) as CacheModelMap[K][];
-                }
-            }
-
-            // 페이징이 없거나 스냅샷이 없는 경우, 항상 최신 로컬 DB 상태를 쿼리합니다.
+            // 메타데이터(스냅샷) 매칭 로직 제거 완료
+            // 항상 최신 로컬 DB 상태를 쿼리합니다.
             switch (type) {
                 case 'chat':
                     return (await this.chatDataSource.fetchAll(
@@ -211,7 +181,7 @@ export class CacheCrudService implements ICacheCrudService {
         uid: string;
         query?: CacheQueryMap[K] & PagingMeta;
     }): Promise<string[]> {
-        const { type, items, cid, uid, query } = payload;
+        const { type, items, cid, uid } = payload;
         const scopedUid = resolveScopedUid(type, uid);
         const scopedCid = resolveScopedCid(type, cid);
 
@@ -265,15 +235,7 @@ export class CacheCrudService implements ICacheCrudService {
             }
 
             const ids = items.map((i: any) => i.id);
-
-            if (query && ids.length > 0 && isPaginatedQuery(query)) {
-                const metaKey = generateMetaKey(query);
-                await this.metaDataSource.save(type, cid, scopedUid, metaKey, {
-                    ids,
-                    uid: scopedUid,
-                });
-            }
-
+            // 메타테이블 저장 로직 제거 완료
             return ids;
         } catch (error) {
             this.logService.error('CACHE', `SaveAll error for type: ${type}`, error as Error);
@@ -377,7 +339,7 @@ export class CacheCrudService implements ICacheCrudService {
                     await this.inviteCloudDataSource.clear(scopedCid, scopedUid);
                     break;
             }
-            await this.metaDataSource.clear(payload.type, scopedCid, scopedUid);
+            // metaDataSource 초기화 로직 제거 완료
         } catch (error) {
             this.logService.error('CACHE', `Clear error for type: ${payload.type}`, error as Error);
         }
