@@ -56,7 +56,7 @@ export interface ICacheCrudService {
     /**
      * [초기화] 특정 도메인 전체 삭제
      */
-    clear<K extends CacheType>(payload: { type: K; cid: string; uid: string }): Promise<void>;
+    clear<K extends CacheType>(payload: { type: K; cid?: string; uid?: string }): Promise<void>;
 }
 
 export interface ICacheSearchService {
