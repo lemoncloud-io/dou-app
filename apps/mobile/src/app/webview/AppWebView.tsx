@@ -55,6 +55,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const webViewRef = useRef<WebView | null>(null);
 
     const [isWebAppReady, setIsWebAppReady] = useState(false);
+    const webAppReadyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const { isIapLoading } = useWebMessageRouter({
         bridge,
@@ -154,6 +155,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const handleWebViewLoad = useCallback(
         (event: Parameters<NonNullable<WebViewProps['onLoad']>>[0]) => {
             propsOnLoad?.(event);
+            // Fallback: WebAppReady 메시지가 도착하지 않는 경우 (웹 앱 에러 등) 최대 1초 후 로더 해제
+            if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
+            webAppReadyTimeoutRef.current = setTimeout(() => setIsWebAppReady(true), 1000);
         },
         [propsOnLoad]
     );
@@ -164,6 +168,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             try {
                 const data = JSON.parse(event.nativeEvent.data);
                 if (data?.type === 'WebAppReady') {
+                    if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
                     setIsWebAppReady(true);
                     return;
                 }
