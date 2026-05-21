@@ -33,11 +33,6 @@ export const createTtlMeta = (type: CacheType, now = Date.now()) => {
     };
 };
 
-/** TTL 메타 기준 만료 여부를 판단합니다. */
-export const isExpired = (meta: { expiresAt: number }, now = Date.now()): boolean => {
-    return meta.expiresAt <= now;
-};
-
 /** 현재 컨텍스트를 기본 스코프(default fallback 포함)로 정규화합니다. */
 export const resolveBaseScope = (contextProvider: DataContextProvider): AdapterScope => {
     const context = contextProvider.getContext();
@@ -73,9 +68,4 @@ export const withCacheMeta = <K extends CacheType>(type: K, item: CacheModelMap[
         ...(item as object),
         __cacheMeta: createTtlMeta(type),
     } as CacheModelMap[K];
-};
-
-/** 모델에 달린 TTL 메타 기준 만료 여부를 판별합니다. */
-export const isModelExpired = <K extends CacheType>(item: CacheModelMap[K]): boolean => {
-    return !!item.__cacheMeta && isExpired(item.__cacheMeta);
 };
