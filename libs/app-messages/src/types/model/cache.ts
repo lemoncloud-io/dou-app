@@ -44,6 +44,9 @@ export interface CacheModelMap {
     user: CacheUserView;
 }
 
+export type CacheModelOf<TType extends CacheType> = CacheModelMap[TType];
+export type CacheQueryOf<TType extends CacheType> = CacheQueryMap[TType];
+
 /** 클라우드/서버 정보 뷰 */
 export interface CacheCloudView extends CloudView, CacheViewBase {
     id: string;
