@@ -1,13 +1,7 @@
 import { create } from 'zustand';
 
 import type { OAuthLoginProvider } from '@chatic/app-messages';
-import {
-    getMobileAppInfo,
-    initializeMessageListener,
-    logger,
-    postMessage,
-    useAppMessageStore,
-} from '@chatic/app-messages';
+import { getMobileAppInfo, initializeMessageListener, logger, postMessage } from '@chatic/app-messages';
 
 import { updateProfile } from '../api';
 import { LANGUAGE_KEY, cloudCore, webCore, coreStorage, startWebCoreInit, resetWebCoreInit } from '../core';
@@ -189,13 +183,6 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         const { isOnMobileApp } = getMobileAppInfo();
         if (isOnMobileApp) {
             initializeMessageListener();
-
-            // Add handler for mobile app token sync response
-            const appMessageStore = useAppMessageStore.getState();
-            appMessageStore.addHandler('OnSuccessSyncCredential', message => {
-                logger.info('AUTH', 'Mobile token sync successful', message);
-                // TODO: Process token data from mobile app
-            });
         }
         set({ isInitialized: true, isAuthenticated, isOnMobileApp });
         logger.info('WEB_CORE', '[initialize] store updated', {
