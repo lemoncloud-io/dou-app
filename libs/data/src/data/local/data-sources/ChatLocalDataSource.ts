@@ -10,11 +10,10 @@ import {
 import type { DataContextProvider } from '../../repositories';
 import type { CacheStorage, CacheStorageItem } from '../storages';
 import type { DomainChat, DomainListResult } from '../../domain';
-import { createDomainListResult } from '../../domain';
-import { toDomainChat as toDomainChatBase } from '../../domain';
+import { createDomainListResult, toDomainChat as toDomainChatBase } from '../../domain';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
 import { resolveScopedContext } from '../storages/utils';
-import type { CacheChatView } from '@chatic/app-messages';
+import type { CacheChatView, ChatQueryOptions } from '@chatic/app-messages';
 import { logger } from '@chatic/app-messages';
 
 type ChatCache = CacheStorageItem<'chat'>;
@@ -132,14 +131,17 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         payload: ChatFeedPayload,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainChat> | null> {
-        const { channelId, limit } = payload;
+        const { channelId, limit = 50 } = payload;
 
         if (!channelId) {
             return createDomainListResult([], { total: 0, source: 'local' });
         }
 
         // 스토리지 계층에 쿼리 옵션을 위임하여 필터링/정렬/페이징된 결과를 직접 받아옵니다.
-        const pageList: CacheChatView[] = await this.cacheStorage.loadAll({ ...payload, limit });
+        const pageList: CacheChatView[] = await this.cacheStorage.loadAll({
+            ...payload,
+            limit,
+        } as ChatQueryOptions);
 
         logger.info('CACHE', `[ChatLocal:fetchList] channelId=${channelId}, loaded=${pageList.length}`);
 
