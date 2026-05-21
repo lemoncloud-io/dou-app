@@ -22,7 +22,10 @@ export const DataProvider = ({ children, context: injectedContext }: DataProvide
 
     const { contextHolder } = useDataContextHolder(injectedContext);
     const { remoteDataSources } = useRemoteDataSourcesFactory({ socketEventBus, domainEventBus });
-    const { localDataSources } = useLocalDataSourcesFactory({ contextProvider: contextHolder });
+
+    const { localDataSources } = useLocalDataSourcesFactory({
+        contextProvider: contextHolder,
+    });
 
     const { repositories } = useRepositoryFactory({
         remoteDataSources,
