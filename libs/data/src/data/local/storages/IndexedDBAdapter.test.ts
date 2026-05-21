@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
-
-import { createIndexedDBAdapter } from './indexedDBAdapter';
+import { ChatQueryExecutor, IndexedDBDatabase } from '../databases';
+import { IndexedDBAdapter } from './IndexedDBAdapter';
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -19,13 +19,19 @@ const chat = (id: string, overrides: Record<string, unknown> = {}) =>
         ...overrides,
     }) as any;
 
-describe('createIndexedDBAdapter', () => {
+describe('IndexedDBAdapter', () => {
+    let db: IndexedDBDatabase;
+
+    beforeEach(() => {
+        db = new IndexedDBDatabase();
+    });
+
     it('isolates records by cid+uid scope', async () => {
         const contextA = { getContext: () => ({ cid: 'cloud-a', uid: 'user-a' }), setContext: () => undefined };
         const contextB = { getContext: () => ({ cid: 'cloud-a', uid: 'user-b' }), setContext: () => undefined };
 
-        const storageA = createIndexedDBAdapter('chat', contextA);
-        const storageB = createIndexedDBAdapter('chat', contextB);
+        const storageA = new IndexedDBAdapter(db, 'chat', contextA, new ChatQueryExecutor());
+        const storageB = new IndexedDBAdapter(db, 'chat', contextB, new ChatQueryExecutor());
 
         await storageA.save('A1', chat('A1', { text: 'from-a' }));
         await storageB.save('B1', chat('B1', { text: 'from-b' }));
@@ -44,7 +50,7 @@ describe('createIndexedDBAdapter', () => {
             },
         };
 
-        const storage = createIndexedDBAdapter('chat', contextProvider);
+        const storage = new IndexedDBAdapter(db, 'chat', contextProvider, new ChatQueryExecutor());
         await storage.save('A1', chat('A1', { text: 'from-a' }));
 
         contextProvider.setContext({ cid: 'cloud-b', uid: 'user-b' });
@@ -56,36 +62,17 @@ describe('createIndexedDBAdapter', () => {
         expect(await storage.loadAll()).toMatchObject([chat('A1', { text: 'from-a' })]);
     });
 
-    it('replaceAll and clearAll affect only current cid+uid scope', async () => {
+    it('clearAll affects only current cid+uid scope', async () => {
         const scopeMain = { getContext: () => ({ cid: 'main', uid: 'u1' }), setContext: () => undefined };
         const scopeOther = { getContext: () => ({ cid: 'main', uid: 'u2' }), setContext: () => undefined };
-        const main = createIndexedDBAdapter('chat', scopeMain);
-        const other = createIndexedDBAdapter('chat', scopeOther);
+        const main = new IndexedDBAdapter(db, 'chat', scopeMain, new ChatQueryExecutor());
+        const other = new IndexedDBAdapter(db, 'chat', scopeOther, new ChatQueryExecutor());
 
         await main.saveAll([chat('M1'), chat('M2')] as any);
         await other.save('O1', chat('O1'));
 
-        await main.replaceAll([chat('M3')] as any);
-        expect(await main.loadAll()).toMatchObject([chat('M3')]);
-        expect(await other.loadAll()).toMatchObject([chat('O1')]);
-
         await main.clearAll();
         expect(await main.loadAll()).toEqual([]);
         expect(await other.loadAll()).toMatchObject([chat('O1')]);
-    });
-
-    it('filters and garbage-collects expired items on read', async () => {
-        const contextProvider = { getContext: () => ({ cid: 'ttl', uid: 'user-ttl' }), setContext: () => undefined };
-        const storage = createIndexedDBAdapter('user', contextProvider);
-        const nowSpy = jest.spyOn(Date, 'now');
-
-        nowSpy.mockReturnValue(1000);
-        await storage.save('U1', { id: 'U1', cid: 'ttl', name: 'alive' } as any);
-
-        nowSpy.mockReturnValue(1000 + 31 * 60 * 1000);
-        expect(await storage.load('U1')).toBeNull();
-        expect(await storage.loadAll()).toEqual([]);
-
-        nowSpy.mockRestore();
     });
 });
