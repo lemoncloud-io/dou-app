@@ -1,10 +1,10 @@
 import type { CacheType } from '@chatic/app-messages';
-import type { CacheStorage } from './cacheStorage';
 import type { DataContextProvider } from '../../repositories';
+import type { CacheStorage } from './types';
 
-export * from './cacheStorage';
-export * from './indexedDBAdapter';
-export * from './nativeDBAdapter';
+export * from './types';
+export * from './IndexedDBAdapter';
+export * from './NativeDBAdapter';
 
 export type CacheStorageFactory = <TType extends CacheType>(
     type: TType,

@@ -1,5 +1,5 @@
-import type { CacheStorage } from './cacheStorage';
-import { createCacheStorages, type CacheStorageFactory } from './index';
+import type { CacheStorage } from './index';
+import { type CacheStorageFactory, createCacheStorages } from './index';
 
 describe('createCacheStorages', () => {
     it('creates storage instances for all cache types with the same context provider', () => {

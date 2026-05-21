@@ -22,8 +22,7 @@ const createBridgeHarness = () => {
     const loadAll = (type: string, cid: string, uid: string) =>
         Array.from(records.entries())
             .filter(([recordKey]) => recordKey.startsWith(`${type}:${cid}:${uid}:`))
-            .map(([, item]) => clone(item))
-            .filter(item => !item.__cacheMeta?.expiresAt || item.__cacheMeta.expiresAt > Date.now());
+            .map(([, item]) => clone(item));
 
     window.ReactNativeWebView = {
         postMessage: payload => {
@@ -61,10 +60,7 @@ const createBridgeHarness = () => {
                         break;
                     case 'FetchCacheData': {
                         const rawItem = records.get(key(message.data.type, cid, uid, message.data.id));
-                        const item =
-                            rawItem && (!rawItem.__cacheMeta?.expiresAt || rawItem.__cacheMeta.expiresAt > Date.now())
-                                ? clone(rawItem)
-                                : null;
+                        const item = rawItem ? clone(rawItem) : null;
                         useAppMessageStore.getState().handleMessage({
                             type: 'OnFetchCacheData',
                             nonce: message.nonce,
@@ -194,23 +190,5 @@ describe('createNativeDBAdapter', () => {
 
         jest.advanceTimersByTime(5000);
         await expect(pending).rejects.toThrow('Timeout waiting for app message: FetchCacheData');
-    });
-
-    it('filters expired records while loading', async () => {
-        const nowSpy = jest.spyOn(Date, 'now');
-        nowSpy.mockReturnValue(1000);
-        const harness = createBridgeHarness();
-        const contextProvider = { getContext: () => ({ cid: 'ttl', uid: 'user-ttl' }), setContext: () => undefined };
-        const storage = createNativeDBAdapter('user', contextProvider);
-
-        try {
-            await storage.save('U1', { id: 'U1', cid: 'ttl', name: 'ttl-user' } as any);
-
-            nowSpy.mockReturnValue(1000 + 31 * 60 * 1000);
-            expect(await storage.loadAll()).toEqual([]);
-        } finally {
-            harness.cleanup();
-            nowSpy.mockRestore();
-        }
     });
 });

@@ -3,6 +3,7 @@ export * from './data/events/types';
 export * from './data/domain';
 export * from './data/local/data-sources';
 export * from './data/local/storages';
+export * from './data/local/databases';
 export * from './data/remote/clients';
 export * from './data/remote/data-sources';
 export * from './data/remote/sockets/dispatchers/dispatchers';
