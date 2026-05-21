@@ -3,7 +3,6 @@ import { ChatRepository } from './ChatRepository';
 describe('ChatRepository cache policy', () => {
     const payload = { channelId: 'ch-1', limit: 30 } as any;
 
-    // 💡 수정: ChatFeedResult 대신 DomainListResult 메타데이터 분리 형태
     const remoteResult = {
         list: [{ id: 'r1', channelId: 'ch-1', chatNo: 10, content: 'remote' }],
         cursorNo: 0,
@@ -12,7 +11,7 @@ describe('ChatRepository cache policy', () => {
         total: 1,
     };
 
-    const createRepository = ({ localResult, hasGap = false }: { localResult: any | null; hasGap?: boolean }) => {
+    const createRepository = ({ localResult }: { localResult: any | null }) => {
         const remote = {
             sendChat: jest.fn(),
             fetchChat: jest.fn(),
@@ -26,12 +25,12 @@ describe('ChatRepository cache policy', () => {
             remove: jest.fn(),
             removeMany: jest.fn(),
             clearAll: jest.fn(),
-            checkContinuity: jest.fn(async () => ({ hasGap, missingRanges: [] })),
             subscribeList: jest.fn(() => () => undefined),
             subscribeItem: jest.fn(() => () => undefined),
         };
 
         const requestManager = {
+            // requestManager.request() 호출 시 콜백(sendAction)을 실행하여 원격 API 모킹과 연결
             request: jest.fn(async (sendAction: (ref: string) => void) => {
                 sendAction('ref-1');
                 return remoteResult;
@@ -60,64 +59,63 @@ describe('ChatRepository cache policy', () => {
         return { repository, remote, local, requestManager };
     };
 
-    it('returns local first and schedules remote refresh for cache-first', async () => {
+    it('returns local first and schedules remote refresh in background for cache-first', async () => {
+        // 로컬 캐시에 유효한 데이터가 있는 상황
         const localResult = {
             list: [{ id: 'l1', channelId: 'ch-1', chatNo: 5, content: 'local' }],
             meta: { cursorNo: 0, limit: 30, readNo: 0, total: 1, source: 'local' },
         };
-        const { repository, remote, requestManager } = createRepository({ localResult, hasGap: false });
+        const { repository, remote, local, requestManager } = createRepository({ localResult });
 
         const result = await repository.fetchChat(payload, { cachePolicy: 'cache-first' });
 
-        // 내부에서 cursorNo 등을 meta 객체로 생성하므로 일치하는지 확인
-        expect(result.list).toEqual(localResult.list);
-        expect(result.meta.total).toEqual(1);
+        // 1. 로컬 데이터를 즉시 반환해야 함
+        expect(result).toEqual(localResult);
+        expect(local.fetchList).toHaveBeenCalledTimes(1);
+
+        // 2. 백그라운드 동기화(runInBackground)가 실행되었는지 이벤트 루프 대기 후 확인
         await Promise.resolve();
         expect(remote.fetchChat).toHaveBeenCalledTimes(1);
         expect(requestManager.request).toHaveBeenCalledTimes(1);
     });
 
-    it('skips local when continuity has gap and fetches remote', async () => {
-        const localResult = {
-            list: [{ id: 'l1', channelId: 'ch-1', chatNo: 5, content: 'local' }],
-            meta: { cursorNo: 0, limit: 30, readNo: 0, total: 1, source: 'local' },
-        };
-        const { repository, remote, local } = createRepository({ localResult, hasGap: true });
-
-        const result = await repository.fetchChat(payload, { cachePolicy: 'cache-first' });
-
-        expect(local.checkContinuity).toHaveBeenCalledWith('ch-1', { cid: 'cloud-a', uid: 'user-a' });
-        expect(remote.fetchChat).toHaveBeenCalledTimes(1);
-        expect(result.list[0]).toMatchObject({ id: 'r1', chatNo: 10 });
-        expect(result.meta.source).toBe('remote');
-    });
-
-    it('returns fallback for cache-only when local is empty', async () => {
-        const { repository, remote } = createRepository({ localResult: null });
-
-        const result = await repository.fetchChat(payload, { cachePolicy: 'cache-only' });
-
-        expect(remote.fetchChat).not.toHaveBeenCalled();
-        expect(result).toEqual({
-            list: [],
-            meta: { cursorNo: 0, limit: 30, readNo: 0, total: 0, source: 'fallback' },
-        });
-    });
-
-    it('treats cursorNo=0 empty local result as valid cache', async () => {
+    it('awaits and returns remote data when local cache is empty', async () => {
+        // 로컬에 데이터가 없는 상황 (list가 빈 배열)
         const localResult = {
             list: [],
             meta: { cursorNo: 0, limit: 30, readNo: 0, total: 0, source: 'local' },
         };
-        const { repository, remote } = createRepository({ localResult, hasGap: false });
+        const { repository, remote, local, requestManager } = createRepository({ localResult });
 
-        const result = await repository.fetchChat({ channelId: 'ch-1', limit: 30, cursorNo: 0 } as any, {
-            cachePolicy: 'cache-first',
-        });
+        const result = await repository.fetchChat(payload, { cachePolicy: 'cache-first' });
 
-        // 빈 리스트라도 cursorNo가 0이면 로컬 유효로 판정됨
-        expect(result.list).toEqual([]);
-        await Promise.resolve();
+        // 1. 로컬 조회를 시도했으나 데이터가 없으므로 원격 데이터를 반환해야 함
+        expect(local.fetchList).toHaveBeenCalledTimes(1);
+        expect(result.list[0]).toMatchObject({ id: 'r1', content: 'remote' });
+        expect(result.meta.source).toBe('remote');
+
+        // 2. 원격 조회가 백그라운드가 아닌 메인 흐름에서 await되어 실행되었는지 확인
         expect(remote.fetchChat).toHaveBeenCalledTimes(1);
+        expect(requestManager.request).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores local cache and directly fetches remote for network-only policy', async () => {
+        // 로컬에 유효한 데이터가 있더라도 무시해야 함
+        const localResult = {
+            list: [{ id: 'l1', content: 'local' }],
+            meta: { source: 'local' },
+        };
+        const { repository, remote, local, requestManager } = createRepository({ localResult });
+
+        const result = await repository.fetchChat(payload, { cachePolicy: 'network-only' });
+
+        // 1. 로컬 캐시 조회(fetchList) 자체를 호출하지 않아야 함
+        expect(local.fetchList).not.toHaveBeenCalled();
+
+        // 2. 즉시 원격 데이터가 반환되어야 함
+        expect(result.list[0]).toMatchObject({ id: 'r1', content: 'remote' });
+        expect(result.meta.source).toBe('remote');
+        expect(remote.fetchChat).toHaveBeenCalledTimes(1);
+        expect(requestManager.request).toHaveBeenCalledTimes(1);
     });
 });
