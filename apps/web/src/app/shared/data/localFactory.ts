@@ -20,7 +20,7 @@ export const isNativeApp = (): boolean => {
      * TODO: Replace this
      * typeof window !== 'undefined' && !!(window as any).ReactNativeWebView;
      */
-    return false;
+    return typeof window !== 'undefined' && !!(window as any).ReactNativeWebView;
 };
 
 // 모듈 수준의 단일 database 인스턴스 (공유 커넥션 보장)
