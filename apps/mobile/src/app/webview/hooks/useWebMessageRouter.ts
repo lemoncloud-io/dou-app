@@ -3,6 +3,7 @@ import {
     useAppIconHandler,
     useCrudCacheHandler,
     useDeviceHandler,
+    useSmsHandler,
     useFcmHandler,
     useLogBufferHandler,
     useLogHandler,
@@ -80,6 +81,8 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
         handleOpenURL,
     } = useDeviceHandler();
 
+    const { handleSendSms } = useSmsHandler();
+
     const { handleRequestPermission } = usePermissionHandler();
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler();
     const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
@@ -125,6 +128,7 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
         handleOAuthLogin,
         handleOAuthLogout,
         handleOpenURL,
+        handleSendSms,
         handleFetchAppIcon,
         handleFetchAppIconList,
         handleChangeAppIcon,
@@ -169,6 +173,7 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
             handleOAuthLogin,
             handleOAuthLogout,
             handleOpenURL,
+            handleSendSms,
             handleFetchAppIcon,
             handleFetchAppIconList,
             handleChangeAppIcon,
@@ -217,6 +222,7 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
             OAuthLogin: message => handlersRef.current.handleOAuthLogin(message),
             OAuthLogout: message => handlersRef.current.handleOAuthLogout(message),
             OpenURL: message => handlersRef.current.handleOpenURL(message),
+            SendSms: message => handlersRef.current.handleSendSms(message),
             FetchAppIcon: message => handlersRef.current.handleFetchAppIcon(message),
             FetchAppIconList: message => handlersRef.current.handleFetchAppIconList(message),
             ChangeAppIcon: message => handlersRef.current.handleChangeAppIcon(message),

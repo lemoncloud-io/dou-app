@@ -30,6 +30,7 @@ import type {
     OnPurchaseErrorPayload,
     OnPurchaseSuccessPayload,
     OnRequestPermissionPayload,
+    OnSendSmsPayload,
     OnSaveAllCacheDataPayload,
     OnSaveCacheDataPayload,
     OnSavePreferencePayload,
@@ -59,6 +60,7 @@ export const AppMessageTypes = {
     OnOpenPhotoLibrary: 'OnOpenPhotoLibrary',
     OnRequestPermission: 'OnRequestPermission',
     OnOpenURL: 'OnOpenURL',
+    OnSendSms: 'OnSendSms',
     OnFetchAppIcon: 'OnFetchAppIcon',
     OnFetchAppIconList: 'OnFetchAppIconList',
     OnChangeAppIcon: 'OnChangeAppIcon',
@@ -143,6 +145,7 @@ export interface AppMessageDataMap {
     OnOpenPhotoLibrary: OnOpenPhotoLibraryPayload;
     OnRequestPermission: OnRequestPermissionPayload;
     OnOpenURL: never;
+    OnSendSms: OnSendSmsPayload;
     OnFetchAppIcon: OnFetchAppIconPayload;
     OnFetchAppIconList: OnFetchAppIconListPayload;
     OnChangeAppIcon: OnChangeAppIconPayload;

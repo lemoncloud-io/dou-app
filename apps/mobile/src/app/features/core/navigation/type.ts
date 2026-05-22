@@ -16,6 +16,7 @@ export type DebugStackParamList = {
     BridgeTest: undefined;
     OAuthTest: undefined;
     StorageTest: undefined;
+    SmsTest: undefined;
 };
 
 export type MainStackParamList = {

@@ -2,6 +2,7 @@ import { provider } from './provider';
 
 export * from './provider';
 export * from './device';
+export * from './sms';
 export * from './dynamicAppIcon';
 export * from './notification';
 export * from './log';
@@ -17,6 +18,7 @@ export * from '../database';
 export const logger = provider.logService;
 export const logBufferService = provider.logBufferService;
 export const deviceService = provider.deviceService;
+export const smsService = provider.smsService;
 export const permissionService = provider.permissionService;
 export const notificationService = provider.notificationService;
 export const oAuthService = provider.oauthService;
