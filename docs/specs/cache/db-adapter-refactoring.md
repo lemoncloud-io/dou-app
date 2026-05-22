@@ -30,28 +30,29 @@
 flowchart TD
     classDef webLayer fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
     classDef coreLayer fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef extLayer fill:#180f2a,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
     classDef dataStore fill:#2d1a15,stroke:#f97316,stroke-width:2px,color:#f8fafc;
 
-    subgraph UI_App_Layer [1. Application Layer]
-        A[DataProvider.tsx] -->|1. 호스팅 및 실행| B[useLocalDataSourcesFactory]
-        B -->|2. 조립 요청| C[localFactory.ts]
-        C -->|3. 환경 감지| D{Native 환경인가}
+    subgraph UI_App_Layer ["1. Application Layer (apps/web)"]
+        A["DataProvider.tsx"] -->|"1. 호스팅 & 실행"| B["useLocalDataSourcesFactory"]
+        B -->|"2. 조립 요청"| C["localFactory.ts (getCacheStorage)"]
+        C -->|"3. 환경 감지 (isNativeApp)"| D{Native 환경 여부?}
     end
 
-    subgraph Logic_Adapter_Layer [2. Storage Core & Adapters]
-        D -->|Yes App WebView| E[NativeDBAdapter]
-        D -->|No Web Browser| F[IndexedDBAdapter]
+    subgraph Logic_Adapter_Layer ["2. Storage Core & Adapters (libs/data)"]
+        D -->|Yes (App WebView)| E["NativeDBAdapter"]
+        D -->|No (Web Browser)| F["IndexedDBAdapter"]
 
-        C -.->|4. Chat 도메인일 시 DI 주입| G[ChatQueryExecutor]
-        F -->|전략 위임 Strategy| G
+        C -.->|4. Chat 도메인일 시 DI 주입| G["ChatQueryExecutor"]
+        F -->|전략 위임 (Strategy)| G
     end
 
-    subgraph Data_Store_Layer [3. Database Engine & Native Bridge]
-        H[(IndexedDB Database 싱글톤)]
-        I[webBridge 브릿지 객체]
+    subgraph Data_Store_Layer ["3. Database Engine & Native Bridge"]
+        H[("IndexedDB Database\n(sharedDatabase 싱글톤)")]
+        I["webBridge\n(window.ReactNativeWebView)"]
 
-        F -->|5. 저수준 쿼리 수행| H
-        E -->|5. 브릿지 통신 요청| I
+        F -->|"5. 저수준 쿼리 수행 (IIndexedDB)"| H
+        E -->|"5. SQLite 쿼리 브릿지 통신"| I
     end
 
     class A,B,C,D webLayer;
@@ -80,7 +81,7 @@ classDiagram
         <<abstract>>
         #type: TType
         #contextProvider: DataContextProvider
-        #getScope() Object
+        #getScope() { cid, uid }
     }
 
     class IndexedDBAdapter~TType~ {
