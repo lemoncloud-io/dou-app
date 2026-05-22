@@ -8,3 +8,4 @@ export * from './AppIconTestScreen';
 export * from './BridgeTestScreen';
 export * from './OAuthTestScreen';
 export * from './StorageTestScreen';
+export * from './SmsTestScreen';
