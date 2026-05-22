@@ -18,7 +18,8 @@ export type LogTag =
     | 'SQLITE'
     | 'LOG_BUFFER'
     | 'APP_ICON'
-    | 'Preference';
+    | `TEST`
+    | 'PREFERENCE';
 
 export type LogListener = (level: LogLevel, tag: LogTag, message: string, data?: any, error?: any) => void;
 
