@@ -217,5 +217,6 @@ export const MIGRATIONS: Record<number, string[]> = {
          SELECT cid, 'default', id, name, data FROM ${TABLES.SITES}_legacy;`,
         `DROP TABLE ${TABLES.SITES}_legacy;`,
     ],
+    5: [`DROP TABLE IF EXISTS ${TABLES.METAS};`, `DROP INDEX IF EXISTS idx_metas_type_cid_uid_key;`],
 };
 export const TARGET_VERSION = Math.max(0, ...Object.keys(MIGRATIONS).map(Number)) + 1;

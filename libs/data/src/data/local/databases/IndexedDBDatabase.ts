@@ -1,0 +1,174 @@
+import type { CacheType } from '@chatic/app-messages';
+import type { CursorQueryOptions, IIndexedDB, IndexedDbRow } from './types';
+
+const DB_NAME = 'ChaticWebCacheDB';
+const DB_VERSION = 3;
+const STORE_NAME = 'cache_store';
+export const TYPE_CID_UID_INDEX = 'type_cid_uid';
+export const CHAT_PAGINATION_INDEX = 'chat_pagination_index';
+
+/**
+ * IndexedDB 데이터베이스와 물리적으로 상호작용하는 구체적인 구현체입니다.
+ */
+export class IndexedDBDatabase implements IIndexedDB {
+    private dbPromise: Promise<IDBDatabase>;
+
+    constructor() {
+        this.dbPromise = this.openDB();
+    }
+
+    private openDB(): Promise<IDBDatabase> {
+        return new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+            request.onupgradeneeded = event => {
+                const db = (event.target as IDBOpenDBRequest).result;
+                let store: IDBObjectStore;
+
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    store = db.createObjectStore(STORE_NAME, { keyPath: 'key' });
+                } else {
+                    const transaction = (event.target as IDBOpenDBRequest).transaction;
+                    if (!transaction) return;
+                    store = transaction.objectStore(STORE_NAME);
+                }
+
+                if (store.indexNames.contains('type_cid')) {
+                    store.deleteIndex('type_cid');
+                }
+                if (!store.indexNames.contains(TYPE_CID_UID_INDEX)) {
+                    store.createIndex(TYPE_CID_UID_INDEX, ['type', 'cid', 'uid'], { unique: false });
+                }
+                if (!store.indexNames.contains(CHAT_PAGINATION_INDEX)) {
+                    store.createIndex(CHAT_PAGINATION_INDEX, ['type', 'cid', 'uid', 'channel_id', 'chat_no'], {
+                        unique: false,
+                    });
+                }
+            };
+
+            request.onsuccess = () => {
+                const db = request.result;
+                db.onclose = () => {
+                    this.dbPromise = this.openDB();
+                };
+                db.onversionchange = () => {
+                    db.close();
+                    this.dbPromise = this.openDB();
+                };
+                resolve(db);
+            };
+
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    private async getDB(): Promise<IDBDatabase> {
+        return this.dbPromise;
+    }
+
+    private promisifyRequest<T>(request: IDBRequest<T>): Promise<T> {
+        return new Promise((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    private promisifyTransaction(transaction: IDBTransaction): Promise<void> {
+        return new Promise((resolve, reject) => {
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(transaction.error);
+            transaction.onabort = () => reject(new Error('Transaction aborted'));
+        });
+    }
+
+    private async readOperation<T>(fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+        const db = await this.getDB();
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        return this.promisifyRequest(fn(store));
+    }
+
+    private async writeOperation(fn: (store: IDBObjectStore) => void): Promise<void> {
+        const db = await this.getDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        fn(store);
+        await this.promisifyTransaction(tx);
+    }
+
+    async save<TType extends CacheType>(item: IndexedDbRow<TType>): Promise<void> {
+        await this.writeOperation(store => {
+            store.put(item);
+        });
+    }
+
+    async saveAll<TType extends CacheType>(items: IndexedDbRow<TType>[]): Promise<void> {
+        if (items.length === 0) return;
+        await this.writeOperation(store => {
+            items.forEach(item => store.put(item));
+        });
+    }
+
+    async load<TType extends CacheType>(key: string): Promise<IndexedDbRow<TType> | undefined> {
+        return this.readOperation<IndexedDbRow<TType> | undefined>(store => store.get(key));
+    }
+
+    async loadAll<TType extends CacheType>(indexName: string, key: IDBValidKey): Promise<IndexedDbRow<TType>[]> {
+        return this.readOperation<IndexedDbRow<TType>[]>(store => {
+            const index = store.index(indexName);
+            return index.getAll(key);
+        });
+    }
+
+    async loadWithCursor<TType extends CacheType>(options: CursorQueryOptions<TType>): Promise<IndexedDbRow<TType>[]> {
+        const db = await this.getDB();
+        return new Promise<IndexedDbRow<TType>[]>((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const index = store.index(options.indexName);
+            const request = index.openCursor(options.range, options.direction);
+            const results: IndexedDbRow<TType>[] = [];
+
+            request.onsuccess = event => {
+                const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+                if (cursor) {
+                    const item = cursor.value as IndexedDbRow<TType>;
+                    if (options.filter(item)) {
+                        results.push(item);
+                    }
+                    if (results.length >= options.limit) {
+                        resolve(results);
+                        return;
+                    }
+                    cursor.continue();
+                } else {
+                    resolve(results);
+                }
+            };
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async delete(key: string): Promise<void> {
+        await this.writeOperation(store => {
+            store.delete(key);
+        });
+    }
+
+    async deleteAll(keys: string[]): Promise<void> {
+        if (keys.length === 0) return;
+        await this.writeOperation(store => {
+            keys.forEach(key => store.delete(key));
+        });
+    }
+
+    async clearAll(indexName: string, key: IDBValidKey): Promise<void> {
+        const keysToDelete = await this.readOperation<IDBValidKey[]>(store => {
+            const index = store.index(indexName);
+            return index.getAllKeys(key);
+        });
+        if (keysToDelete.length > 0) {
+            await this.deleteAll(keysToDelete as string[]);
+        }
+    }
+}

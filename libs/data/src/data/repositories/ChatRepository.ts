@@ -133,19 +133,17 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
 
         // 백그라운드에서 원격 동기화를 실행합니다.
         // cache-first 또는 cache-and-network 정책일 때 백그라운드 동기화를 시도합니다.
-        if (cachePolicy === 'cache-first' || cachePolicy === 'cache-and-network') {
-            this.runInBackground(
-                () => this.fetchFromRemoteAndCache(payload, { ...options, ref: `${options?.ref}-bg-sync` }),
-                `bg-sync-chat-feed`
-            );
-        }
-
-        // 결과 반환 전략
         if (isLocalPageValid) {
-            // 캐시 우선 정책이고, 로컬에 유효한 페이지가 있으면 즉시 반환합니다.
+            // 로컬에 유효한 데이터가 있으면 즉시 반환하되, 정책에 따라 백그라운드 동기화를 스케줄링합니다.
+            if (cachePolicy === 'cache-first' || cachePolicy === 'cache-and-network') {
+                this.runInBackground(
+                    () => this.fetchFromRemoteAndCache(payload, { ...options, ref: `${options?.ref}-bg-sync` }),
+                    `bg-sync-chat-feed`
+                );
+            }
             return localResult;
         } else {
-            // 로컬에 데이터가 없으면, 원격 fetch 결과를 기다려서 반환합니다.
+            // 로컬에 데이터가 없으면 중복 방지를 위해 백그라운드 동기화를 생략하고, 즉시 원격 데이터를 가져와 반환합니다.
             return this.fetchFromRemoteAndCache(payload, options);
         }
     }

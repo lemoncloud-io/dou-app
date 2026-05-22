@@ -24,7 +24,6 @@ import {
     ChatDataSource,
     InviteCloudDataSource,
     JoinDataSource,
-    MetaDataSource,
     SiteDataSource,
     UserDataSource,
 } from '../data/cache';
@@ -81,7 +80,6 @@ class DependencyProvider {
         const channelDataSource = new ChannelDataSource(this.sqliteDatabase, TABLES.CHANNELS);
         const chatDataSource = new ChatDataSource(this.sqliteDatabase, TABLES.CHATS);
         const joinDataSource = new JoinDataSource(this.sqliteDatabase, TABLES.JOINS);
-        const metaDataSource = new MetaDataSource(this.sqliteDatabase, TABLES.METAS);
         const siteDataSource = new SiteDataSource(this.sqliteDatabase, TABLES.SITES);
         const userDataSource = new UserDataSource(this.sqliteDatabase, TABLES.USERS);
         const inviteCloudDataSource = new InviteCloudDataSource(this.sqliteDatabase, TABLES.INVITE_CLOUDS);
@@ -94,8 +92,7 @@ class DependencyProvider {
             joinDataSource,
             siteDataSource,
             userDataSource,
-            inviteCloudDataSource,
-            metaDataSource
+            inviteCloudDataSource
         );
 
         this.cacheSearchService = new CacheSearchService(

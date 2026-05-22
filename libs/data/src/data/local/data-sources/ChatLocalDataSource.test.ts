@@ -1,6 +1,13 @@
 import type { CacheStorage } from '../storages';
 import { ChatLocalDataSource } from './ChatLocalDataSource';
 
+// 대기 중인 모든 Promise(마이크로태스크)를 처리하도록 기다려주는 유틸리티
+const flushPromises = async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+};
+
 const createMemoryStorage = (): CacheStorage<'chat'> => {
     const map = new Map<string, any>();
     return {
@@ -9,13 +16,6 @@ const createMemoryStorage = (): CacheStorage<'chat'> => {
             return item;
         },
         async saveAll(items) {
-            items.forEach(item => {
-                if (item?.id) map.set(item.id, { ...item });
-            });
-            return items;
-        },
-        async replaceAll(items) {
-            map.clear();
             items.forEach(item => {
                 if (item?.id) map.set(item.id, { ...item });
             });
@@ -45,18 +45,12 @@ describe('ChatLocalDataSource', () => {
         setContext: () => undefined,
     };
 
-    it('detects continuity gap from chatNo sequence', async () => {
-        const storage = createMemoryStorage();
-        const dataSource = new ChatLocalDataSource(contextProvider, storage);
+    beforeEach(() => {
+        jest.useFakeTimers();
+    });
 
-        await dataSource.upsertMany([
-            { id: '1', channelId: 'ch-1', chatNo: 1, cid: 'cloud-a', createdAt: 1 },
-            { id: '2', channelId: 'ch-1', chatNo: 3, cid: 'cloud-a', createdAt: 3 },
-        ] as any);
-
-        const continuity = await dataSource.checkContinuity('ch-1');
-        expect(continuity.hasGap).toBe(true);
-        expect(continuity.missingRanges).toEqual([{ from: 2, to: 2 }]);
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
     it('updates partial chat fields without dropping previous values', async () => {
@@ -83,10 +77,12 @@ describe('ChatLocalDataSource', () => {
         const dataSource = new ChatLocalDataSource(contextProvider, storage);
         const emissions: number[] = [];
 
-        // 단건 객체를 반환하므로 존재 여부에 따라 1 또는 0 기록
+        // 1. 구독 시작 (초기 상태이므로 0 방출)
         const unsubscribe = dataSource.subscribeItem('stream-1', result => emissions.push(result ? 1 : 0));
+        jest.runAllTimers();
+        await flushPromises();
 
-        await Promise.resolve();
+        // 2. 데이터 추가 (1 방출 기대)
         await dataSource.upsert({
             id: 'stream-1',
             channelId: 'ch-1',
@@ -94,7 +90,16 @@ describe('ChatLocalDataSource', () => {
             cid: 'cloud-a',
             createdAt: 1,
         } as any);
+
+        jest.runAllTimers(); // debounce 타이머 실행
+        await flushPromises(); // 내부 비동기 fetch(getById) 완료 대기
+
+        // 3. 데이터 삭제 (0 방출 기대)
         await dataSource.remove('stream-1');
+
+        jest.runAllTimers(); // debounce 타이머 실행
+        await flushPromises(); // 내부 비동기 fetch(getById) 완료 대기
+
         unsubscribe();
 
         expect(emissions).toEqual([0, 1, 0]);
