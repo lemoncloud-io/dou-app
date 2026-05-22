@@ -13,6 +13,7 @@ import {
     useSafeAreaHandler,
     useSearchCacheHandler,
     useSubscriptionIapHandler,
+    useTestRecordHandler,
 } from './index';
 import { type ModalHandler, useModalHandler } from './useModalHandler';
 
@@ -89,6 +90,14 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
 
     const { handleOpenModal, handleCloseModal } = useModalHandler(bridge, modalHandler);
 
+    const {
+        handleFetchTestRecord,
+        handleFetchAllTestRecords,
+        handleSaveTestRecord,
+        handleSaveAllTestRecords,
+        handleClearTestRecords,
+    } = useTestRecordHandler();
+
     // --- Keep handlers fresh for async execution without triggering re-renders ---
     const handlersRef = useRef({
         setWebCanGoBack,
@@ -132,6 +141,11 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
         handleFetchAppIcon,
         handleFetchAppIconList,
         handleChangeAppIcon,
+        handleFetchTestRecord,
+        handleFetchAllTestRecords,
+        handleSaveTestRecord,
+        handleSaveAllTestRecords,
+        handleClearTestRecords,
     });
 
     useEffect(() => {
@@ -177,6 +191,11 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
             handleFetchAppIcon,
             handleFetchAppIconList,
             handleChangeAppIcon,
+            handleFetchTestRecord,
+            handleFetchAllTestRecords,
+            handleSaveTestRecord,
+            handleSaveAllTestRecords,
+            handleClearTestRecords,
         };
     });
 
@@ -204,6 +223,11 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
             DeleteAllCacheData: message => handlersRef.current.handleDeleteAllCache(message),
             SearchGlobalCacheData: message => handlersRef.current.handleSearchGlobalCache(message),
             ClearCacheData: message => handlersRef.current.handleClearCache(message),
+            FetchTestRecord: message => handlersRef.current.handleFetchTestRecord(message),
+            FetchAllTestRecords: message => handlersRef.current.handleFetchAllTestRecords(message),
+            SaveTestRecord: message => handlersRef.current.handleSaveTestRecord(message),
+            SaveAllTestRecords: message => handlersRef.current.handleSaveAllTestRecords(message),
+            ClearTestRecords: message => handlersRef.current.handleClearTestRecords(message),
             FetchPreference: message => handlersRef.current.handleFetchPreference(message),
             SavePreference: message => handlersRef.current.handleSavePreference(message),
             DeletePreference: message => handlersRef.current.handleDeletePreference(message),
