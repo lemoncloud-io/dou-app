@@ -207,7 +207,9 @@ export const PlaceList = ({
             return;
         }
 
-        const savedPlaceId = useWebSocketV2Store.getState().selectedPlaceId;
+        // store에 없으면 cloudCore(영속 스토리지)에서 복원 — WebSocketV2Connection이
+        // 더 이상 premature하게 store에 placeId를 설정하지 않으므로 여기서 직접 읽음
+        const savedPlaceId = useWebSocketV2Store.getState().selectedPlaceId || cloudCore.getSelectedPlaceId();
         if (savedPlaceId) {
             initialPlaceNotifiedRef.current = true;
             // 이미 인증 완료 + 현재 세션에서 place auth가 된 상태면 auth:update 스킵
