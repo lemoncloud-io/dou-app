@@ -18,6 +18,8 @@ import type { IPreferenceService } from './preference';
 import { PreferenceService } from './preference';
 import type { ICacheCrudService, ICacheSearchService } from './cache';
 import { CacheCrudService, CacheSearchService } from './cache';
+import type { ISmsService } from './sms';
+import { SmsService } from './sms';
 
 import {
     ChannelDataSource,
@@ -40,6 +42,7 @@ class DependencyProvider {
     public readonly consoleLogger: IConsoleLogger;
     public readonly logBufferService: ILogBufferService;
     public readonly deviceService: IDeviceService;
+    public readonly smsService: ISmsService;
     public readonly permissionService: IPermissionService;
     public readonly notificationService: INotificationService;
     public readonly oauthService: IOAuthService;
@@ -67,6 +70,7 @@ class DependencyProvider {
 
         this.sqliteDatabase = new SqliteDatabase(this.logService);
         this.deviceService = new DeviceService(this.logService);
+        this.smsService = new SmsService(this.logService);
         this.permissionService = new PermissionService(this.logService);
         this.notificationService = new NotificationService(this.logService);
         this.oauthService = new OAuthService(this.logService);
