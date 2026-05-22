@@ -1,6 +1,6 @@
 import { ArrowLeftRight, Bell, Bug, ChevronDown, CircleAlert, EllipsisVertical, Search, User } from 'lucide-react';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -29,6 +29,7 @@ import { SettingsDialog } from '../../../components/SettingsDialog';
 import { OnboardingModal } from '../../onboarding';
 import { SearchModal } from '../../search';
 import { ReportIssueDialog } from '../../../shared/components/ReportIssueDialog';
+import { webBridge } from '../../../shared/bridges';
 import { ChannelList } from '../components/ChannelList';
 import { CloudSessionSheet } from '../components/CloudSessionSheet';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
@@ -73,6 +74,17 @@ export const HomePage = () => {
     } = useCanCreatePlace({ count: placesResult.places.length, isLoading: placesResult.isLoading });
     const { isCompleted, completeOnboarding } = useOnboardingStore();
     const { isCloudsError } = useCloudSession();
+
+    // place auth 완료(selectedPlaceId 설정) 시 네이티브 로더 해제
+    // — channel fetch가 시작되는 시점이므로 place 목록 + 로딩 스피너가 보이는 상태
+    const appReadySentRef = useRef(false);
+    useEffect(() => {
+        if (appReadySentRef.current) return;
+        if (selectedPlaceId) {
+            appReadySentRef.current = true;
+            webBridge.post('WebAppReady');
+        }
+    }, [selectedPlaceId]);
 
     const totalUnread = useMemo(
         () => channelsResult.channels.reduce((sum, ch) => sum + ((ch.unreadCount as number) ?? 0), 0),
@@ -350,6 +362,77 @@ export const HomePage = () => {
                                         sid(param):{' '}
                                         <span className="font-semibold text-foreground">
                                             {selectedPlaceId || '(empty)'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        isLoading:{' '}
+                                        <span
+                                            className={`font-semibold ${channelsResult.isLoading ? 'text-yellow-600' : 'text-foreground'}`}
+                                        >
+                                            {String(channelsResult.isLoading)}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        isError:{' '}
+                                        <span
+                                            className={`font-semibold ${channelsResult.isError ? 'text-destructive' : 'text-foreground'}`}
+                                        >
+                                            {String(channelsResult.isError)}
+                                            {channelsResult.errorMessage ? ` (${channelsResult.errorMessage})` : ''}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        cacheKey:{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {channelsResult.debugInfo?.cacheKey || '(none)'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        cacheHit:{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {String(channelsResult.debugInfo?.cacheHit)}
+                                        </span>
+                                    </div>
+                                    <div className="mt-1 text-[11px] opacity-70">--- fetch ---</div>
+                                    <div>
+                                        fetchCount:{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {channelsResult.debugInfo?.fetchCount}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        lastFetchAt:{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {channelsResult.debugInfo?.lastFetchAt?.split('T')[1] ?? '(never)'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        lastFetchResult:{' '}
+                                        <span
+                                            className={`font-semibold ${channelsResult.debugInfo?.lastFetchResultCount === 0 ? 'text-yellow-600' : 'text-foreground'}`}
+                                        >
+                                            {channelsResult.debugInfo?.lastFetchResultCount ?? '(none)'}
+                                        </span>
+                                    </div>
+                                    <div className="mt-1 text-[11px] opacity-70">--- subscribe ---</div>
+                                    <div>
+                                        subscribeCount:{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {channelsResult.debugInfo?.subscribeCount}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        lastSubscribeAt:{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {channelsResult.debugInfo?.lastSubscribeAt?.split('T')[1] ?? '(never)'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        lastSubscribeResult:{' '}
+                                        <span
+                                            className={`font-semibold ${channelsResult.debugInfo?.lastSubscribeResultCount === 0 ? 'text-yellow-600' : 'text-foreground'}`}
+                                        >
+                                            {channelsResult.debugInfo?.lastSubscribeResultCount ?? '(none)'}
                                         </span>
                                     </div>
                                 </div>
