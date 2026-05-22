@@ -219,6 +219,9 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
         payload: ChatFeedPayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainChat>> {
+        const requestScope = this.getDomainScope();
+        const requestContext = this.getRepositoryContext();
+
         const remote = await this.requestRemote<ChatFeedResult>(
             ref => this.chatRemoteDataSource.fetchChat(payload, ref),
             options
@@ -232,7 +235,14 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
                 source: 'remote',
             });
         }
-        const domainList = ((remote.list || []) as any[]).map(item => toDomainChat(item, this.getDomainScope()));
+        const domainList = ((remote.list || []) as any[]).map(item => toDomainChat(item, requestScope));
+
+        // cloud가 전환되었으면 캐시 저장 스킵 — cross-cloud 오염 방지
+        const currentCid = this.getRepositoryContext().cid;
+        if (currentCid === requestContext.cid) {
+            await this.chatLocalDataSource.upsertMany(domainList, requestContext);
+        }
+
         return createDomainListResult(domainList, {
             cursorNo: remote.cursorNo,
             readNo: remote.readNo,
@@ -261,13 +271,9 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
                 'chat:delete'
             );
         });
-        this.onDomainEvent('chat:list', detail => {
-            if (!detail.data) return;
-            this.runInBackground(
-                () => this.chatLocalDataSource.upsertMany(detail.data.list || [], this.getRepositoryContext()),
-                'chat:list'
-            );
-        });
+        // NOTE: chat:list 캐시 저장은 fetchFromRemoteAndCache에서 요청 시점 context를 캡처하여 처리함.
+        // 여기서 중복 upsertMany를 수행하면 cloud 전환 중 도착한 이전 cloud 응답이
+        // 현재 cloud의 캐시 파티션에 저장되는 cross-cloud 오염이 발생함.
     }
 
     private createOptimisticChat(payload: ChatSendPayload, id: string, domainScope: DomainScope): DomainChat {
