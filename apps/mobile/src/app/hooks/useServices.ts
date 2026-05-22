@@ -15,6 +15,7 @@ import {
     preferenceService,
     sqliteDatabase,
     subscriptionIapService,
+    testRecordService,
 } from '../services';
 
 export const useServices = () => ({
@@ -32,6 +33,7 @@ export const useServices = () => ({
     preferenceService: preferenceService,
     cacheCrudService: cacheCrudService,
     cacheSearchService: cacheSearchService,
+    testRecordService: testRecordService,
     keyValueStorage: keyValueStorage,
     sqliteDatabase: sqliteDatabase,
 });
