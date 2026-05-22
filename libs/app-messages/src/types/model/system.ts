@@ -352,3 +352,17 @@ export interface PingPayload {
 export interface PongPayload {
     payload: string;
 }
+
+/** [요청] SMS 전송 */
+export interface SendSmsPayload {
+    /** 수신자 전화번호 또는 전화번호 배열 */
+    phoneNumbers: string | string[];
+    /** 전송할 SMS 메시지 본문 */
+    message: string;
+}
+
+/** [응답] SMS 전송 결과 */
+export interface OnSendSmsPayload {
+    /** 전송(앱 열기) 성공 여부 */
+    success: boolean;
+}

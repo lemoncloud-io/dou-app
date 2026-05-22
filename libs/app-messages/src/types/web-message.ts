@@ -26,6 +26,7 @@ import type {
     SavePreferencePayload,
     SearchGlobalCacheDataPayload,
     SendLogPayload,
+    SendSmsPayload,
     SetCanGoBackPayload,
 } from './model';
 import type { BaseMessage } from './types';
@@ -46,6 +47,7 @@ export interface WebMessagePayloadMap {
     FetchBackgroundStatus: never;
     RequestPermission: RequestPermissionPayload;
     OpenURL: OpenURLPayload;
+    SendSms: SendSmsPayload;
     FetchAppIcon: never;
     FetchAppIconList: never;
     ChangeAppIcon: ChangeAppIconPayload;
