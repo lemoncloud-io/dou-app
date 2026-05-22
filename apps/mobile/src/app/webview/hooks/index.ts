@@ -6,6 +6,7 @@ export * from './useCrudCacheHandler';
 export * from './useSearchCacheHandler';
 export * from './useAppIconHandler';
 export * from './useDeviceHandler';
+export * from './useSmsHandler';
 export * from './useSafeAreaHandler';
 export * from './usePermissionHandler';
 export * from './useSubscriptionIapHandler';
