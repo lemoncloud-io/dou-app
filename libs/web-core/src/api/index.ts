@@ -383,6 +383,25 @@ export const fetchProfile = async () => {
     );
 };
 
+/**
+ * 낙관적 프로필 조회 — retry/auth error handling 없음.
+ * 토큰 갱신과 병렬 실행용: 현재 토큰이 아직 유효하면 즉시 프로필 반환.
+ * 실패 시 null 반환 (alert/redirect 없음).
+ */
+export const tryFetchProfile = async (): Promise<UserProfile | null> => {
+    try {
+        const { data } = await webCore
+            .buildSignedRequest({
+                method: 'GET',
+                baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
+            })
+            .execute<UserProfile & { error?: string }>();
+        return data?.error ? null : data;
+    } catch {
+        return null;
+    }
+};
+
 export const updateProfile = async (uid: string, body: Record<string, unknown>) => {
     const endpoint = getDynamicDOUEndpoint();
 

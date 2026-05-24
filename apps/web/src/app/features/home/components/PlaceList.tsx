@@ -9,7 +9,7 @@ import { cn } from '@chatic/lib/utils';
 import { cloudCore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
 import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
-import { waitForVerified } from '../../../shared/utils/waitForVerified';
+import { waitForDeviceRegistered, waitForVerified } from '../../../shared/utils/waitForVerified';
 
 const setStoreSelectedPlaceId = (placeId: string | null) => useWebSocketV2Store.getState().setSelectedPlaceId(placeId);
 
@@ -167,10 +167,13 @@ export const PlaceList = ({
             const { Token: _token, ...cloudProfile } = refreshed;
             useWebCoreStore.getState().setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
 
-            // 1. 미인증 상태로 전환
+            // 1. device.save 완료 대기 — auth.update는 반드시 device.save 이후에 전송해야 함
+            await waitForDeviceRegistered(10_000);
+
+            // 2. 미인증 상태로 전환
             useWebSocketV2Store.getState().setIsVerified(false);
 
-            // 2. place 전용 토큰으로 auth:update 직접 전송
+            // 3. place 전용 토큰으로 auth:update 직접 전송
             // useCloudTokenRefresh effect 재실행에 의존하지 않음
             // (isVerified가 이미 false였을 경우 Zustand가 변경을 감지하지 않아 effect가 재실행되지 않는 문제 방지)
             const identityToken = cloudCore.getIdentityToken();

@@ -90,18 +90,10 @@ export function App() {
         };
     }, []);
 
-    // 네이티브 APP LOADER 해제 — 주 페이지(HomePage)에서 channels 로딩 완료 시 전송.
-    // 비인증 라우트(로그인 등) 또는 예외 상황 대비 fallback timeout.
+    // 네이티브 APP LOADER 해제 — 웹 마운트 즉시 전송
     useEffect(() => {
-        if (!isAuthenticated) {
-            webBridge.post('WebAppReady');
-            return;
-        }
-        const timer = setTimeout(() => {
-            webBridge.post('WebAppReady');
-        }, 10_000);
-        return () => clearTimeout(timer);
-    }, [isAuthenticated]);
+        webBridge.post('WebAppReady');
+    }, []);
 
     const handleError = useCallback((error: Error, info: ErrorInfo): void => {
         logger.error('APP', 'Application Error', { error, data: info });

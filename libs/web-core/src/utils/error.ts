@@ -34,6 +34,18 @@ export const classifyError = (error: any): ErrorClassification => {
         };
     }
 
+    // 서버 측 서명 검증 타임아웃 — AWS credentials 만료로 signature가 유효하지 않음
+    // throwIfApiError로 생성된 Error는 HTTP status가 없으므로 메시지만으로도 판별
+    // 클라이언트 타임아웃("TIMEOUT:" 접두어)은 isNetworkError에서 별도 처리
+    if (message.includes('signature timeout') || (status === 400 && message.includes('TIMEOUT'))) {
+        return {
+            type: ErrorType.AUTHENTICATION,
+            shouldRetry: false,
+            shouldLogout: true,
+            message: '인증 서명이 만료되었습니다',
+        };
+    }
+
     if (status === 403) {
         return {
             type: ErrorType.AUTHENTICATION,
@@ -79,16 +91,22 @@ export const classifyError = (error: any): ErrorClassification => {
 };
 
 const isNetworkError = (error: any): boolean => {
+    // HTTP 응답이 있으면 서버가 응답한 것이므로 네트워크 에러가 아님
+    const status = error?.status || error?.response?.status || error?.statusCode;
+    if (status && status >= 400) {
+        return false;
+    }
+
     // Axios 네트워크 에러
     if (error?.code === 'ERR_NETWORK' || error?.code === 'ERR_INTERNET_DISCONNECTED') {
         return true;
     }
     // 네트워크 연결 실패
-    if (error?.message?.includes('Network Error') || error?.message?.includes('fetch')) {
+    if (error?.message?.includes('Network Error') || error?.message?.includes('fetch failed')) {
         return true;
     }
-    // 타임아웃
-    if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+    // 클라이언트 측 타임아웃 (ECONNABORTED, 또는 우리 withTimeout의 TIMEOUT: 접두어)
+    if (error?.code === 'ECONNABORTED' || error?.message?.startsWith('TIMEOUT:')) {
         return true;
     }
     // 연결 거부
