@@ -44,6 +44,9 @@ export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
                     {renderMenuItem('브릿지 테스트', () => {
                         navigation.navigate('BridgeTest');
                     })}
+                    {renderMenuItem('대용량 업로드 테스트', () => {
+                        navigation.navigate('UploadTest');
+                    })}
                     {renderMenuItem('OAuth 테스트', () => {
                         navigation.navigate('OAuthTest');
                     })}

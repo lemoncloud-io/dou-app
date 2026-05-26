@@ -13,6 +13,7 @@ import {
     OAuthTestScreen,
     StorageTestScreen,
     SmsTestScreen,
+    UploadTestScreen,
 } from '../screens';
 
 import type { DebugStackParamList } from '../../core/navigation';
@@ -117,6 +118,14 @@ export const DebugNavigator = () => {
                 component={SmsTestScreen}
                 options={{
                     title: 'SMS 테스트',
+                    headerBackButtonDisplayMode: 'minimal',
+                }}
+            />
+            <DebugStack.Screen
+                name="UploadTest"
+                component={UploadTestScreen}
+                options={{
+                    title: '대용량 업로드 테스트',
                     headerBackButtonDisplayMode: 'minimal',
                 }}
             />
