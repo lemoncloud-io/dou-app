@@ -74,6 +74,11 @@ export interface IIndexedDB {
      * 인덱스 기반으로 조건에 부합하는 모든 레코드를 삭제합니다.
      */
     clearAll(indexName: string, key: IDBValidKey): Promise<void>;
+
+    /**
+     * 인덱스 기반으로 범위(IDBKeyRange)에 부합하는 모든 레코드를 삭제합니다.
+     */
+    clearByRange(indexName: string, range: IDBKeyRange): Promise<void>;
 }
 
 /**

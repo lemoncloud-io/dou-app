@@ -171,4 +171,14 @@ export class IndexedDBDatabase implements IIndexedDB {
             await this.deleteAll(keysToDelete as string[]);
         }
     }
+
+    async clearByRange(indexName: string, range: IDBKeyRange): Promise<void> {
+        const keysToDelete = await this.readOperation<IDBValidKey[]>(store => {
+            const index = store.index(indexName);
+            return index.getAllKeys(range);
+        });
+        if (keysToDelete.length > 0) {
+            await this.deleteAll(keysToDelete as string[]);
+        }
+    }
 }

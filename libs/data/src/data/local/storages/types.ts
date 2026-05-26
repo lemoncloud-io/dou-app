@@ -27,6 +27,17 @@ export abstract class BaseDbAdapter<TType extends CacheType> implements CacheSto
     abstract delete(id: string): Promise<void>;
     abstract deleteAll(ids: string[]): Promise<void>;
     abstract clearAll(): Promise<void>;
+
+    async clearByChannelId(channelId: string): Promise<void> {
+        const items = await this.loadAll();
+        const ids = items
+            .filter(item => (item as Record<string, unknown>).channelId === channelId)
+            .map(item => (item as Record<string, unknown>).id as string)
+            .filter(Boolean);
+        if (ids.length > 0) {
+            await this.deleteAll(ids);
+        }
+    }
 }
 
 /**
@@ -43,6 +54,7 @@ export interface CacheStorage<TType extends CacheType> {
     delete(id: string): Promise<void>;
     deleteAll(ids: string[]): Promise<void>;
     clearAll(): Promise<void>;
+    clearByChannelId(channelId: string): Promise<void>;
 }
 
 /**

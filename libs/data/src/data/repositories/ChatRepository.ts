@@ -32,6 +32,9 @@ export interface IChatRepository extends ILocalCacheMutationRepository<DomainCha
     /** 현재 스코프의 chat 로컬 캐시를 초기화합니다. */
     clearAll(): Promise<void>;
 
+    /** 특정 채널의 chat 로컬 캐시를 삭제합니다. */
+    clearByChannelId(channelId: string): Promise<void>;
+
     /** 새로운 채팅 메시지(chat:create) 수신 이벤트를 구독합니다.
      * @param callback 수신된 채팅 데이터를 처리할 콜백 함수
      * @returns 구독 해제(unsubscribe) 함수
@@ -151,6 +154,11 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
     /** 현재 스코프의 chat 로컬 캐시를 초기화합니다. */
     public clearAll(): Promise<void> {
         return this.chatLocalDataSource.clearAll(this.getRepositoryContext());
+    }
+
+    /** 특정 채널의 chat 로컬 캐시를 삭제합니다. */
+    public clearByChannelId(channelId: string): Promise<void> {
+        return this.chatLocalDataSource.clearByChannelId(channelId, this.getRepositoryContext());
     }
 
     public onChatCreated(callback: (chat: DomainChat) => void): () => void {
@@ -274,6 +282,17 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
         // NOTE: chat:list 캐시 저장은 fetchFromRemoteAndCache에서 요청 시점 context를 캡처하여 처리함.
         // 여기서 중복 upsertMany를 수행하면 cloud 전환 중 도착한 이전 cloud 응답이
         // 현재 cloud의 캐시 파티션에 저장되는 cross-cloud 오염이 발생함.
+
+        // 채널 삭제 시 해당 채널의 chat 캐시도 함께 정리
+        this.onDomainEvent('channel:delete', detail => {
+            const channelId = detail.data.id || '';
+            if (channelId) {
+                this.runInBackground(
+                    () => this.chatLocalDataSource.clearByChannelId(channelId, this.getRepositoryContext()),
+                    'channel:delete→chat:clear'
+                );
+            }
+        });
     }
 
     private createOptimisticChat(payload: ChatSendPayload, id: string, domainScope: DomainScope): DomainChat {

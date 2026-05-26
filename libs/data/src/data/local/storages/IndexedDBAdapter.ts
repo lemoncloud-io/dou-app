@@ -1,7 +1,7 @@
 import type { CacheChatView, CacheModelOf, CacheQueryOf, CacheType } from '@chatic/app-messages';
 import type { DataContextProvider } from '../../repositories';
 import type { IIndexedDB, IndexedDbQueryExecutor, IndexedDbRow } from '../databases';
-import { TYPE_CID_UID_INDEX } from '../databases';
+import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX } from '../databases';
 import { createTtlMeta, withCacheMeta } from './utils';
 import { BaseDbAdapter } from './types';
 
@@ -105,5 +105,13 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
     async clearAll(): Promise<void> {
         const scope = this.getScope();
         await this.db.clearAll(TYPE_CID_UID_INDEX, [this.type, scope.cid, scope.uid]);
+    }
+
+    override async clearByChannelId(channelId: string): Promise<void> {
+        const scope = this.getScope();
+        const lower = [this.type, scope.cid, scope.uid, channelId];
+        const upper = [this.type, scope.cid, scope.uid, channelId, []];
+        const range = IDBKeyRange.bound(lower, upper);
+        await this.db.clearByRange(CHAT_PAGINATION_INDEX, range);
     }
 }
