@@ -42,6 +42,8 @@ import type {
     OnSearchGlobalCacheDataPayload,
     OnUpdateDeviceInfoPayload,
     PongPayload,
+    OnUploadProgressPayload,
+    OnUploadCompletePayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -70,6 +72,8 @@ export const AppMessageTypes = {
     OnFetchAppIconList: 'OnFetchAppIconList',
     OnChangeAppIcon: 'OnChangeAppIcon',
     Pong: 'Pong',
+    OnUploadProgress: 'OnUploadProgress',
+    OnUploadComplete: 'OnUploadComplete',
 
     // 2. Notification
     OnFetchFcmToken: 'OnFetchFcmToken',
@@ -134,6 +138,8 @@ export type EventMessageType = Extract<
     | 'OnPurchaseSuccess'
     | 'OnPurchaseError'
     | 'OnUpdateDeviceInfo'
+    | 'OnUploadProgress'
+    | 'OnUploadComplete'
 >;
 
 // ======================================================================
@@ -150,6 +156,8 @@ export interface AppMessageDataMap {
     OnCloseModal: never;
     OnOpenSettings: never;
     OnOpenShareSheet: OnOpenShareSheetPayload;
+    OnUploadProgress: OnUploadProgressPayload;
+    OnUploadComplete: OnUploadCompletePayload;
     OnBackPressed: never;
     OnOpenDocument: OnOpenDocumentPayload;
     OnGetContacts: OnGetContactsPayload;
