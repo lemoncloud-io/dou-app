@@ -1,12 +1,21 @@
 #import <React/RCTBridgeModule.h>
 #import <UIKit/UIKit.h>
 
-@interface FileManager : NSObject <RCTBridgeModule>
+@interface FileManager : NSObject <RCTBridgeModule> {
+    NSMutableDictionary<NSString *, NSNumber *> *_backgroundTasks;
+}
 @end
 
 @implementation FileManager
 
 RCT_EXPORT_MODULE();
+
+- (instancetype)init {
+    if (self = [super init]) {
+        _backgroundTasks = [NSMutableDictionary dictionary];
+    }
+    return self;
+}
 
 - (dispatch_queue_t)methodQueue {
     return dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
@@ -131,6 +140,59 @@ RCT_EXPORT_METHOD(unlink:(NSString *)path
         resolve(@(success));
     } @catch (NSException *exception) {
         reject(@"UNLINK_FAILED", exception.reason, nil);
+    }
+}
+
+RCT_EXPORT_METHOD(startBackgroundTask:(NSString *)uploadId
+                  fileName:(NSString *)fileName
+                  progress:(nonnull NSNumber *)progress
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+    @try {
+        @synchronized(_backgroundTasks) {
+            // If already exists, we do not need to create a new one
+            if (_backgroundTasks[uploadId]) {
+                resolve(nil);
+                return;
+            }
+            
+            __block UIBackgroundTaskIdentifier bgTaskId = UIBackgroundTaskInvalid;
+            NSString *taskName = [NSString stringWithFormat:@"io.chatic.dou.upload.%@", uploadId];
+            
+            bgTaskId = [[UIApplication sharedApplication] beginBackgroundTaskWithName:taskName expirationHandler:^{
+                @synchronized(_backgroundTasks) {
+                    [[UIApplication sharedApplication] endBackgroundTask:bgTaskId];
+                    [_backgroundTasks removeObjectForKey:uploadId];
+                }
+            }];
+            
+            if (bgTaskId != UIBackgroundTaskInvalid) {
+                _backgroundTasks[uploadId] = @(bgTaskId);
+            }
+        }
+        resolve(nil);
+    } @catch (NSException *exception) {
+        reject(@"START_BG_TASK_FAILED", exception.reason, nil);
+    }
+}
+
+RCT_EXPORT_METHOD(endBackgroundTask:(NSString *)uploadId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+    @try {
+        @synchronized(_backgroundTasks) {
+            NSNumber *bgTaskIdNumber = _backgroundTasks[uploadId];
+            if (bgTaskIdNumber) {
+                UIBackgroundTaskIdentifier bgTaskId = [bgTaskIdNumber unsignedIntegerValue];
+                if (bgTaskId != UIBackgroundTaskInvalid) {
+                    [[UIApplication sharedApplication] endBackgroundTask:bgTaskId];
+                }
+                [_backgroundTasks removeObjectForKey:uploadId];
+            }
+        }
+        resolve(nil);
+    } @catch (NSException *exception) {
+        reject(@"END_BG_TASK_FAILED", exception.reason, nil);
     }
 }
 
