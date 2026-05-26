@@ -135,8 +135,6 @@ export const HomePage = () => {
                                         <img
                                             src={displayImageUrl}
                                             alt="Profile"
-                                            loading="lazy"
-                                            decoding="async"
                                             className="h-full w-full object-cover"
                                         />
                                     ) : (
@@ -167,8 +165,6 @@ export const HomePage = () => {
                                 <img
                                     src={displayImageUrl}
                                     alt="Profile"
-                                    loading="lazy"
-                                    decoding="async"
                                     className="h-full w-full object-cover"
                                 />
                             ) : (

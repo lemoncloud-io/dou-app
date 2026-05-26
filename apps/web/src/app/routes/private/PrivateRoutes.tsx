@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 
 import { HomeRoutes } from '../../features/home';
-import { MainLayout, SafeAreaLayout } from '../../shared/layouts';
+import { UnifiedLayout } from '../../shared/layouts';
 
 const ChatRoutes = lazy(() => import('../../features/chats').then(m => ({ default: m.ChatRoutes })));
 const ExploreRoutes = lazy(() => import('../../features/explore').then(m => ({ default: m.ExploreRoutes })));
@@ -61,20 +61,12 @@ const withSuspense = (Component: React.ComponentType) => (
 );
 
 export const privateRoutes = [
-    // Routes with MainLayout (mobile-first 430px container)
     {
         path: '/',
-        element: <MainLayout />,
+        element: <UnifiedLayout />,
         children: [
             { index: true, element: <HomeRoutes /> },
             { path: 'explore/*', element: withSuspense(ExploreRoutes) },
-        ],
-    },
-    // Routes with SafeAreaLayout
-    {
-        path: '/',
-        element: <SafeAreaLayout />,
-        children: [
             { path: 'mypage/*', element: withSuspense(MyPageRoutes) },
             { path: 'account/*', element: withSuspense(AccountRoutes) },
             { path: 'chats/*', element: withSuspense(ChatRoutes) },

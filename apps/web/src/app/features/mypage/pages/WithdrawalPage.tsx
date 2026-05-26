@@ -49,8 +49,6 @@ export const WithdrawalPage = () => {
                         <img
                             src={userImageUrl}
                             alt="Profile"
-                            loading="lazy"
-                            decoding="async"
                             className="h-full w-full object-cover"
                         />
                     ) : (

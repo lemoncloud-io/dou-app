@@ -56,8 +56,6 @@ const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemPr
                         <img
                             src={place.thumbnail}
                             alt={displayName}
-                            loading="lazy"
-                            decoding="async"
                             className="h-full w-full object-cover"
                         />
                     ) : isDefaultPlace ? (
