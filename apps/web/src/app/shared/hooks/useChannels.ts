@@ -39,12 +39,17 @@ const toClientChannel = (channel: DomainChannel, userId?: string): ClientChannel
     const myReadNo = lastMessageIsMine ? lastChatNo : (channel.$join?.chatNo ?? 0);
     const memberCount = channel.memberNo ?? channel.memberIds?.length ?? channel.$joins?.length ?? 0;
 
+    // $join이 있으면 로컬 계산을 우선 사용 — join:update 이벤트로 $join.chatNo가 갱신되었을 때
+    // 서버의 channel.unreadCount는 아직 stale한 경우가 있어 깜빡임(flicker) 발생
+    const localUnread = Math.max(0, lastChatNo - myReadNo);
+    const unreadCount = channel.$join ? localUnread : (channel.unreadCount ?? localUnread);
+
     return {
         ...channel,
         isOwner: channel.ownerId === userId,
         isSelfChat: channel.stereo === 'self',
         memberCount,
-        unreadCount: channel.unreadCount ?? Math.max(0, lastChatNo - myReadNo),
+        unreadCount,
     };
 };
 
