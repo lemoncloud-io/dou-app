@@ -363,6 +363,181 @@ const defaultLoadAllPolicies: Record<CacheType, CacheReadPolicy> = {
 | 변경/삭제 잦음                         | `cold-first` | `cold-first`    | Cold 정합성 우선 |
 | 단건은 Hot 가능, 목록 쿼리 불일치 우려 | `hot-first`  | `cold-first`    | 혼합             |
 
+### 3.6 Cache Miss → Network Fetch (상위 계층 연계)
+
+`DynamicCacheStorage`는 **캐시 계층만 담당**합니다. Hot/Cold 양쪽 모두 miss(null/빈 배열)이면 그대로 null/빈 배열을 반환할 뿐, 네트워크 요청을 수행하지 않습니다.
+
+네트워크 fetch는 **Repository 계층**에서 `fetchWithCachePolicy()` 패턴으로 처리합니다.
+
+```mermaid
+sequenceDiagram
+    participant UI as UI (Page)
+    participant Repo as Repository
+    participant LDS as LocalDataSource
+    participant DC as DynamicCacheStorage
+    participant Hot as Hot (IndexedDB)
+    participant Cold as Cold (NativeDB)
+    participant RDS as RemoteDataSource
+    participant Server as Cloud Backend
+
+    UI->>Repo: fetchChat({ channelId }, cachePolicy: 'cache-first')
+    Repo->>LDS: fetchLocal()
+    LDS->>DC: loadAll(options)
+
+    DC->>Hot: Hot.loadAll(options)
+    Hot-->>DC: [] (miss)
+    DC->>Cold: Cold.loadAll(options)
+    Cold-->>DC: [] (miss)
+    DC-->>LDS: return []
+    LDS-->>Repo: return { list: [], source: 'local' }
+
+    Note over Repo: isLocalValid → list.length === 0 → false
+    Note over Repo: Cache 전체 miss → Network fallback
+
+    Repo->>RDS: fetchRemote(options)
+    RDS->>Server: WebSocket chat:mine 요청
+    Server-->>RDS: [msg1..msg50]
+    RDS-->>Repo: return [msg1..msg50]
+
+    Note over Repo: 네트워크 결과를 캐시에 저장 (saveAll)
+    Repo->>DC: saveAll([msg1..msg50])
+    DC->>Cold: Cold.saveAll()
+    Cold-->>DC: ✓
+    DC--)Hot: Hot.saveAll() [background]
+    Repo-->>UI: return [msg1..msg50]
+```
+
+#### Repository의 캐시 정책 결정 흐름
+
+Repository는 `fetchWithCachePolicy`(범용)와 `fetchChat`(Chat 전용) 두 가지 패턴으로 캐시 정책을 결정합니다. 핵심 분기는 동일합니다:
+
+```typescript
+// BaseRepository.fetchWithCachePolicy (libs/data/src/data/repositories/types.ts)
+protected async fetchWithCachePolicy<T>({
+    options, fetchLocal, fetchRemote, fallback, isLocalValid, backgroundLabel,
+}): Promise<T> {
+    const policy = this.resolveCachePolicy(options);
+
+    // 1. network-only → 캐시 스킵, 바로 네트워크
+    if (policy === 'network-only') {
+        return fetchRemote(options);
+    }
+
+    // 2. 로컬 캐시 조회 (DynamicCacheStorage → Hot/Cold)
+    const local = await fetchLocal();
+
+    // 3. cache-only → 네트워크 절대 안 탐
+    if (policy === 'cache-only') {
+        return local ?? fallback();
+    }
+
+    // 4. cache-first: 캐시 유효하면 즉시 반환 + 백그라운드 리프레시
+    if (local && (isLocalValid ? isLocalValid(local) : true)) {
+        this.runInBackground(() => fetchRemote({ ...options, cachePolicy: 'network-only' }));
+        return local;
+    }
+
+    // 5. ★ 캐시 전체 miss → 네트워크 fetch (foreground await)
+    return fetchRemote(options);
+}
+```
+
+#### `fetchRemote` = `fetchFromRemoteAndCache` — 네트워크 fetch + DB 저장을 한 곳에서
+
+위 분기에서 호출되는 `fetchRemote`는 실제로 각 Repository의 `fetchFromRemoteAndCache` 메서드입니다. 이 메서드가 **네트워크에서 가져오기 + 캐시에 저장**을 한 번에 처리합니다.
+
+```typescript
+// ChatRepository.fetchFromRemoteAndCache (libs/data/src/data/repositories/ChatRepository.ts)
+private async fetchFromRemoteAndCache(
+    payload: ChatFeedPayload,
+    options?: RepositoryRequestOptions
+): Promise<DomainListResult<DomainChat>> {
+    // 1. 네트워크 요청 (WebSocket chat:mine)
+    const remote = await this.requestRemote<ChatFeedResult>(
+        ref => this.chatRemoteDataSource.fetchChat(payload, ref),
+        options
+    );
+
+    const domainList = (remote.list || []).map(item => toDomainChat(item, requestScope));
+
+    // 2. ★ 가져온 데이터를 로컬 캐시에 저장
+    //    cross-cloud 오염 방지: 요청 시점 cid와 현재 cid가 같을 때만 저장
+    const currentCid = this.getRepositoryContext().cid;
+    if (currentCid === requestContext.cid) {
+        await this.chatLocalDataSource.upsertMany(domainList, requestContext);
+        // └─ 내부: CacheStorage.saveAll() 호출
+        //    └─ DynamicCacheStorage: Cold.saveAll() → Hot.saveAll() [background]
+    }
+
+    return createDomainListResult(domainList, { source: 'remote', ... });
+}
+```
+
+#### 네트워크 데이터 → DB 저장 경로 상세
+
+```mermaid
+sequenceDiagram
+    participant Repo as ChatRepository
+    participant RDS as ChatRemoteDataSource
+    participant Server as Cloud Backend
+    participant LDS as ChatLocalDataSource
+    participant DC as DynamicCacheStorage
+    participant Cold as Cold (NativeDB)
+    participant Hot as Hot (IndexedDB)
+
+    Note over Repo: fetchFromRemoteAndCache()
+
+    Repo->>RDS: chatRemoteDataSource.fetchChat(payload)
+    RDS->>Server: WebSocket chat:mine
+    Server-->>RDS: ChatFeedResult { list: [...] }
+    RDS-->>Repo: return ChatFeedResult
+
+    Note over Repo: toDomainChat()으로 도메인 모델 변환
+
+    Repo->>Repo: cross-cloud 검사 (requestContext.cid === currentCid?)
+
+    alt 같은 cloud (저장 진행)
+        Repo->>LDS: upsertMany(domainList, context)
+        LDS->>DC: saveAll(items)
+        DC->>Cold: 1. Cold.saveAll(items)
+        Cold-->>DC: ✓
+        DC--)Hot: 2. Hot.saveAll(items) [fire-and-forget]
+        LDS-->>Repo: ✓
+    else 다른 cloud (저장 스킵)
+        Note over Repo: cross-cloud 오염 방지 → 캐시 저장 생략
+    end
+
+    Repo-->>Repo: return DomainListResult { source: 'remote' }
+```
+
+> **핵심**: `DynamicCacheStorage`는 네트워크를 전혀 모릅니다. Repository가 네트워크에서 가져온 데이터를 `LocalDataSource.upsertMany()`로 넘기면, LocalDataSource가 `CacheStorage.saveAll()`을 호출하고, 이 시점에 DynamicCacheStorage의 Cold→Hot 저장 흐름을 탑니다.
+
+#### 실시간 이벤트 수신 시에도 같은 경로
+
+WebSocket으로 `chat:create`/`chat:update` 이벤트가 들어올 때도 동일한 저장 경로를 사용합니다:
+
+```typescript
+// ChatRepository.initializeInternalListeners()
+this.onDomainEvent('chat:create', detail => {
+    this.runInBackground(
+        () => this.chatLocalDataSource.upsert(detail.data, this.getRepositoryContext()),
+        //    └─ CacheStorage.save() → Cold.save() → Hot.save() [background]
+        'chat:create'
+    );
+});
+```
+
+#### 계층별 책임 정리
+
+| 계층                    | 읽기 시 역할                         | 쓰기 시 역할                                                               | 네트워크 접근                |
+| ----------------------- | ------------------------------------ | -------------------------------------------------------------------------- | ---------------------------- |
+| **DynamicCacheStorage** | Hot→Cold fallback, null/[] 반환      | Cold 먼저 → Hot background                                                 | ❌ 없음                      |
+| **LocalDataSource**     | CacheStorage 결과 → 도메인 모델 변환 | upsert/upsertMany → CacheStorage.save/saveAll 위임                         | ❌ 없음                      |
+| **Repository**          | `isLocalValid` 검사, 캐시 정책 분기  | `fetchFromRemoteAndCache`에서 네트워크 fetch + LocalDataSource에 저장 위임 | ✅ 판단 + 위임               |
+| **RemoteDataSource**    | —                                    | —                                                                          | ✅ 실제 I/O (WebSocket/HTTP) |
+
+> `DynamicCacheStorage`는 "Hot/Cold 사이의 fallback"만 책임지고, "캐시 전체 miss → 네트워크"는 Repository가 결정합니다. 네트워크에서 가져온 데이터의 DB 저장은 Repository → LocalDataSource → CacheStorage(DynamicCacheStorage) 경로로 흘러갑니다. 이 분리 덕분에 캐시 전략을 변경해도 네트워크 로직에 영향이 없습니다.
+
 ---
 
 ## 4. Chat 동기화 흐름
@@ -509,227 +684,326 @@ export const getCacheStorage = <TType extends CacheType>(
 
 ## 7. 검증 전략
 
-### 7.1 Mock 전략
+### 7.1 검증 대상과 범위
 
-`DynamicCacheStorage`는 DB에 직접 접근하지 않고 두 개의 `CacheStorage<TType>`을 조합만 합니다. 따라서 **Hot/Cold 각각을 `CacheStorage` 인터페이스의 mock 구현체로 주입**하면 DB 없이 순수 로직만 검증할 수 있습니다.
+`DynamicCacheStorage`는 DB에 직접 접근하지 않고 두 개의 `CacheStorage` 어댑터를 조합하는 **순수 오케스트레이션 로직**입니다. 검증해야 할 것은 "Hot/Cold 간 호출 순서, fallback 분기, 에러 전파/삼킴이 명세대로 동작하는가"입니다.
 
-#### Mock 구현체 구조
+#### 검증 수단 3가지
 
-```
-MockCacheStorage implements CacheStorage<TType>
-├── 내부 Map<string, CacheModelOf<TType>> (in-memory store)
-├── 각 메서드별 호출 기록 (spy)
-│   ├── callCount: number
-│   ├── calledWith: args[]
-│   └── lastCalledWith: args
-├── 에러 주입 설정
-│   ├── throwOnMethod(method, error): 특정 메서드 호출 시 에러 throw
-│   └── clearErrors(): 에러 주입 해제
-└── 상태 조회
-    ├── getStore(): 현재 내부 데이터 스냅샷
-    └── reset(): 호출 기록 + 데이터 초기화
-```
+| 수단               | 대상                                         | 담당            | 실행 시점      |
+| ------------------ | -------------------------------------------- | --------------- | -------------- |
+| **1. 단위 테스트** | DynamicCacheStorage 오케스트레이션 로직      | 개발자          | PR 머지 전, CI |
+| **2. 런타임 로깅** | 실제 앱에서 Hot/Cold fallback·에러 발생 빈도 | onHotError 콜백 | 배포 후 상시   |
+| **3. 수동 QA**     | 앱 WebView에서 체감 성능·정합성              | QA              | 릴리즈 전      |
 
-#### onHotError spy
-
-```
-mockReporter = { calls: [], handler: (error, context) => calls.push({ error, context }) }
-```
-
-`DynamicCacheStorageOptions.onHotError`에 `mockReporter.handler`를 주입하여 reporter 호출 여부와 전달된 context를 검증합니다.
-
-#### 비동기 부수효과 검증 방법
-
-| 부수효과 유형                                      | 검증 방법                                                                                                 |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| **background fire-and-forget** (write 후 Hot.save) | `await flushMicrotasks()` 후 `mockHot.save.callCount` 확인                                                |
-| **await best-effort** (delete 후 Hot.delete)       | `DynamicCacheStorage.delete()` resolve 후 즉시 `mockHot.delete.callCount` 확인 (await이므로 flush 불필요) |
-| **warm-up background** (loadAll 후 Hot.saveAll)    | `await flushMicrotasks()` 후 `mockHot.saveAll.calledWith` 확인                                            |
-
-> `flushMicrotasks`: 테스트 유틸로 `await new Promise(r => setTimeout(r, 0))` 또는 `vi.runAllTimersAsync()` 사용. fire-and-forget Promise가 내부적으로 catch 처리된 후 settled 되기를 기다립니다.
+각 수단의 구체적인 내용을 아래에 서술합니다.
 
 ---
 
-### 7.2 시나리오별 검증 명세
+### 7.2 단위 테스트 (Jest)
 
-#### Read (R1–R8)
+#### 목적
 
-**R1 — `load()` Hot hit**
+Hot/Cold 호출 순서, fallback 분기, 에러 삼킴/전파, background save 발생 여부를 **자동화된 테스트로 확인**합니다. 이 프로젝트는 Jest 기반이며, 기존 어댑터 테스트(`IndexedDBAdapter.test.ts`, `NativeDBAdapter.test.ts`)와 동일한 패턴을 따릅니다.
 
-| 단계    | 내용                                               |
-| ------- | -------------------------------------------------- |
-| Arrange | `mockHot.save('id1', item)` → Hot에 데이터 존재    |
-| Act     | `dcs.load('id1')`                                  |
-| Assert  | 반환값 === `item`, `mockCold.load.callCount === 0` |
+#### 파일 위치
 
-**R2 — `load()` Hot miss, Cold hit**
+```
+libs/data/src/data/local/storages/DynamicCacheStorage.test.ts
+```
 
-| 단계    | 내용                                                                                                                              |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Arrange | Hot 비어있음, `mockCold.save('id1', item)` → Cold에만 데이터 존재                                                                 |
-| Act     | `dcs.load('id1')`                                                                                                                 |
-| Assert  | 반환값 === `item`, `await flushMicrotasks()` 후 `mockHot.save.callCount === 1` 및 `mockHot.save.lastCalledWith === ['id1', item]` |
+#### 테스트 인프라
 
-**R3 — `load()` 양쪽 miss**
+**MockCacheStorage**: `jest.fn()`으로 `CacheStorage<TType>` 인터페이스의 각 메서드를 mock합니다. 실제 DB 없이 호출 여부·순서·인자를 검증합니다.
 
-| 단계    | 내용                                                                               |
-| ------- | ---------------------------------------------------------------------------------- |
-| Arrange | Hot/Cold 모두 비어있음                                                             |
-| Act     | `dcs.load('id1')`                                                                  |
-| Assert  | 반환값 === `null`, `mockHot.load.callCount === 1`, `mockCold.load.callCount === 1` |
+```typescript
+const createMockStorage = () => ({
+    save: jest.fn().mockImplementation((_id, item) => Promise.resolve(item)),
+    saveAll: jest.fn().mockImplementation(items => Promise.resolve(items)),
+    load: jest.fn().mockResolvedValue(null),
+    loadAll: jest.fn().mockResolvedValue([]),
+    delete: jest.fn().mockResolvedValue(undefined),
+    deleteAll: jest.fn().mockResolvedValue(undefined),
+    clearAll: jest.fn().mockResolvedValue(undefined),
+    clearByChannelId: jest.fn().mockResolvedValue(undefined),
+});
+```
 
-**R4 — `load()` Hot 에러**
+**onHotError spy**: Hot 에러 삼킴 검증용.
 
-| 단계    | 내용                                                                                                                                                          |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Arrange | `mockHot.throwOnMethod('load', new Error('IDB crash'))`, `mockCold.save('id1', item)`                                                                         |
-| Act     | `dcs.load('id1')`                                                                                                                                             |
-| Assert  | 반환값 === `item` (Cold fallback 성공), `mockReporter.calls.length === 1`, `mockReporter.calls[0].context.operation === 'load'`, 에러가 상위로 throw되지 않음 |
+```typescript
+const hotErrors: { error: unknown; operation: string }[] = [];
+const onHotError = jest.fn((error, context) => hotErrors.push({ error, operation: context.operation }));
+```
 
-**R5 — `loadAll()` cold-first**
+**flushMicrotasks**: fire-and-forget Promise가 settled 되기를 기다리는 유틸.
 
-| 단계    | 내용                                                                                                                                                                                      |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Arrange | `mockCold` 내부에 `[item1, item2, item3]` 저장, `loadAllPolicy: 'cold-first'`                                                                                                             |
-| Act     | `dcs.loadAll(options)`                                                                                                                                                                    |
-| Assert  | 반환값 === `[item1, item2, item3]`, `mockHot.loadAll.callCount === 0` (Hot 조회 안 함), `await flushMicrotasks()` 후 `mockHot.saveAll.callCount === 1` 및 전달된 items가 Cold 결과와 동일 |
+```typescript
+const flushMicrotasks = () => new Promise(resolve => setTimeout(resolve, 0));
+```
 
-**R6 — `loadAll()` hot-first — Hot hit**
+#### 시나리오 목록
 
-| 단계    | 내용                                                                 |
-| ------- | -------------------------------------------------------------------- |
-| Arrange | `mockHot` 내부에 `[item1, item2]` 저장, `loadAllPolicy: 'hot-first'` |
-| Act     | `dcs.loadAll(options)`                                               |
-| Assert  | 반환값 === `[item1, item2]`, `mockCold.loadAll.callCount === 0`      |
+아래 시나리오를 각각 하나의 `it()` 블록으로 작성합니다.
 
-**R7 — `loadAll()` hot-first — Hot miss (빈 배열)**
+##### Read (R1–R8)
 
-| 단계    | 내용                                                                                                        |
-| ------- | ----------------------------------------------------------------------------------------------------------- |
-| Arrange | Hot 비어있음 (loadAll → `[]`), `mockCold` 내부에 `[item1, item2]` 저장, `loadAllPolicy: 'hot-first'`        |
-| Act     | `dcs.loadAll(options)`                                                                                      |
-| Assert  | 반환값 === `[item1, item2]` (Cold fallback), `await flushMicrotasks()` 후 `mockHot.saveAll.callCount === 1` |
+| ID  | 시나리오                            | 검증 포인트                                                          |
+| --- | ----------------------------------- | -------------------------------------------------------------------- |
+| R1  | `load()` Hot hit                    | 반환값 정확, Cold.load 미호출                                        |
+| R2  | `load()` Hot miss → Cold hit        | 반환값 정확, background Hot.save 발생 (flushMicrotasks 후 확인)      |
+| R3  | `load()` 양쪽 miss                  | null 반환, Hot·Cold 각 1회 호출                                      |
+| R4  | `load()` Hot 에러 → Cold fallback   | 반환값 정확, onHotError 1회 호출 + operation='load', 상위 throw 없음 |
+| R5  | `loadAll()` cold-first              | Cold만 조회, Hot.loadAll 미호출, background Hot.saveAll warm-up 발생 |
+| R6  | `loadAll()` hot-first — Hot hit     | Hot 결과 반환, Cold.loadAll 미호출                                   |
+| R7  | `loadAll()` hot-first — Hot 빈 배열 | Cold fallback 결과 반환, background Hot.saveAll warm-up 발생         |
+| R8  | `loadAll()` hot-first — Hot 에러    | Cold fallback 결과 반환, onHotError 1회 호출 + operation='loadAll'   |
 
-**R8 — `loadAll()` hot-first — Hot 에러**
+##### Write (W1–W3)
 
-| 단계    | 내용                                                                                                                             |
-| ------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Arrange | `mockHot.throwOnMethod('loadAll', new Error('IDB crash'))`, `mockCold` 내부에 `[item1]`, `loadAllPolicy: 'hot-first'`            |
-| Act     | `dcs.loadAll(options)`                                                                                                           |
-| Assert  | 반환값 === `[item1]` (Cold fallback), `mockReporter.calls.length === 1`, `mockReporter.calls[0].context.operation === 'loadAll'` |
+| ID  | 시나리오           | 검증 포인트                                                   |
+| --- | ------------------ | ------------------------------------------------------------- |
+| W1  | `save()` 정상      | Cold.save 호출 → 반환값 정확, background Hot.save 발생        |
+| W2  | `save()` Cold 에러 | 에러 상위 전파, Hot.save 미호출                               |
+| W3  | `save()` Hot 에러  | 반환값 정상 (Cold 성공), onHotError 1회 호출, 상위 throw 없음 |
 
-#### Write (W1–W3)
+##### Delete (D1–D4)
 
-**W1 — `save()` 정상**
+| ID  | 시나리오             | 검증 포인트                                            |
+| --- | -------------------- | ------------------------------------------------------ |
+| D1  | `delete()` 정상      | Cold.delete 1회 + Hot.delete 1회 (await best-effort)   |
+| D2  | `delete()` Cold 에러 | 에러 상위 전파, Hot.delete 미호출                      |
+| D3  | `delete()` Hot 에러  | 정상 resolve, onHotError 1회 호출 + operation='delete' |
+| D4  | `clearAll()` 정상    | Cold.clearAll + Hot.clearAll 각 1회                    |
 
-| 단계    | 내용                                                                                                                                  |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Arrange | Hot/Cold 모두 정상                                                                                                                    |
-| Act     | `dcs.save('id1', item)`                                                                                                               |
-| Assert  | 반환값 === `item`, `mockCold.save.callCount === 1` 및 Cold가 먼저 호출됨, `await flushMicrotasks()` 후 `mockHot.save.callCount === 1` |
+##### 통합 흐름 (I1–I5)
 
-**W2 — `save()` Cold 실패**
+| ID  | 시나리오                        | 검증 포인트                                                    |
+| --- | ------------------------------- | -------------------------------------------------------------- |
+| I1  | save → load                     | save 후 Hot에 데이터 존재 → load 시 Cold 미조회 (Hot hit)      |
+| I2  | save → delete → load            | 삭제 후 양쪽 모두 데이터 없음 → null 반환                      |
+| I3  | saveAll → loadAll (hot-first)   | 연속 쓰기 후 Hot hit, Cold.loadAll 미호출                      |
+| I4  | 최초 loadAll → warm-up → 재조회 | 1차: Cold fallback, 2차: Hot hit (Cold.loadAll 추가 호출 없음) |
+| I5  | Hot 전면 장애                   | 모든 CRUD가 Cold만으로 정상 동작, onHotError 매 조작마다 호출  |
 
-| 단계    | 내용                                                                                           |
-| ------- | ---------------------------------------------------------------------------------------------- |
-| Arrange | `mockCold.throwOnMethod('save', new Error('SQLite write fail'))`                               |
-| Act     | `dcs.save('id1', item)`                                                                        |
-| Assert  | **에러가 상위로 전파됨** (Cold 에러 그대로 throw), `mockHot.save.callCount === 0` (Hot 미호출) |
+#### 테스트 코드 예시
 
-**W3 — `save()` Hot 실패**
+아래는 핵심 시나리오의 테스트 코드 형태입니다. 전체 시나리오는 동일한 패턴으로 확장합니다.
 
-| 단계    | 내용                                                                                                                                          |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Arrange | `mockHot.throwOnMethod('save', new Error('IDB quota'))`, Cold 정상                                                                            |
-| Act     | `dcs.save('id1', item)`                                                                                                                       |
-| Assert  | 반환값 === `item` (정상 반환, Hot 에러 삼킴), `mockCold.save.callCount === 1`, `await flushMicrotasks()` 후 `mockReporter.calls.length === 1` |
+```typescript
+import { DynamicCacheStorage } from './DynamicCacheStorage';
+import type { CacheStorage } from './types';
 
-#### Delete / Clear (D1–D4)
+const flushMicrotasks = () => new Promise(resolve => setTimeout(resolve, 0));
 
-**D1 — `delete()` 정상**
+const createMockStorage = (): jest.Mocked<CacheStorage<'chat'>> => ({
+    save: jest.fn().mockImplementation((_id, item) => Promise.resolve(item)),
+    saveAll: jest.fn().mockImplementation(items => Promise.resolve(items)),
+    load: jest.fn().mockResolvedValue(null),
+    loadAll: jest.fn().mockResolvedValue([]),
+    delete: jest.fn().mockResolvedValue(undefined),
+    deleteAll: jest.fn().mockResolvedValue(undefined),
+    clearAll: jest.fn().mockResolvedValue(undefined),
+    clearByChannelId: jest.fn().mockResolvedValue(undefined),
+});
 
-| 단계    | 내용                                                                                                                                                                                    |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Arrange | Hot/Cold 모두에 `'id1'` 데이터 존재                                                                                                                                                     |
-| Act     | `dcs.delete('id1')`                                                                                                                                                                     |
-| Assert  | 에러 없이 resolve, `mockCold.delete.callCount === 1` (먼저), `mockHot.delete.callCount === 1` (await best-effort), 이후 `mockHot.load('id1') === null`, `mockCold.load('id1') === null` |
+const item = (id: string) => ({ id, channelId: 'ch-1', text: `msg-${id}` }) as any;
 
-**D2 — `delete()` Cold 실패**
+describe('DynamicCacheStorage', () => {
+    let mockHot: jest.Mocked<CacheStorage<'chat'>>;
+    let mockCold: jest.Mocked<CacheStorage<'chat'>>;
+    let onHotError: jest.Mock;
 
-| 단계    | 내용                                                         |
-| ------- | ------------------------------------------------------------ |
-| Arrange | `mockCold.throwOnMethod('delete', new Error('SQLite lock'))` |
-| Act     | `dcs.delete('id1')`                                          |
-| Assert  | **에러가 상위로 전파됨**, `mockHot.delete.callCount === 0`   |
+    beforeEach(() => {
+        mockHot = createMockStorage();
+        mockCold = createMockStorage();
+        onHotError = jest.fn();
+    });
 
-**D3 — `delete()` Hot 실패**
+    const createDCS = (overrides = {}) =>
+        new DynamicCacheStorage(mockHot, mockCold, {
+            type: 'chat',
+            readPolicy: 'hot-first',
+            loadAllPolicy: 'hot-first',
+            onHotError,
+            ...overrides,
+        });
 
-| 단계    | 내용                                                                                                                                                                 |
-| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Arrange | `mockHot.throwOnMethod('delete', new Error('IDB error'))`, Cold 정상                                                                                                 |
-| Act     | `dcs.delete('id1')`                                                                                                                                                  |
-| Assert  | 에러 없이 정상 resolve (Hot 에러 삼킴), `mockCold.delete.callCount === 1`, `mockReporter.calls.length === 1`, `mockReporter.calls[0].context.operation === 'delete'` |
+    // ── R1: load() Hot hit ──
+    it('load — Hot hit이면 Cold를 조회하지 않는다', async () => {
+        mockHot.load.mockResolvedValueOnce(item('1'));
+        const dcs = createDCS();
 
-**D4 — `clearAll()` 정상**
+        const result = await dcs.load('1');
 
-| 단계    | 내용                                                                                                                                          |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Arrange | Hot/Cold 모두에 여러 데이터 존재                                                                                                              |
-| Act     | `dcs.clearAll()`                                                                                                                              |
-| Assert  | 에러 없이 resolve, `mockCold.clearAll.callCount === 1`, `mockHot.clearAll.callCount === 1` (await best-effort), `mockHot.getStore()` 비어있음 |
+        expect(result).toMatchObject(item('1'));
+        expect(mockCold.load).not.toHaveBeenCalled();
+    });
 
-#### 통합 (I1–I5)
+    // ── R2: load() Hot miss → Cold hit → background Hot.save ──
+    it('load — Hot miss 시 Cold fallback 후 background로 Hot에 저장한다', async () => {
+        mockHot.load.mockResolvedValueOnce(null);
+        mockCold.load.mockResolvedValueOnce(item('1'));
+        const dcs = createDCS();
 
-**I1 — save → load (Hot hit 경로 확인)**
+        const result = await dcs.load('1');
+        await flushMicrotasks();
 
-| 단계    | 내용                                                                                  |
-| ------- | ------------------------------------------------------------------------------------- |
-| Arrange | Hot/Cold 모두 비어있음                                                                |
-| Act     | `dcs.save('id1', item)` → `await flushMicrotasks()` → `dcs.load('id1')`               |
-| Assert  | `load` 반환값 === `item`, `mockCold.load.callCount === 0` (Hot hit이므로 Cold 미조회) |
+        expect(result).toMatchObject(item('1'));
+        expect(mockHot.save).toHaveBeenCalledWith('1', item('1'));
+    });
 
-**I2 — save → delete → load (양쪽 삭제 확인)**
+    // ── R4: load() Hot 에러 → Cold fallback, onHotError 호출 ──
+    it('load — Hot 에러 시 Cold fallback + onHotError 호출, 상위에 throw하지 않는다', async () => {
+        mockHot.load.mockRejectedValueOnce(new Error('IDB crash'));
+        mockCold.load.mockResolvedValueOnce(item('1'));
+        const dcs = createDCS();
 
-| 단계    | 내용                                                                                                |
-| ------- | --------------------------------------------------------------------------------------------------- |
-| Arrange | Hot/Cold 모두 비어있음                                                                              |
-| Act     | `dcs.save('id1', item)` → `await flushMicrotasks()` → `dcs.delete('id1')` → `dcs.load('id1')`       |
-| Assert  | `load` 반환값 === `null`, `mockHot.getStore()`에 `'id1'` 없음, `mockCold.getStore()`에 `'id1'` 없음 |
+        const result = await dcs.load('1');
 
-**I3 — chat feed burst → loadAll hot-first (연속 쓰기 후 Hot 조회)**
+        expect(result).toMatchObject(item('1'));
+        expect(onHotError).toHaveBeenCalledTimes(1);
+        expect(onHotError).toHaveBeenCalledWith(expect.any(Error), expect.objectContaining({ operation: 'load' }));
+    });
 
-| 단계    | 내용                                                                              |
-| ------- | --------------------------------------------------------------------------------- |
-| Arrange | `loadAllPolicy: 'hot-first'`                                                      |
-| Act     | `dcs.saveAll([msg1..msg10])` → `await flushMicrotasks()` → `dcs.loadAll(options)` |
-| Assert  | `loadAll` 반환값에 10개 메시지 포함, `mockCold.loadAll.callCount === 0` (Hot hit) |
+    // ── W2: save() Cold 에러 → 상위 전파, Hot 미호출 ──
+    it('save — Cold 에러는 상위에 그대로 전파하고 Hot은 호출하지 않는다', async () => {
+        mockCold.save.mockRejectedValueOnce(new Error('SQLite write fail'));
+        const dcs = createDCS();
 
-**I4 — chat 최초 진입 → loadAll hot-first (Cold fallback → warm-up → 재진입 Hot hit)**
+        await expect(dcs.save('1', item('1'))).rejects.toThrow('SQLite write fail');
+        expect(mockHot.save).not.toHaveBeenCalled();
+    });
 
-| 단계    | 내용                                                                                                                                                     |
-| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Arrange | Hot 비어있음, Cold에 `[msg1..msg50]` 존재, `loadAllPolicy: 'hot-first'`                                                                                  |
-| Act     | 1차: `dcs.loadAll(options)` → `await flushMicrotasks()` → 2차: `dcs.loadAll(options)`                                                                    |
-| Assert  | 1차 반환값 === `[msg1..msg50]` (Cold fallback), 2차 반환값 === `[msg1..msg50]` (Hot hit), 2차에서 `mockCold.loadAll` 추가 호출 없음 (callCount 여전히 1) |
+    // ── D1: delete() 정상 — Cold 먼저, Hot await best-effort ──
+    it('delete — Cold 삭제 후 Hot 삭제를 await한다', async () => {
+        const dcs = createDCS();
 
-**I5 — Hot 전면 장애 (모든 CRUD가 Cold만으로 동작)**
+        await dcs.delete('1');
 
-| 단계    | 내용                                                                                                                                                                     |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Arrange | `mockHot.throwOnMethod('*', new Error('IDB unavailable'))` (모든 메서드에 에러 주입), Cold 정상                                                                          |
-| Act     | `dcs.save('id1', item)` → `dcs.load('id1')` → `dcs.loadAll()` → `dcs.delete('id1')`                                                                                      |
-| Assert  | `save` 정상 반환, `load` 반환값 === `item`, `loadAll` 반환값 포함, `delete` 정상 resolve, `mockReporter.calls.length >= 4` (각 Hot 실패마다 기록), 상위에 에러 전파 없음 |
+        expect(mockCold.delete).toHaveBeenCalledWith('1');
+        expect(mockHot.delete).toHaveBeenCalledWith('1');
+    });
+
+    // ── I4: 최초 loadAll → warm-up → 재진입 Hot hit ──
+    it('loadAll — 최초 Cold fallback 후 warm-up, 재조회 시 Hot hit', async () => {
+        // 1차: Hot 빈 배열, Cold에 데이터 있음
+        mockHot.loadAll.mockResolvedValueOnce([]);
+        mockCold.loadAll.mockResolvedValueOnce([item('1'), item('2')]);
+        // warm-up 후 2차 Hot 조회 시 데이터 반환되도록 설정
+        mockHot.loadAll.mockResolvedValueOnce([item('1'), item('2')]);
+        const dcs = createDCS();
+
+        const first = await dcs.loadAll();
+        await flushMicrotasks();
+        const second = await dcs.loadAll();
+
+        expect(first).toHaveLength(2);
+        expect(second).toHaveLength(2);
+        // Cold.loadAll은 1차에서 1번만 호출됨
+        expect(mockCold.loadAll).toHaveBeenCalledTimes(1);
+    });
+
+    // ── I5: Hot 전면 장애 — 모든 CRUD가 Cold만으로 동작 ──
+    it('Hot 전면 장애 시 모든 CRUD가 Cold만으로 정상 동작한다', async () => {
+        mockHot.save.mockRejectedValue(new Error('IDB dead'));
+        mockHot.load.mockRejectedValue(new Error('IDB dead'));
+        mockHot.loadAll.mockRejectedValue(new Error('IDB dead'));
+        mockHot.delete.mockRejectedValue(new Error('IDB dead'));
+        mockCold.load.mockResolvedValue(item('1'));
+        mockCold.loadAll.mockResolvedValue([item('1')]);
+        const dcs = createDCS();
+
+        const saved = await dcs.save('1', item('1'));
+        await flushMicrotasks();
+        const loaded = await dcs.load('1');
+        const list = await dcs.loadAll();
+        await dcs.delete('1');
+
+        expect(saved).toMatchObject(item('1'));
+        expect(loaded).toMatchObject(item('1'));
+        expect(list).toHaveLength(1);
+        expect(onHotError).toHaveBeenCalled();
+    });
+});
+```
+
+#### 실행 방법
+
+```bash
+npx nx test data --testPathPattern='DynamicCacheStorage'
+```
 
 ---
 
-### 7.3 검증 범위 밖 (이 명세에서 다루지 않는 것)
+### 7.3 런타임 로깅 (배포 후 모니터링)
 
-| 항목                                              | 이유                                                          |
-| ------------------------------------------------- | ------------------------------------------------------------- |
-| IndexedDBAdapter / NativeDBAdapter 단위 동작      | 각 어댑터의 자체 검증 영역 (`db-adapter-refactoring.md` 소관) |
-| 실제 IndexedDB / SQLite I/O 성능                  | 통합/성능 테스트 영역, 별도 계획 필요                         |
-| WebSocket → Repository → DynamicCacheStorage 연쇄 | end-to-end 통합 테스트 영역                                   |
-| 앱 WebView 수동 검증                              | QA 체크리스트로 별도 관리                                     |
+#### 목적
+
+단위 테스트는 로직 정확성을 보장하지만, **실제 앱 환경에서 Hot이 얼마나 자주 실패하는지, fallback이 얼마나 발생하는지**는 런타임에서만 알 수 있습니다.
+
+#### 수단
+
+`HotColdCacheStorageStrategy`가 `DynamicCacheStorage` 생성 시 주입하는 `onHotError` 콜백이 이 역할을 합니다.
+
+```typescript
+// cacheStorageStrategies.ts — 현재 구현
+onHotError: (error, context) => {
+    console.warn('[DynamicCacheStorage] Hot error:', context.operation, error);
+};
+```
+
+#### 확인 항목
+
+| 항목                     | 정상 기대치                  | 이상 징후                                   |
+| ------------------------ | ---------------------------- | ------------------------------------------- |
+| Hot error 빈도           | 0 또는 극소                  | 반복 발생 → IndexedDB quota/corruption 의심 |
+| error가 발생한 operation | —                            | 특정 operation에 집중 시 해당 경로 점검     |
+| 앱 시작 직후 Hot miss율  | 첫 진입 시 100% (warm-up 전) | 재방문에도 계속 miss → warm-up 실패 의심    |
+
+#### 향후 확장
+
+`console.warn` → 서버 로그 수집(Sentry 등)으로 전환하면 배포 후 Hot 장애를 대시보드에서 모니터링할 수 있습니다. 현재 단계에서는 `console.warn`으로 개발 중 디버깅에 활용합니다.
+
+---
+
+### 7.4 수동 QA (앱 WebView)
+
+#### 목적
+
+단위 테스트와 로깅이 커버하지 못하는 **실제 체감 성능과 정합성**을 확인합니다. 특히 브릿지 통신 지연, WebView 메모리 제약 등 실환경 요인을 검증합니다.
+
+#### 체크리스트
+
+| #   | 시나리오                      | 조작                                     | 확인 항목                                            |
+| --- | ----------------------------- | ---------------------------------------- | ---------------------------------------------------- |
+| Q1  | 앱 최초 실행 (Hot 비어있음)   | 채팅방 진입                              | 채팅 목록 정상 렌더링 (Cold → Hot warm-up)           |
+| Q2  | 앱 재실행 (Hot에 데이터 있음) | 같은 채팅방 재진입                       | 이전 대비 로딩 체감 개선 (Hot hit, 브릿지 왕복 없음) |
+| Q3  | 채팅방에서 메시지 송수신      | 메시지 전송 후 앱 종료 → 재실행          | 보낸 메시지가 그대로 존재 (Cold에 저장됨)            |
+| Q4  | Place 전환                    | Place A → Place B → Place A              | 각 Place의 채널/채팅이 정확히 표시 (scope isolation) |
+| Q5  | Cloud 전환                    | Cloud 변경                               | 이전 Cloud의 데이터가 섞이지 않음                    |
+| Q6  | 오프라인 → 온라인             | 비행기 모드 전환                         | 캐시된 데이터 즉시 표시, 온라인 복구 후 동기화       |
+| Q7  | IndexedDB 수동 삭제           | DevTools에서 IndexedDB 삭제 후 앱 재실행 | Cold에서 복구되어 정상 동작 (Hot = 파생 캐시 원칙)   |
+
+#### 성능 비교 측정
+
+| 측정 항목                    | 방법                                               | before (NativeDB 단독) | after (Hot/Cold 2-Tier) |
+| ---------------------------- | -------------------------------------------------- | ---------------------- | ----------------------- |
+| 채팅방 진입 → 첫 메시지 렌더 | DevTools Performance 또는 `performance.now()` 로그 | (측정값 기입)          | (측정값 기입)           |
+| 채널 목록 로드               | 같은 방법                                          | (측정값 기입)          | (측정값 기입)           |
+
+> 성능 측정값은 QA 진행 시 기입합니다. 유의미한 개선이 없을 경우 `readPolicy`/`loadAllPolicy` 조정을 검토합니다.
+
+---
+
+### 7.5 검증 범위 밖 (이 명세에서 다루지 않는 것)
+
+| 항목                                              | 이유                                                            |
+| ------------------------------------------------- | --------------------------------------------------------------- |
+| IndexedDBAdapter / NativeDBAdapter 단위 동작      | 각 어댑터의 자체 테스트 영역 (`db-adapter-refactoring.md` 소관) |
+| 실제 IndexedDB / SQLite I/O 성능 벤치마크         | 별도 성능 테스트 계획 필요                                      |
+| WebSocket → Repository → DynamicCacheStorage 연쇄 | end-to-end 통합 테스트 영역                                     |
+| 브라우저 환경 (IndexedDbOnlyStrategy)             | DynamicCacheStorage 미사용, 기존 동작 그대로                    |
 
 ---
 
