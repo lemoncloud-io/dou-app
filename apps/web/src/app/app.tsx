@@ -12,7 +12,9 @@ import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
 
-import { initializeMessageListener, logger, postMessage } from '@chatic/app-messages';
+import { initializeMessageListener, logger } from '@chatic/app-messages';
+
+import { webBridge } from './shared/bridges';
 
 import { ServiceUnavailableOverlay, WebSocketV2Connection } from './components';
 import { GlobalChatSync } from './components/GlobalChatSync';
@@ -88,9 +90,9 @@ export function App() {
         };
     }, []);
 
-    // React 마운트 완료 → 네이티브 APP LOADER 해제
+    // 네이티브 APP LOADER 해제 — 웹 마운트 즉시 전송
     useEffect(() => {
-        postMessage({ type: 'WebAppReady' });
+        webBridge.post('WebAppReady');
     }, []);
 
     const handleError = useCallback((error: Error, info: ErrorInfo): void => {

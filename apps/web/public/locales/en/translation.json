@@ -766,7 +766,10 @@
         "missingServerInfo": "Server information is missing from the invite link",
         "missingDelegator": "Device authentication not found.\nPlease log out and try again.",
         "goBack": "Go Back",
-        "decline": "Decline"
+        "decline": "Decline",
+        "timeout": "Server response timed out. Please try again.",
+        "networkError": "Please check your network connection and try again.",
+        "authVerifyFailed": "Authentication failed. Please try again."
     },
     "subscriptionRequired": {
         "title": "A subscription is required to use this service",

@@ -29,5 +29,6 @@ export const subscriptionIapService = provider.subscriptionIapService;
 export const preferenceService = provider.preferenceService;
 export const cacheCrudService = provider.cacheCrudService;
 export const cacheSearchService = provider.cacheSearchService;
+export const testRecordService = provider.testRecordService;
 export const sqliteDatabase = provider.sqliteDatabase;
 export const keyValueStorage = provider.keyValueStorage;

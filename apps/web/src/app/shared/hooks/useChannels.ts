@@ -13,9 +13,25 @@ import { debounce } from '../utils/debounce';
 const DEFAULT_CHANNEL_LIMIT = 100;
 const CHANNEL_POLL_INTERVAL_MS = 15_000;
 
+export interface ChannelDebugInfo {
+    fetchCount: number;
+    lastFetchAt: string | null;
+    lastFetchResultCount: number | null;
+    cacheKey: string;
+    cacheHit: boolean;
+    isVerified: boolean;
+    isConnected: boolean;
+    cloudId: string | null;
+    targetPlaceId: string | undefined;
+}
+
 // 모듈 레벨 캐시 — unmount/remount 시에도 이전 채널 데이터를 즉시 표시하여 깜빡임 방지
 const channelCache = new Map<string, ClientChannelView[]>();
 const getChannelCacheKey = (cloudId: string | null, placeId?: string) => `${cloudId}:${placeId ?? ''}`;
+
+// 컴포넌트 재마운트와 실제 클라우드/place 전환을 구분하기 위한 모듈 레벨 변수
+let lastFetchedCloudId: string | null | undefined;
+let lastFetchedPlaceId: string | undefined;
 
 const toClientChannel = (channel: DomainChannel, userId?: string): ClientChannelView => {
     const lastChatNo = channel.lastChat$?.chatNo ?? channel.chatNo ?? 0;
@@ -23,12 +39,17 @@ const toClientChannel = (channel: DomainChannel, userId?: string): ClientChannel
     const myReadNo = lastMessageIsMine ? lastChatNo : (channel.$join?.chatNo ?? 0);
     const memberCount = channel.memberNo ?? channel.memberIds?.length ?? channel.$joins?.length ?? 0;
 
+    // $join이 있으면 로컬 계산을 우선 사용 — join:update 이벤트로 $join.chatNo가 갱신되었을 때
+    // 서버의 channel.unreadCount는 아직 stale한 경우가 있어 깜빡임(flicker) 발생
+    const localUnread = Math.max(0, lastChatNo - myReadNo);
+    const unreadCount = channel.$join ? localUnread : (channel.unreadCount ?? localUnread);
+
     return {
         ...channel,
         isOwner: channel.ownerId === userId,
         isSelfChat: channel.stereo === 'self',
         memberCount,
-        unreadCount: channel.unreadCount ?? Math.max(0, lastChatNo - myReadNo),
+        unreadCount,
     };
 };
 
@@ -53,11 +74,18 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     const targetPlaceId = initialParams.sid;
     const storeCloudId = useWebSocketV2Store(s => s.cloudId);
     const isConnected = useWebSocketV2Store(s => s.isConnected);
-    // default cloud인 경우 WebSocket store에 cloudId가 설정되기 전에도 동작할 수 있도록 fallback
-    const selectedCloudId = cloudCore.getSelectedCloudId();
-    const cloudId = storeCloudId || selectedCloudId || null;
+    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    const cloudId = storeCloudId || cloudCore.getSelectedCloudId() || null;
 
     const currentParamsRef = useRef(initialParams);
+    const requestSeqRef = useRef(0);
+    const userIdRef = useRef(userId);
+    userIdRef.current = userId;
+    const cloudIdRef = useRef(cloudId);
+    cloudIdRef.current = cloudId;
+    const targetPlaceIdRef = useRef(targetPlaceId);
+    targetPlaceIdRef.current = targetPlaceId;
+
     const cacheKey = getChannelCacheKey(cloudId, targetPlaceId);
 
     const [channels, setChannels] = useState<ClientChannelView[]>(() => channelCache.get(cacheKey) ?? []);
@@ -65,142 +93,188 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     channelsRef.current = channels;
 
     const [isLoading, setIsLoading] = useState(() => !channelCache.has(cacheKey));
-
-    // 렌더 단계에서 cloud/place 전환 감지 — useEffect가 아닌 렌더 중에 상태를 초기화하여
-    // 이전 place의 채널이 한 프레임 보이는 현상(flash) 방지
-    const [prevCloudId, setPrevCloudId] = useState(cloudId);
-    const [prevPlaceId, setPrevPlaceId] = useState(targetPlaceId);
-
-    const isCloudSwitch = !!prevCloudId && prevCloudId !== cloudId;
-    const isPlaceSwitch = !!prevPlaceId && prevPlaceId !== targetPlaceId;
-
-    if (isCloudSwitch || isPlaceSwitch) {
-        setChannels([]);
-        setIsLoading(true);
-    }
-    if (prevCloudId !== cloudId) setPrevCloudId(cloudId);
-    if (prevPlaceId !== targetPlaceId) setPrevPlaceId(targetPlaceId);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isError, setIsError] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    //  로컬 캐시 스트림 구독 (즉시 렌더링)
-    useEffect(() => {
-        if (!targetPlaceId || !cloudId) {
-            // 모듈 캐시 데이터가 있으면 초기화하지 않음 (remount 시 일시적 빈 값 방지)
-            return;
+    const [debugInfo, setDebugInfo] = useState({
+        fetchCount: 0,
+        lastFetchAt: null as string | null,
+        lastFetchResultCount: null as number | null,
+    });
+
+    // 렌더 단계에서 cloud/place 전환 감지 — 이전 place의 채널이 한 프레임 보이는 현상(flash) 방지
+    // 모듈 캐시에 새 place 데이터가 있으면 즉시 복원하여 불필요한 빈 화면 방지
+    const [prevCloudId, setPrevCloudId] = useState(cloudId);
+    const [prevPlaceId, setPrevPlaceId] = useState(targetPlaceId);
+
+    if ((!!prevCloudId && prevCloudId !== cloudId) || (!!prevPlaceId && prevPlaceId !== targetPlaceId)) {
+        const nextCacheKey = getChannelCacheKey(cloudId, targetPlaceId);
+        const cached = channelCache.get(nextCacheKey);
+        if (cached && cached.length > 0) {
+            setChannels(cached);
+            setIsLoading(false);
+        } else {
+            setChannels([]);
+            setIsLoading(true);
         }
+    }
+    if (prevCloudId !== cloudId) setPrevCloudId(cloudId);
+    if (prevPlaceId !== targetPlaceId) setPrevPlaceId(targetPlaceId);
 
-        const payload = buildFetchPayload({ ...currentParamsRef.current, sid: targetPlaceId });
-
-        const unsubscribe = channelRepository.subscribeList(payload, result => {
-            if (result === null) return;
-            const nextChannels = sortChannels(
-                (result.list ?? []).map((channel: DomainChannel) => toClientChannel(channel, userId))
-            );
-            channelCache.set(getChannelCacheKey(cloudId, targetPlaceId), nextChannels);
-            setChannels(nextChannels);
-            // 데이터가 있을 때만 isLoading 해제 — 캐시 미스(빈 배열)로 조기 해제되면
-            // fetchChannels 네트워크 응답 전에 "채널 없음" 빈 상태가 잠깐 보임.
-            // 빈 place의 isLoading 해제는 fetchChannels에서 처리.
-            if (nextChannels.length > 0) {
-                setIsLoading(false);
-            }
-        });
-
-        return () => unsubscribe();
-    }, [targetPlaceId, cloudId, channelRepository, userId]);
-
-    const userIdRef = useRef(userId);
-    userIdRef.current = userId;
-
-    // 백그라운드 데이터 동기화
+    // 단일 fetch 함수 — 결과를 항상 직접 반영 (usePlaces와 동일 패턴)
     const fetchChannels = useCallback(
-        async (params?: Partial<DomainChannelListPayload> & { forceNetwork?: boolean }) => {
-            const { forceNetwork, ...rest } = params ?? {};
-            const nextParams = { ...currentParamsRef.current, ...rest };
-            currentParamsRef.current = nextParams;
+        async (options?: { loading?: boolean; forceNetwork?: boolean }) => {
+            const params = currentParamsRef.current;
+            if (!params.sid) return;
 
-            if (!nextParams.sid) return;
+            const requestSeq = ++requestSeqRef.current;
 
-            if (forceNetwork) setIsSyncing(true);
+            if (options?.loading) setIsLoading(true);
+            if (options?.forceNetwork) setIsSyncing(true);
             setIsError(false);
             setErrorMessage(null);
 
+            const cachePolicy = options?.forceNetwork ? 'network-only' : 'cache-first';
+            logger.info('CHANNEL', '[useChannels] fetchChannels start', {
+                data: { sid: params.sid, cachePolicy, forceNetwork: options?.forceNetwork },
+            });
+
             try {
-                const cachePolicy = forceNetwork ? 'network-only' : 'cache-first';
-                const result = await channelRepository.fetchChannel(buildFetchPayload(nextParams), {
-                    cachePolicy,
+                const result = await channelRepository.fetchChannel(buildFetchPayload(params), { cachePolicy });
+                if (requestSeqRef.current !== requestSeq) return;
+
+                const nextChannels = sortChannels(
+                    (result.list ?? []).map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
+                );
+                logger.info('CHANNEL', '[useChannels] fetchChannels result', {
+                    data: { resultCount: nextChannels.length, source: result.meta?.source },
                 });
-                // fetchFromRemoteAndCache가 로컬 캐시에 직접 저장하지 않아
-                // subscribeList 콜백이 도메인 이벤트 타이밍에 의존함.
-                // 채널이 비어있으면 반환값으로 직접 보완하여 초기 로딩 지연 방지
-                if (channelsRef.current.length === 0 && (result.list ?? []).length > 0) {
-                    const nextChannels = sortChannels(
-                        (result.list ?? []).map((channel: DomainChannel) => toClientChannel(channel, userIdRef.current))
-                    );
-                    setChannels(nextChannels);
-                }
+
+                channelCache.set(getChannelCacheKey(cloudIdRef.current, targetPlaceIdRef.current), nextChannels);
+                setChannels(nextChannels);
+                setDebugInfo(prev => ({
+                    fetchCount: prev.fetchCount + 1,
+                    lastFetchAt: new Date().toISOString(),
+                    lastFetchResultCount: nextChannels.length,
+                }));
             } catch (error) {
+                if (requestSeqRef.current !== requestSeq) return;
                 const message = error instanceof Error ? error.message : String(error);
-                logger.error('CHANNEL', 'Failed to fetch channels from repository', { error });
+                logger.error('CHANNEL', '[useChannels] fetchChannels failed', { error });
                 setIsError(true);
                 setErrorMessage(message);
             } finally {
-                // 네트워크 fetch 완료 후 항상 isLoading 해제 — 빈 place도 "채널 없음"을 표시하려면
-                // 네트워크 확인 후에만 로딩을 끝내야 함
-                setIsLoading(false);
-                if (forceNetwork) setIsSyncing(false);
+                if (requestSeqRef.current === requestSeq) {
+                    setIsLoading(false);
+                    if (options?.forceNetwork) setIsSyncing(false);
+                }
             }
         },
         [channelRepository]
     );
 
-    // 채널 데이터 동기화 — cloud/place 전환 시 초기화는 위 렌더 단계에서 처리,
-    // 여기서는 fetchChannels만 호출
+    // isVerified 전이라도 캐시에서 채널을 즉시 읽기
     useEffect(() => {
-        currentParamsRef.current = initialParams;
-        void fetchChannels(initialParams);
-    }, [
-        fetchChannels,
-        targetPlaceId,
-        cloudId,
-        isConnected,
-        initialParams.detail,
-        initialParams.limit,
-        initialParams.page,
-    ]);
+        if (!cloudId || !targetPlaceId || isVerified) return;
+        const key = getChannelCacheKey(cloudId, targetPlaceId);
 
-    // 채팅/조인 업데이트 등 간접적 이벤트에 대한 동기화 트리거
-    useEffect(() => {
-        const debouncedFetchChannels = debounce(fetchChannels, 300);
+        // 모듈 캐시에 데이터가 있으면 즉시 복원 (렌더 단계와 effect 타이밍 차이 보완)
+        const cached = channelCache.get(key);
+        if (cached && cached.length > 0) {
+            setChannels(cached);
+            setIsLoading(false);
+            return;
+        }
 
-        const unsubscribeChatCreated = chatRepository.onChatCreated((chat: DomainChat) => {
-            if (!chat.channelId || channelsRef.current.length === 0) return;
-            if (channelsRef.current.some(channel => channel.id === chat.channelId)) {
-                void debouncedFetchChannels();
+        const requestSeq = ++requestSeqRef.current;
+        const loadCache = async () => {
+            try {
+                const result = await channelRepository.fetchChannel(
+                    buildFetchPayload({ ...currentParamsRef.current, sid: targetPlaceId }),
+                    { cachePolicy: 'cache-only' }
+                );
+                if (requestSeqRef.current !== requestSeq) return;
+                const nextChannels = sortChannels(
+                    (result.list ?? []).map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
+                );
+                if (nextChannels.length > 0) {
+                    channelCache.set(key, nextChannels);
+                    setChannels(nextChannels);
+                    setIsLoading(false);
+                }
+            } catch {
+                // 캐시 읽기 실패는 무시 — isVerified 후 정상 fetch에서 처리
             }
-        });
-        const unsubscribeJoinUpdated = joinRepository.onJoinUpdated((join: DomainJoin) => {
-            if (!join.channelId || channelsRef.current.length === 0) return;
-            if (channelsRef.current.some(channel => channel.id === join.channelId)) {
-                void debouncedFetchChannels();
-            }
-        });
-
-        return () => {
-            unsubscribeChatCreated();
-            unsubscribeJoinUpdated();
         };
-    }, [chatRepository, joinRepository, fetchChannels]);
+        void loadCache();
+    }, [cloudId, targetPlaceId, isVerified, channelRepository]);
 
-    // 채널 목록 주기적 폴링 (WebSocket push 누락 시 unreadCount 등 보완)
-    useInterval(
-        () => {
-            void fetchChannels();
-        },
-        targetPlaceId && cloudId ? CHANNEL_POLL_INTERVAL_MS : null
-    );
+    // cloudId/place가 변경되고 인증 완료 시 채널 목록 재요청
+    const prevFetchKeyRef = useRef<string | undefined>(undefined);
+
+    useEffect(() => {
+        if (!cloudId || !targetPlaceId || !isVerified) return;
+        const fetchKey = `${cloudId}:${targetPlaceId}`;
+        if (prevFetchKeyRef.current === fetchKey) return;
+        prevFetchKeyRef.current = fetchKey;
+
+        const isSwitch =
+            (lastFetchedCloudId !== undefined && lastFetchedCloudId !== cloudId) ||
+            (lastFetchedPlaceId !== undefined && lastFetchedPlaceId !== targetPlaceId);
+
+        // 재마운트 감지: 같은 cloud/place를 이전에 fetch한 적이 있으면 재마운트
+        // (채팅방 → 홈 복귀 등) — unmount 중 놓친 이벤트를 보완하기 위해 네트워크 재요청
+        const isRemount = lastFetchedCloudId === cloudId && lastFetchedPlaceId === targetPlaceId;
+
+        lastFetchedCloudId = cloudId;
+        lastFetchedPlaceId = targetPlaceId;
+
+        const hasValidModuleCache = (channelCache.get(getChannelCacheKey(cloudId, targetPlaceId))?.length ?? 0) > 0;
+        currentParamsRef.current = initialParams;
+        void fetchChannels({
+            loading: !hasValidModuleCache && (isSwitch || channelsRef.current.length === 0),
+            forceNetwork: isSwitch || isRemount,
+        });
+    }, [fetchChannels, cloudId, targetPlaceId, isVerified]);
+
+    // 채널/채팅/조인 이벤트에 대한 동기화 트리거
+    useEffect(() => {
+        const debouncedFetch = debounce(() => fetchChannels({ forceNetwork: true }), 300);
+
+        const unsubs = [
+            channelRepository.onChannelCreated(() => void debouncedFetch()),
+            channelRepository.onChannelUpdated(() => void debouncedFetch()),
+            channelRepository.onChannelDeleted(() => void debouncedFetch()),
+            chatRepository.onChatCreated((chat: DomainChat) => {
+                if (!chat.channelId || channelsRef.current.length === 0) return;
+                if (channelsRef.current.some(ch => ch.id === chat.channelId)) {
+                    void debouncedFetch();
+                }
+            }),
+            joinRepository.onJoinUpdated((join: DomainJoin) => {
+                if (!join.channelId || channelsRef.current.length === 0) return;
+                if (channelsRef.current.some(ch => ch.id === join.channelId)) {
+                    void debouncedFetch();
+                }
+            }),
+        ];
+
+        return () => unsubs.forEach(fn => fn());
+    }, [channelRepository, chatRepository, joinRepository, fetchChannels]);
+
+    // 채널 목록 주기적 폴링 (WebSocket push 누락 시 보완)
+    useInterval(() => void fetchChannels(), targetPlaceId && cloudId ? CHANNEL_POLL_INTERVAL_MS : null);
+
+    const fullDebugInfo: ChannelDebugInfo = {
+        ...debugInfo,
+        cacheKey,
+        cacheHit: channelCache.has(cacheKey),
+        isVerified,
+        isConnected,
+        cloudId,
+        targetPlaceId,
+    };
 
     return {
         channels,
@@ -209,6 +283,10 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         isError,
         errorMessage,
         refresh: () => fetchChannels({ forceNetwork: true }),
-        sync: (options?: DomainChannelListPayload) => fetchChannels(options),
+        sync: (options?: DomainChannelListPayload) => {
+            if (options) currentParamsRef.current = { ...currentParamsRef.current, ...options };
+            return fetchChannels();
+        },
+        debugInfo: fullDebugInfo,
     };
 };

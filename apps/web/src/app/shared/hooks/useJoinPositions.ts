@@ -74,18 +74,22 @@ export const useJoinPositions = (channelId: string | null, initialJoins: JoinVie
     }, [joinRepository, channelId]);
 
     // 초기 위치 맵 구성 (initialJoins가 network에서 도착할 때 갱신)
+    // join:update 이벤트로 이미 반영된 최신 chatNo를 stale한 폴링 데이터로 덮어쓰지 않도록
+    // 기존 positionsRef와 merge하며, chatNo는 더 큰 값을 유지한다 (단방향)
     useEffect(() => {
         // 빈 배열은 아직 로딩 중이므로 캐시 데이터를 유지
         if (initialJoins.length === 0) return;
 
         hasFreshJoinsRef.current = true;
+        const currentMap = positionsRef.current;
         const nextMap = new Map<string, JoinPosition>();
 
         for (const join of initialJoins) {
             if (!join.userId || join.joined === 0) continue;
+            const existing = currentMap.get(join.userId);
             nextMap.set(join.userId, {
-                chatNo: join.chatNo ?? 0,
-                joinedNo: join.joinedNo ?? 0,
+                chatNo: Math.max(join.chatNo ?? 0, existing?.chatNo ?? 0),
+                joinedNo: join.joinedNo ?? existing?.joinedNo ?? 0,
             });
         }
 

@@ -28,7 +28,9 @@ import {
     JoinDataSource,
     SiteDataSource,
     UserDataSource,
+    TestRecordDataSource,
 } from '../data/cache';
+import { TestRecordService } from './cache/TestRecordService';
 import type { AppLogInfo } from '@chatic/app-messages';
 import type { IKeyValueStorage, ISqliteDatabase } from '../database';
 import { MmkvStorage, SqliteDatabase, TABLES } from '../database';
@@ -53,6 +55,7 @@ class DependencyProvider {
     public readonly preferenceService: IPreferenceService;
     public readonly cacheCrudService: ICacheCrudService;
     public readonly cacheSearchService: ICacheSearchService;
+    public readonly testRecordService: TestRecordService;
     public readonly keyValueStorage: IKeyValueStorage;
     public readonly sqliteDatabase: ISqliteDatabase;
 
@@ -105,6 +108,10 @@ class DependencyProvider {
             chatDataSource,
             siteDataSource
         );
+
+        // Test Record Service
+        const testRecordDataSource = new TestRecordDataSource(this.sqliteDatabase, TABLES.TEST_RECORDS);
+        this.testRecordService = new TestRecordService(this.logService, testRecordDataSource);
 
         // Initialize SQLite schemas
         void this.sqliteDatabase.initTables();

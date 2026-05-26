@@ -17,7 +17,7 @@ type MutationAction = 'leave' | 'delete' | 'start' | 'update' | 'invite';
  * 채널 관련 쓰기/수정 명령을 repository를 통해 서버에 전달하는 훅
  */
 export const useChannelMutations = () => {
-    const { channel: channelRepository } = useRepositories();
+    const { channel: channelRepository, chat: chatRepository } = useRepositories();
 
     const [pendingStates, setPendingStates] = useState<Record<MutationAction, boolean>>({
         leave: false,
@@ -44,18 +44,28 @@ export const useChannelMutations = () => {
 
     const leaveChannel = useCallback(
         (payload: ChatLeavePayload): Promise<void> => {
-            if (!payload.channelId) return Promise.reject(new Error('channelId is required'));
-            return withPending('leave', () => channelRepository.leaveChannel(payload).then(() => undefined));
+            const { channelId } = payload;
+            if (!channelId) return Promise.reject(new Error('channelId is required'));
+            return withPending('leave', () =>
+                channelRepository.leaveChannel(payload).then(() => {
+                    void chatRepository.clearByChannelId(channelId);
+                })
+            );
         },
-        [channelRepository, withPending]
+        [channelRepository, chatRepository, withPending]
     );
 
     const deleteChannel = useCallback(
         (payload: ChatDeleteChannelPayload): Promise<void> => {
-            if (!payload.channelId) return Promise.reject(new Error('channelId is required'));
-            return withPending('delete', () => channelRepository.deleteChannel(payload).then(() => undefined));
+            const { channelId } = payload;
+            if (!channelId) return Promise.reject(new Error('channelId is required'));
+            return withPending('delete', () =>
+                channelRepository.deleteChannel(payload).then(() => {
+                    void chatRepository.clearByChannelId(channelId);
+                })
+            );
         },
-        [channelRepository, withPending]
+        [channelRepository, chatRepository, withPending]
     );
 
     const updateChannel = useCallback(

@@ -218,5 +218,12 @@ export const MIGRATIONS: Record<number, string[]> = {
         `DROP TABLE ${TABLES.SITES}_legacy;`,
     ],
     5: [`DROP TABLE IF EXISTS ${TABLES.METAS};`, `DROP INDEX IF EXISTS idx_metas_type_cid_uid_key;`],
+    6: [
+        `CREATE TABLE IF NOT EXISTS ${TABLES.TEST_RECORDS} (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            updated_at INTEGER
+        );`,
+    ],
 };
 export const TARGET_VERSION = Math.max(0, ...Object.keys(MIGRATIONS).map(Number)) + 1;

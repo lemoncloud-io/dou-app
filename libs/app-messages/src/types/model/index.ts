@@ -6,3 +6,4 @@ export * from './iap';
 export * from './notification';
 export * from './preference';
 export * from './system';
+export * from './test-record';

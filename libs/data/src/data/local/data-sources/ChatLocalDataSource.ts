@@ -27,7 +27,9 @@ const getChatNo = (chat: ChatSortable): number | undefined => {
 export interface IChatLocalDataSource
     extends ICrudLocalDataSource<DomainChat>,
         IListLocalDataSource<DomainChat, ChatFeedPayload, DomainListResult<DomainChat>>,
-        IStreamLocalDataSource<DomainChat, string, DomainListResult<DomainChat>> {}
+        IStreamLocalDataSource<DomainChat, string, DomainListResult<DomainChat>> {
+    clearByChannelId(channelId: string, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+}
 
 export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLocalDataSource {
     constructor(
@@ -120,6 +122,12 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
 
     public async clearAll(_contextOverride?: LocalDataSourceContextOverride): Promise<void> {
         await this.cacheStorage.clearAll();
+        this.debouncedEmitAllStreams();
+    }
+
+    public async clearByChannelId(channelId: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        if (!channelId) return;
+        await this.cacheStorage.clearByChannelId(channelId);
         this.debouncedEmitAllStreams();
     }
 

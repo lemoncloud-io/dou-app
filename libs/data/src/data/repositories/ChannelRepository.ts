@@ -72,6 +72,8 @@ export interface IChannelRepository extends ILocalCacheMutationRepository<Domain
 }
 
 export class ChannelRepository extends BaseRepository implements IChannelRepository, ISyncRepository {
+    private readonly leftChannelIds = new Set<string>();
+
     constructor(
         private readonly channelRemoteDataSource: IChannelRemoteDataSource,
         private readonly channelLocalDataSource: IChannelLocalDataSource,
@@ -152,16 +154,22 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
     }
 
     public async leaveChannel(payload: ChatLeavePayload, options?: RepositoryRequestOptions): Promise<DomainChannel> {
-        const channel = await this.requestRemote<ChannelView>(
-            ref => this.channelRemoteDataSource.leaveChannel(payload, ref),
-            options
-        );
-        const domainChannel = toDomainChannel(channel, this.getDomainScope());
-        await this.channelLocalDataSource.remove(
-            domainChannel.id || payload.channelId || '',
-            this.getRepositoryContext()
-        );
-        return domainChannel;
+        const channelId = payload.channelId || '';
+        if (channelId) {
+            this.leftChannelIds.add(channelId);
+        }
+        try {
+            const channel = await this.requestRemote<ChannelView>(
+                ref => this.channelRemoteDataSource.leaveChannel(payload, ref),
+                options
+            );
+            const domainChannel = toDomainChannel(channel, this.getDomainScope());
+            await this.channelLocalDataSource.remove(domainChannel.id || channelId, this.getRepositoryContext());
+            return domainChannel;
+        } catch (error) {
+            this.leftChannelIds.delete(channelId);
+            throw error;
+        }
     }
 
     public clearAll(): Promise<void> {
@@ -240,7 +248,18 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         // cloud가 전환되었으면 캐시 저장 스킵 — cross-cloud 오염 방지
         const currentCid = this.getRepositoryContext().cid;
         if (currentCid === requestContext.cid) {
-            await this.channelLocalDataSource.upsertMany(domainList, requestContext);
+            const filteredList = domainList.filter(ch => !ch.id || !this.leftChannelIds.has(ch.id));
+            await this.channelLocalDataSource.upsertMany(filteredList, requestContext);
+
+            // Reconciliation: 서버 응답에 없는 로컬 캐시 채널 제거
+            const serverIds = new Set(filteredList.map(ch => ch.id).filter(Boolean));
+            const localResult = await this.channelLocalDataSource.fetchList(payload, requestContext);
+            const staleIds = (localResult?.list || [])
+                .map(ch => ch.id)
+                .filter((id): id is string => !!id && !serverIds.has(id));
+            if (staleIds.length > 0) {
+                await this.channelLocalDataSource.removeMany(staleIds, requestContext);
+            }
         }
 
         return createDomainListResult(domainList, {
@@ -252,18 +271,24 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
     }
 
     private initializeInternalListeners(): void {
-        this.onDomainEvent('channel:create', detail =>
+        this.onDomainEvent('channel:create', detail => {
+            const createdId = detail.data.id || '';
+            if (createdId) this.leftChannelIds.delete(createdId);
             this.runInBackground(
                 () => this.channelLocalDataSource.upsert(detail.data, this.getRepositoryContext()),
                 'channel:create'
-            )
-        );
-        this.onDomainEvent('channel:update', detail =>
+            );
+        });
+        this.onDomainEvent('channel:update', detail => {
+            const channelId = detail.data.id || '';
+            if (channelId && this.leftChannelIds.has(channelId)) {
+                return;
+            }
             this.runInBackground(
                 () => this.channelLocalDataSource.upsert(detail.data, this.getRepositoryContext()),
                 'channel:update'
-            )
-        );
+            );
+        });
         this.onDomainEvent('channel:delete', detail =>
             this.runInBackground(
                 () => this.channelLocalDataSource.remove(detail.data.id || '', this.getRepositoryContext()),

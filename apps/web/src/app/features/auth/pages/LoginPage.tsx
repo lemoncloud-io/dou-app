@@ -14,6 +14,7 @@ import {
     useDelegatorId,
     useWebCoreStore,
     webCore,
+    withTimeout,
 } from '@chatic/web-core';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { LoadingFallback } from '@chatic/shared';
@@ -140,9 +141,9 @@ export const LoginPage = (): JSX.Element => {
                 data: { isAlreadyAuthenticated, hasDelegatorId: !!effectiveDelegatorId },
             });
             if (!isAlreadyAuthenticated || !effectiveDelegatorId) {
-                await startWebCoreInit();
-                const { Token, ...rest } = await registerDevice(deviceId);
-                await webCore.buildCredentialsByToken(Token);
+                await withTimeout(startWebCoreInit(), 10_000, 'startWebCoreInit');
+                const { Token, ...rest } = await withTimeout(registerDevice(deviceId), 15_000, 'registerDevice');
+                await withTimeout(webCore.buildCredentialsByToken(Token), 10_000, 'buildCredentialsByToken');
                 setProfile(rest as unknown as UserProfile$);
                 // registerDevice 응답은 UserView 기반 — uid가 아닌 id 필드에 사용자 ID가 있음
                 // setProfile 후 store에서 delegatorId를 읽거나, 응답의 uid/id를 fallback으로 사용
@@ -163,7 +164,7 @@ export const LoginPage = (): JSX.Element => {
             }
 
             // 2. invite 수락 — delegatorId를 직접 전달
-            const data = await fetchInvite(effectiveDelegatorId);
+            const data = await withTimeout(fetchInvite(effectiveDelegatorId), 15_000, 'fetchInvite');
             if (!data) {
                 logger.warn('AUTH', '[handleAccept] fetchInvite returned null');
                 setIsAccepting(false);
@@ -193,13 +194,17 @@ export const LoginPage = (): JSX.Element => {
             if (effectiveCloudId) {
                 const { isOnMobileApp } = getMobileAppInfo();
                 if (isOnMobileApp) {
-                    await saveInvite({
-                        id: effectiveCloudId,
-                        cid: selectedCloudId,
-                        name: urlCloudName ?? data.name,
-                        backend: backend ?? undefined,
-                        wss: wss ?? undefined,
-                    });
+                    await withTimeout(
+                        saveInvite({
+                            id: effectiveCloudId,
+                            cid: selectedCloudId,
+                            name: urlCloudName ?? data.name,
+                            backend: backend ?? undefined,
+                            wss: wss ?? undefined,
+                        }),
+                        10_000,
+                        'saveInvite'
+                    );
                 }
             }
 
@@ -215,17 +220,22 @@ export const LoginPage = (): JSX.Element => {
                 useWebSocketV2Store.getState().setSelectedPlaceId(invitedSiteId);
             }
 
-            // 8. Authenticate (SPA 전환 — 풀 페이지 리로드 회피)
+            // 8. Authenticate — 풀 리로드로 홈 전환 (invite flow에서 SPA 전환이 불안정하여 리로드 사용)
             logger.info('AUTH', '[handleAccept] complete, navigating to home', {
                 data: { effectiveCloudId, invitedSiteId, isInvited: true },
             });
-            toast({ title: t('auth.loginSuccess') });
-            window.history.replaceState(null, '', '/');
-            setIsAuthenticated(true);
+            window.location.replace('/');
         } catch (error) {
-            logger.error('AUTH', '[LoginPage] Accept invite failed', { error });
-            reportError(toError(error));
-            toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
+            const err = toError(error);
+            logger.error('AUTH', '[LoginPage] Accept invite failed', { error: err });
+            reportError(err);
+            if (err.message.startsWith('TIMEOUT:')) {
+                toast({ title: t('inviteAccept.timeout'), variant: 'destructive' });
+            } else if (err.message.includes('Network Error') || err.message.includes('ERR_NETWORK')) {
+                toast({ title: t('inviteAccept.networkError'), variant: 'destructive' });
+            } else {
+                toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
+            }
             setIsAccepting(false);
         }
     };

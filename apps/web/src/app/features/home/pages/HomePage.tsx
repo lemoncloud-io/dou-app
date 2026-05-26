@@ -352,6 +352,77 @@ export const HomePage = () => {
                                             {selectedPlaceId || '(empty)'}
                                         </span>
                                     </div>
+                                    <div>
+                                        isLoading:{' '}
+                                        <span
+                                            className={`font-semibold ${channelsResult.isLoading ? 'text-yellow-600' : 'text-foreground'}`}
+                                        >
+                                            {String(channelsResult.isLoading)}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        isError:{' '}
+                                        <span
+                                            className={`font-semibold ${channelsResult.isError ? 'text-destructive' : 'text-foreground'}`}
+                                        >
+                                            {String(channelsResult.isError)}
+                                            {channelsResult.errorMessage ? ` (${channelsResult.errorMessage})` : ''}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        cacheKey:{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {channelsResult.debugInfo?.cacheKey || '(none)'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        cacheHit:{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {String(channelsResult.debugInfo?.cacheHit)}
+                                        </span>
+                                    </div>
+                                    <div className="mt-1 text-[11px] opacity-70">--- fetch ---</div>
+                                    <div>
+                                        fetchCount:{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {channelsResult.debugInfo?.fetchCount}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        lastFetchAt:{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {channelsResult.debugInfo?.lastFetchAt?.split('T')[1] ?? '(never)'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        lastFetchResult:{' '}
+                                        <span
+                                            className={`font-semibold ${channelsResult.debugInfo?.lastFetchResultCount === 0 ? 'text-yellow-600' : 'text-foreground'}`}
+                                        >
+                                            {channelsResult.debugInfo?.lastFetchResultCount ?? '(none)'}
+                                        </span>
+                                    </div>
+                                    <div className="mt-1 text-[11px] opacity-70">--- subscribe ---</div>
+                                    <div>
+                                        subscribeCount:{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {channelsResult.debugInfo?.subscribeCount}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        lastSubscribeAt:{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {channelsResult.debugInfo?.lastSubscribeAt?.split('T')[1] ?? '(never)'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        lastSubscribeResult:{' '}
+                                        <span
+                                            className={`font-semibold ${channelsResult.debugInfo?.lastSubscribeResultCount === 0 ? 'text-yellow-600' : 'text-foreground'}`}
+                                        >
+                                            {channelsResult.debugInfo?.lastSubscribeResultCount ?? '(none)'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </DialogContent>
