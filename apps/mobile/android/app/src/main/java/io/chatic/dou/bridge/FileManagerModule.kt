@@ -1,6 +1,8 @@
 package io.chatic.dou.bridge
 
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.util.Base64
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -141,6 +143,40 @@ class FileManagerModule(reactContext: ReactApplicationContext) : ReactContextBas
             }
         } catch (e: Exception) {
             promise.reject("UNLINK_FAILED", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun startBackgroundTask(uploadId: String, fileName: String, progress: Double, promise: Promise) {
+        try {
+            val intent = Intent(reactApplicationContext, UploadBackgroundService::class.java).apply {
+                action = UploadBackgroundService.ACTION_START_OR_UPDATE
+                putExtra("uploadId", uploadId)
+                putExtra("fileName", fileName)
+                putExtra("progress", progress)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                reactApplicationContext.startForegroundService(intent)
+            } else {
+                reactApplicationContext.startService(intent)
+            }
+            promise.resolve(null)
+        } catch (e: Exception) {
+            promise.reject("START_BG_TASK_FAILED", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun endBackgroundTask(uploadId: String, promise: Promise) {
+        try {
+            val intent = Intent(reactApplicationContext, UploadBackgroundService::class.java).apply {
+                action = UploadBackgroundService.ACTION_STOP
+                putExtra("uploadId", uploadId)
+            }
+            reactApplicationContext.startService(intent)
+            promise.resolve(null)
+        } catch (e: Exception) {
+            promise.reject("END_BG_TASK_FAILED", e.message, e)
         }
     }
 }
