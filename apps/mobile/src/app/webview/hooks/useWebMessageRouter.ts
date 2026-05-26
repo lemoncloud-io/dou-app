@@ -13,6 +13,7 @@ import {
     useSafeAreaHandler,
     useSearchCacheHandler,
     useSubscriptionIapHandler,
+    useUploadHandler,
     useTestRecordHandler,
 } from './index';
 import { type ModalHandler, useModalHandler } from './useModalHandler';
@@ -84,6 +85,9 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
 
     const { handleSendSms } = useSmsHandler();
 
+    const { handleRequestFileUpload, handlePauseFileUpload, handleResumeFileUpload, handleCancelFileUpload } =
+        useUploadHandler(bridge);
+
     const { handleRequestPermission } = usePermissionHandler();
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler();
     const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
@@ -141,6 +145,10 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
         handleFetchAppIcon,
         handleFetchAppIconList,
         handleChangeAppIcon,
+        handleRequestFileUpload,
+        handlePauseFileUpload,
+        handleResumeFileUpload,
+        handleCancelFileUpload,
         handleFetchTestRecord,
         handleFetchAllTestRecords,
         handleSaveTestRecord,
@@ -196,6 +204,10 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
             handleSaveTestRecord,
             handleSaveAllTestRecords,
             handleClearTestRecords,
+            handleRequestFileUpload,
+            handlePauseFileUpload,
+            handleResumeFileUpload,
+            handleCancelFileUpload,
         };
     });
 
@@ -250,6 +262,10 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
             FetchAppIcon: message => handlersRef.current.handleFetchAppIcon(message),
             FetchAppIconList: message => handlersRef.current.handleFetchAppIconList(message),
             ChangeAppIcon: message => handlersRef.current.handleChangeAppIcon(message),
+            RequestFileUpload: message => handlersRef.current.handleRequestFileUpload(message),
+            PauseFileUpload: message => handlersRef.current.handlePauseFileUpload(message),
+            ResumeFileUpload: message => handlersRef.current.handleResumeFileUpload(message),
+            CancelFileUpload: message => handlersRef.current.handleCancelFileUpload(message),
         };
 
         // Bridge에 핸들러 등록
