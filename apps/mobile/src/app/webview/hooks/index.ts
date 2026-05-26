@@ -15,3 +15,4 @@ export * from './useOAuthHandler';
 export * from './useVersionCheckHandler';
 export * from './useLogHandler';
 export * from './useLogBufferHandler';
+export * from './useTestRecordHandler';

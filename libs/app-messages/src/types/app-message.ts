@@ -3,10 +3,12 @@ import type {
     OnChangeAppIconPayload,
     OnClearAppLogBufferPayload,
     OnClearCacheDataPayload,
+    OnClearTestRecordsPayload,
     OnDeleteAllCacheDataPayload,
     OnDeleteCacheDataPayload,
     OnDeletePreferencePayload,
     OnFetchAllCacheDataPayload,
+    OnFetchAllTestRecordsPayload,
     OnFetchAppIconListPayload,
     OnFetchAppIconPayload,
     OnFetchAppLogBufferPayload,
@@ -17,6 +19,7 @@ import type {
     OnFetchPreferencePayload,
     OnFetchProductsPayload,
     OnFetchSafeAreaPayload,
+    OnFetchTestRecordPayload,
     OnFinishPurchaseTransactionPayload,
     OnGetContactsPayload,
     OnNotificationPayload,
@@ -32,8 +35,10 @@ import type {
     OnRequestPermissionPayload,
     OnSendSmsPayload,
     OnSaveAllCacheDataPayload,
+    OnSaveAllTestRecordsPayload,
     OnSaveCacheDataPayload,
     OnSavePreferencePayload,
+    OnSaveTestRecordPayload,
     OnSearchGlobalCacheDataPayload,
     OnUpdateDeviceInfoPayload,
     PongPayload,
@@ -105,6 +110,13 @@ export const AppMessageTypes = {
     OnClearAppLogBuffer: 'OnClearAppLogBuffer',
     OnFetchAppLogBufferSize: 'OnFetchAppLogBufferSize',
     OnSendLog: 'OnSendLog',
+
+    // 8. Test DB Scenario Validation
+    OnFetchTestRecord: 'OnFetchTestRecord',
+    OnFetchAllTestRecords: 'OnFetchAllTestRecords',
+    OnSaveTestRecord: 'OnSaveTestRecord',
+    OnSaveAllTestRecords: 'OnSaveAllTestRecords',
+    OnClearTestRecords: 'OnClearTestRecords',
 } as const;
 
 export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
@@ -190,6 +202,13 @@ export interface AppMessageDataMap {
     OnClearAppLogBuffer: OnClearAppLogBufferPayload;
     OnFetchAppLogBufferSize: OnFetchAppLogBufferSizePayload;
     OnSendLog: never;
+
+    // 8. Test DB Scenario Validation
+    OnFetchTestRecord: OnFetchTestRecordPayload;
+    OnFetchAllTestRecords: OnFetchAllTestRecordsPayload;
+    OnSaveTestRecord: OnSaveTestRecordPayload;
+    OnSaveAllTestRecords: OnSaveAllTestRecordsPayload;
+    OnClearTestRecords: OnClearTestRecordsPayload;
 }
 
 // ======================================================================

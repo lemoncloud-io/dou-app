@@ -6,4 +6,5 @@ export const TABLES = {
     SITES: 'sites',
     USERS: 'users',
     METAS: 'metas',
+    TEST_RECORDS: 'test_records',
 } as const;

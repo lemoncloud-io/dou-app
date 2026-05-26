@@ -1,13 +1,16 @@
 import type {
     ChangeAppIconPayload,
     ClearCacheDataPayload,
+    ClearTestRecordsPayload,
     DeleteAllCacheDataPayload,
     DeleteCacheDataPayload,
     DeletePreferencePayload,
     FetchAllCacheDataPayload,
+    FetchAllTestRecordsPayload,
     FetchAppLogBufferPayload,
     FetchCacheDataPayload,
     FetchPreferencePayload,
+    FetchTestRecordPayload,
     FinishPurchaseTransactionPayload,
     OAuthLoginPayload,
     OAuthLogoutPayload,
@@ -22,8 +25,10 @@ import type {
     PurchasePayload,
     RequestPermissionPayload,
     SaveAllCacheDataPayload,
+    SaveAllTestRecordsPayload,
     SaveCacheDataPayload,
     SavePreferencePayload,
+    SaveTestRecordPayload,
     SearchGlobalCacheDataPayload,
     SendLogPayload,
     SendSmsPayload,
@@ -93,6 +98,13 @@ export interface WebMessagePayloadMap {
     FetchAppLogBufferSize: never;
     SendLog: SendLogPayload;
     Ping: PingPayload;
+
+    // 8. Test DB Scenario Validation
+    FetchTestRecord: FetchTestRecordPayload;
+    FetchAllTestRecords: FetchAllTestRecordsPayload;
+    SaveTestRecord: SaveTestRecordPayload;
+    SaveAllTestRecords: SaveAllTestRecordsPayload;
+    ClearTestRecords: ClearTestRecordsPayload;
 }
 
 /** WebMessagePayloadMap의 Key들을 조합하여 가능한 모든 웹 메시지 타입(String Union)을 자동 생성합니다. */
