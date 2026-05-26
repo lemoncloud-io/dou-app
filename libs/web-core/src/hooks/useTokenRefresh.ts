@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/app-messages';
 
-import { fetchProfile, refreshAuthToken, reportError } from '../api';
+import { fetchProfile, refreshAuthToken, reportError, tryFetchProfile } from '../api';
 import { useWebCoreStore } from '../stores';
 import type { ErrorClassification } from '../utils';
 import { classifyError, toError } from '../utils';
@@ -104,15 +104,43 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
 
         logger.info('AUTH', '[tokenRefresh] Initializing: checking token validity');
         try {
-            const refreshSuccess = await refreshToken();
+            const hasCachedProfile = !!useWebCoreStore.getState().profile;
+
+            // 토큰 갱신과 프로필 조회를 병렬 시도
+            // tryFetchProfile: 현재 토큰으로 낙관적 fetch (실패 시 null, alert/redirect 없음)
+            const [refreshSuccess, optimisticProfile] = await Promise.all([refreshToken(), tryFetchProfile()]);
+
             if (!refreshSuccess) {
                 logger.warn('AUTH', '[tokenRefresh] token refresh failed, marking as failed');
                 hasFailedRef.current = true;
                 setInitStatus('failed');
                 return;
             }
-            logger.info('AUTH', '[tokenRefresh] token refreshed, fetching profile');
 
+            // 1) 병렬 프로필 조회 성공 → 즉시 완료 (토큰 유효 시 ~50% 시간 절감)
+            if (optimisticProfile) {
+                logger.info('AUTH', '[tokenRefresh] parallel init succeeded');
+                setProfile(optimisticProfile);
+                isInitializedRef.current = true;
+                networkRetryRef.current = 0;
+                setInitStatus('success');
+                return;
+            }
+
+            // 2) 캐시된 프로필 존재 → 토큰만 갱신하고 즉시 완료, 프로필은 백그라운드 갱신
+            if (hasCachedProfile) {
+                logger.info('AUTH', '[tokenRefresh] using cached profile, background refresh');
+                isInitializedRef.current = true;
+                networkRetryRef.current = 0;
+                setInitStatus('success');
+                fetchProfile()
+                    .then(p => setProfile(p))
+                    .catch(e => logger.warn('AUTH', '[tokenRefresh] bg profile refresh failed', { error: e }));
+                return;
+            }
+
+            // 3) 캐시 없음 + 병렬 실패 → 갱신된 토큰으로 정규 fetchProfile (withRetry 포함)
+            logger.info('AUTH', '[tokenRefresh] token refreshed, fetching profile');
             const profile = await fetchProfile();
             setProfile(profile);
 

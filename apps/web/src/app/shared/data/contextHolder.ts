@@ -2,7 +2,7 @@ import type { DataContext, DataContextProvider } from '@chatic/data';
 import { DataContextHolder } from '@chatic/data';
 import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 import { useLayoutEffect, useMemo, useState } from 'react';
 
@@ -17,7 +17,7 @@ export const useDataContextHolder = (
     const dataContext = useMemo<DataContext>(() => {
         return {
             ...injectedContext,
-            cid: injectedContext?.cid ?? cloudId ?? 'default',
+            cid: injectedContext?.cid ?? cloudId ?? cloudCore.getSelectedCloudId() ?? 'default',
             sid: injectedContext?.sid ?? selectedPlaceId,
             uid: injectedContext?.uid ?? profileUid ?? undefined,
         };

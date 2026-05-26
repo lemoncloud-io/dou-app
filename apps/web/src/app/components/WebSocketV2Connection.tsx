@@ -22,9 +22,15 @@ export const WebSocketV2Connection = () => {
         useWebSocketV2Store.getState().setCloudId(selectedCloudId);
     }, [selectedCloudId]);
 
-    // selectedPlaceId 복원은 PlaceList의 handleSelectPlace에서 담당
-    // (place 전용 토큰 refresh + auth:update 완료 후에만 store에 설정하여
-    //  인증 전 channel fetch가 발생하는 것을 방지)
+    // selectedPlaceId 복원: cloudCore(영속)에 저장된 값을 Zustand store에 즉시 동기화
+    // — 캐시 기반 채널 목록을 바로 표시하기 위함 (서버 fetch는 isVerified 후에만 실행)
+    const persistedPlaceId = cloudCore.getSelectedPlaceId();
+
+    useEffect(() => {
+        if (persistedPlaceId && !useWebSocketV2Store.getState().selectedPlaceId) {
+            useWebSocketV2Store.getState().setSelectedPlaceId(persistedPlaceId);
+        }
+    }, [persistedPlaceId]);
 
     // NOTE: Socket connection runs entirely in the background. We never block the
     // UI on `connectionStatus` / `isVerified` — previous implementation toggled a

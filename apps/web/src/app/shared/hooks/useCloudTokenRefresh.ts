@@ -10,6 +10,14 @@ const REFRESH_INTERVAL_MS = 60_000;
 const AUTH_UPDATE_MAX_RETRIES = 3;
 const AUTH_UPDATE_BASE_DELAY_MS = 2_000;
 
+// caller(handleSelectPlace)가 토큰 갱신 중일 때 자동 auth:update 전송을 차단
+// handleSelectPlace: setIsVerified(false) → refreshToken(async) → emit auth
+// 이 플래그가 없으면 refreshToken 완료 전에 useCloudTokenRefresh가 OLD 토큰으로 auth를 보냄
+let _skipAutoAuth = false;
+export const setSkipAutoAuth = (value: boolean) => {
+    _skipAutoAuth = value;
+};
+
 const isServerError = (error: unknown): boolean => {
     const err = error as any;
     const status = err?.status || err?.response?.status || err?.statusCode;
@@ -81,6 +89,13 @@ export const useCloudTokenRefresh = () => {
             const attemptAuthUpdate = () => {
                 // 이미 인증 완료되었으면 재시도 중단
                 if (useWebSocketV2Store.getState().isVerified) return;
+
+                // caller가 토큰 갱신 중이면 전송하지 않고 재시도 예약
+                // (handleSelectPlace가 refreshToken 완료 후 직접 auth 전송)
+                if (_skipAutoAuth) {
+                    retryTimer = setTimeout(attemptAuthUpdate, AUTH_UPDATE_BASE_DELAY_MS);
+                    return;
+                }
 
                 void sendAuthUpdate();
                 retryCount++;
