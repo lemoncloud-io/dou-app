@@ -8,6 +8,7 @@ import { reportError, toError } from '@chatic/web-core';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import { webBridge } from '../../../shared/bridges';
 import { useCreateInvite } from '../hooks';
 
 import { AddFriendSheet } from './AddFriendSheet';
@@ -17,9 +18,18 @@ import { PermissionDeniedBanner } from './PermissionDeniedBanner';
 // Valid Korean mobile prefixes: 010, 011, 016, 017, 018, 019
 const KOREAN_MOBILE_PREFIXES = ['010', '011', '016', '017', '018', '019'];
 
+/** +82 국제 형식을 로컬 형식(0XX...)으로 정규화 */
+const normalizeKoreanPhone = (digits: string): string => {
+    if (digits.startsWith('82') && digits.length >= 12) {
+        return '0' + digits.slice(2);
+    }
+    return digits;
+};
+
 const isValidKoreanPhone = (digits: string): boolean => {
-    if (digits.length < 10 || digits.length > 11) return false;
-    return KOREAN_MOBILE_PREFIXES.some(prefix => digits.startsWith(prefix));
+    const normalized = normalizeKoreanPhone(digits);
+    if (normalized.length < 10 || normalized.length > 11) return false;
+    return KOREAN_MOBILE_PREFIXES.some(prefix => normalized.startsWith(prefix));
 };
 
 interface InviteFriendsDialogProps {
@@ -114,7 +124,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
             toast({ title: t('inviteFriends.shareFailed'), variant: 'destructive' });
             return;
         }
-        const phone = phoneNumber.replace(/\D/g, '');
+        const phone = normalizeKoreanPhone(phoneNumber.replace(/\D/g, ''));
 
         // Validate Korean phone number
         if (!isValidKoreanPhone(phone)) {
@@ -136,11 +146,10 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
             });
 
             if (isOnMobileApp) {
-                // Mobile app: Use native share sheet (clipboard not reliable in WebView)
-                postMessage({
-                    type: 'OpenShareSheet',
+                // Mobile app: Send SMS with invite link directly to the contact's phone number
+                await webBridge.request('SendSms', {
                     data: {
-                        title: t('inviteFriends.shareTitle'),
+                        phoneNumbers: phone,
                         message: `${t('inviteFriends.shareMessage')}\n${deeplinkUrl}`,
                     },
                 });
