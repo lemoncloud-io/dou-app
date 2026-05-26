@@ -156,10 +156,22 @@ export class UploadService implements IUploadService {
                 throw new Error(`File does not exist at path: ${payload.fileUri}`);
             }
 
+            // Start native background task / foreground service
+            await FileManagerBridge.startBackgroundTask(uploadId, payload.fileName, 0.0).catch(err => {
+                this.logger.error('UPLOAD', `[${uploadId}] Failed to start background task`, err);
+            });
+
             for (let i = task.lastChunkIndex; i < totalChunks; i++) {
                 // Safeguard against state changes while we were waiting
                 if (task.status !== 'uploading') {
                     this.logger.info('UPLOAD', `[${uploadId}] Upload loop interrupted, task status: ${task.status}`);
+                    await FileManagerBridge.endBackgroundTask(uploadId).catch(err => {
+                        this.logger.error(
+                            'UPLOAD',
+                            `[${uploadId}] Failed to end background task on loop interrupt`,
+                            err
+                        );
+                    });
                     return;
                 }
 
@@ -222,14 +234,20 @@ export class UploadService implements IUploadService {
                 // Update task progress
                 task.lastChunkIndex = i + 1;
                 task.uploadedBytes += length;
+                const progress = task.uploadedBytes / totalBytes;
 
                 // Notify progress
                 task.onProgress({
                     uploadId,
-                    progress: task.uploadedBytes / totalBytes,
+                    progress,
                     uploadedBytes: task.uploadedBytes,
                     totalBytes,
                     status: 'uploading',
+                });
+
+                // Update native background service/task with current progress
+                await FileManagerBridge.startBackgroundTask(uploadId, payload.fileName, progress).catch(err => {
+                    this.logger.error('UPLOAD', `[${uploadId}] Failed to update background progress`, err);
                 });
             }
 
@@ -255,10 +273,18 @@ export class UploadService implements IUploadService {
 
             // Cleanup task from map
             this.tasks.delete(uploadId);
+
+            // Clean up background task!
+            await FileManagerBridge.endBackgroundTask(uploadId).catch(err => {
+                this.logger.error('UPLOAD', `[${uploadId}] Failed to end background task on completion`, err);
+            });
         } catch (error: any) {
             // If the error was due to an abort operation, handle gracefully
             if (error.name === 'AbortError' || task.status === 'paused' || task.status === 'cancelled') {
                 this.logger.info('UPLOAD', `[${uploadId}] Chunk upload aborted due to status: ${task.status}`);
+                await FileManagerBridge.endBackgroundTask(uploadId).catch(err => {
+                    this.logger.error('UPLOAD', `[${uploadId}] Failed to end background task on abort`, err);
+                });
                 return;
             }
 
@@ -280,6 +306,11 @@ export class UploadService implements IUploadService {
                     code: 'UPLOAD_FAILED',
                     message: error.message || 'An error occurred during chunked file upload',
                 },
+            });
+
+            // Clean up background task!
+            await FileManagerBridge.endBackgroundTask(uploadId).catch(err => {
+                this.logger.error('UPLOAD', `[${uploadId}] Failed to end background task on failure`, err);
             });
         }
     }
