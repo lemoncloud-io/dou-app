@@ -20,6 +20,8 @@ import type { ICacheCrudService, ICacheSearchService } from './cache';
 import { CacheCrudService, CacheSearchService } from './cache';
 import type { ISmsService } from './sms';
 import { SmsService } from './sms';
+import type { IUploadService } from './upload';
+import { UploadService } from './upload';
 
 import {
     ChannelDataSource,
@@ -45,6 +47,7 @@ class DependencyProvider {
     public readonly logBufferService: ILogBufferService;
     public readonly deviceService: IDeviceService;
     public readonly smsService: ISmsService;
+    public readonly uploadService: IUploadService;
     public readonly permissionService: IPermissionService;
     public readonly notificationService: INotificationService;
     public readonly oauthService: IOAuthService;
@@ -74,6 +77,7 @@ class DependencyProvider {
         this.sqliteDatabase = new SqliteDatabase(this.logService);
         this.deviceService = new DeviceService(this.logService);
         this.smsService = new SmsService(this.logService);
+        this.uploadService = new UploadService(this.logService);
         this.permissionService = new PermissionService(this.logService);
         this.notificationService = new NotificationService(this.logService);
         this.oauthService = new OAuthService(this.logService);
