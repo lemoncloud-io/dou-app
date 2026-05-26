@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { Linking } from 'react-native';
-import RNFS from 'react-native-fs';
+import { FileManagerBridge } from '../../bridge';
 import { useServices } from '../../hooks';
 import type { WebMessageData } from '@chatic/app-messages';
 import type { Asset } from 'react-native-image-picker';
@@ -49,7 +49,7 @@ export const useDeviceHandler = () => {
                         let base64: string | undefined;
                         if (data.includeBase64 && doc.uri) {
                             try {
-                                base64 = await RNFS.readFile(doc.uri, 'base64');
+                                base64 = await FileManagerBridge.readFile(doc.uri);
                             } catch (readError) {
                                 logger.warn('DEVICE', `Failed to read document base64: ${doc.name}`, readError);
                             }
