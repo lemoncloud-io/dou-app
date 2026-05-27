@@ -145,12 +145,11 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions) => {
                 }
 
                 // Step 3: Places 가져오기
-                // 이전 cloud의 background refresh가 현재 scope에 오염시킨 데이터 제거
-                logger.info('SESSION', '[CloudSwitchFlow] Step 3: clearAll + fetchPlaces');
+                // 캐시는 [type, cid, uid] 스코프로 격리되므로 clearAll 불필요
+                // clearAll 시 네트워크 fetch → upsertMany 완료까지 빈 화면이 되어 체감 지연 발생
+                logger.info('SESSION', '[CloudSwitchFlow] Step 3: fetchPlaces');
                 let places: DomainSite[] = [];
                 try {
-                    await siteRepository.clearAll();
-                    await channelRepository.clearAll();
                     const result = await siteRepository.fetchSite({}, { cachePolicy: 'network-only' });
                     places = (result.list ?? []) as DomainSite[];
                 } catch (e) {
