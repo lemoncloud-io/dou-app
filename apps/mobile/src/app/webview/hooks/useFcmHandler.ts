@@ -1,27 +1,28 @@
 import { useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
-
-import { logger, provider } from '../../services';
-
+import { deeplinkRoutingService, logger, notificationService, pushEventManager } from '../../services';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { WebMessageData } from '@chatic/app-messages';
 
 /**
- * 웹뷰에서 FCM 기능을 사용하기 위한 핸들러 훅
+ * Hook that integrates FCM push notifications, badge counts, and deep link routing inside the WebView.
+ * Handles FetchFcmToken, FetchBadgeCount, and SetBadgeCount requests from the Web,
+ * and orchestrates native notification click/receive flows.
+ *
  * @param bridge
  */
 export const useFcmHandler = (bridge: IAppBridgeHost) => {
     const fetchFcmToken = useCallback(async (_message: WebMessageData<'FetchFcmToken'>) => {
         try {
-            const hasPermission = await provider.notificationService.requestPermission();
+            const hasPermission = await notificationService.requestPermission();
 
             if (hasPermission) {
                 let token;
                 if (Platform.OS === 'ios') {
-                    await provider.notificationService.registerAPNs();
-                    token = await provider.notificationService.getAPNSToken();
+                    await notificationService.registerAPNs();
+                    token = await notificationService.getAPNSToken();
                 } else {
-                    token = await provider.notificationService.getToken();
+                    token = await notificationService.getToken();
                 }
 
                 if (token) {
@@ -44,11 +45,48 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
         }
     }, []);
 
+    const handleFetchBadgeCount = useCallback(async (_message: WebMessageData<'FetchBadgeCount'>) => {
+        try {
+            const count = await notificationService.getBadgeCount();
+            return {
+                type: 'OnFetchBadgeCount' as const,
+                success: true,
+                data: { count },
+            };
+        } catch (e: any) {
+            logger.error('NOTIFICATION', 'Fetch badge count error.', e);
+            return {
+                type: 'OnFetchBadgeCount' as const,
+                success: false,
+                error: { code: 'BADGE_ERROR', message: e.message },
+            };
+        }
+    }, []);
+
+    const handleSetBadgeCount = useCallback(async (message: WebMessageData<'SetBadgeCount'>) => {
+        try {
+            const { count } = message.data;
+            await notificationService.setBadgeCount(count);
+            return {
+                type: 'OnSetBadgeCount' as const,
+                success: true,
+                data: { success: true },
+            };
+        } catch (e: any) {
+            logger.error('NOTIFICATION', 'Set badge count error.', e);
+            return {
+                type: 'OnSetBadgeCount' as const,
+                success: false,
+                error: { code: 'BADGE_ERROR', message: e.message },
+            };
+        }
+    }, []);
+
     useEffect(() => {
         if (!bridge) return;
 
-        // 포그라운드 알림 수신
-        const unsubscribeOnMessage = provider.notificationService.onMessage(async remoteMessage => {
+        // Bridge subscriber for OnReceiveNotification events via PushEventManager
+        const unsubscribeReceive = pushEventManager.onReceiveNotification(remoteMessage => {
             bridge.pushEvent<'OnReceiveNotification'>({
                 type: 'OnReceiveNotification',
                 success: true,
@@ -62,37 +100,42 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
             });
         });
 
-        // 앱 백그라운드 상태에서 알림 클릭
-        const unsubscribeOnOpened = provider.notificationService.onNotificationOpenedApp(remoteMessage => {
-            bridge.pushEvent<'OnOpenNotification'>({
-                type: 'OnOpenNotification',
-                success: true,
-                data: {
-                    notification: remoteMessage.data || {},
-                },
-            });
+        // Foreground notification reception from OS -> emit to our PushEventManager
+        const unsubscribeOnMessage = notificationService.onMessage(async remoteMessage => {
+            // 포그라운드 수신 시 페이로드에 뱃지 정보가 포함된 경우 네이티브 뱃지 갱신 ("badge": "5" 등)
+            const rawBadge = remoteMessage.data?.badge;
+            if (rawBadge !== undefined && rawBadge !== null) {
+                const badgeCount = parseInt(String(rawBadge), 10);
+                if (!isNaN(badgeCount)) {
+                    notificationService.setBadgeCount(badgeCount).catch(e => {
+                        logger.error('NOTIFICATION', 'Failed to set native badge in foreground:', e);
+                    });
+                }
+            }
+            pushEventManager.emitReceiveNotification(remoteMessage);
         });
 
-        // 앱 종료 상태에서 알림 클릭 (Cold Start)
-        provider.notificationService.getInitialNotification().then(remoteMessage => {
+        // App background notification click -> route to DeeplinkRoutingService
+        const unsubscribeOnOpened = notificationService.onNotificationOpenedApp(remoteMessage => {
+            void deeplinkRoutingService.handleNotificationClick(remoteMessage.data);
+        });
+
+        // App killed (Cold Start) notification click -> route to DeeplinkRoutingService
+        notificationService.getInitialNotification().then(remoteMessage => {
             if (remoteMessage) {
+                // A brief delay to allow App state / DeepLinkManager to start up
                 setTimeout(() => {
-                    bridge.pushEvent<'OnOpenNotification'>({
-                        type: 'OnOpenNotification',
-                        success: true,
-                        data: {
-                            notification: remoteMessage.data || {},
-                        },
-                    });
+                    void deeplinkRoutingService.handleNotificationClick(remoteMessage.data);
                 }, 1000);
             }
         });
 
         return () => {
+            unsubscribeReceive();
             unsubscribeOnMessage();
             unsubscribeOnOpened();
         };
     }, [bridge]);
 
-    return { fetchFcmToken };
+    return { fetchFcmToken, handleFetchBadgeCount, handleSetBadgeCount };
 };
