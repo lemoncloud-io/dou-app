@@ -34,3 +34,6 @@ export const cacheSearchService = provider.cacheSearchService;
 export const testRecordService = provider.testRecordService;
 export const sqliteDatabase = provider.sqliteDatabase;
 export const keyValueStorage = provider.keyValueStorage;
+export const pushEventManager = provider.pushEventManager;
+export const deeplinkRoutingService = provider.deeplinkRoutingService;
+export const offlinePushQueue = provider.offlinePushQueue;
