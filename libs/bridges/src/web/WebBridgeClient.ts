@@ -32,7 +32,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     private handleMessage = (message: ResponseMessage | EventMessage): void => {
-        if ('success' in message && message.refId) {
+        if ('success' in message && message.refId && this.pendingRequests.has(message.refId)) {
             this.handleResponse(message as ResponseMessage);
         } else {
             this.handleEvent(message as EventMessage);

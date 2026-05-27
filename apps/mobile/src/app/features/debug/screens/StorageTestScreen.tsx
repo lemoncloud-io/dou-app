@@ -11,7 +11,7 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import RNFS from 'react-native-fs';
+import { FileManagerBridge } from '../../../bridge';
 import type { CacheType } from '@chatic/app-messages';
 import { useServices } from '../../../hooks';
 
@@ -70,9 +70,9 @@ export const StorageTestScreen = () => {
 
     const handleBackup = async () => {
         try {
-            const backupPath = `${RNFS.DocumentDirectoryPath}/dou_backup.sqlite`;
-            if (await RNFS.exists(backupPath)) {
-                await RNFS.unlink(backupPath);
+            const backupPath = `${FileManagerBridge.DocumentDirectoryPath}/dou_backup.sqlite`;
+            if (await FileManagerBridge.exists(backupPath)) {
+                await FileManagerBridge.unlink(backupPath);
             }
             await sqliteDatabase.backup(backupPath);
             logResult('Backup', `DB backed up safely to:\n${backupPath}`);
@@ -83,8 +83,8 @@ export const StorageTestScreen = () => {
 
     const handleRestore = async () => {
         try {
-            const backupPath = `${RNFS.DocumentDirectoryPath}/dou_backup.sqlite`;
-            if (!(await RNFS.exists(backupPath))) {
+            const backupPath = `${FileManagerBridge.DocumentDirectoryPath}/dou_backup.sqlite`;
+            if (!(await FileManagerBridge.exists(backupPath))) {
                 return logError('Restore Error', '백업 파일이 존재하지 않습니다. 먼저 Backup을 실행해주세요.');
             }
             await sqliteDatabase.restore(backupPath);

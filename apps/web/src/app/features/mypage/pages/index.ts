@@ -16,3 +16,4 @@ export * from './SubscriptionPage';
 export * from './SubscriptionPlansPage';
 export * from './TermsPage';
 export * from './WithdrawalPage';
+export * from './DebugUploadPage';

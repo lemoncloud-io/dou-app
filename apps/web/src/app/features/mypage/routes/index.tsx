@@ -9,6 +9,7 @@ import {
     DebugLogBufferPage,
     DebugPage,
     DebugStatePage,
+    DebugUploadPage,
     LicensesPage,
     LoginPage,
     MyPage,
@@ -36,6 +37,7 @@ export const MyPageRoutes = () => {
             <Route path="debug/state" element={<DebugStatePage />} />
             <Route path="debug/log-buffer" element={<DebugLogBufferPage />} />
             <Route path="debug/cache-test" element={<DebugCacheTestPage />} />
+            <Route path="debug/upload-test" element={<DebugUploadPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="policy" element={<PolicyListPage />} />
             <Route path="policy/terms" element={<TermsPage />} />
