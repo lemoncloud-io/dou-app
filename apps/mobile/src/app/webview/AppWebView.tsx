@@ -170,6 +170,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 if (data?.type === 'WebAppReady') {
                     if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
                     setIsWebAppReady(true);
+                    // Flush MMKV offline push queue when WebView is fully ready
+                    const { offlinePushQueue } = require('../services');
+                    void offlinePushQueue.flush();
                     return;
                 }
                 if (data?.type === 'ResumeReady') {
