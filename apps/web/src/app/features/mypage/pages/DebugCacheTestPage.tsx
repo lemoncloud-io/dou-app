@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
+import type { AppMessageData } from '@chatic/app-messages';
 import { getMobileAppInfo, type TestRecord } from '@chatic/app-messages';
 import { useNavigateWithTransition } from '@chatic/shared';
 
@@ -30,6 +31,22 @@ interface LogEntry {
     label: string;
     message: string;
     timestamp: string;
+}
+
+interface RollingLatencyStats {
+    count: number;
+    mean: number;
+    m2: number;
+    min: number;
+    max: number;
+}
+
+interface SlowOp {
+    id: string;
+    label: string;
+    durationMs: number;
+    success: boolean;
+    at: number;
 }
 
 // --- UI Components matching DebugLogBufferPage.tsx ---
@@ -141,6 +158,15 @@ export const DebugCacheTestPage = () => {
     const [avgLatency, setAvgLatency] = useState<number | null>(null);
     const [successCount, setSuccessCount] = useState(0);
     const [failCount, setFailCount] = useState(0);
+    const [statsStartedAt, setStatsStartedAt] = useState<number | null>(null);
+    const [latencyStats, setLatencyStats] = useState<RollingLatencyStats>({
+        count: 0,
+        mean: 0,
+        m2: 0,
+        min: Number.POSITIVE_INFINITY,
+        max: 0,
+    });
+    const [slowOps, setSlowOps] = useState<SlowOp[]>([]);
 
     // Scenario 1: SQLite Options & States
     const [sqliteBulkCount, setSqliteBulkCount] = useState(100);
@@ -163,6 +189,9 @@ export const DebugCacheTestPage = () => {
         totalTime: number;
         successRate: number;
         avgMs: number;
+        stddevMs: number;
+        rps: number;
+        topSlow: Array<{ id: number; durationMs: number; success: boolean }>;
     } | null>(null);
 
     // SQLite Record Explorer States (CRUD & Browse)
@@ -205,24 +234,68 @@ export const DebugCacheTestPage = () => {
 
     const clearLogs = useCallback(() => setLogs([]), []);
 
-    const updateStats = useCallback((duration: number, success: boolean) => {
+    const updateStats = useCallback((durationMs: number, success: boolean, label: string) => {
+        setStatsStartedAt(prev => prev ?? Date.now());
         setTotalOps(prev => prev + 1);
         if (success) {
             setSuccessCount(prev => prev + 1);
         } else {
             setFailCount(prev => prev + 1);
         }
+
         setAvgLatency(prev => {
-            if (prev === null) return Number(duration.toFixed(1));
-            return Number((prev * 0.9 + duration * 0.1).toFixed(1));
+            if (prev === null) return Number(durationMs.toFixed(1));
+            return Number((prev * 0.9 + durationMs * 0.1).toFixed(1));
+        });
+
+        setLatencyStats(prev => {
+            const x = durationMs;
+            const nextCount = prev.count + 1;
+            const delta = x - prev.mean;
+            const nextMean = prev.mean + delta / nextCount;
+            const delta2 = x - nextMean;
+            const nextM2 = prev.m2 + delta * delta2;
+            const nextMin = Math.min(prev.min, x);
+            const nextMax = Math.max(prev.max, x);
+            return { count: nextCount, mean: nextMean, m2: nextM2, min: nextMin, max: nextMax };
+        });
+
+        setSlowOps(prev => {
+            const next: SlowOp[] = [
+                ...prev,
+                { id: `${Date.now()}-${Math.random()}`, label, durationMs, success, at: Date.now() },
+            ];
+            next.sort((a, b) => b.durationMs - a.durationMs);
+            return next.slice(0, 10);
         });
     }, []);
+
+    const latencyStdDevMs = useMemo(() => {
+        if (latencyStats.count <= 1) return null;
+        return Math.sqrt(latencyStats.m2 / (latencyStats.count - 1));
+    }, [latencyStats.count, latencyStats.m2]);
+
+    const opsPerSec = useMemo(() => {
+        if (!statsStartedAt || totalOps <= 0) return null;
+        const elapsedMs = Date.now() - statsStartedAt;
+        if (elapsedMs <= 0) return null;
+        return (totalOps * 1000) / elapsedMs;
+    }, [statsStartedAt, totalOps]);
 
     const resetStats = useCallback(() => {
         setTotalOps(0);
         setAvgLatency(null);
         setSuccessCount(0);
         setFailCount(0);
+        setStatsStartedAt(null);
+        setLatencyStats({
+            count: 0,
+            mean: 0,
+            m2: 0,
+            min: Number.POSITIVE_INFINITY,
+            max: 0,
+        });
+        setSlowOps([]);
         addLog('info', '텔레메트리', '시스템 성능 분석 지표가 초기화되었습니다.');
     }, [addLog]);
 
@@ -234,16 +307,16 @@ export const DebugCacheTestPage = () => {
         async (silent = false) => {
             if (!silent) setIsExplorerLoading(true);
             try {
-                const response = await webBridge.request('FetchAllTestRecords', {});
+                const response = await webBridge.request('FetchAllTestRecords', { data: {} });
+                if (response.type !== 'OnFetchAllTestRecords') {
+                    throw new Error(`예상치 못한 응답 타입: ${response.type}`);
+                }
+                const typed = response as AppMessageData<'OnFetchAllTestRecords'>;
 
-                if (response.success && response.data?.items) {
-                    const sorted = [...response.data.items].sort((a, b) => b.updated_at - a.updated_at);
-                    setRecords(sorted);
-                    if (!silent) {
-                        addLog('success', '익스플로러', `총 ${sorted.length}개의 SQLite 테스트 데이터를 로드했습니다.`);
-                    }
-                } else {
-                    throw new Error('조회된 데이터 응답 포맷이 유효하지 않습니다.');
+                const sorted = [...typed.data.items].sort((a, b) => b.updated_at - a.updated_at);
+                setRecords(sorted);
+                if (!silent) {
+                    addLog('success', '익스플로러', `총 ${sorted.length}개의 SQLite 테스트 데이터를 로드했습니다.`);
                 }
             } catch (e: any) {
                 addLog('error', '익스플로러', `레코드 목록 로드 실패: ${e.message ?? String(e)}`);
@@ -267,16 +340,19 @@ export const DebugCacheTestPage = () => {
 
         try {
             const response = await webBridge.request('SaveTestRecord', {
-                key: newKey.trim(),
-                value: newValue,
+                data: { key: newKey.trim(), value: newValue },
             });
             const duration = performance.now() - start;
 
-            if (response.success && response.data?.success) {
+            if (response.type !== 'OnSaveTestRecord') {
+                throw new Error(`예상치 못한 응답 타입: ${response.type}`);
+            }
+            const typed = response as AppMessageData<'OnSaveTestRecord'>;
+            if (typed.data.success) {
                 addLog('success', '익스플로러', `레코드 '${newKey}' 저장 성공 (${duration.toFixed(1)}ms)`);
                 setNewKey('');
                 setNewValue('');
-                updateStats(duration, true);
+                updateStats(duration, true, '익스플로러:SaveTestRecord(수동 추가)');
                 await loadAllRecords(true);
             } else {
                 throw new Error('저장 처리가 실패했습니다.');
@@ -284,7 +360,7 @@ export const DebugCacheTestPage = () => {
         } catch (e: any) {
             const duration = performance.now() - start;
             addLog('error', '익스플로러', `레코드 저장 실패: ${e.message ?? String(e)}`);
-            updateStats(duration, false);
+            updateStats(duration, false, '익스플로러:SaveTestRecord(수동 추가)');
         } finally {
             setIsRunning(false);
         }
@@ -298,16 +374,17 @@ export const DebugCacheTestPage = () => {
             const start = performance.now();
 
             try {
-                const response = await webBridge.request('SaveTestRecord', {
-                    key,
-                    value,
-                });
+                const response = await webBridge.request('SaveTestRecord', { data: { key, value } });
                 const duration = performance.now() - start;
 
-                if (response.success && response.data?.success) {
+                if (response.type !== 'OnSaveTestRecord') {
+                    throw new Error(`예상치 못한 응답 타입: ${response.type}`);
+                }
+                const typed = response as AppMessageData<'OnSaveTestRecord'>;
+                if (typed.data.success) {
                     addLog('success', '익스플로러', `레코드 '${key}' 수정 성공 (${duration.toFixed(1)}ms)`);
                     setEditingKey(null);
-                    updateStats(duration, true);
+                    updateStats(duration, true, '익스플로러:SaveTestRecord(인라인 수정)');
                     await loadAllRecords(true);
                 } else {
                     throw new Error('수정 처리가 실패했습니다.');
@@ -315,7 +392,7 @@ export const DebugCacheTestPage = () => {
             } catch (e: any) {
                 const duration = performance.now() - start;
                 addLog('error', '익스플로러', `레코드 수정 실패: ${e.message ?? String(e)}`);
-                updateStats(duration, false);
+                updateStats(duration, false, '익스플로러:SaveTestRecord(인라인 수정)');
             } finally {
                 setIsRunning(false);
             }
@@ -358,16 +435,20 @@ export const DebugCacheTestPage = () => {
                 value: `Val-${i}-${Math.random().toString(36).substring(2, 6)}`,
             }));
 
-            const response = await webBridge.request('SaveAllTestRecords', { items });
+            const response = await webBridge.request('SaveAllTestRecords', { data: { items } });
             const duration = performance.now() - start;
 
-            if (response.success && response.data?.success) {
+            if (response.type !== 'OnSaveAllTestRecords') {
+                throw new Error(`예상치 못한 응답 타입: ${response.type}`);
+            }
+            const typed = response as AppMessageData<'OnSaveAllTestRecords'>;
+            if (typed.data.success) {
                 addLog(
                     'success',
                     'SQL_SAVE',
-                    `성공적으로 ${response.data.count}개의 데이터를 벌크 저장했습니다. 경과 시간: ${duration.toFixed(1)}ms (${(duration / sqliteBulkCount).toFixed(2)}ms/레코드)`
+                    `성공적으로 ${typed.data.count}개의 데이터를 벌크 저장했습니다. 경과 시간: ${duration.toFixed(1)}ms (${(duration / sqliteBulkCount).toFixed(2)}ms/레코드)`
                 );
-                updateStats(duration, true);
+                updateStats(duration, true, `SQL_SAVE:SaveAllTestRecords(${sqliteBulkCount})`);
                 await loadAllRecords(true);
             } else {
                 throw new Error('네이티브 벌크 저장 응답이 실패 상태를 반환했습니다.');
@@ -379,7 +460,7 @@ export const DebugCacheTestPage = () => {
                 'SQL_SAVE',
                 `벌크 저장 중 오류 발생: ${duration.toFixed(1)}ms. 에러: ${e.message ?? String(e)}`
             );
-            updateStats(duration, false);
+            updateStats(duration, false, `SQL_SAVE:SaveAllTestRecords(${sqliteBulkCount})`);
         } finally {
             setIsRunning(false);
         }
@@ -392,25 +473,25 @@ export const DebugCacheTestPage = () => {
         const start = performance.now();
 
         try {
-            const response = await webBridge.request('FetchAllTestRecords', {});
+            const response = await webBridge.request('FetchAllTestRecords', { data: {} });
             const duration = performance.now() - start;
 
-            if (response.success && response.data?.items) {
-                const count = response.data.items.length;
-                addLog(
-                    'success',
-                    'SQL_FETCH',
-                    `총 ${count}개의 레코드를 로드했습니다. 경과 시간: ${duration.toFixed(1)}ms (${count > 0 ? (duration / count).toFixed(2) : 0}ms/레코드)`
-                );
-                updateStats(duration, true);
-                await loadAllRecords(true);
-            } else {
-                throw new Error('조회 실패');
+            if (response.type !== 'OnFetchAllTestRecords') {
+                throw new Error(`예상치 못한 응답 타입: ${response.type}`);
             }
+            const typed = response as AppMessageData<'OnFetchAllTestRecords'>;
+            const count = typed.data.items.length;
+            addLog(
+                'success',
+                'SQL_FETCH',
+                `총 ${count}개의 레코드를 로드했습니다. 경과 시간: ${duration.toFixed(1)}ms (${count > 0 ? (duration / count).toFixed(2) : 0}ms/레코드)`
+            );
+            updateStats(duration, true, `SQL_FETCH:FetchAllTestRecords(${count})`);
+            await loadAllRecords(true);
         } catch (e: any) {
             const duration = performance.now() - start;
             addLog('error', 'SQL_FETCH', `조회 실패: ${duration.toFixed(1)}ms. 에러: ${e.message ?? String(e)}`);
-            updateStats(duration, false);
+            updateStats(duration, false, 'SQL_FETCH:FetchAllTestRecords');
         } finally {
             setIsRunning(false);
         }
@@ -423,16 +504,20 @@ export const DebugCacheTestPage = () => {
         const start = performance.now();
 
         try {
-            const response = await webBridge.request('ClearTestRecords', {});
+            const response = await webBridge.request('ClearTestRecords', { data: {} });
             const duration = performance.now() - start;
 
-            if (response.success && response.data?.success) {
+            if (response.type !== 'OnClearTestRecords') {
+                throw new Error(`예상치 못한 응답 타입: ${response.type}`);
+            }
+            const typed = response as AppMessageData<'OnClearTestRecords'>;
+            if (typed.data.success) {
                 addLog(
                     'success',
                     'SQL_CLEAR',
                     `SQLite 테이블을 성공적으로 초기화했습니다. 소요 시간: ${duration.toFixed(1)}ms`
                 );
-                updateStats(duration, true);
+                updateStats(duration, true, 'SQL_CLEAR:ClearTestRecords');
                 await loadAllRecords(true);
             } else {
                 throw new Error('초기화 작업이 실패했습니다.');
@@ -440,7 +525,7 @@ export const DebugCacheTestPage = () => {
         } catch (e: any) {
             const duration = performance.now() - start;
             addLog('error', 'SQL_CLEAR', `초기화 작업 실패: ${duration.toFixed(1)}ms. 에러: ${e.message ?? String(e)}`);
-            updateStats(duration, false);
+            updateStats(duration, false, 'SQL_CLEAR:ClearTestRecords');
         } finally {
             setIsRunning(false);
         }
@@ -461,10 +546,7 @@ export const DebugCacheTestPage = () => {
             const promises = [];
             for (let i = 1; i <= concurrencyCount; i++) {
                 promises.push(
-                    webBridge.request('SaveTestRecord', {
-                        key: concurrencyKey,
-                        value: `Value-${i}`,
-                    })
+                    webBridge.request('SaveTestRecord', { data: { key: concurrencyKey, value: `Value-${i}` } })
                 );
             }
 
@@ -476,10 +558,14 @@ export const DebugCacheTestPage = () => {
                 '동시성_검증',
                 `연속 쓰기 완료. DB에 최종적으로 영속화된 '${concurrencyKey}'의 값을 확인 중...`
             );
-            const fetchResponse = await webBridge.request('FetchTestRecord', { key: concurrencyKey });
+            const fetchResponse = await webBridge.request('FetchTestRecord', { data: { key: concurrencyKey } });
+            if (fetchResponse.type !== 'OnFetchTestRecord') {
+                throw new Error(`예상치 못한 응답 타입: ${fetchResponse.type}`);
+            }
+            const typedFetch = fetchResponse as AppMessageData<'OnFetchTestRecord'>;
 
             const duration = performance.now() - start;
-            const finalValue = fetchResponse.data?.item?.value ?? 'NULL';
+            const finalValue = typedFetch.data.item?.value ?? 'NULL';
             const expectedValue = `Value-${concurrencyCount}`;
             const success = finalValue === expectedValue;
 
@@ -490,7 +576,7 @@ export const DebugCacheTestPage = () => {
                     '동시성_검증',
                     `🏆 검증 성공! '${concurrencyKey}'의 최종값은 예상대로 '${finalValue}'입니다. 네이티브 AsyncMutexQueue가 동시 요청을 완벽히 직렬화하여 처리했습니다.`
                 );
-                updateStats(duration, true);
+                updateStats(duration, true, `동시성_검증:SaveTestRecord*${concurrencyCount}+FetchTestRecord`);
                 await loadAllRecords(true);
             } else {
                 setConcurrencyResult({ status: 'fail', expected: expectedValue, actual: finalValue, duration });
@@ -499,13 +585,13 @@ export const DebugCacheTestPage = () => {
                     '동시성_검증',
                     `⚠️ 레이스 컨디션 감지. 예상치 '${expectedValue}' 이지만 DB 실젯값은 '${finalValue}'로 훼손되었습니다.`
                 );
-                updateStats(duration, false);
+                updateStats(duration, false, `동시성_검증:SaveTestRecord*${concurrencyCount}+FetchTestRecord`);
             }
         } catch (e: any) {
             const duration = performance.now() - start;
             setConcurrencyResult({ status: 'fail', expected: `Value-${concurrencyCount}`, actual: 'ERROR', duration });
             addLog('error', '동시성_검증', `검증 실패: ${e.message ?? String(e)}`);
-            updateStats(duration, false);
+            updateStats(duration, false, `동시성_검증:SaveTestRecord*${concurrencyCount}+FetchTestRecord`);
         } finally {
             setIsRunning(false);
         }
@@ -527,24 +613,58 @@ export const DebugCacheTestPage = () => {
         let localSuccess = 0;
         let localFail = 0;
         let totalLatencies = 0;
+        let latencyCount = 0;
+        let latencyMean = 0;
+        let latencyM2 = 0;
+        const topSlow: Array<{ id: number; durationMs: number; success: boolean }> = [];
+
+        const considerTopSlow = (item: { id: number; durationMs: number; success: boolean }) => {
+            topSlow.push(item);
+            topSlow.sort((a, b) => b.durationMs - a.durationMs);
+            if (topSlow.length > 10) topSlow.length = 10;
+        };
 
         try {
             const executeRequest = async (id: number) => {
                 const singleStart = performance.now();
                 try {
                     const res = await webBridge.request('SaveTestRecord', {
-                        key: `flood_key_${id}`,
-                        value: `FloodValue-${id}`,
+                        data: { key: `flood_key_${id}`, value: `FloodValue-${id}` },
                     });
                     const singleTime = performance.now() - singleStart;
                     totalLatencies += singleTime;
-                    if (res.success && res.data?.success) {
+
+                    latencyCount++;
+                    const delta = singleTime - latencyMean;
+                    latencyMean += delta / latencyCount;
+                    const delta2 = singleTime - latencyMean;
+                    latencyM2 += delta * delta2;
+
+                    let ok = false;
+                    if (res.type === 'OnSaveTestRecord') {
+                        const typed = res as AppMessageData<'OnSaveTestRecord'>;
+                        ok = typed.data.success;
+                    }
+
+                    if (ok) {
                         localSuccess++;
+                        considerTopSlow({ id, durationMs: singleTime, success: true });
                     } else {
                         localFail++;
+                        considerTopSlow({ id, durationMs: singleTime, success: false });
                     }
                 } catch {
+                    const singleTime = performance.now() - singleStart;
+                    totalLatencies += singleTime;
+
+                    latencyCount++;
+                    const delta = singleTime - latencyMean;
+                    latencyMean += delta / latencyCount;
+                    const delta2 = singleTime - latencyMean;
+                    latencyM2 += delta * delta2;
+
                     localFail++;
+                    considerTopSlow({ id, durationMs: singleTime, success: false });
                 } finally {
                     resolvedCount++;
                     setFloodProgress(Math.floor((resolvedCount / floodCount) * 100));
@@ -575,24 +695,35 @@ export const DebugCacheTestPage = () => {
             const elapsed = performance.now() - start;
             const successRate = Number(((localSuccess / floodCount) * 100).toFixed(1));
             const avgMs = Number((totalLatencies / floodCount).toFixed(1));
+            const stddevMs = Number((latencyCount > 1 ? Math.sqrt(latencyM2 / (latencyCount - 1)) : 0).toFixed(1));
+            const rps = Number(((floodCount * 1000) / elapsed).toFixed(2));
+            const topSlow10 = topSlow.map(item => ({
+                ...item,
+                durationMs: Number(item.durationMs.toFixed(1)),
+            }));
 
             setFloodStats({
                 totalTime: Number(elapsed.toFixed(0)),
                 successRate,
                 avgMs,
+                stddevMs,
+                rps,
+                topSlow: topSlow10,
             });
 
             addLog(
                 'success',
                 '스트레스',
-                `부하 테스트 완료! 총 소요 시간: ${elapsed.toFixed(0)}ms. 성공률: ${successRate}%. 평균 RTT: ${avgMs}ms.`
+                `부하 테스트 완료! 총 소요 시간: ${elapsed.toFixed(
+                    0
+                )}ms. 처리량: ${rps} req/s. 성공률: ${successRate}%. 평균 RTT: ${avgMs}ms (σ=${stddevMs}ms).`
             );
-            updateStats(elapsed, successRate > 95);
+            updateStats(elapsed, successRate > 95, `스트레스:SaveTestRecord*${floodCount}(${floodStrategy})`);
             await loadAllRecords(true);
         } catch (e: any) {
             const elapsed = performance.now() - start;
             addLog('error', '스트레스', `부하 테스트 중단: ${elapsed.toFixed(0)}ms. 에러: ${e.message ?? String(e)}`);
-            updateStats(elapsed, false);
+            updateStats(elapsed, false, `스트레스:SaveTestRecord*${floodCount}(${floodStrategy})`);
         } finally {
             setIsRunning(false);
         }
@@ -633,11 +764,95 @@ export const DebugCacheTestPage = () => {
                             <Metric label="총 실행 수" value={totalOps} />
                             <Metric label="평균 RTT 지연시간" value={avgLatency ? `${avgLatency} ms` : '-'} />
                             <Metric
+                                label="RTT 표준편차"
+                                value={latencyStdDevMs !== null ? `${latencyStdDevMs.toFixed(1)} ms` : '-'}
+                            />
+                            <Metric label="처리량 (ops/s)" value={opsPerSec !== null ? opsPerSec.toFixed(2) : '-'} />
+                            <Metric label="실패 수" value={failCount} />
+                            <Metric
                                 label="벤치마크 성공 비율"
                                 value={totalOps > 0 ? `${((successCount / totalOps) * 100).toFixed(1)}%` : '100%'}
                             />
                             <Metric label="SQLite 대상 테이블" value="test_records" />
                         </div>
+                    </Section>
+
+                    <Section title="느린 요청 TOP 10 (전체 RTT 기준)">
+                        <div className="mb-3 grid grid-cols-2 gap-x-4 gap-y-3">
+                            <Metric label="샘플 수" value={latencyStats.count} />
+                            <Metric
+                                label="평균 RTT (mean)"
+                                value={latencyStats.count > 0 ? `${latencyStats.mean.toFixed(1)} ms` : '-'}
+                            />
+                            <Metric
+                                label="최소 RTT"
+                                value={latencyStats.count > 0 ? `${latencyStats.min.toFixed(1)} ms` : '-'}
+                            />
+                            <Metric
+                                label="최대 RTT"
+                                value={latencyStats.count > 0 ? `${latencyStats.max.toFixed(1)} ms` : '-'}
+                            />
+                        </div>
+
+                        {slowOps.length === 0 ? (
+                            <p className="py-8 text-center text-[12.5px] text-muted-foreground">
+                                아직 측정된 실행 기록이 없습니다. 성능 시나리오를 실행하면 자동으로 집계됩니다.
+                            </p>
+                        ) : (
+                            <div className="rounded-xl border border-border bg-background">
+                                <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        실행 기록 (느린 순)
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={resetStats}
+                                        className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors"
+                                    >
+                                        통계 초기화
+                                    </button>
+                                </div>
+                                <div className="divide-y divide-border">
+                                    {slowOps.map((op, index) => (
+                                        <div key={op.id} className="px-3 py-2">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="flex min-w-0 items-center gap-2">
+                                                    <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                                                        #{index + 1}
+                                                    </span>
+                                                    <span
+                                                        className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${
+                                                            op.success
+                                                                ? 'bg-primary/15 text-primary'
+                                                                : 'bg-destructive/15 text-destructive'
+                                                        }`}
+                                                    >
+                                                        {op.success ? 'ok' : 'fail'}
+                                                    </span>
+                                                    <span className="min-w-0 truncate font-mono text-[11px] font-semibold text-foreground">
+                                                        {op.label}
+                                                    </span>
+                                                </div>
+                                                <span className="shrink-0 font-mono text-[11px] font-bold text-foreground">
+                                                    {op.durationMs.toFixed(1)}ms
+                                                </span>
+                                            </div>
+                                            <p className="mt-1 font-mono text-[9px] text-muted-foreground">
+                                                {new Date(op.at).toLocaleString('ko-KR', {
+                                                    hour12: false,
+                                                    year: 'numeric',
+                                                    month: '2-digit',
+                                                    day: '2-digit',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit',
+                                                    second: '2-digit',
+                                                })}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </Section>
 
                     {/* 2. 대시보드 3단 탭 셀렉터 */}
@@ -869,25 +1084,84 @@ export const DebugCacheTestPage = () => {
                                             스트레스 벤치마크 분석 보고
                                         </div>
                                         <div className="grid grid-cols-3 gap-2 text-center">
-                                            <div className="border-r border-border pr-2">
+                                            <div className="rounded-[10px] border border-border bg-background/60 p-2">
                                                 <p className="text-[9px] text-muted-foreground">총 소요 시간</p>
                                                 <p className="text-[13.5px] font-semibold text-foreground">
                                                     {floodStats.totalTime} ms
                                                 </p>
                                             </div>
-                                            <div className="border-r border-border px-2">
+                                            <div className="rounded-[10px] border border-border bg-background/60 p-2">
+                                                <p className="text-[9px] text-muted-foreground">처리량</p>
+                                                <p className="text-[13.5px] font-semibold text-foreground">
+                                                    {floodStats.rps} req/s
+                                                </p>
+                                            </div>
+                                            <div className="rounded-[10px] border border-border bg-background/60 p-2">
                                                 <p className="text-[9px] text-muted-foreground">전송 성공률</p>
                                                 <p className="text-[13.5px] font-semibold text-primary">
                                                     {floodStats.successRate}%
                                                 </p>
                                             </div>
-                                            <div className="pl-2">
-                                                <p className="text-[9px] text-muted-foreground">평균 RTT 속도</p>
+                                            <div className="rounded-[10px] border border-border bg-background/60 p-2">
+                                                <p className="text-[9px] text-muted-foreground">평균 RTT</p>
                                                 <p className="text-[13.5px] font-semibold text-foreground">
                                                     {floodStats.avgMs} ms
                                                 </p>
                                             </div>
+                                            <div className="rounded-[10px] border border-border bg-background/60 p-2">
+                                                <p className="text-[9px] text-muted-foreground">RTT 표준편차</p>
+                                                <p className="text-[13.5px] font-semibold text-foreground">
+                                                    σ {floodStats.stddevMs} ms
+                                                </p>
+                                            </div>
+                                            <div className="rounded-[10px] border border-border bg-background/60 p-2">
+                                                <p className="text-[9px] text-muted-foreground">느린 요청 (Top1)</p>
+                                                <p className="text-[13.5px] font-semibold text-foreground">
+                                                    {floodStats.topSlow?.[0]
+                                                        ? `${floodStats.topSlow[0].durationMs} ms`
+                                                        : '-'}
+                                                </p>
+                                            </div>
                                         </div>
+
+                                        {floodStats.topSlow?.length ? (
+                                            <div className="mt-3 rounded-[10px] border border-border bg-background/60">
+                                                <div className="border-b border-border px-3 py-2">
+                                                    <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                                                        느린 요청 TOP 10 (Flood 단건 RTT)
+                                                    </p>
+                                                </div>
+                                                <div className="divide-y divide-border">
+                                                    {floodStats.topSlow.map((op, index) => (
+                                                        <div
+                                                            key={`${op.id}-${index}`}
+                                                            className="flex items-center justify-between gap-2 px-3 py-2"
+                                                        >
+                                                            <div className="flex min-w-0 items-center gap-2">
+                                                                <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                                                                    #{index + 1}
+                                                                </span>
+                                                                <span
+                                                                    className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${
+                                                                        op.success
+                                                                            ? 'bg-primary/15 text-primary'
+                                                                            : 'bg-destructive/15 text-destructive'
+                                                                    }`}
+                                                                >
+                                                                    {op.success ? 'ok' : 'fail'}
+                                                                </span>
+                                                                <span className="truncate font-mono text-[11px] font-semibold text-foreground">
+                                                                    id={op.id}
+                                                                </span>
+                                                            </div>
+                                                            <span className="shrink-0 font-mono text-[11px] font-bold text-foreground">
+                                                                {op.durationMs}ms
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : null}
                                     </div>
                                 )}
 
