@@ -73,6 +73,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
         )
     }
 
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        UIApplication.shared.applicationIconBadgeNumber = 0
+    }
 
     // MARK: - Push Notifications (APNs)
 
