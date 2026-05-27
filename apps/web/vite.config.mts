@@ -157,6 +157,25 @@ export default defineConfig({
             strictRequires: true,
             transformMixedEsModules: true,
         },
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+                    'vendor-ui': [
+                        '@radix-ui/react-dialog',
+                        '@radix-ui/react-popover',
+                        '@radix-ui/react-accordion',
+                        '@radix-ui/react-tabs',
+                        '@radix-ui/react-toast',
+                        '@radix-ui/react-select',
+                        '@radix-ui/react-dropdown-menu',
+                        '@radix-ui/react-alert-dialog',
+                        '@radix-ui/react-tooltip',
+                    ],
+                    'vendor-utils': ['zustand', 'i18next', 'react-i18next', 'react-hook-form'],
+                },
+            },
+        },
     },
 
     css: {
