@@ -24,9 +24,11 @@
                 if (isDark) {
                     document.documentElement.classList.add('dark');
                     document.getElementById('theme-color-meta').content = '#121212';
+                    document.documentElement.style.setProperty('--splash-bg', '#121212');
                 } else {
                     document.documentElement.classList.remove('dark');
                     document.getElementById('theme-color-meta').content = '#ffffff';
+                    document.documentElement.style.setProperty('--splash-bg', '#ffffff');
                 }
             })();
         </script>
@@ -53,7 +55,20 @@
         <link rel="stylesheet" href="/src/styles.css" />
     </head>
     <body>
-        <div id="root"></div>
+        <div id="root">
+            <div
+                id="splash"
+                style="
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100dvh;
+                    background: var(--splash-bg, #ffffff);
+                "
+            >
+                <img src="/logo.png" alt="" width="96" height="96" />
+            </div>
+        </div>
         <script type="module" src="/src/main.tsx"></script>
     </body>
 </html>
