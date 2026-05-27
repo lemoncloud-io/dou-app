@@ -19,8 +19,10 @@ export type LogTag =
     | 'LOG_BUFFER'
     | 'APP_ICON'
     | `TEST`
+    | 'UPLOAD'
     | 'PREFERENCE'
-    | 'UPLOAD';
+    | 'PUSH_QUEUE'
+    | 'PUSH_EVENT';
 
 export type LogListener = (level: LogLevel, tag: LogTag, message: string, data?: any, error?: any) => void;
 
