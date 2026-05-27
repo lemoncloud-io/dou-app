@@ -8,51 +8,26 @@ import {
     createLocalDataSources,
     type DataContextProvider,
     type LocalDataSources,
-    IndexedDBDatabase,
-    IndexedDBAdapter,
-    NativeDBAdapter,
-    ChatQueryExecutor,
 } from '@chatic/data';
 import { webBridge } from '../bridges';
+import {
+    type CacheStorageStrategy,
+    IndexedDbOnlyCacheStorageStrategy,
+    HotColdCacheStorageStrategy,
+} from './cacheStorageStrategies';
 
 export const isNativeApp = (): boolean => {
-    /**
-     * TODO: Replace this
-     * typeof window !== 'undefined' && !!(window as any).ReactNativeWebView;
-     */
-    return false; // TODO: restore — typeof window !== 'undefined' && !!(window as any).ReactNativeWebView;
+    return typeof window !== 'undefined' && !!(window as any).ReactNativeWebView;
 };
 
-// 모듈 수준의 단일 database 인스턴스 (공유 커넥션 보장)
-let sharedDatabase: IndexedDBDatabase | null = null;
-const getSharedDatabase = (): IndexedDBDatabase => {
-    if (!sharedDatabase) {
-        sharedDatabase = new IndexedDBDatabase();
-    }
-    return sharedDatabase;
-};
+const selectStrategy = (): CacheStorageStrategy =>
+    isNativeApp() ? new HotColdCacheStorageStrategy(webBridge) : new IndexedDbOnlyCacheStorageStrategy();
 
 // DataContext 스냅샷 대신 DataContextProvider를 주입받습니다.
 export const getCacheStorage = <TType extends CacheType>(
     type: TType,
     contextProvider: DataContextProvider
-): CacheStorage<TType> => {
-    const isNative = isNativeApp();
-    if (isNative) {
-        return new NativeDBAdapter(webBridge, type, contextProvider);
-    }
-
-    const db = getSharedDatabase();
-    if (type === 'chat') {
-        return new IndexedDBAdapter(
-            db,
-            'chat',
-            contextProvider,
-            new ChatQueryExecutor()
-        ) as unknown as CacheStorage<TType>;
-    }
-    return new IndexedDBAdapter(db, type, contextProvider);
-};
+): CacheStorage<TType> => selectStrategy().create(type, contextProvider);
 
 /**
  * 환경에 맞는 스토리지를 판별하고 LocalDataSource 묶음을 조립하여 반환하는 훅입니다.

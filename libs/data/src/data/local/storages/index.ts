@@ -5,6 +5,7 @@ import type { CacheStorage } from './types';
 export * from './types';
 export * from './IndexedDBAdapter';
 export * from './NativeDBAdapter';
+export * from './DynamicCacheStorage';
 
 export type CacheStorageFactory = <TType extends CacheType>(
     type: TType,

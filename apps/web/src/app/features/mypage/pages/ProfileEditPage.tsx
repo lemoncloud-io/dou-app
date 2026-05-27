@@ -135,11 +135,7 @@ export const ProfileEditPage = () => {
                     <div className="relative inline-block">
                         <div className="flex h-[82px] w-[82px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                             {imageUrl ? (
-                                <img
-                                    src={imageUrl}
-                                    alt="Profile"
-                                    className="h-full w-full object-cover"
-                                />
+                                <img src={imageUrl} alt="Profile" className="h-full w-full object-cover" />
                             ) : (
                                 <User size={36} className="text-muted-foreground" />
                             )}
