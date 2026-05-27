@@ -213,6 +213,8 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 allowFileAccessFromFileURLs={true}
                 allowUniversalAccessFromFileURLs={true}
                 mixedContentMode="always"
+                cacheEnabled={true}
+                cacheMode="LOAD_DEFAULT"
                 {...restProps}
                 onLoad={handleWebViewLoad}
                 onMessage={handleMessage}

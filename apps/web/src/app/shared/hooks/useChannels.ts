@@ -17,17 +17,11 @@ export interface ChannelDebugInfo {
     fetchCount: number;
     lastFetchAt: string | null;
     lastFetchResultCount: number | null;
-    cacheKey: string;
-    cacheHit: boolean;
     isVerified: boolean;
     isConnected: boolean;
     cloudId: string | null;
     targetPlaceId: string | undefined;
 }
-
-// 모듈 레벨 캐시 — unmount/remount 시에도 이전 채널 데이터를 즉시 표시하여 깜빡임 방지
-const channelCache = new Map<string, ClientChannelView[]>();
-const getChannelCacheKey = (cloudId: string | null, placeId?: string) => `${cloudId}:${placeId ?? ''}`;
 
 // 컴포넌트 재마운트와 실제 클라우드/place 전환을 구분하기 위한 모듈 레벨 변수
 let lastFetchedCloudId: string | null | undefined;
@@ -86,13 +80,11 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     const targetPlaceIdRef = useRef(targetPlaceId);
     targetPlaceIdRef.current = targetPlaceId;
 
-    const cacheKey = getChannelCacheKey(cloudId, targetPlaceId);
-
-    const [channels, setChannels] = useState<ClientChannelView[]>(() => channelCache.get(cacheKey) ?? []);
+    const [channels, setChannels] = useState<ClientChannelView[]>([]);
     const channelsRef = useRef(channels);
     channelsRef.current = channels;
 
-    const [isLoading, setIsLoading] = useState(() => !channelCache.has(cacheKey));
+    const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isError, setIsError] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -104,25 +96,31 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     });
 
     // 렌더 단계에서 cloud/place 전환 감지 — 이전 place의 채널이 한 프레임 보이는 현상(flash) 방지
-    // 모듈 캐시에 새 place 데이터가 있으면 즉시 복원하여 불필요한 빈 화면 방지
     const [prevCloudId, setPrevCloudId] = useState(cloudId);
     const [prevPlaceId, setPrevPlaceId] = useState(targetPlaceId);
 
     if ((!!prevCloudId && prevCloudId !== cloudId) || (!!prevPlaceId && prevPlaceId !== targetPlaceId)) {
-        const nextCacheKey = getChannelCacheKey(cloudId, targetPlaceId);
-        const cached = channelCache.get(nextCacheKey);
-        if (cached && cached.length > 0) {
-            setChannels(cached);
-            setIsLoading(false);
-        } else {
-            setChannels([]);
-            setIsLoading(true);
-        }
+        setChannels([]);
+        setIsLoading(true);
     }
     if (prevCloudId !== cloudId) setPrevCloudId(cloudId);
     if (prevPlaceId !== targetPlaceId) setPrevPlaceId(targetPlaceId);
 
-    // 단일 fetch 함수 — 결과를 항상 직접 반영 (usePlaces와 동일 패턴)
+    // IndexedDB(channelRepository)에서 캐시 읽기 — 공통 헬퍼
+    const loadFromCache = useCallback(
+        async (params: DomainChannelListPayload, requestSeq: number): Promise<ClientChannelView[]> => {
+            const cacheResult = await channelRepository.fetchChannel(buildFetchPayload(params), {
+                cachePolicy: 'cache-only',
+            });
+            if (requestSeqRef.current !== requestSeq) return [];
+            return sortChannels(
+                (cacheResult.list ?? []).map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
+            );
+        },
+        [channelRepository]
+    );
+
+    // 단일 fetch 함수 — 결과를 항상 직접 반영
     const fetchChannels = useCallback(
         async (options?: { loading?: boolean; forceNetwork?: boolean }) => {
             const params = currentParamsRef.current;
@@ -134,6 +132,20 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
             if (options?.forceNetwork) setIsSyncing(true);
             setIsError(false);
             setErrorMessage(null);
+
+            // 표시할 데이터가 없으면 IndexedDB에서 먼저 로드하여 즉시 표시
+            if (channelsRef.current.length === 0) {
+                try {
+                    const cached = await loadFromCache(params, requestSeq);
+                    if (requestSeqRef.current !== requestSeq) return;
+                    if (cached.length > 0) {
+                        setChannels(cached);
+                        setIsLoading(false);
+                    }
+                } catch {
+                    // 캐시 읽기 실패 무시 — 네트워크 요청으로 진행
+                }
+            }
 
             const cachePolicy = options?.forceNetwork ? 'network-only' : 'cache-first';
             logger.info('CHANNEL', '[useChannels] fetchChannels start', {
@@ -151,7 +163,6 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
                     data: { resultCount: nextChannels.length, source: result.meta?.source },
                 });
 
-                channelCache.set(getChannelCacheKey(cloudIdRef.current, targetPlaceIdRef.current), nextChannels);
                 setChannels(nextChannels);
                 setDebugInfo(prev => ({
                     fetchCount: prev.fetchCount + 1,
@@ -171,44 +182,28 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
                 }
             }
         },
-        [channelRepository]
+        [channelRepository, loadFromCache]
     );
 
-    // isVerified 전이라도 캐시에서 채널을 즉시 읽기
+    // isVerified 전이라도 IndexedDB 캐시에서 채널을 즉시 읽기
     useEffect(() => {
         if (!cloudId || !targetPlaceId || isVerified) return;
-        const key = getChannelCacheKey(cloudId, targetPlaceId);
-
-        // 모듈 캐시에 데이터가 있으면 즉시 복원 (렌더 단계와 effect 타이밍 차이 보완)
-        const cached = channelCache.get(key);
-        if (cached && cached.length > 0) {
-            setChannels(cached);
-            setIsLoading(false);
-            return;
-        }
 
         const requestSeq = ++requestSeqRef.current;
-        const loadCache = async () => {
+        const doLoad = async () => {
             try {
-                const result = await channelRepository.fetchChannel(
-                    buildFetchPayload({ ...currentParamsRef.current, sid: targetPlaceId }),
-                    { cachePolicy: 'cache-only' }
-                );
+                const cached = await loadFromCache({ ...currentParamsRef.current, sid: targetPlaceId }, requestSeq);
                 if (requestSeqRef.current !== requestSeq) return;
-                const nextChannels = sortChannels(
-                    (result.list ?? []).map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
-                );
-                if (nextChannels.length > 0) {
-                    channelCache.set(key, nextChannels);
-                    setChannels(nextChannels);
+                if (cached.length > 0) {
+                    setChannels(cached);
                     setIsLoading(false);
                 }
             } catch {
                 // 캐시 읽기 실패는 무시 — isVerified 후 정상 fetch에서 처리
             }
         };
-        void loadCache();
-    }, [cloudId, targetPlaceId, isVerified, channelRepository]);
+        void doLoad();
+    }, [cloudId, targetPlaceId, isVerified, loadFromCache]);
 
     // cloudId/place가 변경되고 인증 완료 시 채널 목록 재요청
     const prevFetchKeyRef = useRef<string | undefined>(undefined);
@@ -230,10 +225,9 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         lastFetchedCloudId = cloudId;
         lastFetchedPlaceId = targetPlaceId;
 
-        const hasValidModuleCache = (channelCache.get(getChannelCacheKey(cloudId, targetPlaceId))?.length ?? 0) > 0;
         currentParamsRef.current = initialParams;
         void fetchChannels({
-            loading: !hasValidModuleCache && (isSwitch || channelsRef.current.length === 0),
+            loading: isSwitch || channelsRef.current.length === 0,
             forceNetwork: isSwitch || isRemount,
         });
     }, [fetchChannels, cloudId, targetPlaceId, isVerified]);
@@ -268,8 +262,6 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
 
     const fullDebugInfo: ChannelDebugInfo = {
         ...debugInfo,
-        cacheKey,
-        cacheHit: channelCache.has(cacheKey),
         isVerified,
         isConnected,
         cloudId,

@@ -362,15 +362,9 @@ export const HomePage = () => {
                                         </span>
                                     </div>
                                     <div>
-                                        cacheKey:{' '}
+                                        cloudId(channel):{' '}
                                         <span className="font-semibold text-foreground">
-                                            {channelsResult.debugInfo?.cacheKey || '(none)'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        cacheHit:{' '}
-                                        <span className="font-semibold text-foreground">
-                                            {String(channelsResult.debugInfo?.cacheHit)}
+                                            {channelsResult.debugInfo?.cloudId || '(null)'}
                                         </span>
                                     </div>
                                     <div className="mt-1 text-[11px] opacity-70">--- fetch ---</div>
