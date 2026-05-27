@@ -24,3 +24,18 @@ export interface OnFetchFcmTokenPayload {
 export interface OnNotificationPayload {
     notification: NotificationInfo;
 }
+
+/** [요청] 뱃지 카운트 설정 페이로드 */
+export interface SetBadgeCountPayload {
+    count: number;
+}
+
+/** [응답] 뱃지 카운트 조회 결과 페이로드 */
+export interface OnFetchBadgeCountPayload {
+    count: number;
+}
+
+/** [응답] 뱃지 카운트 설정 결과 페이로드 */
+export interface OnSetBadgeCountPayload {
+    success: boolean;
+}

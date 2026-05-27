@@ -15,6 +15,7 @@ import type {
     OnFetchAppLogBufferSizePayload,
     OnFetchCacheDataPayload,
     OnFetchCurrentPurchasesPayload,
+    OnFetchBadgeCountPayload,
     OnFetchFcmTokenPayload,
     OnFetchPreferencePayload,
     OnFetchProductsPayload,
@@ -40,6 +41,7 @@ import type {
     OnSavePreferencePayload,
     OnSaveTestRecordPayload,
     OnSearchGlobalCacheDataPayload,
+    OnSetBadgeCountPayload,
     OnUpdateDeviceInfoPayload,
     PongPayload,
     OnUploadProgressPayload,
@@ -78,7 +80,8 @@ export const AppMessageTypes = {
     // 2. Notification
     OnFetchFcmToken: 'OnFetchFcmToken',
     OnReceiveNotification: 'OnReceiveNotification',
-    OnOpenNotification: 'OnOpenNotification',
+    OnFetchBadgeCount: 'OnFetchBadgeCount',
+    OnSetBadgeCount: 'OnSetBadgeCount',
 
     // 3. IAP
     OnFetchCurrentPurchases: 'OnFetchCurrentPurchases',
@@ -132,7 +135,6 @@ export type EventMessageType = Extract<
     AppMessageType,
     | 'OnBackPressed'
     | 'OnReceiveNotification'
-    | 'OnOpenNotification'
     | 'OnBackgroundStatusChanged'
     | 'OnCloseModal'
     | 'OnPurchaseSuccess'
@@ -174,7 +176,8 @@ export interface AppMessageDataMap {
     // 2. Notification
     OnFetchFcmToken: OnFetchFcmTokenPayload;
     OnReceiveNotification: OnNotificationPayload;
-    OnOpenNotification: OnNotificationPayload;
+    OnFetchBadgeCount: OnFetchBadgeCountPayload;
+    OnSetBadgeCount: OnSetBadgeCountPayload;
 
     // 3. IAP
     OnFetchCurrentPurchases: OnFetchCurrentPurchasesPayload;

@@ -32,6 +32,7 @@ import type {
     SearchGlobalCacheDataPayload,
     SendLogPayload,
     SendSmsPayload,
+    SetBadgeCountPayload,
     SetCanGoBackPayload,
     RequestFileUploadPayload,
     PauseFileUploadPayload,
@@ -67,6 +68,8 @@ export interface WebMessagePayloadMap {
 
     // 2. Notification
     FetchFcmToken: never;
+    FetchBadgeCount: never;
+    SetBadgeCount: SetBadgeCountPayload;
 
     // 3. IAP
     FetchProducts: never;
