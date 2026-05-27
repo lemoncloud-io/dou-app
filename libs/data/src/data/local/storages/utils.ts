@@ -30,6 +30,7 @@ export const createTtlMeta = (type: CacheType, now = Date.now()) => {
     return {
         lastSyncedAt,
         expiresAt: lastSyncedAt + resolveTtlMs(type),
+        lastAccessedAt: now,
     };
 };
 

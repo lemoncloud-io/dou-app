@@ -8,20 +8,44 @@ import {
     createLocalDataSources,
     type DataContextProvider,
     type LocalDataSources,
+    type PolicyResolver,
+    type EvictionStrategy,
+    type CapacityPolicy,
+    type CacheErrorReporter,
 } from '@chatic/data';
 import { webBridge } from '../bridges';
 import {
     type CacheStorageStrategy,
     IndexedDbOnlyCacheStorageStrategy,
     HotColdCacheStorageStrategy,
+    AppPolicyResolver,
 } from './cacheStorageStrategies';
 
 export const isNativeApp = (): boolean => {
     return typeof window !== 'undefined' && !!(window as any).ReactNativeWebView;
 };
 
-const selectStrategy = (): CacheStorageStrategy =>
-    isNativeApp() ? new HotColdCacheStorageStrategy(webBridge) : new IndexedDbOnlyCacheStorageStrategy();
+export interface CacheFactoryOptions {
+    policyResolver?: PolicyResolver;
+    evictionStrategy?: EvictionStrategy;
+    capacityPolicy?: CapacityPolicy;
+    reporter?: CacheErrorReporter;
+}
+
+const appPolicyResolver = new AppPolicyResolver();
+
+const selectStrategy = (options?: CacheFactoryOptions): CacheStorageStrategy => {
+    if (!isNativeApp()) {
+        return new IndexedDbOnlyCacheStorageStrategy();
+    }
+
+    return new HotColdCacheStorageStrategy(webBridge, {
+        policyResolver: options?.policyResolver ?? appPolicyResolver,
+        evictionStrategy: options?.evictionStrategy,
+        capacityPolicy: options?.capacityPolicy,
+        reporter: options?.reporter,
+    });
+};
 
 // DataContext 스냅샷 대신 DataContextProvider를 주입받습니다.
 export const getCacheStorage = <TType extends CacheType>(

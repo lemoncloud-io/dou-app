@@ -114,7 +114,8 @@ export const usePlaces = () => {
         const hasValidModuleCache = placesCacheCloudId === cloudId && placesCache && placesCache.length > 0;
         void fetchPlaces({
             loading: !hasValidModuleCache && (isCloudSwitch || places.length === 0),
-            forceNetwork: isCloudSwitch,
+            // cache-first: 캐시 데이터가 있으면 즉시 표시 + 백그라운드 네트워크 갱신
+            // cloud 전환 시 network-only를 쓰면 WebSocket 응답 + bridge 왕복을 모두 대기해야 하므로 느림
         });
     }, [fetchPlaces, cloudId, isVerified]);
 

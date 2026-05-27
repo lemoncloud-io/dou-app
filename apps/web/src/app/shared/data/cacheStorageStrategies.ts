@@ -3,12 +3,19 @@ import type { CacheType } from '@chatic/app-messages';
 import {
     type CacheStorage,
     type DataContextProvider,
+    type PolicyResolver,
     type CacheReadPolicy,
+    type EvictionStrategy,
+    type CapacityPolicy,
+    type CacheErrorReporter,
     IndexedDBDatabase,
     IndexedDBAdapter,
     NativeDBAdapter,
     ChatQueryExecutor,
     DynamicCacheStorage,
+    DefaultPolicyResolver,
+    DefaultEvictionStrategy,
+    DefaultCapacityPolicy,
 } from '@chatic/data';
 
 /**
@@ -46,16 +53,45 @@ const createIndexedDBAdapter = <TType extends CacheType>(
     return new IndexedDBAdapter(db, type, contextProvider);
 };
 
-// ─── 타입별 기본 Policy ──────────────────────────────────────────────
+// ─── 기본 Reporter ──────────────────────────────────────────────────
 
-const defaultPolicies: Record<CacheType, { readPolicy: CacheReadPolicy; loadAllPolicy: CacheReadPolicy }> = {
-    chat: { readPolicy: 'hot-first', loadAllPolicy: 'hot-first' },
-    channel: { readPolicy: 'hot-first', loadAllPolicy: 'hot-first' },
-    invitecloud: { readPolicy: 'hot-first', loadAllPolicy: 'hot-first' },
-    join: { readPolicy: 'hot-first', loadAllPolicy: 'hot-first' },
-    site: { readPolicy: 'hot-first', loadAllPolicy: 'hot-first' },
-    user: { readPolicy: 'hot-first', loadAllPolicy: 'hot-first' },
+const defaultReporter: CacheErrorReporter = (error, context) => {
+    console.warn(`[DynamicCacheStorage] ${context.tier} error:`, context.operation, error);
 };
+
+// ─── AppPolicyResolver ──────────────────────────────────────────────
+
+const appReadPolicies: Record<CacheType, CacheReadPolicy> = {
+    chat: 'hot-first',
+    channel: 'hot-first',
+    invitecloud: 'hot-first',
+    join: 'cold-first',
+    site: 'hot-first',
+    user: 'hot-first',
+};
+
+const appLoadAllPolicies: Record<CacheType, CacheReadPolicy> = {
+    chat: 'hot-first',
+    channel: 'hot-first',
+    invitecloud: 'hot-first',
+    join: 'cold-first',
+    site: 'hot-first',
+    user: 'hot-first',
+};
+
+/**
+ * 앱 환경용 PolicyResolver.
+ * - channel, site, user, chat, invitecloud → hot-first (IndexedDB 우선, bridge 비용 절감)
+ * - join → cold-first (readNo 변경 빈번, Cold 정합성 우선)
+ */
+export class AppPolicyResolver implements PolicyResolver {
+    resolveReadPolicy(type: CacheType): CacheReadPolicy {
+        return appReadPolicies[type] ?? 'hot-first';
+    }
+    resolveLoadAllPolicy(type: CacheType): CacheReadPolicy {
+        return appLoadAllPolicies[type] ?? 'hot-first';
+    }
+}
 
 // ─── Strategy 구현체 ─────────────────────────────────────────────────
 
@@ -79,24 +115,53 @@ export class NativeDbOnlyCacheStorageStrategy implements CacheStorageStrategy {
     }
 }
 
+export interface HotColdStrategyOptions {
+    policyResolver?: PolicyResolver;
+    evictionStrategy?: EvictionStrategy;
+    capacityPolicy?: CapacityPolicy;
+    reporter?: CacheErrorReporter;
+}
+
 /**
  * 앱 WebView용: Hot(IndexedDB) + Cold(NativeDB) 2-Tier 캐시
  */
 export class HotColdCacheStorageStrategy implements CacheStorageStrategy {
-    constructor(private readonly bridge: IWebBridgeClient) {}
+    private readonly policyResolver: PolicyResolver;
+    private readonly evictionStrategy: EvictionStrategy;
+    private readonly capacityPolicy: CapacityPolicy;
+    private readonly reporter: CacheErrorReporter;
+
+    constructor(
+        private readonly bridge: IWebBridgeClient,
+        options?: HotColdStrategyOptions
+    ) {
+        this.policyResolver = options?.policyResolver ?? new DefaultPolicyResolver();
+        this.evictionStrategy = options?.evictionStrategy ?? new DefaultEvictionStrategy();
+        this.capacityPolicy = options?.capacityPolicy ?? new DefaultCapacityPolicy();
+        this.reporter = options?.reporter ?? defaultReporter;
+    }
 
     create<TType extends CacheType>(type: TType, contextProvider: DataContextProvider): CacheStorage<TType> {
         const hot = createIndexedDBAdapter(type, contextProvider);
         const cold = new NativeDBAdapter(this.bridge, type, contextProvider);
-        const policies = defaultPolicies[type];
 
-        return new DynamicCacheStorage<TType>(hot, cold, {
+        const dcs = new DynamicCacheStorage<TType>(hot, cold, {
             type,
-            readPolicy: policies.readPolicy,
-            loadAllPolicy: policies.loadAllPolicy,
-            onHotError: (error: unknown, context: { type?: TType; operation: string }) => {
-                console.warn('[DynamicCacheStorage] Hot error:', context.operation, error);
-            },
+            policyResolver: this.policyResolver,
+            evictionStrategy: this.evictionStrategy,
+            capacityPolicy: this.capacityPolicy,
+            reporter: this.reporter,
         });
+
+        // onStartup: fire-and-forget (앱 시작 지연 방지)
+        this.evictionStrategy.onStartup(hot).catch(startupErr => {
+            try {
+                this.reporter(startupErr, { tier: 'eviction', operation: 'eviction', type });
+            } catch {
+                // reporter 오류 무시
+            }
+        });
+
+        return dcs;
     }
 }

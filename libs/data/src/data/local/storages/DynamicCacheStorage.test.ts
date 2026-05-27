@@ -1,4 +1,6 @@
 import { DynamicCacheStorage } from './DynamicCacheStorage';
+import { StampedeTimeoutError, STAMPEDE_TIMEOUT_MS } from './dynamicCacheTypes';
+import type { EvictionStrategy } from './dynamicCacheTypes';
 import type { CacheStorage } from './types';
 
 // ─── 테스트 유틸 ──────────────────────────────────────────────────────
@@ -22,17 +24,24 @@ const createMockStorage = (): jest.Mocked<CacheStorage<'chat'>> => ({
 const item = (id: string, overrides: Record<string, unknown> = {}) =>
     ({ id, channelId: 'ch-1', text: `msg-${id}`, ...overrides }) as any;
 
+/** no-op EvictionStrategy mock */
+const createMockEviction = (): jest.Mocked<EvictionStrategy> => ({
+    onStartup: jest.fn().mockResolvedValue(undefined),
+    onAfterWrite: jest.fn().mockResolvedValue(undefined),
+    onQuotaExceeded: jest.fn().mockResolvedValue(undefined),
+});
+
 // ─── 테스트 ───────────────────────────────────────────────────────────
 
 describe('DynamicCacheStorage', () => {
     let mockHot: jest.Mocked<CacheStorage<'chat'>>;
     let mockCold: jest.Mocked<CacheStorage<'chat'>>;
-    let onHotError: jest.Mock;
+    let reporter: jest.Mock;
 
     beforeEach(() => {
         mockHot = createMockStorage();
         mockCold = createMockStorage();
-        onHotError = jest.fn();
+        reporter = jest.fn();
     });
 
     const createDCS = (overrides: Record<string, unknown> = {}) =>
@@ -40,7 +49,7 @@ describe('DynamicCacheStorage', () => {
             type: 'chat',
             readPolicy: 'hot-first',
             loadAllPolicy: 'hot-first',
-            onHotError,
+            reporter,
             ...overrides,
         });
 
@@ -85,12 +94,11 @@ describe('DynamicCacheStorage', () => {
             expect(result).toBeNull();
             expect(mockHot.load).toHaveBeenCalledTimes(1);
             expect(mockCold.load).toHaveBeenCalledTimes(1);
-            // 양쪽 miss일 때 Hot warm-up은 하지 않는다
             expect(mockHot.save).not.toHaveBeenCalled();
         });
 
         // R4
-        it('R4 — Hot 에러 시 Cold fallback + onHotError 호출, 상위에 throw하지 않는다', async () => {
+        it('R4 — Hot 에러 시 Cold fallback + reporter 호출, 상위에 throw하지 않는다', async () => {
             mockHot.load.mockRejectedValueOnce(new Error('IDB crash'));
             mockCold.load.mockResolvedValueOnce(item('1'));
             const dcs = createDCS();
@@ -98,10 +106,10 @@ describe('DynamicCacheStorage', () => {
             const result = await dcs.load('1');
 
             expect(result).toMatchObject(item('1'));
-            expect(onHotError).toHaveBeenCalledTimes(1);
-            expect(onHotError).toHaveBeenCalledWith(
+            expect(reporter).toHaveBeenCalledTimes(1);
+            expect(reporter).toHaveBeenCalledWith(
                 expect.any(Error),
-                expect.objectContaining({ type: 'chat', operation: 'load' })
+                expect.objectContaining({ tier: 'hot', operation: 'load' })
             );
         });
     });
@@ -135,7 +143,7 @@ describe('DynamicCacheStorage', () => {
         });
 
         // R8
-        it('R8 — Hot 에러 시 Cold fallback + onHotError 호출', async () => {
+        it('R8 — Hot 에러 시 Cold fallback + reporter 호출', async () => {
             mockHot.loadAll.mockRejectedValueOnce(new Error('IDB crash'));
             mockCold.loadAll.mockResolvedValueOnce([item('1')]);
             const dcs = createDCS();
@@ -144,12 +152,11 @@ describe('DynamicCacheStorage', () => {
             await flushMicrotasks();
 
             expect(result).toMatchObject([expect.objectContaining({ id: '1' })]);
-            expect(onHotError).toHaveBeenCalledTimes(1);
-            expect(onHotError).toHaveBeenCalledWith(
+            expect(reporter).toHaveBeenCalledTimes(1);
+            expect(reporter).toHaveBeenCalledWith(
                 expect.any(Error),
-                expect.objectContaining({ operation: 'loadAll' })
+                expect.objectContaining({ tier: 'hot', operation: 'loadAll' })
             );
-            // warm-up도 발생해야 함
             expect(mockHot.saveAll).toHaveBeenCalled();
         });
     });
@@ -202,7 +209,7 @@ describe('DynamicCacheStorage', () => {
         });
 
         // W3
-        it('W3 — Hot 에러 시 정상 반환 + onHotError 호출', async () => {
+        it('W3 — Hot 에러 시 정상 반환 + reporter 호출', async () => {
             mockHot.save.mockRejectedValueOnce(new Error('IDB quota'));
             const dcs = createDCS();
 
@@ -211,8 +218,11 @@ describe('DynamicCacheStorage', () => {
 
             expect(result).toMatchObject(item('1'));
             expect(mockCold.save).toHaveBeenCalledTimes(1);
-            expect(onHotError).toHaveBeenCalledTimes(1);
-            expect(onHotError).toHaveBeenCalledWith(expect.any(Error), expect.objectContaining({ operation: 'save' }));
+            expect(reporter).toHaveBeenCalledTimes(1);
+            expect(reporter).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({ tier: 'hot', operation: 'save' })
+            );
         });
     });
 
@@ -229,7 +239,6 @@ describe('DynamicCacheStorage', () => {
 
             expect(mockCold.delete).toHaveBeenCalledWith('1');
             expect(mockHot.delete).toHaveBeenCalledWith('1');
-            // Cold가 먼저 호출되었는지 순서 확인
             const coldOrder = mockCold.delete.mock.invocationCallOrder[0];
             const hotOrder = mockHot.delete.mock.invocationCallOrder[0];
             expect(coldOrder).toBeLessThan(hotOrder);
@@ -245,16 +254,16 @@ describe('DynamicCacheStorage', () => {
         });
 
         // D3
-        it('D3 — Hot 에러 시 정상 resolve + onHotError 호출', async () => {
+        it('D3 — Hot 에러 시 정상 resolve + reporter 호출', async () => {
             mockHot.delete.mockRejectedValueOnce(new Error('IDB error'));
             const dcs = createDCS();
 
             await expect(dcs.delete('1')).resolves.toBeUndefined();
             expect(mockCold.delete).toHaveBeenCalledWith('1');
-            expect(onHotError).toHaveBeenCalledTimes(1);
-            expect(onHotError).toHaveBeenCalledWith(
+            expect(reporter).toHaveBeenCalledTimes(1);
+            expect(reporter).toHaveBeenCalledWith(
                 expect.any(Error),
-                expect.objectContaining({ operation: 'delete' })
+                expect.objectContaining({ tier: 'hot', operation: 'delete' })
             );
         });
     });
@@ -270,14 +279,14 @@ describe('DynamicCacheStorage', () => {
             expect(mockHot.clearAll).toHaveBeenCalledTimes(1);
         });
 
-        it('D4 — Hot.clearAll 에러 시 정상 resolve + onHotError 호출', async () => {
+        it('D4 — Hot.clearAll 에러 시 정상 resolve + reporter 호출', async () => {
             mockHot.clearAll.mockRejectedValueOnce(new Error('IDB clear fail'));
             const dcs = createDCS();
 
             await expect(dcs.clearAll()).resolves.toBeUndefined();
-            expect(onHotError).toHaveBeenCalledWith(
+            expect(reporter).toHaveBeenCalledWith(
                 expect.any(Error),
-                expect.objectContaining({ operation: 'clearAll' })
+                expect.objectContaining({ tier: 'hot', operation: 'clearAll' })
             );
         });
     });
@@ -292,14 +301,14 @@ describe('DynamicCacheStorage', () => {
             expect(mockHot.deleteAll).toHaveBeenCalledWith(['1', '2']);
         });
 
-        it('Hot.deleteAll 에러 시 정상 resolve + onHotError 호출', async () => {
+        it('Hot.deleteAll 에러 시 정상 resolve + reporter 호출', async () => {
             mockHot.deleteAll.mockRejectedValueOnce(new Error('IDB error'));
             const dcs = createDCS();
 
             await expect(dcs.deleteAll(['1'])).resolves.toBeUndefined();
-            expect(onHotError).toHaveBeenCalledWith(
+            expect(reporter).toHaveBeenCalledWith(
                 expect.any(Error),
-                expect.objectContaining({ operation: 'deleteAll' })
+                expect.objectContaining({ tier: 'hot', operation: 'deleteAll' })
             );
         });
     });
@@ -314,14 +323,14 @@ describe('DynamicCacheStorage', () => {
             expect(mockHot.clearByChannelId).toHaveBeenCalledWith('ch-1');
         });
 
-        it('Hot 에러 시 정상 resolve + onHotError 호출', async () => {
+        it('Hot 에러 시 정상 resolve + reporter 호출', async () => {
             mockHot.clearByChannelId.mockRejectedValueOnce(new Error('IDB error'));
             const dcs = createDCS();
 
             await expect(dcs.clearByChannelId('ch-1')).resolves.toBeUndefined();
-            expect(onHotError).toHaveBeenCalledWith(
+            expect(reporter).toHaveBeenCalledWith(
                 expect.any(Error),
-                expect.objectContaining({ operation: 'clearByChannelId' })
+                expect.objectContaining({ tier: 'hot', operation: 'clearByChannelId' })
             );
         });
     });
@@ -333,14 +342,11 @@ describe('DynamicCacheStorage', () => {
     describe('통합 흐름', () => {
         // I1
         it('I1 — save 후 load: Hot에 warm-up되어 Cold 미조회', async () => {
-            // save → Cold.save 성공, fire-and-forget Hot.save
-            // load → Hot.load가 데이터 반환
             const dcs = createDCS();
 
             await dcs.save('1', item('1'));
             await flushMicrotasks();
 
-            // 두 번째 load 호출에서 Hot이 데이터를 가지고 있도록 설정
             mockHot.load.mockResolvedValueOnce(item('1'));
 
             const result = await dcs.load('1');
@@ -357,7 +363,6 @@ describe('DynamicCacheStorage', () => {
             await flushMicrotasks();
             await dcs.delete('1');
 
-            // 삭제 후 양쪽 모두 null
             mockHot.load.mockResolvedValueOnce(null);
             mockCold.load.mockResolvedValueOnce(null);
 
@@ -376,7 +381,6 @@ describe('DynamicCacheStorage', () => {
             await dcs.saveAll(msgs);
             await flushMicrotasks();
 
-            // Hot에 warm-up 완료
             mockHot.loadAll.mockResolvedValueOnce(msgs);
 
             const result = await dcs.loadAll();
@@ -389,10 +393,8 @@ describe('DynamicCacheStorage', () => {
         it('I4 — 최초 loadAll Cold fallback → warm-up → 재조회 시 Hot hit', async () => {
             const msgs = Array.from({ length: 50 }, (_, i) => item(`${i}`));
 
-            // 1차: Hot 빈 배열, Cold에 데이터 있음
             mockHot.loadAll.mockResolvedValueOnce([]);
             mockCold.loadAll.mockResolvedValueOnce(msgs);
-            // 2차: warm-up 완료 후 Hot hit
             mockHot.loadAll.mockResolvedValueOnce(msgs);
 
             const dcs = createDCS();
@@ -403,9 +405,7 @@ describe('DynamicCacheStorage', () => {
 
             expect(first).toHaveLength(50);
             expect(second).toHaveLength(50);
-            // Cold.loadAll은 1차에서 1번만 호출
             expect(mockCold.loadAll).toHaveBeenCalledTimes(1);
-            // warm-up으로 Hot.saveAll 1회 발생
             expect(mockHot.saveAll).toHaveBeenCalledTimes(1);
         });
 
@@ -422,25 +422,268 @@ describe('DynamicCacheStorage', () => {
 
             const dcs = createDCS();
 
-            // save — Cold 성공, Hot fire-and-forget 실패 (삼킴)
             const saved = await dcs.save('1', item('1'));
             await flushMicrotasks();
             expect(saved).toMatchObject(item('1'));
 
-            // load — Hot 에러 → Cold fallback
             const loaded = await dcs.load('1');
             expect(loaded).toMatchObject(item('1'));
 
-            // loadAll — Hot 에러 → Cold fallback
             const list = await dcs.loadAll();
             expect(list).toHaveLength(1);
 
-            // delete — Cold 성공, Hot best-effort 실패 (삼킴)
             await expect(dcs.delete('1')).resolves.toBeUndefined();
 
-            // 상위에 에러가 전파되지 않았고, onHotError가 매번 호출됨
-            expect(onHotError).toHaveBeenCalled();
-            expect(onHotError.mock.calls.length).toBeGreaterThanOrEqual(4);
+            expect(reporter).toHaveBeenCalled();
+            expect(reporter.mock.calls.length).toBeGreaterThanOrEqual(4);
+        });
+    });
+
+    // ═══════════════════════════════════════════════════════════════════
+    // cursorNo 분기 (C1–C3)
+    // ═══════════════════════════════════════════════════════════════════
+
+    describe('cursorNo 분기', () => {
+        // C1
+        it('C1 — cursorNo != null → 강제 cold-first, Hot.loadAll 미호출', async () => {
+            mockCold.loadAll.mockResolvedValueOnce([item('1'), item('2')]);
+            const dcs = createDCS();
+
+            const result = await dcs.loadAll({ cursorNo: 500 } as any);
+            await flushMicrotasks();
+
+            expect(result).toHaveLength(2);
+            expect(mockHot.loadAll).not.toHaveBeenCalled();
+            expect(mockCold.loadAll).toHaveBeenCalledWith(expect.objectContaining({ cursorNo: 500 }));
+            expect(mockHot.saveAll).toHaveBeenCalled();
+        });
+
+        // C2
+        it('C2 — cursorNo === 0 → cold-first (페이지네이션 명시 의도)', async () => {
+            mockCold.loadAll.mockResolvedValueOnce([item('1')]);
+            const dcs = createDCS();
+
+            const result = await dcs.loadAll({ cursorNo: 0 } as any);
+            await flushMicrotasks();
+
+            expect(result).toHaveLength(1);
+            expect(mockHot.loadAll).not.toHaveBeenCalled();
+            expect(mockCold.loadAll).toHaveBeenCalledTimes(1);
+        });
+
+        // C3
+        it('C3 — cursorNo 없음 → PolicyResolver 결과에 따라 분기', async () => {
+            mockHot.loadAll.mockResolvedValueOnce([item('1')]);
+            const dcs = createDCS(); // hot-first
+
+            const result = await dcs.loadAll({ limit: 50 } as any);
+
+            expect(result).toHaveLength(1);
+            expect(mockHot.loadAll).toHaveBeenCalled();
+        });
+    });
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Stampede 가드 (S1–S4)
+    // ═══════════════════════════════════════════════════════════════════
+
+    describe('Stampede 가드', () => {
+        // S1
+        it('S1 — 동시 loadAll(opts) 2회 → Cold.loadAll 1회만 호출', async () => {
+            let resolvePromise!: (value: any[]) => void;
+            const pending = new Promise<any[]>(resolve => {
+                resolvePromise = resolve;
+            });
+            mockCold.loadAll.mockReturnValueOnce(pending as any);
+            const dcs = createDCS();
+            const opts = { cursorNo: 100 } as any;
+
+            const p1 = dcs.loadAll(opts);
+            const p2 = dcs.loadAll(opts);
+
+            resolvePromise([item('1'), item('2')]);
+
+            const [r1, r2] = await Promise.all([p1, p2]);
+
+            expect(r1).toHaveLength(2);
+            expect(r2).toHaveLength(2);
+            expect(mockCold.loadAll).toHaveBeenCalledTimes(1);
+        });
+
+        // S2
+        it('S2 — in-flight reject 후 재호출 → 새 Promise 생성', async () => {
+            mockCold.loadAll.mockRejectedValueOnce(new Error('bridge fail'));
+            mockCold.loadAll.mockResolvedValueOnce([item('1')]);
+            const dcs = createDCS();
+            const opts = { cursorNo: 100 } as any;
+
+            await expect(dcs.loadAll(opts)).rejects.toThrow('bridge fail');
+
+            const result = await dcs.loadAll(opts);
+            expect(result).toHaveLength(1);
+            expect(mockCold.loadAll).toHaveBeenCalledTimes(2);
+        });
+
+        // S3
+        it('S3 — STAMPEDE_TIMEOUT_MS 초과 → StampedeTimeoutError reject', async () => {
+            const dcs = createDCS();
+            const opts = { cursorNo: 100 } as any;
+
+            // 첫 호출: never-resolving promise
+            mockCold.loadAll.mockReturnValueOnce(
+                new Promise(_resolve => {
+                    /* never resolves */
+                }) as any
+            );
+            const p1 = dcs.loadAll(opts);
+
+            // 시간 경과 시뮬레이션 — Date.now를 override
+            const originalNow = Date.now;
+            Date.now = () => originalNow() + STAMPEDE_TIMEOUT_MS + 1;
+
+            try {
+                await expect(dcs.loadAll(opts)).rejects.toThrow(StampedeTimeoutError);
+            } finally {
+                Date.now = originalNow;
+            }
+
+            // p1 cleanup (leaked promise 방지)
+            p1.catch(() => {
+                /* intentional noop */
+            });
+        });
+
+        // S4
+        it('S4 — 동시 save 2회 → 가드 적용 없음, Cold.save 2회 호출', async () => {
+            const dcs = createDCS();
+
+            await Promise.all([dcs.save('1', item('1')), dcs.save('2', item('2'))]);
+
+            expect(mockCold.save).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Eviction 호출 계약 (E1–E5)
+    // ═══════════════════════════════════════════════════════════════════
+
+    describe('Eviction 호출 계약', () => {
+        // E1
+        it('E1 — saveAll([item1]) 정상 → Hot.saveAll 완료 후 onAfterWrite 호출', async () => {
+            const eviction = createMockEviction();
+            const dcs = createDCS({ evictionStrategy: eviction });
+
+            await dcs.saveAll([item('1')]);
+            await flushMicrotasks();
+
+            expect(eviction.onAfterWrite).toHaveBeenCalledWith('chat', [expect.objectContaining({ id: '1' })], mockHot);
+        });
+
+        // E2
+        it('E2 — saveAll([]) 빈 배열 → onAfterWrite 미호출', async () => {
+            const eviction = createMockEviction();
+            const dcs = createDCS({ evictionStrategy: eviction });
+
+            await dcs.saveAll([]);
+            await flushMicrotasks();
+
+            expect(eviction.onAfterWrite).not.toHaveBeenCalled();
+        });
+
+        // E3
+        it('E3 — Hot.save QuotaExceededError → onQuotaExceeded 호출, onAfterWrite 미호출, save 성공', async () => {
+            const quotaErr = new DOMException('quota', 'QuotaExceededError');
+            mockHot.save.mockRejectedValueOnce(quotaErr);
+            const eviction = createMockEviction();
+            const dcs = createDCS({ evictionStrategy: eviction });
+
+            const result = await dcs.save('1', item('1'));
+            await flushMicrotasks();
+
+            expect(result).toMatchObject(item('1'));
+            expect(eviction.onQuotaExceeded).toHaveBeenCalledWith('chat', mockHot);
+            expect(eviction.onAfterWrite).not.toHaveBeenCalled();
+        });
+
+        // E4
+        it('E4 — onAfterWrite 자체가 throw → reporter tier=eviction 기록, save 정상 resolve', async () => {
+            const eviction = createMockEviction();
+            eviction.onAfterWrite.mockRejectedValueOnce(new Error('eviction crash'));
+            const dcs = createDCS({ evictionStrategy: eviction });
+
+            const result = await dcs.save('1', item('1'));
+            await flushMicrotasks();
+
+            expect(result).toMatchObject(item('1'));
+            expect(reporter).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({ tier: 'eviction', operation: 'eviction' })
+            );
+        });
+    });
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Reporter 통합 (P1–P3)
+    // ═══════════════════════════════════════════════════════════════════
+
+    describe('Reporter 통합', () => {
+        // P1
+        it('P1 — Hot.load 에러 → reporter { tier:hot, operation:load }', async () => {
+            mockHot.load.mockRejectedValueOnce(new Error('IDB'));
+            mockCold.load.mockResolvedValueOnce(item('1'));
+            const dcs = createDCS();
+
+            await dcs.load('1');
+
+            expect(reporter).toHaveBeenCalledWith(
+                expect.any(Error),
+                expect.objectContaining({ tier: 'hot', operation: 'load' })
+            );
+        });
+
+        // P2
+        it('P2 — Reporter 자체가 throw → DCS 동작 영향 없음, Cold fallback 정상', async () => {
+            const throwingReporter = jest.fn(() => {
+                throw new Error('reporter crash');
+            });
+            mockHot.load.mockRejectedValueOnce(new Error('IDB'));
+            mockCold.load.mockResolvedValueOnce(item('1'));
+            const dcs = createDCS({ reporter: throwingReporter });
+
+            const result = await dcs.load('1');
+
+            expect(result).toMatchObject(item('1'));
+            expect(throwingReporter).toHaveBeenCalled();
+        });
+
+        // P3
+        it('P3 — Stampede timeout → reporter { tier:stampede, operation:stampede-timeout }', async () => {
+            const dcs = createDCS();
+            const opts = { cursorNo: 100 } as any;
+
+            mockCold.loadAll.mockReturnValueOnce(
+                new Promise(_resolve => {
+                    /* never resolves */
+                }) as any
+            );
+            const p1 = dcs.loadAll(opts);
+
+            const originalNow = Date.now;
+            Date.now = () => originalNow() + STAMPEDE_TIMEOUT_MS + 1;
+
+            try {
+                await expect(dcs.loadAll(opts)).rejects.toThrow(StampedeTimeoutError);
+                expect(reporter).toHaveBeenCalledWith(
+                    expect.any(StampedeTimeoutError),
+                    expect.objectContaining({ tier: 'stampede', operation: 'stampede-timeout' })
+                );
+            } finally {
+                Date.now = originalNow;
+            }
+
+            p1.catch(() => {
+                /* intentional noop */
+            });
         });
     });
 });

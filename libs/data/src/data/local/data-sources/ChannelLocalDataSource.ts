@@ -73,9 +73,42 @@ export class ChannelLocalDataSource extends BaseLocalDataSource implements IChan
         channels: Array<Partial<DomainChannel>>,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
-        // Call upsert without emitStream parameter
-        await Promise.all(channels.map(channel => this.upsert(channel, contextOverride)));
-        this.debouncedEmitAllStreams(); // Emit once after all upserts are done
+        const validChannels = channels.filter(ch => ch.id);
+        if (validChannels.length === 0) return;
+
+        const context = this.getContext(contextOverride);
+        const cid = context.cid || this.getCid(contextOverride);
+
+        // 1회 loadAll로 기존 데이터를 한번에 가져와 Map으로 인덱싱 (개별 load N회 → 1회)
+        const allExisting = await this.cacheStorage.loadAll();
+        const existingMap = new Map<string, ChannelCache>();
+        for (const item of allExisting) {
+            const id = (item as unknown as { id?: string }).id;
+            if (id) existingMap.set(id, item);
+        }
+
+        // 메모리에서 merge
+        const normalized: ChannelCache[] = [];
+        for (const channel of validChannels) {
+            const id = channel.id!;
+            const existing = existingMap.get(id) ?? null;
+            const sid = (channel as any).$?.sid || channel.sid || existing?.sid || context.sid || 'default';
+
+            const merged = toDomainChannelBase(
+                {
+                    ...(existing ?? {}),
+                    ...(channel as Record<string, unknown>),
+                    sid,
+                    cid,
+                } as Partial<DomainChannel>,
+                { cid, sid, uid: context.uid }
+            );
+            normalized.push(merged as unknown as ChannelCache);
+        }
+
+        // 1회 saveAll로 배치 저장 (개별 save N회 → 1회)
+        await this.cacheStorage.saveAll(normalized);
+        this.debouncedEmitAllStreams();
     }
 
     public async remove(id: string, _contextOverride?: LocalDataSourceContextOverride): Promise<void> {

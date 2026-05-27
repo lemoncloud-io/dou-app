@@ -181,21 +181,163 @@ classDiagram
 
 > `DynamicCacheStorage`는 `CacheStorage`를 구현하면서 동시에 두 개의 `CacheStorage`를 내부에 조합(composition)합니다. 자체적으로 DB에 접근하지 않으며, 모든 실제 I/O는 주입받은 어댑터에 위임합니다.
 
-#### DynamicCacheStorage 옵션 (신규)
+#### DynamicCacheStorage 옵션
 
 ```typescript
 export type CacheReadPolicy = 'hot-first' | 'cold-first';
 
-export type DynamicCacheOperation = 'save' | 'saveAll' | 'load' | 'loadAll' | 'delete' | 'deleteAll' | 'clearAll';
-
 export interface DynamicCacheStorageOptions<TType extends CacheType> {
     type?: TType;
-    readPolicy?: CacheReadPolicy; // load()용, 기본 'hot-first'
-    loadAllPolicy?: CacheReadPolicy; // loadAll()용, 기본 'cold-first'
+    readPolicy?: CacheReadPolicy; // load()용 — PolicyResolver 미주입 시 fallback
+    loadAllPolicy?: CacheReadPolicy; // loadAll()용 — PolicyResolver 미주입 시 fallback
     warmupChunkSize?: number;
-    onHotError?: (error: unknown, context: { type?: TType; operation: DynamicCacheOperation }) => void;
+    policyResolver?: PolicyResolver; // type별 readPolicy/loadAllPolicy 주입 (미주입 + prod = throw)
+    evictionStrategy?: EvictionStrategy; // Hot eviction 3-훅 (미주입 = no-op)
+    capacityPolicy?: CapacityPolicy; // type별 cap + grouping (미주입 = 무한)
+    reporter?: CacheErrorReporter; // hot/cold/eviction/stampede 통합 에러 리포터 (미주입 = console.warn)
 }
 ```
+
+#### PolicyResolver — type별 readPolicy 주입
+
+PR 초기의 `defaultReadPolicies` 하드코딩을 대체하는 주입 가능한 인터페이스입니다.
+
+```typescript
+export interface PolicyResolver {
+    resolveReadPolicy(type: CacheType): CacheReadPolicy;
+    resolveLoadAllPolicy(type: CacheType): CacheReadPolicy;
+}
+```
+
+- **Default (`DefaultPolicyResolver`)**: 모든 type에 `'cold-first'` 반환 (정합성 우선 안전 fallback)
+- **운영 미주입 금지**: factory에서 `process.env.NODE_ENV === 'production'`이면 throw (runtime assertion). dev/test에서는 console.warn + Default 적용
+
+#### EvictionStrategy — Hot 캐시 eviction 3-훅
+
+Hot(IndexedDB) quota 보호를 위한 eviction 정책 인터페이스입니다. 본 명세는 **훅 시그니처 + 호출 계약**만 정의하고, 실제 TTL/LRU/FIFO 로직은 앱팀 구현체가 결정합니다.
+
+```typescript
+export interface EvictionStrategy {
+    /** Startup TTL sweep 등. DCS 생성 직후 1회 호출 */
+    onStartup(hot: CacheStorage<any>): Promise<void>;
+    // ↑ any 사용 이유: startup sweep은 여러 type을 순회해야 하므로 generic 불가
+
+    /** per-type cap 검사. Hot.save 완료 후 chain 호출. items 전체 전달 */
+    onAfterWrite<T extends CacheType>(type: T, items: CacheModelOf<T>[], hot: CacheStorage<T>): Promise<void>;
+
+    /** 비상 cleanup. Hot 에러가 QuotaExceededError류일 때 호출 */
+    onQuotaExceeded(type: CacheType, hot: CacheStorage<any>): Promise<void>;
+    // ↑ any 사용 이유: quota 초과 시 type 무관하게 전체 cleanup 필요
+}
+```
+
+**호출 계약**:
+
+| 훅                | 호출 주체 | 시점                                        | 비동기 패턴      |
+| ----------------- | --------- | ------------------------------------------- | ---------------- |
+| `onStartup`       | factory   | DCS 생성 직후 1회                           | fire-and-forget  |
+| `onAfterWrite`    | DCS       | Cold.save 성공 → Hot.save 완료 await → 호출 | 백그라운드 chain |
+| `onQuotaExceeded` | DCS       | Hot 에러가 `QuotaExceededError`류일 때      | fire-and-forget  |
+
+- Hot.save 실패 시 `onAfterWrite`는 호출하지 않음 (Hot에 반영 안 됐으므로 cap 검사 무의미)
+- `items.length === 0`이면 `onAfterWrite` 호출 생략 (DCS 책임)
+- 다중 호출 race 안전성은 EvictionStrategy 구현체가 자체 mutex/queue로 보장
+- **Default (`DefaultEvictionStrategy`)**: 3-훅 모두 no-op (eviction 없음)
+
+#### CapacityPolicy — type별 cap + grouping
+
+`EvictionStrategy` 구현체가 내부에서 사용하는 조회 인터페이스입니다 (DCS 직접 호출 안 함).
+
+```typescript
+export interface CapacityPolicy {
+    /** 해당 type의 최대 항목 수. null이면 cap 없음 */
+    getLimit(type: CacheType, groupKey?: string): number | null;
+
+    /** item을 그룹 키로 매핑. undefined면 전체 LRU. Generic으로 type-safe 보장 */
+    getGroupKey<T extends CacheType>(type: T, item: CacheModelOf<T>): string | undefined;
+}
+```
+
+- chat per-channel 표현: `getGroupKey('chat', item)` = `item.channelId`
+- **Default (`DefaultCapacityPolicy`)**: `getLimit()` = null (무한), `getGroupKey()` = undefined
+
+#### CacheErrorReporter — 통합 에러 리포터
+
+기존 `onHotError` 콜백을 흡수하여 hot/cold/eviction/stampede 4-tier 에러를 단일 인터페이스로 통합합니다.
+
+```typescript
+export type CacheErrorTier = 'hot' | 'cold' | 'eviction' | 'stampede';
+
+export type CacheErrorOperation =
+    | 'load'
+    | 'loadAll'
+    | 'save'
+    | 'saveAll'
+    | 'delete'
+    | 'deleteAll'
+    | 'clearAll'
+    | 'eviction'
+    | 'stampede-timeout';
+
+export type CacheErrorReporter = (
+    error: unknown,
+    context: {
+        tier: CacheErrorTier;
+        operation: CacheErrorOperation;
+        type?: CacheType;
+    }
+) => void; // sync, throw 금지
+```
+
+- DCS는 Reporter 호출을 `safeReport()` 헬퍼로 try/catch 보호 — Reporter 자체 오류가 DCS 동작에 영향 주지 않음
+- 호출 빈도가 높을 수 있으므로 throttle/sampling은 Reporter 구현체 책임
+- **Default**: `console.warn`
+
+#### StampedeTimeoutError
+
+Stampede 가드의 timeout error를 caller가 식별할 수 있는 Error 클래스입니다.
+
+```typescript
+export class StampedeTimeoutError extends Error {
+    readonly name = 'StampedeTimeoutError';
+    constructor(
+        public readonly queryKey: string,
+        public readonly elapsedMs: number
+    ) {
+        super(`Stampede timeout: ${queryKey} (${elapsedMs}ms)`);
+    }
+}
+```
+
+- caller는 `error instanceof StampedeTimeoutError`로 구분 가능
+- 기본 `STAMPEDE_TIMEOUT_MS = 5000` (운영 측정 후 조정 가능)
+
+#### stableHash 유틸
+
+Stampede 가드의 query key 생성에 사용합니다. options를 sorted-key JSON으로 직렬화한 string을 반환합니다.
+
+```typescript
+export function stableHash(value: unknown): string;
+```
+
+- 객체의 키를 정렬 후 JSON 직렬화 → 순서 무관 동치성 보장
+- `undefined` 필드는 정렬 전에 제거 (missing key와 동치화)
+- MVP: sorted-key JSON 그 자체를 key로 사용 (충돌 0, key 길이 김)
+- options는 JSON-serializable primitive만 허용 — 위반 시 throw
+
+#### DCS Inspector (테스트용)
+
+```typescript
+class DynamicCacheStorage<TType extends CacheType> {
+    getPolicyResolver(): Readonly<PolicyResolver>;
+    getCapacityPolicy(): Readonly<CapacityPolicy>;
+    getEvictionStrategy(): Readonly<EvictionStrategy>;
+    getReporter(): Readonly<CacheErrorReporter> | undefined;
+}
+```
+
+- `Readonly<T>` 반환으로 mutation 차단, 메서드 호출만 가능
+- 테스트에서 주입된 정책 검증 가능
 
 #### 전략 패턴 (신규)
 
@@ -254,6 +396,12 @@ sequenceDiagram
 
 ### 3.2 Read — `loadAll(options?)`
 
+#### cursorNo 분기 (Stampede 가드 포함)
+
+`options?.cursorNo != null`이면 **PolicyResolver 결과를 무시하고 강제 cold-first**로 분기합니다. cursor 페이지네이션 시 Hot의 partial data가 incomplete page를 반환하는 버그를 방지합니다. `cursorNo === 0`도 cold-first입니다 (페이지네이션 명시 의도).
+
+동일 options에 대한 동시 호출은 **Stampede 가드**로 보호합니다. 인스턴스별 `Map<queryKey, { promise, startedAt }>`를 보유하여 동일 키의 in-flight Promise를 공유합니다. settled(reject 포함) 시 즉시 제거하여 재시도를 허용하며, `STAMPEDE_TIMEOUT_MS(5000ms)` 초과 시 `StampedeTimeoutError`를 reject합니다.
+
 ```mermaid
 sequenceDiagram
     participant Caller
@@ -263,7 +411,13 @@ sequenceDiagram
 
     Caller->>DC: loadAll(options)
 
-    alt loadAllPolicy = 'hot-first'
+    alt options.cursorNo != null (페이지네이션)
+        Note over DC: PolicyResolver 무시 → 강제 cold-first
+        DC->>Cold: Cold.loadAll(options)
+        Cold-->>DC: [items]
+        DC--)Hot: Hot.saveAll(items) [warm-up background]
+        DC-->>Caller: return [items]
+    else loadAllPolicy = 'hot-first' (PolicyResolver 결정)
         DC->>Hot: Hot.loadAll(options)
         alt Hot 결과 > 0
             Hot-->>DC: [items]
@@ -275,7 +429,7 @@ sequenceDiagram
             DC--)Hot: Hot.saveAll(items) [warm-up background]
             DC-->>Caller: return [items]
         end
-    else loadAllPolicy = 'cold-first'
+    else loadAllPolicy = 'cold-first' (PolicyResolver 결정)
         DC->>Cold: Cold.loadAll(options)
         Cold-->>DC: [items]
         DC--)Hot: Hot.saveAll(items) [warm-up background]
@@ -285,18 +439,33 @@ sequenceDiagram
 
 ### 3.3 Write — `save(id, item)` / `saveAll(items)`
 
+Eviction hook (`onAfterWrite`) 호출이 추가됩니다. Hot.save 완료 후 chain으로 호출합니다.
+
 ```mermaid
 sequenceDiagram
     participant Caller
     participant DC as DynamicCacheStorage
     participant Cold as Cold (NativeDB)
     participant Hot as Hot (IndexedDB)
+    participant EV as EvictionStrategy
 
     Caller->>DC: save(id, item)
     DC->>Cold: 1. Cold.save(id, item)
     alt Cold 성공
         Cold-->>DC: ✓
-        DC--)Hot: 2. Hot.save(id, item) [background fire-and-forget]
+        DC->>Hot: 2. Hot.save(id, item) [background]
+        alt Hot 성공
+            Hot-->>DC: ✓
+            DC--)EV: 3. onAfterWrite(type, [item], hot) [background chain]
+        else Hot 실패 (QuotaExceededError)
+            Hot-->>DC: ❌
+            Note over DC: reporter 기록 (tier='hot')
+            DC--)EV: onQuotaExceeded(type, hot) [fire-and-forget]
+            Note over DC: onAfterWrite 호출 안 함
+        else Hot 실패 (기타 에러)
+            Hot-->>DC: ❌
+            Note over DC: reporter 기록, onAfterWrite 호출 안 함
+        end
         DC-->>Caller: return item
     else Cold 실패
         Cold-->>DC: ❌ Error
@@ -335,33 +504,47 @@ sequenceDiagram
 
 > 삭제는 Hot에 stale 데이터가 남지 않도록, save(background fire-and-forget)와 달리 Hot 무효화를 **await**합니다.
 
-### 3.5 타입별 Read Policy
+### 3.5 타입별 Read Policy — PolicyResolver 주입
+
+type별 readPolicy/loadAllPolicy는 하드코딩하지 않고 **`PolicyResolver` 인터페이스**로 주입합니다. 앱팀이 도메인 특성에 맞게 구현체를 작성합니다.
 
 ```typescript
-const defaultReadPolicies: Record<CacheType, CacheReadPolicy> = {
-    chat: 'hot-first',
-    channel: 'hot-first',
-    invitecloud: 'hot-first',
-    join: 'hot-first',
-    site: 'hot-first',
-    user: 'hot-first',
-};
-
-const defaultLoadAllPolicies: Record<CacheType, CacheReadPolicy> = {
-    chat: 'hot-first', // append-only + ChatQueryExecutor로 Hot에서 동일 쿼리 가능
-    channel: 'cold-first',
-    invitecloud: 'cold-first',
-    join: 'cold-first',
-    site: 'cold-first',
-    user: 'cold-first',
-};
+// 앱팀 구현 예시
+class AppPolicyResolver implements PolicyResolver {
+    resolveReadPolicy(type: CacheType): CacheReadPolicy {
+        // join.readNo는 자주 변경되므로 cold-first 권장
+        return type === 'join' ? 'cold-first' : 'hot-first';
+    }
+    resolveLoadAllPolicy(type: CacheType): CacheReadPolicy {
+        // chat은 append-only + ChatQueryExecutor로 Hot에서 동일 쿼리 가능
+        return type === 'chat' ? 'hot-first' : 'cold-first';
+    }
+}
 ```
+
+**DefaultPolicyResolver** (미주입 시 fallback — dev/test 전용):
+
+```typescript
+// 모든 type에 'cold-first' 반환 (정합성 우선, 성능 희생)
+class DefaultPolicyResolver implements PolicyResolver {
+    resolveReadPolicy(_type: CacheType): CacheReadPolicy {
+        return 'cold-first';
+    }
+    resolveLoadAllPolicy(_type: CacheType): CacheReadPolicy {
+        return 'cold-first';
+    }
+}
+```
+
+**cursorNo 예외**: `loadAll(options)`에서 `options?.cursorNo != null`이면 PolicyResolver 결과와 무관하게 **강제 cold-first** (§3.2 참조).
 
 | 데이터 성격                            | `readPolicy` | `loadAllPolicy` | 근거             |
 | -------------------------------------- | ------------ | --------------- | ---------------- |
 | append 중심, 단건 조회 빈번 (chat)     | `hot-first`  | `hot-first`     | bridge 비용 절감 |
-| 변경/삭제 잦음                         | `cold-first` | `cold-first`    | Cold 정합성 우선 |
+| 변경/삭제 잦음 (join 등)               | `cold-first` | `cold-first`    | Cold 정합성 우선 |
 | 단건은 Hot 가능, 목록 쿼리 불일치 우려 | `hot-first`  | `cold-first`    | 혼합             |
+
+> 위 표는 참고용 가이드입니다. 실제 분류는 앱팀이 `PolicyResolver` 구현체에서 결정합니다.
 
 ### 3.6 Cache Miss → Network Fetch (상위 계층 연계)
 
@@ -651,16 +834,46 @@ sequenceDiagram
 
 ## 5. 에러 처리
 
-| 시나리오                    | 동작                | 근거                   |
-| --------------------------- | ------------------- | ---------------------- |
-| Hot read/write/delete 에러  | reporter 기록, 삼킴 | Hot은 파생 캐시        |
-| Cold read/write/delete 에러 | **상위 전파**       | Cold = Source of Truth |
+### 5.1 에러 전파 규칙
 
-### Stale 데이터
+| 시나리오                    | 동작                                          | 근거                   |
+| --------------------------- | --------------------------------------------- | ---------------------- |
+| Hot read/write/delete 에러  | `CacheErrorReporter` 기록, 삼킴               | Hot은 파생 캐시        |
+| Cold read/write/delete 에러 | **상위 전파** + reporter 기록 (부가)          | Cold = Source of Truth |
+| Eviction 에러               | reporter 기록 (tier='eviction'), save는 성공  | Hot=파생캐시 원칙      |
+| Stampede timeout            | `StampedeTimeoutError` reject + reporter 기록 | caller 식별 가능       |
+
+### 5.2 CacheErrorReporter 호출 보호
+
+```typescript
+private safeReport(error: unknown, context: CacheErrorContext): void {
+    try {
+        this.reporter?.(error, context);
+    } catch {
+        // 의도적 무시 — reporter 오류는 silent
+    }
+}
+```
+
+Reporter 구현체가 throw해도 DCS 동작에 영향을 주지 않습니다.
+
+### 5.3 Stale 데이터
 
 - 삭제 경로: Cold 성공 후 Hot 무효화를 await하여 race 최소화
 - Hot 무효화 실패 시: stale 잔존 가능 → reporter 기록
-- stale 민감 타입: `readPolicy: 'cold-first'`로 Hot 우회
+- stale 민감 타입: `PolicyResolver`에서 `'cold-first'`로 Hot 우회
+
+### 5.4 `__cacheMeta` 확장 — `lastAccessedAt`
+
+`createTtlMeta()`를 확장하여 `lastAccessedAt: number` 필드를 추가합니다. EvictionStrategy 구현체가 LRU 판정에 사용합니다.
+
+**Write amplification 회피**: load 시점에 IDB write를 하지 않고 **in-memory pending Map**에만 기록합니다.
+
+| Trigger          | 시점                  | 우선순위    | 비고                            |
+| ---------------- | --------------------- | ----------- | ------------------------------- |
+| **A (Primary)**  | onAfterWrite 직전     | 항상 시도   | `isFlushing` 플래그로 중복 방지 |
+| **B (Fallback)** | idle timer (예: 60초) | A 미발생 시 | A 발생 시 timer reset           |
+| **C (Last)**     | visibility hidden 등  | 페이지 이탈 | 동기적 flush 시도, 실패 허용    |
 
 ---
 
@@ -680,6 +893,27 @@ export const getCacheStorage = <TType extends CacheType>(
 ): CacheStorage<TType> => selectStrategy().create(type, contextProvider);
 ```
 
+### Runtime assertion — PolicyResolver 필수
+
+```typescript
+// HotColdCacheStorageStrategy.create 내부
+if (!options.policyResolver) {
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('[DynamicCacheStorage] PolicyResolver 필수.');
+    }
+    console.warn(
+        '[DynamicCacheStorage] PolicyResolver 미주입 — DefaultPolicyResolver(cold-first 일괄) 사용. 운영 전 PolicyResolver 주입 필수.'
+    );
+}
+```
+
+- **production 빌드에서 미주입 시 runtime error** (CI 통합 테스트가 catch)
+- dev/test에서는 console.warn + DefaultPolicyResolver(cold-first) 적용
+
+### onStartup 호출
+
+DCS 인스턴스 생성 직후 `evictionStrategy.onStartup(hot)`을 **fire-and-forget**으로 호출합니다 (앱 시작 지연 방지). 실패 시 reporter에 `tier='eviction'`으로 기록합니다.
+
 ---
 
 ## 7. 검증 전략
@@ -690,11 +924,11 @@ export const getCacheStorage = <TType extends CacheType>(
 
 #### 검증 수단 3가지
 
-| 수단               | 대상                                         | 담당            | 실행 시점      |
-| ------------------ | -------------------------------------------- | --------------- | -------------- |
-| **1. 단위 테스트** | DynamicCacheStorage 오케스트레이션 로직      | 개발자          | PR 머지 전, CI |
-| **2. 런타임 로깅** | 실제 앱에서 Hot/Cold fallback·에러 발생 빈도 | onHotError 콜백 | 배포 후 상시   |
-| **3. 수동 QA**     | 앱 WebView에서 체감 성능·정합성              | QA              | 릴리즈 전      |
+| 수단               | 대상                                         | 담당               | 실행 시점      |
+| ------------------ | -------------------------------------------- | ------------------ | -------------- |
+| **1. 단위 테스트** | DynamicCacheStorage 오케스트레이션 로직      | 개발자             | PR 머지 전, CI |
+| **2. 런타임 로깅** | 실제 앱에서 Hot/Cold fallback·에러 발생 빈도 | CacheErrorReporter | 배포 후 상시   |
+| **3. 수동 QA**     | 앱 WebView에서 체감 성능·정합성              | QA                 | 릴리즈 전      |
 
 각 수단의 구체적인 내용을 아래에 서술합니다.
 
@@ -729,11 +963,10 @@ const createMockStorage = () => ({
 });
 ```
 
-**onHotError spy**: Hot 에러 삼킴 검증용.
+**Reporter spy**: 4-tier 에러 기록 검증용.
 
 ```typescript
-const hotErrors: { error: unknown; operation: string }[] = [];
-const onHotError = jest.fn((error, context) => hotErrors.push({ error, operation: context.operation }));
+const reporter = jest.fn();
 ```
 
 **flushMicrotasks**: fire-and-forget Promise가 settled 되기를 기다리는 유틸.
@@ -748,33 +981,33 @@ const flushMicrotasks = () => new Promise(resolve => setTimeout(resolve, 0));
 
 ##### Read (R1–R8)
 
-| ID  | 시나리오                            | 검증 포인트                                                          |
-| --- | ----------------------------------- | -------------------------------------------------------------------- |
-| R1  | `load()` Hot hit                    | 반환값 정확, Cold.load 미호출                                        |
-| R2  | `load()` Hot miss → Cold hit        | 반환값 정확, background Hot.save 발생 (flushMicrotasks 후 확인)      |
-| R3  | `load()` 양쪽 miss                  | null 반환, Hot·Cold 각 1회 호출                                      |
-| R4  | `load()` Hot 에러 → Cold fallback   | 반환값 정확, onHotError 1회 호출 + operation='load', 상위 throw 없음 |
-| R5  | `loadAll()` cold-first              | Cold만 조회, Hot.loadAll 미호출, background Hot.saveAll warm-up 발생 |
-| R6  | `loadAll()` hot-first — Hot hit     | Hot 결과 반환, Cold.loadAll 미호출                                   |
-| R7  | `loadAll()` hot-first — Hot 빈 배열 | Cold fallback 결과 반환, background Hot.saveAll warm-up 발생         |
-| R8  | `loadAll()` hot-first — Hot 에러    | Cold fallback 결과 반환, onHotError 1회 호출 + operation='loadAll'   |
+| ID  | 시나리오                            | 검증 포인트                                                                        |
+| --- | ----------------------------------- | ---------------------------------------------------------------------------------- |
+| R1  | `load()` Hot hit                    | 반환값 정확, Cold.load 미호출                                                      |
+| R2  | `load()` Hot miss → Cold hit        | 반환값 정확, background Hot.save 발생 (flushMicrotasks 후 확인)                    |
+| R3  | `load()` 양쪽 miss                  | null 반환, Hot·Cold 각 1회 호출                                                    |
+| R4  | `load()` Hot 에러 → Cold fallback   | 반환값 정확, reporter 1회 호출 `{ tier:'hot', operation:'load' }`, 상위 throw 없음 |
+| R5  | `loadAll()` cold-first              | Cold만 조회, Hot.loadAll 미호출, background Hot.saveAll warm-up 발생               |
+| R6  | `loadAll()` hot-first — Hot hit     | Hot 결과 반환, Cold.loadAll 미호출                                                 |
+| R7  | `loadAll()` hot-first — Hot 빈 배열 | Cold fallback 결과 반환, background Hot.saveAll warm-up 발생                       |
+| R8  | `loadAll()` hot-first — Hot 에러    | Cold fallback 결과 반환, reporter 1회 호출 `{ tier:'hot', operation:'loadAll' }`   |
 
 ##### Write (W1–W3)
 
-| ID  | 시나리오           | 검증 포인트                                                   |
-| --- | ------------------ | ------------------------------------------------------------- |
-| W1  | `save()` 정상      | Cold.save 호출 → 반환값 정확, background Hot.save 발생        |
-| W2  | `save()` Cold 에러 | 에러 상위 전파, Hot.save 미호출                               |
-| W3  | `save()` Hot 에러  | 반환값 정상 (Cold 성공), onHotError 1회 호출, 상위 throw 없음 |
+| ID  | 시나리오           | 검증 포인트                                                                  |
+| --- | ------------------ | ---------------------------------------------------------------------------- |
+| W1  | `save()` 정상      | Cold.save 호출 → 반환값 정확, background Hot.save 발생                       |
+| W2  | `save()` Cold 에러 | 에러 상위 전파, Hot.save 미호출                                              |
+| W3  | `save()` Hot 에러  | 반환값 정상 (Cold 성공), reporter 1회 호출 `{ tier:'hot' }`, 상위 throw 없음 |
 
 ##### Delete (D1–D4)
 
-| ID  | 시나리오             | 검증 포인트                                            |
-| --- | -------------------- | ------------------------------------------------------ |
-| D1  | `delete()` 정상      | Cold.delete 1회 + Hot.delete 1회 (await best-effort)   |
-| D2  | `delete()` Cold 에러 | 에러 상위 전파, Hot.delete 미호출                      |
-| D3  | `delete()` Hot 에러  | 정상 resolve, onHotError 1회 호출 + operation='delete' |
-| D4  | `clearAll()` 정상    | Cold.clearAll + Hot.clearAll 각 1회                    |
+| ID  | 시나리오             | 검증 포인트                                                          |
+| --- | -------------------- | -------------------------------------------------------------------- |
+| D1  | `delete()` 정상      | Cold.delete 1회 + Hot.delete 1회 (await best-effort)                 |
+| D2  | `delete()` Cold 에러 | 에러 상위 전파, Hot.delete 미호출                                    |
+| D3  | `delete()` Hot 에러  | 정상 resolve, reporter 1회 호출 `{ tier:'hot', operation:'delete' }` |
+| D4  | `clearAll()` 정상    | Cold.clearAll + Hot.clearAll 각 1회                                  |
 
 ##### 통합 흐름 (I1–I5)
 
@@ -784,7 +1017,42 @@ const flushMicrotasks = () => new Promise(resolve => setTimeout(resolve, 0));
 | I2  | save → delete → load            | 삭제 후 양쪽 모두 데이터 없음 → null 반환                      |
 | I3  | saveAll → loadAll (hot-first)   | 연속 쓰기 후 Hot hit, Cold.loadAll 미호출                      |
 | I4  | 최초 loadAll → warm-up → 재조회 | 1차: Cold fallback, 2차: Hot hit (Cold.loadAll 추가 호출 없음) |
-| I5  | Hot 전면 장애                   | 모든 CRUD가 Cold만으로 정상 동작, onHotError 매 조작마다 호출  |
+| I5  | Hot 전면 장애                   | 모든 CRUD가 Cold만으로 정상 동작, reporter 매 조작마다 호출    |
+
+##### cursorNo 분기 (C1–C3)
+
+| ID  | 시나리오                               | 검증 포인트                                               |
+| --- | -------------------------------------- | --------------------------------------------------------- |
+| C1  | `loadAll({ cursorNo: 500 })`           | Hot.loadAll 미호출, Cold.loadAll만 호출 (강제 cold-first) |
+| C2  | `loadAll({ cursorNo: 0 })`             | cursorNo != null → cold-first (페이지네이션 명시 의도)    |
+| C3  | `loadAll({ limit: 50 })` cursorNo 없음 | PolicyResolver.resolveLoadAllPolicy 결과에 따라 분기      |
+
+##### Stampede 가드 (S1–S4)
+
+| ID  | 시나리오                   | 검증 포인트                                                    |
+| --- | -------------------------- | -------------------------------------------------------------- |
+| S1  | 동시 `loadAll(opts)` 2회   | Cold.loadAll 1회만 호출, 두 caller 같은 결과                   |
+| S2  | in-flight reject 후 재호출 | 새 Promise 생성 (재시도 허용)                                  |
+| S3  | `STAMPEDE_TIMEOUT_MS` 초과 | `StampedeTimeoutError` reject, `err.queryKey`/`elapsedMs` 접근 |
+| S4  | 동시 `save` 2회            | 가드 적용 없음, Cold.save 2회 호출 (mutation은 caller 책임)    |
+
+##### Eviction 호출 계약 (E1–E5)
+
+| ID  | 시나리오                               | 검증 포인트                                                 |
+| --- | -------------------------------------- | ----------------------------------------------------------- |
+| E1  | `saveAll([item1])` 정상                | Hot.saveAll 완료 후 onAfterWrite 호출 (병렬 아님)           |
+| E2  | `saveAll([])` 빈 배열                  | onAfterWrite 미호출                                         |
+| E3  | Hot.save `QuotaExceededError`          | onQuotaExceeded 호출, onAfterWrite 미호출, save 자체는 성공 |
+| E4  | onAfterWrite 자체가 throw              | reporter `tier='eviction'` 기록, save는 정상 resolve        |
+| E5  | factory에서 PolicyResolver 미주입+prod | Error throw ("PolicyResolver 필수")                         |
+
+##### Reporter 통합 (P1–P3)
+
+| ID  | 시나리오              | 검증 포인트                                                       |
+| --- | --------------------- | ----------------------------------------------------------------- |
+| P1  | Hot.load 에러         | reporter 호출 `{ tier:'hot', operation:'load' }`                  |
+| P2  | Reporter 자체가 throw | DCS 동작 영향 없음 (safeReport), Cold fallback 정상               |
+| P3  | Stampede timeout      | reporter 호출 `{ tier:'stampede', operation:'stampede-timeout' }` |
 
 #### 테스트 코드 예시
 
@@ -812,12 +1080,12 @@ const item = (id: string) => ({ id, channelId: 'ch-1', text: `msg-${id}` }) as a
 describe('DynamicCacheStorage', () => {
     let mockHot: jest.Mocked<CacheStorage<'chat'>>;
     let mockCold: jest.Mocked<CacheStorage<'chat'>>;
-    let onHotError: jest.Mock;
+    let reporter: jest.Mock;
 
     beforeEach(() => {
         mockHot = createMockStorage();
         mockCold = createMockStorage();
-        onHotError = jest.fn();
+        reporter = jest.fn();
     });
 
     const createDCS = (overrides = {}) =>
@@ -825,7 +1093,7 @@ describe('DynamicCacheStorage', () => {
             type: 'chat',
             readPolicy: 'hot-first',
             loadAllPolicy: 'hot-first',
-            onHotError,
+            reporter,
             ...overrides,
         });
 
@@ -853,8 +1121,8 @@ describe('DynamicCacheStorage', () => {
         expect(mockHot.save).toHaveBeenCalledWith('1', item('1'));
     });
 
-    // ── R4: load() Hot 에러 → Cold fallback, onHotError 호출 ──
-    it('load — Hot 에러 시 Cold fallback + onHotError 호출, 상위에 throw하지 않는다', async () => {
+    // ── R4: load() Hot 에러 → Cold fallback, reporter 호출 ──
+    it('load — Hot 에러 시 Cold fallback + reporter 호출, 상위에 throw하지 않는다', async () => {
         mockHot.load.mockRejectedValueOnce(new Error('IDB crash'));
         mockCold.load.mockResolvedValueOnce(item('1'));
         const dcs = createDCS();
@@ -862,8 +1130,11 @@ describe('DynamicCacheStorage', () => {
         const result = await dcs.load('1');
 
         expect(result).toMatchObject(item('1'));
-        expect(onHotError).toHaveBeenCalledTimes(1);
-        expect(onHotError).toHaveBeenCalledWith(expect.any(Error), expect.objectContaining({ operation: 'load' }));
+        expect(reporter).toHaveBeenCalledTimes(1);
+        expect(reporter).toHaveBeenCalledWith(
+            expect.any(Error),
+            expect.objectContaining({ tier: 'hot', operation: 'load' })
+        );
     });
 
     // ── W2: save() Cold 에러 → 상위 전파, Hot 미호출 ──
@@ -923,7 +1194,7 @@ describe('DynamicCacheStorage', () => {
         expect(saved).toMatchObject(item('1'));
         expect(loaded).toMatchObject(item('1'));
         expect(list).toHaveLength(1);
-        expect(onHotError).toHaveBeenCalled();
+        expect(reporter).toHaveBeenCalled();
     });
 });
 ```
@@ -944,26 +1215,28 @@ npx nx test data --testPathPattern='DynamicCacheStorage'
 
 #### 수단
 
-`HotColdCacheStorageStrategy`가 `DynamicCacheStorage` 생성 시 주입하는 `onHotError` 콜백이 이 역할을 합니다.
+`CacheErrorReporter`가 hot/cold/eviction/stampede 4-tier 에러를 통합 수집합니다.
 
 ```typescript
-// cacheStorageStrategies.ts — 현재 구현
-onHotError: (error, context) => {
-    console.warn('[DynamicCacheStorage] Hot error:', context.operation, error);
+// cacheStorageStrategies.ts — 기본 구현
+reporter: (error, context) => {
+    console.warn(`[DynamicCacheStorage] ${context.tier} error:`, context.operation, error);
 };
 ```
 
 #### 확인 항목
 
-| 항목                     | 정상 기대치                  | 이상 징후                                   |
-| ------------------------ | ---------------------------- | ------------------------------------------- |
-| Hot error 빈도           | 0 또는 극소                  | 반복 발생 → IndexedDB quota/corruption 의심 |
-| error가 발생한 operation | —                            | 특정 operation에 집중 시 해당 경로 점검     |
-| 앱 시작 직후 Hot miss율  | 첫 진입 시 100% (warm-up 전) | 재방문에도 계속 miss → warm-up 실패 의심    |
+| 항목                     | 정상 기대치                  | 이상 징후                                     |
+| ------------------------ | ---------------------------- | --------------------------------------------- |
+| Hot error 빈도           | 0 또는 극소                  | 반복 발생 → IndexedDB quota/corruption 의심   |
+| Eviction error 빈도      | 0                            | IDB transaction abort → eviction 구현 점검    |
+| Stampede timeout 빈도    | 0                            | Cold bridge 지연 → `STAMPEDE_TIMEOUT_MS` 조정 |
+| error가 발생한 operation | —                            | 특정 operation에 집중 시 해당 경로 점검       |
+| 앱 시작 직후 Hot miss율  | 첫 진입 시 100% (warm-up 전) | 재방문에도 계속 miss → warm-up 실패 의심      |
 
 #### 향후 확장
 
-`console.warn` → 서버 로그 수집(Sentry 등)으로 전환하면 배포 후 Hot 장애를 대시보드에서 모니터링할 수 있습니다. 현재 단계에서는 `console.warn`으로 개발 중 디버깅에 활용합니다.
+`console.warn` → Sentry/DataDog 등 서버 로그 수집으로 전환하면 배포 후 Hot 장애를 대시보드에서 모니터링할 수 있습니다. Reporter 구현체를 교체하면 됩니다.
 
 ---
 
@@ -1009,12 +1282,20 @@ onHotError: (error, context) => {
 
 ## 8. 파일 변경 목록
 
-| 유형 | 파일                                                       | 내용                                  |
-| ---- | ---------------------------------------------------------- | ------------------------------------- |
-| 신규 | `libs/data/src/data/local/storages/DynamicCacheStorage.ts` | DynamicCacheStorage 구현              |
-| 신규 | `apps/web/src/app/shared/data/cacheStorageStrategies.ts`   | Strategy 구현체                       |
-| 수정 | `libs/data/src/data/local/storages/index.ts`               | export 추가                           |
-| 수정 | `apps/web/src/app/shared/data/localFactory.ts`             | `isNativeApp()` 실제 감지 + 전략 선택 |
+| 유형 | 파일                                                            | 내용                                                         |
+| ---- | --------------------------------------------------------------- | ------------------------------------------------------------ |
+| 신규 | `libs/data/src/data/local/storages/DynamicCacheStorage.ts`      | DynamicCacheStorage 구현 (cursorNo 분기, stampede, eviction) |
+| 신규 | `libs/data/src/data/local/storages/dynamicCacheTypes.ts`        | 인터페이스 5종 + StampedeTimeoutError                        |
+| 신규 | `libs/data/src/data/local/storages/defaultPolicies.ts`          | Default 구현체 3종 (PolicyResolver, Eviction, Capacity)      |
+| 신규 | `libs/data/src/data/local/storages/stableHash.ts`               | stableHash 유틸                                              |
+| 신규 | `libs/data/src/data/local/storages/DynamicCacheStorage.test.ts` | 단위 테스트                                                  |
+| 신규 | `libs/data/src/data/local/storages/stableHash.test.ts`          | stableHash 테스트                                            |
+| 신규 | `apps/web/src/app/shared/data/cacheStorageStrategies.ts`        | Strategy 구현체                                              |
+| 수정 | `libs/data/src/data/local/storages/index.ts`                    | export 추가                                                  |
+| 수정 | `libs/data/src/data/local/storages/utils.ts`                    | `createTtlMeta`에 `lastAccessedAt` 추가                      |
+| 수정 | `libs/data/src/data/local/storages/types.ts`                    | `CacheTtlMeta` 타입에 `lastAccessedAt` 필드                  |
+| 수정 | `libs/data/src/data/local/storages/IndexedDBAdapter.ts`         | 메타 read/write (필드 추가만)                                |
+| 수정 | `apps/web/src/app/shared/data/localFactory.ts`                  | `isNativeApp()` 실제 감지 + 전략 선택 + runtime assertion    |
 
 ---
 
@@ -1023,3 +1304,18 @@ onHotError: (error, context) => {
 - **Hot TTL 검증**: Hot 조회 시 TTL 만료 → Cold fallback
 - **앱 시작 시 전체 warm-up**: Cold → Hot pre-load
 - **Hot schema versioning**: 앱 버전 변경 시 Hot clear + re-warm
+- **NativeDBAdapter bridge retry 정책**: Cold 안정성 강화 (별도 spec)
+- **stableHash SHA-256 교체**: 운영 중 key 길이로 인한 Map 메모리 부담 시 검토
+
+### 앱팀 후속 작업 (TBD)
+
+본 명세의 인터페이스 구현체를 앱팀이 작성해야 합니다:
+
+| ID    | 작성 대상                            | 구현 인터페이스                            |
+| ----- | ------------------------------------ | ------------------------------------------ |
+| TBD-1 | Type별 capacity cap 수치             | `CapacityPolicy.getLimit(type)`            |
+| TBD-2 | Type별 readPolicy/loadAllPolicy 분류 | `PolicyResolver` 구현체                    |
+| TBD-3 | chat per-channel 그룹핑 키 추출      | `CapacityPolicy.getGroupKey('chat', item)` |
+| TBD-4 | Startup TTL sweep 실행 방식          | `EvictionStrategy.onStartup(hot)`          |
+| TBD-5 | Quota 감지 방식                      | `EvictionStrategy.onQuotaExceeded`         |
+| TBD-6 | `STAMPEDE_TIMEOUT_MS = 5000` 적정성  | 운영 측정 후 조정                          |
