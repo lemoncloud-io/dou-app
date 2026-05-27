@@ -128,12 +128,9 @@ export class NotificationService implements INotificationService {
 
     /**
      * 앱이 완전히 종료(Killed)된 상태에서 시스템 알림 배너를 클릭하여 첫 구동을 발생시킨 페이로드를 가로채 정규화합니다.
-     * 진입 시 아이콘 뱃지는 자동으로 클리어됩니다.
      * @returns 정규화된 RemoteMessage 또는 null
      */
     async getInitialNotification(): Promise<FirebaseMessagingTypes.RemoteMessage | null> {
-        this.clearBadge();
-
         if (Platform.OS === 'ios') {
             const apnsInitial = await PushNotificationIOS.getInitialNotification();
             if (apnsInitial) {
@@ -159,8 +156,6 @@ export class NotificationService implements INotificationService {
      * @returns 콜백 바인딩을 끊기 위한 해제 함수
      */
     onMessage(callback: (message: FirebaseMessagingTypes.RemoteMessage) => void): () => void {
-        this.clearBadge();
-
         // 1. Android FCM 수신 리스너 등록
         const unsubscribeFCM = messaging().onMessage(callback);
 
@@ -199,7 +194,6 @@ export class NotificationService implements INotificationService {
      * @returns 리스너 해제 함수
      */
     onNotificationOpenedApp(callback: (message: FirebaseMessagingTypes.RemoteMessage) => void): () => void {
-        this.clearBadge();
         return messaging().onNotificationOpenedApp(callback);
     }
 
