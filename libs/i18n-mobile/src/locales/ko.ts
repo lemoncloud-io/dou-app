@@ -26,4 +26,12 @@ export const ko = {
         errorMessage: '링크가 만료되었거나 유효하지 않습니다.',
         goHome: '홈으로 이동',
     },
+    notification: {
+        channel: {
+            chat: '새 메시지',
+            notice: '서비스 공지사항',
+            marketing: '이벤트 및 혜택',
+            cloud: '클라우드',
+        },
+    },
 } as const;
