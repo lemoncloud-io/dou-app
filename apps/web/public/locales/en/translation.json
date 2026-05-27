@@ -292,7 +292,8 @@
         "authTimeout": "Cloud authentication timed out",
         "placeLoadFailed": "Failed to load places",
         "placeAuthFailed": "Failed to authenticate place",
-        "channelLoadFailed": "Failed to load channels"
+        "channelLoadFailed": "Failed to load channels",
+        "cloudSessionExpired": "Cloud session expired. Switched to default mode."
     },
     "placeList": {
         "defaultPlace": "Default",
