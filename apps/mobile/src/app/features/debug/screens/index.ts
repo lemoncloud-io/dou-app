@@ -9,3 +9,4 @@ export * from './BridgeTestScreen';
 export * from './OAuthTestScreen';
 export * from './StorageTestScreen';
 export * from './SmsTestScreen';
+export * from './UploadTestScreen';

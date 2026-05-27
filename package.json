@@ -140,7 +140,6 @@
         "react-native-config": "^1.6.1",
         "react-native-contacts": "^8.0.10",
         "react-native-device-info": "^15.0.1",
-        "react-native-fs": "^2.20.0",
         "react-native-iap": "^14.7.7",
         "react-native-image-picker": "^8.2.1",
         "react-native-localize": "^3.6.1",

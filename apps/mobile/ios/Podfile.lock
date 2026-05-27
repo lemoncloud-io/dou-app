@@ -4475,8 +4475,6 @@ PODS:
     - RNFBApp
     - SocketRocket
     - Yoga
-  - RNFS (2.20.0):
-    - React-Core
   - RNGoogleSignin (16.1.2):
     - boost
     - DoubleConversion
@@ -4785,7 +4783,6 @@ DEPENDENCIES:
   - "RNFBFirestore (from `../node_modules/@react-native-firebase/firestore`)"
   - "RNFBInstallations (from `../node_modules/@react-native-firebase/installations`)"
   - "RNFBMessaging (from `../../../node_modules/@react-native-firebase/messaging`)"
-  - RNFS (from `../../../node_modules/react-native-fs`)
   - "RNGoogleSignin (from `../../../node_modules/@react-native-google-signin/google-signin`)"
   - RNLocalize (from `../../../node_modules/react-native-localize`)
   - "RNNotifee (from `../../../node_modules/@notifee/react-native`)"
@@ -5028,8 +5025,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-firebase/installations"
   RNFBMessaging:
     :path: "../../../node_modules/@react-native-firebase/messaging"
-  RNFS:
-    :path: "../../../node_modules/react-native-fs"
   RNGoogleSignin:
     :path: "../../../node_modules/@react-native-google-signin/google-signin"
   RNLocalize:
@@ -5176,7 +5171,6 @@ SPEC CHECKSUMS:
   RNFBFirestore: d0c81291272e5129b3396041d158d9c4f3e47e4f
   RNFBInstallations: 87e047fc80a99ae6416f99c2b4c3a82cdea6c02d
   RNFBMessaging: 7af38284ee8cdc96b49e913da3f7cdacc344d8e0
-  RNFS: 89de7d7f4c0f6bafa05343c578f61118c8282ed8
   RNGoogleSignin: 32eac25be182674a2838c8bf6908c0296fe3bb5d
   RNLocalize: 9988fa71fb84c415902898b35cc6aa5af052731e
   RNNotifee: 5e3b271e8ea7456a36eec994085543c9adca9168

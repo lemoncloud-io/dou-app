@@ -16,6 +16,7 @@ import {
     sqliteDatabase,
     subscriptionIapService,
     testRecordService,
+    uploadService,
 } from '../services';
 
 export const useServices = () => ({
@@ -36,4 +37,5 @@ export const useServices = () => ({
     testRecordService: testRecordService,
     keyValueStorage: keyValueStorage,
     sqliteDatabase: sqliteDatabase,
+    uploadService: uploadService,
 });

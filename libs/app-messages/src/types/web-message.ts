@@ -33,6 +33,10 @@ import type {
     SendLogPayload,
     SendSmsPayload,
     SetCanGoBackPayload,
+    RequestFileUploadPayload,
+    PauseFileUploadPayload,
+    ResumeFileUploadPayload,
+    CancelFileUploadPayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -43,6 +47,10 @@ export interface WebMessagePayloadMap {
     OpenModal: OpenModalPayload;
     CloseModal: never;
     OpenSettings: never;
+    RequestFileUpload: RequestFileUploadPayload;
+    PauseFileUpload: PauseFileUploadPayload;
+    ResumeFileUpload: ResumeFileUploadPayload;
+    CancelFileUpload: CancelFileUploadPayload;
     OpenShareSheet: OpenShareSheetPayload;
     GetContacts: never;
     OpenDocument: OpenDocumentPayload;
