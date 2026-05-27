@@ -35,9 +35,15 @@ export const chatHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEve
 
     switch (action) {
         // 채팅 메시지 전송 및 생성 처리
-        case 'send':
-            eventBus.emit('chat:create', { ...detail, payload: payload as ChatView });
+        case 'send': {
+            const chatView = payload as ChatView;
+            eventBus.emit('chat:create', { ...detail, payload: chatView });
+            // 채팅 전송 응답에 포함된 channel$ (lastChat$ 등이 갱신된 채널 정보)로 채널 캐시 즉시 업데이트
+            if (chatView.channel$) {
+                eventBus.emit('channel:update', { ...detail, payload: chatView.channel$ });
+            }
             break;
+        }
 
         // 채팅 피드 데이터 조회 결과 처리 (메시지 목록 및 페이징 정보)
         case 'feed':

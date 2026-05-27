@@ -135,8 +135,6 @@ export const HomePage = () => {
                                         <img
                                             src={displayImageUrl}
                                             alt="Profile"
-                                            loading="lazy"
-                                            decoding="async"
                                             className="h-full w-full object-cover"
                                         />
                                     ) : (
@@ -164,13 +162,7 @@ export const HomePage = () => {
                     >
                         <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                             {displayImageUrl ? (
-                                <img
-                                    src={displayImageUrl}
-                                    alt="Profile"
-                                    loading="lazy"
-                                    decoding="async"
-                                    className="h-full w-full object-cover"
-                                />
+                                <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
                             ) : (
                                 <User size={20} className="text-muted-foreground" />
                             )}

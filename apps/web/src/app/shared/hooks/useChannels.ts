@@ -218,17 +218,14 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
             (lastFetchedCloudId !== undefined && lastFetchedCloudId !== cloudId) ||
             (lastFetchedPlaceId !== undefined && lastFetchedPlaceId !== targetPlaceId);
 
-        // 재마운트 감지: 같은 cloud/place를 이전에 fetch한 적이 있으면 재마운트
-        // (채팅방 → 홈 복귀 등) — unmount 중 놓친 이벤트를 보완하기 위해 네트워크 재요청
-        const isRemount = lastFetchedCloudId === cloudId && lastFetchedPlaceId === targetPlaceId;
-
         lastFetchedCloudId = cloudId;
         lastFetchedPlaceId = targetPlaceId;
 
         currentParamsRef.current = initialParams;
         void fetchChannels({
             loading: isSwitch || channelsRef.current.length === 0,
-            forceNetwork: isSwitch || isRemount,
+            // cache-first: 캐시 데이터가 있으면 즉시 표시 + 백그라운드 네트워크 갱신
+            // network-only를 쓰면 WebSocket 응답 + bridge 왕복을 모두 대기해야 하므로 느림
         });
     }, [fetchChannels, cloudId, targetPlaceId, isVerified]);
 

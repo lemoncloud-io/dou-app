@@ -24,6 +24,18 @@ const isServerError = (error: unknown): boolean => {
     return status >= 500 && status < 600;
 };
 
+const isAuthError = (error: unknown): boolean => {
+    const err = error as any;
+    const status = err?.status || err?.response?.status || err?.statusCode;
+    const message = String(err?.message || err?.data?.message || '');
+    return (
+        (typeof status === 'number' && status >= 400 && status < 500) ||
+        message.includes('INVALID_TOKEN') ||
+        message.includes('Token validation failed') ||
+        message.includes('signature timeout')
+    );
+};
+
 export const useCloudTokenRefresh = () => {
     const { t } = useTranslation();
     const { isAuthenticated } = useWebCoreStore();
@@ -57,6 +69,18 @@ export const useCloudTokenRefresh = () => {
                     reportError(toError(e));
                     if (isServerError(e)) {
                         setServiceUnavailable(true);
+                        return;
+                    }
+                    if (isAuthError(e)) {
+                        // cloud 토큰 만료/무효 → 기본 클라우드(relay)로 fallback
+                        logger.warn('AUTH', '[CloudTokenRefresh] Cloud token expired, falling back to default cloud');
+                        cloudCore.clearDelegationToken();
+                        cloudCore.clearSelectedPlace();
+                        cloudCore.saveSelectedCloudId('default');
+                        useWebSocketV2Store.getState().setCloudId('default');
+                        useWebSocketV2Store.getState().setSelectedPlaceId(null);
+                        useWebSocketV2Store.getState().setIsVerified(false);
+                        toast({ title: t('cloudSessionSheet.cloudSessionExpired'), variant: 'destructive' });
                         return;
                     }
                 }

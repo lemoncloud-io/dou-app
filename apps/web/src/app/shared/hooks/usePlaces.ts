@@ -33,6 +33,14 @@ export const usePlaces = () => {
     const [isSyncing, setIsSyncing] = useState(false);
     const [isError, setIsError] = useState(false);
 
+    // 렌더 단계에서 cloud 전환 감지 — 이전 cloud의 place가 한 프레임 보이는 현상 방지
+    const [prevCloudId, setPrevCloudId] = useState(cloudId);
+    if (!!prevCloudId && prevCloudId !== cloudId) {
+        setPlaces([]);
+        setIsLoading(true);
+    }
+    if (prevCloudId !== cloudId) setPrevCloudId(cloudId);
+
     const fetchPlaces = useCallback(
         async (options?: { loading?: boolean; forceNetwork?: boolean }) => {
             const requestSeq = requestSeqRef.current + 1;
@@ -105,8 +113,6 @@ export const usePlaces = () => {
         if (prevCloudIdRef.current === cloudId) return;
         prevCloudIdRef.current = cloudId;
 
-        // 실제 클라우드 전환 시에만 network-only + 로더 표시
-        // 단순 네비게이션 복귀(재마운트)는 cache-first, 로더 없음
         const isCloudSwitch = lastFetchedCloudId !== undefined && lastFetchedCloudId !== cloudId;
         lastFetchedCloudId = cloudId;
 
@@ -114,7 +120,8 @@ export const usePlaces = () => {
         const hasValidModuleCache = placesCacheCloudId === cloudId && placesCache && placesCache.length > 0;
         void fetchPlaces({
             loading: !hasValidModuleCache && (isCloudSwitch || places.length === 0),
-            forceNetwork: isCloudSwitch,
+            // cache-first: contextHolder가 Zustand subscribe로 즉시 동기 업데이트되므로
+            // cloud 전환 직후에도 올바른 cid scope로 캐시 조회 가능
         });
     }, [fetchPlaces, cloudId, isVerified]);
 

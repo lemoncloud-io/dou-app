@@ -53,13 +53,7 @@ const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemPr
                     )}
                 >
                     {place.thumbnail ? (
-                        <img
-                            src={place.thumbnail}
-                            alt={displayName}
-                            loading="lazy"
-                            decoding="async"
-                            className="h-full w-full object-cover"
-                        />
+                        <img src={place.thumbnail} alt={displayName} className="h-full w-full object-cover" />
                     ) : isDefaultPlace ? (
                         <Home size={20} className={selected ? 'text-white' : 'text-muted-foreground'} />
                     ) : (

@@ -146,13 +146,7 @@ export const CloudProfileEditPage = () => {
                     <div className="relative inline-block">
                         <div className="flex h-[82px] w-[82px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                             {thumbnail ? (
-                                <img
-                                    src={thumbnail}
-                                    alt="Profile"
-                                    loading="lazy"
-                                    decoding="async"
-                                    className="h-full w-full object-cover"
-                                />
+                                <img src={thumbnail} alt="Profile" className="h-full w-full object-cover" />
                             ) : (
                                 <User size={36} className="text-muted-foreground" />
                             )}

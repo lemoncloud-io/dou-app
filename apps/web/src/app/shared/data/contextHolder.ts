@@ -4,7 +4,7 @@ import { logger } from '@chatic/app-messages';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
-import { useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 
 export const useDataContextHolder = (
     injectedContext?: Partial<DataContext>
@@ -38,6 +38,20 @@ export const useDataContextHolder = (
         }
         contextHolder.setContext(dataContext);
     }, [contextHolder, dataContext]);
+
+    // Zustand store를 직접 subscribe하여 cloudId/placeId 변경 시 contextHolder를 즉시 동기적으로 업데이트
+    // React render cycle(useLayoutEffect)을 기다리지 않으므로 async 함수 내에서
+    // setCloudId() 직후 호출되는 cache read가 올바른 cid scope를 사용함
+    useEffect(() => {
+        return useWebSocketV2Store.subscribe(state => {
+            const current = contextHolder.getContext();
+            const nextCid = injectedContext?.cid ?? state.cloudId ?? cloudCore.getSelectedCloudId() ?? 'default';
+            const nextSid = injectedContext?.sid ?? state.selectedPlaceId ?? undefined;
+            if (current.cid !== nextCid || current.sid !== nextSid) {
+                contextHolder.setContext({ ...current, cid: nextCid, sid: nextSid });
+            }
+        });
+    }, [contextHolder, injectedContext]);
 
     return { contextHolder, dataContext };
 };

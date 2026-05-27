@@ -5,6 +5,10 @@ import type { CacheStorage } from './types';
 export * from './types';
 export * from './IndexedDBAdapter';
 export * from './NativeDBAdapter';
+export * from './DynamicCacheStorage';
+export * from './dynamicCacheTypes';
+export * from './defaultPolicies';
+export * from './stableHash';
 
 export type CacheStorageFactory = <TType extends CacheType>(
     type: TType,

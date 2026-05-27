@@ -11,6 +11,8 @@ export const WebSocketV2Connection = () => {
     const { deviceId } = useDynamicDeviceId();
     const { isPending } = useCloudSession();
     const { currentWSS, endpoints } = useUserContext();
+    // cloudId 구독: cloud 토큰 만료 fallback 시 re-render 트리거 → currentWSS 재평가 → endpoint 변경
+    useWebSocketV2Store(s => s.cloudId);
 
     // 현재 WSS 타입에 따라 endpoint 결정
     const endpoint = currentWSS === 'cloud' ? endpoints.cloudWSS : endpoints.relayWSS;

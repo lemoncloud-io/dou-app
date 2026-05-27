@@ -145,13 +145,11 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions) => {
                 }
 
                 // Step 3: Places 가져오기
-                // 이전 cloud의 background refresh가 현재 scope에 오염시킨 데이터 제거
-                logger.info('SESSION', '[CloudSwitchFlow] Step 3: clearAll + fetchPlaces');
+                // cache-first: contextHolder가 Zustand subscribe로 이미 새 cid로 업데이트됨
+                logger.info('SESSION', '[CloudSwitchFlow] Step 3: fetchPlaces');
                 let places: DomainSite[] = [];
                 try {
-                    await siteRepository.clearAll();
-                    await channelRepository.clearAll();
-                    const result = await siteRepository.fetchSite({}, { cachePolicy: 'network-only' });
+                    const result = await siteRepository.fetchSite({}, { cachePolicy: 'cache-first' });
                     places = (result.list ?? []) as DomainSite[];
                 } catch (e) {
                     showError('placeLoadFailed', e);
@@ -173,20 +171,17 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions) => {
                     options.onPlaceSelected?.(targetPlaceId);
                 }
 
-                // Step 5: Channels 가져오기
+                // Step 5: Channels — fire-and-forget (useChannels가 이벤트로 자체 갱신)
                 if (targetPlaceId) {
-                    logger.info('SESSION', '[CloudSwitchFlow] Step 5: fetchChannels', {
-                        data: { targetPlaceId },
-                    });
-                    try {
-                        await channelRepository.fetchChannel(
+                    logger.info('SESSION', '[CloudSwitchFlow] Step 5: fetchChannels (background)');
+                    channelRepository
+                        .fetchChannel(
                             { sid: targetPlaceId, detail: true, limit: 100, page: 0 },
-                            { cachePolicy: 'network-only' }
+                            { cachePolicy: 'cache-first' }
+                        )
+                        .catch(e =>
+                            logger.error('SESSION', '[CloudSwitchFlow] Background fetchChannels failed', { error: e })
                         );
-                    } catch (e) {
-                        showError('channelLoadFailed', e);
-                        throw e;
-                    }
                 }
 
                 logger.info('SESSION', '[CloudSwitchFlow] Pipeline complete');

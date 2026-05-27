@@ -18,7 +18,7 @@ import {
     type DomainListResult,
     toDomainChannel,
 } from '../domain';
-import type { ChannelView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelView, ChatView, JoinView } from '@lemoncloud/chatic-socials-api';
 import type {
     ChatDeleteChannelPayload,
     ChatInvitePayload,
@@ -298,5 +298,59 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         // NOTE: channel:list 캐시 저장은 fetchFromRemoteAndCache에서 요청 시점 context를 캡처하여 처리함.
         // 여기서 중복 upsertMany를 수행하면 cloud 전환 중 도착한 이전 cloud 응답이
         // 현재 cloud의 캐시 파티션에 저장되는 cross-cloud 오염이 발생함.
+
+        // 새 메시지 수신 시 해당 채널의 lastChat$/chatNo/unreadCount를 캐시에 즉시 반영
+        // useChannels가 unmount 상태(채팅방 진입 중)에서도 캐시가 갱신되어 복귀 시 stale 데이터 방지
+        this.onDomainEvent('chat:create', detail => {
+            const chat = detail.data as ChatView;
+            const channelId = chat.channelId;
+            if (!channelId) return;
+
+            this.runInBackground(async () => {
+                const context = this.getRepositoryContext();
+                const existing = await this.channelLocalDataSource.getById(channelId, context);
+                if (!existing) return;
+
+                const isOwnMessage = !!context.uid && chat.ownerId === context.uid;
+                const prevUnread = existing.unreadCount ?? 0;
+
+                await this.channelLocalDataSource.upsert(
+                    {
+                        id: channelId,
+                        lastChat$: chat,
+                        chatNo: chat.chatNo,
+                        unreadCount: isOwnMessage ? prevUnread : prevUnread + 1,
+                    } as unknown as Partial<DomainChannel>,
+                    context
+                );
+            }, 'chat:create→channel:update');
+        });
+
+        // 읽음 처리(join:update) 시 채널 캐시의 $join을 즉시 반영하여 unreadCount 로컬 계산 정확도 보장
+        this.onDomainEvent('join:update', detail => {
+            const join = detail.data as JoinView;
+            const channelId = (join as { channelId?: string }).channelId;
+            if (!channelId) return;
+
+            const context = this.getRepositoryContext();
+            const isMyJoin = !!context.uid && (join as { userId?: string }).userId === context.uid;
+            if (!isMyJoin) return;
+
+            this.runInBackground(async () => {
+                const existing = await this.channelLocalDataSource.getById(channelId, context);
+                if (!existing) return;
+
+                // $join 갱신 + unreadCount 재계산
+                const lastChatNo =
+                    (existing.lastChat$ as { chatNo?: number } | undefined)?.chatNo ?? existing.chatNo ?? 0;
+                const myReadNo = (join as { chatNo?: number }).chatNo ?? 0;
+                const unreadCount = Math.max(0, lastChatNo - myReadNo);
+
+                await this.channelLocalDataSource.upsert(
+                    { id: channelId, $join: join, unreadCount } as unknown as Partial<DomainChannel>,
+                    context
+                );
+            }, 'join:update→channel:$join');
+        });
     }
 }

@@ -17,14 +17,20 @@ export const GlobalChatSync = () => {
     const { channel: channelRepository } = useRepositories();
     const [channels, setChannels] = useState<DomainChannel[]>([]);
 
+    // place 전환 시 구독을 재생성하여 새 place의 채널도 sync 대상에 포함
+    // channelRepository.subscribeList()가 호출 시점의 DataContext(sid 포함)를 캡처하므로
+    // selectedPlaceId가 변경되면 구독을 재생성해야 새 place의 채널이 반환됨
+    const selectedPlaceId = useWebSocketV2Store(s => s.selectedPlaceId);
+
     useEffect(() => {
+        setChannels([]);
         const unsub = channelRepository.subscribeList({}, result => {
             if (result) {
                 setChannels(result.list);
             }
         });
         return () => unsub();
-    }, [channelRepository]);
+    }, [channelRepository, selectedPlaceId]);
 
     // 포그라운드 복귀 시 현재 place의 채널 리스트를 서버에서 refetch
     // 토큰 refresh chain(foreground-resync)에 의존하지 않고 visibilitychange를 직접 감지
