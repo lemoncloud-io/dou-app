@@ -179,4 +179,21 @@ class FileManagerModule(reactContext: ReactApplicationContext) : ReactContextBas
             promise.reject("END_BG_TASK_FAILED", e.message, e)
         }
     }
+
+    @ReactMethod
+    fun createDummyFile(path: String, sizeInBytes: Double, promise: Promise) {
+        try {
+            val cleanPath = getCleanPath(path)
+            val file = File(cleanPath)
+            if (file.exists()) {
+                file.delete()
+            }
+            RandomAccessFile(file, "rw").use { raf ->
+                raf.setLength(sizeInBytes.toLong())
+            }
+            promise.resolve(file.absolutePath)
+        } catch (e: Exception) {
+            promise.reject("CREATE_DUMMY_FILE_FAILED", e.message, e)
+        }
+    }
 }
