@@ -46,6 +46,26 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
         return true
     }
 
+    // MARK: - Background URLSession (업로드)
+    /// iOS가 백그라운드 URLSession 완료 후 앱을 깨울 때 호출.
+    /// UploadManager에 completionHandler를 전달하여 iOS가 다시 앱을 suspend할 수 있도록 처리.
+    func application(
+        _ application: UIApplication,
+        handleEventsForBackgroundURLSession identifier: String,
+        completionHandler: @escaping () -> Void
+    ) {
+        if let uploadManager = RCTBridge.current()?.module(forName: "UploadManager") as? NSObject,
+           uploadManager.responds(to: Selector(("handleBackgroundSession:completionHandler:"))) {
+            uploadManager.perform(
+                Selector(("handleBackgroundSession:completionHandler:")),
+                with: identifier,
+                with: completionHandler
+            )
+        } else {
+            completionHandler()
+        }
+    }
+
     // MARK: - Deep Linking (Custom URL Scheme)
     func application(
         _ app: UIApplication,
