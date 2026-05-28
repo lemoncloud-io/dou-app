@@ -1,4 +1,4 @@
-package io.chatic.dou.bridge
+package io.chatic.dou.service
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -10,37 +10,51 @@ import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
-import android.util.Base64
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import io.chatic.dou.R
 import java.io.BufferedOutputStream
 import java.io.FileInputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 
+/**
+ * UploadBackgroundService — Android Foreground Service 기반 청크 업로드 엔진
+ *
+ * 구조:
+ * - Foreground Service로 실행되어 OS가 프로세스를 종료하지 않도록 방지
+ * - WorkManager(UploadWorker)에 의해 생명주기 관리됨
+ * - 최대 3개의 업로드를 동시에 처리하는 스레드풀 사용
+ * - 청크 포맷: multipart/form-data binary (base64 오버헤드 없음)
+ *
+ * 이벤트 흐름:
+ * Service → BroadcastIntent(ACTION_UPLOAD_EVENT) → UploadManagerModule → JS(RN Event)
+ */
 class UploadBackgroundService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private val CHANNEL_ID = "upload_channel"
     private val NOTIFICATION_ID = 1001
 
-    // Tracks concurrent active uploads: uploadId -> Pair(fileName, progress)
+    // 현재 활성 업로드 목록: uploadId -> Pair(fileName, progress)
     private val activeUploads = HashMap<String, Pair<String, Double>>()
 
     companion object {
         const val ACTION_START_OR_UPDATE = "io.chatic.dou.action.START_OR_UPDATE"
         const val ACTION_STOP = "io.chatic.dou.action.STOP"
 
-        // Native upload engine actions (UploadManagerModule -> Service)
+        // JS → Service 명령 액션
         const val ACTION_ENQUEUE_UPLOAD = "io.chatic.dou.action.UPLOAD.ENQUEUE"
         const val ACTION_PAUSE_UPLOAD = "io.chatic.dou.action.UPLOAD.PAUSE"
         const val ACTION_RESUME_UPLOAD = "io.chatic.dou.action.UPLOAD.RESUME"
         const val ACTION_CANCEL_UPLOAD = "io.chatic.dou.action.UPLOAD.CANCEL"
 
-        // Broadcast event action (Service -> JS module)
+        // Service → JS 이벤트 브로드캐스트 액션
         const val ACTION_UPLOAD_EVENT = "io.chatic.dou.action.UPLOAD.EVENT"
     }
 
@@ -92,11 +106,12 @@ class UploadBackgroundService : Service() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        // If the system removes this task while uploads are running, try to keep the service alive as long as possible.
-        // Manual recovery is handled in JS via persisted task state; this is best-effort only.
+        // 시스템이 태스크를 제거하는 경우 best-effort 처리.
+        // JS의 SQLite 기반 복구로 이어받기 가능.
         super.onTaskRemoved(rootIntent)
     }
 
+    // 최대 3개 업로드 동시 처리
     private val executor = Executors.newFixedThreadPool(3)
     private val tasks = ConcurrentHashMap<String, UploadTaskState>()
     private val futures = ConcurrentHashMap<String, Future<*>>()
@@ -120,7 +135,7 @@ class UploadBackgroundService : Service() {
                 }
 
                 val notification = buildNotification()
-                startForeground(NOTIFICATION_ID, notification)
+                startForegroundCompat(notification)
             }
             ACTION_STOP -> {
                 val uploadId = intent.getStringExtra("uploadId") ?: ""
@@ -133,7 +148,7 @@ class UploadBackgroundService : Service() {
                     stopSelf()
                 } else {
                     val notification = buildNotification()
-                    startForeground(NOTIFICATION_ID, notification)
+                    startForegroundCompat(notification)
                 }
             }
             ACTION_ENQUEUE_UPLOAD -> {
@@ -172,8 +187,8 @@ class UploadBackgroundService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "파일 업로드"
-            val descriptionText = "백그라운드 파일 업로드 상태를 표시합니다."
+            val name = getString(R.string.upload_notification_channel_name)
+            val descriptionText = getString(R.string.upload_notification_channel_desc)
             val importance = NotificationManager.IMPORTANCE_LOW
             val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                 description = descriptionText
@@ -186,21 +201,21 @@ class UploadBackgroundService : Service() {
 
     private fun buildNotification(): Notification {
         val size = activeUploads.size
-        val title = "파일 업로드 중"
+        val title = getString(R.string.upload_notification_title)
         val contentText: String
         val progressPercent: Int
 
         if (size == 1) {
             val single = activeUploads.values.first()
             progressPercent = (single.second * 100).toInt().coerceIn(0, 100)
-            contentText = "${single.first} (${progressPercent}%)"
+            contentText = getString(R.string.upload_notification_single, single.first, progressPercent)
         } else if (size > 1) {
             val avgProgress = activeUploads.values.map { it.second }.average()
             progressPercent = (avgProgress * 100).toInt().coerceIn(0, 100)
-            contentText = "${size}개 파일 업로드 중... (평균 ${progressPercent}%)"
+            contentText = getString(R.string.upload_notification_multiple, size, progressPercent)
         } else {
             progressPercent = 0
-            contentText = "준비 중..."
+            contentText = getString(R.string.upload_notification_preparing)
         }
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -213,11 +228,17 @@ class UploadBackgroundService : Service() {
             .build()
     }
 
+    /**
+     * WakeLock 획득 — Foreground Service가 살아있는 동안 CPU를 유지.
+     * 타임아웃 없이 획득하며, onDestroy 시 반드시 해제됨.
+     */
+    @Suppress("WakelockTimeout")
     private fun acquireWakeLock() {
         if (wakeLock == null) {
             val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
             wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Chatic:UploadWakeLock").apply {
-                acquire(30 * 60 * 1000L) // 30 minutes timeout
+                // 타임아웃 없이 획득 — Foreground Service 종료 시 반드시 releaseWakeLock() 호출됨
+                acquire()
             }
         }
     }
@@ -225,7 +246,7 @@ class UploadBackgroundService : Service() {
     private fun parseUploadPayload(intent: Intent): UploadPayload? {
         val uploadId = intent.getStringExtra("uploadId") ?: ""
         val fileUri = intent.getStringExtra("fileUri") ?: ""
-        val fileName = intent.getStringExtra("fileName") ?: "file"
+        val fileName = intent.getStringExtra("fileName") ?: getString(R.string.upload_default_file_name)
         val fileSize = intent.getLongExtra("fileSize", -1L)
         val mimeType = intent.getStringExtra("mimeType") ?: "application/octet-stream"
         val uploadUrl = intent.getStringExtra("uploadUrl") ?: ""
@@ -266,10 +287,9 @@ class UploadBackgroundService : Service() {
             state.lastChunkIndex = payload.initialLastChunkIndex
         }
 
-        // Start/update foreground notification entry
         val progress = if (payload.fileSize > 0) state.uploadedBytes.toDouble() / payload.fileSize.toDouble() else 0.0
         activeUploads[uploadId] = Pair(payload.fileName, progress)
-        startForeground(NOTIFICATION_ID, buildNotification())
+        startForegroundCompat(buildNotification())
         sendEvent(state, null)
 
         if (futures.containsKey(uploadId)) return
@@ -304,7 +324,7 @@ class UploadBackgroundService : Service() {
             stopForeground(true)
             stopSelf()
         } else {
-            startForeground(NOTIFICATION_ID, buildNotification())
+            startForegroundCompat(buildNotification())
         }
     }
 
@@ -325,24 +345,25 @@ class UploadBackgroundService : Service() {
                 val offset = i.toLong() * chunkSize
                 val length = minOf(chunkSize, totalBytes - offset).toInt()
 
-                val base64Data = readChunkBase64(uri, offset, length)
+                // 청크 바이너리 읽기 (base64 변환 없음)
+                val chunkBytes = readChunkBytes(uri, offset, length)
 
-                // Legacy-compatible transport: POST JSON with base64 chunkData
-                postChunkJsonWithRetry(state, i, totalChunks, offset, length, totalBytes, base64Data)
+                // multipart/form-data binary 전송
+                postChunkMultipartWithRetry(state, i, totalChunks, offset, length, totalBytes, chunkBytes)
 
                 state.lastChunkIndex = i + 1
                 state.uploadedBytes = minOf(totalBytes, state.uploadedBytes + length.toLong())
 
                 val progress = if (totalBytes > 0) state.uploadedBytes.toDouble() / totalBytes.toDouble() else 0.0
                 activeUploads[payload.uploadId] = Pair(payload.fileName, progress)
-                startForeground(NOTIFICATION_ID, buildNotification())
+                startForegroundCompat(buildNotification())
                 sendEvent(state, null)
             }
 
             state.status = "completed"
             activeUploads.remove(payload.uploadId)
             sendEvent(state, null)
-            startForeground(NOTIFICATION_ID, buildNotification())
+            startForegroundCompat(buildNotification())
         } catch (e: Exception) {
             state.status = "failed"
             sendEvent(state, e.message ?: "upload failed")
@@ -355,12 +376,15 @@ class UploadBackgroundService : Service() {
         }
     }
 
-    private fun readChunkBase64(uri: Uri, offset: Long, length: Int): String {
-        if (length <= 0) return ""
+    /**
+     * 파일에서 청크 바이너리를 읽어 ByteArray로 반환.
+     * content:// URI는 FileDescriptor 채널 seek, file:// URI는 RandomAccessFile 사용.
+     */
+    private fun readChunkBytes(uri: Uri, offset: Long, length: Int): ByteArray {
+        if (length <= 0) return ByteArray(0)
 
         val bytes = ByteArray(length)
-        val bytesRead: Int = if (uri.scheme == "content") {
-            // Prefer seekable file descriptor path for performance; fallback to InputStream skip when not supported.
+        if (uri.scheme == "content") {
             try {
                 val pfd = applicationContext.contentResolver.openFileDescriptor(uri, "r")
                     ?: throw Exception("Failed to open file descriptor for content URI: $uri")
@@ -386,10 +410,7 @@ class UploadBackgroundService : Service() {
                 raf.read(bytes)
             }
         }
-
-        if (bytesRead <= 0) return ""
-        val actual = if (bytesRead < length) bytes.copyOf(bytesRead) else bytes
-        return Base64.encodeToString(actual, Base64.NO_WRAP)
+        return bytes
     }
 
     private fun skipFully(stream: InputStream, offset: Long) {
@@ -420,23 +441,21 @@ class UploadBackgroundService : Service() {
     }
 
     /**
-     * POST one chunk using the current "legacy JSON+base64" server contract.
+     * 청크 multipart/form-data 전송 (재시도 포함).
      *
-     * Retry policy:
-     * - Retries only on network errors and HTTP 5xx.
-     * - Uses exponential backoff (base 500ms) with a hard max delay.
-     * - Max attempts: 3 (1 initial try + 2 retries)
-     *
-     * This is best-effort and does not replace manual recovery; when all retries fail we emit a `failed` event.
+     * 재시도 정책:
+     * - 네트워크 오류 및 HTTP 5xx에서만 재시도
+     * - 지수 백오프 (base 500ms, 최대 5초)
+     * - 최대 3회 시도 (최초 1회 + 재시도 2회)
      */
-    private fun postChunkJsonWithRetry(
+    private fun postChunkMultipartWithRetry(
         state: UploadTaskState,
         chunkIndex: Int,
         totalChunks: Int,
         offset: Long,
         length: Int,
         totalBytes: Long,
-        base64Data: String
+        chunkBytes: ByteArray
     ) {
         val maxAttempts = 3
         var attempt = 1
@@ -449,7 +468,7 @@ class UploadBackgroundService : Service() {
 
             try {
                 state.retryAttempt = attempt - 1
-                postChunkJson(state.payload, chunkIndex, totalChunks, offset, length, totalBytes, base64Data)
+                postChunkMultipart(state.payload, chunkIndex, totalChunks, offset, length, totalBytes, chunkBytes)
                 state.retryAttempt = 0
                 return
             } catch (e: Exception) {
@@ -481,27 +500,36 @@ class UploadBackgroundService : Service() {
     }
 
     private fun isRetryableException(e: Exception): Boolean {
-        // We treat server 5xx and generic IO/network exceptions as retryable.
-        // Non-retryable (4xx) are thrown from postChunkJson via explicit status check.
         return e.message?.contains("Server returned status 5") == true ||
             e is java.io.IOException
     }
 
-    private fun postChunkJson(
+    /**
+     * 청크 하나를 multipart/form-data binary로 POST.
+     *
+     * 요청 형식:
+     * - Content-Type: multipart/form-data; boundary=<UUID>
+     * - 메타데이터: HTTP 헤더 (X-Upload-ID, X-Chunk-Index, 등)
+     * - 청크 데이터: multipart body의 "file" 파트 (binary, base64 아님)
+     */
+    private fun postChunkMultipart(
         payload: UploadPayload,
         chunkIndex: Int,
         totalChunks: Int,
         offset: Long,
         length: Int,
         totalBytes: Long,
-        base64Data: String
+        chunkBytes: ByteArray
     ) {
+        val boundary = "----UploadBoundary${UUID.randomUUID().toString().replace("-", "")}"
+        val CRLF = "\r\n"
+
         val conn = (URL(payload.uploadUrl).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 30_000
             readTimeout = 60_000
             doOutput = true
-            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
             setRequestProperty("X-Upload-ID", payload.uploadId)
             setRequestProperty("X-Chunk-Index", chunkIndex.toString())
             setRequestProperty("X-Total-Chunks", totalChunks.toString())
@@ -509,15 +537,22 @@ class UploadBackgroundService : Service() {
             setRequestProperty("X-Chunk-Size", length.toString())
             setRequestProperty("X-File-Name", Uri.encode(payload.fileName))
             setRequestProperty("X-File-Size", totalBytes.toString())
+            setRequestProperty("X-Mime-Type", payload.mimeType)
             payload.headers.forEach { (k, v) -> setRequestProperty(k, v) }
         }
 
-        val body =
-            """{"uploadId":"${payload.uploadId}","fileName":"${escapeJson(payload.fileName)}","mimeType":"${escapeJson(payload.mimeType)}","chunkIndex":${chunkIndex},"totalChunks":${totalChunks},"offset":${offset},"length":${length},"totalBytes":${totalBytes},"chunkData":"${base64Data}"}"""
-
         conn.outputStream.use { os ->
             BufferedOutputStream(os).use { bos ->
-                bos.write(body.toByteArray(Charsets.UTF_8))
+                // multipart 파트 시작
+                val partHeader = "--$boundary$CRLF" +
+                    "Content-Disposition: form-data; name=\"file\"; filename=\"chunk_$chunkIndex\"$CRLF" +
+                    "Content-Type: application/octet-stream$CRLF" +
+                    "$CRLF"
+                bos.write(partHeader.toByteArray(Charsets.UTF_8))
+                bos.write(chunkBytes)
+                // multipart 파트 종료
+                val partFooter = "$CRLF--$boundary--$CRLF"
+                bos.write(partFooter.toByteArray(Charsets.UTF_8))
                 bos.flush()
             }
         }
@@ -525,20 +560,10 @@ class UploadBackgroundService : Service() {
         val code = conn.responseCode
         if (code !in 200..299) {
             val err = conn.errorStream?.use(InputStream::readBytes)?.toString(Charsets.UTF_8) ?: ""
-            // 5xx is considered retryable by caller; 4xx should immediately fail.
             throw Exception("Server returned status $code: $err")
         }
         conn.inputStream.close()
         conn.disconnect()
-    }
-
-    private fun escapeJson(s: String): String {
-        return s
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t")
     }
 
     private fun sendEvent(state: UploadTaskState, errorMessage: String?) {
@@ -559,6 +584,18 @@ class UploadBackgroundService : Service() {
             if (errorMessage != null) putExtra("errorMessage", errorMessage)
         }
         sendBroadcast(eventIntent)
+    }
+
+    private fun startForegroundCompat(notification: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
     }
 
     private fun releaseWakeLock() {
