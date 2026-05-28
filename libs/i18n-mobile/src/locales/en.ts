@@ -26,4 +26,12 @@ export const en = {
         errorMessage: 'The link may have expired or is no longer valid.',
         goHome: 'Go to Home',
     },
+    notification: {
+        channel: {
+            chat: 'New Messages',
+            notice: 'Service Notices',
+            marketing: 'Events & Promotions',
+            cloud: 'Cloud',
+        },
+    },
 } as const;

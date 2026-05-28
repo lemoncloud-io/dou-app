@@ -43,9 +43,11 @@ This library was generated with [Nx](https://nx.dev).
 
 ### Notification
 
-| Message Type    | Payload (Data Example) | Description                           | Expected Response |
-| :-------------- | :--------------------- | :------------------------------------ | :---------------- |
-| `FetchFcmToken` | -                      | FCM 푸시 토큰 발급/갱신을 요청합니다. | `OnFetchFcmToken` |
+| Message Type      | Payload (Data Example) | Description                                           | Expected Response   |
+| :---------------- | :--------------------- | :---------------------------------------------------- | :------------------ |
+| `FetchFcmToken`   | -                      | FCM 푸시 토큰 발급/갱신을 요청합니다.                 | `OnFetchFcmToken`   |
+| `FetchBadgeCount` | -                      | 앱의 현재 네이티브 뱃지 카운트 조회를 요청합니다.     | `OnFetchBadgeCount` |
+| `SetBadgeCount`   | `{ count: 5 }`         | 앱의 네이티브 뱃지 카운트를 지정된 숫자로 설정합니다. | `OnSetBadgeCount`   |
 
 ### In-App Purchase (IAP)
 
@@ -129,11 +131,12 @@ This library was generated with [Nx](https://nx.dev).
 
 ### Notification
 
-| Message Type            | Description                                                   | Data Structure (Example)                                                           |
-| :---------------------- | :------------------------------------------------------------ | :--------------------------------------------------------------------------------- |
-| `OnFetchFcmToken`       | FCM 토큰이 성공적으로 발급/갱신되었을 때                      | `{ token: 'ey...' }`                                                               |
-| `OnReceiveNotification` | 앱이 **Foreground** 상태일 때 푸시 수신 시 (Push Event)       | `{ notification: { title: '...', body: '...', data: {} } }`                        |
-| `OnOpenNotification`    | 유저가 **푸시 알림을 클릭**하여 앱에 진입했을 때 (Push Event) | `{ notification: { title: '...', body: '...', data: { type: 'chat', id: '1' } } }` |
+| Message Type            | Description                                             | Data Structure (Example)                                    |
+| :---------------------- | :------------------------------------------------------ | :---------------------------------------------------------- |
+| `OnFetchFcmToken`       | FCM 토큰이 성공적으로 발급/갱신되었을 때                | `{ token: 'ey...' }`                                        |
+| `OnReceiveNotification` | 앱이 **Foreground** 상태일 때 푸시 수신 시 (Push Event) | `{ notification: { title: '...', body: '...', data: {} } }` |
+| `OnFetchBadgeCount`     | 앱의 현재 네이티브 뱃지 카운트 조회의 결과 값을 반환    | `{ count: 5 }`                                              |
+| `OnSetBadgeCount`       | 앱의 네이티브 뱃지 카운트 설정 성공 여부를 반환         | `{ success: true }`                                         |
 
 ### In-App Purchase (IAP)
 

@@ -251,6 +251,104 @@ export const NotificationTestScreen = () => {
         };
     }, [addLog, checkPermission, handleRemoteMessage, notificationService, setToken]);
 
+    /**
+     * 뱃지 조회
+     */
+    const handleGetBadge = useCallback(async () => {
+        try {
+            addLog('info', 'Fetching native badge count...');
+            const count = await notificationService.getBadgeCount();
+            addLog('success', `Current Badge Count: ${count}`);
+        } catch (error: any) {
+            addLog('error', `Get Badge Error: ${error.message}`);
+        }
+    }, [addLog, notificationService]);
+
+    /**
+     * 뱃지 설정 (+1)
+     */
+    const handleIncrementBadge = useCallback(async () => {
+        try {
+            const current = await notificationService.getBadgeCount();
+            const next = current + 1;
+            addLog('info', `Setting native badge count to: ${next}`);
+            await notificationService.setBadgeCount(next);
+            addLog('success', `Badge set successfully to: ${next}`);
+        } catch (error: any) {
+            addLog('error', `Set Badge Error: ${error.message}`);
+        }
+    }, [addLog, notificationService]);
+
+    /**
+     * 뱃지 클리어
+     */
+    const handleClearBadge = useCallback(async () => {
+        try {
+            addLog('info', 'Clearing native badge count...');
+            await notificationService.clearBadge();
+            addLog('success', 'Badge cleared successfully (0)');
+        } catch (error: any) {
+            addLog('error', `Clear Badge Error: ${error.message}`);
+        }
+    }, [addLog, notificationService]);
+
+    /**
+     * 오프라인 큐 테스트용 데이터 적재
+     */
+    const handleEnqueueMockPush = useCallback(async () => {
+        try {
+            const mockPayload = {
+                messageId: `mock_msg_${Date.now()}`,
+                action: 'save',
+                type: 'chat',
+                id: `chat_${Math.floor(Math.random() * 1000)}`,
+                item: {
+                    content: '테스트 백그라운드 캐시 메시지',
+                    created_at: Date.now(),
+                },
+            };
+            addLog('info', `Enqueueing mock push payload to MMKV queue: ${JSON.stringify(mockPayload)}`);
+            const { offlinePushQueue } = require('../../../services');
+            await offlinePushQueue.enqueue(mockPayload);
+            addLog('success', 'Mock push payload enqueued successfully to OfflinePushQueue.');
+        } catch (error: any) {
+            addLog('error', `Enqueue Error: ${error.message}`);
+        }
+    }, [addLog]);
+
+    /**
+     * 오프라인 큐 강제 Flush 실행
+     */
+    const handleFlushPushQueue = useCallback(async () => {
+        try {
+            addLog('info', 'Flushing MMKV OfflinePushQueue manually...');
+            const { offlinePushQueue } = require('../../../services');
+            await offlinePushQueue.flush();
+            addLog('success', 'Flush command triggered successfully. Check logs/terminal for TODO prints.');
+        } catch (error: any) {
+            addLog('error', `Flush Error: ${error.message}`);
+        }
+    }, [addLog]);
+
+    /**
+     * 모의 알림 클릭 딥링크 라우팅 테스트
+     */
+    const handleMockNotificationClick = useCallback(async () => {
+        try {
+            const mockClickData = {
+                channelId: 'ch_debug_123',
+                type: 'chat',
+                cid: 'cloud_debug_999',
+            };
+            addLog('info', `Simulating notification click for payload: ${JSON.stringify(mockClickData)}`);
+            const { deeplinkRoutingService } = require('../../../services');
+            await deeplinkRoutingService.handleNotificationClick(mockClickData);
+            addLog('success', 'Notification click routed successfully. Check logs/terminal for TODO deep link prints.');
+        } catch (error: any) {
+            addLog('error', `Routing Error: ${error.message}`);
+        }
+    }, [addLog]);
+
     const renderLogItem = ({ item }: { item: LogItem }) => {
         let color = '#888';
         if (item.type === 'success') color = '#50E3C2';
@@ -403,6 +501,48 @@ export const NotificationTestScreen = () => {
                         onPress={handleDeleteToken}
                     >
                         <Text style={styles.buttonText}>Del Token</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#2ECC71' }]}
+                        onPress={handleGetBadge}
+                    >
+                        <Text style={styles.buttonText}>Get Badge</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#E74C3C' }]}
+                        onPress={handleIncrementBadge}
+                    >
+                        <Text style={styles.buttonText}>Badge +1</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#95A5A6' }]}
+                        onPress={handleClearBadge}
+                    >
+                        <Text style={styles.buttonText}>Clr Badge</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#1ABC9C' }]}
+                        onPress={handleEnqueueMockPush}
+                    >
+                        <Text style={styles.buttonText}>Queue Msg</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#34495E' }]}
+                        onPress={handleFlushPushQueue}
+                    >
+                        <Text style={styles.buttonText}>Flush Queue</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#9B59B6' }]}
+                        onPress={handleMockNotificationClick}
+                    >
+                        <Text style={styles.buttonText}>Mock Click</Text>
                     </TouchableOpacity>
                 </ScrollView>
             </View>

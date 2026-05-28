@@ -4,8 +4,16 @@ import type { IDeviceService } from './device';
 import { DeviceService } from './device';
 import type { IPermissionService } from './permission';
 import { PermissionService } from './permission';
-import type { INotificationService } from './notification';
+import type {
+    INotificationService,
+    IOfflinePushQueue,
+    IPushEventManager,
+    IDeeplinkRoutingService,
+} from './notification/types';
 import { NotificationService } from './notification';
+import { OfflinePushQueue } from './notification/OfflinePushQueue';
+import { PushEventManager } from './notification/PushEventManager';
+import { DeeplinkRoutingService } from './notification/DeeplinkRoutingService';
 import type { IOAuthService } from './oauth';
 import { OAuthService } from './oauth';
 import type { IDynamicAppIconService } from './dynamicAppIcon';
@@ -50,6 +58,9 @@ class DependencyProvider {
     public readonly uploadService: IUploadService;
     public readonly permissionService: IPermissionService;
     public readonly notificationService: INotificationService;
+    public readonly pushEventManager: IPushEventManager;
+    public readonly deeplinkRoutingService: IDeeplinkRoutingService;
+    public readonly offlinePushQueue: IOfflinePushQueue;
     public readonly oauthService: IOAuthService;
     public readonly dynamicAppIconService: IDynamicAppIconService;
     public readonly firebaseCrashlyticsService: IFirebaseCrashlyticsService;
@@ -105,6 +116,10 @@ class DependencyProvider {
             userDataSource,
             inviteCloudDataSource
         );
+
+        this.pushEventManager = new PushEventManager(this.logService);
+        this.deeplinkRoutingService = new DeeplinkRoutingService(this.logService);
+        this.offlinePushQueue = new OfflinePushQueue(this.keyValueStorage, this.logService);
 
         this.cacheSearchService = new CacheSearchService(
             this.logService,

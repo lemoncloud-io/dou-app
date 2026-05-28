@@ -46,7 +46,7 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
     // --- Domain-specific Handlers (memoized with useCallback) ---
     const { fetchSafeAreaInfo } = useSafeAreaHandler();
     const { handleFetchBackgroundStatus } = useAppStateHandler(bridge);
-    const { fetchFcmToken } = useFcmHandler(bridge);
+    const { fetchFcmToken, handleFetchBadgeCount, handleSetBadgeCount } = useFcmHandler(bridge);
     const {
         fetchProducts,
         fetchCurrentPurchases,
@@ -106,6 +106,8 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
     const handlersRef = useRef({
         setWebCanGoBack,
         fetchFcmToken,
+        handleFetchBadgeCount,
+        handleSetBadgeCount,
         fetchSafeAreaInfo,
         handleFetchBackgroundStatus,
         fetchProducts,
@@ -160,6 +162,8 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
         handlersRef.current = {
             setWebCanGoBack,
             fetchFcmToken,
+            handleFetchBadgeCount,
+            handleSetBadgeCount,
             fetchSafeAreaInfo,
             handleFetchBackgroundStatus,
             fetchProducts,
@@ -218,6 +222,8 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
         } = {
             SetCanGoBack: message => handlersRef.current.setWebCanGoBack(message.data.canGoBack),
             FetchFcmToken: message => handlersRef.current.fetchFcmToken(message),
+            FetchBadgeCount: message => handlersRef.current.handleFetchBadgeCount(message),
+            SetBadgeCount: message => handlersRef.current.handleSetBadgeCount(message),
             FetchSafeArea: message => handlersRef.current.fetchSafeAreaInfo(message),
             FetchBackgroundStatus: message => handlersRef.current.handleFetchBackgroundStatus(message),
             FetchProducts: message => handlersRef.current.fetchProducts(message),

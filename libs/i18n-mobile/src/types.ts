@@ -11,4 +11,8 @@ export type TranslationKey =
     | 'loader.paymentProcessing'
     | 'deepLink.errorTitle'
     | 'deepLink.errorMessage'
-    | 'deepLink.goHome';
+    | 'deepLink.goHome'
+    | 'notification.channel.chat'
+    | 'notification.channel.notice'
+    | 'notification.channel.marketing'
+    | 'notification.channel.cloud';

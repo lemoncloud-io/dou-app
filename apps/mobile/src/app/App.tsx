@@ -10,7 +10,7 @@ import type { RootStackParamList } from './features/core/navigation';
 import { RootNavigator } from './features/core/navigation';
 import { useAppVersionCheck, useInitializeDeepLink } from './hooks';
 import { useThemeStore } from './stores';
-import { notificationService } from './services';
+import { notificationService, offlinePushQueue } from './services';
 import { FloatingMenu } from './features/core/components';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
@@ -30,6 +30,7 @@ export const App = () => {
     useEffect(() => {
         notificationService.createNotificationChannel();
         getDeepLinkManager().setAppReady();
+        void offlinePushQueue.flush();
     }, []);
 
     // Show update alert when update is available
