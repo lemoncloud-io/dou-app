@@ -33,8 +33,6 @@
 
 현 구조는 1GB 급에서 성능/안정성/백그라운드 지속성을 보장하기 위해 **JS 기반 업로드 루프를 완전히 삭제**하고 **100% Native Upload Engine 중심**으로 전환을 완료하였다.
 
-기존에 기획되었던 JS-fallback 계층(JS 청크 분할 전송 루프, 공통 `app/network` / `app/auth` 인터페이스, JS 레벨 동시성 CountingSemaphore)은 하이브리드 연동 보장이 확실해짐에 따라 **불필요한 레거시 코드로 정의되어 완벽히 소멸**하였다.
-
 ---
 
 ## 3) Architecture (100% Native-Driven Single Pipeline)
@@ -92,8 +90,6 @@ graph TD
     - 모든 인터페이스는 `I` 접두사를 붙여 정의합니다. (예: `IUploadTaskDataSource`, `IUploadService`)
 
 ### 4.2 Directory Structure
-
-JS-fallback에 필요했던 network, auth, semaphore 유틸리티 및 JS loop 테스트 코드가 완전히 삭제되어 다음과 같이 디렉터리 구성이 고도로 다이어트되었습니다:
 
 ```
 apps/mobile/src/app/
@@ -183,6 +179,7 @@ Android `content://`, iOS `ph://` 등은 만료/권한 이슈가 발생할 수 �
 
 - 업로드 요청 시점에 헤더를 생성/갱신할 수 있어야 한다.
 - 인증 만료 시 “재시도 시점에 새 헤더로 재요청”이 가능해야 한다.
+- **서버 스펙과의 합의가 필요하므로 TODO로 남긴다.**
 
 ---
 
@@ -232,9 +229,9 @@ Android `content://`, iOS `ph://` 등은 만료/권한 이슈가 발생할 수 �
 
 ## 12) Rollout Plan
 
-1. **Phase 1 (완료)**: 공통 네트워크/인증/유틸리티 레이어 추출 및 업로드 도메인(auth, transport, repository/datasource) 리팩토링 및 네이티브 빌드 안정화
+1. **Phase 1 (완료)**: 공통 네트워크/유틸리티 레이어 추출 및 업로드 도메인(transport, datasource) 리팩토링 및 네이티브 빌드 안정화
 2. **Phase 2 (완료)**: JS-fallback 엔진 완전 삭제. Native UploadManagerBridge 중심의 100% 네이티브 아키텍처 전환 완료 및 가상 5GB 대용량 데이터 생성/백그라운드 전송 테스트 지원 완료.
-3. **Phase 3 (진행 중)**: iOS URLSession background 기반 업로드 고도화 및 안정화
+3. **Phase 3 (완료)**: iOS URLSession background 기반 업로드 고도화 및 안정화
 4. **Phase 4**: 서버 프로토콜 확정(S3 multipart/presigned 등) 및 관측/재시도 정책 고도화
 
 ---
@@ -243,4 +240,3 @@ Android `content://`, iOS `ph://` 등은 만료/권한 이슈가 발생할 수 �
 
 - `status(uploadId)` 제공 여부
 - chunk 크기 상한/권장값
-- iOS background 상황에서의 인증 갱신 방식(presigned/세션/동적서명)
