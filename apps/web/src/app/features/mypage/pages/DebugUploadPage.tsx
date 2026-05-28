@@ -9,9 +9,12 @@ import {
     Trash2,
     Upload,
     XCircle,
+    Activity,
+    Gauge,
+    Clock,
 } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getMobileAppInfo } from '@chatic/app-messages';
+import { getMobileAppInfo, type RecoverableUploadTaskInfo } from '@chatic/app-messages';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { webBridge } from '../../../shared/bridges';
 
@@ -30,6 +33,7 @@ interface SelectedFile {
     name: string;
     type?: string;
     size: number;
+    isGenerated?: boolean;
 }
 
 interface UploadTask {
@@ -43,6 +47,9 @@ interface UploadTask {
     uploadedBytes: number;
     error?: string;
     retryCount: number;
+    startTime?: number;
+    speed?: number; // MB/s
+    eta?: number; // seconds
 }
 
 // --- UI Components ---
@@ -118,6 +125,7 @@ export const DebugUploadPage = () => {
     // Files & Tasks states
     const [stagedFiles, setStagedFiles] = useState<SelectedFile[]>([]);
     const [tasks, setTasks] = useState<Record<string, UploadTask>>({});
+    const [recoverableTasks, setRecoverableTasks] = useState<RecoverableUploadTaskInfo[]>([]);
 
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const logEndRef = useRef<HTMLDivElement | null>(null);
@@ -126,6 +134,8 @@ export const DebugUploadPage = () => {
         if (typeof window === 'undefined') return false;
         return getMobileAppInfo().isOnMobileApp;
     }, []);
+
+    const recoverableIds = useMemo(() => new Set(recoverableTasks.map(t => t.uploadId)), [recoverableTasks]);
 
     const addLog = useCallback((level: LogLevel, label: string, message: string) => {
         const timestamp = new Date().toLocaleTimeString('ko-KR', {
@@ -136,10 +146,6 @@ export const DebugUploadPage = () => {
         });
 
         setLogs(prev => [...prev, { id: `${Date.now()}-${Math.random()}`, level, label, message, timestamp }]);
-
-        requestAnimationFrame(() => {
-            logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        });
     }, []);
 
     const clearLogs = useCallback(() => setLogs([]), []);
@@ -163,6 +169,164 @@ export const DebugUploadPage = () => {
     useEffect(() => {
         chunkSizeRef.current = chunkSize;
     }, [chunkSize]);
+
+    const mockUploadIntervals = useRef<Record<string, NodeJS.Timeout>>({});
+
+    useEffect(() => {
+        return () => {
+            Object.values(mockUploadIntervals.current).forEach(clearInterval);
+        };
+    }, []);
+
+    const formatSize = useCallback((bytes: number) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+    }, []);
+
+    const formatETA = useCallback((seconds?: number) => {
+        if (seconds === undefined || seconds === Infinity || isNaN(seconds) || seconds < 0) return '--:--';
+        if (seconds < 60) return `${Math.round(seconds)}초`;
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.round(seconds % 60);
+        return `${mins}분 ${secs}초`;
+    }, []);
+
+    const startMockUpload = useCallback(
+        (uploadId: string, fileSize: number, initialUploadedBytes = 0) => {
+            if (mockUploadIntervals.current[uploadId]) {
+                clearInterval(mockUploadIntervals.current[uploadId]);
+            }
+
+            let uploadedBytes = initialUploadedBytes;
+            const speedMB = 8 + Math.random() * 16; // 8 ~ 24 MB/s simulation
+            const speedBytes = speedMB * 1024 * 1024;
+            const intervalMs = 200;
+            const bytesPerTick = speedBytes * (intervalMs / 1000);
+            const startTime = Date.now() - (uploadedBytes / speedBytes) * 1000;
+
+            addLog('info', 'MockUpload', `[${uploadId}] Starting simulated chunk upload at ${speedMB.toFixed(2)} MB/s`);
+
+            const interval = setInterval(() => {
+                setTasks(prev => {
+                    const task = prev[uploadId];
+                    if (!task || task.status !== 'uploading') {
+                        clearInterval(interval);
+                        delete mockUploadIntervals.current[uploadId];
+                        return prev;
+                    }
+
+                    uploadedBytes = Math.min(fileSize, uploadedBytes + bytesPerTick);
+                    const progress = uploadedBytes / fileSize;
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    const currentSpeed = elapsed > 0 ? uploadedBytes / (1024 * 1024) / elapsed : 0;
+                    const remainingBytes = fileSize - uploadedBytes;
+                    const eta = currentSpeed > 0 ? remainingBytes / (1024 * 1024) / currentSpeed : 0;
+
+                    if (uploadedBytes >= fileSize) {
+                        clearInterval(interval);
+                        delete mockUploadIntervals.current[uploadId];
+
+                        setTimeout(() => {
+                            addLog('success', 'MockComplete', `[${uploadId}] Simulated upload completed successfully.`);
+                        }, 50);
+
+                        return {
+                            ...prev,
+                            [uploadId]: {
+                                ...task,
+                                status: 'completed',
+                                progress: 1.0,
+                                uploadedBytes: fileSize,
+                                speed: 0,
+                                eta: 0,
+                            },
+                        };
+                    }
+
+                    const percent = Math.round(progress * 100);
+                    if (percent % 20 === 0 && percent !== 0 && percent !== 100) {
+                        addLog(
+                            'info',
+                            'MockProgress',
+                            `[${uploadId}] Progress: ${percent}% | Speed: ${currentSpeed.toFixed(2)} MB/s | ETA: ${formatETA(eta)}`
+                        );
+                    }
+
+                    return {
+                        ...prev,
+                        [uploadId]: {
+                            ...task,
+                            progress,
+                            uploadedBytes,
+                            speed: currentSpeed,
+                            eta,
+                        },
+                    };
+                });
+            }, intervalMs);
+
+            mockUploadIntervals.current[uploadId] = interval;
+        },
+        [addLog, formatETA]
+    );
+
+    const stageDummyFile = useCallback(
+        async (sizeInGB: number) => {
+            const sizeInBytes = sizeInGB * 1024 * 1024 * 1024;
+            const fileName = `dummy_${sizeInGB}GB_${Math.random().toString(36).substring(2, 6)}.bin`;
+
+            if (isOnMobileApp) {
+                addLog('info', 'Generator', `Requesting native sparse file allocation: ${sizeInGB}GB...`);
+                try {
+                    const response = await webBridge.request('CreateDummyFile', {
+                        data: { sizeInBytes, fileName },
+                    });
+                    if (response.success && response.data) {
+                        const doc = response.data;
+                        const stagedFile: SelectedFile = {
+                            uri: doc.uri,
+                            name: doc.name,
+                            type: 'application/octet-stream',
+                            size: doc.size,
+                            isGenerated: true,
+                        };
+                        setStagedFiles(prev => [...prev, stagedFile]);
+                        addLog(
+                            'success',
+                            'Generator',
+                            `Instantly allocated and staged ${sizeInGB}GB sparse test file.`
+                        );
+                    } else {
+                        addLog(
+                            'error',
+                            'Generator',
+                            `Sparse file allocation failed: ${response.error?.message ?? 'Unknown error'}`
+                        );
+                    }
+                } catch (e: any) {
+                    addLog('error', 'Generator', `Sparse file allocation bridge error: ${e.message}`);
+                }
+            } else {
+                const stagedFile: SelectedFile = {
+                    uri: `mock://local-documents/${fileName}`,
+                    name: fileName,
+                    type: 'application/octet-stream',
+                    size: sizeInBytes,
+                    isGenerated: true,
+                };
+                setStagedFiles(prev => [...prev, stagedFile]);
+                addLog(
+                    'success',
+                    'Generator',
+                    `(Simulation) Instantly allocated and staged ${sizeInGB}GB sparse test file.`
+                );
+            }
+        },
+        [isOnMobileApp, addLog]
+    );
 
     // 1. Pick Multiple Files via native bridge
     const pickFiles = useCallback(async () => {
@@ -206,41 +370,99 @@ export const DebugUploadPage = () => {
     const pauseTask = useCallback(
         async (uploadId: string) => {
             addLog('info', 'UploadControl', `Requesting PAUSE for [ID: ${uploadId}]`);
+            if (!isOnMobileApp) {
+                if (mockUploadIntervals.current[uploadId]) {
+                    clearInterval(mockUploadIntervals.current[uploadId]);
+                    delete mockUploadIntervals.current[uploadId];
+                }
+                setTasks(prev => {
+                    const task = prev[uploadId];
+                    if (!task) return prev;
+                    return {
+                        ...prev,
+                        [uploadId]: { ...task, status: 'paused', speed: 0, eta: 0 },
+                    };
+                });
+                addLog('warning', 'UploadControl', `(Simulation) Paused [ID: ${uploadId}]`);
+                return;
+            }
             try {
                 await webBridge.request('PauseFileUpload', { data: { uploadId } });
             } catch (e: any) {
                 addLog('error', 'UploadControl', `Pause error [ID: ${uploadId}]: ${e.message}`);
             }
         },
-        [addLog]
+        [isOnMobileApp, addLog]
     );
 
     const resumeTask = useCallback(
         async (uploadId: string) => {
             addLog('info', 'UploadControl', `Requesting RESUME for [ID: ${uploadId}]`);
+            if (!isOnMobileApp) {
+                setTasks(prev => {
+                    const task = prev[uploadId];
+                    if (!task) return prev;
+                    startMockUpload(uploadId, task.fileSize, task.uploadedBytes);
+                    return prev;
+                });
+                addLog('info', 'UploadControl', `(Simulation) Resuming [ID: ${uploadId}]`);
+                return;
+            }
+            setTasks(prev => {
+                const task = prev[uploadId];
+                if (!task) return prev;
+                return {
+                    ...prev,
+                    [uploadId]: {
+                        ...task,
+                        status: 'uploading',
+                        startTime: Date.now(),
+                    },
+                };
+            });
             try {
                 await webBridge.request('ResumeFileUpload', { data: { uploadId } });
             } catch (e: any) {
                 addLog('error', 'UploadControl', `Resume error [ID: ${uploadId}]: ${e.message}`);
             }
         },
-        [addLog]
+        [isOnMobileApp, startMockUpload, addLog]
     );
 
     const cancelTask = useCallback(
         async (uploadId: string) => {
             addLog('info', 'UploadControl', `Requesting CANCEL for [ID: ${uploadId}]`);
+            if (!isOnMobileApp) {
+                if (mockUploadIntervals.current[uploadId]) {
+                    clearInterval(mockUploadIntervals.current[uploadId]);
+                    delete mockUploadIntervals.current[uploadId];
+                }
+                setTasks(prev => {
+                    const task = prev[uploadId];
+                    if (!task) return prev;
+                    return {
+                        ...prev,
+                        [uploadId]: { ...task, status: 'cancelled', progress: 0, uploadedBytes: 0, speed: 0, eta: 0 },
+                    };
+                });
+                addLog('warning', 'UploadControl', `(Simulation) Cancelled [ID: ${uploadId}]`);
+                return;
+            }
             try {
                 await webBridge.request('CancelFileUpload', { data: { uploadId } });
             } catch (e: any) {
                 addLog('error', 'UploadControl', `Cancel error [ID: ${uploadId}]: ${e.message}`);
             }
         },
-        [addLog]
+        [isOnMobileApp, addLog]
     );
 
     const removeTask = useCallback(
         (uploadId: string) => {
+            if (mockUploadIntervals.current[uploadId]) {
+                clearInterval(mockUploadIntervals.current[uploadId]);
+                delete mockUploadIntervals.current[uploadId];
+            }
             setTasks(prev => {
                 const copy = { ...prev };
                 delete copy[uploadId];
@@ -251,9 +473,171 @@ export const DebugUploadPage = () => {
         [addLog]
     );
 
+    const loadRecoverables = useCallback(async () => {
+        addLog('info', 'Recovery', 'Fetching recoverable upload tasks from device...');
+        if (!isOnMobileApp) {
+            addLog('info', 'Recovery', '(Simulation) Fetching recoverable upload tasks from device...');
+            setRecoverableTasks([
+                {
+                    uploadId: 'mock-upload-recover-1',
+                    status: 'paused',
+                    payload: {
+                        uploadId: 'mock-upload-recover-1',
+                        fileUri: 'mock://local-documents/staged_recovery_1.bin',
+                        fileName: 'staged_recovery_1.bin',
+                        fileSize: 2.5 * 1024 * 1024 * 1024,
+                        mimeType: 'application/octet-stream',
+                        uploadUrl: uploadUrlRef.current,
+                    },
+                    uploadedBytes: 1.25 * 1024 * 1024 * 1024,
+                    lastChunkIndex: 125,
+                    retryCount: 0,
+                    createdAt: Date.now() - 3600000,
+                    updatedAt: Date.now() - 3600000,
+                },
+            ]);
+            addLog('success', 'Recovery', '(Simulation) Loaded 1 recoverable task.');
+            return;
+        }
+        try {
+            const response = await webBridge.request('ListRecoverableUploads');
+            if (!response.success) {
+                addLog(
+                    'error',
+                    'Recovery',
+                    `Failed to fetch recoverables: ${response.error?.message ?? 'Unknown error'}`
+                );
+                return;
+            }
+
+            const data = response.data as any;
+            const tasksFromDevice = (data?.tasks ?? []) as RecoverableUploadTaskInfo[];
+            setRecoverableTasks(tasksFromDevice);
+
+            setTasks(prev => {
+                const next = { ...prev };
+
+                for (const t of tasksFromDevice) {
+                    const payload = t.payload;
+                    const progress =
+                        payload.fileSize > 0 ? Math.min(1, Math.max(0, t.uploadedBytes / payload.fileSize)) : 0;
+
+                    if (!next[t.uploadId]) {
+                        next[t.uploadId] = {
+                            uploadId: t.uploadId,
+                            fileName: payload.fileName,
+                            fileSize: payload.fileSize,
+                            fileUri: payload.fileUri,
+                            mimeType: payload.mimeType,
+                            status: (t.status as any) ?? 'paused',
+                            progress,
+                            uploadedBytes: t.uploadedBytes,
+                            retryCount: t.retryCount ?? 0,
+                        };
+                    }
+                }
+
+                return next;
+            });
+
+            addLog('success', 'Recovery', `Loaded ${tasksFromDevice.length} recoverable task(s).`);
+        } catch (e: any) {
+            addLog('error', 'Recovery', `Error fetching recoverables: ${e.message}`);
+        }
+    }, [isOnMobileApp, addLog]);
+
+    const recoverTask = useCallback(
+        async (uploadId: string) => {
+            addLog('info', 'Recovery', `Requesting RECOVER for [ID: ${uploadId}]`);
+            if (!isOnMobileApp) {
+                const target = recoverableTasks.find(t => t.uploadId === uploadId);
+                if (target) {
+                    setTasks(prev => ({
+                        ...prev,
+                        [uploadId]: {
+                            uploadId,
+                            fileName: target.payload.fileName,
+                            fileSize: target.payload.fileSize,
+                            fileUri: target.payload.fileUri,
+                            mimeType: target.payload.mimeType,
+                            status: 'uploading',
+                            progress: target.uploadedBytes / target.payload.fileSize,
+                            uploadedBytes: target.uploadedBytes,
+                            retryCount: 0,
+                            startTime: Date.now(),
+                        },
+                    }));
+                    startMockUpload(uploadId, target.payload.fileSize, target.uploadedBytes);
+                    addLog('success', 'Recovery', `(Simulation) Resumed upload task: ${target.payload.fileName}`);
+                }
+                return;
+            }
+            try {
+                await webBridge.request('RecoverUpload', { data: { uploadId } });
+            } catch (e: any) {
+                addLog('error', 'Recovery', `Recover error [ID: ${uploadId}]: ${e.message}`);
+            }
+        },
+        [isOnMobileApp, recoverableTasks, startMockUpload, addLog]
+    );
+
+    const retryTaskViaRecovery = useCallback(
+        async (uploadId: string) => {
+            addLog('info', 'Recovery', `Requesting RETRY for [ID: ${uploadId}]`);
+            if (!isOnMobileApp) {
+                const target = recoverableTasks.find(t => t.uploadId === uploadId);
+                if (target) {
+                    setTasks(prev => ({
+                        ...prev,
+                        [uploadId]: {
+                            uploadId,
+                            fileName: target.payload.fileName,
+                            fileSize: target.payload.fileSize,
+                            fileUri: target.payload.fileUri,
+                            mimeType: target.payload.mimeType,
+                            status: 'uploading',
+                            progress: 0,
+                            uploadedBytes: 0,
+                            retryCount: 0,
+                            startTime: Date.now(),
+                        },
+                    }));
+                    startMockUpload(uploadId, target.payload.fileSize, 0);
+                    addLog('success', 'Recovery', `(Simulation) Retrying upload task: ${target.payload.fileName}`);
+                }
+                return;
+            }
+            try {
+                await webBridge.request('RetryUpload', { data: { uploadId } });
+            } catch (e: any) {
+                addLog('error', 'Recovery', `Retry error [ID: ${uploadId}]: ${e.message}`);
+            }
+        },
+        [isOnMobileApp, recoverableTasks, startMockUpload, addLog]
+    );
+
     const performRetry = useCallback(
         async (task: UploadTask) => {
             addLog('info', 'UploadControl', `Initiating retry for: ${task.fileName} [ID: ${task.uploadId}]`);
+
+            if (!isOnMobileApp) {
+                startMockUpload(task.uploadId, task.fileSize, task.uploadedBytes > 0 ? task.uploadedBytes : 0);
+                return;
+            }
+
+            if (isOnMobileApp) {
+                try {
+                    await retryTaskViaRecovery(task.uploadId);
+                    addLog('info', 'Recovery', `Retry request accepted for [ID: ${task.uploadId}]`);
+                    return;
+                } catch (e: any) {
+                    addLog(
+                        'warning',
+                        'Recovery',
+                        `RetryUpload failed, falling back to legacy retry path: ${e.message}`
+                    );
+                }
+            }
 
             if (task.uploadedBytes > 0) {
                 try {
@@ -308,7 +692,7 @@ export const DebugUploadPage = () => {
                 }
             }
         },
-        [resumeTask, addLog]
+        [isOnMobileApp, retryTaskViaRecovery, resumeTask, startMockUpload, addLog]
     );
 
     const triggerAutoRetry = useCallback(
@@ -343,6 +727,7 @@ export const DebugUploadPage = () => {
                             status: 'uploading' as const,
                             retryCount: nextRetryCount,
                             error: undefined,
+                            startTime: Date.now(),
                         },
                     };
 
@@ -351,6 +736,7 @@ export const DebugUploadPage = () => {
                         status: 'uploading',
                         retryCount: nextRetryCount,
                         error: undefined,
+                        startTime: Date.now(),
                     });
 
                     return updatedTasks;
@@ -374,6 +760,7 @@ export const DebugUploadPage = () => {
                         status: 'uploading',
                         retryCount: 0,
                         error: undefined,
+                        startTime: Date.now(),
                     },
                 };
             });
@@ -383,6 +770,7 @@ export const DebugUploadPage = () => {
                 status: 'uploading',
                 retryCount: 0,
                 error: undefined,
+                startTime: Date.now(),
             });
         },
         [performRetry, addLog]
@@ -406,10 +794,16 @@ export const DebugUploadPage = () => {
                     progress: 0,
                     uploadedBytes: 0,
                     retryCount: 0,
+                    startTime: Date.now(),
                 },
             }));
 
             addLog('info', 'UploadInit', `Starting upload for ${file.name} [ID: ${uploadId}]`);
+
+            if (!isOnMobileApp) {
+                startMockUpload(uploadId, file.size);
+                return;
+            }
 
             try {
                 await webBridge.request('RequestFileUpload', {
@@ -441,7 +835,7 @@ export const DebugUploadPage = () => {
                 triggerAutoRetry(uploadId);
             }
         },
-        [triggerAutoRetry, addLog]
+        [isOnMobileApp, startMockUpload, triggerAutoRetry, addLog]
     );
 
     // 4. Start all staged uploads
@@ -496,6 +890,12 @@ export const DebugUploadPage = () => {
             setTasks(prev => {
                 const task = prev[payload.uploadId];
                 if (!task) return prev;
+
+                const elapsed = (Date.now() - (task.startTime || Date.now())) / 1000;
+                const speed = elapsed > 0 ? payload.uploadedBytes / (1024 * 1024) / elapsed : 0;
+                const remainingBytes = task.fileSize - payload.uploadedBytes;
+                const eta = speed > 0 ? remainingBytes / (1024 * 1024) / speed : 0;
+
                 return {
                     ...prev,
                     [payload.uploadId]: {
@@ -503,16 +903,20 @@ export const DebugUploadPage = () => {
                         progress: payload.progress,
                         uploadedBytes: payload.uploadedBytes,
                         status: payload.status,
+                        speed,
+                        eta,
                     },
                 };
             });
 
             const progressPct = Math.round(payload.progress * 100);
-            addLog(
-                payload.status === 'failed' ? 'error' : payload.status === 'paused' ? 'warning' : 'info',
-                'NativeProgress',
-                `[${payload.uploadId}] Status: ${payload.status} | Progress: ${progressPct}% (${payload.uploadedBytes}/${payload.totalBytes} bytes)`
-            );
+            if (progressPct % 10 === 0) {
+                addLog(
+                    payload.status === 'failed' ? 'error' : payload.status === 'paused' ? 'warning' : 'info',
+                    'NativeProgress',
+                    `[${payload.uploadId}] Status: ${payload.status} | Progress: ${progressPct}% (${payload.uploadedBytes}/${payload.totalBytes} bytes)`
+                );
+            }
 
             if (payload.status === 'failed') {
                 triggerAutoRetry(payload.uploadId);
@@ -535,6 +939,8 @@ export const DebugUploadPage = () => {
                         progress: payload.success ? 1.0 : task.progress,
                         uploadedBytes: payload.success ? task.fileSize : task.uploadedBytes,
                         error: payload.error?.message,
+                        speed: 0,
+                        eta: 0,
                     },
                 };
             });
@@ -588,6 +994,7 @@ export const DebugUploadPage = () => {
                             status: 'uploading',
                             retryCount: 0,
                             error: undefined,
+                            startTime: Date.now(),
                         });
                     }
 
@@ -600,6 +1007,7 @@ export const DebugUploadPage = () => {
                             status: 'uploading',
                             retryCount: 0,
                             error: undefined,
+                            startTime: Date.now(),
                         };
                     }
                     return next;
@@ -642,6 +1050,32 @@ export const DebugUploadPage = () => {
 
     const activeTasksCount = useMemo(() => {
         return taskList.filter(t => t.status === 'uploading').length;
+    }, [taskList]);
+
+    const totalSpeed = useMemo(() => {
+        return taskList.reduce((acc, t) => {
+            if (t.status === 'uploading' && t.speed) {
+                return acc + t.speed;
+            }
+            return acc;
+        }, 0);
+    }, [taskList]);
+
+    const combinedETA = useMemo(() => {
+        const activeTasks = taskList.filter(t => t.status === 'uploading');
+        if (activeTasks.length === 0 || totalSpeed === 0) return 0;
+
+        const totalRemainingBytes = activeTasks.reduce((acc, t) => acc + (t.fileSize - t.uploadedBytes), 0);
+        const totalSpeedBytes = totalSpeed * 1024 * 1024;
+        return totalSpeedBytes > 0 ? totalRemainingBytes / totalSpeedBytes : 0;
+    }, [taskList, totalSpeed]);
+
+    const totalDataSent = useMemo(() => {
+        return taskList.reduce((acc, t) => acc + t.uploadedBytes, 0);
+    }, [taskList]);
+
+    const totalDataSize = useMemo(() => {
+        return taskList.reduce((acc, t) => acc + t.fileSize, 0);
     }, [taskList]);
 
     return (
@@ -703,10 +1137,10 @@ export const DebugUploadPage = () => {
                                 </label>
                                 <div className="grid grid-cols-4 gap-2">
                                     {[
-                                        { label: '512 KB', val: 512 * 1024 },
-                                        { label: '1 MB (기본)', val: 1024 * 1024 },
-                                        { label: '2 MB', val: 2 * 1024 * 1024 },
-                                        { label: '5 MB', val: 5 * 1024 * 1024 },
+                                        { label: '1 MB', val: 1024 * 1024 },
+                                        { label: '5 MB (대용량)', val: 5 * 1024 * 1024 },
+                                        { label: '10 MB', val: 10 * 1024 * 1024 },
+                                        { label: '25 MB', val: 25 * 1024 * 1024 },
                                     ].map(opt => (
                                         <button
                                             key={opt.val}
@@ -779,6 +1213,25 @@ export const DebugUploadPage = () => {
                             />
                         }
                     >
+                        <div className="mb-3.5 grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => stageDummyFile(1)}
+                                className="flex min-h-[36px] items-center justify-center gap-1.5 rounded-[12px] border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 text-[11.5px] font-bold transition-all active:scale-[0.98]"
+                            >
+                                <Activity size={12} />
+                                <span>1GB Sparse 생성 스테이징</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => stageDummyFile(5)}
+                                className="flex min-h-[36px] items-center justify-center gap-1.5 rounded-[12px] border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 text-[11.5px] font-bold transition-all active:scale-[0.98]"
+                            >
+                                <Activity size={12} />
+                                <span>5GB Sparse 생성 스테이징</span>
+                            </button>
+                        </div>
+
                         {stagedFiles.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-8 rounded-[16px] border border-dashed border-border/60 bg-muted/20">
                                 <Upload size={28} className="text-muted-foreground/40 mb-2" />
@@ -786,7 +1239,8 @@ export const DebugUploadPage = () => {
                                     대기 중인 파일이 없습니다.
                                 </p>
                                 <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                                    상단의 [기기 파일 추가]를 눌러 업로드할 파일을 staged 하세요.
+                                    기기 파일을 추가하거나 위의 단축 버튼을 사용해 대용량 Sparse 더미 파일을 준비해
+                                    전송하세요.
                                 </p>
                             </div>
                         ) : (
@@ -800,12 +1254,18 @@ export const DebugUploadPage = () => {
                                             <div className="min-w-0 flex-1 flex items-center gap-2.5">
                                                 <FileText size={18} className="text-primary/70 shrink-0" />
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="text-[12px] font-bold text-foreground truncate">
-                                                        {file.name}
-                                                    </p>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <p className="text-[12px] font-bold text-foreground truncate">
+                                                            {file.name}
+                                                        </p>
+                                                        {file.isGenerated && (
+                                                            <span className="shrink-0 text-[8px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-[4px] border border-primary/20 uppercase tracking-wider">
+                                                                Sparse Dummy
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
-                                                        {(file.size / (1024 * 1024)).toFixed(2)} MB |{' '}
-                                                        {file.type || 'unknown'}
+                                                        {formatSize(file.size)} | {file.type || 'unknown'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -841,39 +1301,168 @@ export const DebugUploadPage = () => {
                         )}
                     </Section>
 
-                    {/* Overall Progress Dashboard */}
+                    {/* Manual Recovery Panel */}
+                    {isOnMobileApp && (
+                        <Section
+                            title={`수동 복구 작업 목록 (${recoverableTasks.length})`}
+                            action={
+                                <ActionButton
+                                    icon={<RefreshCw size={13} />}
+                                    label="복구 목록 새로고침"
+                                    tone="ghost"
+                                    onClick={loadRecoverables}
+                                    className="min-h-[30px] px-2.5 text-[11px] rounded-[8px]"
+                                />
+                            }
+                        >
+                            <p className="text-[12px] text-muted-foreground leading-relaxed">
+                                앱이 중도 종료되었거나 웹이 리로드된 경우에도, 기기 로컬 DB에 남아있는 업로드 작업을
+                                불러와
+                                <span className="font-bold text-foreground"> 복구 재개/재시도</span>할 수 있습니다.
+                            </p>
+
+                            {recoverableTasks.length === 0 ? (
+                                <div className="mt-3 rounded-[14px] border border-border/50 bg-muted/20 p-4 text-[12px] text-muted-foreground">
+                                    현재 복구 가능한 업로드 작업이 없습니다.
+                                </div>
+                            ) : (
+                                <div className="mt-3 flex flex-col gap-2">
+                                    {recoverableTasks.slice(0, 5).map(t => (
+                                        <div
+                                            key={t.uploadId}
+                                            className="flex items-center justify-between gap-3 rounded-[14px] border border-border/50 bg-card/40 px-3.5 py-2.5"
+                                        >
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-[12px] font-extrabold text-foreground truncate">
+                                                    {t.payload.fileName}
+                                                </p>
+                                                <p className="text-[10px] font-mono text-muted-foreground truncate">
+                                                    {t.uploadId} • {t.status} • {formatSize(t.uploadedBytes)}/
+                                                    {formatSize(t.payload.fileSize)}
+                                                </p>
+                                            </div>
+                                            <div className="flex gap-1.5 shrink-0">
+                                                <ActionButton
+                                                    icon={<Play size={11} />}
+                                                    label="복구 재개"
+                                                    tone="success"
+                                                    onClick={() => recoverTask(t.uploadId)}
+                                                    className="min-h-[28px] text-[10.5px] py-0.5 px-2.5 rounded-[8px]"
+                                                />
+                                                <ActionButton
+                                                    icon={<RefreshCw size={11} />}
+                                                    label="재시도"
+                                                    tone="warning"
+                                                    onClick={() => retryTaskViaRecovery(t.uploadId)}
+                                                    className="min-h-[28px] text-[10.5px] py-0.5 px-2.5 rounded-[8px]"
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {recoverableTasks.length > 5 && (
+                                        <p className="text-[10.5px] text-muted-foreground mt-1">
+                                            (+{recoverableTasks.length - 5} more…)
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </Section>
+                    )}
+
+                    {/* Upload Performance Measurement Dashboard */}
                     {taskList.length > 0 && (
-                        <div className="rounded-[20px] bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-5 shadow-sm">
-                            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-primary">
-                                전체 업로드 요약 상태
-                            </h3>
-                            <div className="grid grid-cols-3 gap-2 mt-4">
-                                <div className="text-center bg-card/60 backdrop-blur-md rounded-[12px] p-2.5 border border-border/30">
-                                    <span className="text-[9px] uppercase tracking-wide text-muted-foreground font-bold">
-                                        진행 중
+                        <div className="relative overflow-hidden rounded-[20px] bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border border-primary/20 p-5 shadow-[0px_8px_30px_rgba(0,0,0,0.12)]">
+                            <div className="absolute -right-16 -top-16 w-32 h-32 bg-primary/20 rounded-full blur-2xl pointer-events-none" />
+
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-primary flex items-center gap-1.5">
+                                    <Gauge size={13} className="animate-pulse text-primary" />
+                                    업로드 성능측정 대시보드
+                                </h3>
+                                {activeTasksCount > 0 && (
+                                    <span className="flex h-2 w-2 relative">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                     </span>
-                                    <p className="text-[16px] font-black text-primary mt-0.5">{activeTasksCount}개</p>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 mt-4">
+                                <div className="bg-card/60 backdrop-blur-md rounded-[16px] p-3.5 border border-border/30 shadow-inner flex flex-col justify-between">
+                                    <span className="text-[9px] uppercase tracking-wide text-muted-foreground/80 font-bold flex items-center gap-1">
+                                        <Activity size={10} className="text-emerald-500 animate-pulse" />총 전송 속도
+                                        (Bandwidth)
+                                    </span>
+                                    <div className="mt-1 flex items-baseline gap-1">
+                                        <p className="text-[20px] font-black text-foreground font-mono leading-none">
+                                            {totalSpeed.toFixed(2)}
+                                        </p>
+                                        <span className="text-[10px] text-muted-foreground font-bold">MB/s</span>
+                                    </div>
+                                    <div className="mt-2 text-[9px] text-muted-foreground font-semibold">
+                                        {totalSpeed > 20
+                                            ? '🔥 초고속 대역폭'
+                                            : totalSpeed > 5
+                                              ? '⚡ 안정적인 네트워크'
+                                              : activeTasksCount > 0
+                                                ? '🕒 속도 측정중'
+                                                : '대기 중'}
+                                    </div>
                                 </div>
-                                <div className="text-center bg-card/60 backdrop-blur-md rounded-[12px] p-2.5 border border-border/30">
-                                    <span className="text-[9px] uppercase tracking-wide text-muted-foreground font-bold">
-                                        총 태스크
+
+                                <div className="bg-card/60 backdrop-blur-md rounded-[16px] p-3.5 border border-border/30 shadow-inner flex flex-col justify-between">
+                                    <span className="text-[9px] uppercase tracking-wide text-muted-foreground/80 font-bold flex items-center gap-1">
+                                        <Clock size={10} className="text-sky-500" />
+                                        전체 예상 남은 시간 (Combined ETA)
                                     </span>
-                                    <p className="text-[16px] font-black text-foreground mt-0.5">{taskList.length}개</p>
+                                    <p className="mt-1 text-[16px] font-black text-sky-500 font-mono leading-none">
+                                        {formatETA(combinedETA)}
+                                    </p>
+                                    <div className="mt-2 text-[9px] text-muted-foreground font-semibold truncate">
+                                        {activeTasksCount > 0
+                                            ? `${activeTasksCount}개 채널 병렬 전송중`
+                                            : '대기 중인 전송 없음'}
+                                    </div>
                                 </div>
-                                <div className="text-center bg-card/60 backdrop-blur-md rounded-[12px] p-2.5 border border-border/30">
-                                    <span className="text-[9px] uppercase tracking-wide text-muted-foreground font-bold">
-                                        평균 진행도
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 mt-3">
+                                <div className="text-center bg-card/45 backdrop-blur-sm rounded-[12px] py-2 px-1 border border-border/20">
+                                    <span className="text-[8px] uppercase tracking-wide text-muted-foreground/80 font-bold block">
+                                        진행 / 전체
                                     </span>
-                                    <p className="text-[16px] font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                    <p className="text-[12px] font-black text-primary mt-0.5">
+                                        {activeTasksCount} / {taskList.length}
+                                    </p>
+                                </div>
+                                <div className="text-center bg-card/45 backdrop-blur-sm rounded-[12px] py-2 px-1 border border-border/20">
+                                    <span className="text-[8px] uppercase tracking-wide text-muted-foreground/80 font-bold block">
+                                        전송된 데이터
+                                    </span>
+                                    <p className="text-[12px] font-black text-foreground mt-0.5 font-mono truncate">
+                                        {formatSize(totalDataSent)}
+                                    </p>
+                                </div>
+                                <div className="text-center bg-card/45 backdrop-blur-sm rounded-[12px] py-2 px-1 border border-border/20">
+                                    <span className="text-[8px] uppercase tracking-wide text-muted-foreground/80 font-bold block">
+                                        전체 진행률
+                                    </span>
+                                    <p className="text-[12px] font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
                                         {Math.round(overallProgress * 100)}%
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="mt-4 flex flex-col gap-1">
+                            <div className="mt-4 flex flex-col gap-1.5">
+                                <div className="flex justify-between items-center text-[9px] text-muted-foreground font-bold">
+                                    <span>누적 전송률</span>
+                                    <span className="font-mono">
+                                        {formatSize(totalDataSent)} / {formatSize(totalDataSize)}
+                                    </span>
+                                </div>
                                 <div className="w-full bg-muted/60 dark:bg-muted/30 rounded-full h-3 overflow-hidden border border-border/30 shadow-inner">
                                     <div
-                                        className="bg-gradient-to-r from-primary to-sky-500 h-full transition-all duration-300 ease-out"
+                                        className="bg-gradient-to-r from-primary via-sky-500 to-emerald-500 h-full transition-all duration-300 ease-out"
                                         style={{ width: `${overallProgress * 100}%` }}
                                     />
                                 </div>
@@ -929,7 +1518,7 @@ export const DebugUploadPage = () => {
                                                         </span>
                                                         <span className="text-muted-foreground/30">•</span>
                                                         <span className="text-[9px] font-mono text-muted-foreground font-bold">
-                                                            {(task.fileSize / (1024 * 1024)).toFixed(2)} MB
+                                                            {formatSize(task.fileSize)}
                                                         </span>
                                                         {task.retryCount > 0 && (
                                                             <>
@@ -963,9 +1552,17 @@ export const DebugUploadPage = () => {
                                                 {task.status === 'paused' && (
                                                     <ActionButton
                                                         icon={<Play size={12} />}
-                                                        label="재개"
+                                                        label={
+                                                            isOnMobileApp && recoverableIds.has(task.uploadId)
+                                                                ? '복구 재개'
+                                                                : '재개'
+                                                        }
                                                         tone="success"
-                                                        onClick={() => resumeTask(task.uploadId)}
+                                                        onClick={() =>
+                                                            isOnMobileApp && recoverableIds.has(task.uploadId)
+                                                                ? recoverTask(task.uploadId)
+                                                                : resumeTask(task.uploadId)
+                                                        }
                                                         className="min-h-[30px] text-[11px] py-1 px-3 rounded-[8px]"
                                                     />
                                                 )}
@@ -1059,11 +1656,31 @@ export const DebugUploadPage = () => {
                                                 </div>
                                                 <div className="flex justify-between items-center text-[10px] font-mono text-muted-foreground mt-0.5">
                                                     <span>
-                                                        {task.uploadedBytes.toLocaleString()} /{' '}
-                                                        {task.fileSize.toLocaleString()} bytes
+                                                        {formatSize(task.uploadedBytes)} / {formatSize(task.fileSize)}
                                                     </span>
                                                     <span className="font-bold text-foreground">{progressPct}%</span>
                                                 </div>
+                                                {task.status === 'uploading' && (
+                                                    <div className="flex justify-between items-center text-[10px] font-mono text-muted-foreground/80 mt-1 border-t border-border/10 pt-1.5">
+                                                        <span className="flex items-center gap-1">
+                                                            <Activity
+                                                                size={11}
+                                                                className="text-emerald-500 animate-pulse shrink-0"
+                                                            />
+                                                            속도:{' '}
+                                                            <span className="font-bold text-foreground font-mono">
+                                                                {task.speed?.toFixed(2) ?? '0.00'} MB/s
+                                                            </span>
+                                                        </span>
+                                                        <span className="flex items-center gap-1">
+                                                            <Clock size={11} className="text-sky-500 shrink-0" />
+                                                            남은 시간:{' '}
+                                                            <span className="font-bold text-foreground font-mono">
+                                                                {formatETA(task.eta)}
+                                                            </span>
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     );
