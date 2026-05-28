@@ -1,7 +1,8 @@
-import { FileManagerBridge } from '../../bridge';
+import { UploadManagerBridge } from '../../bridge';
 import type { ILogService } from '../log';
 import type { OnUploadCompletePayload, OnUploadProgressPayload, RequestFileUploadPayload } from '@chatic/app-messages';
 import type { IUploadService, UploadTaskState } from './types';
+import type { IUploadTaskDataSource } from './repository';
 
 /**
  * TODO: To be changed payload
@@ -9,8 +10,110 @@ import type { IUploadService, UploadTaskState } from './types';
  */
 export class UploadService implements IUploadService {
     private tasks = new Map<string, UploadTaskState>();
+    private nativeEventSubscription: { remove: () => void } | null = null;
 
-    constructor(private readonly logger: ILogService) {}
+    constructor(
+        private readonly logger: ILogService,
+        private readonly uploadTaskDataSource: IUploadTaskDataSource
+    ) {
+        this.ensureNativeEventSubscription();
+    }
+
+    private ensureNativeEventSubscription() {
+        if (this.nativeEventSubscription) return;
+
+        if (UploadManagerBridge.events) {
+            this.nativeEventSubscription = UploadManagerBridge.events.addListener(
+                'UploadManagerStateChanged',
+                (event: any) => {
+                    void this.handleNativeEvent(event);
+                }
+            );
+        }
+    }
+
+    private async handleNativeEvent(event: any) {
+        const uploadId = String(event?.uploadId ?? '');
+        if (!uploadId) return;
+
+        const task = this.tasks.get(uploadId);
+        if (!task) return;
+
+        const statusRaw = String(event?.status ?? 'uploading');
+        const normalizedStatus = statusRaw === 'queued' ? 'uploading' : (statusRaw as UploadTaskState['status']);
+
+        const totalBytes = Number(event?.totalBytes ?? task.payload.fileSize);
+        const uploadedBytes = Number(event?.uploadedBytes ?? task.uploadedBytes ?? 0);
+        const lastChunkIndex =
+            typeof event?.lastChunkIndex === 'number' ? Number(event.lastChunkIndex) : task.lastChunkIndex;
+        const progress =
+            typeof event?.progress === 'number'
+                ? Number(event.progress)
+                : totalBytes > 0
+                  ? Math.min(1, Math.max(0, uploadedBytes / totalBytes))
+                  : 0;
+        const retryAttempt = typeof event?.retryAttempt === 'number' ? Number(event.retryAttempt) : 0;
+
+        task.status = normalizedStatus;
+        task.uploadedBytes = uploadedBytes;
+        task.lastChunkIndex = lastChunkIndex;
+
+        task.onProgress({
+            uploadId,
+            progress: normalizedStatus === 'completed' ? 1 : progress,
+            uploadedBytes,
+            totalBytes,
+            status: normalizedStatus,
+        });
+
+        if (retryAttempt > 0) {
+            this.logger.info('UPLOAD', `[${uploadId}] Native retry attempt: ${retryAttempt}`);
+        }
+
+        await this.uploadTaskDataSource
+            .updateProgress({
+                uploadId,
+                status: normalizedStatus,
+                uploadedBytes,
+                lastChunkIndex,
+            })
+            .catch(err => this.logger.warn('UPLOAD', `[${uploadId}] Failed to persist native progress`, err));
+
+        if (normalizedStatus === 'completed') {
+            task.onComplete({ uploadId, success: true, response: 'Native upload completed.' });
+            this.tasks.delete(uploadId);
+            await this.uploadTaskDataSource
+                .delete(uploadId)
+                .catch(err =>
+                    this.logger.warn('UPLOAD', `[${uploadId}] Failed to delete persisted task on completion`, err)
+                );
+        } else if (normalizedStatus === 'failed') {
+            const message = String(event?.errorMessage ?? 'Native upload failed');
+            task.onComplete({ uploadId, success: false, error: { code: 'UPLOAD_FAILED', message } });
+        } else if (normalizedStatus === 'cancelled') {
+            try {
+                task.onCancel(uploadId);
+            } finally {
+                this.tasks.delete(uploadId);
+                await this.uploadTaskDataSource
+                    .delete(uploadId)
+                    .catch(err =>
+                        this.logger.warn('UPLOAD', `[${uploadId}] Failed to delete persisted task on cancel`, err)
+                    );
+            }
+        }
+    }
+
+    /**
+     * Returns persisted tasks that can be manually recovered after app restart.
+     *
+     * Note:
+     * - Persisted tasks in `uploading` state are downgraded to `paused` by the repository.
+     * - This method is intentionally "read-only" and does not start uploads.
+     */
+    public listRecoverableUploads() {
+        return this.uploadTaskDataSource.listRecoverable();
+    }
 
     public async uploadFile(
         payload: RequestFileUploadPayload,
@@ -38,20 +141,86 @@ export class UploadService implements IUploadService {
             }
         }
 
+        // Recover from persisted state if present (manual recovery after app restart).
+        // This allows the web layer / debug screens to restart uploads with the same uploadId and continue from offset.
+        const persisted = await this.uploadTaskDataSource.find(uploadId).catch(err => {
+            this.logger.warn('UPLOAD', `[${uploadId}] Failed to load persisted upload task`, err);
+            return null;
+        });
+
+        // Only recover offsets when we are sure it matches the same file payload.
+        // If the caller accidentally reuses the same uploadId for a different file, we should not "resume" from a stale offset.
+        const isSameFile =
+            persisted?.payload?.fileUri === payload.fileUri &&
+            persisted?.payload?.fileName === payload.fileName &&
+            persisted?.payload?.fileSize === payload.fileSize &&
+            persisted?.payload?.mimeType === payload.mimeType;
+
+        const recoveredUploadedBytes =
+            isSameFile &&
+            persisted &&
+            (persisted.status === 'paused' || persisted.status === 'failed' || persisted.status === 'uploading')
+                ? persisted.uploadedBytes
+                : 0;
+        const recoveredLastChunkIndex =
+            isSameFile &&
+            persisted &&
+            (persisted.status === 'paused' || persisted.status === 'failed' || persisted.status === 'uploading')
+                ? persisted.lastChunkIndex
+                : 0;
+
+        this.ensureNativeEventSubscription();
+
         // Initialize new task state
         const taskState: UploadTaskState = {
             payload,
             status: 'uploading',
-            uploadedBytes: 0,
-            lastChunkIndex: 0,
-            abortController: new AbortController(),
+            uploadedBytes: recoveredUploadedBytes,
+            lastChunkIndex: recoveredLastChunkIndex,
             onProgress,
             onComplete,
             onCancel,
         };
 
         this.tasks.set(uploadId, taskState);
-        void this.startUploadLoop(uploadId);
+
+        // Persist initial task snapshot for recovery
+        void this.uploadTaskDataSource
+            .upsert({
+                uploadId,
+                status: 'uploading',
+                payload,
+                uploadedBytes: taskState.uploadedBytes,
+                lastChunkIndex: taskState.lastChunkIndex,
+                retryCount: isSameFile ? (persisted?.retryCount ?? 0) : 0,
+                authRef: isSameFile ? (persisted?.authRef ?? null) : null,
+                serverSession: isSameFile ? persisted?.serverSession : undefined,
+            })
+            .catch(err => this.logger.warn('UPLOAD', `[${uploadId}] Failed to persist upload task`, err));
+
+        const nativePayload: any = {
+            ...payload,
+            uploadedBytes: taskState.uploadedBytes,
+            lastChunkIndex: taskState.lastChunkIndex,
+        };
+
+        try {
+            await UploadManagerBridge.enqueueUpload(nativePayload);
+        } catch (e: any) {
+            taskState.onComplete({
+                uploadId,
+                success: false,
+                error: { code: 'UPLOAD_INIT_FAILED', message: e.message ?? 'Native enqueue failed' },
+            });
+            void this.uploadTaskDataSource
+                .updateProgress({
+                    uploadId,
+                    status: 'failed',
+                    uploadedBytes: taskState.uploadedBytes,
+                    lastChunkIndex: taskState.lastChunkIndex,
+                })
+                .catch(err => this.logger.warn('UPLOAD', `[${uploadId}] Failed to persist native init failure`, err));
+        }
     }
 
     public pauseUpload(uploadId: string): void {
@@ -68,7 +237,9 @@ export class UploadService implements IUploadService {
 
         this.logger.info('UPLOAD', `[${uploadId}] Pausing upload`);
         task.status = 'paused';
-        task.abortController?.abort();
+        void UploadManagerBridge.pauseUpload(uploadId).catch(err => {
+            this.logger.error('UPLOAD', `[${uploadId}] Native pause failed`, err);
+        });
 
         // Notify progress update for paused state
         task.onProgress({
@@ -78,6 +249,15 @@ export class UploadService implements IUploadService {
             totalBytes: task.payload.fileSize,
             status: 'paused',
         });
+
+        void this.uploadTaskDataSource
+            .updateProgress({
+                uploadId,
+                status: 'paused',
+                uploadedBytes: task.uploadedBytes,
+                lastChunkIndex: task.lastChunkIndex,
+            })
+            .catch(err => this.logger.warn('UPLOAD', `[${uploadId}] Failed to persist paused state`, err));
     }
 
     public resumeUpload(uploadId: string): void {
@@ -94,7 +274,9 @@ export class UploadService implements IUploadService {
 
         this.logger.info('UPLOAD', `[${uploadId}] Resuming upload from chunk ${task.lastChunkIndex}`);
         task.status = 'uploading';
-        task.abortController = new AbortController();
+        void UploadManagerBridge.resumeUpload(uploadId).catch(err => {
+            this.logger.error('UPLOAD', `[${uploadId}] Native resume failed`, err);
+        });
 
         // Notify progress update for resuming (uploading) state
         task.onProgress({
@@ -105,7 +287,14 @@ export class UploadService implements IUploadService {
             status: 'uploading',
         });
 
-        void this.startUploadLoop(uploadId);
+        void this.uploadTaskDataSource
+            .updateProgress({
+                uploadId,
+                status: 'uploading',
+                uploadedBytes: task.uploadedBytes,
+                lastChunkIndex: task.lastChunkIndex,
+            })
+            .catch(err => this.logger.warn('UPLOAD', `[${uploadId}] Failed to persist resumed state`, err));
     }
 
     public cancelUpload(uploadId: string): void {
@@ -116,9 +305,10 @@ export class UploadService implements IUploadService {
         }
 
         this.logger.info('UPLOAD', `[${uploadId}] Cancelling upload`);
-        const previousStatus = task.status;
         task.status = 'cancelled';
-        task.abortController?.abort();
+        void UploadManagerBridge.cancelUpload(uploadId).catch(err => {
+            this.logger.error('UPLOAD', `[${uploadId}] Native cancel failed`, err);
+        });
 
         // Notify progress update for cancelled state
         task.onProgress({
@@ -138,180 +328,10 @@ export class UploadService implements IUploadService {
 
         // Clean up from the map
         this.tasks.delete(uploadId);
-    }
 
-    private async startUploadLoop(uploadId: string): Promise<void> {
-        const task = this.tasks.get(uploadId);
-        if (!task) return;
-
-        const { payload } = task;
-        const chunkSize = payload.chunkSize ?? 1024 * 1024; // Default: 1MB
-        const totalBytes = payload.fileSize;
-        const totalChunks = Math.ceil(totalBytes / chunkSize);
-
-        try {
-            this.logger.info('UPLOAD', `[${uploadId}] Checking file path: ${payload.fileUri}`);
-            const exists = await FileManagerBridge.exists(payload.fileUri);
-            if (!exists) {
-                throw new Error(`File does not exist at path: ${payload.fileUri}`);
-            }
-
-            // Start native background task / foreground service
-            await FileManagerBridge.startBackgroundTask(uploadId, payload.fileName, 0.0).catch(err => {
-                this.logger.error('UPLOAD', `[${uploadId}] Failed to start background task`, err);
-            });
-
-            for (let i = task.lastChunkIndex; i < totalChunks; i++) {
-                // Safeguard against state changes while we were waiting
-                if (task.status !== 'uploading') {
-                    this.logger.info('UPLOAD', `[${uploadId}] Upload loop interrupted, task status: ${task.status}`);
-                    await FileManagerBridge.endBackgroundTask(uploadId).catch(err => {
-                        this.logger.error(
-                            'UPLOAD',
-                            `[${uploadId}] Failed to end background task on loop interrupt`,
-                            err
-                        );
-                    });
-                    return;
-                }
-
-                const offset = i * chunkSize;
-                const length = Math.min(chunkSize, totalBytes - offset);
-
-                this.logger.info(
-                    'UPLOAD',
-                    `[${uploadId}] Reading chunk ${i + 1}/${totalChunks} (Offset: ${offset}, Length: ${length})`
-                );
-
-                // Read base64 chunk
-                const base64Data = await FileManagerBridge.readChunk(payload.fileUri, length, offset);
-
-                // Prepare fetch parameters
-                const signal = task.abortController?.signal;
-                const headers = {
-                    'Content-Type': 'application/json',
-                    'X-Upload-ID': uploadId,
-                    'X-Chunk-Index': String(i),
-                    'X-Total-Chunks': String(totalChunks),
-                    'X-Chunk-Offset': String(offset),
-                    'X-Chunk-Size': String(length),
-                    'X-File-Name': encodeURIComponent(payload.fileName),
-                    'X-File-Size': String(totalBytes),
-                    ...payload.headers,
-                };
-
-                const body = JSON.stringify({
-                    uploadId,
-                    fileName: payload.fileName,
-                    mimeType: payload.mimeType,
-                    chunkIndex: i,
-                    totalChunks,
-                    offset,
-                    length,
-                    totalBytes,
-                    chunkData: base64Data,
-                });
-
-                this.logger.info(
-                    'UPLOAD',
-                    `[${uploadId}] Sending chunk ${i + 1}/${totalChunks} to ${payload.uploadUrl}`
-                );
-
-                const response = await fetch(payload.uploadUrl, {
-                    method: 'POST',
-                    headers,
-                    body,
-                    signal,
-                });
-
-                if (!response.ok) {
-                    const responseText = await response.text().catch(() => '');
-                    throw new Error(`Server returned status ${response.status}: ${responseText}`);
-                }
-
-                const responseText = await response.text();
-
-                // Update task progress
-                task.lastChunkIndex = i + 1;
-                task.uploadedBytes += length;
-                const progress = task.uploadedBytes / totalBytes;
-
-                // Notify progress
-                task.onProgress({
-                    uploadId,
-                    progress,
-                    uploadedBytes: task.uploadedBytes,
-                    totalBytes,
-                    status: 'uploading',
-                });
-
-                // Update native background service/task with current progress
-                await FileManagerBridge.startBackgroundTask(uploadId, payload.fileName, progress).catch(err => {
-                    this.logger.error('UPLOAD', `[${uploadId}] Failed to update background progress`, err);
-                });
-            }
-
-            // Loop completed successfully!
-            this.logger.info('UPLOAD', `[${uploadId}] Upload complete!`);
-            task.status = 'completed';
-
-            // Notify final progress (1.0)
-            task.onProgress({
-                uploadId,
-                progress: 1.0,
-                uploadedBytes: totalBytes,
-                totalBytes,
-                status: 'completed',
-            });
-
-            // Notify completion
-            task.onComplete({
-                uploadId,
-                success: true,
-                response: `Upload successfully completed ${totalChunks} chunks.`,
-            });
-
-            // Cleanup task from map
-            this.tasks.delete(uploadId);
-
-            // Clean up background task!
-            await FileManagerBridge.endBackgroundTask(uploadId).catch(err => {
-                this.logger.error('UPLOAD', `[${uploadId}] Failed to end background task on completion`, err);
-            });
-        } catch (error: any) {
-            // If the error was due to an abort operation, handle gracefully
-            if (error.name === 'AbortError' || task.status === 'paused' || task.status === 'cancelled') {
-                this.logger.info('UPLOAD', `[${uploadId}] Chunk upload aborted due to status: ${task.status}`);
-                await FileManagerBridge.endBackgroundTask(uploadId).catch(err => {
-                    this.logger.error('UPLOAD', `[${uploadId}] Failed to end background task on abort`, err);
-                });
-                return;
-            }
-
-            this.logger.error('UPLOAD', `[${uploadId}] Upload failed`, error);
-            task.status = 'failed';
-
-            task.onProgress({
-                uploadId,
-                progress: task.uploadedBytes / totalBytes,
-                uploadedBytes: task.uploadedBytes,
-                totalBytes,
-                status: 'failed',
-            });
-
-            task.onComplete({
-                uploadId,
-                success: false,
-                error: {
-                    code: 'UPLOAD_FAILED',
-                    message: error.message || 'An error occurred during chunked file upload',
-                },
-            });
-
-            // Clean up background task!
-            await FileManagerBridge.endBackgroundTask(uploadId).catch(err => {
-                this.logger.error('UPLOAD', `[${uploadId}] Failed to end background task on failure`, err);
-            });
-        }
+        // Remove persisted task as well (cancelled tasks are not recoverable)
+        void this.uploadTaskDataSource
+            .delete(uploadId)
+            .catch(err => this.logger.warn('UPLOAD', `[${uploadId}] Failed to delete persisted task`, err));
     }
 }

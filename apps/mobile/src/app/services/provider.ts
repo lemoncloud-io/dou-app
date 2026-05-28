@@ -29,7 +29,7 @@ import { CacheCrudService, CacheSearchService } from './cache';
 import type { ISmsService } from './sms';
 import { SmsService } from './sms';
 import type { IUploadService } from './upload';
-import { UploadService } from './upload';
+import { SqliteUploadTaskDataSource, UploadService } from './upload';
 
 import {
     ChannelDataSource,
@@ -88,7 +88,6 @@ class DependencyProvider {
         this.sqliteDatabase = new SqliteDatabase(this.logService);
         this.deviceService = new DeviceService(this.logService);
         this.smsService = new SmsService(this.logService);
-        this.uploadService = new UploadService(this.logService);
         this.permissionService = new PermissionService(this.logService);
         this.notificationService = new NotificationService(this.logService);
         this.oauthService = new OAuthService(this.logService);
@@ -99,6 +98,7 @@ class DependencyProvider {
         this.preferenceService = new PreferenceService(this.logService, this.keyValueStorage);
 
         // Data Sources
+        const uploadTaskDataSource = new SqliteUploadTaskDataSource(this.sqliteDatabase, this.logService);
         const channelDataSource = new ChannelDataSource(this.sqliteDatabase, TABLES.CHANNELS);
         const chatDataSource = new ChatDataSource(this.sqliteDatabase, TABLES.CHATS);
         const joinDataSource = new JoinDataSource(this.sqliteDatabase, TABLES.JOINS);
@@ -116,7 +116,7 @@ class DependencyProvider {
             userDataSource,
             inviteCloudDataSource
         );
-
+        this.uploadService = new UploadService(this.logService, uploadTaskDataSource);
         this.pushEventManager = new PushEventManager(this.logService);
         this.deeplinkRoutingService = new DeeplinkRoutingService(this.logService);
         this.offlinePushQueue = new OfflinePushQueue(this.keyValueStorage, this.logService);
