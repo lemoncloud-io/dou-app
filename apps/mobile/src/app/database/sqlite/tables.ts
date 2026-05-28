@@ -7,4 +7,5 @@ export const TABLES = {
     USERS: 'users',
     METAS: 'metas',
     TEST_RECORDS: 'test_records',
+    UPLOAD_TASKS: 'upload_tasks',
 } as const;

@@ -225,5 +225,25 @@ export const MIGRATIONS: Record<number, string[]> = {
             updated_at INTEGER
         );`,
     ],
+    7: [
+        `CREATE TABLE IF NOT EXISTS ${TABLES.UPLOAD_TASKS} (
+            upload_id TEXT PRIMARY KEY,
+            status TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            file_uri TEXT NOT NULL,
+            file_name TEXT NOT NULL,
+            mime_type TEXT NOT NULL,
+            total_bytes INTEGER NOT NULL,
+            chunk_size INTEGER,
+            uploaded_bytes INTEGER NOT NULL,
+            last_chunk_index INTEGER NOT NULL,
+            retry_count INTEGER NOT NULL DEFAULT 0,
+            server_session TEXT,
+            auth_ref TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );`,
+        `CREATE INDEX IF NOT EXISTS idx_upload_tasks_status_updated ON ${TABLES.UPLOAD_TASKS} (status, updated_at DESC);`,
+    ],
 };
 export const TARGET_VERSION = Math.max(0, ...Object.keys(MIGRATIONS).map(Number)) + 1;
