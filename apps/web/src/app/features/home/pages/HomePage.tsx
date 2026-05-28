@@ -20,6 +20,7 @@ import { useLogout } from '@chatic/auth';
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
 import { usePlaces } from '../../../shared/hooks/usePlaces';
+import { usePlaceUnreadCounts } from '../../../shared/hooks/usePlaceUnreadCounts';
 import { useChannels } from '../../../shared/hooks/useChannels';
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
@@ -54,6 +55,7 @@ export const HomePage = () => {
     const wssType = useWebSocketV2Store(s => s.wssType);
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const channelsResult = useChannels({ sid: selectedPlaceId || '', detail: true });
+    const placeUnreadCounts = usePlaceUnreadCounts();
 
     // 파생 데이터
     const {
@@ -221,6 +223,7 @@ export const HomePage = () => {
                     onNavigateToOrder={() => navigate('/places/order')}
                     onCreatePlace={handleCreatePlace}
                     isGuest={userType === UserType.TEMP_ACCOUNT}
+                    placeUnreadCounts={placeUnreadCounts}
                 />
             </section>
 
