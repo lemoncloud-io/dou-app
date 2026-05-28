@@ -52,6 +52,8 @@ export interface RequestFileUploadPayload {
     headers?: Record<string, string>; // 인증 토큰 등 커스텀 헤더
 }
 
+export default RequestFileUploadPayload;
+
 /** [요청] 파일 업로드 일시정지 페이로드 */
 export interface PauseFileUploadPayload {
     uploadId: string;
@@ -65,6 +67,46 @@ export interface ResumeFileUploadPayload {
 /** [요청] 파일 업로드 취소 페이로드 */
 export interface CancelFileUploadPayload {
     uploadId: string;
+}
+
+/**
+ * [요청] 수동 복구 가능한 업로드 작업 목록 조회
+ * - 앱 재시작/중단 이후 DB에 남아있는 작업을 WebView에서 조회하기 위한 메시지
+ */
+export type ListRecoverableUploadsPayload = never;
+
+/** [요청] 업로드 작업 수동 복구(재개) 트리거 */
+export interface RecoverUploadPayload {
+    uploadId: string;
+}
+
+/** [요청] 업로드 작업 재시도 트리거 */
+export interface RetryUploadPayload {
+    uploadId: string;
+}
+
+export type RecoverableUploadTaskStatus = 'uploading' | 'paused' | 'failed' | 'cancelled' | 'completed';
+
+/**
+ * [응답] 수동 복구 가능한 업로드 작업 정보
+ * - payload는 RequestFileUploadPayload 형태로 유지하여, WebView가 동일 uploadId로 재개 요청을 만들 수 있게 한다.
+ */
+export interface RecoverableUploadTaskInfo {
+    uploadId: string;
+    status: RecoverableUploadTaskStatus;
+    payload: RequestFileUploadPayload;
+    uploadedBytes: number;
+    lastChunkIndex: number;
+    retryCount: number;
+    serverSession?: unknown;
+    authRef?: string | null;
+    createdAt: number;
+    updatedAt: number;
+}
+
+/** [응답] 수동 복구 가능한 업로드 작업 목록 반환 */
+export interface OnListRecoverableUploadsPayload {
+    tasks: RecoverableUploadTaskInfo[];
 }
 
 /** [응답 - 이벤트] 파일 업로드 진행 상황 페이로드 */
