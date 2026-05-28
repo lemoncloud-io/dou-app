@@ -1,4 +1,5 @@
 import { UploadManagerBridge } from '../../bridge';
+import type { UploadManagerStateChangedEvent } from '../../bridge/UploadManagerBridge';
 import type { ILogService } from '../log';
 import type { OnUploadCompletePayload, OnUploadProgressPayload, RequestFileUploadPayload } from '@chatic/app-messages';
 import type { IUploadService, UploadTaskState } from './types';
@@ -25,34 +26,33 @@ export class UploadService implements IUploadService {
         if (UploadManagerBridge.events) {
             this.nativeEventSubscription = UploadManagerBridge.events.addListener(
                 'UploadManagerStateChanged',
-                (event: any) => {
+                (event: UploadManagerStateChangedEvent) => {
                     void this.handleNativeEvent(event);
                 }
             );
         }
     }
 
-    private async handleNativeEvent(event: any) {
-        const uploadId = String(event?.uploadId ?? '');
+    private async handleNativeEvent(event: UploadManagerStateChangedEvent) {
+        const uploadId = event.uploadId;
         if (!uploadId) return;
 
         const task = this.tasks.get(uploadId);
         if (!task) return;
 
-        const statusRaw = String(event?.status ?? 'uploading');
+        const statusRaw = event.status ?? 'uploading';
         const normalizedStatus = statusRaw === 'queued' ? 'uploading' : (statusRaw as UploadTaskState['status']);
 
-        const totalBytes = Number(event?.totalBytes ?? task.payload.fileSize);
-        const uploadedBytes = Number(event?.uploadedBytes ?? task.uploadedBytes ?? 0);
-        const lastChunkIndex =
-            typeof event?.lastChunkIndex === 'number' ? Number(event.lastChunkIndex) : task.lastChunkIndex;
+        const totalBytes = event.totalBytes ?? task.payload.fileSize;
+        const uploadedBytes = event.uploadedBytes ?? task.uploadedBytes ?? 0;
+        const lastChunkIndex = event.lastChunkIndex ?? task.lastChunkIndex;
         const progress =
-            typeof event?.progress === 'number'
-                ? Number(event.progress)
+            event.progress != null
+                ? event.progress
                 : totalBytes > 0
                   ? Math.min(1, Math.max(0, uploadedBytes / totalBytes))
                   : 0;
-        const retryAttempt = typeof event?.retryAttempt === 'number' ? Number(event.retryAttempt) : 0;
+        const retryAttempt = event.retryAttempt ?? 0;
 
         task.status = normalizedStatus;
         task.uploadedBytes = uploadedBytes;
