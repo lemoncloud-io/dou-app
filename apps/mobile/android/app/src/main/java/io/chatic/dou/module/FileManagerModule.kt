@@ -1,4 +1,4 @@
-package io.chatic.dou.bridge
+package io.chatic.dou.module
 
 import android.content.Intent
 import android.net.Uri
@@ -8,6 +8,7 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import io.chatic.dou.service.UploadBackgroundService
 import java.io.File
 import java.io.RandomAccessFile
 

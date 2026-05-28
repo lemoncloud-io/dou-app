@@ -1,4 +1,4 @@
-package io.chatic.dou.bridge
+package io.chatic.dou.module
 
 import android.content.Intent
 import android.content.BroadcastReceiver
@@ -6,6 +6,11 @@ import android.content.Context
 import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -13,33 +18,37 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import io.chatic.dou.R
+import io.chatic.dou.service.UploadBackgroundService
+import io.chatic.dou.worker.UploadWorker
 
 /**
- * UploadManagerModule (Scaffolding)
+ * UploadManagerModule — JS ↔ Native 업로드 브릿지 모듈
  *
- * Goal:
- * - Provide a stable native entrypoint for "native upload engine" migration.
- * - Keep API shape aligned with JS-side `RequestFileUploadPayload`.
+ * 구조:
+ * - JS에서 enqueueUpload/pause/resume/cancel 호출 시 UploadBackgroundService로 Intent 전달
+ * - enqueueUpload 시 WorkManager를 통해 UploadWorker도 등록 (Foreground Worker 보장)
+ * - UploadBackgroundService의 브로드캐스트를 수신하여 JS로 이벤트 전달
  *
- * Current behavior:
- * - Stores minimal in-memory task state.
- * - Updates Android foreground notification via UploadBackgroundService.
- * - Emits basic state events to JS (`UploadManagerStateChanged`) for future integration.
- *
- * Not implemented yet (by design):
- * - Real network upload (OkHttp), chunking, resume, persistence.
+ * 이벤트 흐름:
+ * JS → enqueueUpload() → WorkManager(UploadWorker) + Service Intent
+ * Service → BroadcastReceiver → JS(UploadManagerStateChanged)
  */
 class UploadManagerModule(private val reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
     override fun getName(): String = "UploadManager"
 
-    // Required no-op methods for RN event emitter compliance.
+    // RN 이벤트 이미터 필수 no-op 메서드
     @ReactMethod
     fun addListener(eventName: String) {}
 
     @ReactMethod
     fun removeListeners(count: Int) {}
 
+    /**
+     * UploadBackgroundService 브로드캐스트 수신기.
+     * Service → JS 방향의 업로드 상태 이벤트를 중계.
+     */
     private val eventReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent == null) return
@@ -109,12 +118,21 @@ class UploadManagerModule(private val reactContext: ReactApplicationContext) : R
         }
     }
 
+    /**
+     * 새 업로드 태스크 등록.
+     *
+     * 동작:
+     * 1. WorkManager에 UploadWorker 등록 (Foreground Worker + 네트워크 제약)
+     * 2. UploadBackgroundService에 ACTION_ENQUEUE_UPLOAD Intent 전달
+     *
+     * WorkManager uniqueWork 정책: KEEP — 동일 uploadId 중복 시 기존 작업 유지
+     */
     @ReactMethod
     fun enqueueUpload(payload: ReadableMap, promise: Promise) {
         try {
             val uploadId = payload.getString("uploadId") ?: ""
             val fileUri = payload.getString("fileUri") ?: ""
-            val fileName = payload.getString("fileName") ?: "파일"
+            val fileName = payload.getString("fileName") ?: reactContext.getString(R.string.upload_default_file_name)
             val fileSize = payload.getDouble("fileSize").toLong()
             val mimeType = payload.getString("mimeType") ?: "application/octet-stream"
             val uploadUrl = payload.getString("uploadUrl") ?: ""
@@ -135,7 +153,6 @@ class UploadManagerModule(private val reactContext: ReactApplicationContext) : R
                 return
             }
 
-            // Basic sanity check for URI parse
             Uri.parse(fileUri)
 
             val headers = HashMap<String, String>()
@@ -150,7 +167,23 @@ class UploadManagerModule(private val reactContext: ReactApplicationContext) : R
                 }
             }
 
-            // Delegate actual upload execution to the foreground service.
+            // 1) WorkManager에 UploadWorker 등록 (Foreground Worker + 네트워크 제약)
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+
+            val workRequest = OneTimeWorkRequestBuilder<UploadWorker>()
+                .setInputData(workDataOf(UploadWorker.KEY_UPLOAD_ID to uploadId))
+                .setConstraints(constraints)
+                .build()
+
+            WorkManager.getInstance(reactContext).enqueueUniqueWork(
+                "upload_$uploadId",
+                androidx.work.ExistingWorkPolicy.KEEP,
+                workRequest
+            )
+
+            // 2) Foreground Service에 업로드 실행 위임
             val intent = Intent(reactContext, UploadBackgroundService::class.java).apply {
                 action = UploadBackgroundService.ACTION_ENQUEUE_UPLOAD
                 putExtra("uploadId", uploadId)
@@ -213,6 +246,9 @@ class UploadManagerModule(private val reactContext: ReactApplicationContext) : R
     @ReactMethod
     fun cancelUpload(uploadId: String, promise: Promise) {
         try {
+            // WorkManager 작업도 함께 취소
+            WorkManager.getInstance(reactContext).cancelUniqueWork("upload_$uploadId")
+
             val intent = Intent(reactContext, UploadBackgroundService::class.java).apply {
                 action = UploadBackgroundService.ACTION_CANCEL_UPLOAD
                 putExtra("uploadId", uploadId)
