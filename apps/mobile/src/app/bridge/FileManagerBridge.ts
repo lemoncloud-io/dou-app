@@ -14,6 +14,7 @@ export interface IFileManagerBridge {
     unlink(path: string): Promise<boolean>;
     startBackgroundTask(uploadId: string, fileName: string, progress: number): Promise<void>;
     endBackgroundTask(uploadId: string): Promise<void>;
+    createDummyFile(path: string, sizeInBytes: number): Promise<string>;
 }
 
 export const FileManagerBridge: IFileManagerBridge = {
@@ -47,5 +48,10 @@ export const FileManagerBridge: IFileManagerBridge = {
     endBackgroundTask: async (uploadId: string): Promise<void> => {
         if (!FileManager) throw new Error('FileManager native module is not available');
         return FileManager.endBackgroundTask(uploadId);
+    },
+
+    createDummyFile: async (path: string, sizeInBytes: number): Promise<string> => {
+        if (!FileManager) throw new Error('FileManager native module is not available');
+        return FileManager.createDummyFile(path, sizeInBytes);
     },
 };
