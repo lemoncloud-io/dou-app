@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="com.android.vending.BILLING" />
@@ -82,10 +83,13 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- Custom Foreground Service for Background Uploads -->
-        <service 
-            android:name="io.chatic.dou.bridge.UploadBackgroundService" 
-            android:foregroundServiceType="dataSync" 
+        <service
+            android:name="io.chatic.dou.service.UploadBackgroundService"
+            android:foregroundServiceType="dataSync"
             android:exported="false" />
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
     </application>
 </manifest>
