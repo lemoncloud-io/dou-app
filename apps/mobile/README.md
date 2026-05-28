@@ -191,3 +191,62 @@ sequenceDiagram
 ```
 
 이와 같이 세 서비스는 **OS 입력 단자(`NotificationService`)**, **포그라운드 전파 단자(`PushEventManager`)**, **백그라운드 캐시 단자(`OfflinePushQueue`)**로 역할이 철저히 격리되어 상호 간의 간섭 없이 안정적으로 수신 처리를 완수합니다.
+
+---
+
+# 고성능 네이티브 기반 대용량 파일 업로드 아키텍처 (Native-Driven Chunk Upload System)
+
+본 어플리케이션은 1GB 이상의 대용량 파일을 하이브리드 웹뷰 환경에서 안정적이고 빠르게 업로드하기 위해, **100% 네이티브 모듈 주도형 청크 업로드 엔진**과 **SQLite 기반 오프라인 상태 영속화 시스템**을 갖추고 있습니다.
+
+하이브리드 환경의 성능 병목이었던 JS 엔진 내 파일 바이너리 처리(Base64 인코딩/디코딩) 및 React Native Bridge의 직렬화 오버헤드를 근본적으로 해결하기 위해, 모든 전송 파이프라인과 백그라운드 처리를 OS 네이티브 데몬에게 직접 위임합니다.
+
+## 1. 아키텍처 개요 (Architecture Overview)
+
+```mermaid
+graph TD
+    A["WebView Debug / Mypage (Web App)"] -->|RequestFileUpload| B["useUploadHandler (WebView Hook)"]
+    B -->|uploadFile| C["UploadService (JS Orchestrator)"]
+
+    C -->|1. upsert / updateProgress| D["SqliteUploadTaskDataSource (JSI Storage)"]
+    C -->|2. enqueueUpload| E["UploadManagerBridge (Native Bridge)"]
+
+    E -->|Start background upload daemon| F["Native Upload Manager"]
+    F -->|iOS: URLSession Background Task| G["AWS S3 / Chunk Storage"]
+    F -->|Android: Foreground WorkManager| G
+
+    F -.->|State & Progress Events| H["UploadManagerStateChanged (Native Events)"]
+    H -->|addListener| C
+    C -->|onProgress / onComplete| B
+    B -->|Emit WebEvent| A
+```
+
+성능과 배터리 효율 극대화를 위해 다음의 핵심 설계를 구현하였습니다:
+
+1. **JNI 경유 바이너리 전달 제거 (Zero JNI Buffer Copy)**: JS 컨텍스트에서 대용량 파일의 청크를 쪼개어 Base64로 전송하는 레거시 패턴을 삭제하였습니다. 대신 웹뷰 및 서비스 레이어는 메타데이터와 엔드포인트 정보만 네이티브 브릿지에 전달하며, 실제 디바이스 스토리지 상의 바이너리 IO 및 전송 제어는 네이티브 스레드에서 직접 수행합니다.
+2. **네이티브 상태 드리븐 동기화 (Event-Driven State Engine)**: JS 서비스 레이어는 타이머 기반의 폴링이나 추정 진행률 계산을 배제하고, 네이티브 업로드 엔진이 백그라운드 스레드에서 직접 발행하는 `UploadManagerStateChanged` 이벤트를 리스닝하여 정확한 바이트 진행도 및 상태 전이를 콜백에 매핑합니다.
+3. **SQLite JSI 기반 중단점 복구 (Resume-from-Offset)**: 앱 강제 종료, OS 메모리 압박으로 인한 크래시, 네트워크 유실 상황에서도 사용자가 업로드를 중단점에서 이어서 재개할 수 있도록, 청크 단위 완료 시점마다 **SQLite JSI 스토리지(`SqliteUploadTaskDataSource`)**에 마지막 업로드 완료 바이트 오프셋과 청크 인덱스를 영속화합니다.
+4. **수동/자동 복구 지원 (Manual Recovery)**: 앱 부팅 시 `listRecoverableUploads()` API를 호출하여 이전에 완료되지 않은 채 중단된 업로드 작업 정보를 SQLite로부터 불러와 UI 상에 일시정지(`paused`) 또는 실패(`failed`) 상태로 표시하고, 사용자의 명시적 클릭 시 복구를 수행할 수 있는 인터페이스를 제공합니다.
+
+---
+
+## 2. 주요 구성 컴포넌트 (Key Components)
+
+### 📂 `src/app/services/upload`
+
+- **`UploadService`** (`types.ts` / `UploadService.ts`)
+    - 업로드 상태 관리 및 이벤트를 네이티브 리스너와 바인딩하는 메인 오케스트레이터.
+    - 브릿지가 항상 연결되어 있는 하이브리드 보장을 기반으로 하므로, 불필요한 JS Fallback Loop 및 Semaphore Concurrency Logic을 제거하고 완전한 네이티브 단일 파이프라인으로 구성되었습니다.
+    - `UploadManagerBridge`와 연동하여 Enqueue, Pause, Resume, Cancel 동작을 직접 제어합니다.
+- **`SqliteUploadTaskDataSource`** (`repository/types.ts` / `repository/SqliteUploadTaskDataSource.ts`)
+    - `@op-engineering/op-sqlite` 라이브러리를 경유해 SQLite 스키마 테이블에 파일 메타데이터, 청크 오프셋 상태를 즉각 쓰기/읽기 수행하는 로컬 저장소 계층.
+    - 비동기 SQLite JSI 바인딩을 적용하여 데이터 조회/쓰기 동작의 병목을 없앴습니다.
+
+---
+
+## 3. 기능 수동 테스트 및 진단 (Upload Debug Screen)
+
+개발자 전용 도구 화면인 **`UploadTestScreen.tsx`**를 통해 네이티브 백그라운드 업로드 기능을 안정적으로 진단할 수 있습니다:
+
+1. **대용량 가상 파일 staging (Sparse Mock Generator)**: Unix `ftruncate` API를 브릿지로 호출하여, 실제 SSD 쓰기 주기(Flash Lifecycle) 손상 없이 기기 디렉토리에 즉각 **1GB / 5GB 크기의 가상 파일**을 스테이징 생성합니다.
+2. **AppState 백그라운드 추적기 (Background Endurance Logger)**: 앱이 포그라운드(Active)에서 백그라운드(Background)로 진입 및 복귀할 때의 앱 상태를 실시간 로깅하여 OS의 백그라운드 정책 속에서도 네이티브 이벤트가 지속 수신되는지 가시적으로 확인합니다.
+3. **고해상도 성능 대시보드 (Throughput & ETA Dashboard)**: 초당 전송 속도(**MB/s**), 소요 시간, 그리고 전송 추세를 수학적으로 추정한 **남은 시간(ETA)** 정보를 실시간으로 계산해 화면 상에 렌더링합니다.
