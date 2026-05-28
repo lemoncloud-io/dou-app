@@ -85,6 +85,12 @@ export interface RetryUploadPayload {
     uploadId: string;
 }
 
+/** [요청] 테스트용 dummy sparse 파일 생성 */
+export interface CreateDummyFilePayload {
+    sizeInBytes: number;
+    fileName: string;
+}
+
 export type RecoverableUploadTaskStatus = 'uploading' | 'paused' | 'failed' | 'cancelled' | 'completed';
 
 /**

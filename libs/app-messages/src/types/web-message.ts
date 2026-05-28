@@ -40,6 +40,7 @@ import type {
     CancelFileUploadPayload,
     RecoverUploadPayload,
     RetryUploadPayload,
+    CreateDummyFilePayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -57,6 +58,8 @@ export interface WebMessagePayloadMap {
     ListRecoverableUploads: never;
     RecoverUpload: RecoverUploadPayload;
     RetryUpload: RetryUploadPayload;
+    CreateDummyFile: CreateDummyFilePayload;
+
     OpenShareSheet: OpenShareSheetPayload;
     GetContacts: never;
     OpenDocument: OpenDocumentPayload;
