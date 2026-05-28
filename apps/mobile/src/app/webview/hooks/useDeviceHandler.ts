@@ -195,6 +195,33 @@ export const useDeviceHandler = () => {
         [logger]
     );
 
+    const handleCreateDummyFile = useCallback(
+        async (message: WebMessageData<'CreateDummyFile'>) => {
+            const { sizeInBytes, fileName } = message.data;
+            const path = `${FileManagerBridge.DocumentDirectoryPath}/${fileName}`;
+            try {
+                const resultPath = await FileManagerBridge.createDummyFile(path, sizeInBytes);
+                return {
+                    type: 'OnCreateDummyFile' as const,
+                    success: true,
+                    data: {
+                        uri: `file://${resultPath}`,
+                        name: fileName,
+                        size: sizeInBytes,
+                    },
+                };
+            } catch (e: any) {
+                logger.error('DEVICE', 'CreateDummyFile error', e);
+                return {
+                    type: 'OnCreateDummyFile' as const,
+                    success: false,
+                    error: { code: 'DUMMY_FILE_ERROR', message: e.message },
+                };
+            }
+        },
+        [logger]
+    );
+
     return {
         handleOpenSettings,
         handleOpenShareSheet,
@@ -203,5 +230,6 @@ export const useDeviceHandler = () => {
         handleOpenPhotoLibrary,
         handleGetContacts,
         handleOpenURL,
+        handleCreateDummyFile,
     };
 };
