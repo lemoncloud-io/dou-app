@@ -6,6 +6,32 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import { useRepositories } from '../data';
 import type { DomainSite } from '@chatic/data';
 
+// 초대 수락 직후 place 동기화가 필요함을 표시하는 일회성 키 (sessionStorage — 탭 종료 시 자동 소멸)
+const INVITE_PLACE_SYNC_KEY = 'chatic-invite-place-sync';
+
+/** LoginPage.handleAccept에서 호출 — place 동기화 플래그 설정 */
+export const markInvitePlaceSyncPending = (): void => {
+    try {
+        sessionStorage.setItem(INVITE_PLACE_SYNC_KEY, '1');
+    } catch {
+        // ignore
+    }
+};
+
+/** 일회성 플래그 소비 — 읽는 즉시 삭제 */
+const consumeInvitePlaceSyncFlag = (): boolean => {
+    try {
+        const value = sessionStorage.getItem(INVITE_PLACE_SYNC_KEY);
+        if (value) {
+            sessionStorage.removeItem(INVITE_PLACE_SYNC_KEY);
+            return true;
+        }
+    } catch {
+        // ignore
+    }
+    return false;
+};
+
 // 컴포넌트 재마운트(네비게이션 복귀)와 실제 클라우드 전환을 구분하기 위한 모듈 레벨 변수
 // prevCloudIdRef는 unmount 시 리셋되므로 이 변수로 실제 전환 여부를 판단
 let lastFetchedCloudId: string | null | undefined;
@@ -116,13 +142,27 @@ export const usePlaces = () => {
         const isCloudSwitch = lastFetchedCloudId !== undefined && lastFetchedCloudId !== cloudId;
         lastFetchedCloudId = cloudId;
 
+        // 초대 수락 직후 place 동기화 플래그 소비 (읽는 즉시 sessionStorage에서 삭제 — 일회성)
+        const needsInviteSync = consumeInvitePlaceSyncFlag();
+
         // 모듈 캐시가 현재 cloudId와 일치하면 loading skeleton 안 보여줌
         const hasValidModuleCache = placesCacheCloudId === cloudId && placesCache && placesCache.length > 0;
-        void fetchPlaces({
-            loading: !hasValidModuleCache && (isCloudSwitch || places.length === 0),
-            // cache-first: contextHolder가 Zustand subscribe로 즉시 동기 업데이트되므로
-            // cloud 전환 직후에도 올바른 cid scope로 캐시 조회 가능
-        });
+        void (async () => {
+            await fetchPlaces({
+                loading: !hasValidModuleCache && (isCloudSwitch || places.length === 0),
+                forceNetwork: needsInviteSync,
+            });
+
+            // 초대 수락 직후 서버에 멤버십이 아직 반영되지 않았을 수 있음 — 결과가 비어있으면 재시도
+            if (needsInviteSync) {
+                const currentPlaces = placesCache ?? [];
+                if (currentPlaces.length === 0) {
+                    logger.info('PLACE', 'Invite session: places empty after first fetch, retrying');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await fetchPlaces({ forceNetwork: true });
+                }
+            }
+        })();
     }, [fetchPlaces, cloudId, isVerified]);
 
     useEffect(() => {

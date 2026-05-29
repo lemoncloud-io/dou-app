@@ -31,6 +31,7 @@ import type {
 import { useRegisterDevice } from '@chatic/auth';
 import { useDynamicDeviceId } from '../../../shared/hooks/useDynamicDeviceId';
 import { useInviteMutations } from '../../../shared/hooks/useInviteMutations';
+import { markInvitePlaceSyncPending } from '../../../shared/hooks/usePlaces';
 import { fetchInviteCodeInfo } from '../../chats/apis/invite-api';
 
 export const LoginPage = (): JSX.Element => {
@@ -242,8 +243,9 @@ export const LoginPage = (): JSX.Element => {
                 }
             }
 
-            // 6. Mark as invited
+            // 6. Mark as invited + place 동기화 플래그 설정 (리로드 후 usePlaces에서 소비)
             setIsInvitedSession(true);
+            markInvitePlaceSyncPending();
 
             // 7. Reset selected place, then pre-select the invited place
             cloudCore.clearSelectedPlace();
