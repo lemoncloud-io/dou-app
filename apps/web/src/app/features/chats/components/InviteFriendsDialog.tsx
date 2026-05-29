@@ -1,4 +1,4 @@
-import { ChevronLeft, Loader2, Search } from 'lucide-react';
+import { ChevronLeft, Loader2, Search, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -110,20 +110,37 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
         }
     }, [open]);
 
-    // Filter contacts based on search
+    // 선택된 연락처는 필터 무관하게 항상 상단 표시, 나머지는 검색 필터 적용
     const filteredContacts = useMemo(() => {
-        if (!search.trim()) return contacts;
+        const selected: ContactInfo[] = [];
+        const unselected: ContactInfo[] = [];
 
-        const searchLower = search.toLowerCase();
-        return contacts.filter(contact => {
-            const displayName = contact.displayName?.toLowerCase() ?? '';
-            const givenName = contact.givenName?.toLowerCase() ?? '';
-            const familyName = contact.familyName?.toLowerCase() ?? '';
-            return (
-                displayName.includes(searchLower) || givenName.includes(searchLower) || familyName.includes(searchLower)
-            );
-        });
-    }, [contacts, search]);
+        for (const contact of contacts) {
+            if (selectedContactIds.has(contact.recordID)) {
+                selected.push(contact);
+            } else {
+                unselected.push(contact);
+            }
+        }
+
+        // 미선택 항목만 검색 필터 적용
+        let filteredUnselected = unselected;
+        if (search.trim()) {
+            const searchLower = search.toLowerCase();
+            filteredUnselected = unselected.filter(contact => {
+                const displayName = contact.displayName?.toLowerCase() ?? '';
+                const givenName = contact.givenName?.toLowerCase() ?? '';
+                const familyName = contact.familyName?.toLowerCase() ?? '';
+                return (
+                    displayName.includes(searchLower) ||
+                    givenName.includes(searchLower) ||
+                    familyName.includes(searchLower)
+                );
+            });
+        }
+
+        return [...selected, ...filteredUnselected];
+    }, [contacts, search, selectedContactIds]);
 
     const handleToggle = useCallback(
         (contact: ContactInfo) => {
@@ -201,29 +218,9 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
 
                             {showPermissionBanner && <PermissionDeniedBanner />}
 
-                            <div className="px-4 pt-5">
-                                <div className="flex items-center justify-center rounded-[20px] border border-border bg-card px-[18px] py-5 shadow-sm">
-                                    <button
-                                        className="flex flex-col items-center gap-2"
-                                        onClick={() => setAddFriendOpen(true)}
-                                    >
-                                        <div className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-muted">
-                                            <img
-                                                src="/assets/icons/icon-user-plus.svg"
-                                                alt={t('inviteFriends.addFriend')}
-                                                className="h-7 w-7 dark:brightness-0 dark:invert"
-                                            />
-                                        </div>
-                                        <span className="text-center text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
-                                            {t('inviteFriends.addFriend')}
-                                        </span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {showContactList && (
-                                <div className="px-4 py-[10px]">
-                                    <div className="flex items-center gap-[9px] rounded-full border border-border bg-muted px-[14px] py-3">
+                            <div className="flex items-center gap-2 px-4 pt-4">
+                                {showContactList && (
+                                    <div className="flex flex-1 items-center gap-[9px] rounded-full border border-border bg-muted px-[14px] py-3">
                                         <Search size={18} className="shrink-0 text-foreground" />
                                         <input
                                             value={search}
@@ -232,8 +229,15 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                                             className="flex-1 bg-transparent text-[16px] leading-[1.19] tracking-[-0.015em] text-foreground placeholder:text-muted-foreground outline-none"
                                         />
                                     </div>
-                                </div>
-                            )}
+                                )}
+                                <button
+                                    onClick={() => setAddFriendOpen(true)}
+                                    aria-label={t('inviteFriends.addFriend')}
+                                    className="flex size-[46px] items-center justify-center shrink-0 rounded-full border border-border bg-card shadow-sm"
+                                >
+                                    <UserPlus size={20} className="text-foreground" />
+                                </button>
+                            </div>
                         </div>
 
                         {showContactList && (
