@@ -27,7 +27,7 @@ export interface InviteLinkDocument {
     /** Invite data from backend API */
     invite: MyInviteView;
     /** When the link was created */
-    createdAt: FirebaseFirestore.Timestamp;
+    createdAt: any;
     /** Who created the link (user ID or identifier) */
     createdBy: string;
 }
