@@ -8,7 +8,7 @@
 
 import { FRONTEND_BASE_URL, isCustomScheme, isDeepLinkDomain } from './constants';
 import { getInviteLink } from './inviteLink';
-import { isShortUrl } from './parser';
+import { isShortUrl, isNewPatternInviteUrl } from './parser';
 
 /**
  * Converts deep link URL to actual frontend URL
@@ -130,6 +130,38 @@ const extractPathFromLocation = (locationUrl: string): string | null => {
  * // result.envs = { backend: 'https://...', wss: 'wss://...' }
  */
 export const convertShortUrlWithEnvs = async (url: string): Promise<ConvertedUrlResult> => {
+    if (isNewPatternInviteUrl(url)) {
+        try {
+            const parsed = new URL(url);
+            const code = parsed.searchParams.get('code');
+            const api = parsed.searchParams.get('api');
+            const stage = parsed.searchParams.get('stage');
+            const backendParam = parsed.searchParams.get('backend');
+
+            if (!code) {
+                throw new Error('Missing code parameter in deep link');
+            }
+
+            let backend = backendParam || undefined;
+
+            if (!backend && api && stage) {
+                backend = `https://${api}.execute-api.ap-northeast-2.amazonaws.com/${stage}`;
+            }
+
+            const expandedUrl = `${FRONTEND_BASE_URL}/auth/login?code=${encodeURIComponent(code)}&provider=invite&version=2`;
+            console.log('[UrlConverter] New pattern dynamic link parsed:', url, '→', expandedUrl);
+
+            return {
+                url: expandedUrl,
+                envs: backend ? { backend } : undefined,
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            console.error('[UrlConverter] Error parsing new pattern dynamic link:', message);
+            throw error;
+        }
+    }
+
     if (!isShortUrl(url)) {
         return { url };
     }

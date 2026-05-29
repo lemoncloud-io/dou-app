@@ -67,10 +67,36 @@ export const extractCampaignParams = (url: string): Record<string, string> => {
 };
 
 /**
+ * Check if URL matches the new dynamic invite URL pattern
+ * e.g., https://app.chatic.io/s?code=invt:910001:3f9a8b...&api=vjgudphpo4&stage=dev
+ * or custom schemes: chatic://s?code=...&api=...
+ */
+export const isNewPatternInviteUrl = (url: string): boolean => {
+    try {
+        const parsed = new URL(url);
+        const isSPath = parsed.pathname === '/s' || parsed.pathname === '/s/';
+
+        if (!isSPath) {
+            return false;
+        }
+
+        const hasCode = parsed.searchParams.has('code');
+        const hasApi = parsed.searchParams.has('api') || parsed.searchParams.has('backend');
+
+        return !!(hasCode && hasApi);
+    } catch {
+        return false;
+    }
+};
+
+/**
  * Check if URL is a short URL (/s/{code} pattern)
  */
 export const isShortUrl = (url: string): boolean => {
     try {
+        if (isNewPatternInviteUrl(url)) {
+            return false;
+        }
         const parsed = new URL(url);
         return parsed.pathname.startsWith('/s/');
     } catch {
@@ -83,6 +109,9 @@ export const isShortUrl = (url: string): boolean => {
  */
 export const extractShortCode = (url: string): string | null => {
     try {
+        if (isNewPatternInviteUrl(url)) {
+            return null;
+        }
         const parsed = new URL(url);
         const match = parsed.pathname.match(/^\/s\/([^/]+)/);
         return match ? match[1] : null;

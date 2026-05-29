@@ -13,8 +13,6 @@ import { Platform } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { retrieveDeferredLinkFromFirestore } from './firestoreDeferred';
-
 import type { DeferredLinkData } from './types';
 
 import { ONE_HOUR_MS } from './constants';
@@ -120,8 +118,7 @@ export const getInstallReferrer = async (): Promise<string | null> => {
     }
 
     try {
-        // Dynamic import to avoid iOS build issues
-        const PlayInstallReferrer = await import('react-native-play-install-referrer').then(m => m.default);
+        const PlayInstallReferrer = (await import('react-native-play-install-referrer').then(m => m.default)) as any;
 
         if (!PlayInstallReferrer?.getReferrerDetails) {
             console.log('[DeferredDeepLink] PlayInstallReferrer not available');
@@ -160,50 +157,6 @@ export const getInstallReferrer = async (): Promise<string | null> => {
  *    - First successful result wins
  */
 export const handleDeferredDeepLink = async (): Promise<string | null> => {
-    // Check if already processed
-    const processed = await isDeferredLinkProcessed();
-    if (processed) {
-        return null;
-    }
-
-    // 1. Check stored deferred link first (local)
-    const storedLink = await getDeferredLink();
-    if (storedLink) {
-        console.log('[DeferredDeepLink] Found local stored link');
-        await markDeferredLinkProcessed();
-        return storedLink;
-    }
-
-    // 2. Check Firestore and Install Referrer in PARALLEL (Android)
-    //    This increases hit rate as recommended by architecture
-    const promises: Promise<string | null>[] = [
-        // Firestore lookup (works on both iOS & Android)
-        retrieveDeferredLinkFromFirestore().catch(error => {
-            console.error('[DeferredDeepLink] Firestore lookup failed:', error);
-            return null;
-        }),
-    ];
-
-    // Add Install Referrer for Android (parallel)
-    if (Platform.OS === 'android') {
-        promises.push(
-            getInstallReferrer().catch(error => {
-                console.error('[DeferredDeepLink] Install Referrer failed:', error);
-                return null;
-            })
-        );
-    }
-
-    // Race for first successful result, but wait for all to complete for cleanup
-    const results = await Promise.all(promises);
-    const link = results.find(result => result !== null) || null;
-
-    if (link) {
-        const source = results[0] === link ? 'Firestore' : 'Install Referrer';
-        console.log(`[DeferredDeepLink] Found link from ${source}:`, link);
-    }
-
-    // Mark as processed even if no link found
-    await markDeferredLinkProcessed();
-    return link;
+    // Deferred deep links are no longer supported as Firestore storing/restoring is disabled
+    return null;
 };

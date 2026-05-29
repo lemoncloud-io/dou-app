@@ -25,7 +25,7 @@ export {
     markDeferredLinkProcessed,
     storeDeferredLink,
 } from './deferred';
-export { extractCampaignParams, extractShortCode, isShortUrl, isValidDeepLink } from './parser';
+export { extractCampaignParams, extractShortCode, isShortUrl, isValidDeepLink, isNewPatternInviteUrl } from './parser';
 export { convertDeepLinkToFrontendUrl, convertShortUrlWithEnvs, needsConversion } from './urlConverter';
 export type { ConvertedUrlResult, ServiceEndpoints, InviteSiteInfo, InviteCloudInfo } from './urlConverter';
 export { generateFingerprint, getFingerprintComponents } from './fingerprint';

@@ -1,3 +1,4 @@
+import { getDeepLinkManager } from '@chatic/deeplinks';
 import type { IDeeplinkRoutingService } from './types';
 import type { ILogService } from '../log';
 
@@ -21,12 +22,17 @@ export class DeeplinkRoutingService implements IDeeplinkRoutingService {
             return;
         }
 
-        // TODO: 기획 및 사양 확정 시 푸시 클릭 페이로드를 웹 URL 주소로 변환하여
-        // 네이티브 딥링크 매니저(getDeepLinkManager().handleUrl(url))로 넘기는 로직 연동부.
-        // 현재는 상세 딥링크 규격이 정해지지 않아 덤프 로그만 출력하고 실행을 안전하게 지연시킵니다.
-        this.logger.info(
-            'DEEPLINK',
-            `[TODO] Push notification click received. Routing deferred. Raw payload: ${JSON.stringify(data)}`
-        );
+        this.logger.info('DEEPLINK', `Push notification click received. Raw payload: ${JSON.stringify(data)}`);
+
+        // 1. 페이로드 내부에서 직접적인 URL 추출 시도 (deeplink, url, link 등)
+        const rawUrl = data.deeplink || data.url || data.link;
+        if (typeof rawUrl === 'string' && rawUrl.trim().length > 0) {
+            this.logger.info('DEEPLINK', `Routing via DeepLinkManager with extracted URL: ${rawUrl}`);
+            await getDeepLinkManager().handleUrl(rawUrl);
+            return;
+        }
+
+        // 알림 데이터에 라우팅 경로가 없는 경우 경고 로그 출력
+        this.logger.warn('DEEPLINK', `No routing target found in notification payload: ${JSON.stringify(data)}`);
     }
 }
