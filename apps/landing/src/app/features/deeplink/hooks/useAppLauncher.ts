@@ -50,7 +50,11 @@ export const useAppLauncher = ({ deviceType, deepLinkInfo }: UseAppLauncherProps
         // Store deferred link BEFORE launching app.
         // iOS custom scheme may open the app without passing the URL path,
         // so the app needs a fallback to retrieve the invite from Firestore.
-        await storeDeferredDeepLink(deepLinkInfo.deepLinkUrl);
+        // We only do this for the old shortcode pattern, NOT for the new Firestore-free pattern.
+        const isNewPattern = deepLinkInfo.deepLinkUrl.includes('code=');
+        if (!isNewPattern) {
+            await storeDeferredDeepLink(deepLinkInfo.deepLinkUrl);
+        }
 
         const pathWithoutLeadingSlash = deepLinkInfo.fullPath.replace(/^\//, '');
 
