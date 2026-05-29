@@ -242,44 +242,35 @@ export const MyPage = () => {
                         <span className="text-[15px] font-medium text-foreground">{t('mypage.policy.title')}</span>
                         <ChevronRight size={18} className="text-muted-foreground" />
                     </button>
-                    {versionInfo?.shouldUpdate &&
-                    (deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android') ? (
-                        <button
-                            onClick={handleUpdateClick}
-                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                        >
-                            <div className="flex flex-col items-start gap-0.5">
-                                <span className="text-[15px] font-medium text-foreground">
-                                    {t('mypage.appVersion')}
-                                </span>
-                                <span className="text-[13px] text-muted-foreground">
-                                    {`v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <span className="text-[14px] font-medium text-primary">
-                                    {t('mypage.updateAvailable')}
-                                </span>
-                                <ChevronRight size={18} className="text-primary" />
-                            </div>
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleVersionTap}
-                            className="flex w-full items-center justify-between py-3 pl-4 pr-3 text-left"
-                        >
-                            <div className="flex flex-col items-start gap-0.5">
-                                <span className="text-[15px] font-medium text-foreground">
-                                    {t('mypage.appVersion')}
-                                </span>
-                                <span className="text-[13px] text-muted-foreground">
-                                    {deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android'
-                                        ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
-                                        : `v${versionInfo?.webVersion}`}
-                                </span>
-                            </div>
-                        </button>
-                    )}
+                    <button
+                        onClick={handleVersionTap}
+                        className="flex w-full items-center justify-between py-3 pl-4 pr-3 text-left"
+                    >
+                        <div className="flex flex-col items-start gap-0.5">
+                            <span className="text-[15px] font-medium text-foreground">{t('mypage.appVersion')}</span>
+                            <span className="text-[13px] text-muted-foreground">
+                                {deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android'
+                                    ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
+                                    : `v${versionInfo?.webVersion}`}
+                            </span>
+                        </div>
+                        {versionInfo?.shouldUpdate &&
+                            (deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android') && (
+                                <div
+                                    role="button"
+                                    onClick={e => {
+                                        e.stopPropagation();
+                                        handleUpdateClick();
+                                    }}
+                                    className="flex items-center gap-1"
+                                >
+                                    <span className="text-[14px] font-medium text-primary">
+                                        {t('mypage.updateAvailable')}
+                                    </span>
+                                    <ChevronRight size={18} className="text-primary" />
+                                </div>
+                            )}
+                    </button>
                     {isDebugMode && (
                         <>
                             <button

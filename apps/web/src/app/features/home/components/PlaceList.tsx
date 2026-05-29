@@ -29,9 +29,10 @@ interface PlaceItemProps {
     isSelected: boolean;
     isDisabled: boolean;
     onSelectPlace: (placeId: string) => void;
+    unreadCount?: number;
 }
 
-const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemProps) => {
+const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace, unreadCount }: PlaceItemProps) => {
     const { t } = useTranslation();
     // const isSelectable = place.stereo === 'work';
     const isDefaultPlace = place.id === 'default';
@@ -61,6 +62,9 @@ const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace }: PlaceItemPr
                     )}
                 </div>
                 {selected && <div className="absolute inset-0 rounded-full border-[1.5px] border-[#C139E3]" />}
+                {!!unreadCount && unreadCount > 0 && (
+                    <div className="absolute right-[3px] top-[3px] z-10 h-[10px] w-[10px] rounded-full bg-red-500" />
+                )}
             </div>
             <div className="flex items-center justify-center gap-[2px]">
                 <span
@@ -86,6 +90,7 @@ interface PlaceListProps {
     onNavigateToOrder?: () => void;
     onCreatePlace?: () => void;
     isGuest?: boolean;
+    placeUnreadCounts?: Record<string, number>;
 }
 
 export const PlaceList = ({
@@ -97,6 +102,7 @@ export const PlaceList = ({
     onNavigateToOrder,
     onCreatePlace,
     isGuest,
+    placeUnreadCounts,
 }: PlaceListProps) => {
     const { t } = useTranslation();
     const { userType } = useUserContext();
@@ -388,6 +394,7 @@ export const PlaceList = ({
                         isSelected={selectedId === place.id}
                         isDisabled={isPending}
                         onSelectPlace={handleSelectPlace}
+                        unreadCount={placeUnreadCounts?.[place.id]}
                     />
                 ))}
                 {!isGuest && onCreatePlace && (

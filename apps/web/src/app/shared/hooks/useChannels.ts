@@ -122,14 +122,14 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
 
     // 단일 fetch 함수 — 결과를 항상 직접 반영
     const fetchChannels = useCallback(
-        async (options?: { loading?: boolean; forceNetwork?: boolean }) => {
+        async (options?: { loading?: boolean; forceNetwork?: boolean; silent?: boolean }) => {
             const params = currentParamsRef.current;
             if (!params.sid) return;
 
             const requestSeq = ++requestSeqRef.current;
 
             if (options?.loading) setIsLoading(true);
-            if (options?.forceNetwork) setIsSyncing(true);
+            if (options?.forceNetwork && !options?.silent) setIsSyncing(true);
             setIsError(false);
             setErrorMessage(null);
 
@@ -218,14 +218,19 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
             (lastFetchedCloudId !== undefined && lastFetchedCloudId !== cloudId) ||
             (lastFetchedPlaceId !== undefined && lastFetchedPlaceId !== targetPlaceId);
 
+        // 재진입(같은 cloud/place로 다시 마운트): 캐시를 먼저 표시 후 서버에서 갱신
+        // chatroom에서 읽음 처리 후 복귀 시 cache-first의 백그라운드 fetch는 state를 갱신하지 않아
+        // 읽음 상태가 반영되지 않는 문제를 방지
+        const isReentry = !isSwitch && lastFetchedCloudId !== undefined;
+
         lastFetchedCloudId = cloudId;
         lastFetchedPlaceId = targetPlaceId;
 
         currentParamsRef.current = initialParams;
         void fetchChannels({
             loading: isSwitch || channelsRef.current.length === 0,
-            // cache-first: 캐시 데이터가 있으면 즉시 표시 + 백그라운드 네트워크 갱신
-            // network-only를 쓰면 WebSocket 응답 + bridge 왕복을 모두 대기해야 하므로 느림
+            forceNetwork: isReentry,
+            silent: isReentry,
         });
     }, [fetchChannels, cloudId, targetPlaceId, isVerified]);
 
