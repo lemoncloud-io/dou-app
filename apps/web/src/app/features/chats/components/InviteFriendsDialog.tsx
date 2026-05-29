@@ -60,6 +60,11 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
     const [isWaitingForContacts, setIsWaitingForContacts] = useState(false);
     const { createBatchInvite } = useCreateInviteBatch();
 
+    // 웹: 연락처 접근 불가 → AddFriendSheet(번호 직접 입력)만 바로 노출
+    if (!isOnMobileApp) {
+        return <AddFriendSheet open={open ?? false} onOpenChange={v => onOpenChange?.(v)} channelId={channelId} />;
+    }
+
     // Listen for contact response from native app
     useHandleAppMessage('OnGetContacts', message => {
         setIsWaitingForContacts(false);
