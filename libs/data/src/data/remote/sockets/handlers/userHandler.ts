@@ -60,6 +60,11 @@ export const userHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEve
             eventBus.emit('user:invite', { ...detail, payload: payload as MyInviteView });
             break;
         }
+        // 배치 초대 결과 처리
+        case 'invite-batch': {
+            eventBus.emit('user:invite-batch', { ...detail, payload: payload as MyInviteView[] });
+            break;
+        }
         default:
             logger.warn('USER', `[User Handler] Unhandled user action: ${action}`);
             break;

@@ -1,5 +1,5 @@
 import type { ChatUsersPayload, UserInvitePayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
-import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 import type { DomainEventMap, ListResult } from '../events/types';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
 import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
@@ -24,6 +24,9 @@ export interface IUserRepository extends ILocalCacheMutationRepository<DomainUse
 
     /** 외부 사용자 초대 코드를 생성합니다. */
     requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView>;
+
+    /** 여러 사용자를 일괄 초대합니다. */
+    requestInviteBatch(payload: MyUserInviteBody, options?: RepositoryRequestOptions): Promise<MyInviteView[]>;
 
     /** 현재 스코프의 user 로컬 캐시를 초기화합니다. */
     clearAll(): Promise<void>;
@@ -101,6 +104,13 @@ export class UserRepository extends BaseRepository implements IUserRepository, I
 
     public requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView> {
         return this.requestRemote<MyInviteView>(ref => this.userRemoteDataSource.requestInvite(payload, ref), options);
+    }
+
+    public requestInviteBatch(payload: MyUserInviteBody, options?: RepositoryRequestOptions): Promise<MyInviteView[]> {
+        return this.requestRemote<MyInviteView[]>(
+            ref => this.userRemoteDataSource.requestInviteBatch(payload, ref),
+            options
+        );
     }
 
     public clearAll(): Promise<void> {

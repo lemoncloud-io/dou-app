@@ -1,1 +1,1 @@
-export * from './useCreateInvite';
+export * from './useCreateInviteBatch';

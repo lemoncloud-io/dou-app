@@ -1,22 +1,19 @@
 import { webCore } from '@chatic/web-core';
 
-import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
-const DOU_ENDPOINT = import.meta.env.VITE_DOU_ENDPOINT;
-
-const APP_URL = import.meta.env.VITE_ENV === 'PROD' ? 'https://app.chatic.io' : 'https://app-dev.chatic.io';
-
-export const inviteUser = async (body: MyUserInviteBody): Promise<MyInviteView> => {
+/**
+ * 초대 코드 정보 조회 (비소비 — 만료검사/소비스탬프 없음)
+ * GET <backend>/hello/invite-code?code=<inviteCode>
+ */
+export const fetchInviteCodeInfo = async (code: string, backend: string): Promise<MyInviteView> => {
     const { data } = await webCore
         .buildSignedRequest({
-            method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/users/0/invite`,
+            method: 'GET',
+            baseURL: `${backend}/hello/invite-code`,
         })
-        .setParams({ detail: '', expires: '1d' })
-        .setBody(body)
+        .setParams({ code })
         .execute<MyInviteView>();
 
     return data;
 };
-
-export const buildDeeplinkUrl = (code: string): string => `${APP_URL}/s/${code}`;

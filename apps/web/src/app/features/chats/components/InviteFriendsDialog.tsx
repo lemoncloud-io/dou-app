@@ -1,5 +1,5 @@
-import { ChevronLeft, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, Loader2, Search, UserPlus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ContactInfo } from '@chatic/app-messages';
@@ -8,8 +8,7 @@ import { reportError, toError } from '@chatic/web-core';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { webBridge } from '../../../shared/bridges';
-import { useCreateInvite } from '../hooks';
+import { useCreateInviteBatch } from '../hooks';
 
 import { AddFriendSheet } from './AddFriendSheet';
 import { ContactListItem } from './ContactListItem';
@@ -32,6 +31,14 @@ const isValidKoreanPhone = (digits: string): boolean => {
     return KOREAN_MOBILE_PREFIXES.some(prefix => normalized.startsWith(prefix));
 };
 
+/** 연락처에서 유효한 한국 휴대폰 번호를 추출합니다. 유효하지 않으면 null을 반환합니다. */
+const extractValidPhone = (contact: ContactInfo): string | null => {
+    const phoneNumber = contact.phoneNumbers?.[0]?.number;
+    if (!phoneNumber) return null;
+    const normalized = normalizeKoreanPhone(phoneNumber.replace(/\D/g, ''));
+    return isValidKoreanPhone(normalized) ? normalized : null;
+};
+
 interface InviteFriendsDialogProps {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
@@ -46,11 +53,17 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
     const [contacts, setContacts] = useState<ContactInfo[]>([]);
     const [permissionDenied, setPermissionDenied] = useState(false);
     const [hasRequestedContacts, setHasRequestedContacts] = useState(false);
-    const [invitingContactId, setInvitingContactId] = useState<string | null>(null);
+    const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+    const [isBatchInviting, setIsBatchInviting] = useState(false);
 
     const { isOnMobileApp } = getMobileAppInfo();
     const [isWaitingForContacts, setIsWaitingForContacts] = useState(false);
-    const { createInvite } = useCreateInvite();
+    const { createBatchInvite } = useCreateInviteBatch();
+
+    // 웹: 연락처 접근 불가 → AddFriendSheet(번호 직접 입력)만 바로 노출
+    if (!isOnMobileApp) {
+        return <AddFriendSheet open={open ?? false} onOpenChange={v => onOpenChange?.(v)} channelId={channelId} />;
+    }
 
     // Listen for contact response from native app
     useHandleAppMessage('OnGetContacts', message => {
@@ -97,74 +110,84 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
             setIsWaitingForContacts(false);
             setPermissionDenied(false);
             setContacts([]);
+            setSelectedContactIds(new Set());
+            setIsBatchInviting(false);
         }
     }, [open]);
 
-    // Filter contacts based on search
+    // 선택된 연락처는 필터 무관하게 항상 상단 표시, 나머지는 검색 필터 적용
     const filteredContacts = useMemo(() => {
-        if (!search.trim()) return contacts;
+        const selected: ContactInfo[] = [];
+        const unselected: ContactInfo[] = [];
 
-        const searchLower = search.toLowerCase();
-        return contacts.filter(contact => {
-            const displayName = contact.displayName?.toLowerCase() ?? '';
-            const givenName = contact.givenName?.toLowerCase() ?? '';
-            const familyName = contact.familyName?.toLowerCase() ?? '';
-            return (
-                displayName.includes(searchLower) || givenName.includes(searchLower) || familyName.includes(searchLower)
-            );
-        });
-    }, [contacts, search]);
-
-    const handleInvite = async (contact: ContactInfo) => {
-        if (!channelId || invitingContactId) return;
-
-        // Extract first phone number and filter to digits only
-        const phoneNumber = contact.phoneNumbers?.[0]?.number;
-        if (!phoneNumber) {
-            toast({ title: t('inviteFriends.shareFailed'), variant: 'destructive' });
-            return;
-        }
-        const phone = normalizeKoreanPhone(phoneNumber.replace(/\D/g, ''));
-
-        // Validate Korean phone number
-        if (!isValidKoreanPhone(phone)) {
-            toast({ title: t('addFriend.phoneInvalidFormat'), variant: 'destructive' });
-            return;
-        }
-
-        // Determine name (displayName > givenName familyName > Unknown)
-        const name =
-            contact.displayName || `${contact.givenName || ''} ${contact.familyName || ''}`.trim() || 'Unknown';
-
-        setInvitingContactId(contact.recordID);
-
-        try {
-            const { deeplinkUrl } = await createInvite({
-                channelId,
-                name,
-                phone,
-            });
-
-            if (isOnMobileApp) {
-                // Mobile app: Send SMS with invite link directly to the contact's phone number
-                await webBridge.request('SendSms', {
-                    data: {
-                        phoneNumbers: phone,
-                        message: `${t('inviteFriends.shareMessage')}\n${deeplinkUrl}`,
-                    },
-                });
+        for (const contact of contacts) {
+            if (selectedContactIds.has(contact.recordID)) {
+                selected.push(contact);
             } else {
-                // Browser: Copy to clipboard only
-                await navigator.clipboard.writeText(deeplinkUrl);
-                toast({ title: t('inviteFriends.linkCopied') });
+                unselected.push(contact);
             }
+        }
+
+        // 미선택 항목만 검색 필터 적용
+        let filteredUnselected = unselected;
+        if (search.trim()) {
+            const searchLower = search.toLowerCase();
+            filteredUnselected = unselected.filter(contact => {
+                const displayName = contact.displayName?.toLowerCase() ?? '';
+                const givenName = contact.givenName?.toLowerCase() ?? '';
+                const familyName = contact.familyName?.toLowerCase() ?? '';
+                return (
+                    displayName.includes(searchLower) ||
+                    givenName.includes(searchLower) ||
+                    familyName.includes(searchLower)
+                );
+            });
+        }
+
+        return [...selected, ...filteredUnselected];
+    }, [contacts, search, selectedContactIds]);
+
+    const handleToggle = useCallback(
+        (contact: ContactInfo) => {
+            if (isBatchInviting) return;
+            setSelectedContactIds(prev => {
+                const next = new Set(prev);
+                if (next.has(contact.recordID)) {
+                    next.delete(contact.recordID);
+                } else {
+                    next.add(contact.recordID);
+                }
+                return next;
+            });
+        },
+        [isBatchInviting]
+    );
+
+    const handleBatchInvite = async () => {
+        if (!channelId || selectedContactIds.size === 0 || isBatchInviting) return;
+
+        // 선택된 연락처에서 유효한 번호 추출
+        const phones: string[] = [];
+        for (const contact of contacts) {
+            if (!selectedContactIds.has(contact.recordID)) continue;
+            const phone = extractValidPhone(contact);
+            if (phone) phones.push(phone);
+        }
+
+        if (phones.length === 0) return;
+
+        setIsBatchInviting(true);
+        try {
+            await createBatchInvite({ channelId, phones });
+            toast({ title: t('inviteFriends.batchSuccess', { count: phones.length }) });
+            onOpenChange?.(false);
         } catch (error) {
-            logger.error('INVITE', 'Failed to invite contact', { error, data: { channelId } });
+            logger.error('INVITE', 'Failed to batch invite contacts', { error, data: { channelId } });
             reportError(toError(error));
-            const message = error instanceof Error ? error.message : t('inviteFriends.shareFailed');
+            const message = error instanceof Error ? error.message : t('inviteFriends.batchFailed');
             toast({ title: message, variant: 'destructive' });
         } finally {
-            setInvitingContactId(null);
+            setIsBatchInviting(false);
         }
     };
 
@@ -200,29 +223,9 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
 
                             {showPermissionBanner && <PermissionDeniedBanner />}
 
-                            <div className="px-4 pt-5">
-                                <div className="flex items-center justify-center rounded-[20px] border border-border bg-card px-[18px] py-5 shadow-sm">
-                                    <button
-                                        className="flex flex-col items-center gap-2"
-                                        onClick={() => setAddFriendOpen(true)}
-                                    >
-                                        <div className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-muted">
-                                            <img
-                                                src="/assets/icons/icon-user-plus.svg"
-                                                alt={t('inviteFriends.addFriend')}
-                                                className="h-7 w-7 dark:brightness-0 dark:invert"
-                                            />
-                                        </div>
-                                        <span className="text-center text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
-                                            {t('inviteFriends.addFriend')}
-                                        </span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {showContactList && (
-                                <div className="px-4 py-[10px]">
-                                    <div className="flex items-center gap-[9px] rounded-full border border-border bg-muted px-[14px] py-3">
+                            <div className="flex items-center gap-2 px-4 pt-4">
+                                {showContactList && (
+                                    <div className="flex flex-1 items-center gap-[9px] rounded-full border border-border bg-muted px-[14px] py-3">
                                         <Search size={18} className="shrink-0 text-foreground" />
                                         <input
                                             value={search}
@@ -231,8 +234,15 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                                             className="flex-1 bg-transparent text-[16px] leading-[1.19] tracking-[-0.015em] text-foreground placeholder:text-muted-foreground outline-none"
                                         />
                                     </div>
-                                </div>
-                            )}
+                                )}
+                                <button
+                                    onClick={() => setAddFriendOpen(true)}
+                                    aria-label={t('inviteFriends.addFriend')}
+                                    className="flex size-[46px] items-center justify-center shrink-0 rounded-full border border-border bg-card shadow-sm"
+                                >
+                                    <UserPlus size={20} className="text-foreground" />
+                                </button>
+                            </div>
                         </div>
 
                         {showContactList && (
@@ -244,15 +254,38 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                                         </p>
                                     </div>
                                 ) : (
-                                    filteredContacts.map(contact => (
-                                        <ContactListItem
-                                            key={contact.recordID}
-                                            contact={contact}
-                                            onInvite={handleInvite}
-                                            isLoading={invitingContactId === contact.recordID}
-                                        />
-                                    ))
+                                    filteredContacts.map(contact => {
+                                        const hasValidPhone = extractValidPhone(contact) !== null;
+                                        return (
+                                            <ContactListItem
+                                                key={contact.recordID}
+                                                contact={contact}
+                                                selected={selectedContactIds.has(contact.recordID)}
+                                                onToggle={handleToggle}
+                                                disabled={!hasValidPhone || isBatchInviting}
+                                            />
+                                        );
+                                    })
                                 )}
+                            </div>
+                        )}
+
+                        {/* 하단 초대 버튼 */}
+                        {selectedContactIds.size > 0 && (
+                            <div className="shrink-0 px-4 pt-3 pb-4">
+                                <button
+                                    onClick={handleBatchInvite}
+                                    disabled={isBatchInviting}
+                                    className="w-full rounded-full py-3 text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-center transition-colors
+                                        disabled:opacity-50
+                                        bg-[#B0EA10] text-[#222325]"
+                                >
+                                    {isBatchInviting ? (
+                                        <Loader2 className="mx-auto size-5 animate-spin" />
+                                    ) : (
+                                        t('inviteFriends.inviteSelected', { count: selectedContactIds.size })
+                                    )}
+                                </button>
                             </div>
                         )}
 
