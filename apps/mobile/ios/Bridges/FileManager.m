@@ -196,4 +196,34 @@ RCT_EXPORT_METHOD(endBackgroundTask:(NSString *)uploadId
     }
 }
 
+RCT_EXPORT_METHOD(createDummyFile:(NSString *)path
+                  sizeInBytes:(nonnull NSNumber *)sizeInBytes
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+    @try {
+        NSString *cleanPath = [self getCleanPath:path];
+        if ([[NSFileManager defaultManager] fileExistsAtPath:cleanPath]) {
+            [[NSFileManager defaultManager] removeItemAtPath:cleanPath error:nil];
+        }
+        
+        int fd = open([cleanPath UTF8String], O_RDWR | O_CREAT | O_TRUNC, 0666);
+        if (fd < 0) {
+            reject(@"CREATE_FAILED", @"Failed to open file", nil);
+            return;
+        }
+        
+        off_t size = [sizeInBytes longLongValue];
+        if (ftruncate(fd, size) < 0) {
+            close(fd);
+            reject(@"CREATE_FAILED", @"Failed to truncate file", nil);
+            return;
+        }
+        
+        close(fd);
+        resolve(cleanPath);
+    } @catch (NSException *exception) {
+        reject(@"CREATE_FAILED", exception.reason, nil);
+    }
+}
+
 @end

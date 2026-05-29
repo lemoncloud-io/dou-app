@@ -1,4 +1,4 @@
-package io.chatic.dou.bridge
+package io.chatic.dou.module
 
 import android.content.Intent
 import android.net.Uri
@@ -8,6 +8,7 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import io.chatic.dou.service.UploadBackgroundService
 import java.io.File
 import java.io.RandomAccessFile
 
@@ -177,6 +178,23 @@ class FileManagerModule(reactContext: ReactApplicationContext) : ReactContextBas
             promise.resolve(null)
         } catch (e: Exception) {
             promise.reject("END_BG_TASK_FAILED", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun createDummyFile(path: String, sizeInBytes: Double, promise: Promise) {
+        try {
+            val cleanPath = getCleanPath(path)
+            val file = File(cleanPath)
+            if (file.exists()) {
+                file.delete()
+            }
+            RandomAccessFile(file, "rw").use { raf ->
+                raf.setLength(sizeInBytes.toLong())
+            }
+            promise.resolve(file.absolutePath)
+        } catch (e: Exception) {
+            promise.reject("CREATE_DUMMY_FILE_FAILED", e.message, e)
         }
     }
 }

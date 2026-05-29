@@ -14,6 +14,7 @@
         "build:all:prod": "npx nx run-many --target=build --configuration=prod --all",
         "!mobile": "------------- Mobile scripts -------------",
         "mobile:sync": "npx nx sync-deps mobile",
+        "mobile:test": "yarn workspace @chatic/mobile test",
         "mobile:start": "npx dotenv -e apps/mobile/.env -- npx nx start mobile --reset-cache",
         "mobile:pod": "npx nx pod-install mobile",
         "!ios": "------------- iOS scripts -------------",
@@ -56,7 +57,9 @@
         "landing:build:dev": "yarn clean:cache && npx nx build --configuration=dev landing",
         "landing:build:prod": "yarn clean:cache && npx nx build --configuration=prod landing",
         "landing:deploy:dev": "(rm -rf ./dist/apps/landing || true) && yarn landing:build:dev && ./scripts/deploy-landing.sh dev",
-        "landing:deploy:prod": "(rm -rf ./dist/apps/landing || true) && yarn landing:build:prod && ./scripts/deploy-landing.sh prod"
+        "landing:deploy:prod": "(rm -rf ./dist/apps/landing || true) && yarn landing:build:prod && ./scripts/deploy-landing.sh prod",
+        "test-server": "------------- Landing scripts -------------",
+        "upload:server": "node scripts/upload-test-server.js"
     },
     "private": true,
     "dependencies": {

@@ -1,4 +1,4 @@
-package io.chatic.dou.bridge
+package io.chatic.dou.module
 
 import android.content.ComponentName
 import android.content.pm.PackageManager

@@ -191,3 +191,80 @@ sequenceDiagram
 ```
 
 이와 같이 세 서비스는 **OS 입력 단자(`NotificationService`)**, **포그라운드 전파 단자(`PushEventManager`)**, **백그라운드 캐시 단자(`OfflinePushQueue`)**로 역할이 철저히 격리되어 상호 간의 간섭 없이 안정적으로 수신 처리를 완수합니다.
+
+---
+
+# 고성능 네이티브 기반 대용량 파일 업로드 아키텍처 (Native-Driven Chunk Upload System)
+
+본 어플리케이션은 1GB 이상의 대용량 파일을 하이브리드 웹뷰 환경에서 안정적이고 빠르게 업로드하기 위해, **100% 네이티브 모듈 주도형 청크 업로드 엔진**과 **SQLite 기반 오프라인 상태 영속화 시스템**을 갖추고 있습니다.
+
+하이브리드 환경의 성능 병목이었던 JS 엔진 내 파일 바이너리 처리(Base64 인코딩/디코딩) 및 React Native Bridge의 직렬화 오버헤드를 근본적으로 해결하기 위해, 모든 전송 파이프라인과 백그라운드 처리를 OS 네이티브 데몬에게 직접 위임합니다.
+
+## 1. 아키텍처 개요 (Architecture Overview)
+
+```mermaid
+graph TD
+    A["WebView Debug / Mypage (Web App)"] -->|RequestFileUpload| B["useUploadHandler (WebView Hook)"]
+    B -->|uploadFile| C["UploadService (JS Orchestrator)"]
+
+    C -->|1. upsert / updateProgress| D["SqliteUploadTaskDataSource (JSI Storage)"]
+    C -->|2. enqueueUpload| E["UploadManagerBridge (Native Bridge)"]
+
+    E -->|Start background upload daemon| F["Native Upload Manager"]
+    F -->|iOS: URLSession Background Task| G["AWS S3 / Chunk Storage"]
+    F -->|Android: Foreground WorkManager| G
+
+    F -.->|State & Progress Events| H["UploadManagerStateChanged (Native Events)"]
+    H -->|addListener| C
+    C -->|onProgress / onComplete| B
+    B -->|Emit WebEvent| A
+```
+
+성능과 배터리 효율 극대화를 위해 다음의 핵심 설계를 구현하였습니다:
+
+1. **JNI 경유 바이너리 전달 제거 (Zero JNI Buffer Copy)**: JS 컨텍스트에서 대용량 파일의 청크를 쪼개어 Base64로 전송하는 레거시 패턴을 삭제하였습니다. 대신 웹뷰 및 서비스 레이어는 메타데이터와 엔드포인트 정보만 네이티브 브릿지에 전달하며, 실제 디바이스 스토리지 상의 바이너리 IO 및 전송 제어는 네이티브 스레드에서 직접 수행합니다.
+2. **네이티브 상태 드리븐 동기화 (Event-Driven State Engine)**: JS 서비스 레이어는 타이머 기반의 폴링이나 추정 진행률 계산을 배제하고, 네이티브 업로드 엔진이 백그라운드 스레드에서 직접 발행하는 `UploadManagerStateChanged` 이벤트를 리스닝하여 정확한 바이트 진행도 및 상태 전이를 콜백에 매핑합니다.
+3. **SQLite JSI 기반 중단점 복구 (Resume-from-Offset)**: 앱 강제 종료, OS 메모리 압박으로 인한 크래시, 네트워크 유실 상황에서도 사용자가 업로드를 중단점에서 이어서 재개할 수 있도록, 청크 단위 완료 시점마다 **SQLite JSI 스토리지(`SqliteUploadTaskDataSource`)**에 마지막 업로드 완료 바이트 오프셋과 청크 인덱스를 영속화합니다.
+4. **수동/자동 복구 지원 (Manual Recovery)**: 앱 부팅 시 `listRecoverableUploads()` API를 호출하여 이전에 완료되지 않은 채 중단된 업로드 작업 정보를 SQLite로부터 불러와 UI 상에 일시정지(`paused`) 또는 실패(`failed`) 상태로 표시하고, 사용자의 명시적 클릭 시 복구를 수행할 수 있는 인터페이스를 제공합니다.
+5. **iOS Swift 및 Background URLSession 통합 (Swift Delegate-based Engine)**: Background URLSession 전송 시 completionHandler 블록을 지원하지 않고 강제 크래시를 유발하는 iOS OS 정책을 회피하기 위해, Swift 기반 업로드 모듈로 전면 재작성하였습니다. `UploadChunkContext`와 전용 델리게이트 수신 구조를 구성하여 앱이 Suspend 되거나 종료되더라도 시스템 데몬(`nsurlsessiond`)이 청크 업로드를 순차적이고 안정적으로 처리하도록 고도화하였습니다.
+6. **Android 14+ 데이터 동기화 포그라운드 준수 (Android 14+ Foreground Service Type Safety)**: Target SDK 34+ 사양에 맞춰 Android `UploadBackgroundService` 및 WorkManager의 `SystemForegroundService` 모두 매니페스트 레벨에서 `android:foregroundServiceType="dataSync"`로 통합 지정 및 선언하고, 런타임에 명시적인 `ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC` 타입 비트를 실어 Foreground Service를 기동함으로써 OS 차원의 강제 킬(Kill) 및 런타임 예외를 완전히 차단하였습니다.
+
+---
+
+## 2. 주요 구성 컴포넌트 (Key Components)
+
+### 📂 `src/app/services/upload`
+
+- **`UploadService`** (`types.ts` / `UploadService.ts`)
+    - 업로드 상태 관리 및 이벤트를 네이티브 리스너와 바인딩하는 메인 오케스트레이터.
+    - 브릿지가 항상 연결되어 있는 하이브리드 보장을 기반으로 하므로, 불필요한 JS Fallback Loop 및 Semaphore Concurrency Logic을 제거하고 완전한 네이티브 단일 파이프라인으로 구성되었습니다.
+    - `UploadManagerBridge`와 연동하여 Enqueue, Pause, Resume, Cancel 동작을 직접 제어합니다.
+- **`SqliteUploadTaskDataSource`** (`repository/types.ts` / `repository/SqliteUploadTaskDataSource.ts`)
+    - `@op-engineering/op-sqlite` 라이브러리를 경유해 SQLite 스키마 테이블에 파일 메타데이터, 청크 오프셋 상태를 즉각 쓰기/읽기 수행하는 로컬 저장소 계층.
+    - 비동기 SQLite JSI 바인딩을 적용하여 데이터 조회/쓰기 동작의 병목을 없앴습니다.
+
+### 📱 네이티브 플랫폼 영역 (Native Platform Components)
+
+- **iOS Swift 업로드 엔진 (`UploadManager.swift` / `UploadManager.m`)**
+    - **백그라운드 세션 (`URLSessionConfiguration.background`)**: 앱이 백그라운드에 진입하거나 Suspend 되더라도 iOS 시스템 데몬(`nsurlsessiond`)이 백그라운드 환경에서 전송 작업을 끝까지 유지하도록 전담 제어합니다.
+    - **파일 기반 청크 전송**: iOS 백그라운드 세션의 제한 사항(인메모리 바이너리 스트리밍 불가)을 준수하기 위해, 청크 단위로 multipart/form-data 규격의 임시 파일(`NSTemporaryDirectory()`)을 생성해 `uploadTask(with:fromFile:)`로 전송합니다.
+    - **델리게이트 기반 상태 시퀀싱**: 백그라운드 세션 내의 completionHandler 호출 제한(크래시 유발) 문제를 해결하기 위해 `URLSessionTaskDelegate`를 완벽 구현하여, 각 청크 전송의 완료 피드백을 수신하고 다음 청크를 순차 기동하는 이벤트 루프를 구성합니다.
+    - **직렬 상태 관리 큐 (`stateQueue`)**: 모든 태스크 등록/조회/삭제 및 업로드 상태 전이를 전용 직렬 큐(`DispatchQueue`) 위에서 동기화하여 다중 스레드 레이스 컨디션을 완전히 방지합니다.
+    - **백오프 재시도 및 메인 스레드 연동**: 일시적 네트워크 장애 발생 시 지수 백오프 기반으로 임시 파일을 재사용해 자동 재시도하며, 모든 이벤트 완료 후 OS가 앱을 다시 정상 휴면할 수 있도록 `urlSessionDidFinishEvents` 시점에 AppDelegate 완료 핸들러를 메인 스레드에서 즉각 해제 보고합니다.
+
+- **Android Kotlin 업로드 엔진 (`UploadBackgroundService.kt` / `UploadWorker.kt`)**
+    - **하이브리드 포그라운드 동기화 (Foreground Service + WorkManager)**: 대용량 파일 전송 중 OS에 의한 강제 프로세스 회수를 원천 차단하기 위해 안드로이드 Foreground Service와 WorkManager가 상호 보완하는 구조로 설계되었습니다.
+    - **WorkManager 제약 조건 제어 (`UploadWorker`)**: 기기의 네트워크 연결(`NetworkType.CONNECTED`) 상태 조건을 보장하고, 실행 즉시 Foreground Worker로 등록되어 OS가 장기 실행 작업으로 관리하게 만듭니다.
+    - **포그라운드 서비스 및 멀티스레드 전송 (`UploadBackgroundService`)**: 최대 3개의 파일 동시 업로드를 관리하는 고성능 스레드풀(`FixedThreadPool`)을 운용하며, 물리 파일 스트리밍 IO(`FileInputStream`) 및 CPU 유지를 위한 `WakeLock`을 직접 핸들링합니다.
+    - **Android 14+ 데이터 동기화 규격 대응**: `AndroidManifest.xml`에 `tools:node="merge"` 속성을 정의하여 내장 `SystemForegroundService`에 `foregroundServiceType="dataSync"` 속성을 강제 주입 병합하고, 런타임 Foreground Service 기동 시 `FOREGROUND_SERVICE_TYPE_DATA_SYNC` 타입 비트를 명시적으로 결합해 OS 런타임 충돌을 배제하였습니다.
+    - **안드로이드 브로드캐스트 이벤트 통신**: 실시간 전송 현황을 `ACTION_UPLOAD_EVENT` 인텐트 브로드캐스트로 발행하며, 이를 브릿지(`UploadManagerModule`)에서 가로채 JS 영역의 `UploadManagerStateChanged` 이벤트로 즉각 주입합니다.
+
+---
+
+## 3. 기능 수동 테스트 및 진단 (Upload Debug Screen)
+
+개발자 전용 도구 화면인 **`UploadTestScreen.tsx`**를 통해 네이티브 백그라운드 업로드 기능을 안정적으로 진단할 수 있습니다:
+
+1. **대용량 가상 파일 staging (Sparse Mock Generator)**: Unix `ftruncate` API를 브릿지로 호출하여, 실제 SSD 쓰기 주기(Flash Lifecycle) 손상 없이 기기 디렉토리에 즉각 **1GB / 5GB 크기의 가상 파일**을 스테이징 생성합니다.
+2. **AppState 백그라운드 추적기 (Background Endurance Logger)**: 앱이 포그라운드(Active)에서 백그라운드(Background)로 진입 및 복귀할 때의 앱 상태를 실시간 로깅하여 OS의 백그라운드 정책 속에서도 네이티브 이벤트가 지속 수신되는지 가시적으로 확인합니다.
+3. **고해상도 성능 대시보드 (Throughput & ETA Dashboard)**: 초당 전송 속도(**MB/s**), 소요 시간, 그리고 전송 추세를 수학적으로 추정한 **남은 시간(ETA)** 정보를 실시간으로 계산해 화면 상에 렌더링합니다.

@@ -46,6 +46,7 @@ import type {
     PongPayload,
     OnUploadProgressPayload,
     OnUploadCompletePayload,
+    OnListRecoverableUploadsPayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -76,6 +77,9 @@ export const AppMessageTypes = {
     Pong: 'Pong',
     OnUploadProgress: 'OnUploadProgress',
     OnUploadComplete: 'OnUploadComplete',
+    OnListRecoverableUploads: 'OnListRecoverableUploads',
+    OnRecoverUpload: 'OnRecoverUpload',
+    OnRetryUpload: 'OnRetryUpload',
 
     // 2. Notification
     OnFetchFcmToken: 'OnFetchFcmToken',
@@ -160,6 +164,9 @@ export interface AppMessageDataMap {
     OnOpenShareSheet: OnOpenShareSheetPayload;
     OnUploadProgress: OnUploadProgressPayload;
     OnUploadComplete: OnUploadCompletePayload;
+    OnListRecoverableUploads: OnListRecoverableUploadsPayload;
+    OnRecoverUpload: never;
+    OnRetryUpload: never;
     OnBackPressed: never;
     OnOpenDocument: OnOpenDocumentPayload;
     OnGetContacts: OnGetContactsPayload;

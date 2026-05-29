@@ -1,7 +1,20 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { FlatList, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
+import {
+    FlatList,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+    AppState,
+    type AppStateStatus,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { deviceService, uploadService } from '../../../services';
+import type { UploadTaskPersistedRecord } from '../../../services';
+import { FileManagerBridge } from '../../../bridge';
 
 interface LogItem {
     id: string;
@@ -19,6 +32,9 @@ interface UploadItem {
     progress: number;
     uploadedBytes: number;
     status: 'uploading' | 'paused' | 'cancelled' | 'completed' | 'failed';
+    startTime?: number;
+    speed?: number; // MB/s
+    eta?: number; // seconds
 }
 
 export const UploadTestScreen = () => {
@@ -26,7 +42,7 @@ export const UploadTestScreen = () => {
 
     // Config states
     const [uploadUrl, setUploadUrl] = useState('http://localhost:8080/upload');
-    const [chunkSize, setChunkSize] = useState(1024 * 1024); // 1MB Default
+    const [chunkSize, setChunkSize] = useState(5 * 1024 * 1024); // 5MB Default for large files
 
     // Staged picked files list
     const [selectedFiles, setSelectedFiles] = useState<
@@ -35,11 +51,13 @@ export const UploadTestScreen = () => {
             name: string;
             type?: string;
             size: number;
+            isGenerated?: boolean;
         }>
     >([]);
 
     // List of multiple active/completed upload tasks
     const [uploads, setUploads] = useState<UploadItem[]>([]);
+    const [recoverables, setRecoverables] = useState<UploadTaskPersistedRecord[]>([]);
 
     // Console logs state
     const [logs, setLogs] = useState<LogItem[]>([]);
@@ -72,9 +90,59 @@ export const UploadTestScreen = () => {
         []
     );
 
+    // Monitor AppState (Background/Foreground Transition)
+    useEffect(() => {
+        const handleAppStateChange = (nextAppState: AppStateStatus) => {
+            addLog('warning', `[System] AppState transitioned to: ${nextAppState.toUpperCase()}`);
+        };
+
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+        addLog('info', '[System] Registered AppState monitor for background transfer testing.');
+
+        return () => {
+            subscription.remove();
+        };
+    }, [addLog]);
+
     const handleClearLogs = () => {
         setLogs([]);
     };
+
+    const mapPersistedToUploadItem = useCallback((record: UploadTaskPersistedRecord): UploadItem => {
+        const payload = record.payload;
+        const totalBytes = payload.fileSize;
+        const uploadedBytes = record.uploadedBytes ?? 0;
+        const progress = totalBytes > 0 ? Math.min(1, Math.max(0, uploadedBytes / totalBytes)) : 0;
+
+        return {
+            uploadId: record.uploadId,
+            fileName: payload.fileName,
+            fileSize: payload.fileSize,
+            fileUri: payload.fileUri,
+            mimeType: payload.mimeType,
+            progress,
+            uploadedBytes,
+            status: record.status,
+        };
+    }, []);
+
+    const handleLoadRecoverables = useCallback(async () => {
+        addLog('info', '[Recovery] Loading recoverable upload tasks from local DB...');
+        try {
+            const items = await uploadService.listRecoverableUploads();
+            setRecoverables(items);
+
+            setUploads(prev => {
+                const existing = new Set(prev.map(u => u.uploadId));
+                const mapped = items.filter(r => !existing.has(r.uploadId)).map(r => mapPersistedToUploadItem(r));
+                return [...mapped, ...prev];
+            });
+
+            addLog('success', `[Recovery] Loaded ${items.length} recoverable task(s).`);
+        } catch (e: any) {
+            addLog('error', `[Recovery] Failed to load tasks: ${e.message}`);
+        }
+    }, [addLog, mapPersistedToUploadItem]);
 
     // 1. Pick Multiple Files via native deviceService (allowMultiSelection: true)
     const pickFile = async () => {
@@ -101,7 +169,32 @@ export const UploadTestScreen = () => {
         }
     };
 
-    // 2. Start Native Chunked Upload for all staged files in parallel
+    // 2. Generate and Stage Sparse File directly via bridge
+    const stageDummyFile = async (sizeInGB: number) => {
+        const sizeInBytes = sizeInGB * 1024 * 1024 * 1024;
+        const fileName = `dummy_${sizeInGB}GB_${Math.random().toString(36).substring(2, 6)}.bin`;
+        const path = `${FileManagerBridge.DocumentDirectoryPath}/${fileName}`;
+
+        addLog('info', `[Generator] Requesting native sparse file allocation: ${sizeInGB}GB at ${path}...`);
+
+        try {
+            const resultPath = await FileManagerBridge.createDummyFile(path, sizeInBytes);
+            const stagedFile = {
+                uri: `file://${resultPath}`,
+                name: fileName,
+                type: 'application/octet-stream',
+                size: sizeInBytes,
+                isGenerated: true,
+            };
+
+            setSelectedFiles(prev => [...prev, stagedFile]);
+            addLog('success', `[Generator] Instantly allocated and staged ${sizeInGB}GB sparse test file.`);
+        } catch (e: any) {
+            addLog('error', `[Generator] Sparse file allocation failed: ${e.message}`);
+        }
+    };
+
+    // 3. Start Native Chunked Upload for all staged files in parallel
     const startUpload = async () => {
         if (selectedFiles.length === 0) {
             addLog('warning', '[Upload] No staged files selected to upload.');
@@ -125,12 +218,13 @@ export const UploadTestScreen = () => {
                 progress: 0,
                 uploadedBytes: 0,
                 status: 'uploading',
+                startTime: Date.now(),
             };
 
             setUploads(prev => [newUploadTask, ...prev]);
             addLog(
                 'info',
-                `[Upload - ${newUploadId.substring(14)}] Starting task for ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`
+                `[Upload - ${newUploadId.substring(14)}] Starting task for ${file.name} (${(file.size / (1024 * 1024 * 1024)).toFixed(2)} GB)`
             );
 
             try {
@@ -145,25 +239,36 @@ export const UploadTestScreen = () => {
                         chunkSize: chunkSize,
                     },
                     progressPayload => {
-                        // onProgress callback
+                        // Calculate speed and ETA
                         setUploads(prev =>
-                            prev.map(u =>
-                                u.uploadId === progressPayload.uploadId
-                                    ? {
-                                          ...u,
-                                          progress: progressPayload.progress,
-                                          uploadedBytes: progressPayload.uploadedBytes,
-                                          status: progressPayload.status,
-                                      }
-                                    : u
-                            )
+                            prev.map(u => {
+                                if (u.uploadId === progressPayload.uploadId) {
+                                    const elapsed = (Date.now() - (u.startTime || Date.now())) / 1000;
+                                    const speed =
+                                        elapsed > 0 ? progressPayload.uploadedBytes / (1024 * 1024) / elapsed : 0;
+                                    const remainingBytes = u.fileSize - progressPayload.uploadedBytes;
+                                    const eta = speed > 0 ? remainingBytes / (1024 * 1024) / speed : 0;
+
+                                    return {
+                                        ...u,
+                                        progress: progressPayload.progress,
+                                        uploadedBytes: progressPayload.uploadedBytes,
+                                        status: progressPayload.status,
+                                        speed,
+                                        eta,
+                                    };
+                                }
+                                return u;
+                            })
                         );
 
                         const percent = Math.round(progressPayload.progress * 100);
-                        addLog(
-                            'info',
-                            `[Progress - ${progressPayload.uploadId.substring(14)}] ${percent}% | Status: ${progressPayload.status}`
-                        );
+                        if (percent % 10 === 0) {
+                            addLog(
+                                'info',
+                                `[Progress - ${progressPayload.uploadId.substring(14)}] ${percent}% | Status: ${progressPayload.status}`
+                            );
+                        }
                     },
                     completePayload => {
                         // onComplete callback
@@ -183,7 +288,7 @@ export const UploadTestScreen = () => {
                         if (completePayload.success) {
                             addLog(
                                 'success',
-                                `[Complete - ${completePayload.uploadId.substring(14)}] Upload completed successfully!`
+                                `[Complete - ${completePayload.uploadId.substring(14)}] Upload completed successfully.`
                             );
                         } else {
                             addLog(
@@ -211,17 +316,19 @@ export const UploadTestScreen = () => {
         });
     };
 
-    // 3. Pause Upload
+    // 4. Pause Upload
     const handlePause = (item: UploadItem) => {
         addLog('info', `[Upload - ${item.uploadId.substring(14)}] Requesting PAUSE...`);
         uploadService.pauseUpload(item.uploadId);
     };
 
-    // 4. Resume Upload
+    // 5. Resume Upload
     const handleResume = (item: UploadItem) => {
         addLog('info', `[Upload - ${item.uploadId.substring(14)}] Requesting RESUME...`);
 
-        setUploads(prev => prev.map(u => (u.uploadId === item.uploadId ? { ...u, status: 'uploading' } : u)));
+        setUploads(prev =>
+            prev.map(u => (u.uploadId === item.uploadId ? { ...u, status: 'uploading', startTime: Date.now() } : u))
+        );
 
         uploadService.uploadFile(
             {
@@ -235,22 +342,32 @@ export const UploadTestScreen = () => {
             },
             progressPayload => {
                 setUploads(prev =>
-                    prev.map(u =>
-                        u.uploadId === progressPayload.uploadId
-                            ? {
-                                  ...u,
-                                  progress: progressPayload.progress,
-                                  uploadedBytes: progressPayload.uploadedBytes,
-                                  status: progressPayload.status,
-                              }
-                            : u
-                    )
+                    prev.map(u => {
+                        if (u.uploadId === progressPayload.uploadId) {
+                            const elapsed = (Date.now() - (u.startTime || Date.now())) / 1000;
+                            const speed = elapsed > 0 ? progressPayload.uploadedBytes / (1024 * 1024) / elapsed : 0;
+                            const remainingBytes = u.fileSize - progressPayload.uploadedBytes;
+                            const eta = speed > 0 ? remainingBytes / (1024 * 1024) / speed : 0;
+
+                            return {
+                                ...u,
+                                progress: progressPayload.progress,
+                                uploadedBytes: progressPayload.uploadedBytes,
+                                status: progressPayload.status,
+                                speed,
+                                eta,
+                            };
+                        }
+                        return u;
+                    })
                 );
                 const percent = Math.round(progressPayload.progress * 100);
-                addLog(
-                    'info',
-                    `[Progress - ${progressPayload.uploadId.substring(14)}] ${percent}% | Status: ${progressPayload.status}`
-                );
+                if (percent % 10 === 0) {
+                    addLog(
+                        'info',
+                        `[Progress - ${progressPayload.uploadId.substring(14)}] ${percent}% | Status: ${progressPayload.status}`
+                    );
+                }
             },
             completePayload => {
                 setUploads(prev =>
@@ -268,7 +385,7 @@ export const UploadTestScreen = () => {
                 if (completePayload.success) {
                     addLog(
                         'success',
-                        `[Complete - ${completePayload.uploadId.substring(14)}] Upload completed successfully!`
+                        `[Complete - ${completePayload.uploadId.substring(14)}] Upload completed successfully.`
                     );
                 } else {
                     addLog(
@@ -288,10 +405,25 @@ export const UploadTestScreen = () => {
         );
     };
 
-    // 5. Cancel Upload
+    const handleRetry = (item: UploadItem) => {
+        addLog('info', `[Upload - ${item.uploadId.substring(14)}] Requesting RETRY...`);
+        setUploads(prev => prev.map(u => (u.uploadId === item.uploadId ? { ...u, status: 'uploading' } : u)));
+        handleResume(item);
+    };
+
+    // 6. Cancel Upload
     const handleCancel = (item: UploadItem) => {
         addLog('info', `[Upload - ${item.uploadId.substring(14)}] Requesting CANCEL...`);
         uploadService.cancelUpload(item.uploadId);
+    };
+
+    // Helper to format remaining time
+    const formatETA = (seconds?: number) => {
+        if (seconds === undefined || seconds === Infinity || isNaN(seconds)) return '--:--';
+        if (seconds < 60) return `${Math.round(seconds)}s`;
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.round(seconds % 60);
+        return `${mins}m ${secs}s`;
     };
 
     // Get color for status badge
@@ -332,7 +464,7 @@ export const UploadTestScreen = () => {
         <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
             {/* Title Header */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Pure Native Upload Test Screen</Text>
+                <Text style={styles.headerTitle}>Large File Background Upload Monitor</Text>
                 <Text style={styles.headerSub}>
                     React Native UploadService Direct Testing (Concurrent Multi-Upload)
                 </Text>
@@ -357,10 +489,10 @@ export const UploadTestScreen = () => {
                     <Text style={styles.inputLabel}>Chunk Size</Text>
                     <View style={styles.chunkRow}>
                         {[
-                            { label: '512 KB', value: 512 * 1024 },
-                            { label: '1.0 MB (기본)', value: 1024 * 1024 },
-                            { label: '2.0 MB', value: 2 * 1024 * 1024 },
-                            { label: '5.0 MB', value: 5 * 1024 * 1024 },
+                            { label: '1 MB', value: 1024 * 1024 },
+                            { label: '5 MB (Large)', value: 5 * 1024 * 1024 },
+                            { label: '10 MB', value: 10 * 1024 * 1024 },
+                            { label: '25 MB', value: 25 * 1024 * 1024 },
                         ].map(item => (
                             <TouchableOpacity
                                 key={item.value}
@@ -380,24 +512,41 @@ export const UploadTestScreen = () => {
                     </View>
                 </View>
 
-                {/* Staging Picked Files */}
+                {/* Staging Picked / Generated Files */}
                 <View style={styles.card}>
-                    <Text style={styles.cardLabel}>Pick Files & Stage Upload</Text>
+                    <Text style={styles.cardLabel}>Pick & Stage Upload Data</Text>
 
+                    {/* Standard document picker */}
                     <TouchableOpacity style={[styles.actionBtn, styles.btnPrimary]} onPress={pickFile}>
-                        <Text style={styles.actionBtnText}>Pick Files via Native DeviceService</Text>
+                        <Text style={styles.actionBtnText}>Pick Files via Native Picker</Text>
                     </TouchableOpacity>
 
+                    {/* Generate and stage sparse test files */}
+                    <View style={styles.generatorRow}>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, styles.btnOutline, { flex: 1 }]}
+                            onPress={() => stageDummyFile(1)}
+                        >
+                            <Text style={styles.actionBtnTextOutline}>Stage 1GB Sparse</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, styles.btnOutline, { flex: 1 }]}
+                            onPress={() => stageDummyFile(5)}
+                        >
+                            <Text style={styles.actionBtnTextOutline}>Stage 5GB Sparse</Text>
+                        </TouchableOpacity>
+                    </View>
+
                     {selectedFiles.length > 0 ? (
-                        <View style={styles.fileDetails}>
+                        <View style={[styles.fileDetails, { marginTop: 12 }]}>
                             <Text style={styles.boldText}>Staged Files ({selectedFiles.length}):</Text>
                             {selectedFiles.map((file, idx) => (
                                 <View key={`${file.uri}_${idx}`} style={styles.stagedFileItem}>
                                     <Text style={styles.stagedFileName} numberOfLines={1}>
-                                        • {file.name}
+                                        • {file.name} {file.isGenerated && '(Sparse)'}
                                     </Text>
                                     <Text style={styles.stagedFileSize}>
-                                        ({(file.size / (1024 * 1024)).toFixed(2)} MB)
+                                        ({(file.size / (1024 * 1024 * 1024)).toFixed(2)} GB)
                                     </Text>
                                 </View>
                             ))}
@@ -408,11 +557,11 @@ export const UploadTestScreen = () => {
                                     onPress={startUpload}
                                 >
                                     <Text style={styles.actionBtnText}>
-                                        Start Upload for All ({selectedFiles.length})
+                                        Upload Staged Files ({selectedFiles.length})
                                     </Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    style={[styles.actionBtn, styles.btnDanger, { flex: 0.5, marginBottom: 0 }]}
+                                    style={[styles.actionBtn, styles.btnDanger, { flex: 0.4, marginBottom: 0 }]}
                                     onPress={() => setSelectedFiles([])}
                                 >
                                     <Text style={styles.actionBtnText}>Clear</Text>
@@ -420,13 +569,15 @@ export const UploadTestScreen = () => {
                             </View>
                         </View>
                     ) : (
-                        <Text style={styles.emptyText}>파일을 먼저 선택해주세요 (다중 선택 지원).</Text>
+                        <Text style={styles.emptyText}>
+                            파일 또는 가상 디바이스 디버그 파일을 준비하여 업로드를 진행하세요.
+                        </Text>
                     )}
                 </View>
 
                 {/* Active Concurrent Uploads List */}
                 <View style={styles.card}>
-                    <Text style={styles.cardLabel}>Active Upload Tasks ({uploads.length})</Text>
+                    <Text style={styles.cardLabel}>Active Background Transfers ({uploads.length})</Text>
 
                     {uploads.length > 0 ? (
                         uploads.map(item => (
@@ -463,6 +614,14 @@ export const UploadTestScreen = () => {
                                             {item.uploadedBytes.toLocaleString()} / {item.fileSize.toLocaleString()} B
                                         </Text>
                                     </View>
+                                    {item.status === 'uploading' && (
+                                        <View style={styles.statsInfo}>
+                                            <Text style={styles.statText}>
+                                                Speed: {item.speed?.toFixed(2) ?? '0.00'} MB/s
+                                            </Text>
+                                            <Text style={styles.statText}>ETA: {formatETA(item.eta)}</Text>
+                                        </View>
+                                    )}
                                 </View>
 
                                 {/* Task Specific Control Buttons */}
@@ -501,12 +660,27 @@ export const UploadTestScreen = () => {
                                         </>
                                     )}
 
-                                    {(item.status === 'completed' ||
-                                        item.status === 'failed' ||
-                                        item.status === 'cancelled') && (
+                                    {(item.status === 'completed' || item.status === 'cancelled') && (
                                         <Text style={styles.taskDoneText}>
                                             Task {item.status === 'completed' ? 'Successfully Finished' : 'Terminated'}
                                         </Text>
+                                    )}
+
+                                    {item.status === 'failed' && (
+                                        <>
+                                            <TouchableOpacity
+                                                style={[styles.controlBtn, styles.btnSuccess]}
+                                                onPress={() => handleRetry(item)}
+                                            >
+                                                <Text style={styles.controlBtnText}>Retry</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={[styles.controlBtn, styles.btnDanger]}
+                                                onPress={() => handleCancel(item)}
+                                            >
+                                                <Text style={styles.controlBtnText}>Cancel</Text>
+                                            </TouchableOpacity>
+                                        </>
                                     )}
                                 </View>
                             </View>
@@ -515,9 +689,25 @@ export const UploadTestScreen = () => {
                         <Text style={styles.emptyText}>등록된 업로드 작업이 없습니다.</Text>
                     )}
                 </View>
+
+                {/* Manual Recovery Helper */}
+                <View style={styles.card}>
+                    <Text style={styles.cardLabel}>Manual Recovery (Persisted Tasks)</Text>
+                    <Text style={styles.cardDesc}>
+                        앱 재시작/중단 이후 DB에 남아있는 업로드 작업을 불러와 수동으로 재개/재시도할 수 있습니다.
+                    </Text>
+
+                    <TouchableOpacity
+                        style={[styles.actionBtn, { backgroundColor: '#9B59B6' }]}
+                        onPress={handleLoadRecoverables}
+                    >
+                        <Text style={styles.actionBtnText}>Load Recoverable Uploads</Text>
+                    </TouchableOpacity>
+
+                    <Text style={styles.smallHintText}>Loaded: {recoverables.length} task(s)</Text>
+                </View>
             </ScrollView>
 
-            {/* Logs Console */}
             {/* Logs Console Header */}
             <View style={styles.logHeader}>
                 <TouchableOpacity
@@ -595,6 +785,12 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
         marginBottom: 12,
     },
+    cardDesc: {
+        color: '#888',
+        fontSize: 12,
+        marginBottom: 12,
+        lineHeight: 16,
+    },
     inputLabel: {
         color: '#888',
         fontSize: 11,
@@ -657,12 +853,6 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#2A2A2A',
     },
-    fileDetailsText: {
-        color: '#888',
-        fontSize: 11,
-        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-        marginBottom: 4,
-    },
     boldText: {
         color: '#DDD',
         fontWeight: 'bold',
@@ -699,6 +889,16 @@ const styles = StyleSheet.create({
         fontSize: 10,
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     },
+    statsInfo: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 4,
+    },
+    statText: {
+        color: '#888',
+        fontSize: 10,
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    },
     actionBtn: {
         height: 40,
         borderRadius: 8,
@@ -711,6 +911,11 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 13,
     },
+    actionBtnTextOutline: {
+        color: '#3498DB',
+        fontWeight: 'bold',
+        fontSize: 12,
+    },
     btnPrimary: {
         backgroundColor: '#3498DB',
     },
@@ -722,6 +927,16 @@ const styles = StyleSheet.create({
     },
     btnDanger: {
         backgroundColor: '#E74C3C',
+    },
+    btnOutline: {
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: '#3498DB',
+    },
+    generatorRow: {
+        flexDirection: 'row',
+        gap: 8,
+        marginBottom: 10,
     },
     logHeader: {
         flexDirection: 'row',
@@ -791,7 +1006,11 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginVertical: 12,
     },
-    // New Styles for Task List & Staging
+    smallHintText: {
+        color: '#666',
+        fontSize: 11,
+        marginTop: 8,
+    },
     stagedFileItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',

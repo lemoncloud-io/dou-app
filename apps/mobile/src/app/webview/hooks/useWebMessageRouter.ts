@@ -81,12 +81,20 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
         handleOpenCamera,
         handleOpenPhotoLibrary,
         handleOpenURL,
+        handleCreateDummyFile,
     } = useDeviceHandler();
 
     const { handleSendSms } = useSmsHandler();
 
-    const { handleRequestFileUpload, handlePauseFileUpload, handleResumeFileUpload, handleCancelFileUpload } =
-        useUploadHandler(bridge);
+    const {
+        handleRequestFileUpload,
+        handlePauseFileUpload,
+        handleResumeFileUpload,
+        handleCancelFileUpload,
+        handleListRecoverableUploads,
+        handleRecoverUpload,
+        handleRetryUpload,
+    } = useUploadHandler(bridge);
 
     const { handleRequestPermission } = usePermissionHandler();
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler();
@@ -144,6 +152,7 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
         handleOAuthLogout,
         handleOpenURL,
         handleSendSms,
+        handleCreateDummyFile,
         handleFetchAppIcon,
         handleFetchAppIconList,
         handleChangeAppIcon,
@@ -151,6 +160,9 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
         handlePauseFileUpload,
         handleResumeFileUpload,
         handleCancelFileUpload,
+        handleListRecoverableUploads,
+        handleRecoverUpload,
+        handleRetryUpload,
         handleFetchTestRecord,
         handleFetchAllTestRecords,
         handleSaveTestRecord,
@@ -200,6 +212,7 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
             handleOAuthLogout,
             handleOpenURL,
             handleSendSms,
+            handleCreateDummyFile,
             handleFetchAppIcon,
             handleFetchAppIconList,
             handleChangeAppIcon,
@@ -212,6 +225,9 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
             handlePauseFileUpload,
             handleResumeFileUpload,
             handleCancelFileUpload,
+            handleListRecoverableUploads,
+            handleRecoverUpload,
+            handleRetryUpload,
         };
     });
 
@@ -272,6 +288,10 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
             PauseFileUpload: message => handlersRef.current.handlePauseFileUpload(message),
             ResumeFileUpload: message => handlersRef.current.handleResumeFileUpload(message),
             CancelFileUpload: message => handlersRef.current.handleCancelFileUpload(message),
+            ListRecoverableUploads: () => handlersRef.current.handleListRecoverableUploads(),
+            RecoverUpload: message => handlersRef.current.handleRecoverUpload(message),
+            RetryUpload: message => handlersRef.current.handleRetryUpload(message),
+            CreateDummyFile: message => handlersRef.current.handleCreateDummyFile(message),
         };
 
         // Bridge에 핸들러 등록

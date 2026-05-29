@@ -38,6 +38,9 @@ import type {
     PauseFileUploadPayload,
     ResumeFileUploadPayload,
     CancelFileUploadPayload,
+    RecoverUploadPayload,
+    RetryUploadPayload,
+    CreateDummyFilePayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -52,6 +55,11 @@ export interface WebMessagePayloadMap {
     PauseFileUpload: PauseFileUploadPayload;
     ResumeFileUpload: ResumeFileUploadPayload;
     CancelFileUpload: CancelFileUploadPayload;
+    ListRecoverableUploads: never;
+    RecoverUpload: RecoverUploadPayload;
+    RetryUpload: RetryUploadPayload;
+    CreateDummyFile: CreateDummyFilePayload;
+
     OpenShareSheet: OpenShareSheetPayload;
     GetContacts: never;
     OpenDocument: OpenDocumentPayload;
