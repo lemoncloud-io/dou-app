@@ -21,11 +21,17 @@ import { LoadingFallback } from '@chatic/shared';
 
 import { getMobileAppInfo, logger } from '@chatic/app-messages';
 
-import type { CloudDelegationTokenView, UserProfile$, UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type {
+    CloudDelegationTokenView,
+    MyInviteView,
+    UserProfile$,
+    UserTokenView,
+} from '@lemoncloud/chatic-backend-api';
 
 import { useRegisterDevice } from '@chatic/auth';
 import { useDynamicDeviceId } from '../../../shared/hooks/useDynamicDeviceId';
 import { useInviteMutations } from '../../../shared/hooks/useInviteMutations';
+import { fetchInviteCodeInfo } from '../../chats/apis/invite-api';
 
 export const LoginPage = (): JSX.Element => {
     const { t } = useTranslation();
@@ -45,6 +51,7 @@ export const LoginPage = (): JSX.Element => {
     const profile = useWebCoreStore(state => state.profile);
     const selectedCloudId = cloudCore.getSelectedCloudId() ?? 'default';
     const delegatorId = useDelegatorId();
+    const [inviteInfo, setInviteInfo] = useState<MyInviteView | null>(null);
 
     const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
@@ -105,9 +112,35 @@ export const LoginPage = (): JSX.Element => {
 
         if (code && provider === 'invite') {
             setIsInviteLogin(true);
+
+            const backend = urlParams.get('_backend');
             const siteId = urlParams.get('_siteId');
             const siteName = urlParams.get('_siteName');
-            if (siteId && siteName) {
+
+            // GET endpoint로 초대 정보 조회 시도
+            if (backend && code) {
+                fetchInviteCodeInfo(code, backend)
+                    .then(info => {
+                        setInviteInfo(info);
+                        // GET 응답에서 사이트 정보 추출 (URL 파라미터 폴백)
+                        const name = info.cloudName ?? siteName;
+                        const id = info.cloudId ?? siteId;
+                        if (id && name) {
+                            setSiteInfo({ id, name });
+                        } else if (siteId && siteName) {
+                            setSiteInfo({ id: siteId, name: siteName });
+                        }
+                    })
+                    .catch(err => {
+                        logger.warn('AUTH', '[LoginPage] GET invite-code failed, falling back to URL params', {
+                            error: err,
+                        });
+                        // 폴백: URL 파라미터 기반
+                        if (siteId && siteName) {
+                            setSiteInfo({ id: siteId, name: siteName });
+                        }
+                    });
+            } else if (siteId && siteName) {
                 setSiteInfo({ id: siteId, name: siteName });
             }
         } else {
@@ -119,14 +152,15 @@ export const LoginPage = (): JSX.Element => {
         if (isAccepting) return;
 
         const backend = urlParams.get('_backend');
-        const wss = urlParams.get('_wss');
+        // WSS 주소 우선순위: GET 응답의 $envs.wss → URL 파라미터 _wss
+        const wss = inviteInfo?.$envs?.wss ?? urlParams.get('_wss');
         if (!backend || !wss) {
             toast({ title: t('inviteAccept.missingServerInfo'), variant: 'destructive' });
             return;
         }
 
-        const urlCloudId = urlParams.get('_cloudId') ?? undefined;
-        const urlCloudName = urlParams.get('_cloudName') ?? undefined;
+        const urlCloudId = inviteInfo?.cloudId ?? urlParams.get('_cloudId') ?? undefined;
+        const urlCloudName = inviteInfo?.cloudName ?? urlParams.get('_cloudName') ?? undefined;
 
         setIsAccepting(true);
         logger.info('AUTH', '[handleAccept] starting invite accept', {
@@ -286,6 +320,8 @@ export const LoginPage = (): JSX.Element => {
 
     // Show invite accept UI
     if (isInviteLogin && siteInfo) {
+        const inviterName = inviteInfo?.inviter$?.name;
+
         return (
             <div className="flex items-center justify-center min-h-screen bg-[rgba(41,41,58,0.23)]">
                 <div className="relative mx-4 w-full max-w-[308px] rounded-[18px] bg-white/80 backdrop-blur-[4px] shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] px-[10px] pt-[26px] pb-[14px]">
@@ -300,6 +336,11 @@ export const LoginPage = (): JSX.Element => {
                             <div className="text-center text-[18px] font-semibold leading-[1.5] text-[#081837]">
                                 {siteInfo.name}
                             </div>
+                            {inviterName && (
+                                <p className="text-center text-[14px] font-medium leading-[1.45] tracking-[-0.14px] text-[#84888f]">
+                                    {inviterName}
+                                </p>
+                            )}
                             <p className="text-center text-[16px] font-medium leading-[1.45] tracking-[-0.16px] text-[#84888f]">
                                 {t('inviteAccept.description')}
                             </p>

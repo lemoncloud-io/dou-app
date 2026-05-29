@@ -2,12 +2,12 @@ import { Loader2, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { getMobileAppInfo, logger, postMessage } from '@chatic/app-messages';
+import { logger } from '@chatic/app-messages';
 import { reportError, toError } from '@chatic/web-core';
 import { Sheet, SheetContent } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useCreateInvite } from '../hooks';
+import { useCreateInviteBatch } from '../hooks';
 
 interface AddFriendSheetProps {
     open: boolean;
@@ -67,7 +67,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
     const [name, setName] = useState('');
     const [phoneDigits, setPhoneDigits] = useState('');
     const [phoneError, setPhoneError] = useState('');
-    const { createInvite, isPending } = useCreateInvite();
+    const { createBatchInvite, isPending } = useCreateInviteBatch();
 
     const handlePhoneChange = (value: string) => {
         const digits = value.replace(/\D/g, '').slice(0, PHONE_DIGITS_MAX);
@@ -92,42 +92,17 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
         onOpenChange(false);
     };
 
-    const copyToClipboard = async (url: string) => {
-        try {
-            await navigator.clipboard.writeText(url);
-            toast({ title: t('inviteFriends.linkCopied') });
-        } catch {
-            toast({ title: t('inviteFriends.shareFailed'), variant: 'destructive' });
-        }
-    };
-
     const handleShare = async () => {
         if (!channelId || !name.trim() || !phoneDigits) return;
         if (!validatePhone()) return;
 
         try {
-            const { deeplinkUrl } = await createInvite({
+            await createBatchInvite({
                 channelId,
-                name: name.trim(),
-                phone: phoneDigits,
+                phones: [phoneDigits],
             });
 
-            const { isOnMobileApp } = getMobileAppInfo();
-
-            if (isOnMobileApp) {
-                // Mobile: use native share sheet (clipboard API is restricted in WebView)
-                postMessage({
-                    type: 'OpenShareSheet',
-                    data: {
-                        title: t('inviteFriends.shareTitle'),
-                        message: `${t('inviteFriends.shareMessage')}\n${deeplinkUrl}`,
-                    },
-                });
-            } else {
-                // Web: copy to clipboard
-                await copyToClipboard(deeplinkUrl);
-            }
-
+            toast({ title: t('inviteFriends.batchSuccess', { count: 1 }) });
             resetAndClose();
         } catch (error) {
             logger.error('INVITE', 'Failed to create invite', { error, data: { channelId } });
@@ -137,7 +112,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                     ? error.message
                     : typeof error === 'object' && error !== null && 'message' in error
                       ? String(error.message)
-                      : t('inviteFriends.shareFailed');
+                      : t('inviteFriends.batchFailed');
             toast({ title: message, variant: 'destructive' });
         }
     };

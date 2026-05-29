@@ -1,12 +1,12 @@
 import { useCallback, useState } from 'react';
 
-import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 import type { UserInvitePayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
 import { useDynamicProfile } from '@chatic/web-core';
 
 import { useRepositories } from '../data';
 
-type UserMutationAction = 'update-profile' | 'invite';
+type UserMutationAction = 'update-profile' | 'invite' | 'invite-batch';
 
 /**
  * 사용자 정보 및 유저 관련 명령(초대 등)을 repository를 통해 서버에 전달하는 훅
@@ -19,6 +19,7 @@ export const useUserMutations = () => {
     const [pendingStates, setPendingStates] = useState<Record<UserMutationAction, boolean>>({
         'update-profile': false,
         invite: false,
+        'invite-batch': false,
     });
 
     const withPending = useCallback(<T>(action: UserMutationAction, fn: () => Promise<T>): Promise<T> => {
@@ -45,9 +46,18 @@ export const useUserMutations = () => {
         [userRepository, withPending]
     );
 
+    const requestInviteBatch = useCallback(
+        (payload: MyUserInviteBody): Promise<MyInviteView[]> => {
+            if (!payload.to || payload.to.length === 0) return Promise.reject(new Error('to is required'));
+            return withPending('invite-batch', () => userRepository.requestInviteBatch(payload));
+        },
+        [userRepository, withPending]
+    );
+
     return {
         isPending: pendingStates,
         updateProfile,
         requestInvite,
+        requestInviteBatch,
     };
 };

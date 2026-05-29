@@ -73,6 +73,7 @@ export interface SocketEventMap {
     'user:update': SocketEventDetail<Synced<UserView>>;
     'user:delete': SocketEventDetail<Synced<UserView>>;
     'user:invite': SocketEventDetail<MyInviteView>;
+    'user:invite-batch': SocketEventDetail<MyInviteView[]>;
     'user:error': SocketEventDetail<ChatErrorPayload>;
 
     // ------------------------------------------

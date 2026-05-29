@@ -14,6 +14,9 @@ export interface IUserRemoteDataSource {
 
     /** 외부 사용자를 초대하고 초대 결과를 요청합니다. */
     requestInvite(payload: MyUserInviteBody, ref?: string): void;
+
+    /** 여러 사용자를 일괄 초대합니다. */
+    requestInviteBatch(payload: MyUserInviteBody, ref?: string): void;
 }
 
 export class UserRemoteDataSource implements IUserRemoteDataSource {
@@ -61,6 +64,13 @@ export class UserRemoteDataSource implements IUserRemoteDataSource {
             });
         });
 
+        this.socketEventBus.on('user:invite-batch', detail => {
+            this.domainEventBus.emit('user:invite-batch', {
+                data: detail.payload as MyInviteView[],
+                ref: detail.ref,
+            });
+        });
+
         this.socketEventBus.on('user:error', detail => {
             this.domainEventBus.emit('error', {
                 domain: 'user',
@@ -80,5 +90,9 @@ export class UserRemoteDataSource implements IUserRemoteDataSource {
 
     public requestInvite(payload: MyUserInviteBody, ref?: string) {
         this.wssClient.send('user', 'invite', payload, ref);
+    }
+
+    public requestInviteBatch(payload: MyUserInviteBody, ref?: string) {
+        this.wssClient.send('user', 'invite-batch', payload, ref);
     }
 }

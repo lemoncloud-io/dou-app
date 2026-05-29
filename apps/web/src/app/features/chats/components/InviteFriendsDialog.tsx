@@ -1,5 +1,5 @@
-import { ChevronLeft, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, Loader2, Search } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ContactInfo } from '@chatic/app-messages';
@@ -8,8 +8,7 @@ import { reportError, toError } from '@chatic/web-core';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { webBridge } from '../../../shared/bridges';
-import { useCreateInvite } from '../hooks';
+import { useCreateInviteBatch } from '../hooks';
 
 import { AddFriendSheet } from './AddFriendSheet';
 import { ContactListItem } from './ContactListItem';
@@ -32,6 +31,14 @@ const isValidKoreanPhone = (digits: string): boolean => {
     return KOREAN_MOBILE_PREFIXES.some(prefix => normalized.startsWith(prefix));
 };
 
+/** 연락처에서 유효한 한국 휴대폰 번호를 추출합니다. 유효하지 않으면 null을 반환합니다. */
+const extractValidPhone = (contact: ContactInfo): string | null => {
+    const phoneNumber = contact.phoneNumbers?.[0]?.number;
+    if (!phoneNumber) return null;
+    const normalized = normalizeKoreanPhone(phoneNumber.replace(/\D/g, ''));
+    return isValidKoreanPhone(normalized) ? normalized : null;
+};
+
 interface InviteFriendsDialogProps {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
@@ -46,11 +53,12 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
     const [contacts, setContacts] = useState<ContactInfo[]>([]);
     const [permissionDenied, setPermissionDenied] = useState(false);
     const [hasRequestedContacts, setHasRequestedContacts] = useState(false);
-    const [invitingContactId, setInvitingContactId] = useState<string | null>(null);
+    const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+    const [isBatchInviting, setIsBatchInviting] = useState(false);
 
     const { isOnMobileApp } = getMobileAppInfo();
     const [isWaitingForContacts, setIsWaitingForContacts] = useState(false);
-    const { createInvite } = useCreateInvite();
+    const { createBatchInvite } = useCreateInviteBatch();
 
     // Listen for contact response from native app
     useHandleAppMessage('OnGetContacts', message => {
@@ -97,6 +105,8 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
             setIsWaitingForContacts(false);
             setPermissionDenied(false);
             setContacts([]);
+            setSelectedContactIds(new Set());
+            setIsBatchInviting(false);
         }
     }, [open]);
 
@@ -115,56 +125,47 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
         });
     }, [contacts, search]);
 
-    const handleInvite = async (contact: ContactInfo) => {
-        if (!channelId || invitingContactId) return;
-
-        // Extract first phone number and filter to digits only
-        const phoneNumber = contact.phoneNumbers?.[0]?.number;
-        if (!phoneNumber) {
-            toast({ title: t('inviteFriends.shareFailed'), variant: 'destructive' });
-            return;
-        }
-        const phone = normalizeKoreanPhone(phoneNumber.replace(/\D/g, ''));
-
-        // Validate Korean phone number
-        if (!isValidKoreanPhone(phone)) {
-            toast({ title: t('addFriend.phoneInvalidFormat'), variant: 'destructive' });
-            return;
-        }
-
-        // Determine name (displayName > givenName familyName > Unknown)
-        const name =
-            contact.displayName || `${contact.givenName || ''} ${contact.familyName || ''}`.trim() || 'Unknown';
-
-        setInvitingContactId(contact.recordID);
-
-        try {
-            const { deeplinkUrl } = await createInvite({
-                channelId,
-                name,
-                phone,
+    const handleToggle = useCallback(
+        (contact: ContactInfo) => {
+            if (isBatchInviting) return;
+            setSelectedContactIds(prev => {
+                const next = new Set(prev);
+                if (next.has(contact.recordID)) {
+                    next.delete(contact.recordID);
+                } else {
+                    next.add(contact.recordID);
+                }
+                return next;
             });
+        },
+        [isBatchInviting]
+    );
 
-            if (isOnMobileApp) {
-                // Mobile app: Send SMS with invite link directly to the contact's phone number
-                await webBridge.request('SendSms', {
-                    data: {
-                        phoneNumbers: phone,
-                        message: `${t('inviteFriends.shareMessage')}\n${deeplinkUrl}`,
-                    },
-                });
-            } else {
-                // Browser: Copy to clipboard only
-                await navigator.clipboard.writeText(deeplinkUrl);
-                toast({ title: t('inviteFriends.linkCopied') });
-            }
+    const handleBatchInvite = async () => {
+        if (!channelId || selectedContactIds.size === 0 || isBatchInviting) return;
+
+        // 선택된 연락처에서 유효한 번호 추출
+        const phones: string[] = [];
+        for (const contact of contacts) {
+            if (!selectedContactIds.has(contact.recordID)) continue;
+            const phone = extractValidPhone(contact);
+            if (phone) phones.push(phone);
+        }
+
+        if (phones.length === 0) return;
+
+        setIsBatchInviting(true);
+        try {
+            await createBatchInvite({ channelId, phones });
+            toast({ title: t('inviteFriends.batchSuccess', { count: phones.length }) });
+            onOpenChange?.(false);
         } catch (error) {
-            logger.error('INVITE', 'Failed to invite contact', { error, data: { channelId } });
+            logger.error('INVITE', 'Failed to batch invite contacts', { error, data: { channelId } });
             reportError(toError(error));
-            const message = error instanceof Error ? error.message : t('inviteFriends.shareFailed');
+            const message = error instanceof Error ? error.message : t('inviteFriends.batchFailed');
             toast({ title: message, variant: 'destructive' });
         } finally {
-            setInvitingContactId(null);
+            setIsBatchInviting(false);
         }
     };
 
@@ -244,15 +245,38 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                                         </p>
                                     </div>
                                 ) : (
-                                    filteredContacts.map(contact => (
-                                        <ContactListItem
-                                            key={contact.recordID}
-                                            contact={contact}
-                                            onInvite={handleInvite}
-                                            isLoading={invitingContactId === contact.recordID}
-                                        />
-                                    ))
+                                    filteredContacts.map(contact => {
+                                        const hasValidPhone = extractValidPhone(contact) !== null;
+                                        return (
+                                            <ContactListItem
+                                                key={contact.recordID}
+                                                contact={contact}
+                                                selected={selectedContactIds.has(contact.recordID)}
+                                                onToggle={handleToggle}
+                                                disabled={!hasValidPhone || isBatchInviting}
+                                            />
+                                        );
+                                    })
                                 )}
+                            </div>
+                        )}
+
+                        {/* 하단 초대 버튼 */}
+                        {selectedContactIds.size > 0 && (
+                            <div className="shrink-0 px-4 pt-3 pb-4">
+                                <button
+                                    onClick={handleBatchInvite}
+                                    disabled={isBatchInviting}
+                                    className="w-full rounded-full py-3 text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-center transition-colors
+                                        disabled:opacity-50
+                                        bg-[#B0EA10] text-[#222325]"
+                                >
+                                    {isBatchInviting ? (
+                                        <Loader2 className="mx-auto size-5 animate-spin" />
+                                    ) : (
+                                        t('inviteFriends.inviteSelected', { count: selectedContactIds.size })
+                                    )}
+                                </button>
                             </div>
                         )}
 

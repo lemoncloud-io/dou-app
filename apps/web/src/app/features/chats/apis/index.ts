@@ -1,2 +1,1 @@
-export { firebaseDeeplinkService } from './firebase-service';
-export { inviteUser, buildDeeplinkUrl } from './invite-api';
+export { fetchInviteCodeInfo } from './invite-api';

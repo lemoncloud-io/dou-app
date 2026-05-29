@@ -62,6 +62,7 @@ export interface DomainEventMap {
     'user:update': DomainPayload<UserView>;
     'user:delete': DomainPayload<UserView>;
     'user:invite': DomainPayload<MyInviteView>;
+    'user:invite-batch': DomainPayload<MyInviteView[]>;
     'user:list': DomainPayload<ListResult<UserView>>;
 
     // ------------------------------------------

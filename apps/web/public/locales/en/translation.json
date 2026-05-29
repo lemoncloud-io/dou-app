@@ -681,6 +681,9 @@
         "shareFailed": "Failed to share.",
         "shareTitle": "Join my chat",
         "shareMessage": "Click this link to join the chat!",
+        "batchSuccess": "Invitation sent to {{count}} people",
+        "inviteSelected": "Invite ({{count}})",
+        "batchFailed": "Failed to send invitations",
         "permissionDenied": {
             "title": "Contacts access is turned off",
             "description": "To quickly find friends and start chatting, contacts permission is required. Your contact information is only used for friend recommendations and invitations, and is kept secure."
