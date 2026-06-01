@@ -172,7 +172,7 @@ export const useSubscriptionIap = () => {
     const fetchCurrentPurchases = useCallback((): Promise<NativePurchase[]> => {
         return new Promise(resolve => {
             currentPurchasesResolverRef.current = { resolve };
-            postMessage({ type: 'FetchCurrentPurchases' });
+            postMessage({ type: 'FetchCurrentPurchases', data: {} });
         });
     }, []);
 
@@ -195,7 +195,7 @@ export const useSubscriptionIap = () => {
                     reject(reason);
                 },
             };
-            postMessage({ type: 'FetchProducts' });
+            postMessage({ type: 'FetchProducts', data: {} });
         });
     }, []);
 
@@ -205,7 +205,7 @@ export const useSubscriptionIap = () => {
             const result = await purchase(product);
             await validate(result, email);
             await finishTransaction(result);
-            postMessage({ type: 'FetchCurrentPurchases' });
+            postMessage({ type: 'FetchCurrentPurchases', data: {} });
 
             await new Promise(resolve => setTimeout(resolve, 1500));
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
@@ -230,7 +230,7 @@ export const useSubscriptionIap = () => {
         }
 
         if (restored > 0) {
-            postMessage({ type: 'FetchCurrentPurchases' });
+            postMessage({ type: 'FetchCurrentPurchases', data: {} });
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
         }
 

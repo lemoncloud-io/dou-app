@@ -1,9 +1,11 @@
 import type {
     OnBackgroundStatusChangedPayload,
+    OnBackPressedPayload,
     OnChangeAppIconPayload,
     OnClearAppLogBufferPayload,
     OnClearCacheDataPayload,
     OnClearTestRecordsPayload,
+    OnCloseModalPayload,
     OnDeleteAllCacheDataPayload,
     OnDeleteCacheDataPayload,
     OnDeletePreferencePayload,
@@ -13,9 +15,9 @@ import type {
     OnFetchAppIconPayload,
     OnFetchAppLogBufferPayload,
     OnFetchAppLogBufferSizePayload,
+    OnFetchBadgeCountPayload,
     OnFetchCacheDataPayload,
     OnFetchCurrentPurchasesPayload,
-    OnFetchBadgeCountPayload,
     OnFetchFcmTokenPayload,
     OnFetchPreferencePayload,
     OnFetchProductsPayload,
@@ -23,157 +25,68 @@ import type {
     OnFetchTestRecordPayload,
     OnFinishPurchaseTransactionPayload,
     OnGetContactsPayload,
+    OnListRecoverableUploadsPayload,
     OnNotificationPayload,
     OnOAuthLoginPayload,
     OnOAuthLogoutPayload,
     OnOpenCameraPayload,
     OnOpenDocumentPayload,
+    OnOpenModalPayload,
     OnOpenPhotoLibraryPayload,
+    OnOpenSettingsPayload,
     OnOpenShareSheetPayload,
+    OnOpenSubscriptionManagementPayload,
+    OnOpenURLPayload,
     OnPollAppLogBufferPayload,
     OnPurchaseErrorPayload,
+    OnPurchasePayload,
     OnPurchaseSuccessPayload,
+    OnRecoverUploadPayload,
     OnRequestPermissionPayload,
-    OnSendSmsPayload,
+    OnRetryUploadPayload,
     OnSaveAllCacheDataPayload,
     OnSaveAllTestRecordsPayload,
     OnSaveCacheDataPayload,
     OnSavePreferencePayload,
     OnSaveTestRecordPayload,
     OnSearchGlobalCacheDataPayload,
+    OnSendLogPayload,
+    OnSendSmsPayload,
     OnSetBadgeCountPayload,
+    OnSetCanGoBackPayload,
     OnUpdateDeviceInfoPayload,
-    PongPayload,
-    OnUploadProgressPayload,
     OnUploadCompletePayload,
-    OnListRecoverableUploadsPayload,
+    OnUploadProgressPayload,
+    PongPayload,
 } from './model';
 import type { BaseMessage } from './types';
 
 // ======================================================================
-// Message Types
-// ======================================================================
-export const AppMessageTypes = {
-    // 1. Device & System
-    OnUpdateDeviceInfo: 'OnUpdateDeviceInfo',
-    OnFetchSafeArea: 'OnFetchSafeArea',
-    OnBackgroundStatusChanged: 'OnBackgroundStatusChanged',
-    OnSetCanGoBack: 'OnSetCanGoBack',
-    OnOpenModal: 'OnOpenModal',
-    OnCloseModal: 'OnCloseModal',
-    OnOpenSettings: 'OnOpenSettings',
-    OnOpenShareSheet: 'OnOpenShareSheet',
-    OnBackPressed: 'OnBackPressed',
-    OnOpenDocument: 'OnOpenDocument',
-    OnGetContacts: 'OnGetContacts',
-    OnOpenCamera: 'OnOpenCamera',
-    OnOpenPhotoLibrary: 'OnOpenPhotoLibrary',
-    OnRequestPermission: 'OnRequestPermission',
-    OnOpenURL: 'OnOpenURL',
-    OnSendSms: 'OnSendSms',
-    OnFetchAppIcon: 'OnFetchAppIcon',
-    OnFetchAppIconList: 'OnFetchAppIconList',
-    OnChangeAppIcon: 'OnChangeAppIcon',
-    Pong: 'Pong',
-    OnUploadProgress: 'OnUploadProgress',
-    OnUploadComplete: 'OnUploadComplete',
-    OnListRecoverableUploads: 'OnListRecoverableUploads',
-    OnRecoverUpload: 'OnRecoverUpload',
-    OnRetryUpload: 'OnRetryUpload',
-
-    // 2. Notification
-    OnFetchFcmToken: 'OnFetchFcmToken',
-    OnReceiveNotification: 'OnReceiveNotification',
-    OnFetchBadgeCount: 'OnFetchBadgeCount',
-    OnSetBadgeCount: 'OnSetBadgeCount',
-
-    // 3. IAP
-    OnFetchCurrentPurchases: 'OnFetchCurrentPurchases',
-    OnFetchProducts: 'OnFetchProducts',
-    OnPurchase: 'OnPurchase',
-    OnPurchaseSuccess: 'OnPurchaseSuccess',
-    OnPurchaseError: 'OnPurchaseError',
-    OnFinishPurchaseTransaction: 'OnFinishPurchaseTransaction',
-    OnOpenSubscriptionManagement: 'OnOpenSubscriptionManagement',
-
-    // 4. CacheData
-    OnFetchAllCacheData: 'OnFetchAllCacheData',
-    OnFetchCacheData: 'OnFetchCacheData',
-    OnSaveCacheData: 'OnSaveCacheData',
-    OnSaveAllCacheData: 'OnSaveAllCacheData',
-    OnDeleteCacheData: 'OnDeleteCacheData',
-    OnDeleteAllCacheData: 'OnDeleteAllCacheData',
-    OnClearCacheData: 'OnClearCacheData',
-    OnSearchGlobalCacheData: 'OnSearchGlobalCacheData',
-
-    // 5. Preference
-    OnFetchPreference: 'OnFetchPreference',
-    OnSavePreference: 'OnSavePreference',
-    OnDeletePreference: 'OnDeletePreference',
-
-    // 6. Auth
-    OnOAuthLogin: 'OnOAuthLogin',
-    OnOAuthLogout: 'OnOAuthLogout',
-
-    // 7. Common & Others
-    OnFetchAppLogBuffer: 'OnFetchAppLogBuffer',
-    OnPollAppLogBuffer: 'OnPollAppLogBuffer',
-    OnClearAppLogBuffer: 'OnClearAppLogBuffer',
-    OnFetchAppLogBufferSize: 'OnFetchAppLogBufferSize',
-    OnSendLog: 'OnSendLog',
-
-    // 8. Test DB Scenario Validation
-    OnFetchTestRecord: 'OnFetchTestRecord',
-    OnFetchAllTestRecords: 'OnFetchAllTestRecords',
-    OnSaveTestRecord: 'OnSaveTestRecord',
-    OnSaveAllTestRecords: 'OnSaveAllTestRecords',
-    OnClearTestRecords: 'OnClearTestRecords',
-} as const;
-
-export type AppMessageType = (typeof AppMessageTypes)[keyof typeof AppMessageTypes];
-
-// ======================================================================
-// 이벤트 타입 분류 (Web 요청 없이 발생하는 단방향 이벤트)
-// ======================================================================
-export type EventMessageType = Extract<
-    AppMessageType,
-    | 'OnBackPressed'
-    | 'OnReceiveNotification'
-    | 'OnBackgroundStatusChanged'
-    | 'OnCloseModal'
-    | 'OnPurchaseSuccess'
-    | 'OnPurchaseError'
-    | 'OnUpdateDeviceInfo'
-    | 'OnUploadProgress'
-    | 'OnUploadComplete'
->;
-
-// ======================================================================
 // Message Data Map Definition
 // ======================================================================
-/** 메시지 타입과 해당 Data(Payload) 타입을 매핑하는 인터페이스입니다. Data가 없는 경우 never로 정의합니다. */
-export interface AppMessageDataMap {
+/** 메시지 타입과 해당 Data(Payload) 타입을 매핑하는 구조입니다. */
+export type AppMessageDataMap = {
     // 1. Device & System
     OnUpdateDeviceInfo: OnUpdateDeviceInfoPayload;
     OnFetchSafeArea: OnFetchSafeAreaPayload;
     OnBackgroundStatusChanged: OnBackgroundStatusChangedPayload;
-    OnSetCanGoBack: never;
-    OnOpenModal: never;
-    OnCloseModal: never;
-    OnOpenSettings: never;
+    OnSetCanGoBack: OnSetCanGoBackPayload;
+    OnOpenModal: OnOpenModalPayload;
+    OnCloseModal: OnCloseModalPayload;
+    OnOpenSettings: OnOpenSettingsPayload;
     OnOpenShareSheet: OnOpenShareSheetPayload;
     OnUploadProgress: OnUploadProgressPayload;
     OnUploadComplete: OnUploadCompletePayload;
     OnListRecoverableUploads: OnListRecoverableUploadsPayload;
-    OnRecoverUpload: never;
-    OnRetryUpload: never;
-    OnBackPressed: never;
+    OnRecoverUpload: OnRecoverUploadPayload;
+    OnRetryUpload: OnRetryUploadPayload;
+    OnBackPressed: OnBackPressedPayload;
     OnOpenDocument: OnOpenDocumentPayload;
     OnGetContacts: OnGetContactsPayload;
     OnOpenCamera: OnOpenCameraPayload;
     OnOpenPhotoLibrary: OnOpenPhotoLibraryPayload;
     OnRequestPermission: OnRequestPermissionPayload;
-    OnOpenURL: never;
+    OnOpenURL: OnOpenURLPayload;
     OnSendSms: OnSendSmsPayload;
     OnFetchAppIcon: OnFetchAppIconPayload;
     OnFetchAppIconList: OnFetchAppIconListPayload;
@@ -189,11 +102,11 @@ export interface AppMessageDataMap {
     // 3. IAP
     OnFetchCurrentPurchases: OnFetchCurrentPurchasesPayload;
     OnFetchProducts: OnFetchProductsPayload;
-    OnPurchase: never;
+    OnPurchase: OnPurchasePayload;
     OnPurchaseSuccess: OnPurchaseSuccessPayload;
     OnPurchaseError: OnPurchaseErrorPayload;
     OnFinishPurchaseTransaction: OnFinishPurchaseTransactionPayload;
-    OnOpenSubscriptionManagement: never;
+    OnOpenSubscriptionManagement: OnOpenSubscriptionManagementPayload;
 
     // 4. Cache
     OnFetchAllCacheData: OnFetchAllCacheDataPayload;
@@ -219,7 +132,7 @@ export interface AppMessageDataMap {
     OnPollAppLogBuffer: OnPollAppLogBufferPayload;
     OnClearAppLogBuffer: OnClearAppLogBufferPayload;
     OnFetchAppLogBufferSize: OnFetchAppLogBufferSizePayload;
-    OnSendLog: never;
+    OnSendLog: OnSendLogPayload;
 
     // 8. Test DB Scenario Validation
     OnFetchTestRecord: OnFetchTestRecordPayload;
@@ -227,22 +140,25 @@ export interface AppMessageDataMap {
     OnSaveTestRecord: OnSaveTestRecordPayload;
     OnSaveAllTestRecords: OnSaveAllTestRecordsPayload;
     OnClearTestRecords: OnClearTestRecordsPayload;
-}
+};
+
+export type AppMessageType = keyof AppMessageDataMap;
 
 // ======================================================================
 // App Message Core Interfaces & Types
 // ======================================================================
-export interface AppMessageError {
+export type AppMessageError = {
     code: string;
     message: string;
     details?: unknown;
-}
+};
 
 export type AppDefaultMessage<T extends AppMessageType> = BaseMessage & {
     type: T;
     success: boolean;
     error?: AppMessageError;
-} & (AppMessageDataMap[T] extends never ? { data?: never } : { data: AppMessageDataMap[T] });
+    data: AppMessageDataMap[T];
+};
 
 export type AppMessageData<T extends AppMessageType> = AppDefaultMessage<T>;
 

@@ -2,30 +2,30 @@
 
 export type PreferenceKey = 'isFirstRun' | 'theme' | 'language';
 
-export interface FetchPreferencePayload {
+export type FetchPreferencePayload = {
     key: PreferenceKey;
-}
+};
 
-export interface SavePreferencePayload {
+export type SavePreferencePayload = {
     key: PreferenceKey;
     value: any;
-}
+};
 
-export interface DeletePreferencePayload {
+export type DeletePreferencePayload = {
     key: PreferenceKey;
-}
+};
 
-export interface OnFetchPreferencePayload {
+export type OnFetchPreferencePayload = {
     key: PreferenceKey;
     value: any;
-}
+};
 
-export interface OnSavePreferencePayload {
+export type OnSavePreferencePayload = {
     key: PreferenceKey;
     success: boolean;
-}
+};
 
-export interface OnDeletePreferencePayload {
+export type OnDeletePreferencePayload = {
     key: PreferenceKey;
     success: boolean;
-}
+};

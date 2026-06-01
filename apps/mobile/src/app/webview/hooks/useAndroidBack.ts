@@ -17,8 +17,8 @@ export const useAndroidBack = (bridge: IAppBridgeHost, canGoBack: boolean) => {
                 bridge.pushEvent<`OnBackPressed`>({
                     type: 'OnBackPressed',
                     success: true,
+                    data: {},
                 });
-
                 // Consume event if web can handle navigation (prevent app exit)
                 if (canGoBack) {
                     return true;

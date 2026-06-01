@@ -3,7 +3,7 @@ import type { ShareAction } from 'react-native';
 /**
  * 디바이스 미디어 자산 (사진, 동영상) 상세 정보
  */
-export interface MediaAsset {
+export type MediaAsset = {
     /** 로컬 파일 시스템 URI */
     uri?: string;
     /** 원본 파일명 */
@@ -18,11 +18,11 @@ export interface MediaAsset {
     fileSize?: number;
     /** Base64 인코딩된 파일 데이터 (옵션에 따라 포함됨) */
     base64?: string;
-}
+};
 
 /** * 디바이스 문서 파일 정보
  */
-export interface DocumentInfo {
+export type DocumentInfo = {
     /** 로컬 파일 시스템 URI */
     uri: string;
     /** 문서 파일명 */
@@ -33,11 +33,11 @@ export interface DocumentInfo {
     size?: number | null;
     /** Base64 인코딩된 파일 데이터 */
     base64?: string;
-}
+};
 
 /** * 기기 주소록 연락처 상세 정보
  */
-export interface ContactInfo {
+export type ContactInfo = {
     /** 디바이스 내 연락처 고유 식별자 */
     recordID: string;
     backTitle: string;
@@ -79,22 +79,22 @@ export interface ContactInfo {
     urlAddresses: UrlAddress[];
     /** 연락처 메모 */
     note: string;
-}
+};
 
 /** 이메일 주소 정보 (예: label: 'work', email: 'dev@example.com') */
-export interface EmailAddress {
+export type EmailAddress = {
     label: string;
     email: string;
-}
+};
 
 /** 전화번호 정보 (예: label: 'mobile', number: '010-0000-0000') */
-export interface PhoneNumber {
+export type PhoneNumber = {
     label: string;
     number: string;
-}
+};
 
 /** 물리적 주소(우편 주소) 정보 */
-export interface PostalAddress {
+export type PostalAddress = {
     /** 주소 라벨 (예: 'home', 'work') */
     label: string;
     /** 전체 주소 문자열 */
@@ -115,56 +115,48 @@ export interface PostalAddress {
     postCode: string;
     /** 국가명 */
     country: string;
-}
+};
 
 /** 생년월일 정보 */
-export interface Birthday {
+export type Birthday = {
     day: number;
     month: number;
     year: number;
-}
+};
 
 /** 인스턴트 메신저 계정 정보 */
-export interface InstantMessageAddress {
+export type InstantMessageAddress = {
     username: string;
     service: string;
-}
+};
 
 /** URL 주소 정보 */
-export interface UrlAddress {
+export type UrlAddress = {
     label: string;
     url: string;
-}
+};
 
 /** 네이티브 앱 권한 유형 */
 export type AppPermissionType = 'CONTACTS' | 'NOTIFICATIONS' | 'CAMERA' | 'PHOTO_LIBRARY';
 
-/** * 네이티브 앱 권한 승인 상태
- * - GRANTED: 사용자가 권한을 허용함
- * - DENIED: 사용자가 권한을 거부함 (다시 요청 가능)
- * - BLOCKED: 사용자가 권한을 완전히 차단함 (OS 설정에서 직접 변경해야 함)
- * - UNAVAILABLE: 디바이스 하드웨어 제약으로 해당 기능 사용 불가
- */
+/** * 네이티브 앱 권한 승인 상태 */
 export type PermissionStatus = 'GRANTED' | 'DENIED' | 'BLOCKED' | 'UNAVAILABLE';
 
 /**
  * 앱 백그라운드/포그라운드 상태
- * - active: 앱이 포그라운드에서 실행 중이며 사용자와 상호작용 가능
- * - background: 앱이 백그라운드에 숨겨진 상태
- * - inactive: (iOS 전용) 전화가 오거나 시스템 알림창을 내리는 등 전환 중인 유휴 상태
  */
 export type AppBackgroundStatus = 'active' | 'background' | 'inactive';
 
 /**
  * 앱 아이콘 선택지 정보 (Native -> Web)
  */
-export interface AppIconOption {
+export type AppIconOption = {
     id: string | null;
     label: string;
-}
+};
 
 /** [요청] OS 기본 공유 시트 열기 */
-export interface OpenShareSheetPayload {
+export type OpenShareSheetPayload = {
     /** 공유할 콘텐츠의 제목 */
     title?: string;
     /** 공유할 메시지 본문 텍스트 */
@@ -175,20 +167,20 @@ export interface OpenShareSheetPayload {
     type?: string;
     /** 이메일 공유 시 사용될 제목 */
     subject?: string;
-}
+};
 
 /** [요청] 문서(파일) 선택기 열기 */
-export interface OpenDocumentPayload {
+export type OpenDocumentPayload = {
     /** 다중 파일 선택 허용 여부 */
     allowMultiSelection?: boolean;
     /** 선택을 허용할 MIME 타입 배열 (예: ['application/pdf']) */
     type?: string[];
     /** 파일 데이터를 Base64로 인코딩하여 반환할지 여부 */
     includeBase64?: boolean;
-}
+};
 
 /** [요청] 네이티브 카메라 실행 */
-export interface OpenCameraPayload {
+export type OpenCameraPayload = {
     /** 촬영할 미디어 유형 */
     mediaType?: 'photo' | 'video' | 'mixed';
     /** 이미지 압축 품질 (0.0 최하 ~ 1.0 원본) */
@@ -201,10 +193,10 @@ export interface OpenCameraPayload {
     includeBase64?: boolean;
     /** 초기 실행할 카메라 렌즈 방향 (전면/후면) */
     cameraType?: 'back' | 'front';
-}
+};
 
 /** [요청] 네이티브 사진/동영상 갤러리 열기 */
-export interface OpenPhotoLibraryPayload {
+export type OpenPhotoLibraryPayload = {
     /** 최대 선택 가능한 미디어 개수 (0은 무제한) */
     selectionLimit?: number;
     /** 선택 가능한 미디어 유형 */
@@ -217,36 +209,36 @@ export interface OpenPhotoLibraryPayload {
     quality?: 0 | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 0.6 | 0.7 | 0.8 | 0.9 | 1;
     /** Base64 데이터 포함 여부 */
     includeBase64?: boolean;
-}
+};
 
 /** [요청] 디바이스의 기본 브라우저나 외부 앱으로 URL 열기 */
-export interface OpenURLPayload {
+export type OpenURLPayload = {
     /** 실행할 외부 URL (http, mailto, tel 등) */
     url: string;
-}
+};
 
 /** [요청] OS 시스템 권한 요청 다이얼로그 띄우기 */
-export interface RequestPermissionPayload {
+export type RequestPermissionPayload = {
     /** 요청할 대상 권한 */
     permission: AppPermissionType;
-}
+};
 
 /** [요청] 네이티브의 뒤로가기(스와이프/물리버튼) 가능 여부 설정 */
-export interface SetCanGoBackPayload {
+export type SetCanGoBackPayload = {
     /** true 설정 시 웹뷰 내부 라우팅을 우선 처리 */
     canGoBack: boolean;
-}
+};
 
 /** [요청] 웹뷰 내 스크롤 이벤트 발생 시 네이티브에 알림 */
-export interface ScrollDataPayload {
+export type ScrollDataPayload = {
     /** 현재 스크롤이 발생한 웹 페이지 URL */
     url: string;
     /** 스크롤 진행도를 나타내는 백분율 (0 ~ 100) */
     scrollPercentage: number;
-}
+};
 
 /** [요청] 네이티브 바텀시트/모달로 특정 URL의 웹뷰 열기 */
-export interface OpenModalPayload {
+export type OpenModalPayload = {
     /** 모달로 띄울 웹 페이지 주소 */
     url: string;
     /** * 화면을 덮는 비율 및 형태
@@ -258,16 +250,51 @@ export interface OpenModalPayload {
     heightRatio?: number;
     /** 바텀 시트 상단에 드래그하여 닫을 수 있는 핸들 바 표시 여부 */
     dragHandle?: boolean;
-}
+};
 
 /** [요청] 앱 아이콘 변경 */
-export interface ChangeAppIconPayload {
+export type ChangeAppIconPayload = {
     /**
      * 변경할 alternate app icon key.
      * null, undefined, 'default'는 기본 앱 아이콘으로 복원합니다.
      */
     iconName?: string | null;
-}
+};
+
+/** [요청] 네이티브 바텀시트/모달 닫기 */
+export type CloseModalPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [요청] 네이티브 설정 화면 열기 */
+export type OpenSettingsPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [요청] 웹 앱 준비 완료 알림 */
+export type WebAppReadyPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [요청] 로더(인디케이터) 표시 요청 */
+export type ShowLoaderPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [요청] 로더(인디케이터) 숨김 요청 */
+export type HideLoaderPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [요청] 크레덴셜 동기화 요청 */
+export type SyncCredentialPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [요청] 웹뷰 스택에서 웹뷰 팝(닫기) 요청 */
+export type PopWebViewPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
 
 /**
  * ----------------------------------------------------------------------
@@ -276,64 +303,64 @@ export interface ChangeAppIconPayload {
  */
 
 /** [응답] 공유 액션 완료 결과 */
-export interface OnOpenShareSheetPayload extends ShareAction {}
+export type OnOpenShareSheetPayload = ShareAction;
 
 /** [응답] 문서 선택기에서 선택된 파일 목록 */
-export interface OnOpenDocumentPayload {
+export type OnOpenDocumentPayload = {
     documents: DocumentInfo[];
-}
+};
 
 /** [응답] 주소록 권한 획득 후 디바이스 전체 연락처 목록 반환 */
-export interface OnGetContactsPayload {
+export type OnGetContactsPayload = {
     contacts: ContactInfo[];
-}
+};
 
 /** [응답] 카메라 촬영 결과물 반환 */
-export interface OnOpenCameraPayload {
+export type OnOpenCameraPayload = {
     assets: MediaAsset[];
-}
+};
 
 /** [응답] 사진 갤러리에서 선택된 결과물 반환 */
-export interface OnOpenPhotoLibraryPayload {
+export type OnOpenPhotoLibraryPayload = {
     assets: MediaAsset[];
-}
+};
 
 /** [응답] 시스템 권한 요청 결과 반환 */
-export interface OnRequestPermissionPayload {
+export type OnRequestPermissionPayload = {
     /** 요청했던 대상 권한 */
     permission: AppPermissionType;
     /** 최종 승인/거부 상태 */
     status: PermissionStatus;
-}
+};
 
 /** [응답] 앱이 백그라운드로 가거나 포그라운드로 복귀했을 때 상태 알림 */
-export interface OnBackgroundStatusChangedPayload {
+export type OnBackgroundStatusChangedPayload = {
     /** 현재 앱 상태 (active, background, inactive) */
     status: AppBackgroundStatus;
     /** 앱이 백그라운드에 숨겨져 있는지 여부 */
     isBackground: boolean;
     /** 앱이 현재 사용자와 포그라운드에서 상호작용 중인지 여부 */
     isForeground: boolean;
-}
+};
 
 /** [응답] 현재 앱 아이콘 상태 */
-export interface OnFetchAppIconPayload {
+export type OnFetchAppIconPayload = {
     /** 현재 적용된 앱 아이콘 key. 기본 아이콘이면 'default' */
     iconName: string;
     /** 현재 플랫폼에서 동적 앱 아이콘 변경을 지원하는지 여부 */
     supported: boolean;
     /** 조회 실패 사유 */
     error?: string;
-}
+};
 
 /** [응답] 사용 가능한 앱 아이콘 목록 */
-export interface OnFetchAppIconListPayload {
+export type OnFetchAppIconListPayload = {
     /** 사용 가능한 전체 아이콘 목록 */
     availableIcons: AppIconOption[];
-}
+};
 
 /** [응답] 앱 아이콘 변경 결과 */
-export interface OnChangeAppIconPayload {
+export type OnChangeAppIconPayload = {
     /** 변경 성공 여부 */
     success: boolean;
     /** 요청한 앱 아이콘 key. 기본 아이콘 요청이면 null */
@@ -344,25 +371,65 @@ export interface OnChangeAppIconPayload {
     supported?: boolean;
     /** 변경 실패 사유 */
     error?: string;
-}
+};
 
-export interface PingPayload {
+export type PingPayload = {
     payload: string;
-}
-export interface PongPayload {
+};
+export type PongPayload = {
     payload: string;
-}
+};
 
 /** [요청] SMS 전송 */
-export interface SendSmsPayload {
+export type SendSmsPayload = {
     /** 수신자 전화번호 또는 전화번호 배열 */
     phoneNumbers: string | string[];
     /** 전송할 SMS 메시지 본문 */
     message: string;
-}
+};
 
 /** [응답] SMS 전송 결과 */
-export interface OnSendSmsPayload {
+export type OnSendSmsPayload = {
     /** 전송(앱 열기) 성공 여부 */
     success: boolean;
-}
+};
+
+/** [응답] 네이티브의 뒤로가기(스와이프/물리버튼) 가능 여부 설정 결과 */
+export type OnSetCanGoBackPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [응답] 네이티브 바텀시트/모달로 특정 URL의 웹뷰 열기 결과 */
+export type OnOpenModalPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [응답] 네이티브 바텀시트/모달 닫기 완료 결과 */
+export type OnCloseModalPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [응답] 네이티브 설정 화면 열기 완료 결과 */
+export type OnOpenSettingsPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [응답] 업로드 작업 수동 복구(재개) 결과 */
+export type OnRecoverUploadPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [응답] 업로드 작업 재시도 결과 */
+export type OnRetryUploadPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [응답] 네이티브 뒤로가기 클릭 이벤트 페이로드 */
+export type OnBackPressedPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [응답] 디바이스의 기본 브라우저나 외부 앱으로 URL 열기 결과 */
+export type OnOpenURLPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};

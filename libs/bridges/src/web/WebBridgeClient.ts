@@ -1,7 +1,7 @@
 import type { BridgeAdapter } from './adapters';
 import type { EventMessage, RequestMessage, ResponseMessage } from '../common';
 import type { IWebBridgeClient } from './IWebBridgeClient';
-import type { AppMessageData, EventMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
+import type { AppMessageData, AppMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
 
 export interface WebBridgeClientConfig {
     adapter: BridgeAdapter;
@@ -105,7 +105,7 @@ export class WebBridgeClient implements IWebBridgeClient {
         return this.request(type as K, rest as Omit<WebMessageData<K>, 'type'>, customTimeoutMs);
     }
 
-    public onEvent<K extends EventMessageType>(type: K, handler: (message: AppMessageData<K>) => void): () => void {
+    public onEvent<K extends AppMessageType>(type: K, handler: (message: AppMessageData<K>) => void): () => void {
         const typeStr = type as string;
         if (!this.eventListeners.has(typeStr)) {
             this.eventListeners.set(typeStr, new Set());

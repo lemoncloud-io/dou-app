@@ -1,4 +1,4 @@
-import type { WebMessageType, WebMessageData, EventMessageType, AppMessageData } from '@chatic/app-messages';
+import type { WebMessageType, WebMessageData, AppMessageType, AppMessageData } from '@chatic/app-messages';
 import type { ResponseMessage } from '../common';
 
 /**
@@ -27,5 +27,5 @@ export interface IAppBridgeHost {
     /**
      * [App -> Web] Web의 요청 없이 App(Native)에서 자발적으로 발생하는 단방향 이벤트를 푸시합니다.
      */
-    pushEvent<K extends EventMessageType>(message: AppMessageData<K>): void;
+    pushEvent<K extends AppMessageType>(message: AppMessageData<K>): void;
 }

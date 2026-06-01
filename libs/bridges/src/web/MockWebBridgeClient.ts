@@ -1,7 +1,7 @@
 import type { BridgeAdapter } from './adapters';
 import type { EventMessage, RequestMessage, ResponseMessage } from '../common';
 import type { IWebBridgeClient } from './IWebBridgeClient';
-import type { WebMessageType, WebMessageData, EventMessageType, AppMessageData } from '@chatic/app-messages';
+import type { WebMessageType, WebMessageData, AppMessageType, AppMessageData } from '@chatic/app-messages';
 
 export class MockWebBridgeClient implements IWebBridgeClient {
     private adapter: BridgeAdapter;
@@ -94,7 +94,7 @@ export class MockWebBridgeClient implements IWebBridgeClient {
         return this.request(type as K, rest as Omit<WebMessageData<K>, 'type'>);
     }
 
-    public onEvent<K extends EventMessageType>(type: K, handler: (message: AppMessageData<K>) => void): () => void {
+    public onEvent<K extends AppMessageType>(type: K, handler: (message: AppMessageData<K>) => void): () => void {
         const typeStr = type as string;
         console.log(`[MockWebBridgeClient] '${typeStr}' 이벤트 구독 설정.`);
         if (!this.eventListeners.has(typeStr)) {

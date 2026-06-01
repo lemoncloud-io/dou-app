@@ -19,6 +19,7 @@ export const useModalHandler = (bridge: IAppBridgeHost, modalHandler: ModalHandl
             bridge.pushEvent<'OnCloseModal'>({
                 type: 'OnCloseModal',
                 success: true,
+                data: {},
             });
 
             isOpenModal.current = false;
@@ -41,7 +42,7 @@ export const useModalHandler = (bridge: IAppBridgeHost, modalHandler: ModalHandl
             if (modalHandler.canGoBack()) {
                 modalHandler.closeModal();
             }
-            return { type: 'OnCloseModal' as const, success: true };
+            return { type: 'OnCloseModal' as const, success: true, data: {} };
         },
         [modalHandler]
     );

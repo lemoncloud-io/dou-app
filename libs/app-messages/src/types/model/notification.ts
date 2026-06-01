@@ -3,39 +3,43 @@
  * TODO: notification 스펙에 맞게 확장 필요
  * @author dev@example.com
  */
-export interface NotificationInfo {
-    title?: string;
-    body?: string;
-    data?: Record<string, any>;
-}
-
-export interface NotificationInfo {
+export type NotificationInfo = {
     title?: string;
     body?: string;
     data?: Record<string, any>; // 커스텀 페이로드
-}
+};
+
+/** [요청] FCM 토큰 조회 페이로드 */
+export type FetchFcmTokenPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [요청] 뱃지 카운트 조회 페이로드 */
+export type FetchBadgeCountPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
 
 /** [응답] FCM 토큰 결과 페이로드 */
-export interface OnFetchFcmTokenPayload {
+export type OnFetchFcmTokenPayload = {
     token: string;
-}
+};
 
 /** [응답] 알림 수신/오픈 이벤트 페이로드 */
-export interface OnNotificationPayload {
+export type OnNotificationPayload = {
     notification: NotificationInfo;
-}
+};
 
 /** [요청] 뱃지 카운트 설정 페이로드 */
-export interface SetBadgeCountPayload {
+export type SetBadgeCountPayload = {
     count: number;
-}
+};
 
 /** [응답] 뱃지 카운트 조회 결과 페이로드 */
-export interface OnFetchBadgeCountPayload {
+export type OnFetchBadgeCountPayload = {
     count: number;
-}
+};
 
 /** [응답] 뱃지 카운트 설정 결과 페이로드 */
-export interface OnSetBadgeCountPayload {
+export type OnSetBadgeCountPayload = {
     success: boolean;
-}
+};
