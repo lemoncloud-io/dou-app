@@ -6,7 +6,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 
 import { toast } from 'sonner';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { LoadingFallback } from '@chatic/shared';
 import { createCredentialsByProvider, loginWithInviteCode, useWebCoreStore } from '@chatic/web-core';
 

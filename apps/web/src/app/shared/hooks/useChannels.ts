@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { useInterval } from '@chatic/shared';
 import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';

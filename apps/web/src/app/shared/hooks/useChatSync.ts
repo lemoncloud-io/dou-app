@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
 
 import { useRepositories } from '../data';

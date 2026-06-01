@@ -6,7 +6,7 @@ import type {
     StatusCallback,
     WebSocketServiceConfig,
 } from '../types';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 
 const getMessageMeta = (data: unknown) => {
     if (typeof data !== 'object' || data === null) {

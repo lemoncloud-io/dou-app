@@ -1,15 +1,14 @@
 import { BookUser, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
+import { isNative, webClient } from '@chatic/bridges';
 
 export const PermissionDeniedBanner = () => {
     const { t } = useTranslation();
 
     const handleOpenSettings = () => {
-        const { isOnMobileApp } = getMobileAppInfo();
-        if (isOnMobileApp) {
-            postMessage({ type: 'OpenSettings' });
+        if (isNative()) {
+            webClient.post('OpenSettings', { data: {} });
         }
     };
 

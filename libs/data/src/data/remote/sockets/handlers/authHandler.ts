@@ -1,5 +1,5 @@
 import type { AuthPayload, ChatErrorPayload, WSSAuthActionType, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import type { IEventBus } from '../../../events/eventBus';
 import type { SocketEventMap } from '../../../events/types';
 

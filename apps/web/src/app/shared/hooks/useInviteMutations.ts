@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore } from '@chatic/web-core';
 import { useRepositories } from '../data';

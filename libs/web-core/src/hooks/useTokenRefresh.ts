@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 
 import { fetchProfile, refreshAuthToken, reportError, tryFetchProfile } from '../api';
 import { useWebCoreStore } from '../stores';

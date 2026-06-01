@@ -5,7 +5,7 @@ import { Trans, useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { getMobileAppInfo, logger, postMessage } from '@chatic/app-messages';
+import { isNative, webClient } from '@chatic/bridges';
 import { reportError, toError } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useMembershipInfo } from '@chatic/subscriptions';
@@ -24,8 +24,8 @@ export const SubscriptionPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { toast } = useToast();
-    const queryClient = useQueryClient();
-    const { isOnMobileApp } = getMobileAppInfo();
+    useQueryClient();
+    const isOnMobileApp = isNative();
     const { restorePurchases } = useSubscriptionIap();
     const [isRestoring, setIsRestoring] = useState(false);
 
@@ -218,7 +218,7 @@ export const SubscriptionPage = () => {
                         {/* Manage / Restore */}
                         <div className="flex gap-2">
                             <button
-                                onClick={() => postMessage({ type: 'OpenSubscriptionManagement' })}
+                                onClick={() => webClient.post('OpenSubscriptionManagement', { data: {} })}
                                 className="flex-1 rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground"
                             >
                                 {t('mypage.subscription.manageSubscription')}
@@ -265,7 +265,7 @@ export const SubscriptionPage = () => {
                             </span>
                         </div>
                         <button
-                            onClick={() => postMessage({ type: 'OpenSubscriptionManagement' })}
+                            onClick={() => webClient.post('OpenSubscriptionManagement', { data: {} })}
                             className="w-full rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground"
                         >
                             {t('mypage.subscription.manageSubscription')}
@@ -310,7 +310,7 @@ export const SubscriptionPage = () => {
                                                         ? 'https://app-dev.chatic.io/policy/terms'
                                                         : 'https://app.chatic.io/policy/terms';
                                                     if (isOnMobileApp) {
-                                                        postMessage({ type: 'OpenURL', data: { url } });
+                                                        webClient.post('OpenURL', { data: { url } });
                                                     } else {
                                                         window.open(url, '_blank');
                                                     }

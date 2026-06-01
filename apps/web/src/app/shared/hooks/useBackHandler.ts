@@ -2,7 +2,8 @@ import { useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
-import { postMessage, getMobileAppInfo, useHandleAppMessage } from '@chatic/app-messages';
+import { isNative, webClient } from '@chatic/bridges';
+import { useOnBackPressed } from './useHandleAppMessage';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 
@@ -21,19 +22,13 @@ export const useBackHandler = () => {
     const location = useLocation();
     const navigate = useNavigateWithTransition();
     const { i18n } = useTranslation();
-    const { isOnMobileApp } = getMobileAppInfo();
+    const isOnMobileApp = isNative();
 
     // Sync language with native app
     useEffect(() => {
         if (!isOnMobileApp) return;
 
-        postMessage({
-            type: 'SavePreference',
-            data: {
-                key: 'language',
-                value: i18n.language,
-            },
-        });
+        webClient.post('SavePreference', { data: { key: 'language', value: i18n.language } });
     }, [i18n.language, isOnMobileApp]);
 
     // Notify native app about navigation state changes
@@ -45,10 +40,7 @@ export const useBackHandler = () => {
             // Only report dialog state - native app tracks navigation history separately
             const hasOpenDialogs = document.querySelector(OPEN_DIALOG_SELECTOR) !== null;
 
-            postMessage({
-                type: 'SetCanGoBack',
-                data: { canGoBack: hasOpenDialogs },
-            });
+            webClient.post('SetCanGoBack', { data: { canGoBack: hasOpenDialogs } });
         };
 
         // Initial check
@@ -115,7 +107,7 @@ export const useBackHandler = () => {
     }, [navigate, location.key]);
 
     // Listen for native back button message
-    useHandleAppMessage('OnBackPressed', handleNativeBack);
+    useOnBackPressed(handleNativeBack);
 
     return { handleNativeBack };
 };

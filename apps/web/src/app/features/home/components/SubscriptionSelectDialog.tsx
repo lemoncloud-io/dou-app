@@ -5,7 +5,7 @@ import { Loader2, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
-import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
+import { isNative, webClient } from '@chatic/bridges';
 import { reportError, toError } from '@chatic/web-core';
 import { useProductPlans } from '@chatic/subscriptions';
 
@@ -57,7 +57,8 @@ export const SubscriptionSelectDialog = ({
     onError,
 }: SubscriptionSelectDialogProps) => {
     const { t, i18n } = useTranslation();
-    const { isIOS, isOnMobileApp } = getMobileAppInfo();
+    const isOnMobileApp = isNative();
+    const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
     const { fetchNativeProducts, purchaseAndValidate } = useSubscriptionIap();
 
     const platform = isOnMobileApp ? (isIOS ? 'apple' : 'google') : undefined;
@@ -77,7 +78,7 @@ export const SubscriptionSelectDialog = ({
 
     const openPolicyUrl = (path: string) => {
         const url = `${POLICY_BASE_URL}${path}`;
-        if (isOnMobileApp) postMessage({ type: 'OpenURL', data: { url } });
+        if (isOnMobileApp) webClient.post('OpenURL', { url });
         else window.open(url, '_blank');
     };
 

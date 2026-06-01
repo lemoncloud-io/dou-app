@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { AppState } from 'react-native';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { useWebCoreStore, webCore } from '@chatic/web-core';
 
 // import { useWebSocket } from './useWebSocket';

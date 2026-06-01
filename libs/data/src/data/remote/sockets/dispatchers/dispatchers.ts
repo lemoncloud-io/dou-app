@@ -2,7 +2,7 @@ import { authHandler, chatHandler, modelHandler, syncHandler, systemHandler, use
 import type { IEventBus } from '../../../events/eventBus';
 import type { SocketEventMap } from '../../../events/types';
 import type { WSSEnvelope, WSSEventDomainType } from '@lemoncloud/chatic-sockets-api';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 
 export interface ISocketDispatcher {
     dispatch(envelope: WSSEnvelope): void;

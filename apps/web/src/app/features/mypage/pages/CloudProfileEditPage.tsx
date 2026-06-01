@@ -2,7 +2,7 @@ import { Camera, User } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { resizeImageToBase64 } from '@chatic/shared';
 

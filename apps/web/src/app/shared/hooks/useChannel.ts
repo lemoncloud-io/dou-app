@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import type { ClientChannelView, DomainChannel } from '@chatic/data';
 import { useDynamicProfile } from '@chatic/web-core';
 

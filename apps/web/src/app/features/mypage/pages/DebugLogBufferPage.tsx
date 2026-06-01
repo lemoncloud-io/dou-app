@@ -1,15 +1,15 @@
 import { ChevronLeft, RefreshCw, Scissors, Trash2, Zap } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type UIEvent } from 'react';
+import { type ReactNode, type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import {
-    getMobileAppInfo,
-    logger,
-    postMessage,
-    useHandleAppMessage,
-    type AppLogInfo,
-    type AppLogLevel,
-} from '@chatic/app-messages';
+import { isNative, logger, webClient } from '@chatic/bridges';
+import type { AppLogInfo, AppLogLevel } from '@chatic/app-messages';
 import { useNavigateWithTransition } from '@chatic/shared';
+import {
+    useOnClearAppLogBuffer,
+    useOnFetchAppLogBuffer,
+    useOnFetchAppLogBufferSize,
+    useOnPollAppLogBuffer,
+} from '../../../shared/hooks';
 
 const LOG_FETCH_LIMIT = 20;
 
@@ -149,7 +149,7 @@ export const DebugLogBufferPage = () => {
 
     const isOnMobileApp = useMemo(() => {
         if (typeof window === 'undefined') return false;
-        return getMobileAppInfo().isOnMobileApp;
+        return isNative();
     }, []);
 
     const hasMoreLogs = bufferSize === null || logs.length < bufferSize;
@@ -176,7 +176,7 @@ export const DebugLogBufferPage = () => {
             setLimit(normalizedLimit);
             setIsFetchingLogs(true);
             markRequest(action, nonce);
-            postMessage({ type: 'FetchAppLogBuffer', nonce, data: { count: normalizedLimit } });
+            webClient.post('FetchAppLogBuffer', { nonce, data: { count: normalizedLimit } } as any);
         },
         [markRequest]
     );
@@ -207,19 +207,19 @@ export const DebugLogBufferPage = () => {
     const pollLogs = useCallback(() => {
         const nonce = createNonce('poll-log-buffer');
         markRequest('Poll', nonce);
-        postMessage({ type: 'PollAppLogBuffer', nonce, data: { count: limit } });
+        webClient.post('PollAppLogBuffer', { nonce, data: { count: limit } } as any);
     }, [limit, markRequest]);
 
     const clearLogs = useCallback(() => {
         const nonce = createNonce('clear-log-buffer');
         markRequest('Clear', nonce);
-        postMessage({ type: 'ClearAppLogBuffer', nonce });
+        webClient.post('ClearAppLogBuffer', { nonce } as any);
     }, [markRequest]);
 
     const fetchSize = useCallback(() => {
         const nonce = createNonce('fetch-log-buffer-size');
         markRequest('Size', nonce);
-        postMessage({ type: 'FetchAppLogBufferSize', nonce });
+        webClient.post('FetchAppLogBufferSize', { nonce } as any);
     }, [markRequest]);
 
     const generateSampleLogs = useCallback(() => {
@@ -239,21 +239,21 @@ export const DebugLogBufferPage = () => {
         window.setTimeout(() => fetchLogs(nextLimit, 'Fetch'), 250);
     }, [bufferSize, fetchLogs, limit]);
 
-    useHandleAppMessage('OnFetchAppLogBuffer', message => {
+    useOnFetchAppLogBuffer(message => {
         setLogs(message.data.logs ?? []);
         setLimit(requestedLimitRef.current);
         setIsFetchingLogs(false);
         markResponse('Fetch', message.data.size, message.nonce);
     });
 
-    useHandleAppMessage('OnPollAppLogBuffer', message => {
+    useOnPollAppLogBuffer(message => {
         setLogs(message.data.logs ?? []);
         setBufferSize(message.data.size);
         setIsFetchingLogs(false);
         markResponse('Poll', message.data.size, message.nonce);
     });
 
-    useHandleAppMessage('OnClearAppLogBuffer', message => {
+    useOnClearAppLogBuffer(message => {
         setLogs([]);
         setLimit(LOG_FETCH_LIMIT);
         requestedLimitRef.current = LOG_FETCH_LIMIT;
@@ -262,7 +262,7 @@ export const DebugLogBufferPage = () => {
         markResponse('Clear', message.data.size, message.nonce);
     });
 
-    useHandleAppMessage('OnFetchAppLogBufferSize', message => {
+    useOnFetchAppLogBufferSize(message => {
         markResponse('Size', message.data.size, message.nonce);
     });
 

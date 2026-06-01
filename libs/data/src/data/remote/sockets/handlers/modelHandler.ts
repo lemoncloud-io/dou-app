@@ -4,7 +4,7 @@ import type {
     WSSEnvelope,
     WSSModelActionType,
 } from '@lemoncloud/chatic-sockets-api';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import type { SocketEventMap, SocketEventType } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
 

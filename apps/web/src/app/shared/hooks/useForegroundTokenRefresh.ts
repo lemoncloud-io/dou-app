@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { cloudCore, useWebCoreStore, webCore } from '@chatic/web-core';
 import { checkSocketHealth, getSocketSend, useWebSocketV2Store } from '@chatic/socket';
 

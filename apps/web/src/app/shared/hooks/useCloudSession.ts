@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { useIssueCloudToken } from '@chatic/auth';
 import { useWebSocketV2Store } from '@chatic/socket';
 

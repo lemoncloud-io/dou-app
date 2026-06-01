@@ -8,7 +8,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection } from 'firebase/firestore';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 
 import type { FirebaseApp } from 'firebase/app';
 import type { Firestore, CollectionReference } from 'firebase/firestore';

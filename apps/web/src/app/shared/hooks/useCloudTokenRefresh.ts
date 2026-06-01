@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, reportError, toError, useServiceStatusStore, useWebCoreStore, webCore } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';

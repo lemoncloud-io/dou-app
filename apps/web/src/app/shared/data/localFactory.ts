@@ -2,24 +2,24 @@ import { useMemo } from 'react';
 
 import type { CacheType } from '@chatic/app-messages';
 import {
+    type CacheErrorReporter,
     type CacheStorage,
     type CacheStorageFactory,
+    type CapacityPolicy,
     createCacheStorages,
     createLocalDataSources,
     type DataContextProvider,
+    type EvictionStrategy,
     type LocalDataSources,
     type PolicyResolver,
-    type EvictionStrategy,
-    type CapacityPolicy,
-    type CacheErrorReporter,
 } from '@chatic/data';
-import { webBridge } from '../bridges';
 import {
-    type CacheStorageStrategy,
-    IndexedDbOnlyCacheStorageStrategy,
-    HotColdCacheStorageStrategy,
     AppPolicyResolver,
+    type CacheStorageStrategy,
+    HotColdCacheStorageStrategy,
+    IndexedDbOnlyCacheStorageStrategy,
 } from './cacheStorageStrategies';
+import { webClient } from '@chatic/bridges';
 
 export const isNativeApp = (): boolean => {
     return typeof window !== 'undefined' && !!(window as any).ReactNativeWebView;
@@ -39,7 +39,7 @@ const selectStrategy = (options?: CacheFactoryOptions): CacheStorageStrategy => 
         return new IndexedDbOnlyCacheStorageStrategy();
     }
 
-    return new HotColdCacheStorageStrategy(webBridge, {
+    return new HotColdCacheStorageStrategy(webClient, {
         policyResolver: options?.policyResolver ?? appPolicyResolver,
         evictionStrategy: options?.evictionStrategy,
         capacityPolicy: options?.capacityPolicy,

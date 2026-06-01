@@ -6,6 +6,7 @@ import type {
     OnClearCacheDataPayload,
     OnClearTestRecordsPayload,
     OnCloseModalPayload,
+    OnCreateDummyFilePayload,
     OnDeleteAllCacheDataPayload,
     OnDeleteCacheDataPayload,
     OnDeletePreferencePayload,
@@ -80,6 +81,7 @@ export type AppMessageDataMap = {
     OnListRecoverableUploads: OnListRecoverableUploadsPayload;
     OnRecoverUpload: OnRecoverUploadPayload;
     OnRetryUpload: OnRetryUploadPayload;
+    OnCreateDummyFile: OnCreateDummyFilePayload;
     OnBackPressed: OnBackPressedPayload;
     OnOpenDocument: OnOpenDocumentPayload;
     OnGetContacts: OnGetContactsPayload;

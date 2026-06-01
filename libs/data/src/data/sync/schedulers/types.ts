@@ -1,7 +1,7 @@
 import type { SyncPlan, SyncTask } from '../types';
 import { SyncPriority } from '../types';
-import type { ISyncManager } from '../managers/manager-types';
-import { logger } from '@chatic/app-messages';
+import type { ISyncManager } from '../managers';
+import { logger } from '@chatic/bridges';
 
 export interface ISyncScheduler {
     start(): void;

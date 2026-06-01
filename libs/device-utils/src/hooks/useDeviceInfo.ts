@@ -1,7 +1,5 @@
 import { useEffect } from 'react';
 
-import { useHandleAppMessage } from '@chatic/app-messages';
-
 import { useDeviceInfoStore } from '../stores';
 
 export const useDeviceInfo = () => {
@@ -10,10 +8,6 @@ export const useDeviceInfo = () => {
     useEffect(() => {
         syncDeviceAndVersionInfo();
     }, [syncDeviceAndVersionInfo]);
-
-    useHandleAppMessage('OnUpdateDeviceInfo', message => {
-        useDeviceInfoStore.getState().updateVersionInfo(message.data.latestVersion, message.data.shouldUpdate);
-    });
 
     return {
         deviceInfo,
