@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
-import { getMobileAppInfo } from '@chatic/app-messages';
 import { useRepositories } from '../data';
 import type { DomainInviteCloud, DomainListResult } from '@chatic/data';
+import { isNative } from '@chatic/bridges';
 
 export const useInviteClouds = () => {
     const [inviteClouds, setInviteClouds] = useState<DomainListResult<DomainInviteCloud>>();
     const [isLoading, setIsLoading] = useState(false);
 
-    const { isOnMobileApp } = getMobileAppInfo();
+    const isOnMobileApp = isNative();
     const { inviteCloud: inviteCloudRepository } = useRepositories();
 
     useEffect(() => {
