@@ -4,16 +4,16 @@ export type PageLanguage = 'ko' | 'en' | 'cn' | 'jp' | 'vn' | 'id' | 'th';
 export type Env = 'local' | 'stage' | 'prod';
 
 /** 앱 및 웹 버전 정보 */
-export interface VersionInfo {
+export type VersionInfo = {
     currentVersion: string; // 현재 통합 버전
     latestVersion: string; // 서버 최신 버전
     shouldUpdate: boolean; // 업데이트 강제 여부
     appVersion: string; // 네이티브 빌드 버전
     webVersion: string; // 번들링된 웹 버전
-}
+};
 
 /** 디바이스 고유 정보 */
-export interface DeviceInfo {
+export type DeviceInfo = {
     stage: Env;
     platform: Platform;
     application: string; // 앱 패키지명/번들ID
@@ -22,26 +22,26 @@ export interface DeviceInfo {
     deviceModel?: string | null;
     installId?: string | null;
     lang?: PageLanguage;
-}
+};
 
 /** 디스플레이 안전 영역 (노치, 홈바 대응) */
-export interface SafeAreaInfo {
+export type SafeAreaInfo = {
     top: number;
     bottom: number;
     left: number;
     right: number;
-}
+};
 
 /** [응답] 디바이스/버전 정보 업데이트 페이로드 */
-export interface OnUpdateDeviceInfoPayload extends DeviceInfo, VersionInfo {}
+export type OnUpdateDeviceInfoPayload = DeviceInfo & VersionInfo;
 
 /** [응답] 세이프 에어리어 정보 반환 페이로드 */
-export interface OnFetchSafeAreaPayload extends SafeAreaInfo {}
+export type OnFetchSafeAreaPayload = SafeAreaInfo;
 
-// --- File Upload Interfaces ---
+// --- File Upload Types ---
 
 /** [요청] 파일 업로드 요청 페이로드 */
-export interface RequestFileUploadPayload {
+export type RequestFileUploadPayload = {
     uploadId: string; // 업로드 고유 식별자 (Web에서 UUID 생성하여 네이티브에 제어권 전달)
     fileUri: string; // 기기 내부 임시 파일 URI (DocumentPicker/ImagePicker 획득 주소)
     fileName: string; // 파일 이름
@@ -50,54 +50,54 @@ export interface RequestFileUploadPayload {
     uploadUrl: string; // 업로드 대상 API 엔드포인트 URL
     chunkSize?: number; // 분할 전송 청크 크기 (기본값: 1MB = 1,048,576 bytes)
     headers?: Record<string, string>; // 인증 토큰 등 커스텀 헤더
-}
+};
 
 export default RequestFileUploadPayload;
 
 /** [요청] 파일 업로드 일시정지 페이로드 */
-export interface PauseFileUploadPayload {
+export type PauseFileUploadPayload = {
     uploadId: string;
-}
+};
 
 /** [요청] 파일 업로드 재개 페이로드 */
-export interface ResumeFileUploadPayload {
+export type ResumeFileUploadPayload = {
     uploadId: string;
-}
+};
 
 /** [요청] 파일 업로드 취소 페이로드 */
-export interface CancelFileUploadPayload {
+export type CancelFileUploadPayload = {
     uploadId: string;
-}
+};
 
 /**
- * [요청] 수동 복구 가능한 업로드 작업 목록 조회
- * - 앱 재시작/중단 이후 DB에 남아있는 작업을 WebView에서 조회하기 위한 메시지
+ * [요청] 수동 복구 가능한 업로드 작업 목록 조회 페이로드
  */
-export type ListRecoverableUploadsPayload = never;
+export type ListRecoverableUploadsPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
 
 /** [요청] 업로드 작업 수동 복구(재개) 트리거 */
-export interface RecoverUploadPayload {
+export type RecoverUploadPayload = {
     uploadId: string;
-}
+};
 
 /** [요청] 업로드 작업 재시도 트리거 */
-export interface RetryUploadPayload {
+export type RetryUploadPayload = {
     uploadId: string;
-}
+};
 
 /** [요청] 테스트용 dummy sparse 파일 생성 */
-export interface CreateDummyFilePayload {
+export type CreateDummyFilePayload = {
     sizeInBytes: number;
     fileName: string;
-}
+};
 
 export type RecoverableUploadTaskStatus = 'uploading' | 'paused' | 'failed' | 'cancelled' | 'completed';
 
 /**
  * [응답] 수동 복구 가능한 업로드 작업 정보
- * - payload는 RequestFileUploadPayload 형태로 유지하여, WebView가 동일 uploadId로 재개 요청을 만들 수 있게 한다.
  */
-export interface RecoverableUploadTaskInfo {
+export type RecoverableUploadTaskInfo = {
     uploadId: string;
     status: RecoverableUploadTaskStatus;
     payload: RequestFileUploadPayload;
@@ -108,24 +108,24 @@ export interface RecoverableUploadTaskInfo {
     authRef?: string | null;
     createdAt: number;
     updatedAt: number;
-}
+};
 
 /** [응답] 수동 복구 가능한 업로드 작업 목록 반환 */
-export interface OnListRecoverableUploadsPayload {
+export type OnListRecoverableUploadsPayload = {
     tasks: RecoverableUploadTaskInfo[];
-}
+};
 
 /** [응답 - 이벤트] 파일 업로드 진행 상황 페이로드 */
-export interface OnUploadProgressPayload {
+export type OnUploadProgressPayload = {
     uploadId: string;
     progress: number; // 0 ~ 1 사이의 소수 (진행 비율)
     uploadedBytes: number; // 업로드 완료된 누적 바이트
     totalBytes: number; // 전체 파일 바이트 크기
     status: 'uploading' | 'paused' | 'cancelled' | 'completed' | 'failed';
-}
+};
 
 /** [응답 - 이벤트] 파일 업로드 완료 페이로드 */
-export interface OnUploadCompletePayload {
+export type OnUploadCompletePayload = {
     uploadId: string;
     success: boolean;
     response?: string; // 업로드 성공 시 서버 응답 텍스트
@@ -133,4 +133,29 @@ export interface OnUploadCompletePayload {
         code: string;
         message: string;
     };
-}
+};
+
+/** [요청] 주소록 조회 요청 페이로드 */
+export type GetContactsPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [요청] 안전 영역 조회 요청 페이로드 */
+export type FetchSafeAreaPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [요청] 백그라운드 상태 조회 요청 페이로드 */
+export type FetchBackgroundStatusPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [요청] 앱 아이콘 정보 조회 요청 페이로드 */
+export type FetchAppIconPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [요청] 앱 아이콘 목록 조회 요청 페이로드 */
+export type FetchAppIconListPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};

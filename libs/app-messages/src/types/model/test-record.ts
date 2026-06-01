@@ -1,47 +1,49 @@
-export interface TestRecord {
+export type TestRecord = {
     key: string;
     value: string;
     updated_at: number;
-}
+};
 
-export interface FetchTestRecordPayload {
+export type FetchTestRecordPayload = {
     key: string;
-}
+};
 
-export interface OnFetchTestRecordPayload {
+export type OnFetchTestRecordPayload = {
     key: string;
     item: TestRecord | null;
-}
+};
 
-export interface FetchAllTestRecordsPayload {
+export type FetchAllTestRecordsPayload = {
     keys?: string[];
-}
+};
 
-export interface OnFetchAllTestRecordsPayload {
+export type OnFetchAllTestRecordsPayload = {
     items: TestRecord[];
-}
+};
 
-export interface SaveTestRecordPayload {
+export type SaveTestRecordPayload = {
     key: string;
     value: string;
-}
+};
 
-export interface OnSaveTestRecordPayload {
+export type OnSaveTestRecordPayload = {
     key: string;
     success: boolean;
-}
+};
 
-export interface SaveAllTestRecordsPayload {
+export type SaveAllTestRecordsPayload = {
     items: Array<{ key: string; value: string }>;
-}
+};
 
-export interface OnSaveAllTestRecordsPayload {
+export type OnSaveAllTestRecordsPayload = {
     success: boolean;
     count: number;
-}
+};
 
-export interface ClearTestRecordsPayload {}
+export type ClearTestRecordsPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
 
-export interface OnClearTestRecordsPayload {
+export type OnClearTestRecordsPayload = {
     success: boolean;
-}
+};

@@ -5,135 +5,140 @@ import type { CloudView, MySiteView } from '@lemoncloud/chatic-backend-api';
 export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud';
 
 /** 페이징 및 리스트 처리를 위한 공통 메타데이터 */
-export interface PagingMeta {
+export type PagingMeta = {
     page?: number; // 페이지 번호
     cursorNo?: number; // 커서 번호
     limit?: number; // 한 페이지당 아이템 수
     total?: number; // 전체 아이템 수
     readNo?: number; // 마지막으로 읽은 메시지 번호
     took?: number;
-}
+};
 
 /** 캐시 만료/동기화 메타데이터 */
-export interface CacheTtlMeta {
+export type CacheTtlMeta = {
     lastSyncedAt: number;
     expiresAt: number;
-}
+};
 
 /** 캐시 모델 공통 메타 베이스 */
-export interface CacheViewBase {
+export type CacheViewBase = {
     __cacheMeta?: CacheTtlMeta;
-}
+};
 
 /** 모든 캐시 메시지의 공통 기반 필드 */
-interface CacheBasePayload<K extends CacheType> {
+type CacheBasePayload<K extends CacheType> = {
     type: K; // 도메인 타입
     cid: string; // Cloud ID
-    uid: string; // User ID
-}
+    uid: string; // User ID;
+};
 
 /*
  * 각 CacheType이 실제로 어떤 데이터 구조를 가지는지 매핑합니다.
  */
-export interface CacheModelMap {
+export type CacheModelMap = {
     channel: CacheChannelView;
     chat: CacheChatView;
     invitecloud: CacheCloudView;
     join: CacheJoinView;
     site: CacheSiteView;
     user: CacheUserView;
-}
+};
 
 export type CacheModelOf<TType extends CacheType> = CacheModelMap[TType];
 export type CacheQueryOf<TType extends CacheType> = CacheQueryMap[TType];
 
 /** 클라우드/서버 정보 뷰 */
-export interface CacheCloudView extends CloudView, CacheViewBase {
-    id: string;
-    name?: string;
-    backend?: string;
-    wss?: string;
-    cid: string;
-}
+export type CacheCloudView = CloudView &
+    CacheViewBase & {
+        id: string;
+        name?: string;
+        backend?: string;
+        wss?: string;
+        cid: string;
+    };
 
 /** 채널 정보 뷰 (Site ID 포함) */
-export interface CacheChannelView extends ChannelView, CacheViewBase {
-    cid: string;
-    sid: string;
-    isNotificationEnabled: boolean;
-}
+export type CacheChannelView = ChannelView &
+    CacheViewBase & {
+        cid: string;
+        sid: string;
+        isNotificationEnabled: boolean;
+    };
 
 /** 채팅 메시지 뷰 (전송 상태 포함) */
-export interface CacheChatView extends ChatView, CacheViewBase {
-    cid: string;
-    tempId?: string;
-    isPending?: boolean; // 전송 중 여부
-    isFailed?: boolean; // 전송 실패 여부
-}
+export type CacheChatView = ChatView &
+    CacheViewBase & {
+        cid: string;
+        tempId?: string;
+        isPending?: boolean; // 전송 중 여부
+        isFailed?: boolean; // 전송 실패 여부
+    };
 
 /** 사이트 정보 뷰 */
-export interface CacheSiteView extends MySiteView, CacheViewBase {
-    cid: string;
-    order?: number;
-}
+export type CacheSiteView = MySiteView &
+    CacheViewBase & {
+        cid: string;
+        order?: number;
+    };
 
-export interface CacheJoinView extends JoinView, CacheViewBase {
-    cid: string;
-}
+export type CacheJoinView = JoinView &
+    CacheViewBase & {
+        cid: string;
+    };
 
-export interface CacheUserView extends UserView, CacheViewBase {
-    cid: string;
-}
+export type CacheUserView = UserView &
+    CacheViewBase & {
+        cid: string;
+    };
 
 /**
- *
- * FetchAll/SaveAll 시 어떤 조건(정렬, 필터 등)으로 데이터를식별할지 정의합니다.
+ * FetchAll/SaveAll 시 어떤 조건(정렬, 필터 등)으로 데이터를 식별할지 정의합니다.
  */
-export interface BaseQueryOptions {
+export type BaseQueryOptions = {
     cid?: string;
     uid?: string;
-}
+};
 
 /** 채널 목록 조회 쿼리 */
-export interface ChannelQueryOptions extends BaseQueryOptions {
+export type ChannelQueryOptions = BaseQueryOptions & {
     sid?: string; // 특정 사이트 내 채널 필터
     keyword?: string; // 검색 키워드
-}
+};
 
 /** 채팅 목록 조회 쿼리 */
-export interface ChatQueryOptions extends BaseQueryOptions {
+export type ChatQueryOptions = BaseQueryOptions & {
     channelId?: string;
     sort?: 'asc' | 'desc';
     keyword?: string;
     limit?: number;
     cursorNo?: number;
-}
+};
 
-export interface InviteCloudQueryOptions extends BaseQueryOptions {}
+export type InviteCloudQueryOptions = BaseQueryOptions;
 
 /** 참여 정보 조회 쿼리 */
-export interface JoinQueryOptions extends BaseQueryOptions {
+export type JoinQueryOptions = BaseQueryOptions & {
     channelId?: string;
     userId?: string;
-}
+};
 
 /** 유저 정보 쿼리 */
-export interface UserQueryOptions extends BaseQueryOptions {}
+export type UserQueryOptions = BaseQueryOptions;
 
 /** 사이트 정보 쿼리 */
-export interface SiteQueryOptions extends BaseQueryOptions {
+export type SiteQueryOptions = BaseQueryOptions & {
     keyword?: string; // 검색 키워드
-}
+};
 
 /** 도메인별 쿼리 옵션 매핑 */
-export interface CacheQueryMap {
+export type CacheQueryMap = {
     channel: ChannelQueryOptions;
     chat: ChatQueryOptions;
     user: UserQueryOptions;
     site: SiteQueryOptions;
     join: JoinQueryOptions;
     invitecloud: InviteCloudQueryOptions;
-}
+};
 
 /** [요청] ID 기반 단일 데이터 조회 */
 export type FetchCacheDataPayload = {
@@ -218,13 +223,13 @@ export type OnClearCacheDataPayload = {
 }[CacheType];
 
 /** [요청] 키워드 기반 전역 검색 */
-export interface SearchGlobalCacheDataPayload {
+export type SearchGlobalCacheDataPayload = {
     keyword: string;
     cid?: string;
     uid?: string;
-}
+};
 
 /** [응답] 전역 검색 결과 리스트 */
-export interface OnSearchGlobalCacheDataPayload {
+export type OnSearchGlobalCacheDataPayload = {
     items: (CacheChatView | CacheChannelView | CacheSiteView)[];
-}
+};

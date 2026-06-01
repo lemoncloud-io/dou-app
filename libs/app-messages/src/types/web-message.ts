@@ -41,50 +41,70 @@ import type {
     RecoverUploadPayload,
     RetryUploadPayload,
     CreateDummyFilePayload,
+    CloseModalPayload,
+    OpenSettingsPayload,
+    ListRecoverableUploadsPayload,
+    GetContactsPayload,
+    FetchSafeAreaPayload,
+    FetchBackgroundStatusPayload,
+    FetchAppIconPayload,
+    FetchAppIconListPayload,
+    FetchFcmTokenPayload,
+    FetchBadgeCountPayload,
+    FetchProductsPayload,
+    FetchCurrentPurchasesPayload,
+    OpenSubscriptionManagementPayload,
+    WebAppReadyPayload,
+    ShowLoaderPayload,
+    HideLoaderPayload,
+    SyncCredentialPayload,
+    PopWebViewPayload,
+    ClearAppLogBufferPayload,
+    FetchAppLogBufferSizePayload,
 } from './model';
 import type { BaseMessage } from './types';
 
-/** 메시지 타입과 해당 Payload 타입을 매핑하는 인터페이스입니다. Payload가 없는 경우 never로 정의합니다. */
-export interface WebMessagePayloadMap {
+/** 메시지 타입과 해당 Payload 타입을 매핑하는 구조입니다. */
+export type WebMessagePayloadMap = {
     // 1. Device & System
     SetCanGoBack: SetCanGoBackPayload;
     OpenModal: OpenModalPayload;
-    CloseModal: never;
-    OpenSettings: never;
+    CloseModal: CloseModalPayload;
+    OpenSettings: OpenSettingsPayload;
     RequestFileUpload: RequestFileUploadPayload;
     PauseFileUpload: PauseFileUploadPayload;
     ResumeFileUpload: ResumeFileUploadPayload;
     CancelFileUpload: CancelFileUploadPayload;
-    ListRecoverableUploads: never;
+    ListRecoverableUploads: ListRecoverableUploadsPayload;
     RecoverUpload: RecoverUploadPayload;
     RetryUpload: RetryUploadPayload;
     CreateDummyFile: CreateDummyFilePayload;
 
     OpenShareSheet: OpenShareSheetPayload;
-    GetContacts: never;
+    GetContacts: GetContactsPayload;
     OpenDocument: OpenDocumentPayload;
     OpenCamera: OpenCameraPayload;
     OpenPhotoLibrary: OpenPhotoLibraryPayload;
-    FetchSafeArea: never;
-    FetchBackgroundStatus: never;
+    FetchSafeArea: FetchSafeAreaPayload;
+    FetchBackgroundStatus: FetchBackgroundStatusPayload;
     RequestPermission: RequestPermissionPayload;
     OpenURL: OpenURLPayload;
     SendSms: SendSmsPayload;
-    FetchAppIcon: never;
-    FetchAppIconList: never;
+    FetchAppIcon: FetchAppIconPayload;
+    FetchAppIconList: FetchAppIconListPayload;
     ChangeAppIcon: ChangeAppIconPayload;
 
     // 2. Notification
-    FetchFcmToken: never;
-    FetchBadgeCount: never;
+    FetchFcmToken: FetchFcmTokenPayload;
+    FetchBadgeCount: FetchBadgeCountPayload;
     SetBadgeCount: SetBadgeCountPayload;
 
     // 3. IAP
-    FetchProducts: never;
-    FetchCurrentPurchases: never;
+    FetchProducts: FetchProductsPayload;
+    FetchCurrentPurchases: FetchCurrentPurchasesPayload;
     Purchase: PurchasePayload;
     FinishPurchaseTransaction: FinishPurchaseTransactionPayload;
-    OpenSubscriptionManagement: never;
+    OpenSubscriptionManagement: OpenSubscriptionManagementPayload;
 
     // 4. Cache
     FetchCacheData: FetchCacheDataPayload;
@@ -106,15 +126,15 @@ export interface WebMessagePayloadMap {
     OAuthLogout: OAuthLogoutPayload;
 
     // 7. Common & Others
-    WebAppReady: never;
-    ShowLoader: never;
-    HideLoader: never;
-    SyncCredential: never;
-    PopWebView: never;
+    WebAppReady: WebAppReadyPayload;
+    ShowLoader: ShowLoaderPayload;
+    HideLoader: HideLoaderPayload;
+    SyncCredential: SyncCredentialPayload;
+    PopWebView: PopWebViewPayload;
     FetchAppLogBuffer: FetchAppLogBufferPayload;
     PollAppLogBuffer: PollAppLogBufferPayload;
-    ClearAppLogBuffer: never;
-    FetchAppLogBufferSize: never;
+    ClearAppLogBuffer: ClearAppLogBufferPayload;
+    FetchAppLogBufferSize: FetchAppLogBufferSizePayload;
     SendLog: SendLogPayload;
     Ping: PingPayload;
 
@@ -124,21 +144,18 @@ export interface WebMessagePayloadMap {
     SaveTestRecord: SaveTestRecordPayload;
     SaveAllTestRecords: SaveAllTestRecordsPayload;
     ClearTestRecords: ClearTestRecordsPayload;
-}
+};
 
 /** WebMessagePayloadMap의 Key들을 조합하여 가능한 모든 웹 메시지 타입(String Union)을 자동 생성합니다. */
 export type WebMessageType = keyof WebMessagePayloadMap;
 
-/** * WebMessagePayloadMap을 기반으로 payload 타입을 자동 추론하는 메시지 규격입니다.
- * Payload가 never인 경우 payload 속성을 제외(또는 undefined) 처리합니다.
- */
 export type WebDefaultMessage<T extends WebMessageType> = BaseMessage & {
     type: T;
-} & (WebMessagePayloadMap[T] extends never ? { data?: never } : { data: WebMessagePayloadMap[T] });
+    data: WebMessagePayloadMap[T];
+};
 
 export type WebMessageData<T extends WebMessageType> = WebDefaultMessage<T>;
 
-/** 가능한 모든 웹 메시지 타입(Union)을 나타냅니다. */
 export type WebMessage = {
     [K in WebMessageType]: WebDefaultMessage<K>;
 }[WebMessageType];
