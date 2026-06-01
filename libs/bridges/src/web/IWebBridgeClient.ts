@@ -1,4 +1,4 @@
-import type { WebMessageType, WebMessageData, EventMessageType, AppMessageData } from '@chatic/app-messages';
+import type { WebMessageType, WebMessageData, AppMessageType, AppMessageData } from '@chatic/app-messages';
 import type { ResponseMessage } from '../common';
 
 /**
@@ -27,5 +27,5 @@ export interface IWebBridgeClient {
     /**
      * [App -> Web] 네이티브에서 발생하는 단방향 이벤트를 구독 (Event Subscription)
      */
-    onEvent<K extends EventMessageType>(type: K, handler: (message: AppMessageData<K>) => void): () => void;
+    onEvent<K extends AppMessageType>(type: K, handler: (message: AppMessageData<K>) => void): () => void;
 }

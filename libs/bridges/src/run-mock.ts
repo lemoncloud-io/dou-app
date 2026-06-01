@@ -39,8 +39,8 @@ const webClient = new MockWebBridgeClient({ adapter: webAdapter });
 // ======================================================================
 
 appHost.registerHandler('Ping', async message => {
-    // 타입 시스템에 의해 message.payload가 PingPayload임이 보장되므로 옵셔널 체이닝(?.) 제거
-    const pingPayload = message.payload.payload;
+    // 타입 시스템에 의해 message.data가 PingPayload임이 보장되므로 옵셔널 체이닝(?.) 제거
+    const pingPayload = message.data.payload;
     logger.app(`[MockAppBridgeHost] 'Ping' 수신. payload 길이: ${pingPayload.length} bytes`);
 
     // HandlerResponse<'Ping'> 규격에 따라 refId, version 등의 메타데이터 없이 순수 응답만 반환
@@ -84,7 +84,7 @@ async function handleMenuChoice(choice: string) {
             try {
                 // 타입 추론에 의해 response는 AppMessageData<'Pong'> 타입이 됩니다. ('any' 캐스팅 제거)
                 const response = await webClient.request('Ping', {
-                    payload: {
+                    data: {
                         payload: 'A',
                     },
                 });
@@ -114,7 +114,7 @@ async function handleMenuChoice(choice: string) {
                 const startTime = performance.now();
 
                 const response = await webClient.request('Ping', {
-                    payload: {
+                    data: {
                         payload: requestPayload,
                     },
                 });
@@ -123,10 +123,10 @@ async function handleMenuChoice(choice: string) {
                 const rtt = (endTime - startTime).toFixed(2);
 
                 // App의 응답 데이터는 'data' 필드에 위치합니다.
-                const responsePayloadLength = response.data?.payload?.length ?? 0;
-                logger.web(`✅ 응답 완료! 길이: ${responsePayloadLength}, ⏱️ ${rtt}ms`);
+                const responsePayloadLength = (response as AppMessageData<'Pong'>).data.payload.length;
+                logger.web(` 응답 완료! 길이: ${responsePayloadLength}, ⏱️ ${rtt}ms`);
             } catch (error) {
-                logger.web('❌ 응답 실패:', error);
+                logger.web(' 응답 실패:', error);
             }
             break;
         }

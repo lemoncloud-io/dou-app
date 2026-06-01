@@ -1,6 +1,6 @@
 import type { EventMessage, RequestMessage, ResponseMessage } from '../common';
 import type { IAppBridgeHost } from './IAppBridgeHost';
-import type { WebMessageType, WebMessageData, EventMessageType, AppMessageData } from '@chatic/app-messages';
+import type { WebMessageType, WebMessageData, AppMessageType, AppMessageData } from '@chatic/app-messages';
 
 export class MockAppBridgeHost implements IAppBridgeHost {
     private handlers: Map<string, (message: any) => Promise<any>> = new Map();
@@ -50,7 +50,7 @@ export class MockAppBridgeHost implements IAppBridgeHost {
         this.handlers.delete(type as string);
     }
 
-    public pushEvent<K extends EventMessageType>(message: AppMessageData<K>): void {
+    public pushEvent<K extends AppMessageType>(message: AppMessageData<K>): void {
         console.log(`[MockAppBridgeHost] Web으로 Event Push 발송:`, message);
         const eventMsg = {
             ...message,

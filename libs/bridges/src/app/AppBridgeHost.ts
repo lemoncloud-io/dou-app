@@ -1,6 +1,6 @@
 import type { EventMessage, MessageProtocol, RequestMessage, ResponseMessage } from '../common';
 import { JsonProtocol } from '../common';
-import type { AppMessageData, EventMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
+import type { AppMessageData, AppMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { IAppBridgeHost } from './IAppBridgeHost';
 
 export interface AppBridgeHostConfig {
@@ -44,9 +44,9 @@ export class AppBridgeHost implements IAppBridgeHost {
         this.handlers.delete(type as string);
     }
 
-    public pushEvent<K extends EventMessageType>(message: AppMessageData<K>): void {
+    public pushEvent<K extends AppMessageType>(message: AppMessageData<K>): void {
         const eventMsg = {
-            ...message, // 전개 연산자를 위로 배치하여 덮어쓰기 방지
+            ...message,
             version: this.version,
             refId: this.generateRefId(),
         } as unknown as EventMessage;
