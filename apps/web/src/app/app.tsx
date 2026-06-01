@@ -11,11 +11,6 @@ import { ErrorFallback, GlobalLoader, LoadingFallback, useVersionCheck, VersionU
 import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
-
-import { initializeMessageListener, logger } from '@chatic/app-messages';
-
-import { webBridge } from './shared/bridges';
-
 import { ServiceUnavailableOverlay, WebSocketV2Connection } from './components';
 import { GlobalChatSync } from './components/GlobalChatSync';
 import { DataProvider } from './shared/data';
@@ -25,6 +20,8 @@ import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistrati
 import { useForegroundTokenRefresh } from './shared/hooks/useForegroundTokenRefresh';
 import { useForegroundResync } from './shared/hooks/useForegroundResync';
 import i18n from '../i18n';
+import { logger, webClient } from '@chatic/bridges';
+import { useDeviceInfoStore } from '@chatic/device-utils';
 
 if (typeof window !== 'undefined') {
     window.addEventListener('error', event => {
@@ -83,16 +80,16 @@ export function App() {
 
     useForegroundResync(refreshToken);
 
-    useEffect(() => {
-        const cleanup = initializeMessageListener();
-        return () => {
-            cleanup?.();
-        };
-    }, []);
-
     // 네이티브 APP LOADER 해제 — 웹 마운트 즉시 전송
     useEffect(() => {
-        webBridge.post('WebAppReady');
+        webClient.post('WebAppReady');
+    }, []);
+
+    // 네이티브에서 버전 정보 업데이트 이벤트 구독
+    useEffect(() => {
+        return webClient.onEvent('OnUpdateDeviceInfo', message => {
+            useDeviceInfoStore.getState().updateVersionInfo(message.data.latestVersion, message.data.shouldUpdate);
+        });
     }, []);
 
     const handleError = useCallback((error: Error, info: ErrorInfo): void => {

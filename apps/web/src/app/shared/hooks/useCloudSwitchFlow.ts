@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { useLoaderStore } from '@chatic/shared';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';

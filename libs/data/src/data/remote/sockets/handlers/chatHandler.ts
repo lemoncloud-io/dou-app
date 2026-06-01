@@ -1,6 +1,6 @@
 import type { ChatErrorPayload, WSSChatActionType, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import type { ChannelView, ChatFeedResult, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import type { ListResult, SocketEventMap } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
 

@@ -1,4 +1,4 @@
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 
 export const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
 

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import type { CacheType } from '@chatic/app-messages';
 import { useRepositories } from '../data';
 

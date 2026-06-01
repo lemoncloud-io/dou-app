@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import type { ChatReadPayload, ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
 import { useDynamicProfile } from '@chatic/web-core';
 

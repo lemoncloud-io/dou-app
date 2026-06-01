@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Check, Home, RefreshCw, Users } from 'lucide-react';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { cn } from '@chatic/lib/utils';
 import { cloudCore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';

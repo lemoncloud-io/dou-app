@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Edit3, Loader2, Mail, Phone, Save, User, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Card } from '@chatic/ui-kit/components/ui/card';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';

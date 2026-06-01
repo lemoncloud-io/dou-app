@@ -1,6 +1,6 @@
 import type { DataContext, DataContextProvider } from '@chatic/data';
 import { DataContextHolder } from '@chatic/data';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';

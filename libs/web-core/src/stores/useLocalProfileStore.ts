@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 
 const LOCAL_PROFILE_KEY = 'chatic-local-profile';
 

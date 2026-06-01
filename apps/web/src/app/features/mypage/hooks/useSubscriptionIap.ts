@@ -1,14 +1,25 @@
 import { useCallback, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { getMobileAppInfo, logger, postMessage, useHandleAppMessage } from '@chatic/app-messages';
+import { webClient } from '@chatic/bridges';
 import { useValidateApple, useValidateGoogle, useValidateMembership, subscriptionKeys } from '@chatic/subscriptions';
 import { cloudsKeys } from '@chatic/users';
 
 import type { AppMessageData, IapProductSubscription } from '@chatic/app-messages';
+import {
+    useOnFetchCurrentPurchases,
+    useOnFetchProducts,
+    useOnFinishPurchaseTransaction,
+    useOnPurchaseError,
+    useOnPurchaseSuccess,
+} from '../../../shared/hooks';
 
 const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
 const APP_ID = IS_DEV ? 'io.chatic.dou.dev' : 'io.chatic.dou';
+
+const iapLogger = {
+    warn: (tag: string, msg: string, ...args: any[]) => console.warn(`[${tag}] ${msg}`, ...args),
+};
 
 interface NativePurchase {
     productId: string;
@@ -30,7 +41,7 @@ type PurchaseResult = NativePurchase;
 type PurchaseError = { code: string; message?: string };
 
 export const useSubscriptionIap = () => {
-    const { isIOS } = getMobileAppInfo();
+    const isIOS = typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
     const [isFetchingProducts, setIsFetchingProducts] = useState(false);
     const [isPurchasing, setIsPurchasing] = useState(false);
     const validateGoogle = useValidateGoogle();
@@ -58,29 +69,29 @@ export const useSubscriptionIap = () => {
     } | null>(null);
 
     // Listen for native messages
-    useHandleAppMessage('OnPurchaseSuccess', (message: AppMessageData<'OnPurchaseSuccess'>) => {
+    useOnPurchaseSuccess((message: AppMessageData<'OnPurchaseSuccess'>) => {
         const result = message.data.purchase;
         purchaseResolverRef.current?.resolve(result);
         purchaseResolverRef.current = null;
     });
 
-    useHandleAppMessage('OnPurchaseError', (message: AppMessageData<'OnPurchaseError'>) => {
+    useOnPurchaseError((message: AppMessageData<'OnPurchaseError'>) => {
         const result = message.data.error;
         purchaseResolverRef.current?.reject(result);
         purchaseResolverRef.current = null;
     });
 
-    useHandleAppMessage('OnFinishPurchaseTransaction', () => {
+    useOnFinishPurchaseTransaction(() => {
         finishResolverRef.current?.resolve();
         finishResolverRef.current = null;
     });
 
-    useHandleAppMessage('OnFetchCurrentPurchases', (message: AppMessageData<'OnFetchCurrentPurchases'>) => {
+    useOnFetchCurrentPurchases((message: AppMessageData<'OnFetchCurrentPurchases'>) => {
         currentPurchasesResolverRef.current?.resolve(message.data.purchases as NativePurchase[]);
         currentPurchasesResolverRef.current = null;
     });
 
-    useHandleAppMessage('OnFetchProducts', (message: AppMessageData<'OnFetchProducts'>) => {
+    useOnFetchProducts((message: AppMessageData<'OnFetchProducts'>) => {
         nativeProductsResolverRef.current?.resolve(message.data.products);
         nativeProductsResolverRef.current = null;
     });
@@ -99,13 +110,12 @@ export const useSubscriptionIap = () => {
                     }
                 }, 60000);
 
-                postMessage({
-                    type: 'Purchase',
+                webClient.post('Purchase', {
                     data: {
                         id,
                         ...(!isIOS && { offerToken: product.offerToken, newPlanId: product.newPlanId }),
                     },
-                });
+                } as any);
 
                 const originalResolve = resolve;
                 const originalReject = reject;
@@ -164,7 +174,7 @@ export const useSubscriptionIap = () => {
         return new Promise(resolve => {
             finishResolverRef.current = { resolve };
 
-            postMessage({ type: 'FinishPurchaseTransaction', data: { purchase: result } } as any);
+            webClient.post('FinishPurchaseTransaction', { data: { purchase: result } } as any);
         });
     }, []);
 
@@ -172,7 +182,7 @@ export const useSubscriptionIap = () => {
     const fetchCurrentPurchases = useCallback((): Promise<NativePurchase[]> => {
         return new Promise(resolve => {
             currentPurchasesResolverRef.current = { resolve };
-            postMessage({ type: 'FetchCurrentPurchases', data: {} });
+            webClient.post('FetchCurrentPurchases', { data: {} } as any);
         });
     }, []);
 
@@ -195,7 +205,7 @@ export const useSubscriptionIap = () => {
                     reject(reason);
                 },
             };
-            postMessage({ type: 'FetchProducts', data: {} });
+            webClient.post('FetchProducts', { data: {} } as any);
         });
     }, []);
 
@@ -205,7 +215,7 @@ export const useSubscriptionIap = () => {
             const result = await purchase(product);
             await validate(result, email);
             await finishTransaction(result);
-            postMessage({ type: 'FetchCurrentPurchases', data: {} });
+            webClient.post('FetchCurrentPurchases', { data: {} } as any);
 
             await new Promise(resolve => setTimeout(resolve, 1500));
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
@@ -225,12 +235,12 @@ export const useSubscriptionIap = () => {
                 await finishTransaction(p);
                 restored++;
             } catch (e) {
-                logger.warn('IAP', '[useSubscriptionIap] restore skip', { productId: p.productId, error: e });
+                iapLogger.warn('IAP', '[useSubscriptionIap] restore skip', { productId: p.productId, error: e });
             }
         }
 
         if (restored > 0) {
-            postMessage({ type: 'FetchCurrentPurchases', data: {} });
+            webClient.post('FetchCurrentPurchases', { data: {} } as any);
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
         }
 

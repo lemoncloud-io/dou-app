@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ContactInfo } from '@chatic/app-messages';
-import { getMobileAppInfo, logger, postMessage, useHandleAppMessage } from '@chatic/app-messages';
+import { isNative, webClient } from '@chatic/bridges';
 import { reportError, toError } from '@chatic/web-core';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -13,6 +13,11 @@ import { useCreateInviteBatch } from '../hooks';
 import { AddFriendSheet } from './AddFriendSheet';
 import { ContactListItem } from './ContactListItem';
 import { PermissionDeniedBanner } from './PermissionDeniedBanner';
+import { useOnGetContacts } from '../../../shared/hooks';
+
+const inviteLogger = {
+    error: (tag: string, msg: string, ...args: any[]) => console.error(`[${tag}] ${msg}`, ...args),
+};
 
 // Valid Korean mobile prefixes: 010, 011, 016, 017, 018, 019
 const KOREAN_MOBILE_PREFIXES = ['010', '011', '016', '017', '018', '019'];
@@ -56,7 +61,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
     const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
     const [isBatchInviting, setIsBatchInviting] = useState(false);
 
-    const { isOnMobileApp } = getMobileAppInfo();
+    const isOnMobileApp = isNative();
     const [isWaitingForContacts, setIsWaitingForContacts] = useState(false);
     const { createBatchInvite } = useCreateInviteBatch();
 
@@ -66,7 +71,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
     }
 
     // Listen for contact response from native app
-    useHandleAppMessage('OnGetContacts', message => {
+    useOnGetContacts(message => {
         setIsWaitingForContacts(false);
         const receivedContacts = message.data?.contacts ?? [];
         if (receivedContacts.length > 0) {
@@ -81,7 +86,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
     // Request contacts when dialog opens (mobile only)
     useEffect(() => {
         if (open && isOnMobileApp && !hasRequestedContacts) {
-            postMessage({ type: 'GetContacts' });
+            webClient.post('GetContacts', { data: {} });
             setHasRequestedContacts(true);
             setIsWaitingForContacts(true);
         }
@@ -182,7 +187,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
             toast({ title: t('inviteFriends.batchSuccess', { count: phones.length }) });
             onOpenChange?.(false);
         } catch (error) {
-            logger.error('INVITE', 'Failed to batch invite contacts', { error, data: { channelId } });
+            inviteLogger.error('INVITE', 'Failed to batch invite contacts', { error, data: { channelId } });
             reportError(toError(error));
             const message = error instanceof Error ? error.message : t('inviteFriends.batchFailed');
             toast({ title: message, variant: 'destructive' });

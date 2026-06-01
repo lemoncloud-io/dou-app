@@ -2,7 +2,7 @@ import { Loader2, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { reportError, toError } from '@chatic/web-core';
 import { Sheet, SheetContent } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';

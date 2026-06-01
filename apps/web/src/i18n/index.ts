@@ -6,7 +6,7 @@ import ChainedBackend from 'i18next-chained-backend';
 import LocalStorageBackend from 'i18next-localstorage-backend';
 import Backend from 'i18next-xhr-backend';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { ENV, LANGUAGE_KEY, PROJECT } from '@chatic/web-core';
 
 const I18N_VERSION = process.env.I18N_VERSION || 'fallback';

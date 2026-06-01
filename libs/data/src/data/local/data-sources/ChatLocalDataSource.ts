@@ -14,7 +14,7 @@ import { createDomainListResult, toDomainChat as toDomainChatBase } from '../../
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
 import { resolveScopedContext } from '../storages/utils';
 import type { CacheChatView, ChatQueryOptions } from '@chatic/app-messages';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 
 type ChatCache = CacheStorageItem<'chat'>;
 type ChatSortable = Partial<DomainChat> | ChatCache;

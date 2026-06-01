@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useDynamicProfile } from '@chatic/web-core';
 import { usePlaces } from '../../../shared/hooks';

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
+import { isNative, webClient } from '@chatic/bridges';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
@@ -40,7 +40,8 @@ export const SubscriptionPlansPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
     const { toast } = useToast();
-    const { isOnMobileApp, isIOS } = getMobileAppInfo();
+    const isOnMobileApp = isNative();
+    const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
     const { purchaseAndValidate, fetchNativeProducts } = useSubscriptionIap();
     const { data: cloudsData } = useClouds({ limit: -1 });
     const clouds = cloudsData?.list ?? [];
@@ -72,7 +73,7 @@ export const SubscriptionPlansPage = () => {
 
     const openPolicyUrl = (path: string) => {
         const url = `${POLICY_BASE_URL}${path}`;
-        if (isOnMobileApp) postMessage({ type: 'OpenURL', data: { url } });
+        if (isOnMobileApp) webClient.post('OpenURL', { data: { url } });
         else window.open(url, '_blank');
     };
 

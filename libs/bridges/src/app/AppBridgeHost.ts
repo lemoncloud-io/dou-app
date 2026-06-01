@@ -1,5 +1,5 @@
-import type { EventMessage, MessageProtocol, RequestMessage, ResponseMessage } from '../common';
-import { JsonProtocol } from '../common';
+import type { EventMessage, MessageProtocol, RequestMessage, ResponseMessage, IMessageQueue } from '../common';
+import { JsonProtocol, MessageQueue } from '../common';
 import type { AppMessageData, AppMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { IAppBridgeHost } from './IAppBridgeHost';
 
@@ -7,6 +7,7 @@ export interface AppBridgeHostConfig {
     protocol?: MessageProtocol;
     sendToWeb: (message: string) => void;
     version?: string;
+    eventBuffer?: IMessageQueue<EventMessage>;
 }
 
 export class AppBridgeHost implements IAppBridgeHost {
@@ -16,16 +17,33 @@ export class AppBridgeHost implements IAppBridgeHost {
 
     private handlers: Map<string, (message: any) => Promise<any>> = new Map();
 
+    private isWebReady = false;
+    private eventBuffer: IMessageQueue<EventMessage>;
+
     constructor(config: AppBridgeHostConfig) {
         this.protocol = config.protocol ?? JsonProtocol;
         this.sendToWeb = config.sendToWeb;
         this.version = config.version ?? '2.0.0';
+        this.eventBuffer = config.eventBuffer ?? new MessageQueue();
+
+        // WebAppReady 기본 핸들러 등록
+        this.registerHandler('WebAppReady', async () => {
+            return {
+                type: 'WebAppReady',
+                success: true,
+                data: {},
+            } as any;
+        });
     }
 
     public async handleMessage(data: string): Promise<void> {
         try {
             const parsed = this.protocol.decode(data) as RequestMessage;
             if (parsed && typeof parsed.type === 'string') {
+                if (!this.isWebReady) {
+                    this.isWebReady = true;
+                    this.flushBuffer();
+                }
                 await this.processRequest(parsed);
             }
         } catch (error) {
@@ -51,8 +69,22 @@ export class AppBridgeHost implements IAppBridgeHost {
             refId: this.generateRefId(),
         } as unknown as EventMessage;
 
-        const encoded = this.protocol.encode(eventMsg);
-        this.sendToWeb(encoded as string);
+        if (!this.isWebReady) {
+            this.eventBuffer.enqueue(eventMsg);
+        } else {
+            const encoded = this.protocol.encode(eventMsg);
+            this.sendToWeb(encoded as string);
+        }
+    }
+
+    private flushBuffer(): void {
+        while (!this.eventBuffer.isEmpty()) {
+            const eventMsg = this.eventBuffer.dequeue();
+            if (eventMsg) {
+                const encoded = this.protocol.encode(eventMsg);
+                this.sendToWeb(encoded as string);
+            }
+        }
     }
 
     private async processRequest(message: RequestMessage): Promise<void> {

@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 

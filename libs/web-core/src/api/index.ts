@@ -2,7 +2,7 @@ import { DOU_ENDPOINT, ENV, getDynamicDOUEndpoint, OAUTH_ENDPOINT, webCore, clou
 import { MAX_RETRIES, validateTokenResponse, withRetry } from '../utils';
 import { useWebCoreStore } from '../stores';
 
-import { getMobileAppInfo, logger } from '@chatic/app-messages';
+import { logger, isNative } from '@chatic/bridges';
 
 const throwIfApiError = <T>(data: T & { error?: string }): T => {
     if (data.error) throw new Error(data.error);
@@ -97,8 +97,7 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
 
     try {
         // 앱 타입 자동 감지
-        const { isOnMobileApp } = getMobileAppInfo();
-        const app: AppType = isOnMobileApp ? 'mobile' : 'web';
+        const app: AppType = isNative() ? 'mobile' : 'web';
 
         // 유저 정보 (useWebCoreStore에서)
         const state = useWebCoreStore.getState();
@@ -152,7 +151,7 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
                 placeId: cloudCore.getSelectedPlaceId() ?? undefined,
             },
             http: httpInfo,
-            device: isOnMobileApp
+            device: isNative()
                 ? {
                       platform: w.CHATIC_APP_PLATFORM,
                       appVersion: w.CHATIC_APP_CURRENT_VERSION,
@@ -189,8 +188,7 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
  */
 export const reportIssue = async (title: string, message: string): Promise<void> => {
     try {
-        const { isOnMobileApp } = getMobileAppInfo();
-        const app: AppType = isOnMobileApp ? 'mobile' : 'web';
+        const app: AppType = isNative() ? 'mobile' : 'web';
 
         const state = useWebCoreStore.getState();
         const userRole = (state.profile?.$user as any)?.userRole;

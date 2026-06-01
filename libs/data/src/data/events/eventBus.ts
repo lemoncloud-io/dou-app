@@ -1,4 +1,4 @@
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 
 import type { DomainEventMap, SocketEventMap } from './types';
 

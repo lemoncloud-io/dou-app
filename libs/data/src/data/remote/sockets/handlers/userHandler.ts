@@ -1,6 +1,6 @@
 import type { ChatErrorPayload, WSSEnvelope, WSSUserActionType } from '@lemoncloud/chatic-sockets-api';
 import type { SiteView, UserView } from '@lemoncloud/chatic-socials-api';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import type { SocketEventMap } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';

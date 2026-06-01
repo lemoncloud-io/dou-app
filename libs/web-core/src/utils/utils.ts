@@ -1,5 +1,5 @@
 import { createAsyncDelay } from '@lemoncloud/lemon-web-core';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 
 import { classifyError, handleAuthError } from './error';
 

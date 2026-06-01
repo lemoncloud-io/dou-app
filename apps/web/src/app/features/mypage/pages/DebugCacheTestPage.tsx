@@ -15,10 +15,9 @@ import {
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { AppMessageData } from '@chatic/app-messages';
-import { getMobileAppInfo, type TestRecord } from '@chatic/app-messages';
+import { type TestRecord } from '@chatic/app-messages';
 import { useNavigateWithTransition } from '@chatic/shared';
-
-import { webBridge } from '../../../shared/bridges';
+import { webClient } from '@chatic/bridges';
 
 const BULK_COUNTS = [10, 50, 100, 500, 1000, 2000];
 
@@ -208,8 +207,14 @@ export const DebugCacheTestPage = () => {
     const [newValue, setNewValue] = useState('');
 
     const isOnMobileApp = useMemo(() => {
-        if (typeof window === 'undefined') return false;
-        return getMobileAppInfo().isOnMobileApp;
+        return (
+            typeof window !== 'undefined' &&
+            !!(
+                window.ReactNativeWebView?.postMessage ||
+                window.ChaticMessageHandler?.postMessage ||
+                window.webkit?.messageHandlers?.ChaticMessageHandler?.postMessage
+            )
+        );
     }, []);
 
     // Telemetry logger & statistics updates
@@ -307,7 +312,7 @@ export const DebugCacheTestPage = () => {
         async (silent = false) => {
             if (!silent) setIsExplorerLoading(true);
             try {
-                const response = await webBridge.request('FetchAllTestRecords', { data: {} });
+                const response = await webClient.request('FetchAllTestRecords', { data: {} });
                 if (response.type !== 'OnFetchAllTestRecords') {
                     throw new Error(`예상치 못한 응답 타입: ${response.type}`);
                 }
@@ -339,7 +344,7 @@ export const DebugCacheTestPage = () => {
         const start = performance.now();
 
         try {
-            const response = await webBridge.request('SaveTestRecord', {
+            const response = await webClient.request('SaveTestRecord', {
                 data: { key: newKey.trim(), value: newValue },
             });
             const duration = performance.now() - start;
@@ -374,7 +379,7 @@ export const DebugCacheTestPage = () => {
             const start = performance.now();
 
             try {
-                const response = await webBridge.request('SaveTestRecord', { data: { key, value } });
+                const response = await webClient.request('SaveTestRecord', { data: { key, value } });
                 const duration = performance.now() - start;
 
                 if (response.type !== 'OnSaveTestRecord') {
@@ -435,7 +440,7 @@ export const DebugCacheTestPage = () => {
                 value: `Val-${i}-${Math.random().toString(36).substring(2, 6)}`,
             }));
 
-            const response = await webBridge.request('SaveAllTestRecords', { data: { items } });
+            const response = await webClient.request('SaveAllTestRecords', { data: { items } });
             const duration = performance.now() - start;
 
             if (response.type !== 'OnSaveAllTestRecords') {
@@ -473,7 +478,7 @@ export const DebugCacheTestPage = () => {
         const start = performance.now();
 
         try {
-            const response = await webBridge.request('FetchAllTestRecords', { data: {} });
+            const response = await webClient.request('FetchAllTestRecords', { data: {} });
             const duration = performance.now() - start;
 
             if (response.type !== 'OnFetchAllTestRecords') {
@@ -504,7 +509,7 @@ export const DebugCacheTestPage = () => {
         const start = performance.now();
 
         try {
-            const response = await webBridge.request('ClearTestRecords', { data: {} });
+            const response = await webClient.request('ClearTestRecords', { data: {} });
             const duration = performance.now() - start;
 
             if (response.type !== 'OnClearTestRecords') {
@@ -546,7 +551,7 @@ export const DebugCacheTestPage = () => {
             const promises = [];
             for (let i = 1; i <= concurrencyCount; i++) {
                 promises.push(
-                    webBridge.request('SaveTestRecord', { data: { key: concurrencyKey, value: `Value-${i}` } })
+                    webClient.request('SaveTestRecord', { data: { key: concurrencyKey, value: `Value-${i}` } })
                 );
             }
 
@@ -558,7 +563,7 @@ export const DebugCacheTestPage = () => {
                 '동시성_검증',
                 `연속 쓰기 완료. DB에 최종적으로 영속화된 '${concurrencyKey}'의 값을 확인 중...`
             );
-            const fetchResponse = await webBridge.request('FetchTestRecord', { data: { key: concurrencyKey } });
+            const fetchResponse = await webClient.request('FetchTestRecord', { data: { key: concurrencyKey } });
             if (fetchResponse.type !== 'OnFetchTestRecord') {
                 throw new Error(`예상치 못한 응답 타입: ${fetchResponse.type}`);
             }
@@ -628,7 +633,7 @@ export const DebugCacheTestPage = () => {
             const executeRequest = async (id: number) => {
                 const singleStart = performance.now();
                 try {
-                    const res = await webBridge.request('SaveTestRecord', {
+                    const res = await webClient.request('SaveTestRecord', {
                         data: { key: `flood_key_${id}`, value: `FloodValue-${id}` },
                     });
                     const singleTime = performance.now() - singleStart;

@@ -1,22 +1,23 @@
 import {
+    Activity,
     AlertTriangle,
     CheckCircle2,
     ChevronLeft,
+    Clock,
     FileText,
+    Gauge,
     Pause,
     Play,
     RefreshCw,
     Trash2,
     Upload,
     XCircle,
-    Activity,
-    Gauge,
-    Clock,
 } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getMobileAppInfo, type RecoverableUploadTaskInfo } from '@chatic/app-messages';
+import type { OnCreateDummyFilePayload } from '@chatic/app-messages';
+import { type RecoverableUploadTaskInfo } from '@chatic/app-messages';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { webBridge } from '../../../shared/bridges';
+import { webClient } from '@chatic/bridges';
 
 type LogLevel = 'info' | 'success' | 'warning' | 'error';
 
@@ -131,8 +132,14 @@ export const DebugUploadPage = () => {
     const logEndRef = useRef<HTMLDivElement | null>(null);
 
     const isOnMobileApp = useMemo(() => {
-        if (typeof window === 'undefined') return false;
-        return getMobileAppInfo().isOnMobileApp;
+        return (
+            typeof window !== 'undefined' &&
+            !!(
+                window.ReactNativeWebView?.postMessage ||
+                window.ChaticMessageHandler?.postMessage ||
+                window.webkit?.messageHandlers?.ChaticMessageHandler?.postMessage
+            )
+        );
     }, []);
 
     const recoverableIds = useMemo(() => new Set(recoverableTasks.map(t => t.uploadId)), [recoverableTasks]);
@@ -281,11 +288,11 @@ export const DebugUploadPage = () => {
             if (isOnMobileApp) {
                 addLog('info', 'Generator', `Requesting native sparse file allocation: ${sizeInGB}GB...`);
                 try {
-                    const response = await webBridge.request('CreateDummyFile', {
+                    const response = await webClient.request('CreateDummyFile', {
                         data: { sizeInBytes, fileName },
                     });
                     if (response.success && response.data) {
-                        const doc = response.data;
+                        const doc = response.data as OnCreateDummyFilePayload;
                         const stagedFile: SelectedFile = {
                             uri: doc.uri,
                             name: doc.name,
@@ -332,7 +339,7 @@ export const DebugUploadPage = () => {
     const pickFiles = useCallback(async () => {
         addLog('info', 'DocumentPicker', 'Opening multiple file picker...');
         try {
-            const response = await webBridge.request('OpenDocument', {
+            const response = await webClient.request('OpenDocument', {
                 data: {
                     allowMultiSelection: true,
                     includeBase64: false,
@@ -387,7 +394,7 @@ export const DebugUploadPage = () => {
                 return;
             }
             try {
-                await webBridge.request('PauseFileUpload', { data: { uploadId } });
+                await webClient.request('PauseFileUpload', { data: { uploadId } });
             } catch (e: any) {
                 addLog('error', 'UploadControl', `Pause error [ID: ${uploadId}]: ${e.message}`);
             }
@@ -421,7 +428,7 @@ export const DebugUploadPage = () => {
                 };
             });
             try {
-                await webBridge.request('ResumeFileUpload', { data: { uploadId } });
+                await webClient.request('ResumeFileUpload', { data: { uploadId } });
             } catch (e: any) {
                 addLog('error', 'UploadControl', `Resume error [ID: ${uploadId}]: ${e.message}`);
             }
@@ -449,7 +456,7 @@ export const DebugUploadPage = () => {
                 return;
             }
             try {
-                await webBridge.request('CancelFileUpload', { data: { uploadId } });
+                await webClient.request('CancelFileUpload', { data: { uploadId } });
             } catch (e: any) {
                 addLog('error', 'UploadControl', `Cancel error [ID: ${uploadId}]: ${e.message}`);
             }
@@ -500,7 +507,7 @@ export const DebugUploadPage = () => {
             return;
         }
         try {
-            const response = await webBridge.request('ListRecoverableUploads');
+            const response = await webClient.request('ListRecoverableUploads');
             if (!response.success) {
                 addLog(
                     'error',
@@ -573,7 +580,7 @@ export const DebugUploadPage = () => {
                 return;
             }
             try {
-                await webBridge.request('RecoverUpload', { data: { uploadId } });
+                await webClient.request('RecoverUpload', { data: { uploadId } });
             } catch (e: any) {
                 addLog('error', 'Recovery', `Recover error [ID: ${uploadId}]: ${e.message}`);
             }
@@ -608,7 +615,7 @@ export const DebugUploadPage = () => {
                 return;
             }
             try {
-                await webBridge.request('RetryUpload', { data: { uploadId } });
+                await webClient.request('RetryUpload', { data: { uploadId } });
             } catch (e: any) {
                 addLog('error', 'Recovery', `Retry error [ID: ${uploadId}]: ${e.message}`);
             }
@@ -663,7 +670,7 @@ export const DebugUploadPage = () => {
                 }
             } else {
                 try {
-                    await webBridge.request('RequestFileUpload', {
+                    await webClient.request('RequestFileUpload', {
                         data: {
                             uploadId: task.uploadId,
                             fileUri: task.fileUri,
@@ -806,7 +813,7 @@ export const DebugUploadPage = () => {
             }
 
             try {
-                await webBridge.request('RequestFileUpload', {
+                await webClient.request('RequestFileUpload', {
                     data: {
                         uploadId,
                         fileUri: file.uri,
@@ -883,7 +890,7 @@ export const DebugUploadPage = () => {
         addLog('info', 'Bridge', 'Registering native upload event listeners...');
 
         // Progress listener
-        const unsubProgress = webBridge.onEvent('OnUploadProgress', message => {
+        const unsubProgress = webClient.onEvent('OnUploadProgress', message => {
             const payload = message.data;
             if (!payload) return;
 
@@ -924,7 +931,7 @@ export const DebugUploadPage = () => {
         });
 
         // Complete listener
-        const unsubComplete = webBridge.onEvent('OnUploadComplete', message => {
+        const unsubComplete = webClient.onEvent('OnUploadComplete', message => {
             const payload = message.data;
             if (!payload) return;
 
@@ -958,7 +965,7 @@ export const DebugUploadPage = () => {
         });
 
         // Background/Foreground status listener
-        const unsubBackground = webBridge.onEvent('OnBackgroundStatusChanged', message => {
+        const unsubBackground = webClient.onEvent('OnBackgroundStatusChanged', message => {
             const payload = message.data;
             if (!payload) return;
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { parsePointerWebSocketMessage, useWebSocketStore, useWebSocketWorker } from '@chatic/socket';
 import { webCore } from '@chatic/web-core';
 

@@ -92,6 +92,13 @@ export type CreateDummyFilePayload = {
     fileName: string;
 };
 
+/** [응답] 테스트용 dummy sparse 파일 생성 결과 */
+export type OnCreateDummyFilePayload = {
+    uri: string; // 생성된 파일의 file:// URI
+    name: string; // 파일명
+    size: number; // 요청한 파일 크기 (bytes)
+};
+
 export type RecoverableUploadTaskStatus = 'uploading' | 'paused' | 'failed' | 'cancelled' | 'completed';
 
 /**

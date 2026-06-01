@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { useInterval } from '@chatic/shared';
 import type { ChatUsersPayload } from '@lemoncloud/chatic-sockets-api';
 import { useRepositories } from '../data';

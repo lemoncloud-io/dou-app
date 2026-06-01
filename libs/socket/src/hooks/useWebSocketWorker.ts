@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import type { BaseWebSocketMessage, ConnectionStatus } from '../types';
 
 export interface UseWebSocketWorkerConfig<TMessage extends BaseWebSocketMessage> {

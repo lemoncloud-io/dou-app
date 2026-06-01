@@ -4,7 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 
 import { toast } from 'sonner';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { useTheme } from '@chatic/theme';
 
 import { CloudLogo } from './CloudLogo';

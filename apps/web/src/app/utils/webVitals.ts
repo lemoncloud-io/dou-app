@@ -1,6 +1,6 @@
 import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import type { Metric } from 'web-vitals';
 
 const reportMetric = (metric: Metric) => {

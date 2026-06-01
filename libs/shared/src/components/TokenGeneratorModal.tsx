@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Check, Copy, Dices, Key, Loader2 } from 'lucide-react';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import {

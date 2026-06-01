@@ -1,10 +1,18 @@
 import { useEffect, useRef } from 'react';
 
-import { logger, postMessage, useHandleAppMessage } from '@chatic/app-messages';
+import { webClient } from '@chatic/bridges';
+import { useOnFetchFcmToken } from './useHandleAppMessage';
 import { useWebCoreStore } from '@chatic/web-core';
 import { useRegisterDeviceToken } from '@chatic/users';
 
 import { useDynamicDeviceId } from './useDynamicDeviceId';
+
+// TODO: @chatic/bridges에서 임포트할 logger 변수 임시 사용 또는 console 대체
+const appLogger = {
+    info: (tag: string, msg: string, ...args: any[]) => console.log(`[${tag}] ${msg}`, ...args),
+    debug: (tag: string, msg: string, ...args: any[]) => console.debug(`[${tag}] ${msg}`, ...args),
+    error: (tag: string, msg: string, ...args: any[]) => console.error(`[${tag}] ${msg}`, ...args),
+};
 
 declare global {
     interface Window {
@@ -28,28 +36,28 @@ export const useDeviceTokenRegistration = () => {
         if (hasRegistered.current) return;
 
         isHandlerReady.current = true;
-        logger.info('DEVICE_TOKEN', '[DeviceToken] isAppEnv detected, requesting FetchFcmToken');
-        postMessage({ type: 'FetchFcmToken' });
+        appLogger.info('DEVICE_TOKEN', '[DeviceToken] isAppEnv detected, requesting FetchFcmToken');
+        webClient.post('FetchFcmToken', {});
     }, [isAuthenticated]);
 
-    useHandleAppMessage('OnFetchFcmToken', async message => {
-        logger.info('DEVICE_TOKEN', '[DeviceToken] OnFetchFcmToken received', { hasToken: !!message.data.token });
+    useOnFetchFcmToken(async message => {
+        appLogger.info('DEVICE_TOKEN', '[DeviceToken] OnFetchFcmToken received', { hasToken: !!message.data.token });
         if (!isAuthenticated) {
-            logger.info('DEVICE_TOKEN', '[DeviceToken] not authenticated, skip');
+            appLogger.info('DEVICE_TOKEN', '[DeviceToken] not authenticated, skip');
             return;
         }
         const newToken = message.data.token;
         if (!newToken) return;
 
         const storedToken = localStorage.getItem(DEVICE_TOKEN_STORAGE_KEY);
-        logger.debug('DEVICE_TOKEN', '[DeviceToken] received token', {
+        appLogger.debug('DEVICE_TOKEN', '[DeviceToken] received token', {
             hasNewToken: !!newToken,
             hasStoredToken: !!storedToken,
             isChanged: storedToken !== newToken,
         });
 
         if (storedToken === newToken) {
-            logger.info('DEVICE_TOKEN', '[DeviceToken] token unchanged, skip register');
+            appLogger.info('DEVICE_TOKEN', '[DeviceToken] token unchanged, skip register');
             return;
         }
 
@@ -63,9 +71,9 @@ export const useDeviceTokenRegistration = () => {
             });
             localStorage.setItem(DEVICE_TOKEN_STORAGE_KEY, newToken);
             hasRegistered.current = true;
-            logger.info('DEVICE_TOKEN', '[DeviceToken] register success');
+            appLogger.info('DEVICE_TOKEN', '[DeviceToken] register success');
         } catch (error) {
-            logger.error('DEVICE_TOKEN', '[DeviceToken] register failed', { error });
+            appLogger.error('DEVICE_TOKEN', '[DeviceToken] register failed', { error });
         }
     });
 };

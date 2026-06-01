@@ -23,7 +23,7 @@ import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../../chats/components/ConfirmDialog';
 import { SortablePlaceItem } from '../components';
 import type { DomainSite } from '@chatic/data';
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 
 export const PlaceOrderPage = () => {
     const { t } = useTranslation();

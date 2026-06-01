@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Loader2, X } from 'lucide-react';
 
-import { logger } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
 import { reportIssue } from '@chatic/web-core';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
