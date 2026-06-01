@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { logger } from '@chatic/bridges';
+import { isNative, logger, webClient } from '@chatic/bridges';
 import { useInterval } from '@chatic/shared';
 import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
@@ -31,12 +31,21 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
 
     const [counts, setCounts] = useState<Record<string, number>>({});
     const requestSeqRef = useRef(0);
+    const lastNativeBadgeCountRef = useRef<number | null>(null);
     const isVerifiedRef = useRef(isVerified);
     isVerifiedRef.current = isVerified;
     const cloudIdRef = useRef(cloudId);
     cloudIdRef.current = cloudId;
     const selectedPlaceIdRef = useRef(selectedPlaceId);
     selectedPlaceIdRef.current = selectedPlaceId;
+
+    const updateNativeBadgeCount = useCallback((count: number) => {
+        if (!isNative()) return;
+        if (lastNativeBadgeCountRef.current === count) return;
+
+        lastNativeBadgeCountRef.current = count;
+        webClient.post('SetBadgeCount', { data: { count } });
+    }, []);
 
     const fetchCounts = useCallback(async () => {
         if (!isVerifiedRef.current || !cloudIdRef.current || !selectedPlaceIdRef.current) return;
@@ -60,11 +69,12 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
             }
 
             setCounts(grouped);
+            updateNativeBadgeCount(Object.values(grouped).reduce((sum, unread) => sum + unread, 0));
         } catch (error) {
             if (requestSeqRef.current !== requestSeq) return;
             logger.error('PLACE_UNREAD', '[usePlaceUnreadCounts] fetch failed', { error });
         }
-    }, [channelRepository]);
+    }, [channelRepository, updateNativeBadgeCount]);
 
     // cloudId 변경 시 counts 초기화 + 진행 중인 요청 무효화
     const prevCloudIdRef = useRef(cloudId);

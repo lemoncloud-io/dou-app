@@ -9,6 +9,7 @@ import {
     HardDrive,
     XCircle,
     Upload,
+    Bell,
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -113,6 +114,16 @@ export const DebugPage = () => {
                             <div className="flex items-center gap-3">
                                 <Upload size={18} className="text-muted-foreground" />
                                 <span className="text-[15px] font-medium text-foreground">Chunk Upload Test</span>
+                            </div>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                        <button
+                            onClick={() => navigate('/mypage/debug/badge-count')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Bell size={18} className="text-muted-foreground" />
+                                <span className="text-[15px] font-medium text-foreground">Badge Count Test</span>
                             </div>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
