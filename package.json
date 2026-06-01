@@ -42,6 +42,7 @@
         "mobile:android:release:install": "./scripts/install-android.sh",
         "!web": "------------- Web scripts -------------",
         "web:start": "npx nx serve web --port 5003",
+        "web:test": "npx jest --config apps/web/jest.config.js --runInBand --watchman=false",
         "web:build:dev": "yarn clean:cache && npx nx build --configuration=dev web",
         "web:build:prod": "yarn clean:cache && npx nx build --configuration=prod web",
         "web:deploy:dev": "(rm -rf ./dist/apps/web || true) && yarn web:build:dev && ./scripts/deploy-web.sh dev",
