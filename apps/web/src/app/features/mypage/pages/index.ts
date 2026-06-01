@@ -2,6 +2,7 @@ export * from './AccountInfoPage';
 export * from './AccountManagePage';
 export * from './CloudProfileEditPage';
 export * from './LicensesPage';
+export * from './DebugBadgeCountPage';
 export * from './DebugLoginPage';
 export * from './DebugLogBufferPage';
 export * from './DebugCacheTestPage';
