@@ -19,7 +19,7 @@ import {
 import { useWebSocketV2Store } from '@chatic/socket';
 import { LoadingFallback } from '@chatic/shared';
 
-import { getMobileAppInfo, logger } from '@chatic/app-messages';
+import { isNative, logger } from '@chatic/bridges';
 
 import type {
     CloudDelegationTokenView,
@@ -227,8 +227,7 @@ export const LoginPage = (): JSX.Element => {
 
             // 5. Save invite cloud to cache
             if (effectiveCloudId) {
-                const { isOnMobileApp } = getMobileAppInfo();
-                if (isOnMobileApp) {
+                if (isNative()) {
                     await withTimeout(
                         saveInvite({
                             id: effectiveCloudId,

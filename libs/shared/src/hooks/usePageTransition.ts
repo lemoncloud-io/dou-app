@@ -1,17 +1,22 @@
+import type { PageTransitionConfig, PlatformType } from '@lemoncloud/react-page-transition';
 import {
-    useNavigateWithTransition as useNavigateWithTransitionOriginal,
     useGoBack as useGoBackOriginal,
+    useNavigateWithTransition as useNavigateWithTransitionOriginal,
 } from '@lemoncloud/react-page-transition';
 
-import { getMobileAppInfo } from '@chatic/app-messages';
-
-import type { PageTransitionConfig, PlatformType } from '@lemoncloud/react-page-transition';
+import { useDeviceInfo } from '@chatic/device-utils';
 
 /** Platform detection using @chatic/app-messages for native app bridge. */
 const detectPlatform = (): PlatformType | undefined => {
-    const { isAndroid, isOnMobileApp } = getMobileAppInfo();
-    if (!isOnMobileApp) return undefined;
-    return isAndroid ? 'android' : 'ios';
+    const { deviceInfo } = useDeviceInfo();
+    switch (deviceInfo?.platform) {
+        case 'android':
+            return 'android';
+        case 'ios':
+            return 'ios';
+        default:
+            return undefined;
+    }
 };
 
 const pageTransitionConfig: PageTransitionConfig = { detectPlatform };

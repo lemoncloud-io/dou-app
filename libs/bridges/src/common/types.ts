@@ -1,6 +1,5 @@
-import type { AppMessageData, AppMessageType } from '@chatic/app-messages';
-import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
+import type { AppMessage, WebMessage } from '@chatic/app-messages';
 
-export type RequestMessage = WebMessageData<WebMessageType>;
-export type EventMessage = AppMessageData<AppMessageType>;
-export type ResponseMessage = AppMessageData<AppMessageType>;
+export type RequestMessage = WebMessage;
+export type EventMessage = AppMessage;
+export type ResponseMessage = AppMessage;

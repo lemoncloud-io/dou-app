@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 
 import type { OAuthLoginProvider } from '@chatic/app-messages';
-import { getMobileAppInfo, initializeMessageListener, logger, postMessage } from '@chatic/app-messages';
+import { isNative, logger } from '@chatic/bridges';
 
 import { updateProfile } from '../api';
-import { LANGUAGE_KEY, cloudCore, webCore, coreStorage, startWebCoreInit, resetWebCoreInit } from '../core';
+import { cloudCore, coreStorage, LANGUAGE_KEY, resetWebCoreInit, startWebCoreInit, webCore } from '../core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 export type UserView = Partial<UserProfile$>;
@@ -180,10 +180,7 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
             data: { isAuthenticated },
         });
 
-        const { isOnMobileApp } = getMobileAppInfo();
-        if (isOnMobileApp) {
-            initializeMessageListener();
-        }
+        const isOnMobileApp = isNative();
         set({ isInitialized: true, isAuthenticated, isOnMobileApp });
         logger.info('WEB_CORE', '[initialize] store updated', {
             data: { isInitialized: true, isAuthenticated, isOnMobileApp },
@@ -213,7 +210,7 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
 
         // Revoke OAuth session on native side if applicable
         const oauthProvider = getOAuthProvider();
-        const { isOnMobileApp } = getMobileAppInfo();
+        const isOnMobileApp = isNative();
         if (oauthProvider && isOnMobileApp) {
             postMessage({ type: 'OAuthLogout', data: { provider: oauthProvider } });
         }

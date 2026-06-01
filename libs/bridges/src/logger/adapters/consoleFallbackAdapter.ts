@@ -12,7 +12,7 @@ export const createConsoleFallbackAdapter = (): LogAdapter => ({
         const fn = CONSOLE_MAP[entry.level];
         const prefix = `[${entry.tag}]`;
 
-        if (entry.level === 'error' && entry.error) {
+        if (entry.level === 'error' && entry.error !== undefined) {
             fn(prefix, entry.message, entry.error, entry.data ?? '');
         } else if (entry.data !== undefined) {
             fn(prefix, entry.message, entry.data);

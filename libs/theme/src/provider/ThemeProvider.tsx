@@ -1,6 +1,5 @@
 import { createContext, useEffect, useState } from 'react';
-
-import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
+import { isNative } from '@chatic/bridges';
 
 export type Theme = 'dark' | 'light' | 'system';
 
@@ -47,7 +46,7 @@ export function ThemeProvider({
 
     // Sync theme with native app (following SetLanguage pattern)
     useEffect(() => {
-        const { isOnMobileApp } = getMobileAppInfo();
+        const isOnMobileApp = isNative();
         if (!isOnMobileApp) return;
 
         postMessage({
