@@ -1,0 +1,9 @@
+{
+    "name": "@chatic/bridges",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/bridges/src",
+    "projectType": "library",
+    "tags": [],
+    "// targets": "to see all targets run: nx show project bridges --web",
+    "targets": {}
+}

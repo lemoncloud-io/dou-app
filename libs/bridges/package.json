@@ -22,7 +22,7 @@
                 "{workspaceRoot}/coverage/{projectRoot}"
             ],
             "options": {
-                "jestConfig": "libs/bridge/jest.config.ts",
+                "jestConfig": "libs/bridges/jest.config.ts",
                 "passWithNoTests": true
             },
             "configurations": {
