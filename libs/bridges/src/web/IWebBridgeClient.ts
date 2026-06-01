@@ -20,11 +20,6 @@ export interface IWebBridgeClient {
     ): Promise<ResponseMessage>;
 
     /**
-     * `request`의 별칭(alias)
-     */
-    send<K extends WebMessageType>(message: WebMessageData<K>, customTimeoutMs?: number): Promise<ResponseMessage>;
-
-    /**
      * [App -> Web] 네이티브에서 발생하는 단방향 이벤트를 구독 (Event Subscription)
      */
     onEvent<K extends AppMessageType>(type: K, handler: (message: AppMessageData<K>) => void): () => void;

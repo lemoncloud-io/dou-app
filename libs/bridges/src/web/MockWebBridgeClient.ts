@@ -1,91 +1,26 @@
-import type { BridgeAdapter } from './adapters';
-import type { EventMessage, RequestMessage, ResponseMessage } from '../common';
 import type { IWebBridgeClient } from './IWebBridgeClient';
-import type { WebMessageType, WebMessageData, AppMessageType, AppMessageData } from '@chatic/app-messages';
+import type { AppMessageData, AppMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
+import type { ResponseMessage } from '../common';
 
 export class MockWebBridgeClient implements IWebBridgeClient {
-    private adapter: BridgeAdapter;
-    private version = '1.0.0-mock';
-    private timeoutMs = 5000;
-
-    private eventListeners = new Map<string, Set<(message: any) => void>>();
-    private pendingRequests = new Map<
-        string,
-        { resolve: (value: any) => void; reject: (reason: any) => void; timeoutId: NodeJS.Timeout }
-    >();
-
-    constructor(config: { adapter: BridgeAdapter }) {
-        this.adapter = config.adapter;
-        this.adapter.onMessage(this.handleMessageFromApp);
-        console.log('[MockWebBridgeClient] 초기화 및 어댑터와 연결되었습니다.');
+    constructor(config?: any) {
+        console.log('[MockWebBridgeClient] 초기화 완료 (비-네이티브 에러 반환 모드).');
     }
 
-    private handleMessageFromApp = (message: ResponseMessage | EventMessage): void => {
-        console.log(`[MockWebBridgeClient] App으로부터 메시지 수신:`, message);
-        if ('success' in message && message.refId) {
-            this.handleResponse(message as ResponseMessage);
-        } else {
-            this.handleEvent(message as EventMessage);
-        }
-    };
-
-    private handleResponse(message: ResponseMessage): void {
-        const pending = this.pendingRequests.get(message.refId!);
-        if (!pending) return;
-
-        clearTimeout(pending.timeoutId);
-        this.pendingRequests.delete(message.refId!);
-
-        if (message.success) {
-            console.log(`[MockWebBridgeClient] 요청 '${message.refId}'에 대한 성공 응답 처리.`);
-            pending.resolve(message);
-        } else {
-            console.log(`[MockWebBridgeClient] 요청 '${message.refId}'에 대한 실패 응답 처리.`);
-            pending.reject(message.error);
-        }
-    }
-
-    private handleEvent(message: EventMessage): void {
-        console.log(`[MockWebBridgeClient] '${message.type}' 이벤트 처리.`);
-        const listeners = this.eventListeners.get(message.type);
-        listeners?.forEach(listener => listener(message));
-    }
-
-    private generateRefId = () => Math.random().toString(36).substring(2, 9);
-
-    public post<K extends WebMessageType>(type: K, messageParams?: Omit<WebMessageData<K>, 'type'>): void {
-        console.log(`[MockWebBridgeClient] POST 발송: type='${String(type)}'`, messageParams);
-        const message = {
-            type,
-            version: this.version,
-            ...messageParams,
-            refId: messageParams?.refId ?? this.generateRefId(),
-        } as unknown as RequestMessage;
-
-        this.adapter.postMessage(message);
+    public post<K extends WebMessageType>(type: K, _messageParams?: Omit<WebMessageData<K>, 'type'>): void {
+        console.warn(
+            `[MockWebBridgeClient] post [${String(type)}] 호출이 무시되었습니다. 일반 브라우저 환경에서는 브릿지를 사용할 수 없습니다.`
+        );
     }
 
     public request<K extends WebMessageType>(
         type: K,
-        messageParams?: Omit<WebMessageData<K>, 'type'>
+        _messageParams?: Omit<WebMessageData<K>, 'type'>
     ): Promise<ResponseMessage> {
-        console.log(`[MockWebBridgeClient] REQUEST 발송: type='${String(type)}'`, messageParams);
-        return new Promise((resolve, reject) => {
-            const refId = messageParams?.refId ?? this.generateRefId();
-            const message = {
-                type,
-                version: this.version,
-                ...messageParams,
-                refId,
-            } as unknown as RequestMessage;
-
-            const timeoutId = setTimeout(() => {
-                this.pendingRequests.delete(refId);
-                reject({ code: 'TIMEOUT', message: 'Mock Request Timed Out' });
-            }, this.timeoutMs);
-
-            this.pendingRequests.set(refId, { resolve, reject, timeoutId });
-            this.adapter.postMessage(message);
+        console.error(`[MockWebBridgeClient] request [${String(type)}] 호출 실패: NATIVE_NOT_SUPPORTED`);
+        return Promise.reject({
+            code: 'NATIVE_NOT_SUPPORTED',
+            message: '일반 브라우저 환경에서는 네이티브 브릿지 기능을 사용할 수 없습니다.',
         });
     }
 
@@ -94,18 +29,12 @@ export class MockWebBridgeClient implements IWebBridgeClient {
         return this.request(type as K, rest as Omit<WebMessageData<K>, 'type'>);
     }
 
-    public onEvent<K extends AppMessageType>(type: K, handler: (message: AppMessageData<K>) => void): () => void {
-        const typeStr = type as string;
-        console.log(`[MockWebBridgeClient] '${typeStr}' 이벤트 구독 설정.`);
-        if (!this.eventListeners.has(typeStr)) {
-            this.eventListeners.set(typeStr, new Set());
-        }
-
-        const listeners = this.eventListeners.get(typeStr)!;
-        listeners.add(handler as any);
-
+    public onEvent<K extends AppMessageType>(type: K, _handler: (message: AppMessageData<K>) => void): () => void {
+        console.warn(
+            `[MockWebBridgeClient] onEvent [${String(type)}] 구독이 설정되었으나 비-네이티브 환경에서는 이벤트가 발생하지 않습니다.`
+        );
         return () => {
-            listeners.delete(handler as any);
+            /* empty */
         };
     }
 }
