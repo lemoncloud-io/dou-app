@@ -3,7 +3,6 @@ import { MockWebBridgeClient, NativeBridgeAdapter, WebBridgeClient } from './web
 import type { IAppBridgeHost } from './app';
 import { AppBridgeHost } from './app';
 import { MessageQueue } from './common';
-import { BRIDGE_PROTOCOL_VERSION } from './version';
 
 /**
  * Bridges 모듈 전반의 의존성 관리 및 인스턴스 주입을 담당하는 프로바이더 클래스입니다.
@@ -51,7 +50,7 @@ export class BridgeProvider {
             const webQueue = new MessageQueue<any>();
             this._webClient = new WebBridgeClient({
                 adapter: new NativeBridgeAdapter(),
-                version: BRIDGE_PROTOCOL_VERSION,
+                version: '2.0.0',
                 timeoutMs: 15000,
                 pendingBuffer: webQueue,
             });
@@ -70,7 +69,7 @@ export class BridgeProvider {
             const appQueue = new MessageQueue<any>();
             this._appHost = new AppBridgeHost({
                 sendToWeb,
-                version: BRIDGE_PROTOCOL_VERSION,
+                version: '2.0.0',
                 eventBuffer: appQueue,
             });
         }

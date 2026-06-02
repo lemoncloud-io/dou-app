@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { WebMessageAppHandler } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/app-messages';
 
 export const useLogBufferHandler = () => {
     const { logBufferService, logService: logger } = useServices();
 
-    const handleFetchAppLogBuffer = useCallback<WebMessageAppHandler<'FetchAppLogBuffer'>>(
-        async message => {
+    const handleFetchAppLogBuffer = useCallback(
+        async (message: WebMessageData<'FetchAppLogBuffer'>) => {
             const data = message.data;
             try {
                 const logs = logBufferService.peek(data.count);
@@ -30,8 +30,8 @@ export const useLogBufferHandler = () => {
         [logBufferService, logger]
     );
 
-    const handlePollAppLogBuffer = useCallback<WebMessageAppHandler<'PollAppLogBuffer'>>(
-        async message => {
+    const handlePollAppLogBuffer = useCallback(
+        async (message: WebMessageData<'PollAppLogBuffer'>) => {
             const data = message.data;
             try {
                 const logs = await logBufferService.poll(data.count);
@@ -55,8 +55,8 @@ export const useLogBufferHandler = () => {
         [logBufferService, logger]
     );
 
-    const handleClearAppLogBuffer = useCallback<WebMessageAppHandler<'ClearAppLogBuffer'>>(
-        async _message => {
+    const handleClearAppLogBuffer = useCallback(
+        async (_message: WebMessageData<'ClearAppLogBuffer'>) => {
             try {
                 await logBufferService.clear();
                 return {
@@ -79,8 +79,8 @@ export const useLogBufferHandler = () => {
         [logBufferService, logger]
     );
 
-    const handleFetchAppLogBufferSize = useCallback<WebMessageAppHandler<'FetchAppLogBufferSize'>>(
-        async _message => {
+    const handleFetchAppLogBufferSize = useCallback(
+        async (_message: WebMessageData<'FetchAppLogBufferSize'>) => {
             try {
                 return {
                     type: 'OnFetchAppLogBufferSize' as const,

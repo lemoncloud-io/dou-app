@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { WebMessageAppHandler } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/app-messages';
 
 export const useTestRecordHandler = () => {
     const { testRecordService, logService: logger } = useServices();
 
-    const handleFetchTestRecord = useCallback<WebMessageAppHandler<'FetchTestRecord'>>(
-        async message => {
+    const handleFetchTestRecord = useCallback(
+        async (message: WebMessageData<'FetchTestRecord'>) => {
             const data = message?.data ?? (message as any);
             try {
                 if (!data || data.key === undefined) {
@@ -23,7 +23,6 @@ export const useTestRecordHandler = () => {
                 return {
                     type: 'OnFetchTestRecord' as const,
                     success: false,
-                    error: { code: 'TEST_FETCH_ERROR', message: e instanceof Error ? e.message : 'Fetch failed' },
                     data: { key: data?.key ?? '', item: null },
                 };
             }
@@ -31,8 +30,8 @@ export const useTestRecordHandler = () => {
         [testRecordService, logger]
     );
 
-    const handleFetchAllTestRecords = useCallback<WebMessageAppHandler<'FetchAllTestRecords'>>(
-        async message => {
+    const handleFetchAllTestRecords = useCallback(
+        async (message: WebMessageData<'FetchAllTestRecords'>) => {
             const data = message?.data ?? (message as any);
             try {
                 const items = await testRecordService.fetchAll(data?.keys);
@@ -46,10 +45,6 @@ export const useTestRecordHandler = () => {
                 return {
                     type: 'OnFetchAllTestRecords' as const,
                     success: false,
-                    error: {
-                        code: 'TEST_FETCH_ALL_ERROR',
-                        message: e instanceof Error ? e.message : 'FetchAll failed',
-                    },
                     data: { items: [] },
                 };
             }
@@ -57,8 +52,8 @@ export const useTestRecordHandler = () => {
         [testRecordService, logger]
     );
 
-    const handleSaveTestRecord = useCallback<WebMessageAppHandler<'SaveTestRecord'>>(
-        async message => {
+    const handleSaveTestRecord = useCallback(
+        async (message: WebMessageData<'SaveTestRecord'>) => {
             const data = message?.data ?? (message as any);
             try {
                 if (!data || data.key === undefined || data.value === undefined) {
@@ -75,7 +70,6 @@ export const useTestRecordHandler = () => {
                 return {
                     type: 'OnSaveTestRecord' as const,
                     success: false,
-                    error: { code: 'TEST_SAVE_ERROR', message: e instanceof Error ? e.message : 'Save failed' },
                     data: { key: data?.key ?? '', success: false },
                 };
             }
@@ -83,8 +77,8 @@ export const useTestRecordHandler = () => {
         [testRecordService, logger]
     );
 
-    const handleSaveAllTestRecords = useCallback<WebMessageAppHandler<'SaveAllTestRecords'>>(
-        async message => {
+    const handleSaveAllTestRecords = useCallback(
+        async (message: WebMessageData<'SaveAllTestRecords'>) => {
             logger.info(
                 'TEST',
                 `SaveAll received raw message keys: ${Object.keys(message ?? {})}, stringified: ${JSON.stringify(message)}`
@@ -110,7 +104,6 @@ export const useTestRecordHandler = () => {
                 return {
                     type: 'OnSaveAllTestRecords' as const,
                     success: false,
-                    error: { code: 'TEST_SAVE_ALL_ERROR', message: e instanceof Error ? e.message : 'SaveAll failed' },
                     data: { success: false, count: 0 },
                 };
             }
@@ -118,8 +111,8 @@ export const useTestRecordHandler = () => {
         [testRecordService, logger]
     );
 
-    const handleClearTestRecords = useCallback<WebMessageAppHandler<'ClearTestRecords'>>(
-        async _message => {
+    const handleClearTestRecords = useCallback(
+        async (_message: WebMessageData<'ClearTestRecords'>) => {
             try {
                 const success = await testRecordService.clear();
                 return {
@@ -132,7 +125,6 @@ export const useTestRecordHandler = () => {
                 return {
                     type: 'OnClearTestRecords' as const,
                     success: false,
-                    error: { code: 'TEST_CLEAR_ERROR', message: e instanceof Error ? e.message : 'Clear failed' },
                     data: { success: false },
                 };
             }

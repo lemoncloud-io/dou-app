@@ -1,16 +1,7 @@
 import type { EventMessage, MessageProtocol, RequestMessage, ResponseMessage, IMessageQueue } from '../common';
 import { JsonProtocol, MessageQueue } from '../common';
-import {
-    WEB_MESSAGE_RESPONSE_TYPE,
-    type AppMessageData,
-    type AppMessageType,
-    type BridgeErrorResponse,
-    type WebMessageData,
-    type WebMessageHandlerResponse,
-    type WebMessageType,
-} from '@chatic/app-messages';
+import type { AppMessageData, AppMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
 import type { IAppBridgeHost } from './IAppBridgeHost';
-import { BRIDGE_PROTOCOL_VERSION } from '../version';
 
 export interface AppBridgeHostConfig {
     protocol?: MessageProtocol;
@@ -24,10 +15,7 @@ export class AppBridgeHost implements IAppBridgeHost {
     private sendToWeb: (message: string) => void;
     private version: string;
 
-    private handlers: Map<
-        string,
-        (message: any) => WebMessageHandlerResponse<any> | Promise<WebMessageHandlerResponse<any>>
-    > = new Map();
+    private handlers: Map<string, (message: any) => Promise<any>> = new Map();
 
     private isWebReady = false;
     private eventBuffer: IMessageQueue<EventMessage>;
@@ -35,25 +23,16 @@ export class AppBridgeHost implements IAppBridgeHost {
     constructor(config: AppBridgeHostConfig) {
         this.protocol = config.protocol ?? JsonProtocol;
         this.sendToWeb = config.sendToWeb;
-        this.version = config.version ?? BRIDGE_PROTOCOL_VERSION;
+        this.version = config.version ?? '2.0.0';
         this.eventBuffer = config.eventBuffer ?? new MessageQueue();
 
-        // WebAppReady는 단순 ready 신호가 아니라 웹/모바일 protocol capability를 교환하는 handshake입니다.
-        this.registerHandler('WebAppReady', async message => {
+        // WebAppReady 기본 핸들러 등록
+        this.registerHandler('WebAppReady', async () => {
             return {
-                type: 'OnWebAppReady',
+                type: 'WebAppReady',
                 success: true,
-                data: {
-                    appVersion: this.version,
-                    protocolVersion: message.version ?? this.version,
-                    supportedWebMessages: Object.keys(WEB_MESSAGE_RESPONSE_TYPE),
-                    supportedAppMessages: Object.values(WEB_MESSAGE_RESPONSE_TYPE),
-                    capabilities: {
-                        typedResponses: true,
-                        legacyWebAppReady: true,
-                    },
-                },
-            };
+                data: {},
+            } as any;
         });
     }
 
@@ -74,7 +53,7 @@ export class AppBridgeHost implements IAppBridgeHost {
 
     public registerHandler<K extends WebMessageType>(
         type: K,
-        handler: (message: WebMessageData<K>) => WebMessageHandlerResponse<K> | Promise<WebMessageHandlerResponse<K>>
+        handler: (message: WebMessageData<K>) => Promise<ResponseMessage>
     ): void {
         this.handlers.set(type as string, handler);
     }
@@ -113,19 +92,14 @@ export class AppBridgeHost implements IAppBridgeHost {
 
         // 핸들러가 등록되지 않은 경우 즉시 에러 전송
         if (!handler) {
-            this.sendToWeb(
-                this.protocol.encode(
-                    this.createErrorResponse(
-                        message,
-                        'NOT_FOUND',
-                        `등록된 핸들러를 찾을 수 없습니다: ${message.type}`,
-                        {
-                            reason: 'No handler is registered for the incoming WebMessage type.',
-                            recoverable: true,
-                        }
-                    )
-                ) as string
-            );
+            const response = {
+                type: 'ERROR',
+                refId: message.refId,
+                version: message.version,
+                success: false,
+                error: { code: 'NOT_FOUND', message: `등록된 핸들러를 찾을 수 없습니다: ${message.type}` },
+            } as unknown as ResponseMessage;
+            this.sendToWeb(this.protocol.encode(response) as string);
             return;
         }
 
@@ -133,7 +107,7 @@ export class AppBridgeHost implements IAppBridgeHost {
             // 핸들러 실행
             const result = await handler(message);
 
-            // handler는 도메인 응답만 반환하고, host가 request metadata를 응답에 다시 연결합니다.
+            // 브릿지 메타데이터만 추가하여 전송
             const response = {
                 ...result,
                 refId: message.refId,
@@ -143,47 +117,19 @@ export class AppBridgeHost implements IAppBridgeHost {
             this.sendToWeb(this.protocol.encode(response) as string);
         } catch (error: any) {
             // 핸들러 내부에서 예상치 못한 치명적 예외(Uncaught Exception)가 발생했을 때를 위한 안전망(Fallback)
-            this.sendToWeb(
-                this.protocol.encode(
-                    this.createErrorResponse(
-                        message,
-                        error?.code ?? 'INTERNAL_ERROR',
-                        error?.message ?? '네이티브 내부 처리 중 에러가 발생했습니다.',
-                        {
-                            reason: 'A registered native handler threw an uncaught exception.',
-                            details: { name: error?.name },
-                            recoverable: false,
-                        }
-                    )
-                ) as string
-            );
-        }
-    }
+            const response = {
+                type: 'ERROR',
+                refId: message.refId,
+                version: message.version,
+                success: false,
+                error: {
+                    code: error?.code ?? 'INTERNAL_ERROR',
+                    message: error?.message ?? '네이티브 내부 처리 중 에러가 발생했습니다.',
+                },
+            } as unknown as ResponseMessage;
 
-    private createErrorResponse(
-        message: RequestMessage,
-        code: string,
-        errorMessage: string,
-        options: Partial<BridgeErrorResponse['error']> = {}
-    ): BridgeErrorResponse {
-        // payload 전체를 details에 싣지 않고 type/version 중심의 추적 정보만 남깁니다.
-        return {
-            type: 'ERROR',
-            refId: message.refId,
-            version: message.version,
-            nonce: message.nonce,
-            success: false,
-            error: {
-                code,
-                message: errorMessage,
-                traceId: this.generateRefId(),
-                requestType: message.type,
-                expectedResponseType: WEB_MESSAGE_RESPONSE_TYPE[message.type as WebMessageType],
-                protocolVersion: message.version ?? this.version,
-                appVersion: this.version,
-                ...options,
-            },
-        };
+            this.sendToWeb(this.protocol.encode(response) as string);
+        }
     }
 
     private generateRefId(): string {

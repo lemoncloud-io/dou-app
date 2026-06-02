@@ -11,7 +11,6 @@ import {
     useSubscriptionIapHandler,
 } from '../../../webview/hooks';
 import type { WebMessageType } from '@chatic/app-messages';
-import { BRIDGE_PROTOCOL_VERSION } from '@chatic/bridges';
 
 type LogType = 'sent' | 'received' | 'info' | 'error';
 
@@ -287,7 +286,7 @@ export const BridgeTestScreen = () => {
                 function sendToNative(msg) {
                     // 메타데이터 자동 주입 (웹 브릿지 클라이언트의 역할을 모방)
                     msg.refId = Math.random().toString(36).substring(2, 9);
-                    msg.version = '${BRIDGE_PROTOCOL_VERSION}';
+                    msg.version = '2.0.0';
 
                     const messageStr = JSON.stringify(msg);
                     let sent = false;

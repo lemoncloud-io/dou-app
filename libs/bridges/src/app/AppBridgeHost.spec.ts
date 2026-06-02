@@ -1,6 +1,5 @@
 import { AppBridgeHost } from './AppBridgeHost';
 import { JsonProtocol } from '../common';
-import { BRIDGE_PROTOCOL_VERSION } from '../version';
 
 describe('AppBridgeHost Buffering & Event Flushing', () => {
     let mockSendToWeb: jest.Mock;
@@ -23,7 +22,7 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         const webAppReadyRequest = JsonProtocol.encode({
             type: 'WebAppReady',
             refId: '123',
-            version: BRIDGE_PROTOCOL_VERSION,
+            version: '2.0.0',
             data: {},
         } as any);
 
@@ -39,18 +38,9 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
 
         // Second call: WebAppReady response
         const secondCallMsg = JsonProtocol.decode(mockSendToWeb.mock.calls[1][0]) as any;
-        expect(secondCallMsg.type).toBe('OnWebAppReady');
+        expect(secondCallMsg.type).toBe('WebAppReady');
         expect(secondCallMsg.refId).toBe('123');
         expect(secondCallMsg.success).toBe(true);
-        expect(secondCallMsg.data).toEqual(
-            expect.objectContaining({
-                appVersion: BRIDGE_PROTOCOL_VERSION,
-                protocolVersion: BRIDGE_PROTOCOL_VERSION,
-                supportedWebMessages: expect.arrayContaining(['WebAppReady', 'Ping']),
-                supportedAppMessages: expect.arrayContaining(['OnWebAppReady', 'Pong']),
-                capabilities: expect.objectContaining({ typedResponses: true }),
-            })
-        );
     });
 
     it('should flush buffered events upon receiving ANY message from web if WebAppReady was not explicitly sent', async () => {
@@ -76,7 +66,7 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         const pingRequest = JsonProtocol.encode({
             type: 'Ping',
             refId: 'ping-id',
-            version: BRIDGE_PROTOCOL_VERSION,
+            version: '2.0.0',
             data: { payload: 'hello' },
         } as any);
 
@@ -105,7 +95,7 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
             JsonProtocol.encode({
                 type: 'WebAppReady',
                 refId: 'ready-ref',
-                version: BRIDGE_PROTOCOL_VERSION,
+                version: '2.0.0',
                 data: {},
             } as any) as string
         );
@@ -118,84 +108,5 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         expect(mockSendToWeb).toHaveBeenCalledTimes(1);
         const msg = JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any;
         expect(msg.type).toBe('OnBackPressed');
-    });
-
-    it('should respond to unknown request types with traceable NOT_FOUND errors', async () => {
-        const host = new AppBridgeHost({
-            sendToWeb: mockSendToWeb,
-            protocol: JsonProtocol,
-            version: '3.1.0',
-        });
-
-        await host.handleMessage(
-            JsonProtocol.encode({
-                type: 'UnknownMessage',
-                refId: 'missing-ref',
-                version: '9.9.9',
-                data: {},
-            } as any) as string
-        );
-
-        expect(mockSendToWeb).toHaveBeenCalledTimes(1);
-        const response = JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any;
-
-        expect(response).toEqual(
-            expect.objectContaining({
-                type: 'ERROR',
-                refId: 'missing-ref',
-                version: '9.9.9',
-                success: false,
-                error: expect.objectContaining({
-                    code: 'NOT_FOUND',
-                    requestType: 'UnknownMessage',
-                    protocolVersion: '9.9.9',
-                    appVersion: '3.1.0',
-                    traceId: expect.any(String),
-                    recoverable: true,
-                }),
-            })
-        );
-    });
-
-    it('should wrap thrown handler errors with INTERNAL_ERROR metadata', async () => {
-        const host = new AppBridgeHost({
-            sendToWeb: mockSendToWeb,
-            protocol: JsonProtocol,
-            version: '3.1.0',
-        });
-
-        host.registerHandler('Ping' as any, async () => {
-            throw new Error('boom');
-        });
-
-        await host.handleMessage(
-            JsonProtocol.encode({
-                type: 'Ping',
-                refId: 'throw-ref',
-                version: '9.9.9',
-                data: { payload: 'hello' },
-            } as any) as string
-        );
-
-        expect(mockSendToWeb).toHaveBeenCalledTimes(1);
-        const response = JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any;
-
-        expect(response).toEqual(
-            expect.objectContaining({
-                type: 'ERROR',
-                refId: 'throw-ref',
-                success: false,
-                error: expect.objectContaining({
-                    code: 'INTERNAL_ERROR',
-                    message: 'boom',
-                    requestType: 'Ping',
-                    expectedResponseType: 'Pong',
-                    protocolVersion: '9.9.9',
-                    appVersion: '3.1.0',
-                    traceId: expect.any(String),
-                    recoverable: false,
-                }),
-            })
-        );
     });
 });

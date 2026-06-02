@@ -273,12 +273,7 @@ export type OpenSettingsPayload = {
 
 /** [요청] 웹 앱 준비 완료 알림 */
 export type WebAppReadyPayload = {
-    /** 웹 번들 버전. 모바일 앱과 배포 싱크가 맞지 않을 때 로그/분기 기준으로 사용합니다. */
-    webVersion?: string;
-    /** 웹이 기대하는 bridge protocol 버전입니다. */
-    protocolVersion?: string;
-    /** 웹이 알고 있는 요청 타입 목록입니다. 구버전 모바일과 capability 협상에 사용합니다. */
-    supportedWebMessages?: string[];
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
 };
 
 /** [요청] 로더(인디케이터) 표시 요청 */
@@ -437,61 +432,4 @@ export type OnBackPressedPayload = {
 /** [응답] 디바이스의 기본 브라우저나 외부 앱으로 URL 열기 결과 */
 export type OnOpenURLPayload = {
     // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
-};
-
-/** [응답] 웹 앱 준비 완료 핸드셰이크 결과 */
-export type OnWebAppReadyPayload = {
-    appVersion?: string;
-    /** 모바일 앱이 실제로 사용하는 bridge protocol 버전입니다. */
-    protocolVersion: string;
-    /** 모바일 앱이 처리할 수 있는 WebMessage 요청 타입 목록입니다. */
-    supportedWebMessages: string[];
-    /** 모바일 앱이 웹으로 보낼 수 있는 AppMessage 응답/이벤트 타입 목록입니다. */
-    supportedAppMessages: string[];
-    /** 기능 단위 호환성 플래그입니다. 새 기능은 메시지 추가보다 capability로 먼저 보호합니다. */
-    capabilities?: Record<string, boolean>;
-};
-
-/** [응답] 로더 표시 요청 처리 결과 */
-export type OnShowLoaderPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
-};
-
-/** [응답] 로더 숨김 요청 처리 결과 */
-export type OnHideLoaderPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
-};
-
-/** [응답] 크레덴셜 동기화 요청 처리 결과 */
-export type OnSyncCredentialPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
-};
-
-/** [응답] 웹뷰 팝 요청 처리 결과 */
-export type OnPopWebViewPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
-};
-
-/** [응답] 파일 업로드 시작 요청 처리 결과 */
-export type OnRequestFileUploadPayload = {
-    uploadId: string;
-    success: boolean;
-};
-
-/** [응답] 파일 업로드 일시정지 요청 처리 결과 */
-export type OnPauseFileUploadPayload = {
-    uploadId: string;
-    success: boolean;
-};
-
-/** [응답] 파일 업로드 재개 요청 처리 결과 */
-export type OnResumeFileUploadPayload = {
-    uploadId: string;
-    success: boolean;
-};
-
-/** [응답] 파일 업로드 취소 요청 처리 결과 */
-export type OnCancelFileUploadPayload = {
-    uploadId: string;
-    success: boolean;
 };

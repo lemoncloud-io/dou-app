@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { WebMessageAppHandler, WebMessageAppResponse } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/app-messages';
 
 export const useCrudCacheHandler = () => {
     const { cacheCrudService, logService: logger } = useServices();
 
-    const handleFetchAllCache = useCallback<WebMessageAppHandler<'FetchAllCacheData'>>(
-        async message => {
+    const handleFetchAllCache = useCallback(
+        async (message: WebMessageData<'FetchAllCacheData'>) => {
             const data = message.data;
             try {
                 const items = await cacheCrudService.fetchAll(data);
@@ -14,21 +14,21 @@ export const useCrudCacheHandler = () => {
                     type: 'OnFetchAllCacheData' as const,
                     success: true,
                     data: { type: data.type, cid: data.cid, uid: data.uid, items, query: data.query },
-                } as WebMessageAppResponse<'FetchAllCacheData'>;
+                };
             } catch (e) {
                 logger.error('CACHE', `FetchAll error: ${data.type}`, e);
                 return {
                     type: 'OnFetchAllCacheData' as const,
                     success: true,
                     data: { type: data.type, cid: data.cid, uid: data.uid, items: null },
-                } as WebMessageAppResponse<'FetchAllCacheData'>;
+                };
             }
         },
         [cacheCrudService, logger]
     );
 
-    const handleFetchCache = useCallback<WebMessageAppHandler<'FetchCacheData'>>(
-        async message => {
+    const handleFetchCache = useCallback(
+        async (message: WebMessageData<'FetchCacheData'>) => {
             const data = message.data;
             try {
                 const item = await cacheCrudService.fetch(data);
@@ -36,21 +36,21 @@ export const useCrudCacheHandler = () => {
                     type: 'OnFetchCacheData' as const,
                     success: true,
                     data: { type: data.type, cid: data.cid, uid: data.uid, id: data.id, item },
-                } as WebMessageAppResponse<'FetchCacheData'>;
+                };
             } catch (e) {
                 logger.error('CACHE', `Fetch error: ${data.type} ${data.id}`, e);
                 return {
                     type: 'OnFetchCacheData' as const,
                     success: true,
                     data: { type: data.type, cid: data.cid, uid: data.uid, id: data.id, item: null },
-                } as WebMessageAppResponse<'FetchCacheData'>;
+                };
             }
         },
         [cacheCrudService, logger]
     );
 
-    const handleSaveCache = useCallback<WebMessageAppHandler<'SaveCacheData'>>(
-        async message => {
+    const handleSaveCache = useCallback(
+        async (message: WebMessageData<'SaveCacheData'>) => {
             const data = message.data;
             try {
                 const savedId = await cacheCrudService.save(data);
@@ -71,8 +71,8 @@ export const useCrudCacheHandler = () => {
         [cacheCrudService, logger]
     );
 
-    const handleSaveAllCache = useCallback<WebMessageAppHandler<'SaveAllCacheData'>>(
-        async message => {
+    const handleSaveAllCache = useCallback(
+        async (message: WebMessageData<'SaveAllCacheData'>) => {
             const data = message.data;
             try {
                 const savedIds = await cacheCrudService.saveAll(data);
@@ -100,8 +100,8 @@ export const useCrudCacheHandler = () => {
         [cacheCrudService, logger]
     );
 
-    const handleDeleteCache = useCallback<WebMessageAppHandler<'DeleteCacheData'>>(
-        async message => {
+    const handleDeleteCache = useCallback(
+        async (message: WebMessageData<'DeleteCacheData'>) => {
             const data = message.data;
             try {
                 const deletedId = await cacheCrudService.delete(data);
@@ -122,8 +122,8 @@ export const useCrudCacheHandler = () => {
         [cacheCrudService, logger]
     );
 
-    const handleDeleteAllCache = useCallback<WebMessageAppHandler<'DeleteAllCacheData'>>(
-        async message => {
+    const handleDeleteAllCache = useCallback(
+        async (message: WebMessageData<'DeleteAllCacheData'>) => {
             const data = message.data;
             try {
                 const deletedIds = await cacheCrudService.deleteAll(data);
@@ -144,8 +144,8 @@ export const useCrudCacheHandler = () => {
         [cacheCrudService, logger]
     );
 
-    const handleClearCache = useCallback<WebMessageAppHandler<'ClearCacheData'>>(
-        async message => {
+    const handleClearCache = useCallback(
+        async (message: WebMessageData<'ClearCacheData'>) => {
             const data = message.data;
             try {
                 await cacheCrudService.clear(data);
