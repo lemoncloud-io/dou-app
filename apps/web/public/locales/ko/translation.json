@@ -149,6 +149,12 @@
         "darkMode": "다크 모드",
         "messagePreview": "메시지 미리보기",
         "languageSettings": "언어 설정",
+        "appIconSettings": "앱 아이콘 설정",
+        "appIcon": {
+            "title": "앱 아이콘 설정",
+            "default": "기본",
+            "WhiteIcon": "화이트"
+        },
         "viewOnboarding": "온보딩 다시보기",
         "logout": "로그아웃",
         "appVersion": "버전",

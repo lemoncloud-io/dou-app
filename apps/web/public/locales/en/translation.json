@@ -149,6 +149,12 @@
         "darkMode": "Dark Mode",
         "messagePreview": "Message Preview",
         "languageSettings": "Language",
+        "appIconSettings": "App Icon Settings",
+        "appIcon": {
+            "title": "App Icon Settings",
+            "default": "Default",
+            "WhiteIcon": "White"
+        },
         "viewOnboarding": "View Onboarding Again",
         "logout": "Logout",
         "appVersion": "Version",
