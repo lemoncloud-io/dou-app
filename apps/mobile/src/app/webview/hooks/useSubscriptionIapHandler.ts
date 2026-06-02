@@ -4,7 +4,7 @@ import { useSubscriptionIap } from '../../hooks';
 import { logger } from '../../services';
 
 import type { IAppBridgeHost } from '@chatic/bridges';
-import type { OnPurchaseErrorPayload, OnPurchaseSuccessPayload, WebMessageData } from '@chatic/app-messages';
+import type { OnPurchaseErrorPayload, OnPurchaseSuccessPayload, WebMessageAppHandler } from '@chatic/app-messages';
 import type { Purchase, PurchaseError } from 'react-native-iap';
 
 /**
@@ -43,8 +43,8 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
     /**
      * 구독 상품 목록 조회
      */
-    const fetchProducts = useCallback(
-        async (_message: WebMessageData<'FetchProducts'>) => {
+    const fetchProducts = useCallback<WebMessageAppHandler<'FetchProducts'>>(
+        async _message => {
             return {
                 type: 'OnFetchProducts' as const,
                 success: true,
@@ -57,8 +57,8 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
     /**
      * 현재 보유 중인 구독권 조회
      */
-    const fetchCurrentPurchases = useCallback(
-        async (_message: WebMessageData<'FetchCurrentPurchases'>) => {
+    const fetchCurrentPurchases = useCallback<WebMessageAppHandler<'FetchCurrentPurchases'>>(
+        async _message => {
             return {
                 type: 'OnFetchCurrentPurchases' as const,
                 success: true,
@@ -71,16 +71,16 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
     /**
      * 구독권 구매 수행
      */
-    const handlePurchaseSubscription = useCallback(
-        async (message: WebMessageData<'Purchase'>) => {
+    const handlePurchaseSubscription = useCallback<WebMessageAppHandler<'Purchase'>>(
+        async message => {
             const { id, offerToken, oldPlanId, newPlanId } = message.data;
             try {
                 await handlePurchase(id, offerToken, oldPlanId, newPlanId);
-                return { type: 'void' as const, success: true };
+                return { type: 'OnPurchase' as const, success: true, data: {} };
             } catch (e: any) {
                 logger.error('IAP', 'handlePurchase error', e);
                 return {
-                    type: 'void' as const,
+                    type: 'OnPurchase' as const,
                     success: false,
                     error: { code: 'PURCHASE_INIT_ERROR', message: e.message },
                 };
@@ -92,8 +92,8 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
     /**
      * 웹에서 서버 검증을 마친 후, 해당 트랜잭션을 스토어에서 완료(소비) 처리하도록 요청받는 핸들러
      */
-    const handleFinishPurchase = useCallback(
-        async (message: WebMessageData<'FinishPurchaseTransaction'>) => {
+    const handleFinishPurchase = useCallback<WebMessageAppHandler<'FinishPurchaseTransaction'>>(
+        async message => {
             const { purchase } = message.data;
             try {
                 await finishPurchase(purchase);
@@ -117,15 +117,15 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
     /**
      * 구독 관리 페이지 이동 핸들러
      */
-    const handleOpenSubscriptionManagement = useCallback(
-        async (_message: WebMessageData<'OpenSubscriptionManagement'>) => {
+    const handleOpenSubscriptionManagement = useCallback<WebMessageAppHandler<'OpenSubscriptionManagement'>>(
+        async _message => {
             try {
                 await openSubscriptionManagement();
-                return { type: 'void' as const, success: true };
+                return { type: 'OnOpenSubscriptionManagement' as const, success: true, data: {} };
             } catch (e: any) {
                 logger.error('IAP', 'openSubscriptionManagement error', e);
                 return {
-                    type: 'void' as const,
+                    type: 'OnOpenSubscriptionManagement' as const,
                     success: false,
                     error: { code: 'OPEN_MANAGE_ERROR', message: e.message },
                 };

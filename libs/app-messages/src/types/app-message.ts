@@ -38,11 +38,20 @@ import type {
     OnOpenShareSheetPayload,
     OnOpenSubscriptionManagementPayload,
     OnOpenURLPayload,
+    OnWebAppReadyPayload,
+    OnShowLoaderPayload,
+    OnHideLoaderPayload,
+    OnSyncCredentialPayload,
+    OnPopWebViewPayload,
     OnPollAppLogBufferPayload,
     OnPurchaseErrorPayload,
     OnPurchasePayload,
     OnPurchaseSuccessPayload,
     OnRecoverUploadPayload,
+    OnRequestFileUploadPayload,
+    OnPauseFileUploadPayload,
+    OnResumeFileUploadPayload,
+    OnCancelFileUploadPayload,
     OnRequestPermissionPayload,
     OnRetryUploadPayload,
     OnSaveAllCacheDataPayload,
@@ -82,6 +91,10 @@ export type AppMessageDataMap = {
     OnRecoverUpload: OnRecoverUploadPayload;
     OnRetryUpload: OnRetryUploadPayload;
     OnCreateDummyFile: OnCreateDummyFilePayload;
+    OnRequestFileUpload: OnRequestFileUploadPayload;
+    OnPauseFileUpload: OnPauseFileUploadPayload;
+    OnResumeFileUpload: OnResumeFileUploadPayload;
+    OnCancelFileUpload: OnCancelFileUploadPayload;
     OnBackPressed: OnBackPressedPayload;
     OnOpenDocument: OnOpenDocumentPayload;
     OnGetContacts: OnGetContactsPayload;
@@ -130,6 +143,11 @@ export type AppMessageDataMap = {
     OnOAuthLogout: OnOAuthLogoutPayload;
 
     // 7. Common & Others
+    OnWebAppReady: OnWebAppReadyPayload;
+    OnShowLoader: OnShowLoaderPayload;
+    OnHideLoader: OnHideLoaderPayload;
+    OnSyncCredential: OnSyncCredentialPayload;
+    OnPopWebView: OnPopWebViewPayload;
     OnFetchAppLogBuffer: OnFetchAppLogBufferPayload;
     OnPollAppLogBuffer: OnPollAppLogBufferPayload;
     OnClearAppLogBuffer: OnClearAppLogBufferPayload;
@@ -154,6 +172,27 @@ export type AppMessageError = {
     message: string;
     details?: unknown;
 };
+
+/**
+ * request()가 resolve할 때 사용하는 성공 응답 타입입니다.
+ * strict handler/request 타입에서 성공 payload를 정확히 좁히기 위해 success: true로 고정합니다.
+ */
+export type AppSuccessMessage<T extends AppMessageType> = BaseMessage & {
+    type: T;
+    success: true;
+    data: AppMessageDataMap[T];
+    error?: never;
+};
+
+/** handler 또는 wire 응답이 실패 상태를 표현할 때 사용하는 AppMessage 계열 에러 응답입니다. */
+export type AppFailureMessage<T extends AppMessageType = AppMessageType> = BaseMessage & {
+    type: T;
+    success: false;
+    error: AppMessageError;
+    data?: Partial<AppMessageDataMap[T]>;
+};
+
+export type AppResponseMessage<T extends AppMessageType = AppMessageType> = AppSuccessMessage<T> | AppFailureMessage<T>;
 
 export type AppDefaultMessage<T extends AppMessageType> = BaseMessage & {
     type: T;

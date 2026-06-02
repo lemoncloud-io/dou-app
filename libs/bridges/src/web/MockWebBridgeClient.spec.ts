@@ -26,10 +26,14 @@ describe('MockWebBridgeClient Exception Policy', () => {
     it('should reject request and send calls with NATIVE_NOT_SUPPORTED error', async () => {
         const client = new MockWebBridgeClient();
 
-        await expect(client.request('FetchSafeArea' as any)).rejects.toEqual({
-            code: 'NATIVE_NOT_SUPPORTED',
-            message: '일반 브라우저 환경에서는 네이티브 브릿지 기능을 사용할 수 없습니다.',
-        });
+        await expect(client.request('FetchSafeArea' as any)).rejects.toEqual(
+            expect.objectContaining({
+                code: 'NATIVE_NOT_SUPPORTED',
+                message: '일반 브라우저 환경에서는 네이티브 브릿지 기능을 사용할 수 없습니다.',
+                requestType: 'FetchSafeArea',
+                recoverable: true,
+            })
+        );
 
         expect(mockError).toHaveBeenCalled();
     });
@@ -42,6 +46,27 @@ describe('MockWebBridgeClient Exception Policy', () => {
         }).not.toThrow();
 
         expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('post [SetCanGoBack] 호출이 무시되었습니다.'));
+    });
+
+    it('should support object-style calls in mock mode', async () => {
+        const client = new MockWebBridgeClient();
+
+        expect(() => {
+            client.post({ type: 'SetCanGoBack', data: { canGoBack: true } } as any);
+        }).not.toThrow();
+
+        await expect(client.request({ type: 'FetchSafeArea', data: {} } as any)).rejects.toEqual(
+            expect.objectContaining({
+                code: 'NATIVE_NOT_SUPPORTED',
+                requestType: 'FetchSafeArea',
+                protocolVersion: 'mock',
+            })
+        );
+
+        expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('post [SetCanGoBack] 호출이 무시되었습니다.'));
+        expect(mockError).toHaveBeenCalledWith(
+            expect.stringContaining('request [FetchSafeArea] 호출 실패: NATIVE_NOT_SUPPORTED')
+        );
     });
 
     it('should return a dummy cleanup function for onEvent and log a warning', () => {
