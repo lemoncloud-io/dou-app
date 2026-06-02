@@ -2,6 +2,8 @@ import type { IConsoleLogger, ILogService } from './log';
 import { ConsoleLogger, LogBufferService, LogService } from './log';
 import type { IDeviceService } from './device';
 import { DeviceService } from './device';
+import type { IClipboardService } from './clipboard';
+import { ClipboardService } from './clipboard';
 import type { IPermissionService } from './permission';
 import { PermissionService } from './permission';
 import type {
@@ -54,6 +56,7 @@ class DependencyProvider {
     public readonly consoleLogger: IConsoleLogger;
     public readonly logBufferService: ILogBufferService;
     public readonly deviceService: IDeviceService;
+    public readonly clipboardService: IClipboardService;
     public readonly smsService: ISmsService;
     public readonly uploadService: IUploadService;
     public readonly permissionService: IPermissionService;
@@ -87,6 +90,7 @@ class DependencyProvider {
 
         this.sqliteDatabase = new SqliteDatabase(this.logService);
         this.deviceService = new DeviceService(this.logService);
+        this.clipboardService = new ClipboardService(this.logService);
         this.smsService = new SmsService(this.logService);
         this.permissionService = new PermissionService(this.logService);
         this.notificationService = new NotificationService(this.logService);
