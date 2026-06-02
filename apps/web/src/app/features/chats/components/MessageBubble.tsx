@@ -1,4 +1,5 @@
 import { ChevronRight } from 'lucide-react';
+import { useRef, type MouseEvent, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const MAX_MESSAGE_LENGTH = 200;
@@ -11,11 +12,15 @@ interface MessageBubbleProps {
     content: string;
     isMine: boolean;
     onAction?: () => void;
+    onLongPress?: () => void;
     status?: 'pending' | 'failed';
 }
 
-export const MessageBubble = ({ content, isMine, onAction, status }: MessageBubbleProps) => {
+const LONG_PRESS_DELAY_MS = 450;
+
+export const MessageBubble = ({ content, isMine, onAction, onLongPress, status }: MessageBubbleProps) => {
     const { t } = useTranslation();
+    const longPressTimerRef = useRef<number | null>(null);
     const isLongMessage = !status && content.length > MAX_MESSAGE_LENGTH;
 
     const bubbleClassName = (() => {
@@ -29,12 +34,45 @@ export const MessageBubble = ({ content, isMine, onAction, status }: MessageBubb
         }`;
     })();
 
+    const clearLongPressTimer = () => {
+        if (longPressTimerRef.current !== null) {
+            window.clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    };
+
+    const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+        if (!onLongPress || !content) return;
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+        clearLongPressTimer();
+        longPressTimerRef.current = window.setTimeout(() => {
+            longPressTimerRef.current = null;
+            onLongPress();
+        }, LONG_PRESS_DELAY_MS);
+    };
+
+    const handleContextMenu = (event: MouseEvent<HTMLDivElement>) => {
+        if (!onLongPress || !content) return;
+        event.preventDefault();
+        clearLongPressTimer();
+        onLongPress();
+    };
+
     return (
-        <div className={bubbleClassName}>
+        <div
+            className={bubbleClassName}
+            onPointerDown={handlePointerDown}
+            onPointerUp={clearLongPressTimer}
+            onPointerCancel={clearLongPressTimer}
+            onPointerLeave={clearLongPressTimer}
+            onContextMenu={handleContextMenu}
+        >
             {isLongMessage ? (
                 <>
                     {content.slice(0, MAX_MESSAGE_LENGTH)}...
                     <button
+                        onPointerDown={event => event.stopPropagation()}
                         onClick={onAction}
                         className={`ml-auto mt-1 flex items-center gap-0.5 text-[14px] font-medium ${
                             isMine ? 'text-bubble-mine-foreground/80' : 'text-muted-foreground'
