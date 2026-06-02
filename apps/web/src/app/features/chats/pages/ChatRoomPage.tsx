@@ -3,6 +3,7 @@ import {
     ArrowUp,
     ChevronLeft,
     Clock,
+    Copy,
     Loader2,
     MoreHorizontal,
     PenLine,
@@ -37,6 +38,7 @@ import { useChannel, useChannelMembers, useChatMutations, useChats, useJoinPosit
 import type { ClientChatView } from '../../../shared/types';
 import { FOREGROUND_RESYNC_EVENT_NAME } from '../../../shared/types';
 import { debounce } from '../../../shared/utils/debounce';
+import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 
 // 입력 가능한 최대 글자 수
 const MAX_INPUT_LENGTH = 5000;
@@ -51,6 +53,8 @@ export const ChatRoomPage = () => {
     const [content, setContent] = useState('');
     const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
     const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null);
+    const [openActionMessageKey, setOpenActionMessageKey] = useState<string | null>(null);
+    const [isCopyingMessage, setIsCopyingMessage] = useState(false);
 
     // DOM 접근을 위한 Ref
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -261,6 +265,27 @@ export const ChatRoomPage = () => {
                     data: { channelId: stableChannelId, messageId: message.id },
                 });
             });
+    };
+
+    const handleOpenMessageActions = (message: ClientChatView, messageKey: string) => {
+        if (!message.content) return;
+        setOpenActionMessageKey(messageKey);
+    };
+
+    const handleCopyMessage = async (messageContent: string) => {
+        if (!messageContent || isCopyingMessage) return;
+
+        setIsCopyingMessage(true);
+        try {
+            await copyMessageToClipboard(messageContent);
+            toast({ title: t('chat.room.messageCopied') });
+            setOpenActionMessageKey(null);
+        } catch (error) {
+            logger.error('CHAT', 'Failed to copy message', { error });
+            toast({ title: t('chat.room.copyFailed'), variant: 'destructive' });
+        } finally {
+            setIsCopyingMessage(false);
+        }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -493,6 +518,9 @@ export const ChatRoomPage = () => {
                                             const showProfileAndName = !isSameAsPrev;
                                             const showTimeAndStatus =
                                                 !isSameAsNext || message.isPending || message.isFailed;
+                                            const messageActionKey =
+                                                message.id ||
+                                                `${message.chatNo ?? 'pending'}-${message.timestamp.getTime()}-${index}`;
 
                                             return (
                                                 <div
@@ -529,26 +557,77 @@ export const ChatRoomPage = () => {
                                                                     />
                                                                 </button>
                                                             )}
-                                                            <MessageBubble
-                                                                content={message.content ?? ''}
-                                                                isMine={message.isOwner}
-                                                                status={
-                                                                    message.isFailed
-                                                                        ? 'failed'
-                                                                        : message.isPending
-                                                                          ? 'pending'
-                                                                          : undefined
-                                                                }
-                                                                onAction={
-                                                                    message.isFailed
-                                                                        ? () => handleRetryMessage(message)
-                                                                        : () =>
-                                                                              setExpandedMessage({
-                                                                                  content: message.content ?? '',
-                                                                                  ownerName: message.ownerName,
-                                                                              })
-                                                                }
-                                                            />
+                                                            <DropdownMenu
+                                                                open={openActionMessageKey === messageActionKey}
+                                                                onOpenChange={open => {
+                                                                    if (
+                                                                        !open &&
+                                                                        openActionMessageKey === messageActionKey
+                                                                    ) {
+                                                                        setOpenActionMessageKey(null);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <span
+                                                                        className="inline-flex max-w-full"
+                                                                        onPointerDown={event => event.preventDefault()}
+                                                                    >
+                                                                        <MessageBubble
+                                                                            content={message.content ?? ''}
+                                                                            isMine={message.isOwner}
+                                                                            onLongPress={() =>
+                                                                                handleOpenMessageActions(
+                                                                                    message,
+                                                                                    messageActionKey
+                                                                                )
+                                                                            }
+                                                                            status={
+                                                                                message.isFailed
+                                                                                    ? 'failed'
+                                                                                    : message.isPending
+                                                                                      ? 'pending'
+                                                                                      : undefined
+                                                                            }
+                                                                            onAction={
+                                                                                message.isFailed
+                                                                                    ? () => handleRetryMessage(message)
+                                                                                    : () =>
+                                                                                          setExpandedMessage({
+                                                                                              content:
+                                                                                                  message.content ?? '',
+                                                                                              ownerName:
+                                                                                                  message.ownerName,
+                                                                                          })
+                                                                            }
+                                                                        />
+                                                                    </span>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent
+                                                                    align={message.isOwner ? 'end' : 'start'}
+                                                                    side="top"
+                                                                    sideOffset={6}
+                                                                    className="min-w-[132px]"
+                                                                >
+                                                                    <DropdownMenuItem
+                                                                        disabled={isCopyingMessage}
+                                                                        onSelect={() =>
+                                                                            void handleCopyMessage(
+                                                                                message.content ?? ''
+                                                                            )
+                                                                        }
+                                                                        className="cursor-pointer gap-2"
+                                                                    >
+                                                                        {isCopyingMessage &&
+                                                                        openActionMessageKey === messageActionKey ? (
+                                                                            <Loader2 className="size-4 animate-spin" />
+                                                                        ) : (
+                                                                            <Copy className="size-4" />
+                                                                        )}
+                                                                        <span>{t('chat.room.copyMessage')}</span>
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
                                                         </div>
                                                         {showTimeAndStatus && (
                                                             <div
