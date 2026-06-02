@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
 import { logger } from '../../services';
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageAppHandler } from '@chatic/app-messages';
 
 export const useLogHandler = () => {
-    const handleSendLog = useCallback(async (message: WebMessageData<'SendLog'>) => {
+    const handleSendLog = useCallback<WebMessageAppHandler<'SendLog'>>(async message => {
         const { level = 'info', message: logMessage, data, error, tag } = message.data;
         const forwardedData = { tag, data };
 
@@ -23,7 +23,7 @@ export const useLogHandler = () => {
                 break;
         }
 
-        return { type: 'OnSendLog' as const, success: true };
+        return { type: 'OnSendLog' as const, success: true, data: {} };
     }, []);
 
     return {

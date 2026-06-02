@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageAppHandler } from '@chatic/app-messages';
 
 export const useSafeAreaHandler = () => {
     const insets = useSafeAreaInsets();
 
-    const fetchSafeAreaInfo = useCallback(
-        async (_message: WebMessageData<'FetchSafeArea'>) => {
+    const fetchSafeAreaInfo = useCallback<WebMessageAppHandler<'FetchSafeArea'>>(
+        async _message => {
             return {
                 type: 'OnFetchSafeArea' as const,
                 success: true,

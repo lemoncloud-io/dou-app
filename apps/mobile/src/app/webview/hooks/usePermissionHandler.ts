@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { PermissionStatus, WebMessageData } from '@chatic/app-messages';
+import type { PermissionStatus, WebMessageAppHandler } from '@chatic/app-messages';
 
 export const usePermissionHandler = () => {
     const { permissionService, logService: logger } = useServices();
 
-    const handleRequestPermission = useCallback(
-        async (message: WebMessageData<'RequestPermission'>) => {
+    const handleRequestPermission = useCallback<WebMessageAppHandler<'RequestPermission'>>(
+        async message => {
             const { permission } = message.data;
 
             try {

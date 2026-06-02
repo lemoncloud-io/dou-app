@@ -1,18 +1,19 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageAppHandler } from '@chatic/app-messages';
 
 export const useSmsHandler = () => {
     const { smsService, logService: logger } = useServices();
 
-    const handleSendSms = useCallback(
-        async (message: WebMessageData<'SendSms'>) => {
+    const handleSendSms = useCallback<WebMessageAppHandler<'SendSms'>>(
+        async message => {
             const { phoneNumbers, message: smsText } = message.data;
             try {
                 const success = await smsService.sendSms(phoneNumbers, smsText);
                 return {
                     type: 'OnSendSms' as const,
-                    success,
+                    success: true,
+                    data: { success },
                 };
             } catch (e: any) {
                 logger.error('SMS', 'SendSms error', e);

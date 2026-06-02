@@ -1,13 +1,13 @@
 import { useCallback } from 'react';
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageAppHandler } from '@chatic/app-messages';
 import { useLanguageStore, useThemeStore } from '../../stores';
 import { useServices } from '../../hooks';
 
 export const usePreferenceCacheHandler = () => {
     const { preferenceService, logService } = useServices();
 
-    const handleFetchPreference = useCallback(
-        async (message: WebMessageData<'FetchPreference'>) => {
+    const handleFetchPreference = useCallback<WebMessageAppHandler<'FetchPreference'>>(
+        async message => {
             const { key } = message.data;
             try {
                 const value = await preferenceService.get(key as any);
@@ -24,8 +24,8 @@ export const usePreferenceCacheHandler = () => {
         [preferenceService, logService]
     );
 
-    const handleSavePreference = useCallback(
-        async (message: WebMessageData<'SavePreference'>) => {
+    const handleSavePreference = useCallback<WebMessageAppHandler<'SavePreference'>>(
+        async message => {
             const { key, value } = message.data;
 
             try {
@@ -53,8 +53,8 @@ export const usePreferenceCacheHandler = () => {
         [preferenceService, logService]
     );
 
-    const handleDeletePreference = useCallback(
-        async (message: WebMessageData<'DeletePreference'>) => {
+    const handleDeletePreference = useCallback<WebMessageAppHandler<'DeletePreference'>>(
+        async message => {
             const { key } = message.data;
             try {
                 await preferenceService.remove(key as any);
