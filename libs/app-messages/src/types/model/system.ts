@@ -273,7 +273,12 @@ export type OpenSettingsPayload = {
 
 /** [요청] 웹 앱 준비 완료 알림 */
 export type WebAppReadyPayload = {
-    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+    /** Web bundle/app version. 배포 싱크 추적용입니다. */
+    webVersion?: string;
+    /** Web이 기대하는 bridge protocol version. */
+    protocolVersion?: string;
+    /** Web이 호출할 수 있는 WebMessage 목록. capability 협상용입니다. */
+    supportedWebMessages?: string[];
 };
 
 /** [요청] 로더(인디케이터) 표시 요청 */
@@ -412,6 +417,67 @@ export type OnCloseModalPayload = {
 /** [응답] 네이티브 설정 화면 열기 완료 결과 */
 export type OnOpenSettingsPayload = {
     // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/**
+ * [응답] WebAppReady handshake 결과
+ * Web/App 배포 싱크가 맞지 않아도 지원 메시지와 capability를 확인할 수 있게 합니다.
+ */
+export type OnWebAppReadyPayload = {
+    /** App bridge/runtime version */
+    appVersion?: string;
+    /** 현재 대화에서 사용할 bridge protocol version */
+    protocolVersion: string;
+    /** App이 처리할 수 있는 WebMessage 목록 */
+    supportedWebMessages: string[];
+    /** App이 Web으로 보낼 수 있는 AppMessage 목록 */
+    supportedAppMessages: string[];
+    /** 기능 플래그. 새 기능은 여기서 협상한 뒤 사용합니다. */
+    capabilities?: Record<string, boolean | string | number>;
+};
+
+/** [응답] 로더 표시 요청 처리 결과 */
+export type OnShowLoaderPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [응답] 로더 숨김 요청 처리 결과 */
+export type OnHideLoaderPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [응답] 크레덴셜 동기화 요청 처리 결과 */
+export type OnSyncCredentialPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [응답] 웹뷰 pop 요청 처리 결과 */
+export type OnPopWebViewPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [응답] 파일 업로드 시작 요청 처리 결과 */
+export type OnRequestFileUploadPayload = {
+    uploadId: string;
+    success: boolean;
+};
+
+/** [응답] 파일 업로드 일시정지 요청 처리 결과 */
+export type OnPauseFileUploadPayload = {
+    uploadId: string;
+    success: boolean;
+};
+
+/** [응답] 파일 업로드 재개 요청 처리 결과 */
+export type OnResumeFileUploadPayload = {
+    uploadId: string;
+    success: boolean;
+};
+
+/** [응답] 파일 업로드 취소 요청 처리 결과 */
+export type OnCancelFileUploadPayload = {
+    uploadId: string;
+    success: boolean;
 };
 
 /** [응답] 업로드 작업 수동 복구(재개) 결과 */

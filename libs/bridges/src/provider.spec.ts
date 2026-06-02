@@ -3,6 +3,8 @@ import { MockWebBridgeClient, WebBridgeClient } from './web';
 
 describe('BridgeProvider DI Container', () => {
     beforeEach(() => {
+        jest.useFakeTimers();
+
         // Reset provider cached instances
         BridgeProvider.getInstance().reset();
 
@@ -15,6 +17,9 @@ describe('BridgeProvider DI Container', () => {
     });
 
     afterEach(() => {
+        jest.clearAllTimers();
+        jest.useRealTimers();
+
         if (typeof window !== 'undefined') {
             delete (window as any).ReactNativeWebView;
             delete (window as any).ChaticMessageHandler;
@@ -28,9 +33,9 @@ describe('BridgeProvider DI Container', () => {
         expect(p1).toBe(p2);
     });
 
-    it('should construct MockWebBridgeClient in a non-native environment', () => {
+    it('should construct WebBridgeClient in a browser even before the native bridge is injected', () => {
         const client = BridgeProvider.getInstance().getWebClient();
-        expect(client).toBeInstanceOf(MockWebBridgeClient);
+        expect(client).toBeInstanceOf(WebBridgeClient);
     });
 
     it('should construct WebBridgeClient in a native environment', () => {
@@ -49,6 +54,21 @@ describe('BridgeProvider DI Container', () => {
         expect(client1).toBe(client2);
     });
 
+    it('should not replace an early WebBridgeClient with a mock when the native bridge appears later', () => {
+        const provider = BridgeProvider.getInstance();
+        const clientBeforeInjection = provider.getWebClient();
+
+        (window as any).ReactNativeWebView = {
+            postMessage: jest.fn(),
+        };
+
+        const clientAfterInjection = provider.getWebClient();
+
+        expect(clientBeforeInjection).toBeInstanceOf(WebBridgeClient);
+        expect(clientAfterInjection).toBe(clientBeforeInjection);
+        expect(clientAfterInjection).not.toBeInstanceOf(MockWebBridgeClient);
+    });
+
     it('should create and return the singleton AppBridgeHost instance', () => {
         const provider = BridgeProvider.getInstance();
         const mockSend = jest.fn();
@@ -62,6 +82,8 @@ describe('BridgeProvider DI Container', () => {
 
 describe('isNative() utility', () => {
     beforeEach(() => {
+        jest.useFakeTimers();
+
         if (typeof window !== 'undefined') {
             delete (window as any).ReactNativeWebView;
             delete (window as any).ChaticMessageHandler;
@@ -70,6 +92,9 @@ describe('isNative() utility', () => {
     });
 
     afterEach(() => {
+        jest.clearAllTimers();
+        jest.useRealTimers();
+
         if (typeof window !== 'undefined') {
             delete (window as any).ReactNativeWebView;
             delete (window as any).ChaticMessageHandler;
