@@ -1,5 +1,6 @@
 export * from './auth';
 export * from './cache';
+export * from './clipboard';
 export * from './common';
 export * from './device';
 export * from './iap';

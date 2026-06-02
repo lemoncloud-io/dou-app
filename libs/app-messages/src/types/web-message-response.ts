@@ -1,5 +1,4 @@
-import type { AppMessageError, AppMessageType, AppSuccessMessage } from './app-message';
-import type { AppResponseMessage } from './app-message';
+import type { AppMessageError, AppMessageType, AppResponseMessage, AppSuccessMessage } from './app-message';
 import type { BaseMessage } from './types';
 import type { WebMessageData, WebMessagePayloadMap, WebMessageType } from './web-message';
 
@@ -54,6 +53,7 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     FetchAppIcon: 'OnFetchAppIcon',
     FetchAppIconList: 'OnFetchAppIconList',
     ChangeAppIcon: 'OnChangeAppIcon',
+    CopyToClipboard: 'OnCopyToClipboard',
     FetchFcmToken: 'OnFetchFcmToken',
     FetchBadgeCount: 'OnFetchBadgeCount',
     SetBadgeCount: 'OnSetBadgeCount',
