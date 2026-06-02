@@ -175,6 +175,25 @@ describe('WebBridgeClient Buffering & Detection', () => {
         );
     });
 
+    it('should send object-style OAuthLogin with provider inside data for app compatibility', () => {
+        (global as any).window.ReactNativeWebView = {
+            postMessage: jest.fn(),
+        };
+
+        const client = new WebBridgeClient({ adapter: mockAdapter });
+
+        client.post({ type: 'OAuthLogin', data: { provider: 'google' } });
+
+        expect(mockAdapter.postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: 'OAuthLogin',
+                data: { provider: 'google' },
+                refId: expect.any(String),
+            })
+        );
+        expect(mockAdapter.postMessage.mock.calls[0][0]).not.toHaveProperty('provider');
+    });
+
     it('should normalize legacy overload payload params into data for current web to app compatibility', () => {
         (global as any).window.ReactNativeWebView = {
             postMessage: jest.fn(),
