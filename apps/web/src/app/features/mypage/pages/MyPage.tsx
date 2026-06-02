@@ -22,9 +22,10 @@ import { useLogout } from '@chatic/auth';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { useTotalUnreadCount } from '../../../shared/hooks/useTotalUnreadCount';
-import { LanguageSelectSheet, LogoutDialog } from '../components';
+import { LanguageSelectSheet, LogoutDialog, AppIconSelectSheet } from '../components';
 import { DEBUG_STORAGE_KEY } from '../consts';
 import { useCacheMutations } from '../../../shared/hooks/useCacheMutations';
+import type { AppIconOption } from '@chatic/app-messages';
 
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
@@ -49,6 +50,66 @@ export const MyPage = () => {
     const [isDebugMode, setIsDebugMode] = useState(() => sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true');
     const tapCountRef = useRef(0);
     const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const [isIconChangeSupported, setIsIconChangeSupported] = useState(false);
+    const [currentIcon, setCurrentIcon] = useState<string | null>('default');
+    const [availableIcons, setAvailableIcons] = useState<AppIconOption[]>([]);
+    const [isAppIconSheetOpen, setIsAppIconSheetOpen] = useState(false);
+
+    useEffect(() => {
+        if (isNative()) {
+            webClient
+                .request({ type: 'FetchAppIcon', data: {} })
+                .then(res => {
+                    if (res.success && res.data) {
+                        setIsIconChangeSupported(res.data.supported);
+                        setCurrentIcon(res.data.iconName);
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to fetch app icon status:', err);
+                });
+
+            webClient
+                .request({ type: 'FetchAppIconList', data: {} })
+                .then(res => {
+                    if (res.success && res.data) {
+                        setAvailableIcons(res.data.availableIcons);
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to fetch app icon list:', err);
+                });
+        }
+    }, []);
+
+    const handleIconSelect = async (iconId: string | null) => {
+        try {
+            const res = await webClient.request({
+                type: 'ChangeAppIcon',
+                data: { iconName: iconId },
+            });
+            if (res.success && res.data?.success) {
+                setCurrentIcon(res.data.iconName ?? 'default');
+                return true;
+            }
+        } catch (err) {
+            console.error('Failed to change app icon:', err);
+        }
+        return false;
+    };
+
+    const currentIconLabel = (() => {
+        const isDefault = currentIcon === null || currentIcon === 'default';
+        if (isDefault) return t('mypage.appIcon.default');
+
+        const found = availableIcons.find(icon => icon.id === currentIcon);
+        if (!found) return t('mypage.appIcon.default');
+
+        const translationKey = `mypage.appIcon.${found.id}`;
+        const translated = t(translationKey);
+        return translated !== translationKey ? translated : found.label;
+    })();
 
     useEffect(() => {
         return registerLogoutCallback(() => sessionStorage.removeItem(DEBUG_STORAGE_KEY));
@@ -221,6 +282,20 @@ export const MyPage = () => {
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </div>
                     </button>
+                    {isNative() && isIconChangeSupported && (
+                        <button
+                            onClick={() => setIsAppIconSheetOpen(true)}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <span className="text-[15px] font-medium text-foreground">
+                                {t('mypage.appIconSettings')}
+                            </span>
+                            <div className="flex items-center gap-1">
+                                <span className="text-[14px] text-muted-foreground">{currentIconLabel}</span>
+                                <ChevronRight size={18} className="text-muted-foreground" />
+                            </div>
+                        </button>
+                    )}
                     <button
                         onClick={() => {
                             resetOnboarding();
@@ -308,6 +383,15 @@ export const MyPage = () => {
 
             {/* Language Select Sheet */}
             <LanguageSelectSheet isOpen={isLanguageSheetOpen} onClose={() => setIsLanguageSheetOpen(false)} />
+
+            {/* App Icon Select Sheet */}
+            <AppIconSelectSheet
+                isOpen={isAppIconSheetOpen}
+                onClose={() => setIsAppIconSheetOpen(false)}
+                currentIcon={currentIcon}
+                availableIcons={availableIcons}
+                onSelectIcon={handleIconSelect}
+            />
         </div>
     );
 };
