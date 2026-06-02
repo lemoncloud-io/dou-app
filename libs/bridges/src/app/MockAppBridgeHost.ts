@@ -1,18 +1,9 @@
 import type { EventMessage, RequestMessage, ResponseMessage } from '../common';
 import type { IAppBridgeHost } from './IAppBridgeHost';
-import type {
-    AppMessageData,
-    AppMessageType,
-    WebMessageData,
-    WebMessageHandlerResponse,
-    WebMessageType,
-} from '@chatic/app-messages';
+import type { WebMessageType, WebMessageData, AppMessageType, AppMessageData } from '@chatic/app-messages';
 
 export class MockAppBridgeHost implements IAppBridgeHost {
-    private handlers: Map<
-        string,
-        (message: any) => WebMessageHandlerResponse<any> | Promise<WebMessageHandlerResponse<any>>
-    > = new Map();
+    private handlers: Map<string, (message: any) => Promise<any>> = new Map();
     private sendToWeb: (message: string) => void;
     private version = '1.0.0-mock';
 
@@ -48,7 +39,7 @@ export class MockAppBridgeHost implements IAppBridgeHost {
 
     public registerHandler<K extends WebMessageType>(
         type: K,
-        handler: (message: WebMessageData<K>) => WebMessageHandlerResponse<K> | Promise<WebMessageHandlerResponse<K>>
+        handler: (message: WebMessageData<K>) => Promise<ResponseMessage>
     ): void {
         console.log(`[MockAppBridgeHost] '${String(type)}' 타입 핸들러 등록 완료.`);
         this.handlers.set(type as string, handler);

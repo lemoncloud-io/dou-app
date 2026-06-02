@@ -18,7 +18,7 @@ import {
 } from './index';
 import { type ModalHandler, useModalHandler } from './useModalHandler';
 
-import type { WebMessageHandler, WebMessageHandlerMap, WebMessageType } from '@chatic/app-messages';
+import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
 import { useAppStateHandler } from './useAppStateHandler';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
@@ -233,11 +233,10 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
 
     useEffect(() => {
         // 타입 추론을 완벽하게 지원하는 라우팅 맵을 구성합니다.
-        const handlerMap = {
-            SetCanGoBack: message => {
-                handlersRef.current.setWebCanGoBack(message.data.canGoBack);
-                return { type: 'OnSetCanGoBack', success: true, data: {} };
-            },
+        const handlerMap: {
+            [K in WebMessageType]?: (message: WebMessageData<K>) => any;
+        } = {
+            SetCanGoBack: message => handlersRef.current.setWebCanGoBack(message.data.canGoBack),
             FetchFcmToken: message => handlersRef.current.fetchFcmToken(message),
             FetchBadgeCount: message => handlersRef.current.handleFetchBadgeCount(message),
             SetBadgeCount: message => handlersRef.current.handleSetBadgeCount(message),
@@ -289,22 +288,22 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
             PauseFileUpload: message => handlersRef.current.handlePauseFileUpload(message),
             ResumeFileUpload: message => handlersRef.current.handleResumeFileUpload(message),
             CancelFileUpload: message => handlersRef.current.handleCancelFileUpload(message),
-            ListRecoverableUploads: message => handlersRef.current.handleListRecoverableUploads(message),
+            ListRecoverableUploads: () => handlersRef.current.handleListRecoverableUploads(),
             RecoverUpload: message => handlersRef.current.handleRecoverUpload(message),
             RetryUpload: message => handlersRef.current.handleRetryUpload(message),
             CreateDummyFile: message => handlersRef.current.handleCreateDummyFile(message),
-        } satisfies WebMessageHandlerMap;
+        };
 
         // Bridge에 핸들러 등록
-        (Object.keys(handlerMap) as Array<keyof typeof handlerMap>).forEach(type => {
+        (Object.keys(handlerMap) as WebMessageType[]).forEach(type => {
             const handler = handlerMap[type];
             if (handler) {
-                bridge.registerHandler(type as WebMessageType, handler as WebMessageHandler<WebMessageType>);
+                bridge.registerHandler(type, handler as any);
             }
         });
 
         return () => {
-            (Object.keys(handlerMap) as Array<keyof typeof handlerMap>).forEach(type => {
+            (Object.keys(handlerMap) as WebMessageType[]).forEach(type => {
                 bridge.unregisterHandler(type);
             });
             bridge.unregisterHandler('__console__' as any);

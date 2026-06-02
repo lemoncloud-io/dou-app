@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useIsFocused } from '@react-navigation/native';
-import type { WebMessageAppHandler } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/app-messages';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
 export interface ModalHandler {
@@ -26,19 +26,19 @@ export const useModalHandler = (bridge: IAppBridgeHost, modalHandler: ModalHandl
         }
     }, [isFocused, bridge]);
 
-    const handleOpenModal = useCallback<WebMessageAppHandler<'OpenModal'>>(
-        async message => {
+    const handleOpenModal = useCallback(
+        async (message: WebMessageData<'OpenModal'>) => {
             isOpenModal.current = true;
             const { url, type = 'sheet', heightRatio, dragHandle } = message.data;
             modalHandler.openModal({ url, type, heightRatio, dragHandle });
 
-            return { type: 'OnOpenModal', success: true, data: {} };
+            return { type: 'OnOpenModal' as const, success: true };
         },
         [modalHandler]
     );
 
-    const handleCloseModal = useCallback<WebMessageAppHandler<'CloseModal'>>(
-        async _message => {
+    const handleCloseModal = useCallback(
+        async (_message: WebMessageData<'CloseModal'>) => {
             if (modalHandler.canGoBack()) {
                 modalHandler.closeModal();
             }

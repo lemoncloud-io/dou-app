@@ -16,7 +16,7 @@ export class PreferenceService implements IPreferenceService {
         try {
             return this.storage.get<T>(key);
         } catch (error) {
-            this.logService.error('PREFERENCE', `Failed to get preference: ${key}`, error as Error);
+            this.logService.error('Preference', `Failed to get preference: ${key}`, error as Error);
             return null;
         }
     }
@@ -25,7 +25,7 @@ export class PreferenceService implements IPreferenceService {
         try {
             return this.storage.set(key, value);
         } catch (error) {
-            this.logService.error('PREFERENCE', `Failed to set preference: ${key}`, error as Error);
+            this.logService.error('Preference', `Failed to set preference: ${key}`, error as Error);
         }
     }
 
@@ -33,7 +33,7 @@ export class PreferenceService implements IPreferenceService {
         try {
             return this.storage.remove(key);
         } catch (error) {
-            this.logService.error('PREFERENCE', `Failed to remove preference: ${key}`, error as Error);
+            this.logService.error('Preference', `Failed to remove preference: ${key}`, error as Error);
         }
     }
 
@@ -43,7 +43,7 @@ export class PreferenceService implements IPreferenceService {
                 void this.storage.remove(k);
             });
         } catch (error) {
-            this.logService.error('PREFERENCE', 'Failed to clear all preferences', error as Error);
+            this.logService.error('Preference', 'Failed to clear all preferences', error as Error);
         }
     }
 }

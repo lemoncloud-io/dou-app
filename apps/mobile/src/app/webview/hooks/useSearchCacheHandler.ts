@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { WebMessageAppHandler } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/app-messages';
 
 export const useSearchCacheHandler = () => {
     const { cacheSearchService, logService: logger } = useServices();
 
-    const handleSearchGlobalCache = useCallback<WebMessageAppHandler<'SearchGlobalCacheData'>>(
-        async message => {
+    const handleSearchGlobalCache = useCallback(
+        async (message: WebMessageData<'SearchGlobalCacheData'>) => {
             const { keyword, cid, uid } = message.data;
             try {
                 const items = await cacheSearchService.search(keyword, cid, uid);

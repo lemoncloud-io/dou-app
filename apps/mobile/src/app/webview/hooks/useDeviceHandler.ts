@@ -2,22 +2,22 @@ import { useCallback } from 'react';
 import { Linking } from 'react-native';
 import { FileManagerBridge } from '../../bridge';
 import { useServices } from '../../hooks';
-import type { WebMessageAppHandler } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/app-messages';
 import type { Asset } from 'react-native-image-picker';
 
 export const useDeviceHandler = () => {
     const { deviceService, logService: logger } = useServices();
 
-    const handleOpenSettings = useCallback<WebMessageAppHandler<'OpenSettings'>>(
-        async _message => {
+    const handleOpenSettings = useCallback(
+        async (_message: WebMessageData<'OpenSettings'>) => {
             await deviceService.openSettings();
-            return { type: 'OnOpenSettings' as const, success: true, data: {} };
+            return { type: 'OnOpenSettings' as const, success: true };
         },
         [deviceService]
     );
 
-    const handleOpenShareSheet = useCallback<WebMessageAppHandler<'OpenShareSheet'>>(
-        async message => {
+    const handleOpenShareSheet = useCallback(
+        async (message: WebMessageData<'OpenShareSheet'>) => {
             const data = message.data;
             try {
                 const result = await deviceService.openShareSheet(data);
@@ -38,8 +38,8 @@ export const useDeviceHandler = () => {
         [deviceService, logger]
     );
 
-    const handleOpenDocument = useCallback<WebMessageAppHandler<'OpenDocument'>>(
-        async message => {
+    const handleOpenDocument = useCallback(
+        async (message: WebMessageData<'OpenDocument'>) => {
             const data = message.data;
             try {
                 const results = await deviceService.openDocument(data.allowMultiSelection);
@@ -70,8 +70,8 @@ export const useDeviceHandler = () => {
         [deviceService, logger]
     );
 
-    const handleOpenCamera = useCallback<WebMessageAppHandler<'OpenCamera'>>(
-        async _message => {
+    const handleOpenCamera = useCallback(
+        async (_message: WebMessageData<'OpenCamera'>) => {
             try {
                 const assets: Asset[] = await deviceService.openCamera();
                 return {
@@ -101,8 +101,8 @@ export const useDeviceHandler = () => {
         [deviceService, logger]
     );
 
-    const handleOpenPhotoLibrary = useCallback<WebMessageAppHandler<'OpenPhotoLibrary'>>(
-        async _message => {
+    const handleOpenPhotoLibrary = useCallback(
+        async (_message: WebMessageData<'OpenPhotoLibrary'>) => {
             try {
                 const assets: Asset[] = await deviceService.openPhotoLibrary();
                 return {
@@ -132,8 +132,8 @@ export const useDeviceHandler = () => {
         [deviceService, logger]
     );
 
-    const handleGetContacts = useCallback<WebMessageAppHandler<'GetContacts'>>(
-        async _message => {
+    const handleGetContacts = useCallback(
+        async (_message: WebMessageData<'GetContacts'>) => {
             try {
                 const contacts = await deviceService.getContacts();
                 return {
@@ -177,12 +177,12 @@ export const useDeviceHandler = () => {
         [deviceService, logger]
     );
 
-    const handleOpenURL = useCallback<WebMessageAppHandler<'OpenURL'>>(
-        async message => {
+    const handleOpenURL = useCallback(
+        async (message: WebMessageData<'OpenURL'>) => {
             const { url } = message.data;
             try {
                 await Linking.openURL(url);
-                return { type: 'OnOpenURL' as const, success: true, data: {} };
+                return { type: 'OnOpenURL' as const, success: true };
             } catch (e: any) {
                 logger.error('DEVICE', 'OpenURL error', e);
                 return {
@@ -195,8 +195,8 @@ export const useDeviceHandler = () => {
         [logger]
     );
 
-    const handleCreateDummyFile = useCallback<WebMessageAppHandler<'CreateDummyFile'>>(
-        async message => {
+    const handleCreateDummyFile = useCallback(
+        async (message: WebMessageData<'CreateDummyFile'>) => {
             const { sizeInBytes, fileName } = message.data;
             const path = `${FileManagerBridge.DocumentDirectoryPath}/${fileName}`;
             try {

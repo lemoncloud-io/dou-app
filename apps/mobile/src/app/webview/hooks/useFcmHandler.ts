@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { deeplinkRoutingService, logger, notificationService, pushEventManager } from '../../services';
 import type { IAppBridgeHost } from '@chatic/bridges';
-import type { WebMessageAppHandler } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/app-messages';
 
 /**
  * Hook that integrates FCM push notifications, badge counts, and deep link routing inside the WebView.
@@ -12,7 +12,7 @@ import type { WebMessageAppHandler } from '@chatic/app-messages';
  * @param bridge
  */
 export const useFcmHandler = (bridge: IAppBridgeHost) => {
-    const fetchFcmToken = useCallback<WebMessageAppHandler<'FetchFcmToken'>>(async _message => {
+    const fetchFcmToken = useCallback(async (_message: WebMessageData<'FetchFcmToken'>) => {
         try {
             const hasPermission = await notificationService.requestPermission();
 
@@ -45,7 +45,7 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
         }
     }, []);
 
-    const handleFetchBadgeCount = useCallback<WebMessageAppHandler<'FetchBadgeCount'>>(async _message => {
+    const handleFetchBadgeCount = useCallback(async (_message: WebMessageData<'FetchBadgeCount'>) => {
         try {
             const count = await notificationService.getBadgeCount();
             return {
@@ -63,7 +63,7 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
         }
     }, []);
 
-    const handleSetBadgeCount = useCallback<WebMessageAppHandler<'SetBadgeCount'>>(async message => {
+    const handleSetBadgeCount = useCallback(async (message: WebMessageData<'SetBadgeCount'>) => {
         try {
             const { count } = message.data;
             await notificationService.setBadgeCount(count);
