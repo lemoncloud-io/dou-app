@@ -61,6 +61,7 @@ import type {
     PopWebViewPayload,
     ClearAppLogBufferPayload,
     FetchAppLogBufferSizePayload,
+    CopyToClipboardPayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -137,6 +138,7 @@ export type WebMessagePayloadMap = {
     FetchAppLogBufferSize: FetchAppLogBufferSizePayload;
     SendLog: SendLogPayload;
     Ping: PingPayload;
+    CopyToClipboard: CopyToClipboardPayload;
 
     // 8. Test DB Scenario Validation
     FetchTestRecord: FetchTestRecordPayload;

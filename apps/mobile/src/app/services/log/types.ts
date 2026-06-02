@@ -11,6 +11,7 @@ export type LogTag =
     | 'GLOBAL'
     | 'STORAGE'
     | 'CACHE'
+    | 'CLIPBOARD'
     | 'PERMISSION'
     | 'DEVICE'
     | 'DEEPLINK'

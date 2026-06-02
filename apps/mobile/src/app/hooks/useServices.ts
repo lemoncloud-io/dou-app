@@ -1,6 +1,7 @@
 import {
     cacheCrudService,
     cacheSearchService,
+    clipboardService,
     deviceService,
     smsService,
     dynamicAppIconService,
@@ -23,6 +24,7 @@ export const useServices = () => ({
     logService: logger,
     logBufferService: logBufferService,
     deviceService: deviceService,
+    clipboardService: clipboardService,
     smsService: smsService,
     permissionService: permissionService,
     notificationService: notificationService,

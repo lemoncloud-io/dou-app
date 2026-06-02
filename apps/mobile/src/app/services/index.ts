@@ -2,6 +2,7 @@ import { provider } from './provider';
 
 export * from './provider';
 export * from './device';
+export * from './clipboard';
 export * from './sms';
 export * from './upload';
 export * from './dynamicAppIcon';
@@ -19,6 +20,7 @@ export * from '../database';
 export const logger = provider.logService;
 export const logBufferService = provider.logBufferService;
 export const deviceService = provider.deviceService;
+export const clipboardService = provider.clipboardService;
 export const smsService = provider.smsService;
 export const uploadService = provider.uploadService;
 export const permissionService = provider.permissionService;

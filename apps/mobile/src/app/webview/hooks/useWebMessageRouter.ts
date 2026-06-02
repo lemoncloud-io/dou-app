@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import {
     useAppIconHandler,
     useCrudCacheHandler,
+    useClipboardHandler,
     useDeviceHandler,
     useSmsHandler,
     useFcmHandler,
@@ -99,6 +100,7 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
     const { handleRequestPermission } = usePermissionHandler();
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler();
     const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
+    const { handleCopyToClipboard } = useClipboardHandler();
 
     const { handleOpenModal, handleCloseModal } = useModalHandler(bridge, modalHandler);
 
@@ -156,6 +158,7 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
         handleFetchAppIcon,
         handleFetchAppIconList,
         handleChangeAppIcon,
+        handleCopyToClipboard,
         handleRequestFileUpload,
         handlePauseFileUpload,
         handleResumeFileUpload,
@@ -216,6 +219,7 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
             handleFetchAppIcon,
             handleFetchAppIconList,
             handleChangeAppIcon,
+            handleCopyToClipboard,
             handleFetchTestRecord,
             handleFetchAllTestRecords,
             handleSaveTestRecord,
@@ -284,6 +288,7 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
             FetchAppIcon: message => handlersRef.current.handleFetchAppIcon(message),
             FetchAppIconList: message => handlersRef.current.handleFetchAppIconList(message),
             ChangeAppIcon: message => handlersRef.current.handleChangeAppIcon(message),
+            CopyToClipboard: message => handlersRef.current.handleCopyToClipboard(message),
             RequestFileUpload: message => handlersRef.current.handleRequestFileUpload(message),
             PauseFileUpload: message => handlersRef.current.handlePauseFileUpload(message),
             ResumeFileUpload: message => handlersRef.current.handleResumeFileUpload(message),

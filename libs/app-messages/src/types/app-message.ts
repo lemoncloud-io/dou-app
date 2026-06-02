@@ -68,6 +68,7 @@ import type {
     OnUploadCompletePayload,
     OnUploadProgressPayload,
     PongPayload,
+    OnCopyToClipboardPayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -153,6 +154,7 @@ export type AppMessageDataMap = {
     OnClearAppLogBuffer: OnClearAppLogBufferPayload;
     OnFetchAppLogBufferSize: OnFetchAppLogBufferSizePayload;
     OnSendLog: OnSendLogPayload;
+    OnCopyToClipboard: OnCopyToClipboardPayload;
 
     // 8. Test DB Scenario Validation
     OnFetchTestRecord: OnFetchTestRecordPayload;
