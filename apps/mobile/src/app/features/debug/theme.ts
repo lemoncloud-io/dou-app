@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useResolvedTheme } from '../../theme';
+import { useResolvedTheme } from '../../hooks';
 
 export const useDebugTheme = () => {
     const { isDark } = useResolvedTheme();

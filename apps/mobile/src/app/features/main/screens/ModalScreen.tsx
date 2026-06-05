@@ -3,7 +3,7 @@ import { Animated, Dimensions, PanResponder, Pressable, StyleSheet, View } from 
 import { type RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { ModalScreenParams } from '../../core/navigation';
 import { SimpleWebView } from '../../../webview/SimpleWebView';
-import { useResolvedTheme } from '../../../theme';
+import { useResolvedTheme } from '../../../hooks';
 
 type ModalScreenRouteProp = RouteProp<{ params: ModalScreenParams }, 'params'>;
 

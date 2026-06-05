@@ -10,7 +10,7 @@ import type { MainScreenProps } from '../navigation';
 import type { ModalHandler } from '../../../webview/hooks/useModalHandler';
 import { useAppBridge } from '../../../webview/hooks';
 import { logger } from '../../../services';
-import { useResolvedTheme } from '../../../theme';
+import { useResolvedTheme } from '../../../hooks';
 
 export const MainScreen = ({ navigation, route }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
