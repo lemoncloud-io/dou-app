@@ -400,7 +400,7 @@
 				CODE_SIGN_ENTITLEMENTS = ChaticProd.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 58;
+				CURRENT_PROJECT_VERSION = 59;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Chatic/Info.plist;
@@ -411,7 +411,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.15.2;
+				MARKETING_VERSION = 0.15.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -439,7 +439,7 @@
 				CODE_SIGN_ENTITLEMENTS = ChaticProd.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 58;
+				CURRENT_PROJECT_VERSION = 59;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
@@ -449,7 +449,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.15.2;
+				MARKETING_VERSION = 0.15.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -744,7 +744,7 @@
 				CODE_SIGN_ENTITLEMENTS = ChaticDev.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 58;
+				CURRENT_PROJECT_VERSION = 59;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Chatic/Info.plist;
@@ -755,7 +755,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.15.2;
+				MARKETING_VERSION = 0.15.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -867,7 +867,7 @@
 				CODE_SIGN_ENTITLEMENTS = ChaticDev.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 58;
+				CURRENT_PROJECT_VERSION = 59;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
@@ -877,7 +877,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.15.2;
+				MARKETING_VERSION = 0.15.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
