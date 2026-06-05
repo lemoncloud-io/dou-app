@@ -1,5 +1,7 @@
 import { Linking, NativeModules, Platform } from 'react-native';
 
+import type { ILogService } from '../log';
+
 const LATE_URL_WAIT_MS = 500;
 
 /**
@@ -16,6 +18,16 @@ export class DeepLinkManager {
     private lateUrlTimeout: ReturnType<typeof setTimeout> | null = null;
     private routerListener: ((url: string) => void) | null = null;
 
+    constructor(private readonly logger?: ILogService) {}
+
+    private trace(message: string, data?: Record<string, unknown>): void {
+        this.logger?.info('DEEPLINK', `[DeepLinkManager] ${message}`, data);
+    }
+
+    private traceError(message: string, error?: unknown): void {
+        this.logger?.error('DEEPLINK', `[DeepLinkManager] ${message}`, error);
+    }
+
     /**
      * Retrieves the initial universal link buffered in AppDelegate on iOS Release builds.
      * Workaround for standard Linking.getInitialURL() race condition.
@@ -27,7 +39,7 @@ export class DeepLinkManager {
             if (!InitialUrlModule?.getInitialUniversalLink) return null;
             const url = await InitialUrlModule.getInitialUniversalLink();
             if (url) {
-                console.log('[DeepLinkManager] Native module initial URL:', url);
+                this.trace('Native module initial URL captured', { url });
             }
             return url ?? null;
         } catch {
@@ -60,6 +72,7 @@ export class DeepLinkManager {
      * Resolves the initial URL for React Navigation's getInitialURL method.
      */
     async getInitialUrl(): Promise<string | null> {
+        this.trace('getInitialUrl started');
         this.coldStartPromise = new Promise<void>(resolve => {
             this.coldStartResolve = resolve;
         });
@@ -68,7 +81,7 @@ export class DeepLinkManager {
             // 1. Check standard getInitialURL
             const url = await Linking.getInitialURL();
             if (url) {
-                console.log('[DeepLinkManager] Cold start URL from Linking.getInitialURL:', url);
+                this.trace('Cold start URL captured from Linking.getInitialURL', { url });
                 this.finishColdStart();
                 return url;
             }
@@ -76,7 +89,7 @@ export class DeepLinkManager {
             // 2. Fallback to buffered native AppDelegate universal link
             const nativeUrl = await this.getNativeInitialUrl();
             if (nativeUrl) {
-                console.log('[DeepLinkManager] Cold start URL from native module:', nativeUrl);
+                this.trace('Cold start URL captured from native module', { url: nativeUrl });
                 this.finishColdStart();
                 return nativeUrl;
             }
@@ -84,15 +97,16 @@ export class DeepLinkManager {
             // 3. Fallback: wait briefly for late addEventListener 'url' event delivery
             await new Promise<void>(resolve => {
                 this.lateUrlTimeout = setTimeout(() => {
-                    console.log('[DeepLinkManager] Late URL wait expired');
+                    this.trace('Late URL wait expired without URL');
                     this.finishColdStart();
                     resolve();
                 }, LATE_URL_WAIT_MS);
             });
 
+            this.trace('getInitialUrl completed without URL');
             return null;
         } catch (err) {
-            console.error('[DeepLinkManager] Error getting initial URL:', err);
+            this.traceError('Error getting initial URL', err);
             this.finishColdStart();
             return null;
         }
@@ -103,12 +117,13 @@ export class DeepLinkManager {
      * and forwards them to React Navigation.
      */
     subscribe(listener: (url: string) => void): () => void {
+        this.trace('Subscribing to Linking url events');
         this.routerListener = listener;
 
         const sub = Linking.addEventListener('url', ({ url }) => {
-            console.log('[DeepLinkManager] Deep link URL event received:', url);
+            this.trace('Hot/warm URL event received from OS', { url, hasRouterListener: !!this.routerListener });
             if (this.coldStartResolve) {
-                console.log('[DeepLinkManager] Forwarding late cold start URL to listener:', url);
+                this.trace('Forwarding late cold start URL to router listener', { url });
                 this.finishColdStart();
             }
             this.routerListener?.(url);
@@ -117,6 +132,7 @@ export class DeepLinkManager {
         this.linkingSubscription = sub;
 
         return () => {
+            this.trace('Unsubscribing from Linking url events');
             sub.remove();
             this.linkingSubscription = null;
             this.routerListener = null;

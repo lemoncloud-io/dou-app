@@ -120,7 +120,7 @@ class DependencyProvider {
         );
         this.uploadService = new UploadService(this.logService, uploadTaskDataSource);
         this.pushEventManager = new PushEventManager(this.logService);
-        this.deeplinkManager = new DeepLinkManager();
+        this.deeplinkManager = new DeepLinkManager(this.logService);
         this.deeplinkService = new DeeplinkService(this.deeplinkManager, this.logService);
         this.offlinePushQueue = new OfflinePushQueue(this.keyValueStorage, this.logService);
 
