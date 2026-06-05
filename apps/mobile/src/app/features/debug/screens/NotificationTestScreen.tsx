@@ -336,14 +336,13 @@ export const NotificationTestScreen = () => {
     const handleMockNotificationClick = useCallback(async () => {
         try {
             const mockClickData = {
-                channelId: 'ch_debug_123',
+                deeplink: 'chatic://s?code=invt:910001:3f9a8b&api=vjgudphpo4&stage=dev',
                 type: 'chat',
-                cid: 'cloud_debug_999',
             };
             addLog('info', `Simulating notification click for payload: ${JSON.stringify(mockClickData)}`);
-            const { deeplinkRoutingService } = require('../../../services');
-            await deeplinkRoutingService.handleNotificationClick(mockClickData);
-            addLog('success', 'Notification click routed successfully. Check logs/terminal for TODO deep link prints.');
+            const { deeplinkService } = require('../../../services');
+            await deeplinkService.handleUrl(mockClickData.deeplink);
+            addLog('success', `Notification click routed successfully via deeplinkService: ${mockClickData.deeplink}`);
         } catch (error: any) {
             addLog('error', `Routing Error: ${error.message}`);
         }
