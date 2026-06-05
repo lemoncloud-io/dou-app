@@ -6,16 +6,13 @@ import type { IClipboardService } from './clipboard';
 import { ClipboardService } from './clipboard';
 import type { IPermissionService } from './permission';
 import { PermissionService } from './permission';
-import type {
-    INotificationService,
-    IOfflinePushQueue,
-    IPushEventManager,
-    IDeeplinkRoutingService,
-} from './notification/types';
+import type { INotificationService, IOfflinePushQueue, IPushEventManager } from './notification';
 import { NotificationService } from './notification';
 import { OfflinePushQueue } from './notification/OfflinePushQueue';
 import { PushEventManager } from './notification/PushEventManager';
-import { DeeplinkRoutingService } from './notification/DeeplinkRoutingService';
+import { DeepLinkManager } from './deeplinks/DeepLinkManager';
+import type { IDeeplinkService } from './deeplinks/DeeplinkService';
+import { DeeplinkService } from './deeplinks/DeeplinkService';
 import type { IOAuthService } from './oauth';
 import { OAuthService } from './oauth';
 import type { IDynamicAppIconService } from './dynamicAppIcon';
@@ -62,7 +59,8 @@ class DependencyProvider {
     public readonly permissionService: IPermissionService;
     public readonly notificationService: INotificationService;
     public readonly pushEventManager: IPushEventManager;
-    public readonly deeplinkRoutingService: IDeeplinkRoutingService;
+    public readonly deeplinkManager: DeepLinkManager;
+    public readonly deeplinkService: IDeeplinkService;
     public readonly offlinePushQueue: IOfflinePushQueue;
     public readonly oauthService: IOAuthService;
     public readonly dynamicAppIconService: IDynamicAppIconService;
@@ -122,7 +120,8 @@ class DependencyProvider {
         );
         this.uploadService = new UploadService(this.logService, uploadTaskDataSource);
         this.pushEventManager = new PushEventManager(this.logService);
-        this.deeplinkRoutingService = new DeeplinkRoutingService(this.logService);
+        this.deeplinkManager = new DeepLinkManager();
+        this.deeplinkService = new DeeplinkService(this.deeplinkManager, this.logService);
         this.offlinePushQueue = new OfflinePushQueue(this.keyValueStorage, this.logService);
 
         this.cacheSearchService = new CacheSearchService(

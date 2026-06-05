@@ -130,17 +130,3 @@ export interface IPushEventManager {
      */
     emitReceiveNotification(message: FirebaseMessagingTypes.RemoteMessage): void;
 }
-
-/**
- * IDeeplinkRoutingService
- *
- * 알림 배너 클릭 이벤트를 단일 수집하여, 원시 푸시 페이로드를 적절한 앱 내 웹뷰 URL 스키마로 가공한 뒤
- * 네이티브 DeepLinkManager를 통해 화면을 통일성 있게 이동시키는 고수준 라우팅 매핑 서비스입니다.
- */
-export interface IDeeplinkRoutingService {
-    /**
-     * 알림 클릭 이벤트 수신 시 화면 전환 처리를 수행합니다.
-     * @param data 알림 클릭 페이로드 데이터 딕셔너리
-     */
-    handleNotificationClick(data: Record<string, string | object> | undefined): Promise<void>;
-}
