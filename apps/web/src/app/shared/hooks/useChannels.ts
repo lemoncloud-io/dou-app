@@ -227,11 +227,11 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         lastFetchedPlaceId = targetPlaceId;
 
         currentParamsRef.current = initialParams;
-        void fetchChannels({
-            loading: isSwitch || channelsRef.current.length === 0,
-            forceNetwork: isReentry,
-            silent: isReentry,
-        });
+
+        // 캐시 먼저 표시 후 네트워크 갱신
+        void fetchChannels({ loading: channelsRef.current.length === 0 }).then(() =>
+            fetchChannels({ forceNetwork: true, silent: true })
+        );
     }, [fetchChannels, cloudId, targetPlaceId, isVerified]);
 
     // 채널/채팅/조인 이벤트에 대한 동기화 트리거
