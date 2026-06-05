@@ -10,6 +10,7 @@ import type { MainScreenProps } from '../navigation';
 import type { ModalHandler } from '../../../webview/hooks/useModalHandler';
 import { useAppBridge } from '../../../webview/hooks';
 import { useThemeStore } from '../../../stores';
+import { logger } from '../../../services';
 
 export const MainScreen = ({ navigation, route }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
@@ -64,7 +65,25 @@ export const MainScreen = ({ navigation, route }: MainScreenProps) => {
                 onMessage={onMessage}
                 scrollEnabled={false}
                 onLoad={handleWebViewLoad}
+                onLoadStart={event => {
+                    logger.info('DEEPLINK', '[MainScreen] WebView load started', {
+                        url: event.nativeEvent.url,
+                        routeParams: route.params,
+                    });
+                }}
+                onLoadEnd={event => {
+                    logger.info('DEEPLINK', '[MainScreen] WebView load ended', {
+                        url: event.nativeEvent.url,
+                        routeParams: route.params,
+                    });
+                }}
                 onNavigationStateChange={navState => {
+                    logger.info('DEEPLINK', '[MainScreen] WebView navigation state changed', {
+                        url: navState.url,
+                        loading: navState.loading,
+                        canGoBack: navState.canGoBack,
+                        routeParams: route.params,
+                    });
                     setNavCanGoBack(navState.canGoBack);
                 }}
                 modalHandler={modalHandler}

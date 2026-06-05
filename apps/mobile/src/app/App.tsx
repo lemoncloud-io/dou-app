@@ -11,7 +11,7 @@ import type { RootStackParamList } from './features/core/navigation';
 import { RootNavigator } from './features/core/navigation';
 import { useAppVersionCheck } from './hooks';
 import { useThemeStore } from './stores';
-import { deeplinkService, notificationService, offlinePushQueue } from './services';
+import { deeplinkService, logger, notificationService, offlinePushQueue } from './services';
 import { FloatingMenu } from './features/core/components';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
@@ -34,7 +34,15 @@ const linking: LinkingOptions<any> = {
         return deeplinkService.subscribe(listener);
     },
     getStateFromPath(path: string) {
-        return getRouteStateFromDeepLinkPath(path);
+        logger.info('DEEPLINK', '[AppLinking] getStateFromPath called', { path });
+        const state = getRouteStateFromDeepLinkPath(path);
+        logger.info('DEEPLINK', '[AppLinking] getStateFromPath result', {
+            path,
+            rootRoute: state?.routes?.[0]?.name,
+            nestedRoute: state?.routes?.[0]?.state?.routes?.[0]?.name,
+            nestedParams: state?.routes?.[0]?.state?.routes?.[0]?.params,
+        });
+        return state;
     },
 };
 
