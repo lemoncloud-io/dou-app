@@ -10,8 +10,9 @@ import type { MainScreenProps } from '../navigation';
 import type { ModalHandler } from '../../../webview/hooks/useModalHandler';
 import { useAppBridge } from '../../../webview/hooks';
 import { useThemeStore } from '../../../stores';
+import { logger } from '../../../services';
 
-export const MainScreen = ({ navigation }: MainScreenProps) => {
+export const MainScreen = ({ navigation, route }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
     const { bridge, onMessage } = useAppBridge(webViewRef);
     const systemColorScheme = useColorScheme();
@@ -19,8 +20,10 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
     const isDark = theme === 'dark' || (theme === 'system' && systemColorScheme === 'dark');
 
     const { setWebCanGoBack, setNavCanGoBack } = useWebViewNavigation(bridge);
-    const { initialSource, handleWebViewLoad, deepLinkError, deepLinkErrorReason, handleDismissError } =
-        useWebViewDeepLink(webViewRef);
+    const { source, handleWebViewLoad, deepLinkError, deepLinkErrorReason, handleDismissError } = useWebViewDeepLink(
+        webViewRef,
+        route
+    );
 
     const modalHandler: ModalHandler = useMemo(
         () => ({
@@ -37,7 +40,7 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         [navigation]
     );
 
-    if (!initialSource) {
+    if (!source) {
         return (
             <View style={[loadingStyles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
                 <Image
@@ -57,12 +60,30 @@ export const MainScreen = ({ navigation }: MainScreenProps) => {
         <View style={{ flex: 1, backgroundColor: isDark ? '#121212' : '#ffffff' }}>
             <AppWebView
                 ref={webViewRef}
-                source={initialSource}
+                source={source}
                 bridge={bridge}
                 onMessage={onMessage}
                 scrollEnabled={false}
                 onLoad={handleWebViewLoad}
+                onLoadStart={event => {
+                    logger.info('DEEPLINK', '[MainScreen] WebView load started', {
+                        url: event.nativeEvent.url,
+                        routeParams: route.params,
+                    });
+                }}
+                onLoadEnd={event => {
+                    logger.info('DEEPLINK', '[MainScreen] WebView load ended', {
+                        url: event.nativeEvent.url,
+                        routeParams: route.params,
+                    });
+                }}
                 onNavigationStateChange={navState => {
+                    logger.info('DEEPLINK', '[MainScreen] WebView navigation state changed', {
+                        url: navState.url,
+                        loading: navState.loading,
+                        canGoBack: navState.canGoBack,
+                        routeParams: route.params,
+                    });
                     setNavCanGoBack(navState.canGoBack);
                 }}
                 modalHandler={modalHandler}

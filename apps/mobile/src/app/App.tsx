@@ -3,18 +3,48 @@ import { StatusBar, useColorScheme, View } from 'react-native';
 import Config from 'react-native-config';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import type { LinkingOptions } from '@react-navigation/native';
 import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 
-import { getDeepLinkManager } from '@chatic/deeplinks';
+import { getRouteStateFromDeepLinkPath } from './services/deeplinks/deeplinkUtils';
 import type { RootStackParamList } from './features/core/navigation';
 import { RootNavigator } from './features/core/navigation';
-import { useAppVersionCheck, useInitializeDeepLink } from './hooks';
+import { useAppVersionCheck } from './hooks';
 import { useThemeStore } from './stores';
-import { notificationService, offlinePushQueue } from './services';
+import { deeplinkService, logger, notificationService, offlinePushQueue } from './services';
 import { FloatingMenu } from './features/core/components';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 const SHOW_DEBUG_MENU = __DEV__ || Config.VITE_ENV !== 'PROD';
+
+// React Navigation Linking Configuration
+const linking: LinkingOptions<any> = {
+    prefixes: [
+        'chatic://',
+        'chatic-dev://',
+        'https://app.chatic.io',
+        'https://app-dev.chatic.io',
+        'https://dou.chatic.io',
+        'https://dou-dev.chatic.io',
+    ],
+    async getInitialURL() {
+        return deeplinkService.getInitialUrl();
+    },
+    subscribe(listener: (url: string) => void) {
+        return deeplinkService.subscribe(listener);
+    },
+    getStateFromPath(path: string) {
+        logger.info('DEEPLINK', '[AppLinking] getStateFromPath called', { path });
+        const state = getRouteStateFromDeepLinkPath(path);
+        logger.info('DEEPLINK', '[AppLinking] getStateFromPath result', {
+            path,
+            rootRoute: state?.routes?.[0]?.name,
+            nestedRoute: state?.routes?.[0]?.state?.routes?.[0]?.name,
+            nestedParams: state?.routes?.[0]?.state?.routes?.[0]?.params,
+        });
+        return state;
+    },
+};
 
 export const App = () => {
     const systemColorScheme = useColorScheme();
@@ -23,13 +53,9 @@ export const App = () => {
 
     const { hasUpdate, showUpdateAlert } = useAppVersionCheck(true);
 
-    // Initialize deep link listeners early (captures URLs immediately)
-    useInitializeDeepLink();
-
     // Signal that Firebase is ready for deep link processing immediately
     useEffect(() => {
         notificationService.createNotificationChannel();
-        getDeepLinkManager().setAppReady();
         void offlinePushQueue.flush();
     }, []);
 
@@ -53,7 +79,7 @@ export const App = () => {
                 backgroundColor="transparent"
                 translucent={true}
             />
-            <NavigationContainer ref={navigationRef}>
+            <NavigationContainer ref={navigationRef} linking={linking}>
                 <View style={{ flex: 1 }}>
                     <RootNavigator />
                     {SHOW_DEBUG_MENU && <FloatingMenu onNavigate={handleNavigate} />}

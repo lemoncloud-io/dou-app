@@ -21,7 +21,12 @@ export type DebugStackParamList = {
 };
 
 export type MainStackParamList = {
-    Main: undefined;
+    Main:
+        | {
+              url?: string;
+              error?: string;
+          }
+        | undefined;
     Modal: ModalScreenParams;
 };
 

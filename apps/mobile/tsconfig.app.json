@@ -42,9 +42,6 @@
         },
         {
             "path": "../../libs/shared/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/deeplinks/tsconfig.lib.json"
         }
     ]
 }

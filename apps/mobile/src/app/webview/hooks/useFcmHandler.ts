@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
-import { deeplinkRoutingService, logger, notificationService, pushEventManager } from '../../services';
+import { deeplinkService, logger, notificationService, pushEventManager } from '../../services';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { WebMessageData } from '@chatic/app-messages';
 
@@ -115,17 +115,26 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
             pushEventManager.emitReceiveNotification(remoteMessage);
         });
 
-        // App background notification click -> route to DeeplinkRoutingService
+        // Helper to extract and route URL from notification payload
+        const routeNotification = (data: Record<string, string | object> | undefined) => {
+            if (!data) return;
+            const rawUrl = data.deeplink || data.url || data.link;
+            if (typeof rawUrl === 'string' && rawUrl.trim().length > 0) {
+                void deeplinkService.handleUrl(rawUrl);
+            }
+        };
+
+        // App background notification click -> route via deeplinkService
         const unsubscribeOnOpened = notificationService.onNotificationOpenedApp(remoteMessage => {
-            void deeplinkRoutingService.handleNotificationClick(remoteMessage.data);
+            routeNotification(remoteMessage.data);
         });
 
-        // App killed (Cold Start) notification click -> route to DeeplinkRoutingService
+        // App killed (Cold Start) notification click -> route via deeplinkService
         notificationService.getInitialNotification().then(remoteMessage => {
             if (remoteMessage) {
                 // A brief delay to allow App state / DeepLinkManager to start up
                 setTimeout(() => {
-                    void deeplinkRoutingService.handleNotificationClick(remoteMessage.data);
+                    routeNotification(remoteMessage.data);
                 }, 1000);
             }
         });

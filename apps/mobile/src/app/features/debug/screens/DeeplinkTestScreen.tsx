@@ -1,132 +1,36 @@
-import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Config from 'react-native-config';
 
-import auth from '@react-native-firebase/auth';
+import { deeplinkService } from '../../../services';
 
-import {
-    checkInviteLinkExists,
-    createInviteLink,
-    DEEPLINK_DOMAIN,
-    deleteInviteLink,
-    getInviteLink,
-} from '@chatic/deeplinks';
-
-const TEST_INVITE_CODE = 'test-invite-001';
-const TEST_USER_ID = '1000029';
-const TEST_INVITE_ID = '910001';
-
-/** Extract error message from unknown error */
-const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error');
+const TEST_DEV_URL = 'chatic-dev://s';
+const TEST_PROD_URL = 'chatic://s';
+const TEST_RELATIVE_PATH = '/home';
 
 export const DeeplinkTestScreen = () => {
     const [result, setResult] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
-    const [authStatus, setAuthStatus] = useState<string>('Checking auth...');
 
-    // Anonymous auth on mount
-    useEffect(() => {
-        const signInAnonymously = async () => {
-            try {
-                const currentUser = auth().currentUser;
-                if (currentUser) {
-                    setAuthStatus(`Authenticated: ${currentUser.uid.slice(0, 8)}...`);
-                    return;
-                }
-
-                const userCredential = await auth().signInAnonymously();
-                setAuthStatus(`Signed in: ${userCredential.user.uid.slice(0, 8)}...`);
-            } catch (error) {
-                const message = error instanceof Error ? error.message : 'Auth failed';
-                setAuthStatus(`Auth error: ${message}`);
-            }
-        };
-
-        signInAnonymously();
-    }, []);
-
-    const handleCreate = async () => {
+    const handleTestUrl = async (url: string) => {
         setIsLoading(true);
-        setResult('Creating...');
-
+        setResult(`Routing URL: ${url}`);
         try {
-            const inviteData = {
-                id: TEST_INVITE_ID,
-                code: TEST_INVITE_CODE,
-                userId: TEST_USER_ID,
-                user$: {
-                    id: TEST_USER_ID,
-                    name: 'Test User',
-                },
-            };
-
-            const link = await createInviteLink(TEST_INVITE_CODE, inviteData, 'mobile-test');
-
-            setResult(`Created!\n\nURL: ${link.deepLinkUrl}\nID: ${link.id}`);
-            Alert.alert('Success', `Deeplink created: ${link.deepLinkUrl}`);
+            await deeplinkService.handleUrl(url);
+            setResult(prev => `${prev}\n\nSuccessfully routed!`);
         } catch (error) {
-            const message = getErrorMessage(error);
-            setResult(`Error: ${message}`);
-            Alert.alert('Error', message);
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            setResult(prev => `${prev}\n\nError: ${message}`);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleGet = async () => {
-        setIsLoading(true);
-        setResult('Fetching...');
-
-        try {
-            const link = await getInviteLink(TEST_INVITE_CODE);
-
-            if (link) {
-                setResult(`Found!\n\n${JSON.stringify(link, null, 2)}`);
-            } else {
-                setResult('Not found');
-            }
-        } catch (error) {
-            setResult(`Error: ${getErrorMessage(error)}`);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleCheck = async () => {
-        setIsLoading(true);
-        setResult('Checking...');
-
-        try {
-            const exists = await checkInviteLinkExists(TEST_INVITE_CODE);
-            setResult(`Exists: ${exists}`);
-        } catch (error) {
-            setResult(`Error: ${getErrorMessage(error)}`);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleDelete = async () => {
-        setIsLoading(true);
-        setResult('Deleting...');
-
-        try {
-            await deleteInviteLink(TEST_INVITE_CODE);
-            setResult('Deleted!');
-            Alert.alert('Success', 'Deeplink deleted');
-        } catch (error) {
-            const message = getErrorMessage(error);
-            setResult(`Error: ${message}`);
-            Alert.alert('Error', message);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const renderButton = (title: string, onPress: () => void, color = '#007AFF') => (
+    const renderButton = (title: string, url: string, color = '#007AFF') => (
         <TouchableOpacity
             style={[styles.button, { backgroundColor: color }]}
-            onPress={onPress}
+            onPress={() => handleTestUrl(url)}
             disabled={isLoading}
             activeOpacity={0.7}
         >
@@ -140,25 +44,23 @@ export const DeeplinkTestScreen = () => {
 
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Invite Code: {TEST_INVITE_CODE}</Text>
-                    <Text style={styles.infoText}>User ID: {TEST_USER_ID}</Text>
-                    <Text style={styles.urlText}>
-                        URL: https://{DEEPLINK_DOMAIN}/s/{TEST_INVITE_CODE}
+                    <Text style={styles.sectionTitle}>Deep Link Service Tester</Text>
+                    <Text style={styles.infoText}>Current Env: {Config.VITE_ENV || 'PROD'}</Text>
+                    <Text style={styles.infoText}>
+                        This screen simulates incoming deep links to verify routing and domain conversion.
                     </Text>
-                    <Text style={styles.authStatus}>{authStatus}</Text>
                 </View>
 
                 <View style={styles.buttonContainer}>
-                    {renderButton('Create Invite Link', handleCreate, '#34C759')}
-                    {renderButton('Get Invite Link', handleGet)}
-                    {renderButton('Check Exists', handleCheck)}
-                    {renderButton('Delete Invite Link', handleDelete, '#FF3B30')}
+                    {renderButton('Test Dev Scheme Link', TEST_DEV_URL, '#34C759')}
+                    {renderButton('Test Prod Scheme Link', TEST_PROD_URL, '#5856D6')}
+                    {renderButton('Test Relative Path (/home)', TEST_RELATIVE_PATH, '#FF9500')}
                 </View>
 
                 <View style={styles.resultSection}>
-                    <Text style={styles.resultTitle}>Result:</Text>
+                    <Text style={styles.resultTitle}>Status Log:</Text>
                     <ScrollView style={styles.resultScroll} nestedScrollEnabled>
-                        <Text style={styles.resultText}>{result || 'No result yet'}</Text>
+                        <Text style={styles.resultText}>{result || 'No actions triggered yet'}</Text>
                     </ScrollView>
                 </View>
             </ScrollView>
@@ -179,24 +81,15 @@ const styles = StyleSheet.create({
     },
     sectionTitle: {
         color: '#FFFFFF',
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: 'bold',
         marginBottom: 8,
     },
     infoText: {
         color: '#AAAAAA',
         fontSize: 14,
-        marginBottom: 4,
-    },
-    urlText: {
-        color: '#888',
-        fontSize: 14,
-        fontFamily: 'monospace',
-    },
-    authStatus: {
-        color: '#34C759',
-        fontSize: 12,
-        marginTop: 8,
+        marginBottom: 6,
+        lineHeight: 20,
     },
     buttonContainer: {
         gap: 12,

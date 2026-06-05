@@ -1,4 +1,11 @@
-# Project Structure
+# Chatic Mobile Application Architecture
+
+본 문서는 Chatic 하이브리드 모바일 애플리케이션의 핵심 네이티브 기능, 서비스 레이어 및 아키텍처 설계 명세를 다룹니다.
+
+## 📌 목차 (Table of Contents)
+
+1. [🔔 푸시 알림 및 통합 라우팅 아키텍처 (Push Notification & Unified Routing)](#-푸시-알림-및-통합-라우팅-아키텍처-push-notification--unified-routing)
+2. [🚀 고성능 네이티브 기반 대용량 파일 업로드 아키텍처 (Native-Driven Chunk Upload System)](#-고성능-네이티브-기반-대용량-파일-업로드-아키텍처-native-driven-chunk-upload-system)
 
 ---
 
@@ -17,14 +24,15 @@ graph TD
     D -->|bridge.pushEvent| E["WebView: Custom In-app Banner"]
 
     B -->|Background Click| F["Notification Clicked"]
-    F --> G["DeeplinkRoutingService"]
-    G --> H["DeepLinkManager"]
-    H -->|injectJavaScript| I["WebView: Route Navigation"]
+    F --> G["useFcmHandler (App Bridge)"]
+    G --> H["DeeplinkService (handleUrl)"]
+    H --> I["Linking.openURL / React Navigation"]
+    I --> J["WebView: Route Navigation"]
 
-    B -->|Killed / Headless JS| J["Headless JS Context"]
-    J --> K{"SQLite JSI Available?"}
-    K -->|No: Catch C++ JSI Error| L["OfflinePushQueue: MMKV Storage"]
-    L -->|App Mount / WebAppReady| M["provider.cacheCrudService SQLite Sync & Flush"]
+    B -->|Killed / Headless JS| K["Headless JS Context"]
+    K --> L{"SQLite JSI Available?"}
+    L -->|No: Catch C++ JSI Error| M["OfflinePushQueue: MMKV Storage"]
+    M -->|App Mount / WebAppReady| N["provider.cacheCrudService SQLite Sync & Flush"]
 ```
 
 하이브리드 환경의 제약 조건을 해결하기 위해 다음의 4가지 설계 원칙을 적용하였습니다.
@@ -52,8 +60,13 @@ graph TD
 - **`PushEventManager`** (`types.ts` / `PushEventManager.ts`)
     - 네이티브의 알림 감지 콜백과 WebView 브릿지를 안전하게 디커플링하는 싱글톤 이벤트 리스너 레지스트리.
     - 포그라운드 이벤트(`OnReceiveNotification`)의 다중 구독자 전파 지원.
-- **`DeeplinkRoutingService`** (`types.ts` / `DeeplinkRoutingService.ts`)
-    - 알림 배너나 푸시 팝업 클릭 시 획득한 커스텀 페이로드(`notification.data`)를 분석해 일관된 프론트엔드 라우팅 URL로 파싱하고 `DeepLinkManager`로 핸들링 처리를 위임하는 중간 제어 모듈 (`TODO` 로깅 플레이스홀더 구성).
+
+### 📂 `src/app/services/deeplinks`
+
+- **`DeeplinkService`** (`types.ts` / `DeeplinkService.ts`)
+    - 외부 딥링크/앱링크 유입 및 알림 클릭 시 원시 URL 스케일링, 표준 스킴 복원, React Navigation 통합 라우팅을 조율하는 메인 코디네이터.
+- **`DeepLinkManager`** (`DeepLinkManager.ts`)
+    - 단말 OS 레벨의 `Linking` API 수신 및 iOS Universal Link 지연/버퍼 워크어라운드를 관리하여 Cold/Warm Start 시 안정적으로 외부 URL을 포착하는 Low-level 캡처 모듈.
 
 ---
 
@@ -62,7 +75,7 @@ graph TD
 - **`useFcmHandler.ts`**
     - WebView 단에서 디바이스 토큰 조회를 요청하는 `FetchFcmToken` 요청 처리 및 네이티브 응답 반환.
     - 포그라운드 알림 감지 시 브릿지를 통해 WebView에 실시간 이벤트 푸시 전송.
-    - 백그라운드 클릭 및 앱 종료 상태 클릭(Cold Start) 시 전달된 페이로드를 `DeeplinkRoutingService`로 라우팅 처리 지시.
+    - 백그라운드 클릭 및 앱 종료 상태 클릭(Cold Start) 시 수신된 페이로드의 URL을 `DeeplinkService.handleUrl()`로 위임하여 라우팅 처리 지시.
 - **`useWebMessageRouter.ts`**
     - WebView에서 네이티브 앱 아이콘 뱃지 값을 제어할 수 있는 브릿지 명령 핸들러 바인딩.
         - `FetchBadgeCount`: 앱 아이콘에 설정된 뱃지 카운트 반환.

@@ -52,9 +52,6 @@
             "path": "./libs/chats"
         },
         {
-            "path": "./libs/deeplinks"
-        },
-        {
             "path": "./apps/landing"
         },
         {

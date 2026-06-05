@@ -15,6 +15,8 @@ export * from './subscriptionIap';
 export * from './preference';
 export * from './cache';
 export * from '../database';
+export * from './deeplinks/DeeplinkService';
+export * from './deeplinks/DeepLinkManager';
 
 // Commonly used services
 export const logger = provider.logService;
@@ -37,5 +39,6 @@ export const testRecordService = provider.testRecordService;
 export const sqliteDatabase = provider.sqliteDatabase;
 export const keyValueStorage = provider.keyValueStorage;
 export const pushEventManager = provider.pushEventManager;
-export const deeplinkRoutingService = provider.deeplinkRoutingService;
+export const deeplinkManager = provider.deeplinkManager;
+export const deeplinkService = provider.deeplinkService;
 export const offlinePushQueue = provider.offlinePushQueue;
