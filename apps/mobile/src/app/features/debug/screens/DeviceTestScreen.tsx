@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { FlatList, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useServices } from '../../../hooks';
+import { useDebugTheme } from '../theme';
 
 import type { AppPermissionType } from '../../../services'; // Keep type import
 
@@ -17,6 +18,7 @@ interface LogItem {
 
 export const DeviceTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const colors = useDebugTheme();
     const { deviceService, permissionService, logService: logger } = useServices();
     const [logs, setLogs] = useState<LogItem[]>([]);
     const flatListRef = useRef<FlatList>(null);
@@ -65,9 +67,8 @@ export const DeviceTestScreen = () => {
                 title: 'Share Test',
                 message: 'This is a test message from DeviceTestScreen',
             });
-            addLog('success', `Share Result: ${JSON.stringify(result)}`);  
+            addLog('success', `Share Result: ${JSON.stringify(result)}`);
         } catch (e: any) {
-             
             addLog('error', `Share Failed: ${e.message}`);
         }
     }, [addLog, deviceService]);
@@ -79,11 +80,11 @@ export const DeviceTestScreen = () => {
             if (results.length > 0) {
                 addLog('success', `Picked ${results.length} files`);
                 results.forEach(doc => {
-                    addLog('info', `File: ${doc.name} (${doc.size} bytes)\nURI: ${doc.uri}`);  
+                    addLog('info', `File: ${doc.name} (${doc.size} bytes)\nURI: ${doc.uri}`);
                 });
             } else {
                 addLog('info', 'No document picked');
-            }  
+            }
         } catch (e: any) {
             if (e.message?.includes('cancelled')) {
                 addLog('info', 'Document picker cancelled');
@@ -99,12 +100,11 @@ export const DeviceTestScreen = () => {
             const contacts = await deviceService.getContacts();
             if (contacts.length > 0) {
                 addLog('success', `Got ${contacts.length} contacts`);
-                addLog('info', JSON.stringify(contacts, null, 2));  
+                addLog('info', JSON.stringify(contacts, null, 2));
             } else {
                 addLog('info', 'No contacts found');
             }
         } catch (e: any) {
-             
             addLog('error', `Get Contacts Failed: ${e.message}`);
         }
     }, [addLog, deviceService]);
@@ -120,11 +120,11 @@ export const DeviceTestScreen = () => {
             if (assets && assets.length > 0) {
                 addLog('success', 'Photo Captured');
                 assets.forEach(asset => {
-                    addLog('info', `Image: ${asset.width}x${asset.height}\nURI: ${asset.uri}`);  
+                    addLog('info', `Image: ${asset.width}x${asset.height}\nURI: ${asset.uri}`);
                 });
             } else {
                 addLog('info', 'Camera cancelled or no image captured');
-            }  
+            }
         } catch (e: any) {
             addLog('error', `Camera Failed: ${e.message}`);
         }
@@ -141,11 +141,11 @@ export const DeviceTestScreen = () => {
             if (assets && assets.length > 0) {
                 addLog('success', `Selected ${assets.length} photos`);
                 assets.forEach(asset => {
-                    addLog('info', `Image: ${asset.width}x${asset.height}\nURI: ${asset.uri}`);  
+                    addLog('info', `Image: ${asset.width}x${asset.height}\nURI: ${asset.uri}`);
                 });
             } else {
                 addLog('info', 'Photo library cancelled or no selection');
-            }  
+            }
         } catch (e: any) {
             addLog('error', `Photo Library Failed: ${e.message}`);
         }
@@ -195,11 +195,11 @@ export const DeviceTestScreen = () => {
     };
 
     return (
-        <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Device Service Test</Text>
+        <View style={[styles.screen, { paddingBottom: insets.bottom, backgroundColor: colors.background }]}>
+            <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>Device Service Test</Text>
                 <TouchableOpacity onPress={handleClearLogs} style={styles.clearButton}>
-                    <Text style={styles.clearButtonText}>Clear Logs</Text>
+                    <Text style={[styles.clearButtonText, { color: colors.subtleText }]}>Clear Logs</Text>
                 </TouchableOpacity>
             </View>
 
@@ -208,12 +208,14 @@ export const DeviceTestScreen = () => {
                 data={logs}
                 keyExtractor={item => item.id}
                 renderItem={renderLogItem}
-                style={styles.logList}
+                style={[styles.logList, { backgroundColor: colors.logBackground }]}
                 contentContainerStyle={styles.logContent}
-                ListEmptyComponent={<Text style={styles.emptyText}>로그가 비어있습니다.</Text>}
+                ListEmptyComponent={
+                    <Text style={[styles.emptyText, { color: colors.subtleText }]}>로그가 비어있습니다.</Text>
+                }
             />
 
-            <View style={styles.bottomContainer}>
+            <View style={[styles.bottomContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}

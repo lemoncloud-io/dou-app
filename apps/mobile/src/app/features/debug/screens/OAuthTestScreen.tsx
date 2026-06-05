@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { OAuthLoginProvider, OAuthTokenResult } from '@chatic/app-messages';
 import { useServices } from '../../../hooks';
+import { useDebugTheme } from '../theme';
 
 type LogType = 'info' | 'error' | 'success' | 'warn';
 
@@ -25,6 +26,7 @@ interface LogItem {
 
 export const OAuthTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const colors = useDebugTheme();
     const { oauthService: oAuthService, logService: logger } = useServices();
     const [result, setResult] = useState<OAuthTokenResult | null>(null);
     const [loading, setLoading] = useState<OAuthLoginProvider | 'logout' | null>(null);
@@ -120,33 +122,39 @@ export const OAuthTestScreen = () => {
 
         return (
             <View style={styles.logRow}>
-                <View style={styles.logHeader}>
+                <View style={[styles.logHeader, { backgroundColor: colors.surface }]}>
                     <Text style={styles.logTime}>[{item.timestamp}]</Text>
                     <Text style={[styles.logText, { color }]}>{item.message}</Text>
                 </View>
-                {item.data && <Text style={styles.logData}>{JSON.stringify(item.data, null, 2)}</Text>}
+                {item.data && (
+                    <Text style={[styles.logData, { color: colors.mutedText }]}>
+                        {JSON.stringify(item.data, null, 2)}
+                    </Text>
+                )}
             </View>
         );
     };
 
     return (
-        <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
+        <View style={[styles.screen, { paddingBottom: insets.bottom, backgroundColor: colors.background }]}>
             {/* 상단 컨트롤 패널 */}
-            <View style={styles.controlPanel}>
+            <View style={[styles.controlPanel, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                 <TouchableOpacity style={styles.panelHeader} onPress={togglePanel} activeOpacity={0.7}>
                     <View style={styles.statusRow}>
                         <View style={[styles.dot, { backgroundColor: result ? '#50E3C2' : '#888' }]} />
-                        <Text style={styles.statusText}>{result ? 'Authenticated' : 'Not Authenticated'}</Text>
+                        <Text style={[styles.statusText, { color: colors.text }]}>
+                            {result ? 'Authenticated' : 'Not Authenticated'}
+                        </Text>
                     </View>
-                    <Text style={styles.toggleIcon}>{isExpanded ? '▲' : '▼'}</Text>
+                    <Text style={[styles.toggleIcon, { color: colors.subtleText }]}>{isExpanded ? '▲' : '▼'}</Text>
                 </TouchableOpacity>
 
                 {isExpanded && result && (
                     <View style={styles.infoContainer}>
-                        <View style={styles.dividerHorizontal} />
+                        <View style={[styles.dividerHorizontal, { backgroundColor: colors.border }]} />
                         <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Provider:</Text>
-                            <Text style={styles.infoValue}>{result.provider}</Text>
+                            <Text style={[styles.infoLabel, { color: colors.mutedText }]}>Provider:</Text>
+                            <Text style={[styles.infoValue, { color: colors.text }]}>{result.provider}</Text>
                         </View>
                         <View style={styles.infoRow}>
                             <Text style={styles.infoLabel}>Platform:</Text>
@@ -192,13 +200,15 @@ export const OAuthTestScreen = () => {
                 data={logs}
                 keyExtractor={item => item.id}
                 renderItem={renderLogItem}
-                style={styles.logList}
+                style={[styles.logList, { backgroundColor: colors.logBackground }]}
                 contentContainerStyle={styles.logContent}
-                ListEmptyComponent={<Text style={styles.emptyText}>로그 대기 중...</Text>}
+                ListEmptyComponent={
+                    <Text style={[styles.emptyText, { color: colors.subtleText }]}>로그 대기 중...</Text>
+                }
             />
 
             {/* 하단 액션 버튼 */}
-            <View style={styles.bottomContainer}>
+            <View style={[styles.bottomContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                 <View style={styles.actionContainer}>
                     {/* Google */}
                     <TouchableOpacity

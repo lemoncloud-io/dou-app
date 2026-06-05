@@ -1,24 +1,32 @@
 import React from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { HomeScreenProps } from '../navigation';
+import { useDebugTheme } from '../theme';
 
 export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
+    const colors = useDebugTheme();
+
     const renderMenuItem = (title: string, onPress: () => void) => (
-        <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
-            <Text style={styles.menuText}>{title}</Text>
-            <Text style={styles.menuArrow}>{'>'}</Text>
+        <TouchableOpacity
+            style={[styles.menuItem, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
+            onPress={onPress}
+            activeOpacity={0.7}
+        >
+            <Text style={[styles.menuText, { color: colors.text }]}>{title}</Text>
+            <Text style={[styles.menuArrow, { color: colors.subtleText }]}>{'>'}</Text>
         </TouchableOpacity>
     );
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
-            <StatusBar barStyle="light-content" backgroundColor="#121212" />
-
+        <SafeAreaView
+            style={[styles.container, { backgroundColor: colors.background }]}
+            edges={['bottom', 'left', 'right']}
+        >
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>테스트 메뉴</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.subtleText }]}>테스트 메뉴</Text>
 
                     {renderMenuItem('소켓 테스트', () => {
                         navigation.navigate('SocketTest');
@@ -84,8 +92,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingVertical: 16,
         paddingHorizontal: 16,
-        backgroundColor: '#1E1E1E',
-        marginBottom: 1,
+        borderBottomWidth: 1,
     },
     menuText: {
         color: '#FFFFFF',

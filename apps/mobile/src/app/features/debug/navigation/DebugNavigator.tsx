@@ -17,20 +17,24 @@ import {
 } from '../screens';
 
 import type { DebugStackParamList } from '../../core/navigation';
+import { useDebugTheme } from '../theme';
 
 export type HomeScreenProps = NativeStackScreenProps<DebugStackParamList, 'Home'>;
 
 const DebugStack = createNativeStackNavigator<DebugStackParamList>();
 
 export const DebugNavigator = () => {
+    const colors = useDebugTheme();
+
     return (
         <DebugStack.Navigator
             initialRouteName="Home"
             screenOptions={{
-                headerStyle: { backgroundColor: '#121212' },
-                headerTintColor: '#FFFFFF',
+                contentStyle: { backgroundColor: colors.background },
+                headerStyle: { backgroundColor: colors.background },
+                headerTintColor: colors.text,
                 headerTitleStyle: { fontWeight: 'bold' },
-                headerShadowVisible: false,
+                headerShadowVisible: true,
             }}
         >
             <DebugStack.Screen

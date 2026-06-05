@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FileManagerBridge } from '../../../bridge';
 import type { CacheType } from '@chatic/app-messages';
 import { useServices } from '../../../hooks';
+import { useDebugTheme } from '../theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -23,6 +24,7 @@ const DATA_TYPES: CacheType[] = ['channel', 'chat', 'user', 'join', 'site', 'inv
 
 export const StorageTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const colors = useDebugTheme();
     const { sqliteDatabase, cacheCrudService } = useServices();
 
     const [dataType, setDataType] = useState<CacheType>(DATA_TYPES[0]);
@@ -101,34 +103,36 @@ export const StorageTestScreen = () => {
 
     // 리스트 아이템 렌더링
     const renderItem = ({ item }: { item: any }) => (
-        <View style={styles.logRow}>
+        <View style={[styles.logRow, { borderBottomColor: colors.border }]}>
             <View style={styles.logHeader}>
                 <Text style={styles.logTime}>
                     [{item.cid ? `${item.cid} / ` : ''}
                     {item.id}]
                 </Text>
             </View>
-            <Text style={styles.logData}>{item.content || item.name || item.text || JSON.stringify(item)}</Text>
+            <Text style={[styles.logData, { color: colors.mutedText }]}>
+                {item.content || item.name || item.text || JSON.stringify(item)}
+            </Text>
         </View>
     );
 
     return (
-        <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
+        <View style={[styles.screen, { paddingBottom: insets.bottom, backgroundColor: colors.background }]}>
             {/* 상단 컨트롤 패널 */}
-            <View style={styles.controlPanel}>
+            <View style={[styles.controlPanel, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                 <TouchableOpacity style={styles.panelHeader} onPress={togglePanel} activeOpacity={0.7}>
                     <View style={styles.statusRow}>
                         <View style={[styles.dot, { backgroundColor: '#50E3C2' }]} />
-                        <Text style={styles.statusText}>Data Source: {dataType}</Text>
+                        <Text style={[styles.statusText, { color: colors.text }]}>Data Source: {dataType}</Text>
                     </View>
-                    <Text style={styles.toggleIcon}>{isExpanded ? '▲' : '▼'}</Text>
+                    <Text style={[styles.toggleIcon, { color: colors.subtleText }]}>{isExpanded ? '▲' : '▼'}</Text>
                 </TouchableOpacity>
 
                 {isExpanded && (
                     <View style={styles.infoContainer}>
-                        <View style={styles.dividerHorizontal} />
+                        <View style={[styles.dividerHorizontal, { backgroundColor: colors.border }]} />
                         <View style={[styles.infoRow, { alignItems: 'center' }]}>
-                            <Text style={styles.infoLabel}>Data Type:</Text>
+                            <Text style={[styles.infoLabel, { color: colors.mutedText }]}>Data Type:</Text>
                             <ScrollView
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
@@ -153,7 +157,7 @@ export const StorageTestScreen = () => {
                             </ScrollView>
                         </View>
                         <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Result:</Text>
+                            <Text style={[styles.infoLabel, { color: colors.mutedText }]}>Result:</Text>
                             <Text
                                 style={[
                                     styles.infoValue,
@@ -173,13 +177,15 @@ export const StorageTestScreen = () => {
                 data={items}
                 keyExtractor={(item, index) => `${item.cid || 'default'}_${item.id}_${index}`}
                 renderItem={renderItem}
-                style={styles.logList}
+                style={[styles.logList, { backgroundColor: colors.logBackground }]}
                 contentContainerStyle={styles.logContent}
-                ListEmptyComponent={<Text style={styles.emptyText}>데이터가 없습니다.</Text>}
+                ListEmptyComponent={
+                    <Text style={[styles.emptyText, { color: colors.subtleText }]}>데이터가 없습니다.</Text>
+                }
             />
 
             {/* 하단 액션 버튼 */}
-            <View style={styles.bottomContainer}>
+            <View style={[styles.bottomContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}

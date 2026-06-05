@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { IapProductSubscription } from '@chatic/app-messages';
 import { logger } from '../../../services';
 import { useSubscriptionIap } from '../../../hooks';
+import { useDebugTheme } from '../theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -31,6 +32,7 @@ interface LogItem {
 
 export const IapTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const colors = useDebugTheme();
     const [logs, setLogs] = useState<LogItem[]>([]);
     const [isExpanded, setIsExpanded] = useState(true);
     const flatListRef = useRef<FlatList>(null);
@@ -152,8 +154,8 @@ export const IapTestScreen = () => {
     };
 
     return (
-        <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
-            <View style={styles.controlPanel}>
+        <View style={[styles.screen, { paddingBottom: insets.bottom, backgroundColor: colors.background }]}>
+            <View style={[styles.controlPanel, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                 <View style={styles.panelHeader}>
                     <TouchableOpacity style={styles.statusIndicatorButton} onPress={togglePanel} activeOpacity={0.7}>
                         <View
@@ -164,8 +166,8 @@ export const IapTestScreen = () => {
                                 },
                             ]}
                         />
-                        <Text style={styles.statusText}>IAP Debugger</Text>
-                        <Text style={styles.toggleIcon}>{isExpanded ? '▲' : '▼'}</Text>
+                        <Text style={[styles.statusText, { color: colors.text }]}>IAP Debugger</Text>
+                        <Text style={[styles.toggleIcon, { color: colors.subtleText }]}>{isExpanded ? '▲' : '▼'}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.refreshButton} onPress={handleClearLogs}>
@@ -175,26 +177,32 @@ export const IapTestScreen = () => {
 
                 {isExpanded && (
                     <View style={styles.infoContainer}>
-                        <View style={styles.dividerHorizontal} />
+                        <View style={[styles.dividerHorizontal, { backgroundColor: colors.border }]} />
 
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Status:</Text>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Status:</Text>
                             <Text style={[styles.deviceStatusValue, { color: loading ? '#F5A623' : '#50E3C2' }]}>
                                 {loading ? 'Processing...' : 'Idle'}
                             </Text>
                         </View>
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Products:</Text>
-                            <Text style={styles.deviceStatusValue}>{products.length} items found</Text>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Products:</Text>
+                            <Text style={[styles.deviceStatusValue, { color: colors.text }]}>
+                                {products.length} items found
+                            </Text>
                         </View>
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Purchased:</Text>
-                            <Text style={styles.deviceStatusValue}>{currentPurchases.length} active subscriptions</Text>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Purchased:</Text>
+                            <Text style={[styles.deviceStatusValue, { color: colors.text }]}>
+                                {currentPurchases.length} active subscriptions
+                            </Text>
                         </View>
                         {currentPurchases.length > 0 && (
                             <View style={styles.deviceStatusRow}>
-                                <Text style={styles.deviceStatusLabel}>Active Product:</Text>
-                                <Text style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}>
+                                <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>
+                                    Active Product:
+                                </Text>
+                                <Text style={[styles.deviceStatusValue, { fontSize: 10, color: colors.mutedText }]}>
                                     {currentPurchases.map(p => p.productId).join(', ')}
                                 </Text>
                             </View>
@@ -208,12 +216,14 @@ export const IapTestScreen = () => {
                 data={logs}
                 keyExtractor={item => item.id}
                 renderItem={renderLogItem}
-                style={styles.logList}
+                style={[styles.logList, { backgroundColor: colors.logBackground }]}
                 contentContainerStyle={styles.logContent}
-                ListEmptyComponent={<Text style={styles.emptyText}>로그가 비어있습니다.</Text>}
+                ListEmptyComponent={
+                    <Text style={[styles.emptyText, { color: colors.subtleText }]}>로그가 비어있습니다.</Text>
+                }
             />
 
-            <View style={styles.bottomContainer}>
+            <View style={[styles.bottomContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
