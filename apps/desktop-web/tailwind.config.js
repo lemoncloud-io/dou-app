@@ -53,6 +53,15 @@ module.exports = {
                     DEFAULT: 'hsl(var(--card))',
                     foreground: 'hsl(var(--card-foreground))',
                 },
+                rail: {
+                    DEFAULT: 'hsl(var(--rail))',
+                    foreground: 'hsl(var(--rail-foreground))',
+                    muted: 'hsl(var(--rail-muted))',
+                },
+                sidebar: {
+                    DEFAULT: 'hsl(var(--sidebar))',
+                    foreground: 'hsl(var(--sidebar-foreground))',
+                },
                 // Figma design system tokens
                 label: 'hsl(var(--label))',
                 placeholder: 'hsl(var(--placeholder))',

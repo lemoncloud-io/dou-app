@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LoadingFallback } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
 import { useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
-import { DataProvider, GlobalChatSync, WebSocketV2Connection } from '@chatic/app-runtime';
+import { DataProvider, GlobalChatSync, WebSocketV2Connection, useAutoSelectCloud } from '@chatic/app-runtime';
 
 import i18n from '../i18n';
 import { AppRouter } from './routes';
@@ -15,6 +15,12 @@ import { useDesktopNotifications } from './shared/hooks';
 /** Mounts desktop OS-notification wiring inside DataProvider (needs engine repositories). */
 const DesktopNotifications = () => {
     useDesktopNotifications();
+    return null;
+};
+
+/** Bootstraps cloud selection for multi-cloud users (issues token for the active cloud). */
+const CloudBootstrap = () => {
+    useAutoSelectCloud();
     return null;
 };
 
@@ -50,6 +56,7 @@ export function App() {
                         <DataProvider>
                             {isAuthenticated && isWebCoreReady && <WebSocketV2Connection />}
                             {isAuthenticated && isWebCoreReady && <GlobalChatSync />}
+                            {isAuthenticated && isWebCoreReady && <CloudBootstrap />}
                             {isAuthenticated && isWebCoreReady && <DesktopNotifications />}
                             <AppRouter />
                         </DataProvider>

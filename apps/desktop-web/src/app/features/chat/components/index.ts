@@ -1,5 +1,6 @@
 export * from './DesktopLayout';
-export * from './PlaceRail';
+export * from './CloudRail';
+export * from './SidebarHeader';
 export * from './ChannelList';
 export * from './ChatPane';
 export * from './ChannelHeaderMenu';

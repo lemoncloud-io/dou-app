@@ -13,18 +13,29 @@ const formatTime = (ms: number): string => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+/** Deterministic avatar hue per author so people are visually distinguishable. */
+const hueFromString = (value: string): number => {
+    let hash = 0;
+    for (let i = 0; i < value.length; i += 1) hash = (hash * 31 + value.charCodeAt(i)) % 360;
+    return hash;
+};
+
 export const MessageRow = ({ group }: MessageRowProps) => {
     const initial = group.ownerName.charAt(0).toUpperCase() || '?';
+    const hue = hueFromString(group.ownerId || group.ownerName || '?');
 
     return (
-        <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 hover:bg-accent/40">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-sm font-semibold text-muted-foreground">
+        <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 transition-colors hover:bg-accent/40">
+            <div
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-sm font-semibold text-white"
+                style={{ backgroundColor: `hsl(${hue} 42% 45%)` }}
+            >
                 {initial}
             </div>
             <div className="flex min-w-0 flex-1 flex-col">
                 <div className="flex items-baseline gap-2">
                     <span className="text-sm font-semibold text-foreground">{group.ownerName}</span>
-                    <span className="text-xs text-muted-foreground">{formatTime(group.timestamp)}</span>
+                    <span className="text-xs tabular-nums text-muted-foreground">{formatTime(group.timestamp)}</span>
                 </div>
                 <div className="flex flex-col gap-0.5">
                     {group.messages.map(message => {

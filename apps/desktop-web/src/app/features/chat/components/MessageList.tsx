@@ -24,14 +24,22 @@ export const MessageList = ({ messages, isLoading }: MessageListProps) => {
 
     if (isLoading) {
         return (
-            <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-                {t('chat.loading')}
+            <div className="flex flex-1 flex-col gap-5 overflow-hidden p-4" aria-label={t('chat.loading')}>
+                {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="flex gap-3">
+                        <span className="h-9 w-9 shrink-0 rounded-md bg-muted" />
+                        <div className="flex flex-1 flex-col gap-2 pt-1">
+                            <span className="h-3 w-24 rounded bg-muted" />
+                            <span className="h-3 rounded bg-muted/70" style={{ width: `${55 + ((i * 17) % 35)}%` }} />
+                        </div>
+                    </div>
+                ))}
             </div>
         );
     }
 
     return (
-        <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-4">
+        <div className="scrollbar-thin flex flex-1 flex-col gap-0.5 overflow-y-auto p-4">
             {rows.map(row =>
                 row.kind === 'date' ? (
                     <DateSeparator key={row.key} timestamp={row.timestamp} />

@@ -25,8 +25,12 @@ export const ChatPane = ({ channel }: ChatPaneProps) => {
 
     if (!channelId || !channel) {
         return (
-            <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-                {t('chat.empty')}
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-2xl font-semibold text-primary">
+                    #
+                </div>
+                <p className="text-sm font-medium text-foreground">{t('chat.empty')}</p>
+                <p className="max-w-xs text-xs text-muted-foreground">{t('chat.emptyHint')}</p>
             </div>
         );
     }
@@ -39,13 +43,14 @@ export const ChatPane = ({ channel }: ChatPaneProps) => {
 
     return (
         <>
-            <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
-                <div className="flex items-baseline gap-2 truncate">
-                    <span className="truncate text-sm font-semibold text-foreground">
-                        <span className="text-muted-foreground">#</span> {channel.name ?? channelId}
+            <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
+                <div className="flex min-w-0 items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-sm font-bold text-primary">
+                        #
                     </span>
+                    <span className="truncate text-base font-bold text-foreground">{channel.name ?? channelId}</span>
                     {memberCount > 0 && (
-                        <span className="shrink-0 text-xs text-muted-foreground">
+                        <span className="shrink-0 border-l border-border pl-2 text-xs tabular-nums text-muted-foreground">
                             {t('channels.settings.memberCount', { count: memberCount })}
                         </span>
                     )}

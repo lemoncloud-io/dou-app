@@ -50,8 +50,8 @@ export const ChannelSettingsPanel = ({ channel, myUid }: ChannelSettingsPanelPro
     const kickName = members.find(m => m.id === kickTarget)?.name ?? '';
 
     return (
-        <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card">
-            <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
+        <aside className="scrollbar-thin flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card">
+            <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
                 <span className="truncate text-sm font-semibold text-foreground">{t('channels.settings.title')}</span>
                 <button
                     type="button"
@@ -69,8 +69,11 @@ export const ChannelSettingsPanel = ({ channel, myUid }: ChannelSettingsPanelPro
                         {t('channels.settings.nameSection')}
                     </h3>
                     <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-sm text-foreground">
-                            <span className="text-muted-foreground">#</span> {channel.name ?? channelId}
+                        <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary/10 text-xs font-bold text-primary">
+                                #
+                            </span>
+                            <span className="truncate">{channel.name ?? channelId}</span>
                         </span>
                         {isOwner && (
                             <Button variant="ghost" size="sm" onClick={() => openDialog('rename')}>
