@@ -2,6 +2,7 @@ export * from './DesktopLayout';
 export * from './PlaceRail';
 export * from './ChannelList';
 export * from './ChatPane';
+export * from './ChannelHeaderMenu';
 export * from './MessageList';
 export * from './MessageRow';
 export * from './DateSeparator';

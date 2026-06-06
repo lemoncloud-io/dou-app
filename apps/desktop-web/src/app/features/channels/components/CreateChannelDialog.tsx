@@ -17,7 +17,7 @@ export const CreateChannelDialog = () => {
     const isOpen = useCreateChannelDialogStore(s => s.isOpen);
     const close = useCreateChannelDialogStore(s => s.close);
     const selectChannel = useSelectedChannelStore(s => s.selectChannel);
-    const { createChannel, isCreating } = useDesktopChannelMutations();
+    const { createChannel, isMutating } = useDesktopChannelMutations();
 
     const [name, setName] = useState('');
     const [visibility, setVisibility] = useState<Visibility>('public');
@@ -38,7 +38,7 @@ export const CreateChannelDialog = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const trimmed = name.trim();
-        if (!trimmed || isCreating) return;
+        if (!trimmed || isMutating) return;
         setIsError(false);
         try {
             const channel = await createChannel({ stereo: visibility, name: trimmed });
@@ -64,7 +64,7 @@ export const CreateChannelDialog = () => {
                             value={name}
                             onChange={e => setName(e.target.value)}
                             placeholder={t('channels.create.namePlaceholder')}
-                            disabled={isCreating}
+                            disabled={isMutating}
                         />
                     </div>
 
@@ -96,12 +96,12 @@ export const CreateChannelDialog = () => {
                             type="button"
                             variant="ghost"
                             onClick={() => handleOpenChange(false)}
-                            disabled={isCreating}
+                            disabled={isMutating}
                         >
                             {t('channels.create.cancel')}
                         </Button>
-                        <Button type="submit" disabled={isCreating || !name.trim()}>
-                            {isCreating ? t('channels.create.creating') : t('channels.create.submit')}
+                        <Button type="submit" disabled={isMutating || !name.trim()}>
+                            {isMutating ? t('channels.create.creating') : t('channels.create.submit')}
                         </Button>
                     </div>
                 </form>

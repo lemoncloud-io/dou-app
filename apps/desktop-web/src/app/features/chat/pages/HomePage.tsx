@@ -1,6 +1,13 @@
 import { useEffect } from 'react';
 
-import { CreateChannelDialog, useCreateChannelDialogStore } from '../../channels';
+import { useWebCoreStore } from '@chatic/web-core';
+
+import {
+    ChannelSettingsPanel,
+    CreateChannelDialog,
+    useChannelSettingsStore,
+    useCreateChannelDialogStore,
+} from '../../channels';
 import { useChannels, usePlaces, useSelectedChannelStore, useSelectedPlaceStore } from '../../../shared';
 import { ChannelList, ChatPane, DesktopLayout, PlaceRail } from '../components';
 
@@ -14,6 +21,8 @@ export const HomePage = () => {
     const selectChannel = useSelectedChannelStore(s => s.selectChannel);
     const clearChannel = useSelectedChannelStore(s => s.clearChannel);
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
+    const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
+    const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
 
     // Default the rail selection to the first place once places load.
     useEffect(() => {
@@ -38,6 +47,7 @@ export const HomePage = () => {
     }, [channels, selectedChannelId, selectChannel]);
 
     const selectedChannel = channels.find(channel => channel.id === selectedChannelId);
+    const settingsChannel = settingsChannelId ? channels.find(channel => channel.id === settingsChannelId) : undefined;
 
     return (
         <>
@@ -59,6 +69,7 @@ export const HomePage = () => {
                     />
                 }
                 main={<ChatPane channel={selectedChannel} />}
+                panel={settingsChannel ? <ChannelSettingsPanel channel={settingsChannel} myUid={myUid} /> : undefined}
             />
             <CreateChannelDialog />
         </>
