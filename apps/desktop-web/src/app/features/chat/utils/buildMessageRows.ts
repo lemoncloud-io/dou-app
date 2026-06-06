@@ -1,0 +1,80 @@
+import type { DomainChat } from '@chatic/data';
+
+export interface MessageGroup {
+    key: string;
+    ownerId: string | undefined;
+    ownerName: string;
+    timestamp: number;
+    messages: DomainChat[];
+}
+
+/** A row in the message pane: either a day divider or a grouped author block. */
+export type MessageRowItem = { kind: 'date'; key: string; timestamp: number } | { kind: 'group'; group: MessageGroup };
+
+/** Split a run of same-author messages when they are more than this far apart. */
+const GROUP_TIME_GAP_MS = 5 * 60 * 1000;
+
+const getOwnerName = (chat: DomainChat): string => chat.owner$?.name ?? 'Unknown';
+
+const getTimestamp = (chat: DomainChat): number => chat.createdAt ?? chat.createdAtMs ?? 0;
+
+const isSameDay = (a: number, b: number): boolean => {
+    if (!a || !b) return false;
+    const da = new Date(a);
+    const db = new Date(b);
+    return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
+};
+
+const startOfDay = (ms: number): number => {
+    const d = new Date(ms);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+};
+
+/**
+ * Slack-style layout pipeline. Produces a flat list of rows where:
+ * - a `date` row is inserted whenever the calendar day changes, and
+ * - consecutive messages by the same author within {@link GROUP_TIME_GAP_MS}
+ *   collapse into one `group` (single avatar + name + time header).
+ */
+export const buildMessageRows = (messages: DomainChat[]): MessageRowItem[] => {
+    const rows: MessageRowItem[] = [];
+    let currentGroup: MessageGroup | null = null;
+    let lastTimestamp = 0;
+
+    const flush = () => {
+        if (currentGroup) rows.push({ kind: 'group', group: currentGroup });
+        currentGroup = null;
+    };
+
+    for (const message of messages) {
+        const timestamp = getTimestamp(message);
+
+        if (!isSameDay(timestamp, lastTimestamp)) {
+            flush();
+            const dayMs = startOfDay(timestamp);
+            rows.push({ kind: 'date', key: `date:${dayMs}`, timestamp: dayMs });
+        }
+
+        const sameAuthor = currentGroup?.ownerId === message.ownerId;
+        const withinGap = timestamp - lastTimestamp <= GROUP_TIME_GAP_MS;
+
+        if (currentGroup && sameAuthor && withinGap) {
+            currentGroup.messages.push(message);
+        } else {
+            flush();
+            currentGroup = {
+                key: message.id ?? message.tempId ?? `${message.channelId}:${message.chatNo}`,
+                ownerId: message.ownerId,
+                ownerName: getOwnerName(message),
+                timestamp,
+                messages: [message],
+            };
+        }
+
+        lastTimestamp = timestamp;
+    }
+
+    flush();
+    return rows;
+};

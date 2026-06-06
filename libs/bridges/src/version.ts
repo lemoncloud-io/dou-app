@@ -5,7 +5,8 @@
  * capability surface changes. App release version and npm package version can differ from
  * this runtime protocol version.
  */
-export const BRIDGE_VERSION = '2.1.0' as const;
+// 2.2.0: added ShowNotification (web -> app) for desktop OS notifications. See docs/adr/0001.
+export const BRIDGE_VERSION = '2.2.0' as const;
 
 /**
  * Protocol version currently spoken by this bridge runtime.

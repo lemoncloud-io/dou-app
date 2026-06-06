@@ -43,3 +43,19 @@ export type OnFetchBadgeCountPayload = {
 export type OnSetBadgeCountPayload = {
     success: boolean;
 };
+
+/**
+ * [요청] OS 알림 표시 페이로드 (web -> app).
+ * 데스크탑은 FCM이 없어 살아있는 WS가 새 메시지를 감지하면 셸에 OS 알림을 요청합니다.
+ */
+export type ShowNotificationPayload = {
+    title: string;
+    body: string;
+    channelId?: string;
+    deeplink?: string;
+};
+
+/** [응답] OS 알림 표시 결과 페이로드 */
+export type OnShowNotificationPayload = {
+    success: boolean;
+};

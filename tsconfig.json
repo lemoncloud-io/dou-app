@@ -68,6 +68,12 @@
         },
         {
             "path": "./libs/bridges"
+        },
+        {
+            "path": "./libs/app-runtime"
+        },
+        {
+            "path": "./apps/desktop-web"
         }
     ]
 }

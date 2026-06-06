@@ -22,7 +22,7 @@ import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
 import { usePlaces } from '../../../shared/hooks/usePlaces';
 import { usePlaceUnreadCounts } from '../../../shared/hooks/usePlaceUnreadCounts';
 import { useChannels } from '../../../shared/hooks/useChannels';
-import { useCloudSession } from '../../../shared/hooks/useCloudSession';
+import { useCloudSession } from '@chatic/app-runtime';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { CloudLogo } from '../../../shared/components/CloudLogo';
 import { LimitExceededDialog } from '../../../shared/components/LimitExceededDialog';

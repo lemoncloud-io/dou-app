@@ -9,8 +9,8 @@ import { cloudCore, reportError, toError, useWebCoreStore } from '@chatic/web-co
 import type { DomainSite } from '@chatic/data';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
-import { useRepositories } from '../data';
-import { useCloudSession } from './useCloudSession';
+import { useRepositories } from '@chatic/app-runtime';
+import { useCloudSession } from '@chatic/app-runtime';
 import { waitForVerified } from '../utils/waitForVerified';
 import { setPlaceAuthDone } from '../../features/home/components/PlaceList';
 

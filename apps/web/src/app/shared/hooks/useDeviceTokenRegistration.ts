@@ -5,7 +5,7 @@ import { useOnFetchFcmToken } from './useHandleAppMessage';
 import { useWebCoreStore } from '@chatic/web-core';
 import { useRegisterDeviceToken } from '@chatic/users';
 
-import { useDynamicDeviceId } from './useDynamicDeviceId';
+import { useDynamicDeviceId } from '@chatic/app-runtime';
 
 // TODO: @chatic/bridges에서 임포트할 logger 변수 임시 사용 또는 console 대체
 const appLogger = {

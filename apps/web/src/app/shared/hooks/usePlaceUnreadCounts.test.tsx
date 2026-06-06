@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { isNative, webClient } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
 
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 import { usePlaceUnreadCounts } from './usePlaceUnreadCounts';
 
 const fetchChannelMock = jest.fn();
@@ -50,7 +50,7 @@ jest.mock('@chatic/web-core', () => ({
     },
 }));
 
-jest.mock('../data', () => ({
+jest.mock('@chatic/app-runtime', () => ({
     useRepositories: jest.fn(),
 }));
 

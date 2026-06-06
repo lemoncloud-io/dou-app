@@ -6,7 +6,7 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
 import { cloudCore, useDynamicProfile } from '@chatic/web-core';
 
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 import type { ClientChannelView } from '../types';
 import { debounce } from '../utils/debounce';
 

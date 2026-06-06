@@ -1,0 +1,36 @@
+{
+    "name": "desktop-web",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/desktop-web/src",
+    "projectType": "application",
+    "tags": [],
+    "// targets": "to see all targets run: nx show project desktop-web --web",
+    "targets": {
+        "build": {
+            "defaultConfiguration": "production",
+            "configurations": {
+                "development": {
+                    "mode": "development"
+                },
+                "dev": {
+                    "mode": "dev",
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/desktop-web/.env",
+                            "with": "apps/desktop-web/.env.dev"
+                        }
+                    ]
+                },
+                "prod": {
+                    "mode": "production",
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/desktop-web/.env",
+                            "with": "apps/desktop-web/.env.prod"
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

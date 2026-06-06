@@ -57,6 +57,7 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     FetchFcmToken: 'OnFetchFcmToken',
     FetchBadgeCount: 'OnFetchBadgeCount',
     SetBadgeCount: 'OnSetBadgeCount',
+    ShowNotification: 'OnShowNotification',
     FetchProducts: 'OnFetchProducts',
     FetchCurrentPurchases: 'OnFetchCurrentPurchases',
     Purchase: 'OnPurchase',

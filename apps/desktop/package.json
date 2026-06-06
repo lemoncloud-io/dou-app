@@ -1,0 +1,52 @@
+{
+    "name": "@chatic/desktop",
+    "version": "0.0.1",
+    "private": true,
+    "main": "out/main/index.js",
+    "scripts": {
+        "dev": "electron-vite dev",
+        "build": "electron-vite build",
+        "start": "electron-vite preview",
+        "typecheck": "tsc -b tsconfig.json",
+        "package": "electron-vite build && electron-builder",
+        "package:mac": "electron-vite build && electron-builder --mac",
+        "package:win": "electron-vite build && electron-builder --win"
+    },
+    "dependencies": {
+        "electron-updater": "^6.3.9"
+    },
+    "devDependencies": {
+        "electron": "^33.2.0",
+        "electron-builder": "^25.1.8",
+        "electron-vite": "^5.0.0"
+    },
+    "build": {
+        "appId": "io.chatic.desktop",
+        "productName": "Chatic",
+        "directories": {
+            "output": "release"
+        },
+        "files": [
+            "out/**/*"
+        ],
+        "protocols": [
+            {
+                "name": "Chatic Protocol",
+                "schemes": [
+                    "chatic"
+                ]
+            }
+        ],
+        "mac": {
+            "target": [
+                "dmg"
+            ],
+            "category": "public.app-category.social-networking"
+        },
+        "win": {
+            "target": [
+                "nsis"
+            ]
+        }
+    }
+}

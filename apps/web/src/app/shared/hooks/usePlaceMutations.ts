@@ -5,7 +5,7 @@ import type { SiteView } from '@lemoncloud/chatic-socials-api';
 import type { UserMakeSitePayload, UserUpdateSitePayload } from '@lemoncloud/chatic-sockets-api';
 import type { DomainSite, LocalCacheBulkPatch } from '@chatic/data'; // DomainSite 및 LocalCacheBulkPatch 타입 임포트
 
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 
 type PlaceMutationAction = 'make-site' | 'update-site' | 'update-place-order';
 

@@ -1,0 +1,167 @@
+@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        /* Chatic Light Theme */
+        --background: 0 0% 100%;
+        --foreground: 220 20% 10%;
+
+        --card: 0 0% 100%;
+        --card-foreground: 220 20% 10%;
+
+        --popover: 0 0% 100%;
+        --popover-foreground: 220 20% 10%;
+
+        --primary: 76 87% 49%;
+        --primary-foreground: 220 20% 10%;
+
+        --secondary: 220 10% 96%;
+        --secondary-foreground: 220 20% 10%;
+
+        --muted: 220 10% 95%;
+        --muted-foreground: 220 10% 50%;
+
+        --accent: 72 85% 50%;
+        --accent-foreground: 220 30% 18%;
+
+        --destructive: 0 84% 60%;
+        --destructive-foreground: 0 0% 100%;
+
+        --border: 220 15% 91%;
+        --input: 220 15% 91%;
+        --ring: 220 30% 18%;
+
+        --radius: 0.75rem;
+
+        /* Figma design system gray scale */
+        --label: 220 4% 35%; /* #53555B - input labels, secondary text */
+        --placeholder: 223 4% 74%; /* #BABCC0 - input placeholders */
+        --description: 218 4% 54%; /* #84888F - descriptions, sub text */
+        --surface: 0 0% 100%; /* #FFFFFF - input backgrounds */
+        --main-accent: 76 93% 39%; /* #90C304 - focus ring, verification accent */
+        --input-border: 240 4% 92%; /* #EAEAEC - input/card borders */
+        --focus-border: 210 5% 24%; /* #3A3C40 - focused input border */
+
+        /* Toast (always dark surface) */
+        --toast: 222 75% 12%; /* #081837 */
+        --toast-foreground: 210 6% 96%; /* #F4F5F5 */
+        --toast-muted: 220 3% 81%; /* #CFD0D3 */
+
+        /* Dialog */
+        --dialog-subtitle: 218 4% 54%; /* #84888F */
+
+        /* Chatic custom tokens */
+        --bubble-mine: 220 30% 18%;
+        --bubble-mine-foreground: 0 0% 100%;
+        --bubble-other: 220 10% 95%;
+        --bubble-other-foreground: 220 20% 10%;
+        --badge-unread: 0 75% 55%;
+        --badge-unread-foreground: 0 0% 100%;
+        --badge-member: 72 85% 50%;
+        --tab-active: 220 30% 18%;
+        --tab-inactive: 220 10% 60%;
+        --overlay: 220 20% 10%;
+    }
+
+    .dark {
+        /* Chatic Dark Theme */
+        --background: 0 0% 7%;
+        --foreground: 0 0% 98%;
+
+        --card: 0 0% 10%;
+        --card-foreground: 0 0% 98%;
+
+        --popover: 0 0% 10%;
+        --popover-foreground: 0 0% 98%;
+
+        --primary: 76 87% 49%;
+        --primary-foreground: 220 20% 10%;
+
+        --secondary: 0 0% 15%;
+        --secondary-foreground: 0 0% 98%;
+
+        --muted: 0 0% 15%;
+        --muted-foreground: 0 0% 64%;
+
+        --accent: 72 85% 50%;
+        --accent-foreground: 0 0% 98%;
+
+        --destructive: 0 62% 50%;
+        --destructive-foreground: 0 0% 98%;
+
+        --border: 0 0% 18%;
+        --input: 0 0% 18%;
+        --ring: 0 0% 83%;
+
+        /* Figma design system gray scale (dark) */
+        --label: 216 3% 64%; /* #9FA2A7 - lighter for dark bg */
+        --placeholder: 216 3% 42%; /* #6B6D72 - muted on dark bg */
+        --description: 216 3% 64%; /* #9FA2A7 */
+        --surface: 0 0% 7%; /* same as bg */
+        --main-accent: 76 93% 39%; /* #90C304 - same */
+        --input-border: 0 0% 23%; /* #3A3C40 */
+        --focus-border: 216 3% 64%; /* #9FA2A7 */
+
+        /* Toast (light card on dark bg) */
+        --toast: 210 6% 96%; /* #F4F5F5 - light card */
+        --toast-foreground: 220 7% 14%; /* #222325 - dark text */
+        --toast-muted: 220 4% 35%; /* #53555B - muted dark text */
+
+        /* Dialog */
+        --dialog-subtitle: 216 3% 64%; /* #9FA2A7 */
+
+        /* Chatic custom tokens (dark) */
+        --bubble-mine: 220 30% 25%;
+        --bubble-mine-foreground: 0 0% 100%;
+        --bubble-other: 0 0% 15%;
+        --bubble-other-foreground: 0 0% 98%;
+        --badge-unread: 0 75% 55%;
+        --badge-unread-foreground: 0 0% 100%;
+        --badge-member: 72 85% 50%;
+        --tab-active: 0 0% 98%;
+        --tab-inactive: 0 0% 50%;
+        --overlay: 0 0% 0%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    html {
+        font-family:
+            'Pretendard',
+            -apple-system,
+            BlinkMacSystemFont,
+            system-ui,
+            sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+}
+
+@layer utilities {
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+    .safe-bottom {
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+}

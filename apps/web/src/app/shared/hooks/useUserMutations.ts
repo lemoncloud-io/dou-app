@@ -4,7 +4,7 @@ import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-
 import type { UserInvitePayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
 import { useDynamicProfile } from '@chatic/web-core';
 
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 
 type UserMutationAction = 'update-profile' | 'invite' | 'invite-batch';
 

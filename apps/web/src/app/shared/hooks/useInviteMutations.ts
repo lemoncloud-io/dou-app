@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { logger } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore } from '@chatic/web-core';
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 import type { DomainInviteCloud } from '@chatic/data';
 
 export const useInviteMutations = () => {

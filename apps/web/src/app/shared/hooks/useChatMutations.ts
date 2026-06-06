@@ -4,7 +4,7 @@ import { logger } from '@chatic/bridges';
 import type { ChatReadPayload, ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
 import { useDynamicProfile } from '@chatic/web-core';
 
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 import type { DomainChat } from '@chatic/data';
 
 type ChatMutationAction = 'send' | 'read' | 'delete';

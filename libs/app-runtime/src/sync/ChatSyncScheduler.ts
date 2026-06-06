@@ -47,20 +47,6 @@ export interface ChatSyncSchedulerOptions {
 
 const FETCH_LIMIT = 200;
 
-const abortableDelay = (ms: number, signal: AbortSignal): Promise<void> =>
-    new Promise((resolve, reject) => {
-        if (signal.aborted) {
-            reject(new DOMException('Aborted', 'AbortError'));
-            return;
-        }
-        const timer = setTimeout(resolve, ms);
-        const onAbort = () => {
-            clearTimeout(timer);
-            reject(new DOMException('Aborted', 'AbortError'));
-        };
-        signal.addEventListener('abort', onAbort, { once: true });
-    });
-
 // ---------------------------------------------------------------------------
 // ChatSyncScheduler
 // ---------------------------------------------------------------------------
@@ -311,7 +297,7 @@ export class ChatSyncScheduler {
         }
 
         // Phase 4: 나머지 페이지 병렬 fetch
-        const results = await Promise.all(
+        await Promise.all(
             cursors.map(async (cursor, i) => {
                 if (signal.aborted) return null;
                 const result = await this.chatRepository.fetchChat(

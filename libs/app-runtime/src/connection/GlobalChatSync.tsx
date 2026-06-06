@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { DomainChannel } from '@chatic/data';
 import { useWebSocketV2Store } from '@chatic/socket';
 
-import { useRepositories } from '../shared/data';
-import { useChatSync } from '../shared/hooks/useChatSync';
+import { useRepositories } from '../data';
+import { useChatSync } from '../hooks/useChatSync';
 
 const MIN_HIDDEN_MS = 5_000;
 

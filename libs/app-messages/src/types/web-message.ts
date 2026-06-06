@@ -51,6 +51,7 @@ import type {
     FetchAppIconListPayload,
     FetchFcmTokenPayload,
     FetchBadgeCountPayload,
+    ShowNotificationPayload,
     FetchProductsPayload,
     FetchCurrentPurchasesPayload,
     OpenSubscriptionManagementPayload,
@@ -99,6 +100,7 @@ export type WebMessagePayloadMap = {
     FetchFcmToken: FetchFcmTokenPayload;
     FetchBadgeCount: FetchBadgeCountPayload;
     SetBadgeCount: SetBadgeCountPayload;
+    ShowNotification: ShowNotificationPayload;
 
     // 3. IAP
     FetchProducts: FetchProductsPayload;

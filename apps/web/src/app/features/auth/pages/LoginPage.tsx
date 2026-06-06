@@ -29,7 +29,7 @@ import type {
 } from '@lemoncloud/chatic-backend-api';
 
 import { useRegisterDevice } from '@chatic/auth';
-import { useDynamicDeviceId } from '../../../shared/hooks/useDynamicDeviceId';
+import { useDynamicDeviceId } from '@chatic/app-runtime';
 import { useInviteMutations } from '../../../shared/hooks/useInviteMutations';
 import { markInvitePlaceSyncPending } from '../../../shared/hooks/usePlaces';
 import { fetchInviteCodeInfo } from '../../chats/apis/invite-api';

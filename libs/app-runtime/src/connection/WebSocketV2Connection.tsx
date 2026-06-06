@@ -3,9 +3,9 @@ import { useEffect } from 'react';
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useUserContext } from '@chatic/web-core';
 
-import { useDynamicDeviceId } from '../shared/hooks/useDynamicDeviceId';
-import { useCloudTokenRefresh } from '../shared/hooks/useCloudTokenRefresh';
-import { useCloudSession } from '../shared/hooks/useCloudSession';
+import { useDynamicDeviceId } from '../hooks/useDynamicDeviceId';
+import { useCloudTokenRefresh } from '../hooks/useCloudTokenRefresh';
+import { useCloudSession } from '../hooks/useCloudSession';
 
 export const WebSocketV2Connection = () => {
     const { deviceId } = useDynamicDeviceId();
