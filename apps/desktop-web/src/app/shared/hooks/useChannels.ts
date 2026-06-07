@@ -16,13 +16,15 @@ const sortByRecency = (list: DomainChannel[]): DomainChannel[] =>
     [...list].sort((a, b) => channelTime(b) - channelTime(a));
 
 /**
- * Streams the channel list for a place via the engine channel repository
- * (cache-first fetch + create/update/delete subscriptions). Results are sorted
- * by recency, and the list is cleared the instant the place changes so the
- * previous place's channels never flash under the new place header.
+ * Streams the channel list for a place via the engine repositories. Initial load
+ * is cache-first; channel/chat/join events trigger a network-only refetch so
+ * unread badges stay fresh — a new message from another user fires chat:create
+ * (and join:update), not channel:update, so those must be subscribed too or the
+ * channel row's unread count never moves. Results are sorted by recency and the
+ * list is cleared on place switch so the previous place's channels don't flash.
  */
 export const useChannels = (placeId: string | undefined) => {
-    const { channel: channelRepository } = useRepositories();
+    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
     const [channels, setChannels] = useState<DomainChannel[]>([]);
@@ -43,9 +45,9 @@ export const useChannels = (placeId: string | undefined) => {
         let active = true;
         setIsLoading(true);
 
-        const fetchChannels = () => {
+        const fetchChannels = (cachePolicy: 'cache-first' | 'network-only') => {
             channelRepository
-                .fetchChannel({ sid: placeId, detail: true, limit: CHANNEL_LIMIT }, { cachePolicy: 'cache-first' })
+                .fetchChannel({ sid: placeId, detail: true, limit: CHANNEL_LIMIT }, { cachePolicy })
                 .then(result => {
                     if (!active) return;
                     const list = (result.list ?? []) as DomainChannel[];
@@ -58,19 +60,22 @@ export const useChannels = (placeId: string | undefined) => {
                 });
         };
 
-        fetchChannels();
+        fetchChannels('cache-first');
+        const refresh = () => fetchChannels('network-only');
 
         const unsubs = [
-            channelRepository.onChannelCreated(fetchChannels),
-            channelRepository.onChannelUpdated(fetchChannels),
-            channelRepository.onChannelDeleted(fetchChannels),
+            channelRepository.onChannelCreated(refresh),
+            channelRepository.onChannelUpdated(refresh),
+            channelRepository.onChannelDeleted(refresh),
+            chatRepository.onChatCreated(refresh),
+            joinRepository.onJoinUpdated(refresh),
         ];
 
         return () => {
             active = false;
             unsubs.forEach(fn => fn());
         };
-    }, [channelRepository, placeId, isVerified, myUid]);
+    }, [channelRepository, chatRepository, joinRepository, placeId, isVerified, myUid]);
 
     return { channels, isLoading };
 };
