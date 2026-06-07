@@ -138,7 +138,11 @@ const SPLASH_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
 // actionable screen instead of a blank window or a raw Chromium error. The retry link points
 // at the trusted web URL — will-navigate allows that origin, so a click simply reloads it.
 const renderErrorHtml = (code: number, desc: string): string => {
-    const target = DESKTOP_WEB_URL.replace(/[<>"]/g, '');
+    // Strip HTML-significant chars before interpolating into the data: URL. desc is a Chromium
+    // error enum (low risk), but escaping it keeps the page injection-safe as a matter of course.
+    const sanitize = (value: string): string => String(value).replace(/[<>"]/g, '');
+    const target = sanitize(DESKTOP_WEB_URL);
+    const safeDesc = sanitize(desc);
     return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
   html,body{margin:0;height:100%;background:#0b0d10;color:#e6e8eb;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
   .wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px;box-sizing:border-box;text-align:center}
@@ -148,7 +152,7 @@ const renderErrorHtml = (code: number, desc: string): string => {
   a{margin-top:8px;display:inline-block;padding:10px 22px;border-radius:8px;background:#8fbf2e;color:#0b0d10;font-weight:600;font-size:14px;text-decoration:none}
 </style></head><body><div class="wrap">
   <h1>연결할 수 없습니다</h1>
-  <p>데스크톱 웹을 불러오지 못했습니다.<br><code>${target}</code><br>(${code} ${desc})</p>
+  <p>데스크톱 웹을 불러오지 못했습니다.<br><code>${target}</code><br>(${code} ${safeDesc})</p>
   <a href="${target}">다시 시도</a>
 </div></body></html>`;
 };
