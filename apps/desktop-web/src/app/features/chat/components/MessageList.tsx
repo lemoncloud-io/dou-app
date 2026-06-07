@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ChevronDown } from 'lucide-react';
@@ -19,29 +19,67 @@ interface MessageListProps {
     /** Read position when the channel was opened — drives the "new messages" divider. */
     baselineReadNo?: number;
     onRetry?: (message: DomainChat) => void;
+    /** Fetch older history when the reader scrolls near the top. */
+    onLoadOlder?: () => void;
+    hasMore?: boolean;
+    isLoadingOlder?: boolean;
 }
 
 const NEAR_BOTTOM_PX = 80;
+const LOAD_OLDER_PX = 120;
 
-export const MessageList = ({ messages, isLoading, viewer, names, baselineReadNo, onRetry }: MessageListProps) => {
+export const MessageList = ({
+    messages,
+    isLoading,
+    viewer,
+    names,
+    baselineReadNo,
+    onRetry,
+    onLoadOlder,
+    hasMore,
+    isLoadingOlder,
+}: MessageListProps) => {
     const { t } = useTranslation();
     const bottomRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const [atBottom, setAtBottom] = useState(true);
+    // When a prepend (older page) is in flight, remember the scroll metrics so we
+    // can keep the viewport anchored instead of jumping to the top.
+    const prependRef = useRef<{ pending: boolean; prevHeight: number; prevTop: number }>({
+        pending: false,
+        prevHeight: 0,
+        prevTop: 0,
+    });
+    const prevLenRef = useRef(0);
 
     const rows = useMemo(
         () => buildMessageRows(messages, viewer, names, baselineReadNo),
         [messages, viewer, names, baselineReadNo]
     );
 
-    useEffect(() => {
-        bottomRef.current?.scrollIntoView({ block: 'end' });
-    }, [messages.length]);
+    useLayoutEffect(() => {
+        const el = scrollRef.current;
+        const grew = messages.length > prevLenRef.current;
+        prevLenRef.current = messages.length;
+        if (!el) return;
+        // Older page prepended → restore the prior viewport offset.
+        if (prependRef.current.pending) {
+            el.scrollTop = el.scrollHeight - prependRef.current.prevHeight + prependRef.current.prevTop;
+            prependRef.current.pending = false;
+            return;
+        }
+        // New tail message (or first load) while pinned to bottom → follow it.
+        if (grew && atBottom) bottomRef.current?.scrollIntoView({ block: 'end' });
+    }, [messages, atBottom]);
 
     const onScroll = () => {
         const el = scrollRef.current;
         if (!el) return;
         setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX);
+        if (el.scrollTop < LOAD_OLDER_PX && hasMore && !isLoadingOlder && onLoadOlder) {
+            prependRef.current = { pending: true, prevHeight: el.scrollHeight, prevTop: el.scrollTop };
+            onLoadOlder();
+        }
     };
 
     const scrollToBottom = () => bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
@@ -69,6 +107,11 @@ export const MessageList = ({ messages, isLoading, viewer, names, baselineReadNo
                 onScroll={onScroll}
                 className="scrollbar-thin flex flex-1 flex-col gap-0.5 overflow-y-auto p-4"
             >
+                {isLoadingOlder && (
+                    <div className="flex justify-center py-2" role="status" aria-label={t('chat.loading')}>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground motion-reduce:animate-none" />
+                    </div>
+                )}
                 {rows.map(row => {
                     if (row.kind === 'date') return <DateSeparator key={row.key} timestamp={row.timestamp} />;
                     if (row.kind === 'unread') {

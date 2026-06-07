@@ -81,6 +81,7 @@ export const Composer = ({ disabled, onSend }: ComposerProps) => {
                         resize();
                     }}
                     onKeyDown={handleKeyDown}
+                    aria-label={t('chat.composer.placeholder')}
                     placeholder={t('chat.composer.placeholder')}
                     className="max-h-40 flex-1 resize-none bg-transparent text-sm leading-relaxed text-foreground outline-none placeholder:text-placeholder disabled:opacity-50"
                 />

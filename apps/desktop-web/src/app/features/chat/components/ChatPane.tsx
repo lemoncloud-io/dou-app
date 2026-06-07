@@ -21,7 +21,7 @@ export const ChatPane = ({ channel }: ChatPaneProps) => {
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
     const myName = useWebCoreStore(s => s.profile?.$user?.name ?? '');
     const viewer = useMemo(() => ({ uid: myUid, name: myName }), [myUid, myName]);
-    const { messages, isLoading } = useChats(channelId);
+    const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(channelId);
     const { sendMessage, retryMessage, isSending } = useChatMutations();
 
     // Snapshot the read position when the channel opens, before HomePage's
@@ -87,6 +87,9 @@ export const ChatPane = ({ channel }: ChatPaneProps) => {
                 names={memberNames}
                 baselineReadNo={baselineReadNo}
                 onRetry={retryMessage}
+                onLoadOlder={() => void loadOlder()}
+                hasMore={hasMore}
+                isLoadingOlder={isLoadingOlder}
             />
             <Composer disabled={isSending} onSend={handleSend} />
         </>

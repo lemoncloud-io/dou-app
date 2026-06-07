@@ -4,6 +4,8 @@ export interface MessageGroup {
     key: string;
     ownerId: string | undefined;
     ownerName: string;
+    /** True when the signed-in user authored this group — drives delivery status. */
+    isMine: boolean;
     timestamp: number;
     messages: DomainChat[];
 }
@@ -100,6 +102,7 @@ export const buildMessageRows = (
                 key: message.id ?? message.tempId ?? `${message.channelId}:${message.chatNo}`,
                 ownerId: message.ownerId,
                 ownerName: getOwnerName(message, viewer, names),
+                isMine: viewer.uid != null && message.ownerId === viewer.uid,
                 timestamp,
                 messages: [message],
             };

@@ -83,6 +83,7 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, myU
                     <button
                         key={id}
                         onClick={() => onSelect(id)}
+                        aria-current={isActive ? 'true' : undefined}
                         className={cn(
                             'flex flex-col gap-0.5 rounded-md px-3 py-1.5 text-left text-sm transition-colors',
                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50',

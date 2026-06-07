@@ -78,7 +78,7 @@ export const ChannelSettingsPanel = ({ channel, myUid }: ChannelSettingsPanelPro
     const isMuted = !!mutedChannels[channelId];
 
     return (
-        <aside className="scrollbar-thin flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card">
+        <aside className="scrollbar-thin absolute inset-y-0 right-0 z-30 flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card shadow-xl xl:static xl:z-auto xl:shadow-none">
             <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
                 <span className="truncate text-sm font-semibold text-foreground">{t('channels.settings.title')}</span>
                 <button
