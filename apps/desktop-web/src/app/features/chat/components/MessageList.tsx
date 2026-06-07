@@ -58,6 +58,10 @@ export const MessageList = ({
     // while scrolled up counts as "new" on the jump button.
     const seenMaxRef = useRef(0);
     const [newCount, setNewCount] = useState(0);
+    // On the channel's first fill, land at the unread divider (if any) instead of
+    // the bottom. Reset per channel via the key={channelId} remount.
+    const unreadRef = useRef<HTMLDivElement>(null);
+    const didInitRef = useRef(false);
 
     const rows = useMemo(
         () => buildMessageRows(messages, viewer, names, baselineReadNo),
@@ -69,6 +73,7 @@ export const MessageList = ({
     useLayoutEffect(() => {
         const el = scrollRef.current;
         const grew = messages.length > prevLenRef.current;
+        const firstFill = prevLenRef.current === 0 && messages.length > 0;
         prevLenRef.current = messages.length;
         // Recompute the unread-while-scrolled-up count here (not in render) so it
         // only changes with messages/atBottom — not on every scroll tick. Own
@@ -89,6 +94,14 @@ export const MessageList = ({
         if (prependRef.current.pending) {
             el.scrollTop = el.scrollHeight - prependRef.current.prevHeight + prependRef.current.prevTop;
             prependRef.current.pending = false;
+            return;
+        }
+        // First fill of this channel: land on the unread divider if there is one,
+        // otherwise the bottom. Subsequent updates use the follow-below logic.
+        if (firstFill && !didInitRef.current) {
+            didInitRef.current = true;
+            if (unreadRef.current) unreadRef.current.scrollIntoView({ block: 'center' });
+            else bottomRef.current?.scrollIntoView({ block: 'end' });
             return;
         }
         // New tail message (or first load) while pinned to bottom → follow it.
@@ -156,7 +169,7 @@ export const MessageList = ({
                     if (row.kind === 'date') return <DateSeparator key={row.key} timestamp={row.timestamp} />;
                     if (row.kind === 'unread') {
                         return (
-                            <div key={row.key} className="my-1 flex items-center gap-2 px-2">
+                            <div key={row.key} ref={unreadRef} className="my-1 flex items-center gap-2 px-2">
                                 <span className="h-px flex-1 bg-destructive/40" />
                                 <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-destructive">
                                     {t('chat.newMessages')}
