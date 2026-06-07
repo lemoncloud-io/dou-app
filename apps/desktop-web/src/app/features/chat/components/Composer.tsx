@@ -41,10 +41,14 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
         el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`;
     };
 
-    // Load this channel's saved draft on switch (read once — no subscription).
+    // Load this channel's saved draft on switch (read once — no subscription),
+    // then focus so you can type immediately.
     useEffect(() => {
         setValue(useComposerDraftStore.getState().drafts[channelId] ?? '');
-        requestAnimationFrame(resize);
+        requestAnimationFrame(() => {
+            resize();
+            textareaRef.current?.focus();
+        });
     }, [channelId]);
 
     const handleChange = (next: string) => {
