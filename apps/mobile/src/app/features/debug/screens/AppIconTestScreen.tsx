@@ -3,6 +3,7 @@ import { FlatList, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, Vie
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DEFAULT_APP_ICON_NAME } from '../../../services';
 import { useServices } from '../../../hooks';
+import { useDebugTheme } from '../theme';
 
 type LogType = 'info' | 'success' | 'error';
 
@@ -15,6 +16,7 @@ interface LogItem {
 
 export const AppIconTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const colors = useDebugTheme();
     const { dynamicAppIconService } = useServices();
     const [logs, setLogs] = useState<LogItem[]>([]);
 
@@ -101,17 +103,22 @@ export const AppIconTestScreen = () => {
     };
 
     return (
-        <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>App Icon Tester</Text>
+        <View style={[styles.screen, { paddingBottom: insets.bottom, backgroundColor: colors.background }]}>
+            <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>App Icon Tester</Text>
                 <TouchableOpacity onPress={handleClearLogs} style={styles.clearButton}>
-                    <Text style={styles.clearButtonText}>Clear Logs</Text>
+                    <Text style={[styles.clearButtonText, { color: colors.subtleText }]}>Clear Logs</Text>
                 </TouchableOpacity>
             </View>
 
-            <View style={styles.statusContainer}>
-                <Text style={styles.statusText}>Platform: {Platform.OS}</Text>
-                <Text style={styles.statusText}>Current Config: {currentIconName}</Text>
+            <View
+                style={[
+                    styles.statusContainer,
+                    { backgroundColor: colors.surfaceAlt, borderBottomColor: colors.border },
+                ]}
+            >
+                <Text style={[styles.statusText, { color: colors.mutedText }]}>Platform: {Platform.OS}</Text>
+                <Text style={[styles.statusText, { color: colors.mutedText }]}>Current Config: {currentIconName}</Text>
             </View>
 
             <FlatList
@@ -119,12 +126,12 @@ export const AppIconTestScreen = () => {
                 data={logs}
                 keyExtractor={item => item.id}
                 renderItem={renderLogItem}
-                style={styles.logList}
+                style={[styles.logList, { backgroundColor: colors.logBackground }]}
                 contentContainerStyle={styles.logContent}
-                ListEmptyComponent={<Text style={styles.emptyText}>No logs.</Text>}
+                ListEmptyComponent={<Text style={[styles.emptyText, { color: colors.subtleText }]}>No logs.</Text>}
             />
 
-            <View style={styles.bottomContainer}>
+            <View style={[styles.bottomContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}

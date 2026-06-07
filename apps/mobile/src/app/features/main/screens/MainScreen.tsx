@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from 'react';
 import type { WebView } from 'react-native-webview';
-import { Image, StyleSheet, useColorScheme, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 
 import { useWebViewDeepLink } from '../../../webview/hooks/useWebViewDeepLink';
 import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigation';
@@ -9,15 +9,13 @@ import { DeepLinkErrorView } from '../../core/components';
 import type { MainScreenProps } from '../navigation';
 import type { ModalHandler } from '../../../webview/hooks/useModalHandler';
 import { useAppBridge } from '../../../webview/hooks';
-import { useThemeStore } from '../../../stores';
 import { logger } from '../../../services';
+import { useResolvedTheme } from '../../../hooks';
 
 export const MainScreen = ({ navigation, route }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
     const { bridge, onMessage } = useAppBridge(webViewRef);
-    const systemColorScheme = useColorScheme();
-    const theme = useThemeStore(s => s.theme);
-    const isDark = theme === 'dark' || (theme === 'system' && systemColorScheme === 'dark');
+    const { isDark } = useResolvedTheme();
 
     const { setWebCanGoBack, setNavCanGoBack } = useWebViewNavigation(bridge);
     const { source, handleWebViewLoad, deepLinkError, deepLinkErrorReason, handleDismissError } = useWebViewDeepLink(

@@ -11,6 +11,7 @@ import {
     useSubscriptionIapHandler,
 } from '../../../webview/hooks';
 import type { WebMessageType } from '@chatic/app-messages';
+import { useDebugTheme } from '../theme';
 
 type LogType = 'sent' | 'received' | 'info' | 'error';
 
@@ -23,6 +24,7 @@ interface LogItem {
 
 export const BridgeTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const colors = useDebugTheme();
     const webViewRef = useRef<WebView>(null);
     const { bridge, onMessage: originalOnMessage } = useAppBridge(webViewRef);
     const [logs, setLogs] = useState<LogItem[]>([]);
@@ -320,21 +322,21 @@ export const BridgeTestScreen = () => {
     `;
 
     return (
-        <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
-            <View style={styles.webViewContainer}>
+        <View style={[styles.screen, { paddingBottom: insets.bottom, backgroundColor: colors.background }]}>
+            <View style={[styles.webViewContainer, { borderBottomColor: colors.border }]}>
                 <WebView
                     ref={webViewRef}
                     source={{ html: testHtml }}
                     onMessage={handleWebViewMessage}
-                    style={{ flex: 1, backgroundColor: '#121212' }}
-                    containerStyle={{ backgroundColor: '#121212' }}
+                    style={{ flex: 1, backgroundColor: colors.background }}
+                    containerStyle={{ backgroundColor: colors.background }}
                 />
             </View>
 
-            <View style={styles.logHeader}>
-                <Text style={styles.logTitle}>Native Logs</Text>
+            <View style={[styles.logHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+                <Text style={[styles.logTitle, { color: colors.text }]}>Native Logs</Text>
                 <TouchableOpacity onPress={handleClearLogs}>
-                    <Text style={styles.clearButtonText}>Clear</Text>
+                    <Text style={[styles.clearButtonText, { color: colors.subtleText }]}>Clear</Text>
                 </TouchableOpacity>
             </View>
 
@@ -343,12 +345,14 @@ export const BridgeTestScreen = () => {
                 data={logs}
                 keyExtractor={item => item.id}
                 renderItem={renderLogItem}
-                style={styles.logList}
+                style={[styles.logList, { backgroundColor: colors.logBackground }]}
                 contentContainerStyle={styles.logContent}
-                ListEmptyComponent={<Text style={styles.emptyText}>로그가 비어있습니다.</Text>}
+                ListEmptyComponent={
+                    <Text style={[styles.emptyText, { color: colors.subtleText }]}>로그가 비어있습니다.</Text>
+                }
             />
 
-            <View style={styles.bottomContainer}>
+            <View style={[styles.bottomContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}

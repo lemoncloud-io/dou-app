@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { deviceService, uploadService } from '../../../services';
 import type { UploadTaskPersistedRecord } from '../../../services';
 import { FileManagerBridge } from '../../../bridge';
+import { useDebugTheme } from '../theme';
 
 interface LogItem {
     id: string;
@@ -39,6 +40,7 @@ interface UploadItem {
 
 export const UploadTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const colors = useDebugTheme();
 
     // Config states
     const [uploadUrl, setUploadUrl] = useState('http://localhost:8080/upload');
@@ -461,23 +463,31 @@ export const UploadTestScreen = () => {
     };
 
     return (
-        <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <View
+            style={[
+                styles.screen,
+                { paddingTop: insets.top, paddingBottom: insets.bottom, backgroundColor: colors.background },
+            ]}
+        >
             {/* Title Header */}
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Large File Background Upload Monitor</Text>
-                <Text style={styles.headerSub}>
+            <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>Large File Background Upload Monitor</Text>
+                <Text style={[styles.headerSub, { color: colors.subtleText }]}>
                     React Native UploadService Direct Testing (Concurrent Multi-Upload)
                 </Text>
             </View>
 
             <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
                 {/* Configuration Card */}
-                <View style={styles.card}>
+                <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <Text style={styles.cardLabel}>Upload Settings</Text>
 
-                    <Text style={styles.inputLabel}>Target Endpoint URL</Text>
+                    <Text style={[styles.inputLabel, { color: colors.subtleText }]}>Target Endpoint URL</Text>
                     <TextInput
-                        style={styles.input}
+                        style={[
+                            styles.input,
+                            { backgroundColor: colors.background, borderColor: colors.border, color: colors.text },
+                        ]}
                         value={uploadUrl}
                         onChangeText={setUploadUrl}
                         placeholder="http://localhost:8080/upload"
@@ -486,7 +496,7 @@ export const UploadTestScreen = () => {
                         autoCorrect={false}
                     />
 
-                    <Text style={styles.inputLabel}>Chunk Size</Text>
+                    <Text style={[styles.inputLabel, { color: colors.subtleText }]}>Chunk Size</Text>
                     <View style={styles.chunkRow}>
                         {[
                             { label: '1 MB', value: 1024 * 1024 },
@@ -513,7 +523,7 @@ export const UploadTestScreen = () => {
                 </View>
 
                 {/* Staging Picked / Generated Files */}
-                <View style={styles.card}>
+                <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <Text style={styles.cardLabel}>Pick & Stage Upload Data</Text>
 
                     {/* Standard document picker */}
@@ -569,14 +579,14 @@ export const UploadTestScreen = () => {
                             </View>
                         </View>
                     ) : (
-                        <Text style={styles.emptyText}>
+                        <Text style={[styles.emptyText, { color: colors.subtleText }]}>
                             파일 또는 가상 디바이스 디버그 파일을 준비하여 업로드를 진행하세요.
                         </Text>
                     )}
                 </View>
 
                 {/* Active Concurrent Uploads List */}
-                <View style={styles.card}>
+                <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <Text style={styles.cardLabel}>Active Background Transfers ({uploads.length})</Text>
 
                     {uploads.length > 0 ? (
@@ -686,12 +696,14 @@ export const UploadTestScreen = () => {
                             </View>
                         ))
                     ) : (
-                        <Text style={styles.emptyText}>등록된 업로드 작업이 없습니다.</Text>
+                        <Text style={[styles.emptyText, { color: colors.subtleText }]}>
+                            등록된 업로드 작업이 없습니다.
+                        </Text>
                     )}
                 </View>
 
                 {/* Manual Recovery Helper */}
-                <View style={styles.card}>
+                <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <Text style={styles.cardLabel}>Manual Recovery (Persisted Tasks)</Text>
                     <Text style={styles.cardDesc}>
                         앱 재시작/중단 이후 DB에 남아있는 업로드 작업을 불러와 수동으로 재개/재시도할 수 있습니다.
@@ -709,19 +721,23 @@ export const UploadTestScreen = () => {
             </ScrollView>
 
             {/* Logs Console Header */}
-            <View style={styles.logHeader}>
+            <View style={[styles.logHeader, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                 <TouchableOpacity
                     style={styles.logHeaderLeft}
                     onPress={() => setIsLogsExpanded(!isLogsExpanded)}
                     activeOpacity={0.7}
                 >
-                    <Text style={styles.logTitle}>Direct Native Logs Console ({logs.length})</Text>
-                    <Text style={styles.toggleIcon}>{isLogsExpanded ? ' ▲' : ' ▼'}</Text>
+                    <Text style={[styles.logTitle, { color: colors.text }]}>
+                        Direct Native Logs Console ({logs.length})
+                    </Text>
+                    <Text style={[styles.toggleIcon, { color: colors.subtleText }]}>
+                        {isLogsExpanded ? ' ▲' : ' ▼'}
+                    </Text>
                 </TouchableOpacity>
 
                 {isLogsExpanded && logs.length > 0 && (
                     <TouchableOpacity onPress={handleClearLogs} activeOpacity={0.7} style={styles.clearBtn}>
-                        <Text style={styles.clearButtonText}>Clear Logs</Text>
+                        <Text style={[styles.clearButtonText, { color: colors.subtleText }]}>Clear Logs</Text>
                     </TouchableOpacity>
                 )}
             </View>
@@ -732,9 +748,13 @@ export const UploadTestScreen = () => {
                     data={logs}
                     keyExtractor={item => item.id}
                     renderItem={renderLogItem}
-                    style={styles.logList}
+                    style={[styles.logList, { backgroundColor: colors.logBackground }]}
                     contentContainerStyle={styles.logContent}
-                    ListEmptyComponent={<Text style={styles.emptyText}>로그가 비어있습니다. 작업을 수행해주세요.</Text>}
+                    ListEmptyComponent={
+                        <Text style={[styles.emptyText, { color: colors.subtleText }]}>
+                            로그가 비어있습니다. 작업을 수행해주세요.
+                        </Text>
+                    }
                 />
             )}
         </View>

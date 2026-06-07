@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StatusBar, useColorScheme, View } from 'react-native';
+import { View } from 'react-native';
 import Config from 'react-native-config';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -9,10 +9,9 @@ import { createNavigationContainerRef, NavigationContainer } from '@react-naviga
 import { getRouteStateFromDeepLinkPath } from './services/deeplinks/deeplinkUtils';
 import type { RootStackParamList } from './features/core/navigation';
 import { RootNavigator } from './features/core/navigation';
-import { useAppVersionCheck } from './hooks';
-import { useThemeStore } from './stores';
+import { useAppVersionCheck, useResolvedTheme } from './hooks';
 import { deeplinkService, logger, notificationService, offlinePushQueue } from './services';
-import { FloatingMenu } from './features/core/components';
+import { FloatingMenu, SystemBars } from './features/core/components';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 const SHOW_DEBUG_MENU = __DEV__ || Config.VITE_ENV !== 'PROD';
@@ -47,10 +46,6 @@ const linking: LinkingOptions<any> = {
 };
 
 export const App = () => {
-    const systemColorScheme = useColorScheme();
-    const theme = useThemeStore(state => state.theme);
-    const isDarkMode = theme === 'dark' || (theme === 'system' && systemColorScheme === 'dark');
-
     const { hasUpdate, showUpdateAlert } = useAppVersionCheck(true);
 
     // Signal that Firebase is ready for deep link processing immediately
@@ -72,15 +67,13 @@ export const App = () => {
         }
     };
 
+    const { backgroundColor } = useResolvedTheme();
+
     return (
-        <SafeAreaProvider>
-            <StatusBar
-                barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-                backgroundColor="transparent"
-                translucent={true}
-            />
+        <SafeAreaProvider style={{ backgroundColor }}>
+            <SystemBars />
             <NavigationContainer ref={navigationRef} linking={linking}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, backgroundColor }}>
                     <RootNavigator />
                     {SHOW_DEBUG_MENU && <FloatingMenu onNavigate={handleNavigate} />}
                 </View>

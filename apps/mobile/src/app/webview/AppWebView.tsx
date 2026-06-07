@@ -1,12 +1,12 @@
 import React, { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Image, Platform, StyleSheet, useColorScheme, View } from 'react-native';
+import { AppState, Image, Platform, StyleSheet, View } from 'react-native';
 import { WebView, type WebViewProps } from 'react-native-webview';
 import DeviceInfo from 'react-native-device-info';
 import Config from 'react-native-config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { APP_USER_AGENT_PREFIX, getAppLanguage, t } from '../utils';
-import { getVersionCheckResult, useServices } from '../hooks';
+import { getVersionCheckResult, useResolvedTheme, useServices } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
 import { getConsoleOverrideScript, getDeviceInfoScript, getSafeAreaScript } from './utils/injectionScripts';
 import { useWebMessageRouter } from './hooks/useWebMessageRouter';
@@ -14,16 +14,10 @@ import { useVersionCheckHandler } from './hooks';
 import { FullScreenLoader } from '../features/core/components';
 import type { ModalHandler } from './hooks/useModalHandler';
 import type { IAppBridgeHost } from '@chatic/bridges';
-import { useThemeStore } from '../stores';
+import { type ThemeMode, useThemeStore } from '../stores';
 
 const LIGHT_BG = '#ffffff';
 const DARK_BG = '#121212';
-
-const useIsDarkMode = () => {
-    const systemColorScheme = useColorScheme();
-    const theme = useThemeStore(s => s.theme);
-    return theme === 'dark' || (theme === 'system' && systemColorScheme === 'dark');
-};
 
 const ResumeOverlay = ({ isDark }: { isDark: boolean }) => (
     <View style={[styles.resumeOverlay, { backgroundColor: isDark ? DARK_BG : LIGHT_BG }]}>
@@ -43,12 +37,14 @@ const buildNumber = DeviceInfo.getBuildNumber();
 const platformName = Platform.OS === 'ios' ? 'iOS' : 'Android';
 const userAgentSuffix = `(${APP_USER_AGENT_PREFIX}; ${appName}/${appVersion}; ${platformName}; Build:${buildNumber})`;
 
+const isThemeMode = (value: unknown): value is ThemeMode => value === 'dark' || value === 'light' || value === 'system';
+
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const { bridge, onMessage, modalHandler, setWebCanGoBack, ...restProps } = props;
 
     const { cacheCrudService, firebaseInstallationService } = useServices();
     const [injectionScript, setInjectionScript] = useState<string | null>(null);
-    const isDark = useIsDarkMode();
+    const { isDark } = useResolvedTheme();
     const bgColor = isDark ? DARK_BG : LIGHT_BG;
     const insets = useSafeAreaInsets();
     const keyboardHeight = useKeyboardHeight();
@@ -167,6 +163,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         (event: Parameters<NonNullable<WebViewProps['onMessage']>>[0]) => {
             try {
                 const data = JSON.parse(event.nativeEvent.data);
+                if (data?.type === 'SavePreference' && data?.data?.key === 'theme' && isThemeMode(data.data.value)) {
+                    useThemeStore.getState().setTheme(data.data.value);
+                }
                 if (data?.type === 'WebAppReady') {
                     if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
                     setIsWebAppReady(true);

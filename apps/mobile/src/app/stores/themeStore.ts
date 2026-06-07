@@ -13,7 +13,7 @@ interface ThemeStore {
 export const useThemeStore = create<ThemeStore>()(
     persist(
         set => ({
-            theme: 'light',
+            theme: 'system',
             setTheme: theme => set({ theme }),
         }),
         {

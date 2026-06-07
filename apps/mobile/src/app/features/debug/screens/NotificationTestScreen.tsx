@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { AuthorizationStatus } from '@react-native-firebase/messaging';
 import { useServices } from '../../../hooks';
+import { useDebugTheme } from '../theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -31,6 +32,7 @@ interface LogItem {
 
 export const NotificationTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const colors = useDebugTheme();
     const { notificationService, firebaseInstallationService } = useServices();
     const [logs, setLogs] = useState<LogItem[]>([]);
     const [token, setToken] = useState<string>('');
@@ -364,8 +366,8 @@ export const NotificationTestScreen = () => {
     };
 
     return (
-        <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
-            <View style={styles.controlPanel}>
+        <View style={[styles.screen, { paddingBottom: insets.bottom, backgroundColor: colors.background }]}>
+            <View style={[styles.controlPanel, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                 <View style={styles.panelHeader}>
                     <TouchableOpacity style={styles.statusIndicatorButton} onPress={togglePanel} activeOpacity={0.7}>
                         <View
@@ -379,8 +381,8 @@ export const NotificationTestScreen = () => {
                                 },
                             ]}
                         />
-                        <Text style={styles.statusText}>Device Token Debugger</Text>
-                        <Text style={styles.toggleIcon}>{isExpanded ? '▲' : '▼'}</Text>
+                        <Text style={[styles.statusText, { color: colors.text }]}>Device Token Debugger</Text>
+                        <Text style={[styles.toggleIcon, { color: colors.subtleText }]}>{isExpanded ? '▲' : '▼'}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.refreshButton} onPress={checkPermission}>
@@ -390,17 +392,17 @@ export const NotificationTestScreen = () => {
 
                 {isExpanded && (
                     <View style={styles.infoContainer}>
-                        <View style={styles.dividerHorizontal} />
+                        <View style={[styles.dividerHorizontal, { backgroundColor: colors.border }]} />
 
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Permission:</Text>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Permission:</Text>
                             <Text style={[styles.deviceStatusValue, { color: '#F5A623' }]}>{permissionStatus}</Text>
                         </View>
 
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Device Token:</Text>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Device Token:</Text>
                             <Text
-                                style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}
+                                style={[styles.deviceStatusValue, { fontSize: 10, color: colors.mutedText }]}
                                 numberOfLines={2}
                                 ellipsizeMode="middle"
                                 onPress={() => {
@@ -416,9 +418,9 @@ export const NotificationTestScreen = () => {
                         </View>
 
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Install ID:</Text>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Install ID:</Text>
                             <Text
-                                style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}
+                                style={[styles.deviceStatusValue, { fontSize: 10, color: colors.mutedText }]}
                                 numberOfLines={2}
                                 ellipsizeMode="middle"
                                 onPress={() => {
@@ -454,12 +456,14 @@ export const NotificationTestScreen = () => {
                 data={logs}
                 keyExtractor={item => item.id}
                 renderItem={renderLogItem}
-                style={styles.logList}
+                style={[styles.logList, { backgroundColor: colors.logBackground }]}
                 contentContainerStyle={styles.logContent}
-                ListEmptyComponent={<Text style={styles.emptyText}>로그가 비어있습니다.</Text>}
+                ListEmptyComponent={
+                    <Text style={[styles.emptyText, { color: colors.subtleText }]}>로그가 비어있습니다.</Text>
+                }
             />
 
-            <View style={styles.bottomContainer}>
+            <View style={[styles.bottomContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}

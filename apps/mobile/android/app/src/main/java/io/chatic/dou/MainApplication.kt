@@ -8,6 +8,7 @@ import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import io.chatic.dou.bridge.AppIconManagerPackage
 import io.chatic.dou.bridge.FileManagerPackage
+import io.chatic.dou.bridge.SystemBarsPackage
 import io.chatic.dou.bridge.UploadManagerPackage
 
 class MainApplication : Application(), ReactApplication {
@@ -19,6 +20,7 @@ class MainApplication : Application(), ReactApplication {
         PackageList(this).packages.apply {
             add(AppIconManagerPackage())
             add(FileManagerPackage())
+            add(SystemBarsPackage())
             add(UploadManagerPackage())
         },
       jsMainModulePath = "src/main",
