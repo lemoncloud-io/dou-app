@@ -33,7 +33,10 @@ export const useChats = (channelId: string | null) => {
     const { chat: chatRepository } = useRepositories();
     const [live, setLive] = useState<DomainChat[] | null>(null);
     const [older, setOlder] = useState<DomainChat[]>([]);
-    const [hasMore, setHasMore] = useState(true);
+    // Server's authoritative older-cursor (mirrors apps/web useChats): the next
+    // page is fetched with `cursorNo`, and the engine returns `cursorNo <= 1` once
+    // no older history remains. Trust it instead of guessing from page length.
+    const [feedCursorNo, setFeedCursorNo] = useState<number | undefined>(undefined);
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
     // Tracks the channel the hook is currently bound to, so an in-flight
     // loadOlder() that resolves after a channel switch can bail instead of
@@ -45,14 +48,14 @@ export const useChats = (channelId: string | null) => {
         if (!channelId) {
             setLive([]);
             setOlder([]);
-            setHasMore(false);
+            setFeedCursorNo(undefined);
             setIsLoadingOlder(false);
             return;
         }
 
         setLive(null);
         setOlder([]);
-        setHasMore(true);
+        setFeedCursorNo(undefined);
         setIsLoadingOlder(false);
 
         const unsubscribe = chatRepository.subscribeList(channelId, result => setLive(result?.list ?? []));
@@ -61,7 +64,7 @@ export const useChats = (channelId: string | null) => {
         void chatRepository
             .fetchChat({ channelId, limit: PAGE_SIZE }, { cachePolicy: 'cache-first' })
             .then(result => {
-                if ((result.list?.length ?? 0) < PAGE_SIZE) setHasMore(false);
+                if (channelId === channelIdRef.current) setFeedCursorNo(result.meta?.cursorNo);
             })
             .catch(() => undefined);
 
@@ -70,34 +73,27 @@ export const useChats = (channelId: string | null) => {
 
     const messages = useMemo(() => mergeUnique(live ?? [], older), [live, older]);
 
+    const hasMore = feedCursorNo !== undefined && feedCursorNo > 1;
+
     const loadOlder = useCallback(async () => {
-        if (!channelId || isLoadingOlder || !hasMore) return;
-        const oldest = messages[0]?.chatNo;
-        if (!oldest) {
-            setHasMore(false);
-            return;
-        }
+        if (!channelId || isLoadingOlder || feedCursorNo === undefined || feedCursorNo <= 1) return;
         const reqChannel = channelId;
         setIsLoadingOlder(true);
         try {
             const result = await chatRepository.fetchChat(
-                { channelId: reqChannel, cursorNo: oldest, limit: PAGE_SIZE },
+                { channelId: reqChannel, cursorNo: feedCursorNo, limit: PAGE_SIZE },
                 { cachePolicy: 'network-only' }
             );
             // Channel switched while the request was in flight — drop the result.
             if (reqChannel !== channelIdRef.current) return;
-            const list = result.list ?? [];
-            const merged = mergeUnique(older, list);
-            // Stop when a short page came back OR the page added nothing new (a full
-            // page of duplicates would otherwise re-fetch the same cursor forever).
-            if (list.length < PAGE_SIZE || merged.length === older.length) setHasMore(false);
-            setOlder(merged);
+            setOlder(prev => mergeUnique(prev, result.list ?? []));
+            setFeedCursorNo(result.meta?.cursorNo);
         } catch {
-            // Leave hasMore set so a later scroll retries.
+            // Leave feedCursorNo set so a later scroll retries.
         } finally {
             if (reqChannel === channelIdRef.current) setIsLoadingOlder(false);
         }
-    }, [channelId, chatRepository, messages, older, isLoadingOlder, hasMore]);
+    }, [channelId, chatRepository, feedCursorNo, isLoadingOlder]);
 
     return {
         messages,

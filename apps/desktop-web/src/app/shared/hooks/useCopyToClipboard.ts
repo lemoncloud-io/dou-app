@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * Copy text to the clipboard and flag `copied` for a moment so callers can show
@@ -18,6 +18,11 @@ export const useCopyToClipboard = (resetMs = 1500): [boolean, (text: string) => 
         },
         [resetMs]
     );
+
+    // Cancel a pending reset if the component unmounts mid-feedback.
+    useEffect(() => () => {
+        if (timer.current) clearTimeout(timer.current);
+    }, []);
 
     return [copied, copy];
 };

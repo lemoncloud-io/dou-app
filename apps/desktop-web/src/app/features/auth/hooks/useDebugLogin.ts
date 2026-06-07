@@ -26,6 +26,9 @@ export const useDebugLogin = () => {
                 const { Token, ...rest } = await login({ uid, pwd });
                 await webCore.buildCredentialsByToken(Token as Parameters<typeof webCore.buildCredentialsByToken>[0]);
                 cloudCore.clearSession();
+                // `rest` is the login response minus Token; it carries the UserProfile$
+                // fields. Mirrors apps/web DebugLoginPage — the API types don't overlap
+                // structurally, so the double cast is the documented escape hatch.
                 setProfile(rest as unknown as UserProfile$);
                 setIsAuthenticated(true);
                 return true;

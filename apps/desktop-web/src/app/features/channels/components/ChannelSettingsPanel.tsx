@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { Bell, BellOff, Search, X } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
-import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
+import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
 import { displayName, useNotificationPrefsStore, useSelectedChannelStore } from '../../../shared';
 import type { ChannelMember } from '../hooks';
@@ -157,13 +157,7 @@ export const ChannelSettingsPanel = ({
                 </section>
 
                 <section className="flex flex-col gap-2 border-t border-border pt-4">
-                    <button
-                        type="button"
-                        role="switch"
-                        aria-checked={isMuted}
-                        onClick={() => toggleMute(channelId)}
-                        className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
+                    <label className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-foreground">
                         <span className="flex items-center gap-2">
                             {isMuted ? (
                                 <BellOff size={16} className="text-muted-foreground" />
@@ -172,10 +166,8 @@ export const ChannelSettingsPanel = ({
                             )}
                             {t('channels.settings.mute')}
                         </span>
-                        <span className={cn('text-xs', isMuted ? 'font-semibold text-primary' : 'text-muted-foreground')}>
-                            {isMuted ? t('common.on') : t('common.off')}
-                        </span>
-                    </button>
+                        <Switch checked={isMuted} onCheckedChange={() => toggleMute(channelId)} />
+                    </label>
                     <Button variant="ghost" size="sm" className="justify-start" onClick={() => openDialog('leave')}>
                         {t('channels.settings.leave')}
                     </Button>

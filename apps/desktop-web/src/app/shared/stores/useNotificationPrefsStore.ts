@@ -8,7 +8,6 @@ interface NotificationPrefsState {
     mutedChannels: Record<string, true>;
     setDesktopEnabled: (enabled: boolean) => void;
     toggleMute: (channelId: string) => void;
-    isMuted: (channelId: string) => boolean;
 }
 
 /**
@@ -18,7 +17,7 @@ interface NotificationPrefsState {
  */
 export const useNotificationPrefsStore = create<NotificationPrefsState>()(
     persist(
-        (set, get) => ({
+        set => ({
             desktopEnabled: true,
             mutedChannels: {},
             setDesktopEnabled: enabled => set({ desktopEnabled: enabled }),
@@ -29,7 +28,6 @@ export const useNotificationPrefsStore = create<NotificationPrefsState>()(
                     else next[channelId] = true;
                     return { mutedChannels: next };
                 }),
-            isMuted: channelId => !!get().mutedChannels[channelId],
         }),
         { name: 'chatic-notification-prefs' }
     )

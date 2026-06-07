@@ -64,7 +64,7 @@ export const useDesktopNotifications = (): void => {
                     if (prev === undefined || top <= prev) return;
                     // Respect the user's notification preferences (global off / muted channel).
                     const prefs = useNotificationPrefsStore.getState();
-                    if (!prefs.desktopEnabled || prefs.isMuted(channel.id)) return;
+                    if (!prefs.desktopEnabled || prefs.mutedChannels[channel.id]) return;
                     // Don't notify for a channel you're actively viewing (you can see it).
                     if (isViewing(channel.id)) return;
                     // Don't re-notify a message already marked read (e.g. resync redelivery).

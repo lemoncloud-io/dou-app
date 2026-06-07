@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@chatic/lib/utils';
 import { type Theme, useTheme } from '@chatic/theme';
 import { Button } from '@chatic/ui-kit/components/ui/button';
+import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
 import { useNotificationPrefsStore } from '../../../shared';
 
@@ -97,23 +98,11 @@ export const SettingsPage = () => {
                                 {t('settings.desktopNotificationsHint')}
                             </span>
                         </div>
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked={desktopEnabled}
-                            onClick={() => setDesktopEnabled(!desktopEnabled)}
-                            className={cn(
-                                'relative h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                                desktopEnabled ? 'bg-primary' : 'bg-muted'
-                            )}
-                        >
-                            <span
-                                className={cn(
-                                    'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
-                                    desktopEnabled ? 'translate-x-[22px]' : 'translate-x-0.5'
-                                )}
-                            />
-                        </button>
+                        <Switch
+                            checked={desktopEnabled}
+                            onCheckedChange={setDesktopEnabled}
+                            aria-label={t('settings.desktopNotifications')}
+                        />
                     </div>
                 </section>
             </div>

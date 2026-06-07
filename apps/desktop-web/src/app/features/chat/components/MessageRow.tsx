@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Check, Clock, Copy } from 'lucide-react';
@@ -26,15 +26,22 @@ const formatTime = (ms: number): string => {
 export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
     const { t } = useTranslation();
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
+    const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const initial = group.ownerName.charAt(0).toUpperCase() || '?';
     const userId = group.ownerId ?? '';
 
     const copy = (key: string, content: string) => {
         void navigator.clipboard?.writeText(content).then(() => {
             setCopiedKey(key);
-            setTimeout(() => setCopiedKey(curr => (curr === key ? null : curr)), 1200);
+            if (copyTimer.current) clearTimeout(copyTimer.current);
+            copyTimer.current = setTimeout(() => setCopiedKey(curr => (curr === key ? null : curr)), 1200);
         });
     };
+
+    // Cancel a pending "copied" reset if this row unmounts mid-feedback.
+    useEffect(() => () => {
+        if (copyTimer.current) clearTimeout(copyTimer.current);
+    }, []);
 
     return (
         <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 transition-colors hover:bg-accent/40">

@@ -102,8 +102,6 @@ const resources = {
             'profile.unknown': '-',
             'common.cancel': 'Cancel',
             'common.confirm': 'Confirm',
-            'common.on': 'On',
-            'common.off': 'Off',
             'toast.channelCreated': 'Channel created',
             'toast.channelDeleted': 'Channel deleted',
             'toast.channelLeft': 'You left the channel',

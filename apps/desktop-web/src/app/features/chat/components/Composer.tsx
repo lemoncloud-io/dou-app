@@ -45,10 +45,11 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
     // then focus so you can type immediately.
     useEffect(() => {
         setValue(useComposerDraftStore.getState().drafts[channelId] ?? '');
-        requestAnimationFrame(() => {
+        const raf = requestAnimationFrame(() => {
             resize();
             textareaRef.current?.focus();
         });
+        return () => cancelAnimationFrame(raf);
     }, [channelId]);
 
     const handleChange = (next: string) => {

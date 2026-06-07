@@ -37,10 +37,6 @@ const ProfileCardContent = ({ userId, fallbackName, isOwner }: Omit<UserProfileP
     const thumbnail = user?.thumbnail;
     const channelCount = user?.channelIds?.length ?? 0;
 
-    const handleCopy = () => {
-        if (userId) copy(userId);
-    };
-
     return (
         <div>
             <div className="h-16 w-full" style={bannerStyle(seed)} />
@@ -70,7 +66,7 @@ const ProfileCardContent = ({ userId, fallbackName, isOwner }: Omit<UserProfileP
                 {userId && (
                     <button
                         type="button"
-                        onClick={handleCopy}
+                        onClick={() => copy(userId)}
                         className="mt-4 flex w-full items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                         <span className="flex min-w-0 flex-col">

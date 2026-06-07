@@ -215,18 +215,21 @@ export const DebugChatPage = () => {
 
                             <div className="grid grid-cols-2 gap-2">
                                 <button
+                                    type="button"
                                     onClick={subscribeChannels}
                                     className="rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background"
                                 >
                                     stream subscribe
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={unsubscribeChannels}
                                     className="rounded-lg border border-border px-3 py-2 text-sm"
                                 >
                                     stream unsubscribe
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={() => void createChannel()}
                                     className="col-span-2 rounded-lg border border-border px-3 py-2 text-sm"
                                 >
@@ -243,6 +246,7 @@ export const DebugChatPage = () => {
                                         }`}
                                     >
                                         <button
+                                            type="button"
                                             onClick={() => item.id && setSelectedChannelId(item.id)}
                                             className="flex-1 text-left"
                                         >
@@ -250,6 +254,7 @@ export const DebugChatPage = () => {
                                             <p className="text-muted-foreground">{item.name || '-'}</p>
                                         </button>
                                         <button
+                                            type="button"
                                             onClick={() => void deleteChannel(item.id || '')}
                                             className="rounded p-1 text-muted-foreground hover:bg-muted"
                                             aria-label="Delete channel"
@@ -280,6 +285,7 @@ export const DebugChatPage = () => {
 
                             <div className="grid grid-cols-2 gap-2">
                                 <button
+                                    type="button"
                                     onClick={() => void createChat()}
                                     className="rounded-lg border border-border px-3 py-2 text-sm"
                                 >
@@ -295,6 +301,7 @@ export const DebugChatPage = () => {
                                     />
                                 </div>
                                 <button
+                                    type="button"
                                     onClick={() => void createSampleChats()}
                                     className="col-span-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm font-medium"
                                 >
@@ -319,12 +326,14 @@ export const DebugChatPage = () => {
                                                         className="w-full rounded border border-border bg-background px-2 py-1 text-xs outline-none"
                                                     />
                                                     <button
+                                                        type="button"
                                                         onClick={() => void saveEditChat()}
                                                         className="rounded border border-border px-2 py-1 text-[11px]"
                                                     >
                                                         save
                                                     </button>
                                                     <button
+                                                        type="button"
                                                         onClick={() => {
                                                             setEditingChatId('');
                                                             setEditingChatContent('');
@@ -336,6 +345,7 @@ export const DebugChatPage = () => {
                                                 </div>
                                             ) : (
                                                 <button
+                                                    type="button"
                                                     onClick={() => {
                                                         setEditingChatId(item.id || '');
                                                         setEditingChatContent(item.content || '');
@@ -348,6 +358,7 @@ export const DebugChatPage = () => {
                                         </div>
                                         {editingChatId !== item.id && (
                                             <button
+                                                type="button"
                                                 onClick={() => void deleteChat(item.id || '')}
                                                 className="rounded p-1 text-muted-foreground hover:bg-muted"
                                                 aria-label="Delete chat"

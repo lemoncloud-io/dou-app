@@ -37,10 +37,13 @@ export const ChatPane = ({ channel, members }: ChatPaneProps) => {
     // divider sits. Captured during render so it precedes that post-commit effect.
     const baselineRef = useRef<{ id: string | null; no: number }>({ id: null, no: 0 });
     const serverJoinNo = channel?.$join?.chatNo ?? 0;
+    // Subscribe to the cursor (rather than reading getState() in render) so the
+    // baseline captures a consistent value; the ref guard below freezes it after
+    // the first capture, so the later mark-read advance doesn't move the divider.
+    const localCursor = useReadCursorStore(s => (channelId ? s.cursors[channelId] ?? 0 : 0));
     // Re-capture once the channel's $join arrives (it can land a render after the
     // channelId flips), otherwise the divider would freeze at a stale 0 baseline.
     if (baselineRef.current.id !== channelId || (baselineRef.current.no === 0 && serverJoinNo > 0)) {
-        const localCursor = channelId ? (useReadCursorStore.getState().cursors[channelId] ?? 0) : 0;
         baselineRef.current = { id: channelId, no: Math.max(localCursor, serverJoinNo) };
     }
     const baselineReadNo = baselineRef.current.no;
