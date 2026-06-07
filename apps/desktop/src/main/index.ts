@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { AppBridgeHost } from '@chatic/bridges';
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, Notification, Tray } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, Notification, shell, Tray } from 'electron';
 import electronUpdater from 'electron-updater';
 
 /**
@@ -177,9 +177,13 @@ const createWindow = (): BrowserWindow => {
         },
     });
 
-    // Lock the renderer to the trusted origin: deny new windows, block off-origin navigation.
-    // Prevents a redirected/untrusted page from retaining the preload bridge to native handlers.
-    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    // Lock the renderer to the trusted origin: never open a new Electron window
+    // (which would keep the preload bridge). External web links (message content,
+    // etc.) open in the system browser instead; everything else is denied.
+    win.webContents.setWindowOpenHandler(({ url }) => {
+        if (/^https?:\/\//i.test(url) && !isTrustedUrl(url)) void shell.openExternal(url);
+        return { action: 'deny' };
+    });
     win.webContents.on('will-navigate', (event, url) => {
         if (!isTrustedUrl(url)) event.preventDefault();
     });
