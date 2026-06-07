@@ -13,6 +13,10 @@ const CHANNEL_LIMIT = 100;
 
 const chatAuthorId = (chat: DomainChat): string | undefined => chat.owner$?.id ?? chat.ownerId;
 const maxChatNo = (list: DomainChat[]): number => list.reduce((max, c) => Math.max(max, c.chatNo ?? 0), 0);
+// The subscription list isn't guaranteed chronological, so the newest message is
+// the one with the highest chatNo — not the last array element.
+const newestChat = (list: DomainChat[]): DomainChat =>
+    list.reduce((newest, c) => ((c.chatNo ?? 0) > (newest.chatNo ?? 0) ? c : newest));
 const channelName = (channel: DomainChannel): string => channel.name ?? 'New message';
 
 /** Suppress only when you're actively looking at that channel in a focused window. */
@@ -66,7 +70,7 @@ export const useDesktopNotifications = (): void => {
                     // Don't re-notify a message already marked read (e.g. resync redelivery).
                     if (top <= (useReadCursorStore.getState().cursors[channel.id] ?? 0)) return;
 
-                    const latest = list[list.length - 1];
+                    const latest = newestChat(list);
                     const authorId = chatAuthorId(latest);
                     if (authorId && (authorId === myId || authorId === myUid)) return;
 
