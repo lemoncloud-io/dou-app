@@ -7,13 +7,12 @@ const INLINE = /(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(https?:\/\/[^\s]+)|(@[\w.-]+)/g
 const renderInline = (text: string, keyBase: string): ReactNode[] => {
     const nodes: ReactNode[] = [];
     let last = 0;
-    let i = 0;
     INLINE.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = INLINE.exec(text)) !== null) {
         if (match.index > last) nodes.push(text.slice(last, match.index));
         const [token, bold, italic, url, mention] = match;
-        const key = `${keyBase}-${i++}`;
+        const key = `${keyBase}-${match.index}`;
         if (bold) {
             nodes.push(
                 <strong key={key} className="font-semibold">
@@ -34,7 +33,7 @@ const renderInline = (text: string, keyBase: string): ReactNode[] => {
                     {url}
                 </a>
             );
-        } else if (mention) {
+        } else {
             nodes.push(
                 <span key={key} className="rounded bg-primary/15 px-0.5 font-medium text-primary">
                     {mention}
@@ -47,21 +46,25 @@ const renderInline = (text: string, keyBase: string): ReactNode[] => {
     return nodes;
 };
 
+interface RichTextProps {
+    content: string;
+}
+
 /**
- * Render message text with lightweight, safe formatting — no HTML injection.
- * Backtick `code` spans are extracted first (so markdown inside them stays
- * literal); the rest is scanned for **bold**, *italic*, links, and @mentions.
+ * Message text with lightweight, safe formatting — no HTML injection. Backtick
+ * `code` spans are split out first (so markdown inside them stays literal — odd
+ * split indices are the captured code spans); the rest is scanned for **bold**,
+ * *italic*, links, and @mentions.
  */
-export const renderRichText = (content: string): ReactNode => {
-    if (!content) return content;
-    return content.split(/(`[^`\n]+`)/g).map((part, idx) => {
-        if (part.length >= 2 && part.startsWith('`') && part.endsWith('`')) {
-            return (
-                <code key={idx} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">
-                    {part.slice(1, -1)}
-                </code>
-            );
-        }
-        return <Fragment key={idx}>{renderInline(part, String(idx))}</Fragment>;
-    });
+export const RichText = ({ content }: RichTextProps): ReactNode => {
+    if (!content) return null;
+    return content.split(/(`[^`\n]+`)/g).map((part, idx) =>
+        idx % 2 === 1 ? (
+            <code key={idx} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">
+                {part.slice(1, -1)}
+            </code>
+        ) : (
+            <Fragment key={idx}>{renderInline(part, String(idx))}</Fragment>
+        )
+    );
 };

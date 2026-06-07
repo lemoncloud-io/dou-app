@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Check, Clock, Copy } from 'lucide-react';
@@ -7,8 +7,9 @@ import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
-import { type MessageGroup, renderRichText } from '../utils';
+import type { MessageGroup } from '../utils';
 import { UserProfilePopover, avatarStyle } from '../../../shared';
+import { RichText } from './RichText';
 
 interface MessageRowProps {
     group: MessageGroup;
@@ -22,7 +23,7 @@ const formatTime = (ms: number): string => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-export const MessageRow = ({ group, onRetry }: MessageRowProps) => {
+export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
     const { t } = useTranslation();
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
     const initial = group.ownerName.charAt(0).toUpperCase() || '?';
@@ -87,7 +88,7 @@ export const MessageRow = ({ group, onRetry }: MessageRowProps) => {
                                         isPending && 'opacity-50'
                                     )}
                                 >
-                                    {renderRichText(content)}
+                                    <RichText content={content} />
                                 </p>
                                 {isFailed && (
                                     <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-destructive">
@@ -138,4 +139,6 @@ export const MessageRow = ({ group, onRetry }: MessageRowProps) => {
             </div>
         </div>
     );
-};
+});
+
+MessageRow.displayName = 'MessageRow';
