@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { AppBridgeHost } from '@chatic/bridges';
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, Notification, shell, Tray } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, type MenuItemConstructorOptions, nativeImage, Notification, shell, Tray } from 'electron';
 import electronUpdater from 'electron-updater';
 
 /**
@@ -194,6 +194,29 @@ const renderErrorHtml = (code: number, desc: string): string => {
 </div></body></html>`;
 };
 
+/** Native application menu with standard roles so copy/paste/zoom/window shortcuts work. */
+const buildAppMenu = (): Menu => {
+    const isMac = process.platform === 'darwin';
+    const viewSubmenu: MenuItemConstructorOptions[] = [
+        { role: 'reload' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+        // DevTools only in dev builds — keep it out of the packaged app's menu.
+        ...(app.isPackaged ? [] : [{ role: 'toggleDevTools' } as MenuItemConstructorOptions]),
+    ];
+    const template: MenuItemConstructorOptions[] = [
+        ...(isMac ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
+        { role: 'editMenu' },
+        { label: 'View', submenu: viewSubmenu },
+        { role: 'windowMenu' },
+    ];
+    return Menu.buildFromTemplate(template);
+};
+
 const createWindow = (): BrowserWindow => {
     const saved = loadWindowBounds();
     const win = new BrowserWindow({
@@ -344,6 +367,7 @@ if (!singleInstanceLock) {
     });
 
     app.whenReady().then(() => {
+        Menu.setApplicationMenu(buildAppMenu());
         createWindow();
 
         // Flush a cold-start deeplink (Windows/Linux argv) once the window exists.
