@@ -7,7 +7,7 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import { useRepositories } from '@chatic/app-runtime';
 
 import { usePlaces } from './usePlaces';
-import { useReadCursorStore, useSelectedChannelStore } from '../stores';
+import { useNotificationPrefsStore, useReadCursorStore, useSelectedChannelStore } from '../stores';
 
 const CHANNEL_LIMIT = 100;
 
@@ -58,6 +58,9 @@ export const useDesktopNotifications = (): void => {
 
                     // Skip the first snapshot (cache warm-up) — only notify on a real increase.
                     if (prev === undefined || top <= prev) return;
+                    // Respect the user's notification preferences (global off / muted channel).
+                    const prefs = useNotificationPrefsStore.getState();
+                    if (!prefs.desktopEnabled || prefs.isMuted(channel.id)) return;
                     // Don't notify for a channel you're actively viewing (you can see it).
                     if (isViewing(channel.id)) return;
                     // Don't re-notify a message already marked read (e.g. resync redelivery).

@@ -8,8 +8,11 @@ export interface MessageGroup {
     messages: DomainChat[];
 }
 
-/** A row in the message pane: either a day divider or a grouped author block. */
-export type MessageRowItem = { kind: 'date'; key: string; timestamp: number } | { kind: 'group'; group: MessageGroup };
+/** A row in the message pane: a day divider, the unread marker, or an author block. */
+export type MessageRowItem =
+    | { kind: 'date'; key: string; timestamp: number }
+    | { kind: 'unread'; key: string }
+    | { kind: 'group'; group: MessageGroup };
 
 /** Identity of the signed-in user, used to name their own (and optimistic) messages. */
 export interface MessageViewer {
@@ -54,11 +57,13 @@ const startOfDay = (ms: number): number => {
 export const buildMessageRows = (
     messages: DomainChat[],
     viewer: MessageViewer,
-    names?: ReadonlyMap<string, string>
+    names?: ReadonlyMap<string, string>,
+    baselineReadNo = 0
 ): MessageRowItem[] => {
     const rows: MessageRowItem[] = [];
     let currentGroup: MessageGroup | null = null;
     let lastTimestamp = 0;
+    let unreadInserted = false;
 
     const flush = () => {
         if (currentGroup) rows.push({ kind: 'group', group: currentGroup });
@@ -72,6 +77,16 @@ export const buildMessageRows = (
             flush();
             const dayMs = startOfDay(timestamp);
             rows.push({ kind: 'date', key: `date:${dayMs}`, timestamp: dayMs });
+        }
+
+        // Mark the first unread message from someone else (relative to where the
+        // reader left off on open). Breaks the current group so the divider sits
+        // directly above it.
+        const isUnread = (message.chatNo ?? 0) > baselineReadNo && message.ownerId !== viewer.uid;
+        if (!unreadInserted && baselineReadNo > 0 && isUnread) {
+            flush();
+            rows.push({ kind: 'unread', key: `unread:${message.chatNo}` });
+            unreadInserted = true;
         }
 
         const sameAuthor = currentGroup?.ownerId === message.ownerId;

@@ -1,11 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useWebCoreStore } from '@chatic/web-core';
 
 import type { DomainChannel } from '@chatic/data';
 
-import { displayName, useChatMutations, useChats, useReadReceipts } from '../../../shared';
+import { displayName, useChatMutations, useChats, useReadCursorStore, useReadReceipts } from '../../../shared';
 import { useChannelMembers } from '../../channels';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { Composer } from './Composer';
@@ -22,7 +22,17 @@ export const ChatPane = ({ channel }: ChatPaneProps) => {
     const myName = useWebCoreStore(s => s.profile?.$user?.name ?? '');
     const viewer = useMemo(() => ({ uid: myUid, name: myName }), [myUid, myName]);
     const { messages, isLoading } = useChats(channelId);
-    const { sendMessage, isSending } = useChatMutations();
+    const { sendMessage, retryMessage, isSending } = useChatMutations();
+
+    // Snapshot the read position when the channel opens, before HomePage's
+    // mark-read effect advances the cursor — this is where the "new messages"
+    // divider sits. Captured during render so it precedes that post-commit effect.
+    const baselineRef = useRef<{ id: string | null; no: number }>({ id: null, no: 0 });
+    if (baselineRef.current.id !== channelId) {
+        const localCursor = channelId ? (useReadCursorStore.getState().cursors[channelId] ?? 0) : 0;
+        baselineRef.current = { id: channelId, no: Math.max(localCursor, channel?.$join?.chatNo ?? 0) };
+    }
+    const baselineReadNo = baselineRef.current.no;
 
     // The server frequently omits owner$ on other users' messages, so resolve
     // author names from the channel roster (id → name) for the message list.
@@ -70,7 +80,14 @@ export const ChatPane = ({ channel }: ChatPaneProps) => {
                 </div>
                 <ChannelHeaderMenu channel={channel} myUid={myUid} />
             </header>
-            <MessageList messages={messages} isLoading={isLoading} viewer={viewer} names={memberNames} />
+            <MessageList
+                messages={messages}
+                isLoading={isLoading}
+                viewer={viewer}
+                names={memberNames}
+                baselineReadNo={baselineReadNo}
+                onRetry={retryMessage}
+            />
             <Composer disabled={isSending} onSend={handleSend} />
         </>
     );

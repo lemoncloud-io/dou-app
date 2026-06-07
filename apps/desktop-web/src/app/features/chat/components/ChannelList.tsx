@@ -60,8 +60,18 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, myU
         return <div className="px-4 py-8 text-center text-sm text-muted-foreground">{t('sidebar.noMatches')}</div>;
     }
 
+    const onKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+        e.preventDefault();
+        const idx = filtered.findIndex(c => (c.id ?? '') === selectedChannelId);
+        const delta = e.key === 'ArrowDown' ? 1 : -1;
+        const nextIdx = idx < 0 ? 0 : Math.min(filtered.length - 1, Math.max(0, idx + delta));
+        const next = filtered[nextIdx]?.id;
+        if (next) onSelect(next);
+    };
+
     return (
-        <nav aria-label={t('sidebar.channels')} className="flex flex-col gap-0.5 p-2">
+        <nav aria-label={t('sidebar.channels')} onKeyDown={onKeyDown} className="flex flex-col gap-0.5 p-2">
             {filtered.map(channel => {
                 const id = channel.id ?? '';
                 const isActive = id === selectedChannelId;

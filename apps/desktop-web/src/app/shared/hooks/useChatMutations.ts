@@ -25,5 +25,22 @@ export const useChatMutations = () => {
         [chatRepository]
     );
 
-    return { sendMessage, isSending };
+    // Resend a failed message: drop the failed optimistic record, then send its
+    // content fresh so it re-enters the normal pending → sent flow.
+    const retryMessage = useCallback(
+        (message: DomainChat): Promise<DomainChat> => {
+            if (!message.channelId || !message.content) {
+                return Promise.reject(new Error('cannot retry a message without channel/content'));
+            }
+            const staleId = message.id ?? message.tempId;
+            if (staleId) void chatRepository.cacheDelete(staleId);
+            setIsSending(true);
+            return chatRepository
+                .sendChat({ channelId: message.channelId, content: message.content })
+                .finally(() => setIsSending(false));
+        },
+        [chatRepository]
+    );
+
+    return { sendMessage, retryMessage, isSending };
 };

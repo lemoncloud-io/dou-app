@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Check, Copy } from 'lucide-react';
 
+import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 
 import type { MessageGroup } from '../utils';
@@ -10,6 +11,7 @@ import { UserProfilePopover, avatarStyle } from '../../../shared';
 
 interface MessageRowProps {
     group: MessageGroup;
+    onRetry?: (message: DomainChat) => void;
 }
 
 const formatTime = (ms: number): string => {
@@ -19,7 +21,7 @@ const formatTime = (ms: number): string => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-export const MessageRow = ({ group }: MessageRowProps) => {
+export const MessageRow = ({ group, onRetry }: MessageRowProps) => {
     const { t } = useTranslation();
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
     const initial = group.ownerName.charAt(0).toUpperCase() || '?';
@@ -58,6 +60,7 @@ export const MessageRow = ({ group }: MessageRowProps) => {
                 <div className="flex flex-col gap-0.5">
                     {group.messages.map(message => {
                         const isPending = message.isPending;
+                        const isFailed = message.isFailed;
                         const key = String(message.id ?? message.tempId ?? message.chatNo);
                         const content = message.content ?? '';
                         const isCopied = copiedKey === key;
@@ -65,12 +68,27 @@ export const MessageRow = ({ group }: MessageRowProps) => {
                             <div key={key} className="group/msg relative pr-8">
                                 <p
                                     className={cn(
-                                        'whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground',
+                                        'whitespace-pre-wrap break-words text-sm leading-relaxed',
+                                        isFailed ? 'text-destructive' : 'text-foreground',
                                         isPending && 'opacity-50'
                                     )}
                                 >
                                     {content}
                                 </p>
+                                {isFailed && (
+                                    <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-destructive">
+                                        {t('chat.failed')}
+                                        {onRetry && (
+                                            <button
+                                                type="button"
+                                                onClick={() => onRetry(message)}
+                                                className="font-semibold underline underline-offset-2 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            >
+                                                {t('chat.retry')}
+                                            </button>
+                                        )}
+                                    </span>
+                                )}
                                 {content && (
                                     <button
                                         type="button"

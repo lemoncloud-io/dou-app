@@ -5,6 +5,8 @@ import { cn } from '@chatic/lib/utils';
 import { type Theme, useTheme } from '@chatic/theme';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
+import { useNotificationPrefsStore } from '../../../shared';
+
 const THEME_OPTIONS: Theme[] = ['light', 'dark', 'system'];
 const LANGUAGE_OPTIONS = ['en'] as const;
 
@@ -19,6 +21,8 @@ export const SettingsPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const { theme, setTheme } = useTheme();
+    const desktopEnabled = useNotificationPrefsStore(s => s.desktopEnabled);
+    const setDesktopEnabled = useNotificationPrefsStore(s => s.setDesktopEnabled);
 
     return (
         <div className="flex h-screen flex-col bg-background">
@@ -76,6 +80,40 @@ export const SettingsPage = () => {
                                 ))}
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                <section className="mt-8 flex flex-col gap-4">
+                    <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {t('settings.notifications')}
+                    </h2>
+
+                    <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                            <span className="text-sm font-medium text-foreground">
+                                {t('settings.desktopNotifications')}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                                {t('settings.desktopNotificationsHint')}
+                            </span>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={desktopEnabled}
+                            onClick={() => setDesktopEnabled(!desktopEnabled)}
+                            className={cn(
+                                'relative h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                                desktopEnabled ? 'bg-primary' : 'bg-muted'
+                            )}
+                        >
+                            <span
+                                className={cn(
+                                    'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+                                    desktopEnabled ? 'translate-x-[22px]' : 'translate-x-0.5'
+                                )}
+                            />
+                        </button>
                     </div>
                 </section>
             </div>

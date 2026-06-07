@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Search, X } from 'lucide-react';
+import { Bell, BellOff, Search, X } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
+import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 
-import { displayName, useSelectedChannelStore } from '../../../shared';
+import { displayName, useNotificationPrefsStore, useSelectedChannelStore } from '../../../shared';
 import { useChannelActions, useChannelMembers } from '../hooks';
 import { useChannelSettingsStore } from '../stores';
 import { isChannelOwner } from '../utils';
@@ -34,6 +35,8 @@ export const ChannelSettingsPanel = ({ channel, myUid }: ChannelSettingsPanelPro
     const { t } = useTranslation();
     const close = useChannelSettingsStore(s => s.close);
     const clearChannel = useSelectedChannelStore(s => s.clearChannel);
+    const mutedChannels = useNotificationPrefsStore(s => s.mutedChannels);
+    const toggleMute = useNotificationPrefsStore(s => s.toggleMute);
 
     // Esc closes the panel (matches dropdowns/dialogs elsewhere).
     useEffect(() => {
@@ -72,6 +75,7 @@ export const ChannelSettingsPanel = ({ channel, myUid }: ChannelSettingsPanelPro
     if (!channel || !channelId) return null;
 
     const kickName = members.find(m => m.id === kickTarget)?.name ?? '';
+    const isMuted = !!mutedChannels[channelId];
 
     return (
         <aside className="scrollbar-thin flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card">
@@ -144,6 +148,25 @@ export const ChannelSettingsPanel = ({ channel, myUid }: ChannelSettingsPanelPro
                 </section>
 
                 <section className="flex flex-col gap-2 border-t border-border pt-4">
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isMuted}
+                        onClick={() => toggleMute(channelId)}
+                        className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                        <span className="flex items-center gap-2">
+                            {isMuted ? (
+                                <BellOff size={16} className="text-muted-foreground" />
+                            ) : (
+                                <Bell size={16} className="text-muted-foreground" />
+                            )}
+                            {t('channels.settings.mute')}
+                        </span>
+                        <span className={cn('text-xs', isMuted ? 'font-semibold text-primary' : 'text-muted-foreground')}>
+                            {isMuted ? t('common.on') : t('common.off')}
+                        </span>
+                    </button>
                     <Button variant="ghost" size="sm" className="justify-start" onClick={() => openDialog('leave')}>
                         {t('channels.settings.leave')}
                     </Button>

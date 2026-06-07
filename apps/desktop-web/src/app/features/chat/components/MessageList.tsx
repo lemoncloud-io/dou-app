@@ -16,17 +16,23 @@ interface MessageListProps {
     viewer: MessageViewer;
     /** channel member id → display name, used to name authors when owner$ is absent. */
     names?: ReadonlyMap<string, string>;
+    /** Read position when the channel was opened — drives the "new messages" divider. */
+    baselineReadNo?: number;
+    onRetry?: (message: DomainChat) => void;
 }
 
 const NEAR_BOTTOM_PX = 80;
 
-export const MessageList = ({ messages, isLoading, viewer, names }: MessageListProps) => {
+export const MessageList = ({ messages, isLoading, viewer, names, baselineReadNo, onRetry }: MessageListProps) => {
     const { t } = useTranslation();
     const bottomRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const [atBottom, setAtBottom] = useState(true);
 
-    const rows = useMemo(() => buildMessageRows(messages, viewer, names), [messages, viewer, names]);
+    const rows = useMemo(
+        () => buildMessageRows(messages, viewer, names, baselineReadNo),
+        [messages, viewer, names, baselineReadNo]
+    );
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ block: 'end' });
@@ -63,13 +69,21 @@ export const MessageList = ({ messages, isLoading, viewer, names }: MessageListP
                 onScroll={onScroll}
                 className="scrollbar-thin flex flex-1 flex-col gap-0.5 overflow-y-auto p-4"
             >
-                {rows.map(row =>
-                    row.kind === 'date' ? (
-                        <DateSeparator key={row.key} timestamp={row.timestamp} />
-                    ) : (
-                        <MessageRow key={row.group.key} group={row.group} />
-                    )
-                )}
+                {rows.map(row => {
+                    if (row.kind === 'date') return <DateSeparator key={row.key} timestamp={row.timestamp} />;
+                    if (row.kind === 'unread') {
+                        return (
+                            <div key={row.key} className="my-1 flex items-center gap-2 px-2">
+                                <span className="h-px flex-1 bg-destructive/40" />
+                                <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-destructive">
+                                    {t('chat.newMessages')}
+                                </span>
+                                <span className="h-px flex-1 bg-destructive/40" />
+                            </div>
+                        );
+                    }
+                    return <MessageRow key={row.group.key} group={row.group} onRetry={onRetry} />;
+                })}
                 <div ref={bottomRef} />
             </div>
             {!atBottom && (
