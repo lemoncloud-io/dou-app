@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 
-import { Skeleton, relativeTime } from '../../../shared';
+import { Skeleton, relativeTime, useNow } from '../../../shared';
 
 interface ChannelListProps {
     channels: DomainChannel[];
@@ -38,6 +38,8 @@ const ChannelSkeleton = () => (
 
 export const ChannelList = ({ channels, isLoading, selectedChannelId, query, myUid, onSelect }: ChannelListProps) => {
     const { t } = useTranslation();
+    // Tick once a minute so the relative "11m" preview times stay current.
+    useNow(60_000);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();

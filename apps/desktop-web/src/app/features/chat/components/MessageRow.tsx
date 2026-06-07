@@ -7,7 +7,7 @@ import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
-import type { MessageGroup } from '../utils';
+import { type MessageGroup, renderRichText } from '../utils';
 import { UserProfilePopover, avatarStyle } from '../../../shared';
 
 interface MessageRowProps {
@@ -87,7 +87,7 @@ export const MessageRow = ({ group, onRetry }: MessageRowProps) => {
                                         isPending && 'opacity-50'
                                     )}
                                 >
-                                    {content}
+                                    {renderRichText(content)}
                                 </p>
                                 {isFailed && (
                                     <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-destructive">
