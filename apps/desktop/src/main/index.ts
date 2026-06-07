@@ -134,6 +134,25 @@ const SPLASH_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
   @media (prefers-reduced-motion:reduce){.ring{animation:none}}
 </style></head><body><div class="wrap"><div class="ring"></div><div class="label">Loading Chatic…</div></div></body></html>`;
 
+// Branded error page shown when the remote web fails to load, so a failure is a visible,
+// actionable screen instead of a blank window or a raw Chromium error. The retry link points
+// at the trusted web URL — will-navigate allows that origin, so a click simply reloads it.
+const renderErrorHtml = (code: number, desc: string): string => {
+    const target = DESKTOP_WEB_URL.replace(/[<>"]/g, '');
+    return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+  html,body{margin:0;height:100%;background:#0b0d10;color:#e6e8eb;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+  .wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px;box-sizing:border-box;text-align:center}
+  h1{font-size:17px;margin:0;font-weight:600}
+  p{font-size:13px;line-height:1.6;color:#7a8089;margin:0;max-width:380px;word-break:break-all}
+  code{color:#9aa0a6}
+  a{margin-top:8px;display:inline-block;padding:10px 22px;border-radius:8px;background:#8fbf2e;color:#0b0d10;font-weight:600;font-size:14px;text-decoration:none}
+</style></head><body><div class="wrap">
+  <h1>연결할 수 없습니다</h1>
+  <p>데스크톱 웹을 불러오지 못했습니다.<br><code>${target}</code><br>(${code} ${desc})</p>
+  <a href="${target}">다시 시도</a>
+</div></body></html>`;
+};
+
 const createWindow = (): BrowserWindow => {
     const win = new BrowserWindow({
         width: 1280,
@@ -188,14 +207,20 @@ const createWindow = (): BrowserWindow => {
 
     win.once('ready-to-show', () => win.show());
 
-    // Retry the initial load while the dev web server (desktop-web on :5005) is still
-    // coming up, so `desktop:start` can launch the shell and the server concurrently
-    // without caring about order. Only retries connection failures (errorCode -102/-106).
+    // In dev the local web server (desktop-web on :5005) may still be booting, so `desktop:start`
+    // can launch the shell and the server in any order. Retry connection failures silently there;
+    // for a packaged build (or any other failure) show a visible, retryable error page instead of
+    // a blank window — e.g. an unresolved host when the desktop web isn't deployed yet.
     const RETRYABLE_LOAD_ERRORS = new Set([-102, -106, -105, -118]);
-    win.webContents.on('did-fail-load', (_event, errorCode, _desc, validatedURL) => {
-        if (app.isPackaged) return;
-        if (!isTrustedUrl(validatedURL) || !RETRYABLE_LOAD_ERRORS.has(errorCode)) return;
-        setTimeout(() => win.loadURL(DESKTOP_WEB_URL), 700);
+    win.webContents.on('did-fail-load', (_event, errorCode, errorDesc, validatedURL, isMainFrame) => {
+        if (errorCode === -3) return; // ERR_ABORTED — e.g. the splash being replaced by the app load.
+        if (!isMainFrame || !isTrustedUrl(validatedURL)) return;
+        if (!app.isPackaged && RETRYABLE_LOAD_ERRORS.has(errorCode)) {
+            setTimeout(() => win.loadURL(DESKTOP_WEB_URL), 700);
+            return;
+        }
+        if (!win.isVisible()) win.show();
+        void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(renderErrorHtml(errorCode, errorDesc))}`);
     });
 
     // Paint an instant splash so the window shows a branded loader immediately
