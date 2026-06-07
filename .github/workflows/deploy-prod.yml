@@ -12,6 +12,7 @@ jobs:
             web: ${{ steps.filter.outputs.web == 'true' && 'true' || 'false' }}
             admin: ${{ steps.filter.outputs.admin == 'true' && 'true' || 'false' }}
             landing: ${{ steps.filter.outputs.landing == 'true' && 'true' || 'false' }}
+            desktopweb: ${{ steps.filter.outputs.desktopweb == 'true' && 'true' || 'false' }}
             projects: ${{ steps.filter.outputs.changes }}
             matrix: ${{ steps.set-matrix.outputs.matrix }}
             has-changes: ${{ steps.set-matrix.outputs.has-changes }}
@@ -52,6 +53,14 @@ jobs:
                           - 'apps/landing/tsconfig*.json'
                           - 'apps/landing/tailwind.config.js'
                           - 'apps/landing/postcss.config.js'
+                      desktopweb:
+                          - 'apps/desktop-web/src/**'
+                          - 'apps/desktop-web/index.html'
+                          - 'apps/desktop-web/vite.config.mts'
+                          - 'apps/desktop-web/project.json'
+                          - 'apps/desktop-web/tsconfig*.json'
+                          - 'apps/desktop-web/tailwind.config.js'
+                          - 'apps/desktop-web/postcss.config.js'
 
             - name: Set matrix for changed projects
               id: set-matrix
@@ -60,6 +69,7 @@ jobs:
                   [[ "${{ steps.filter.outputs.web }}" == "true" ]] && PROJECTS+=('"web"')
                   [[ "${{ steps.filter.outputs.admin }}" == "true" ]] && PROJECTS+=('"admin"')
                   [[ "${{ steps.filter.outputs.landing }}" == "true" ]] && PROJECTS+=('"landing"')
+                  [[ "${{ steps.filter.outputs.desktopweb }}" == "true" ]] && PROJECTS+=('"desktop-web"')
 
                   if [ ${#PROJECTS[@]} -eq 0 ]; then
                       echo "matrix=[]" >> $GITHUB_OUTPUT
@@ -72,7 +82,7 @@ jobs:
 
     get-version:
         needs: changes
-        if: ${{ needs.changes.outputs.admin == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.landing == 'true' }}
+        if: ${{ needs.changes.outputs.admin == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.landing == 'true' || needs.changes.outputs.desktopweb == 'true' }}
         name: Build and Set Version
         runs-on: ubuntu-latest
         permissions:
@@ -178,6 +188,10 @@ jobs:
                       prefix: ADMIN
                     - project: landing
                       prefix: LANDING
+                    # desktop-web reuses WEB_* env secrets (same backend/firebase config);
+                    # only its S3/CloudFront target differs (DESKTOP_* in the deploy step).
+                    - project: desktop-web
+                      prefix: WEB
 
         steps:
             - name: Checkout code
@@ -244,6 +258,8 @@ jobs:
               env:
                   WEB_S3_BUCKET: ${{ secrets.WEB_S3_BUCKET }}
                   WEB_CF_PROD_DISTRIBUTION_ID: ${{ secrets.WEB_CF_PROD_DISTRIBUTION_ID }}
+                  DESKTOP_S3_BUCKET: ${{ secrets.DESKTOP_S3_BUCKET }}
+                  DESKTOP_CF_PROD_DISTRIBUTION_ID: ${{ secrets.DESKTOP_CF_PROD_DISTRIBUTION_ID }}
                   ADMIN_S3_BUCKET: ${{ secrets.ADMIN_S3_BUCKET }}
                   ADMIN_CF_PROD_DISTRIBUTION_ID: ${{ secrets.ADMIN_CF_PROD_DISTRIBUTION_ID }}
                   LANDING_S3_DEV_BUCKET: ${{ secrets.LANDING_S3_DEV_BUCKET }}
@@ -264,7 +280,7 @@ jobs:
 
     notify-slack:
         needs: [changes, get-version, build-and-deploy]
-        if: ${{ success() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true') }}
+        if: ${{ success() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true' || needs.changes.outputs.desktopweb == 'true') }}
         name: Notify Slack
         runs-on: ubuntu-latest
         permissions:
@@ -304,6 +320,10 @@ jobs:
 
                   if [[ "${{ needs.changes.outputs.landing }}" == "true" ]]; then
                       DEPLOY_MESSAGES+=("• *랜딩* <https://app.chatic.io/|PROD 서버> \`v${{ needs.get-version.outputs.landing-version }}\`")
+                  fi
+
+                  if [[ "${{ needs.changes.outputs.desktopweb }}" == "true" ]]; then
+                      DEPLOY_MESSAGES+=("• *데스크톱* <https://desktop.dou.chatic.io/|PROD 서버>")
                   fi
 
                   if [ ${#DEPLOY_MESSAGES[@]} -eq 0 ]; then
@@ -390,7 +410,7 @@ jobs:
 
     notify-slack-failure:
         needs: [changes, get-version, build-and-deploy]
-        if: ${{ failure() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true') }}
+        if: ${{ failure() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true' || needs.changes.outputs.desktopweb == 'true') }}
         name: Notify Slack - Failure
         runs-on: ubuntu-latest
         steps:
@@ -412,6 +432,10 @@ jobs:
 
                   if [[ "${{ needs.changes.outputs.landing }}" == "true" ]]; then
                       DEPLOY_MESSAGES+=("• *랜딩* PROD 서버")
+                  fi
+
+                  if [[ "${{ needs.changes.outputs.desktopweb }}" == "true" ]]; then
+                      DEPLOY_MESSAGES+=("• *데스크톱* PROD 서버")
                   fi
 
                   if [ ${#DEPLOY_MESSAGES[@]} -eq 0 ]; then
