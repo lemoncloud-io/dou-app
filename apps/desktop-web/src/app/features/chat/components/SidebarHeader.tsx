@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { DomainSite } from '@chatic/data';
@@ -43,6 +44,19 @@ export const SidebarHeader = ({
     const { t } = useTranslation();
     const current = places.find(p => p.id === selectedPlaceId);
     const showPlaceSkeleton = isLoading && !current;
+    const searchRef = useRef<HTMLInputElement>(null);
+
+    // ⌘K / Ctrl+K focuses the channel search from anywhere in the app.
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                searchRef.current?.focus();
+            }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, []);
 
     return (
         <div className="flex flex-col gap-2 border-b border-border/60 px-3 pb-3 pt-3">
@@ -101,6 +115,7 @@ export const SidebarHeader = ({
                     <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
                 <Input
+                    ref={searchRef}
                     value={query}
                     onChange={e => onQueryChange(e.target.value)}
                     placeholder={t('sidebar.search')}

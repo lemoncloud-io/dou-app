@@ -4,15 +4,26 @@ import { useTranslation } from 'react-i18next';
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 
-import { Skeleton } from '../../../shared';
+import { Skeleton, relativeTime } from '../../../shared';
 
 interface ChannelListProps {
     channels: DomainChannel[];
     isLoading: boolean;
     selectedChannelId: string | null;
     query: string;
+    /** Signed-in user id — prefixes own last message with "You". */
+    myUid: string | null;
     onSelect: (channelId: string) => void;
 }
+
+/** "You: hi" / "Jane: hi" / "hi" — author prefix on the channel's last message. */
+const lastMessagePreview = (channel: DomainChannel, myUid: string | null, you: string): string => {
+    const last = channel.lastChat$;
+    const text = last?.content?.trim();
+    if (!text) return '';
+    const author = myUid && last?.ownerId === myUid ? you : last?.owner$?.name;
+    return author ? `${author}: ${text}` : text;
+};
 
 const ChannelSkeleton = () => (
     <div role="status" aria-label="Loading channels" className="flex flex-col gap-1 p-2">
@@ -25,7 +36,7 @@ const ChannelSkeleton = () => (
     </div>
 );
 
-export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onSelect }: ChannelListProps) => {
+export const ChannelList = ({ channels, isLoading, selectedChannelId, query, myUid, onSelect }: ChannelListProps) => {
     const { t } = useTranslation();
 
     const filtered = useMemo(() => {
@@ -56,25 +67,49 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onS
                 const isActive = id === selectedChannelId;
                 const unread = channel.unreadCount ?? 0;
                 const hasUnread = unread > 0 && !isActive;
+                const preview = lastMessagePreview(channel, myUid, t('chat.you'));
+                const time = relativeTime(channel.lastChat$?.createdAt ?? channel.lastActivityAt);
                 return (
                     <button
                         key={id}
                         onClick={() => onSelect(id)}
                         className={cn(
-                            'flex items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm transition-colors',
+                            'flex flex-col gap-0.5 rounded-md px-3 py-1.5 text-left text-sm transition-colors',
                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50',
-                            isActive
-                                ? 'bg-primary/15 font-semibold text-foreground'
-                                : hasUnread
-                                  ? 'font-semibold text-foreground hover:bg-accent'
-                                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                            isActive ? 'bg-primary/15' : 'hover:bg-accent'
                         )}
                     >
-                        <span className={cn('shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')}>#</span>
-                        <span className="truncate">{channel.name ?? id}</span>
-                        {hasUnread && (
-                            <span className="ml-auto shrink-0 rounded-full bg-badge-unread px-1.5 text-[11px] font-semibold tabular-nums text-badge-unread-foreground">
-                                {unread > 99 ? '99+' : unread}
+                        <span className="flex w-full items-center gap-2">
+                            <span className={cn('shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')}>
+                                #
+                            </span>
+                            <span
+                                className={cn(
+                                    'truncate',
+                                    isActive || hasUnread ? 'font-semibold text-foreground' : 'text-muted-foreground'
+                                )}
+                            >
+                                {channel.name ?? id}
+                            </span>
+                            {time && (
+                                <span className="ml-auto shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
+                                    {time}
+                                </span>
+                            )}
+                            {hasUnread && (
+                                <span className="shrink-0 rounded-full bg-badge-unread px-1.5 text-[11px] font-semibold tabular-nums text-badge-unread-foreground">
+                                    {unread > 99 ? '99+' : unread}
+                                </span>
+                            )}
+                        </span>
+                        {preview && (
+                            <span
+                                className={cn(
+                                    'truncate pl-5 text-xs',
+                                    hasUnread ? 'text-foreground/80' : 'text-muted-foreground/70'
+                                )}
+                            >
+                                {preview}
                             </span>
                         )}
                     </button>

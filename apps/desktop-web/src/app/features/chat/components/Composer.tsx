@@ -1,7 +1,10 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Smile } from 'lucide-react';
+
 import { cn } from '@chatic/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 
 interface ComposerProps {
     disabled: boolean;
@@ -9,6 +12,13 @@ interface ComposerProps {
 }
 
 const MAX_HEIGHT = 160;
+
+// Curated quick-pick set — a small, common spread, not a full emoji keyboard.
+const EMOJIS = [
+    '😀', '😂', '😊', '😍', '😎', '🤔', '😅', '😭',
+    '👍', '👎', '🙏', '👏', '🙌', '🔥', '🎉', '✨',
+    '❤️', '💯', '👀', '✅', '❌', '⚡', '🚀', '😴',
+];
 
 export const Composer = ({ disabled, onSend }: ComposerProps) => {
     const { t } = useTranslation();
@@ -37,6 +47,20 @@ export const Composer = ({ disabled, onSend }: ComposerProps) => {
         }
     };
 
+    const insertEmoji = (emoji: string) => {
+        const el = textareaRef.current;
+        const start = el?.selectionStart ?? value.length;
+        const end = el?.selectionEnd ?? value.length;
+        const next = value.slice(0, start) + emoji + value.slice(end);
+        setValue(next);
+        requestAnimationFrame(() => {
+            const pos = start + emoji.length;
+            el?.focus();
+            el?.setSelectionRange(pos, pos);
+            resize();
+        });
+    };
+
     const canSend = value.trim().length > 0 && !disabled;
 
     return (
@@ -60,6 +84,33 @@ export const Composer = ({ disabled, onSend }: ComposerProps) => {
                     placeholder={t('chat.composer.placeholder')}
                     className="max-h-40 flex-1 resize-none bg-transparent text-sm leading-relaxed text-foreground outline-none placeholder:text-placeholder disabled:opacity-50"
                 />
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <button
+                            type="button"
+                            disabled={disabled}
+                            title={t('chat.composer.emoji')}
+                            aria-label={t('chat.composer.emoji')}
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                        >
+                            <Smile className="h-5 w-5" />
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" side="top" className="w-auto p-2">
+                        <div className="grid grid-cols-8 gap-0.5">
+                            {EMOJIS.map(emoji => (
+                                <button
+                                    key={emoji}
+                                    type="button"
+                                    onClick={() => insertEmoji(emoji)}
+                                    className="flex h-8 w-8 items-center justify-center rounded-md text-lg transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                    {emoji}
+                                </button>
+                            ))}
+                        </div>
+                    </PopoverContent>
+                </Popover>
                 <button
                     type="button"
                     onClick={submit}

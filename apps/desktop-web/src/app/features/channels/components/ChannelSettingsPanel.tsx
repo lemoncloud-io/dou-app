@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Search, X } from 'lucide-react';
@@ -34,6 +34,15 @@ export const ChannelSettingsPanel = ({ channel, myUid }: ChannelSettingsPanelPro
     const { t } = useTranslation();
     const close = useChannelSettingsStore(s => s.close);
     const clearChannel = useSelectedChannelStore(s => s.clearChannel);
+
+    // Esc closes the panel (matches dropdowns/dialogs elsewhere).
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') close();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [close]);
 
     const channelId = channel?.id ?? null;
     const ownerId = channel?.ownerId;

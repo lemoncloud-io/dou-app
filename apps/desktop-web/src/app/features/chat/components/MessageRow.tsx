@@ -1,3 +1,8 @@
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { Check, Copy } from 'lucide-react';
+
 import { cn } from '@chatic/lib/utils';
 
 import type { MessageGroup } from '../utils';
@@ -15,8 +20,17 @@ const formatTime = (ms: number): string => {
 };
 
 export const MessageRow = ({ group }: MessageRowProps) => {
+    const { t } = useTranslation();
+    const [copiedKey, setCopiedKey] = useState<string | null>(null);
     const initial = group.ownerName.charAt(0).toUpperCase() || '?';
     const userId = group.ownerId ?? '';
+
+    const copy = (key: string, content: string) => {
+        void navigator.clipboard?.writeText(content).then(() => {
+            setCopiedKey(key);
+            setTimeout(() => setCopiedKey(curr => (curr === key ? null : curr)), 1200);
+        });
+    };
 
     return (
         <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 transition-colors hover:bg-accent/40">
@@ -44,16 +58,40 @@ export const MessageRow = ({ group }: MessageRowProps) => {
                 <div className="flex flex-col gap-0.5">
                     {group.messages.map(message => {
                         const isPending = message.isPending;
+                        const key = String(message.id ?? message.tempId ?? message.chatNo);
+                        const content = message.content ?? '';
+                        const isCopied = copiedKey === key;
                         return (
-                            <p
-                                key={message.id ?? message.tempId ?? message.chatNo}
-                                className={cn(
-                                    'whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground',
-                                    isPending && 'opacity-50'
+                            <div key={key} className="group/msg relative pr-8">
+                                <p
+                                    className={cn(
+                                        'whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground',
+                                        isPending && 'opacity-50'
+                                    )}
+                                >
+                                    {content}
+                                </p>
+                                {content && (
+                                    <button
+                                        type="button"
+                                        onClick={() => copy(key, content)}
+                                        title={isCopied ? t('chat.copied') : t('chat.copy')}
+                                        aria-label={t('chat.copy')}
+                                        className={cn(
+                                            'absolute right-0 top-0 flex h-6 w-6 items-center justify-center rounded border border-border bg-background text-muted-foreground transition-opacity hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                            isCopied
+                                                ? 'opacity-100'
+                                                : 'opacity-0 group-hover/msg:opacity-100 focus-visible:opacity-100'
+                                        )}
+                                    >
+                                        {isCopied ? (
+                                            <Check size={12} className="text-primary" />
+                                        ) : (
+                                            <Copy size={12} />
+                                        )}
+                                    </button>
                                 )}
-                            >
-                                {message.content ?? ''}
-                            </p>
+                            </div>
                         );
                     })}
                 </div>
