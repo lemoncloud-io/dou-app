@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { AppBridgeHost } from '@chatic/bridges';
-import { app, BrowserWindow, ipcMain, Menu, type MenuItemConstructorOptions, nativeImage, Notification, shell, Tray } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, type MenuItemConstructorOptions, nativeImage, Notification, screen, shell, Tray } from 'electron';
 import electronUpdater from 'electron-updater';
 
 /**
@@ -43,9 +43,22 @@ const loadWindowBounds = (): { x?: number; y?: number; width: number; height: nu
             height?: number;
         };
         if (typeof b.width === 'number' && typeof b.height === 'number') {
+            // Only restore the saved position if it still lands on a connected
+            // display (a monitor may have been unplugged) — else let it center.
+            const onScreen =
+                typeof b.x === 'number' &&
+                typeof b.y === 'number' &&
+                screen.getAllDisplays().some(({ workArea }) => {
+                    return (
+                        b.x! >= workArea.x &&
+                        b.y! >= workArea.y &&
+                        b.x! < workArea.x + workArea.width &&
+                        b.y! < workArea.y + workArea.height
+                    );
+                });
             return {
-                x: b.x,
-                y: b.y,
+                x: onScreen ? b.x : undefined,
+                y: onScreen ? b.y : undefined,
                 width: Math.max(BOUNDS_MIN_WIDTH, b.width),
                 height: Math.max(BOUNDS_MIN_HEIGHT, b.height),
             };
