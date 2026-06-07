@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
 import { useWebSocketV2Store } from '@chatic/socket';
+import { useWebCoreStore } from '@chatic/web-core';
 
 import { useRepositories } from '@chatic/app-runtime';
+import { computeChannelUnread } from '../utils';
 
 const CHANNEL_LIMIT = 100;
 
@@ -22,6 +24,7 @@ const sortByRecency = (list: DomainChannel[]): DomainChannel[] =>
 export const useChannels = (placeId: string | undefined) => {
     const { channel: channelRepository } = useRepositories();
     const isVerified = useWebSocketV2Store(s => s.isVerified);
+    const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
     const [channels, setChannels] = useState<DomainChannel[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -42,10 +45,13 @@ export const useChannels = (placeId: string | undefined) => {
 
         const fetchChannels = () => {
             channelRepository
-                .fetchChannel({ sid: placeId, limit: CHANNEL_LIMIT }, { cachePolicy: 'cache-first' })
+                .fetchChannel({ sid: placeId, detail: true, limit: CHANNEL_LIMIT }, { cachePolicy: 'cache-first' })
                 .then(result => {
                     if (!active) return;
-                    setChannels(sortByRecency((result.list ?? []) as DomainChannel[]));
+                    const list = (result.list ?? []) as DomainChannel[];
+                    // Override the server's eventually-consistent unreadCount with the local compute.
+                    const withUnread = list.map(c => ({ ...c, unreadCount: computeChannelUnread(c, myUid) }));
+                    setChannels(sortByRecency(withUnread));
                 })
                 .finally(() => {
                     if (active) setIsLoading(false);
@@ -64,7 +70,7 @@ export const useChannels = (placeId: string | undefined) => {
             active = false;
             unsubs.forEach(fn => fn());
         };
-    }, [channelRepository, placeId, isVerified]);
+    }, [channelRepository, placeId, isVerified, myUid]);
 
     return { channels, isLoading };
 };

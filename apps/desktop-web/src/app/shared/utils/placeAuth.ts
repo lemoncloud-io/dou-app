@@ -30,6 +30,8 @@ export const authPlace = async (placeId: string): Promise<void> => {
 
     const currentProfile = useWebCoreStore.getState().profile;
     const { Token: _token, ...cloudProfile } = refreshed;
+    // refreshed token only partially overlaps UserProfile$; the socket auth handshake
+    // populates the remaining required fields. Cast needed until UserProfile$ relaxes them.
     useWebCoreStore.getState().setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
 
     // useCloudTokenRefresh observes isVerified=false → emits auth:update.

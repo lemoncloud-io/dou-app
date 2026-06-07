@@ -20,8 +20,12 @@ export interface RailCloud {
 export const useClouds = () => {
     const { clouds: rawClouds, isFetchingClouds } = useCloudSession();
     const storeCloudId = useWebSocketV2Store(s => s.cloudId);
-    // Fall back to 'default' so the synthesized Home workspace highlights in relay mode.
-    const activeCloudId = storeCloudId || cloudCore.getSelectedCloudId() || (rawClouds.length === 0 ? 'default' : null);
+    // Fall back to 'default' so the synthesized Home workspace highlights in relay mode —
+    // but only once the fetch settled, to avoid briefly highlighting it then un-highlighting.
+    const activeCloudId =
+        storeCloudId ||
+        cloudCore.getSelectedCloudId() ||
+        (!isFetchingClouds && rawClouds.length === 0 ? 'default' : null);
 
     const clouds = useMemo<RailCloud[]>(() => {
         const mapped = rawClouds

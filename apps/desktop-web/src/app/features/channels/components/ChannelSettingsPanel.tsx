@@ -57,7 +57,7 @@ export const ChannelSettingsPanel = ({ channel, myUid }: ChannelSettingsPanelPro
                     type="button"
                     aria-label={t('channels.settings.close')}
                     onClick={close}
-                    className="rounded p-1 text-muted-foreground hover:bg-accent"
+                    className="rounded p-1 text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                     <X size={18} />
                 </button>

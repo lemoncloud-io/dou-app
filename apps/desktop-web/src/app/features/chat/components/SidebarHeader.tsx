@@ -43,7 +43,7 @@ export const SidebarHeader = ({
         <div className="flex flex-col gap-2 border-b border-border/60 px-3 pb-3 pt-3">
             <DropdownMenu>
                 <DropdownMenuTrigger
-                    className="flex items-center justify-between gap-2 rounded-md px-1 py-1 text-left outline-none transition-colors hover:bg-accent disabled:opacity-50"
+                    className="flex items-center justify-between gap-2 rounded-md px-1 py-1 text-left outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                     disabled={places.length === 0}
                 >
                     <span className="truncate text-base font-bold text-sidebar-foreground">
@@ -106,7 +106,7 @@ export const SidebarHeader = ({
                 <button
                     onClick={onCreateChannel}
                     title={t('rail.addChannel')}
-                    className="flex h-5 w-5 items-center justify-center rounded text-base leading-none text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className="flex h-5 w-5 items-center justify-center rounded text-base leading-none text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                     +
                 </button>

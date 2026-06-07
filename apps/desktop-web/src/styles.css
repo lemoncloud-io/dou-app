@@ -37,6 +37,10 @@
         --sidebar: 220 16% 97%;
         --sidebar-foreground: 220 20% 12%;
 
+        /* Per-identity avatar fills (hue varies per user; L + fg keep contrast in each theme) */
+        --avatar-l: 40%;
+        --avatar-fg: 0 0% 100%;
+
         --destructive: 0 84% 60%;
         --destructive-foreground: 0 0% 100%;
 
@@ -104,6 +108,9 @@
         --rail-muted: 0 0% 15%;
         --sidebar: 0 0% 9%;
         --sidebar-foreground: 0 0% 96%;
+
+        --avatar-l: 58%;
+        --avatar-fg: 0 0% 8%;
 
         --destructive: 0 62% 50%;
         --destructive-foreground: 0 0% 98%;

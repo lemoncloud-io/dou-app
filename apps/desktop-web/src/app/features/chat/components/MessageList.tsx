@@ -3,20 +3,21 @@ import { useTranslation } from 'react-i18next';
 
 import type { DomainChat } from '@chatic/data';
 
-import { buildMessageRows } from '../utils';
+import { buildMessageRows, type MessageViewer } from '../utils';
 import { DateSeparator } from './DateSeparator';
 import { MessageRow } from './MessageRow';
 
 interface MessageListProps {
     messages: DomainChat[];
     isLoading: boolean;
+    viewer: MessageViewer;
 }
 
-export const MessageList = ({ messages, isLoading }: MessageListProps) => {
+export const MessageList = ({ messages, isLoading, viewer }: MessageListProps) => {
     const { t } = useTranslation();
     const bottomRef = useRef<HTMLDivElement>(null);
 
-    const rows = useMemo(() => buildMessageRows(messages), [messages]);
+    const rows = useMemo(() => buildMessageRows(messages, viewer), [messages, viewer]);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ block: 'end' });
@@ -24,7 +25,7 @@ export const MessageList = ({ messages, isLoading }: MessageListProps) => {
 
     if (isLoading) {
         return (
-            <div className="flex flex-1 flex-col gap-5 overflow-hidden p-4" aria-label={t('chat.loading')}>
+            <div role="status" aria-live="polite" aria-label={t('chat.loading')} className="flex flex-1 flex-col gap-5 overflow-hidden p-4">
                 {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className="flex gap-3">
                         <span className="h-9 w-9 shrink-0 rounded-md bg-muted" />

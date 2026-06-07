@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useWebCoreStore } from '@chatic/web-core';
@@ -17,6 +18,8 @@ export const ChatPane = ({ channel }: ChatPaneProps) => {
     const { t } = useTranslation();
     const channelId = channel?.id ?? null;
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
+    const myName = useWebCoreStore(s => s.profile?.$user?.name ?? '');
+    const viewer = useMemo(() => ({ uid: myUid, name: myName }), [myUid, myName]);
     const { messages, isLoading } = useChats(channelId);
     const { sendMessage, isSending } = useChatMutations();
 
@@ -57,7 +60,7 @@ export const ChatPane = ({ channel }: ChatPaneProps) => {
                 </div>
                 <ChannelHeaderMenu channel={channel} myUid={myUid} />
             </header>
-            <MessageList messages={messages} isLoading={isLoading} />
+            <MessageList messages={messages} isLoading={isLoading} viewer={viewer} />
             <Composer disabled={isSending} onSend={handleSend} />
         </>
     );

@@ -41,11 +41,16 @@ export const InviteLoginPage = () => {
                     </div>
                 </div>
 
+                <label htmlFor="invite-code" className="sr-only">
+                    {t('auth.invite.placeholder')}
+                </label>
                 <input
+                    id="invite-code"
                     autoFocus
                     value={code}
                     onChange={e => setCode(e.target.value)}
                     placeholder={t('auth.invite.placeholder')}
+                    aria-label={t('auth.invite.placeholder')}
                     disabled={isSubmitting}
                     className={cn(
                         'h-11 rounded-lg border bg-background px-3 text-sm text-foreground outline-none transition-colors',

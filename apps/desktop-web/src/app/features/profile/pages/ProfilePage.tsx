@@ -2,17 +2,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { cn } from '@chatic/lib/utils';
 import { useWebCoreStore } from '@chatic/web-core';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-/** Deterministic avatar hue, shared visual language with message avatars. */
-const hueFromString = (value: string): number => {
-    let hash = 0;
-    for (let i = 0; i < value.length; i += 1) hash = (hash * 31 + value.charCodeAt(i)) % 360;
-    return hash;
-};
+import { avatarStyle } from '../../../shared';
 
 interface ProfileFieldProps {
     label: string;
@@ -53,7 +47,6 @@ export const ProfilePage = () => {
     const uid = profile?.uid ?? fallback;
     const photo = user?.photo ?? '';
     const initial = (user?.name ?? '?').charAt(0).toUpperCase();
-    const hue = hueFromString(profile?.uid || name);
 
     const handleCopyUid = () => {
         if (!profile?.uid) return;
@@ -76,10 +69,7 @@ export const ProfilePage = () => {
                 <div className="mb-8 flex items-center gap-4">
                     <Avatar className="h-20 w-20 ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
                         {photo && <AvatarImage src={photo} alt={name} />}
-                        <AvatarFallback
-                            className="text-2xl font-semibold text-white"
-                            style={{ backgroundColor: `hsl(${hue} 42% 45%)` }}
-                        >
+                        <AvatarFallback className="text-2xl font-semibold" style={avatarStyle(profile?.uid || name)}>
                             {initial}
                         </AvatarFallback>
                     </Avatar>
@@ -89,7 +79,7 @@ export const ProfilePage = () => {
                     </div>
                 </div>
 
-                <div className={cn('flex flex-col overflow-hidden rounded-xl border border-border bg-card')}>
+                <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
                     <ProfileField label={t('profile.name')} value={name} />
                     <ProfileField label={t('profile.email')} value={email} />
                     <ProfileField

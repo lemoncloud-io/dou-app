@@ -13,7 +13,7 @@ interface ChannelListProps {
 }
 
 const ChannelSkeleton = () => (
-    <div className="flex flex-col gap-1 p-2">
+    <div role="status" aria-label="Loading channels" className="flex flex-col gap-1 p-2">
         {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="flex items-center gap-2 px-3 py-2">
                 <span className="h-3 w-3 shrink-0 rounded-sm bg-muted" />
@@ -48,7 +48,7 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onS
     }
 
     return (
-        <nav className="flex flex-col gap-0.5 p-2">
+        <nav aria-label={t('sidebar.channels')} className="flex flex-col gap-0.5 p-2">
             {filtered.map(channel => {
                 const id = channel.id ?? '';
                 const isActive = id === selectedChannelId;
@@ -60,6 +60,7 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onS
                         onClick={() => onSelect(id)}
                         className={cn(
                             'flex items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm transition-colors',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50',
                             isActive
                                 ? 'bg-primary/15 font-semibold text-foreground'
                                 : hasUnread

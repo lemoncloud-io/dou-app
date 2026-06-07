@@ -56,6 +56,7 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: C
                             className={cn(
                                 'group relative flex h-11 w-11 items-center justify-center text-sm font-semibold transition-all duration-200',
                                 'rounded-2xl hover:rounded-xl active:scale-95',
+                                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-rail',
                                 isActive
                                     ? 'rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/25'
                                     : 'bg-rail-muted text-rail-foreground hover:bg-rail-muted/70',

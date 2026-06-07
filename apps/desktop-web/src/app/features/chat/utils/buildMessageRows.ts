@@ -11,10 +11,21 @@ export interface MessageGroup {
 /** A row in the message pane: either a day divider or a grouped author block. */
 export type MessageRowItem = { kind: 'date'; key: string; timestamp: number } | { kind: 'group'; group: MessageGroup };
 
+/** Identity of the signed-in user, used to name their own (and optimistic) messages. */
+export interface MessageViewer {
+    uid: string | null;
+    name: string;
+}
+
 /** Split a run of same-author messages when they are more than this far apart. */
 const GROUP_TIME_GAP_MS = 5 * 60 * 1000;
 
-const getOwnerName = (chat: DomainChat): string => chat.owner$?.name ?? 'Unknown';
+// The server's ChatView only embeds owner$ for persisted messages — optimistic
+// and own messages have no owner$, so resolve those from the viewer's profile.
+const getOwnerName = (chat: DomainChat, viewer: MessageViewer): string => {
+    if (viewer.uid && chat.ownerId === viewer.uid) return viewer.name || chat.owner$?.name || 'You';
+    return chat.owner$?.name ?? 'Unknown';
+};
 
 const getTimestamp = (chat: DomainChat): number => chat.createdAt ?? chat.createdAtMs ?? 0;
 
@@ -37,7 +48,7 @@ const startOfDay = (ms: number): number => {
  * - consecutive messages by the same author within {@link GROUP_TIME_GAP_MS}
  *   collapse into one `group` (single avatar + name + time header).
  */
-export const buildMessageRows = (messages: DomainChat[]): MessageRowItem[] => {
+export const buildMessageRows = (messages: DomainChat[], viewer: MessageViewer): MessageRowItem[] => {
     const rows: MessageRowItem[] = [];
     let currentGroup: MessageGroup | null = null;
     let lastTimestamp = 0;
@@ -66,7 +77,7 @@ export const buildMessageRows = (messages: DomainChat[]): MessageRowItem[] => {
             currentGroup = {
                 key: message.id ?? message.tempId ?? `${message.channelId}:${message.chatNo}`,
                 ownerId: message.ownerId,
-                ownerName: getOwnerName(message),
+                ownerName: getOwnerName(message, viewer),
                 timestamp,
                 messages: [message],
             };
