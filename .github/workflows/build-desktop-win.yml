@@ -28,6 +28,13 @@ jobs:
               with:
                   node-version-file: '.nvmrc'
 
+            # Root postinstall is POSIX sh ([ ... ] && ... || true). yarn classic runs package
+            # scripts under cmd.exe on Windows, which can't parse it. Point yarn at Git Bash so
+            # postinstall (and the package scripts) run under a POSIX shell.
+            - name: Use bash for yarn scripts
+              shell: bash
+              run: yarn config set script-shell "$(which bash)"
+
             - name: Install dependencies
               run: yarn install --frozen-lockfile
 
