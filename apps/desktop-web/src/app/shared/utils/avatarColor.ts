@@ -1,5 +1,5 @@
 /** Deterministic hue (0–359) from a string — same id always maps to the same color. */
-export const hueFromString = (value: string): number => {
+const hueFromString = (value: string): number => {
     let hash = 0;
     for (let i = 0; i < value.length; i += 1) hash = (hash * 31 + value.charCodeAt(i)) % 360;
     return hash;
