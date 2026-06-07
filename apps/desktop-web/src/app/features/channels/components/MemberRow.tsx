@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { MoreHorizontal } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
-import { Avatar, AvatarFallback } from '@chatic/ui-kit/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -36,6 +36,7 @@ export const MemberRow = ({ member, isMe, canKick, onKick }: MemberRowProps) => 
                     className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                     <Avatar className="size-8 shrink-0">
+                        {member.thumbnail && <AvatarImage src={member.thumbnail} alt={name} />}
                         <AvatarFallback className="text-xs font-semibold" style={avatarStyle(member.id || name)}>
                             {initial}
                         </AvatarFallback>

@@ -4,6 +4,8 @@ export interface MessageGroup {
     key: string;
     ownerId: string | undefined;
     ownerName: string;
+    /** Author avatar (base64 thumbnail) when the server embedded it; else undefined. */
+    avatar: string | undefined;
     /** True when the signed-in user authored this group — drives delivery status. */
     isMine: boolean;
     timestamp: number;
@@ -102,6 +104,7 @@ export const buildMessageRows = (
                 key: message.id ?? message.tempId ?? `${message.channelId}:${message.chatNo}`,
                 ownerId: message.ownerId,
                 ownerName: getOwnerName(message, viewer, names),
+                avatar: message.owner$?.thumbnail,
                 isMine: viewer.uid != null && message.ownerId === viewer.uid,
                 timestamp,
                 messages: [message],

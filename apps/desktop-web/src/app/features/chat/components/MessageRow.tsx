@@ -39,10 +39,14 @@ export const MessageRow = ({ group, onRetry }: MessageRowProps) => {
             <UserProfilePopover userId={userId} fallbackName={group.ownerName}>
                 <button
                     type="button"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    style={avatarStyle(group.ownerId || group.ownerName || '?')}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    style={group.avatar ? undefined : avatarStyle(group.ownerId || group.ownerName || '?')}
                 >
-                    {initial}
+                    {group.avatar ? (
+                        <img src={group.avatar} alt={group.ownerName} className="h-full w-full object-cover" />
+                    ) : (
+                        initial
+                    )}
                 </button>
             </UserProfilePopover>
             <div className="flex min-w-0 flex-1 flex-col">
@@ -58,14 +62,20 @@ export const MessageRow = ({ group, onRetry }: MessageRowProps) => {
                     <span className="text-xs tabular-nums text-muted-foreground">{formatTime(group.timestamp)}</span>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                    {group.messages.map(message => {
+                    {group.messages.map((message, i) => {
                         const isPending = message.isPending;
                         const isFailed = message.isFailed;
                         const key = String(message.id ?? message.tempId ?? message.chatNo);
                         const content = message.content ?? '';
                         const isCopied = copiedKey === key;
+                        const msgTime = formatTime(message.createdAt ?? message.createdAtMs);
                         return (
                             <div key={key} className="group/msg relative pr-8">
+                                {i > 0 && msgTime && (
+                                    <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-[10px] tabular-nums text-muted-foreground/50 group-hover/msg:block">
+                                        {msgTime}
+                                    </span>
+                                )}
                                 <p
                                     className={cn(
                                         'whitespace-pre-wrap break-words text-sm leading-relaxed',

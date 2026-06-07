@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { useWebCoreStore } from '@chatic/web-core';
 
 import type { DomainChannel } from '@chatic/data';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { displayName, useChatMutations, useChats, useReadCursorStore, useReadReceipts } from '../../../shared';
-import { useChannelMembers } from '../../channels';
+import { useChannelMembers, useChannelSettingsStore } from '../../channels';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
@@ -23,6 +24,7 @@ export const ChatPane = ({ channel }: ChatPaneProps) => {
     const viewer = useMemo(() => ({ uid: myUid, name: myName }), [myUid, myName]);
     const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(channelId);
     const { sendMessage, retryMessage, isSending } = useChatMutations();
+    const openSettings = useChannelSettingsStore(s => s.open);
 
     // Snapshot the read position when the channel opens, before HomePage's
     // mark-read effect advances the cursor — this is where the "new messages"
@@ -59,25 +61,34 @@ export const ChatPane = ({ channel }: ChatPaneProps) => {
     }
 
     const handleSend = (content: string) => {
-        void sendMessage({ channelId, content });
+        void sendMessage({ channelId, content }).catch(() =>
+            toast({ variant: 'destructive', description: t('toast.messageFailed') })
+        );
     };
 
     const memberCount = channel.memberNo ?? 0;
+    const desc = channel.desc?.trim();
 
     return (
         <>
             <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
-                <div className="flex min-w-0 items-center gap-2">
+                <button
+                    type="button"
+                    onClick={() => openSettings(channelId)}
+                    title={t('chat.header.settings')}
+                    className="flex min-w-0 items-center gap-2 rounded-md py-1 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-sm font-bold text-primary">
                         #
                     </span>
                     <span className="truncate text-base font-bold text-foreground">{channel.name ?? channelId}</span>
+                    {desc && <span className="truncate text-xs text-muted-foreground">{desc}</span>}
                     {memberCount > 0 && (
                         <span className="shrink-0 border-l border-border pl-2 text-xs tabular-nums text-muted-foreground">
                             {t('channels.settings.memberCount', { count: memberCount })}
                         </span>
                     )}
-                </div>
+                </button>
                 <ChannelHeaderMenu channel={channel} myUid={myUid} />
             </header>
             <MessageList

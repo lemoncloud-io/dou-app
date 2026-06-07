@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { LoadingFallback } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
+import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
 import { DataProvider, GlobalChatSync, WebSocketV2Connection, useAutoSelectCloud } from '@chatic/app-runtime';
 
@@ -64,6 +65,7 @@ export function App() {
                             {isAuthenticated && isWebCoreReady && <CloudBootstrap />}
                             {isAuthenticated && isWebCoreReady && <DesktopNotifications />}
                             <AppRouter />
+                            <Toaster />
                         </DataProvider>
                     </ThemeProvider>
                 </QueryClientProvider>
