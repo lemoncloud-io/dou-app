@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
 import { useWebCoreStore } from '@chatic/web-core';
-import { Avatar, AvatarFallback } from '@chatic/ui-kit/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -36,6 +36,7 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: C
     const logout = useWebCoreStore(s => s.logout);
 
     const userInitial = (profile?.$user?.name ?? '').charAt(0).toUpperCase() || '?';
+    const userPhoto = profile?.$user?.photo;
 
     return (
         <div className="flex h-full w-full flex-col items-center">
@@ -82,6 +83,7 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: C
             <DropdownMenu>
                 <DropdownMenuTrigger className="mt-2 rounded-full outline-none ring-primary/50 focus-visible:ring-2">
                     <Avatar className="h-10 w-10 border border-rail-muted">
+                        {userPhoto && <AvatarImage src={userPhoto} alt={profile?.$user?.name ?? ''} />}
                         <AvatarFallback className="bg-rail-muted text-sm font-semibold text-rail-foreground">
                             {userInitial}
                         </AvatarFallback>

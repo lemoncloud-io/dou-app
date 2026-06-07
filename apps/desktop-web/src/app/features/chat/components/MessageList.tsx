@@ -51,16 +51,23 @@ export const MessageList = ({
         prevTop: 0,
     });
     const prevLenRef = useRef(0);
+    // Highest chatNo the reader has actually reached (at bottom) — newer than this
+    // while scrolled up counts as "new" on the jump button.
+    const seenMaxRef = useRef(0);
 
     const rows = useMemo(
         () => buildMessageRows(messages, viewer, names, baselineReadNo),
         [messages, viewer, names, baselineReadNo]
     );
 
+    const maxChatNo = useMemo(() => messages.reduce((m, c) => Math.max(m, c.chatNo ?? 0), 0), [messages]);
+    const newCount = atBottom ? 0 : messages.reduce((n, c) => ((c.chatNo ?? 0) > seenMaxRef.current ? n + 1 : n), 0);
+
     useLayoutEffect(() => {
         const el = scrollRef.current;
         const grew = messages.length > prevLenRef.current;
         prevLenRef.current = messages.length;
+        if (atBottom) seenMaxRef.current = maxChatNo;
         if (!el) return;
         // Older page prepended → restore the prior viewport offset.
         if (prependRef.current.pending) {
@@ -70,7 +77,7 @@ export const MessageList = ({
         }
         // New tail message (or first load) while pinned to bottom → follow it.
         if (grew && atBottom) bottomRef.current?.scrollIntoView({ block: 'end' });
-    }, [messages, atBottom]);
+    }, [messages, atBottom, maxChatNo]);
 
     const onScroll = () => {
         const el = scrollRef.current;
@@ -96,6 +103,15 @@ export const MessageList = ({
                         </div>
                     </div>
                 ))}
+            </div>
+        );
+    }
+
+    if (messages.length === 0) {
+        return (
+            <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
+                <p className="text-sm font-medium text-foreground">{t('chat.threadEmpty')}</p>
+                <p className="max-w-xs text-xs text-muted-foreground">{t('chat.threadEmptyHint')}</p>
             </div>
         );
     }
@@ -135,8 +151,13 @@ export const MessageList = ({
                     onClick={scrollToBottom}
                     aria-label={t('chat.jumpToLatest')}
                     title={t('chat.jumpToLatest')}
-                    className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-md transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="absolute bottom-4 right-4 flex h-9 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-foreground shadow-md transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
+                    {newCount > 0 && (
+                        <span className="text-xs font-semibold tabular-nums text-primary">
+                            {newCount > 99 ? '99+' : newCount} {t('chat.new')}
+                        </span>
+                    )}
                     <ChevronDown size={18} />
                 </button>
             )}
