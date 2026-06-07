@@ -124,6 +124,12 @@ const registerHandlers = (host: AppBridgeHost, win: BrowserWindow): void => {
             });
             notification.show();
         }
+        // Draw attention when the window isn't focused: bounce the macOS dock,
+        // flash the taskbar elsewhere (cleared on focus, see createWindow).
+        if (!win.isFocused()) {
+            if (process.platform === 'darwin') app.dock?.bounce('informational');
+            else win.flashFrame(true);
+        }
         return { type: 'OnShowNotification', success: true, data: { success: true } };
     });
 
@@ -270,6 +276,9 @@ const createWindow = (): BrowserWindow => {
     // Persist size/position so the next launch reopens where the user left it.
     win.on('resized', () => saveWindowBounds(win));
     win.on('moved', () => saveWindowBounds(win));
+
+    // Stop the taskbar flash once the user looks at the window.
+    win.on('focus', () => win.flashFrame(false));
 
     // Close-to-tray: hide instead of destroy unless actually quitting.
     win.on('close', event => {
