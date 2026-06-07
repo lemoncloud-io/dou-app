@@ -28,6 +28,43 @@ const getOrCreateDeviceId = (): string => {
     }
 };
 
+const BOUNDS_MIN_WIDTH = 720;
+const BOUNDS_MIN_HEIGHT = 480;
+
+const windowBoundsFile = (): string => join(app.getPath('userData'), 'chatic-window-bounds.json');
+
+/** Restore the last window size/position so the app reopens where the user left it. */
+const loadWindowBounds = (): { x?: number; y?: number; width: number; height: number } | null => {
+    try {
+        const b = JSON.parse(readFileSync(windowBoundsFile(), 'utf8')) as {
+            x?: number;
+            y?: number;
+            width?: number;
+            height?: number;
+        };
+        if (typeof b.width === 'number' && typeof b.height === 'number') {
+            return {
+                x: b.x,
+                y: b.y,
+                width: Math.max(BOUNDS_MIN_WIDTH, b.width),
+                height: Math.max(BOUNDS_MIN_HEIGHT, b.height),
+            };
+        }
+    } catch {
+        // First run or unreadable — fall back to defaults.
+    }
+    return null;
+};
+
+const saveWindowBounds = (win: BrowserWindow): void => {
+    try {
+        if (win.isMinimized() || win.isMaximized()) return;
+        writeFileSync(windowBoundsFile(), JSON.stringify(win.getBounds()), 'utf8');
+    } catch {
+        // Best-effort; losing saved bounds just reopens at defaults.
+    }
+};
+
 /** IPC channel for App(main) → Web(renderer) bridge messages. */
 const TO_WEB_CHANNEL = 'chatic-bridge:to-web';
 /** IPC channel for Web(renderer) → App(main) bridge messages. */
@@ -158,9 +195,13 @@ const renderErrorHtml = (code: number, desc: string): string => {
 };
 
 const createWindow = (): BrowserWindow => {
+    const saved = loadWindowBounds();
     const win = new BrowserWindow({
-        width: 1280,
-        height: 832,
+        width: saved?.width ?? 1280,
+        height: saved?.height ?? 832,
+        ...(saved?.x != null && saved?.y != null ? { x: saved.x, y: saved.y } : {}),
+        minWidth: BOUNDS_MIN_WIDTH,
+        minHeight: BOUNDS_MIN_HEIGHT,
         show: false,
         // Match the app's dark rail chrome so first paint / show has no white flash.
         backgroundColor: '#0b0d10',
@@ -203,8 +244,13 @@ const createWindow = (): BrowserWindow => {
         host.handleMessage(data);
     });
 
+    // Persist size/position so the next launch reopens where the user left it.
+    win.on('resized', () => saveWindowBounds(win));
+    win.on('moved', () => saveWindowBounds(win));
+
     // Close-to-tray: hide instead of destroy unless actually quitting.
     win.on('close', event => {
+        saveWindowBounds(win);
         if (!isQuitting) {
             event.preventDefault();
             win.hide();
