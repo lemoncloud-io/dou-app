@@ -4,6 +4,7 @@ import { useWebCoreStore } from '@chatic/web-core';
 
 import { DebugLoginPage, InviteLoginPage, TokenLoginPage } from './features/auth';
 import { HomePage } from './features/chat';
+import { DebugStatePage } from './features/debug';
 import { ProfilePage } from './features/profile';
 import { SettingsPage } from './features/settings';
 
@@ -18,6 +19,7 @@ export const AppRouter = () => {
                         <Route path="/" element={<HomePage />} />
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/settings" element={<SettingsPage />} />
+                        {import.meta.env.DEV && <Route path="/debug" element={<DebugStatePage />} />}
                         {/* Once authenticated, leave the auth screens — fixes invite login not advancing. */}
                         <Route path="/auth/*" element={<Navigate to="/" replace />} />
                         <Route path="*" element={<Navigate to="/" replace />} />
