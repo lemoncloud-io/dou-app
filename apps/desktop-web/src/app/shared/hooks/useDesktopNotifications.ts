@@ -7,12 +7,20 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import { useRepositories } from '@chatic/app-runtime';
 
 import { usePlaces } from './usePlaces';
+import { useReadCursorStore, useSelectedChannelStore } from '../stores';
 
 const CHANNEL_LIMIT = 100;
 
 const chatAuthorId = (chat: DomainChat): string | undefined => chat.owner$?.id ?? chat.ownerId;
 const maxChatNo = (list: DomainChat[]): number => list.reduce((max, c) => Math.max(max, c.chatNo ?? 0), 0);
 const channelName = (channel: DomainChannel): string => channel.name ?? 'New message';
+
+/** Suppress only when you're actively looking at that channel in a focused window. */
+const isViewing = (channelId: string): boolean =>
+    typeof document !== 'undefined' &&
+    document.hasFocus() &&
+    document.visibilityState === 'visible' &&
+    useSelectedChannelStore.getState().selectedChannelId === channelId;
 
 /**
  * Desktop-only OS notifications. The live WS streams every channel into the engine cache;
@@ -26,6 +34,7 @@ export const useDesktopNotifications = (): void => {
     const { places } = usePlaces();
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const myId = useWebCoreStore(s => s.profile?.id);
+    const myUid = useWebCoreStore(s => s.profile?.uid);
     const seen = useRef<Map<string, number>>(new Map());
 
     // Join the place ids into a stable dependency so the effect re-runs only when the set changes.
@@ -49,10 +58,14 @@ export const useDesktopNotifications = (): void => {
 
                     // Skip the first snapshot (cache warm-up) — only notify on a real increase.
                     if (prev === undefined || top <= prev) return;
-                    if (document.visibilityState !== 'hidden') return;
+                    // Don't notify for a channel you're actively viewing (you can see it).
+                    if (isViewing(channel.id)) return;
+                    // Don't re-notify a message already marked read (e.g. resync redelivery).
+                    if (top <= (useReadCursorStore.getState().cursors[channel.id] ?? 0)) return;
 
                     const latest = list[list.length - 1];
-                    if (myId && chatAuthorId(latest) === myId) return;
+                    const authorId = chatAuthorId(latest);
+                    if (authorId && (authorId === myId || authorId === myUid)) return;
 
                     void webClient
                         .request('ShowNotification', {
@@ -95,5 +108,5 @@ export const useDesktopNotifications = (): void => {
         };
         // placeIds captures the place set; places is read at run time.
          
-    }, [channelRepository, chatRepository, isVerified, myId, placeIds]);
+    }, [channelRepository, chatRepository, isVerified, myId, myUid, placeIds]);
 };
