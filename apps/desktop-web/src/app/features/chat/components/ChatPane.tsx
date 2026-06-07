@@ -7,16 +7,19 @@ import type { DomainChannel } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { displayName, useChatMutations, useChats, useReadCursorStore, useReadReceipts } from '../../../shared';
-import { useChannelMembers, useChannelSettingsStore } from '../../channels';
+import type { ChannelMember } from '../../channels';
+import { useChannelSettingsStore } from '../../channels';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
 
 interface ChatPaneProps {
     channel: DomainChannel | undefined;
+    /** Roster for the open channel (lifted to HomePage so it's fetched once). */
+    members: ChannelMember[];
 }
 
-export const ChatPane = ({ channel }: ChatPaneProps) => {
+export const ChatPane = ({ channel, members }: ChatPaneProps) => {
     const { t } = useTranslation();
     const channelId = channel?.id ?? null;
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
@@ -30,15 +33,17 @@ export const ChatPane = ({ channel }: ChatPaneProps) => {
     // mark-read effect advances the cursor — this is where the "new messages"
     // divider sits. Captured during render so it precedes that post-commit effect.
     const baselineRef = useRef<{ id: string | null; no: number }>({ id: null, no: 0 });
-    if (baselineRef.current.id !== channelId) {
+    const serverJoinNo = channel?.$join?.chatNo ?? 0;
+    // Re-capture once the channel's $join arrives (it can land a render after the
+    // channelId flips), otherwise the divider would freeze at a stale 0 baseline.
+    if (baselineRef.current.id !== channelId || (baselineRef.current.no === 0 && serverJoinNo > 0)) {
         const localCursor = channelId ? (useReadCursorStore.getState().cursors[channelId] ?? 0) : 0;
-        baselineRef.current = { id: channelId, no: Math.max(localCursor, channel?.$join?.chatNo ?? 0) };
+        baselineRef.current = { id: channelId, no: Math.max(localCursor, serverJoinNo) };
     }
     const baselineReadNo = baselineRef.current.no;
 
-    // The server frequently omits owner$ on other users' messages, so resolve
-    // author names from the channel roster (id → name) for the message list.
-    const { members } = useChannelMembers(channelId, channel?.ownerId);
+    // owner$ is often omitted on other users' messages; resolve author names from
+    // the channel roster (id → name). Members are fetched once in HomePage.
     const memberNames = useMemo(() => {
         const map = new Map<string, string>();
         for (const member of members) map.set(member.id, displayName(member));
@@ -92,6 +97,7 @@ export const ChatPane = ({ channel }: ChatPaneProps) => {
                 <ChannelHeaderMenu channel={channel} myUid={myUid} />
             </header>
             <MessageList
+                key={channelId}
                 messages={messages}
                 isLoading={isLoading}
                 viewer={viewer}

@@ -9,7 +9,8 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 
 import { displayName, useNotificationPrefsStore, useSelectedChannelStore } from '../../../shared';
-import { useChannelActions, useChannelMembers } from '../hooks';
+import type { ChannelMember } from '../hooks';
+import { useChannelActions } from '../hooks';
 import { useChannelSettingsStore } from '../stores';
 import { isChannelOwner } from '../utils';
 import { ChannelActionDialogs } from './ChannelActionDialogs';
@@ -22,6 +23,10 @@ interface ChannelSettingsPanelProps {
     /** The channel matching the store's openChannelId, resolved by the host. */
     channel: DomainChannel | undefined;
     myUid: string | null;
+    /** Roster, fetched once by the host and shared with the chat pane. */
+    members: ChannelMember[];
+    membersLoading: boolean;
+    membersError: Error | null;
 }
 
 /**
@@ -31,7 +36,13 @@ interface ChannelSettingsPanelProps {
  * actions (Leave for everyone, Delete for owner). After delete/leave the panel
  * closes and the selected channel is cleared.
  */
-export const ChannelSettingsPanel = ({ channel, myUid }: ChannelSettingsPanelProps) => {
+export const ChannelSettingsPanel = ({
+    channel,
+    myUid,
+    members,
+    membersLoading,
+    membersError,
+}: ChannelSettingsPanelProps) => {
     const { t } = useTranslation();
     const close = useChannelSettingsStore(s => s.close);
     const clearChannel = useSelectedChannelStore(s => s.clearChannel);
@@ -48,10 +59,8 @@ export const ChannelSettingsPanel = ({ channel, myUid }: ChannelSettingsPanelPro
     }, [close]);
 
     const channelId = channel?.id ?? null;
-    const ownerId = channel?.ownerId;
     const isOwner = isChannelOwner(channel, myUid);
 
-    const { members, isLoading, error } = useChannelMembers(channelId, ownerId);
     const memberCount = members.length || channel?.memberNo || 0;
 
     // Filter only kicks in on larger rosters — a handful of members needs no search box.
@@ -135,8 +144,8 @@ export const ChannelSettingsPanel = ({ channel, myUid }: ChannelSettingsPanelPro
                     ) : (
                         <MemberList
                             members={filteredMembers}
-                            isLoading={isLoading}
-                            error={error}
+                            isLoading={membersLoading}
+                            error={membersError}
                             myUid={myUid}
                             canKick={isOwner}
                             onKick={openKick}

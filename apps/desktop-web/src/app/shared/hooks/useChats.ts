@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { DomainChat } from '@chatic/data';
 
@@ -35,18 +35,25 @@ export const useChats = (channelId: string | null) => {
     const [older, setOlder] = useState<DomainChat[]>([]);
     const [hasMore, setHasMore] = useState(true);
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+    // Tracks the channel the hook is currently bound to, so an in-flight
+    // loadOlder() that resolves after a channel switch can bail instead of
+    // merging the previous channel's history into the new one.
+    const channelIdRef = useRef(channelId);
 
     useEffect(() => {
+        channelIdRef.current = channelId;
         if (!channelId) {
             setLive([]);
             setOlder([]);
             setHasMore(false);
+            setIsLoadingOlder(false);
             return;
         }
 
         setLive(null);
         setOlder([]);
         setHasMore(true);
+        setIsLoadingOlder(false);
 
         const unsubscribe = chatRepository.subscribeList(channelId, result => setLive(result?.list ?? []));
 
@@ -66,25 +73,31 @@ export const useChats = (channelId: string | null) => {
     const loadOlder = useCallback(async () => {
         if (!channelId || isLoadingOlder || !hasMore) return;
         const oldest = messages[0]?.chatNo;
-        if (!oldest || oldest <= 1) {
+        if (!oldest) {
             setHasMore(false);
             return;
         }
+        const reqChannel = channelId;
         setIsLoadingOlder(true);
         try {
             const result = await chatRepository.fetchChat(
-                { channelId, cursorNo: oldest, limit: PAGE_SIZE },
+                { channelId: reqChannel, cursorNo: oldest, limit: PAGE_SIZE },
                 { cachePolicy: 'network-only' }
             );
+            // Channel switched while the request was in flight — drop the result.
+            if (reqChannel !== channelIdRef.current) return;
             const list = result.list ?? [];
-            setOlder(prev => mergeUnique(prev, list));
-            if (list.length < PAGE_SIZE) setHasMore(false);
+            const merged = mergeUnique(older, list);
+            // Stop when a short page came back OR the page added nothing new (a full
+            // page of duplicates would otherwise re-fetch the same cursor forever).
+            if (list.length < PAGE_SIZE || merged.length === older.length) setHasMore(false);
+            setOlder(merged);
         } catch {
             // Leave hasMore set so a later scroll retries.
         } finally {
-            setIsLoadingOlder(false);
+            if (reqChannel === channelIdRef.current) setIsLoadingOlder(false);
         }
-    }, [channelId, chatRepository, messages, isLoadingOlder, hasMore]);
+    }, [channelId, chatRepository, messages, older, isLoadingOlder, hasMore]);
 
     return {
         messages,

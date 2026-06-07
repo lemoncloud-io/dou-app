@@ -5,6 +5,7 @@ import { Check, Clock, Copy } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import type { MessageGroup } from '../utils';
 import { UserProfilePopover, avatarStyle } from '../../../shared';
@@ -39,14 +40,17 @@ export const MessageRow = ({ group, onRetry }: MessageRowProps) => {
             <UserProfilePopover userId={userId} fallbackName={group.ownerName}>
                 <button
                     type="button"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    style={group.avatar ? undefined : avatarStyle(group.ownerId || group.ownerName || '?')}
+                    className="h-9 w-9 shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                    {group.avatar ? (
-                        <img src={group.avatar} alt={group.ownerName} className="h-full w-full object-cover" />
-                    ) : (
-                        initial
-                    )}
+                    <Avatar className="h-9 w-9 rounded-md">
+                        {group.avatar && <AvatarImage src={group.avatar} alt={group.ownerName} />}
+                        <AvatarFallback
+                            className="rounded-md text-sm font-semibold"
+                            style={avatarStyle(group.ownerId || group.ownerName || '?')}
+                        >
+                            {initial}
+                        </AvatarFallback>
+                    </Avatar>
                 </button>
             </UserProfilePopover>
             <div className="flex min-w-0 flex-1 flex-col">

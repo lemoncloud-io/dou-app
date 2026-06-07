@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Search } from 'lucide-react';
+
 import type { DomainSite } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import {
@@ -105,15 +107,10 @@ export const SidebarHeader = ({
             </DropdownMenu>
 
             <div className="relative">
-                <svg
-                    className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    aria-hidden
-                >
-                    <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
+                <Search
+                    size={16}
+                    className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
                 <Input
                     ref={searchRef}
                     value={query}

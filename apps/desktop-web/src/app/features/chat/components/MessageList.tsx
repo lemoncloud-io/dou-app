@@ -54,6 +54,7 @@ export const MessageList = ({
     // Highest chatNo the reader has actually reached (at bottom) — newer than this
     // while scrolled up counts as "new" on the jump button.
     const seenMaxRef = useRef(0);
+    const [newCount, setNewCount] = useState(0);
 
     const rows = useMemo(
         () => buildMessageRows(messages, viewer, names, baselineReadNo),
@@ -61,13 +62,25 @@ export const MessageList = ({
     );
 
     const maxChatNo = useMemo(() => messages.reduce((m, c) => Math.max(m, c.chatNo ?? 0), 0), [messages]);
-    const newCount = atBottom ? 0 : messages.reduce((n, c) => ((c.chatNo ?? 0) > seenMaxRef.current ? n + 1 : n), 0);
 
     useLayoutEffect(() => {
         const el = scrollRef.current;
         const grew = messages.length > prevLenRef.current;
         prevLenRef.current = messages.length;
-        if (atBottom) seenMaxRef.current = maxChatNo;
+        // Recompute the unread-while-scrolled-up count here (not in render) so it
+        // only changes with messages/atBottom — not on every scroll tick. Own
+        // messages never count.
+        if (atBottom) {
+            seenMaxRef.current = maxChatNo;
+            setNewCount(0);
+        } else {
+            setNewCount(
+                messages.reduce(
+                    (n, c) => ((c.chatNo ?? 0) > seenMaxRef.current && c.ownerId !== viewer.uid ? n + 1 : n),
+                    0
+                )
+            );
+        }
         if (!el) return;
         // Older page prepended → restore the prior viewport offset.
         if (prependRef.current.pending) {
@@ -77,7 +90,7 @@ export const MessageList = ({
         }
         // New tail message (or first load) while pinned to bottom → follow it.
         if (grew && atBottom) bottomRef.current?.scrollIntoView({ block: 'end' });
-    }, [messages, atBottom, maxChatNo]);
+    }, [messages, atBottom, maxChatNo, viewer.uid]);
 
     const onScroll = () => {
         const el = scrollRef.current;

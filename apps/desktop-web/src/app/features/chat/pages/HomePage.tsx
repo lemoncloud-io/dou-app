@@ -5,6 +5,7 @@ import { useWebCoreStore } from '@chatic/web-core';
 import {
     ChannelSettingsPanel,
     CreateChannelDialog,
+    useChannelMembers,
     useChannelSettingsStore,
     useCreateChannelDialogStore,
 } from '../../channels';
@@ -73,6 +74,14 @@ export const HomePage = () => {
     const settingsChannel = settingsChannelId ? channels.find(channel => channel.id === settingsChannelId) : undefined;
     const cloudHasUnread = Object.values(unreadByPlace).some(count => count > 0);
 
+    // One member subscription per open channel, shared by the chat pane (author
+    // names) and the settings panel (roster/kick) — avoids a duplicate fetch.
+    const {
+        members,
+        isLoading: membersLoading,
+        error: membersError,
+    } = useChannelMembers(selectedChannelId ?? null, selectedChannel?.ownerId);
+
     // Keep the open channel marked read up to its latest message (cursor grows as
     // new messages arrive while it's open), so it never shows unread after you
     // switch away — independent of the read-receipt debounce / window focus.
@@ -117,8 +126,18 @@ export const HomePage = () => {
                         </div>
                     </>
                 }
-                main={<ChatPane channel={selectedChannel} />}
-                panel={settingsChannel ? <ChannelSettingsPanel channel={settingsChannel} myUid={myUid} /> : undefined}
+                main={<ChatPane channel={selectedChannel} members={members} />}
+                panel={
+                    settingsChannel ? (
+                        <ChannelSettingsPanel
+                            channel={settingsChannel}
+                            myUid={myUid}
+                            members={members}
+                            membersLoading={membersLoading}
+                            membersError={membersError}
+                        />
+                    ) : undefined
+                }
             />
             <CreateChannelDialog />
         </>

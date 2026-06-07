@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Check, Copy } from 'lucide-react';
@@ -6,7 +6,7 @@ import { Check, Copy } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 
-import { useUser } from '../hooks';
+import { useCopyToClipboard, useUser } from '../hooks';
 import { avatarStyle, bannerStyle } from '../utils';
 
 interface UserProfilePopoverProps {
@@ -19,24 +19,16 @@ interface UserProfilePopoverProps {
     children: ReactNode;
 }
 
-interface ProfileCardContentProps {
-    userId: string;
-    fallbackName?: string;
-    isOwner?: boolean;
-}
-
-const COPY_RESET_MS = 1500;
-
 /**
  * Card body. Rendered only while the popover is open (Radix unmounts closed
  * content), so the user subscription lives only for the open card — never one
  * per message row. Other users expose just avatar/name/nick, so the card stays
  * deliberately minimal: hue banner, identity, and a copy-id row.
  */
-const ProfileCardContent = ({ userId, fallbackName, isOwner }: ProfileCardContentProps) => {
+const ProfileCardContent = ({ userId, fallbackName, isOwner }: Omit<UserProfilePopoverProps, 'children'>) => {
     const { t } = useTranslation();
     const user = useUser(userId || null);
-    const [copied, setCopied] = useState(false);
+    const [copied, copy] = useCopyToClipboard();
 
     const name = user?.name ?? user?.nick ?? fallbackName ?? userId;
     const nick = user?.nick && user.nick !== name ? user.nick : undefined;
@@ -45,11 +37,7 @@ const ProfileCardContent = ({ userId, fallbackName, isOwner }: ProfileCardConten
     const thumbnail = user?.thumbnail;
 
     const handleCopy = () => {
-        if (!userId) return;
-        void navigator.clipboard?.writeText(userId).then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), COPY_RESET_MS);
-        });
+        if (userId) copy(userId);
     };
 
     return (

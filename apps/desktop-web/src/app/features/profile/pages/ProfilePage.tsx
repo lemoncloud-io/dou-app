@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -6,7 +5,7 @@ import { useWebCoreStore } from '@chatic/web-core';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-import { avatarStyle } from '../../../shared';
+import { avatarStyle, useCopyToClipboard } from '../../../shared';
 
 interface ProfileFieldProps {
     label: string;
@@ -38,7 +37,7 @@ export const ProfilePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const profile = useWebCoreStore(s => s.profile);
-    const [copied, setCopied] = useState(false);
+    const [copied, copy] = useCopyToClipboard();
 
     const user = profile?.$user;
     const fallback = t('profile.unknown');
@@ -49,11 +48,7 @@ export const ProfilePage = () => {
     const initial = (user?.name ?? '?').charAt(0).toUpperCase();
 
     const handleCopyUid = () => {
-        if (!profile?.uid) return;
-        void navigator.clipboard?.writeText(profile.uid).then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-        });
+        if (profile?.uid) copy(profile.uid);
     };
 
     return (
