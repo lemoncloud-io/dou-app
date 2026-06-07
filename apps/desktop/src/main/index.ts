@@ -33,8 +33,13 @@ const TO_WEB_CHANNEL = 'chatic-bridge:to-web';
 /** IPC channel for Web(renderer) → App(main) bridge messages. */
 const TO_APP_CHANNEL = 'chatic-bridge:to-app';
 
-/** Remote Desktop Web URL. Dev points at the local desktop-web vite server (5005); prod reads env (ADR 0001). */
-const DESKTOP_WEB_URL = process.env.VITE_DESKTOP_WEB_URL ?? 'http://localhost:5005';
+/**
+ * Remote Desktop Web URL, baked at build time (ADR 0001/0003). electron-vite statically
+ * replaces import.meta.env.MAIN_VITE_* into the main bundle, so packaged builds carry the
+ * right URL (a packaged app has no process.env). Local `electron-vite dev` leaves it unset →
+ * falls back to the concurrent local desktop-web vite server on :5005.
+ */
+const DESKTOP_WEB_URL = import.meta.env.MAIN_VITE_DESKTOP_WEB_URL ?? 'http://localhost:5005';
 
 /** Trusted origin for the remote web content. IPC + navigation are locked to it. */
 const trustedOrigin = (() => {
@@ -94,8 +99,13 @@ const registerHandlers = (host: AppBridgeHost, win: BrowserWindow): void => {
 
 /** System tray with close-to-tray so the renderer (and its WS) stays alive for background notifications. */
 const createTray = (win: BrowserWindow): void => {
-    // TODO: replace empty image with a real tray icon asset before release.
-    tray = new Tray(nativeImage.createEmpty());
+    // tray.png ships via electron-builder extraResources in packaged builds; in dev it sits
+    // beside the project root (out/main → ../../build). createFromPath tolerates a missing file
+    // (returns an empty image), so a bad path degrades to the old empty-tray behaviour.
+    const trayIconPath = app.isPackaged
+        ? join(process.resourcesPath, 'tray.png')
+        : join(__dirname, '../../build/tray.png');
+    tray = new Tray(nativeImage.createFromPath(trayIconPath));
     tray.setToolTip('Chatic');
     tray.setContextMenu(
         Menu.buildFromTemplate([

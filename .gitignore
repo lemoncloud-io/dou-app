@@ -7,6 +7,9 @@ CLAUDE.md
 .env
 .env.*
 !.env.example
+# Desktop shell per-mode build URLs are public (baked into the bundle), not secrets — track them.
+!apps/desktop/.env.dev
+!apps/desktop/.env.production
 scripts/.env.deploy
 
 # Firebase configuration
@@ -88,6 +91,9 @@ DerivedData
 # Android/IntelliJ
 #
 build/
+# Desktop shell electron-builder resources (icons, tray) live in build/ — track them.
+!apps/desktop/build/
+!apps/desktop/build/**
 .idea
 .gradle
 local.properties

@@ -1,0 +1,42 @@
+name: build-desktop-win
+
+# Windows installers can't be cross-built from macOS (NSIS needs Wine), so the Windows
+# .exe is built here on a windows-latest runner. macOS builds run locally. Unsigned,
+# internal distribution — the artifact is downloaded from the run and shared by hand
+# (ADR-0003). Manual trigger so installers never build on every push.
+on:
+    workflow_dispatch:
+        inputs:
+            env:
+                description: Target environment
+                type: choice
+                options:
+                    - dev
+                    - prod
+                default: dev
+
+jobs:
+    build:
+        name: Build Windows installer (${{ inputs.env }})
+        runs-on: windows-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Install dependencies
+              run: yarn install --frozen-lockfile
+
+            - name: Package Windows installer
+              run: yarn workspace @chatic/desktop package:win:${{ inputs.env }}
+
+            - name: Upload installer artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: chatic-desktop-${{ inputs.env }}-win
+                  path: apps/desktop/release/*.exe
+                  if-no-files-found: error
