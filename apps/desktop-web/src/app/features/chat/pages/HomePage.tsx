@@ -37,6 +37,7 @@ export const HomePage = () => {
     const clearChannel = useSelectedChannelStore(s => s.clearChannel);
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
+    const closeSettings = useChannelSettingsStore(s => s.close);
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
 
     const [query, setQuery] = useState('');
@@ -55,6 +56,11 @@ export const HomePage = () => {
     useEffect(() => {
         clearChannel();
     }, [selectedPlaceId, clearChannel]);
+
+    // The settings panel belongs to one channel — close it when you switch away.
+    useEffect(() => {
+        closeSettings();
+    }, [selectedChannelId, closeSettings]);
 
     useEffect(() => {
         if (!selectedChannelId && channels.length > 0) {
