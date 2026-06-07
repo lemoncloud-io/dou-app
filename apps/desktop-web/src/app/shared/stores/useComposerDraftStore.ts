@@ -13,10 +13,10 @@ interface ComposerDraftState {
  */
 export const useComposerDraftStore = create<ComposerDraftState>(set => ({
     drafts: {},
-    setDraft: (channelId, text) => set(state => ({ drafts: { ...state.drafts, [channelId]: text } })),
+    setDraft: (channelId, text) =>
+        set(state => (state.drafts[channelId] === text ? state : { drafts: { ...state.drafts, [channelId]: text } })),
     clearDraft: channelId =>
         set(state => {
-            if (!(channelId in state.drafts)) return state;
             const drafts = { ...state.drafts };
             delete drafts[channelId];
             return { drafts };

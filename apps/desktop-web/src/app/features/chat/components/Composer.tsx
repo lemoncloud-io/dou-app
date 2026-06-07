@@ -78,8 +78,7 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
         const start = el?.selectionStart ?? value.length;
         const end = el?.selectionEnd ?? value.length;
         const next = value.slice(0, start) + emoji + value.slice(end);
-        setValue(next);
-        setDraft(channelId, next);
+        handleChange(next);
         requestAnimationFrame(() => {
             const pos = start + emoji.length;
             el?.focus();

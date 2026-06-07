@@ -72,7 +72,8 @@ export const HomePage = () => {
 
     const selectedChannel = channels.find(channel => channel.id === selectedChannelId);
     const settingsChannel = settingsChannelId ? channels.find(channel => channel.id === settingsChannelId) : undefined;
-    const cloudHasUnread = Object.values(unreadByPlace).some(count => count > 0);
+    const totalUnread = Object.values(unreadByPlace).reduce((sum, count) => sum + count, 0);
+    const cloudHasUnread = totalUnread > 0;
 
     // One member subscription per open channel, shared by the chat pane (author
     // names) and the settings panel (roster/kick) — avoids a duplicate fetch.
@@ -92,7 +93,6 @@ export const HomePage = () => {
     }, [selectedChannelId, selectedLastChatNo, markRead]);
 
     // Reflect total unread in the window/tab title (e.g. "(3) Chatic").
-    const totalUnread = Object.values(unreadByPlace).reduce((sum, count) => sum + count, 0);
     useEffect(() => {
         document.title = totalUnread > 0 ? `(${totalUnread > 99 ? '99+' : totalUnread}) Chatic` : 'Chatic';
     }, [totalUnread]);
