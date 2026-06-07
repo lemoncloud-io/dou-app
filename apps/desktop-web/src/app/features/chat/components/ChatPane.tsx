@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useWebCoreStore } from '@chatic/web-core';
@@ -28,6 +28,7 @@ export const ChatPane = ({ channel, members }: ChatPaneProps) => {
     const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(channelId);
     const { sendMessage, retryMessage, isSending } = useChatMutations();
     const openSettings = useChannelSettingsStore(s => s.open);
+    const [sendTick, setSendTick] = useState(0);
 
     // Snapshot the read position when the channel opens, before HomePage's
     // mark-read effect advances the cursor — this is where the "new messages"
@@ -66,6 +67,7 @@ export const ChatPane = ({ channel, members }: ChatPaneProps) => {
     }
 
     const handleSend = (content: string) => {
+        setSendTick(tick => tick + 1);
         void sendMessage({ channelId, content }).catch(() =>
             toast({ variant: 'destructive', description: t('toast.messageFailed') })
         );
@@ -107,6 +109,7 @@ export const ChatPane = ({ channel, members }: ChatPaneProps) => {
                 onLoadOlder={() => void loadOlder()}
                 hasMore={hasMore}
                 isLoadingOlder={isLoadingOlder}
+                scrollSignal={sendTick}
             />
             <Composer disabled={isSending} onSend={handleSend} />
         </>

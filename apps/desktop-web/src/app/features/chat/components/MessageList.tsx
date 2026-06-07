@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ChevronDown } from 'lucide-react';
@@ -23,6 +23,8 @@ interface MessageListProps {
     onLoadOlder?: () => void;
     hasMore?: boolean;
     isLoadingOlder?: boolean;
+    /** Increment to force a jump to the latest message (e.g. after you send). */
+    scrollSignal?: number;
 }
 
 const NEAR_BOTTOM_PX = 80;
@@ -38,6 +40,7 @@ export const MessageList = ({
     onLoadOlder,
     hasMore,
     isLoadingOlder,
+    scrollSignal,
 }: MessageListProps) => {
     const { t } = useTranslation();
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -91,6 +94,14 @@ export const MessageList = ({
         // New tail message (or first load) while pinned to bottom → follow it.
         if (grew && atBottom) bottomRef.current?.scrollIntoView({ block: 'end' });
     }, [messages, atBottom, maxChatNo, viewer.uid]);
+
+    // After sending, snap to the latest even if the reader had scrolled up; the
+    // follow-on-grow path then keeps tracking the optimistic message.
+    useEffect(() => {
+        if (!scrollSignal) return;
+        setAtBottom(true);
+        bottomRef.current?.scrollIntoView({ block: 'end' });
+    }, [scrollSignal]);
 
     const onScroll = () => {
         const el = scrollRef.current;
