@@ -14,6 +14,7 @@ import {
     useCloudSwitchFlow,
     usePlaceUnreadCounts,
     usePlaces,
+    useReadCursorStore,
     useSelectPlace,
     useSelectedChannelStore,
     useSelectedPlaceStore,
@@ -65,6 +66,15 @@ export const HomePage = () => {
     const selectedChannel = channels.find(channel => channel.id === selectedChannelId);
     const settingsChannel = settingsChannelId ? channels.find(channel => channel.id === settingsChannelId) : undefined;
     const cloudHasUnread = Object.values(unreadByPlace).some(count => count > 0);
+
+    // Keep the open channel marked read up to its latest message (cursor grows as
+    // new messages arrive while it's open), so it never shows unread after you
+    // switch away — independent of the read-receipt debounce / window focus.
+    const markRead = useReadCursorStore(s => s.markRead);
+    const selectedLastChatNo = selectedChannel?.lastChat$?.chatNo ?? selectedChannel?.chatNo ?? 0;
+    useEffect(() => {
+        if (selectedChannelId && selectedLastChatNo > 0) markRead(selectedChannelId, selectedLastChatNo);
+    }, [selectedChannelId, selectedLastChatNo, markRead]);
 
     return (
         <>

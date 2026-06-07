@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
 import { useWebSocketV2Store } from '@chatic/socket';
@@ -6,6 +6,7 @@ import { useWebCoreStore } from '@chatic/web-core';
 
 import { useRepositories } from '@chatic/app-runtime';
 import { computeChannelUnread } from '../utils';
+import { useReadCursorStore } from '../stores';
 
 const CHANNEL_LIMIT = 100;
 
@@ -27,7 +28,8 @@ export const useChannels = (placeId: string | undefined) => {
     const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
-    const [channels, setChannels] = useState<DomainChannel[]>([]);
+    const readCursors = useReadCursorStore(s => s.cursors);
+    const [rawChannels, setRawChannels] = useState<DomainChannel[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Render-phase reset on place switch (mirrors apps/web useChannels): drop the
@@ -35,7 +37,7 @@ export const useChannels = (placeId: string | undefined) => {
     const [prevPlaceId, setPrevPlaceId] = useState(placeId);
     if (placeId !== prevPlaceId) {
         setPrevPlaceId(placeId);
-        setChannels([]);
+        setRawChannels([]);
         setIsLoading(true);
     }
 
@@ -50,10 +52,7 @@ export const useChannels = (placeId: string | undefined) => {
                 .fetchChannel({ sid: placeId, detail: true, limit: CHANNEL_LIMIT }, { cachePolicy })
                 .then(result => {
                     if (!active) return;
-                    const list = (result.list ?? []) as DomainChannel[];
-                    // Override the server's eventually-consistent unreadCount with the local compute.
-                    const withUnread = list.map(c => ({ ...c, unreadCount: computeChannelUnread(c, myUid) }));
-                    setChannels(sortByRecency(withUnread));
+                    setRawChannels(sortByRecency((result.list ?? []) as DomainChannel[]));
                 })
                 .finally(() => {
                     if (active) setIsLoading(false);
@@ -75,7 +74,14 @@ export const useChannels = (placeId: string | undefined) => {
             active = false;
             unsubs.forEach(fn => fn());
         };
-    }, [channelRepository, chatRepository, joinRepository, placeId, isVerified, myUid]);
+    }, [channelRepository, chatRepository, joinRepository, placeId, isVerified]);
+
+    // Derive unread from the local read cursor too, so reading a channel clears
+    // its badge immediately without waiting for a server-cursor refetch.
+    const channels = useMemo(
+        () => rawChannels.map(c => ({ ...c, unreadCount: computeChannelUnread(c, myUid, readCursors[c.id ?? '']) })),
+        [rawChannels, myUid, readCursors]
+    );
 
     return { channels, isLoading };
 };

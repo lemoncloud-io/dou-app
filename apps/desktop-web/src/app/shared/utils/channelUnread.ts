@@ -8,11 +8,18 @@ import type { DomainChannel } from '@chatic/data';
  * `unreadCount` is eventually consistent. So we derive it locally:
  * - if the last message is mine, I've implicitly read up to it → unread 0;
  * - otherwise unread = latest chatNo − my read cursor.
+ *
+ * `localReadNo` is this client's own read position (see useReadCursorStore). It
+ * takes precedence over the lagging server cursor so a channel we just read
+ * never flashes an unread badge while the server catches up.
  */
-export const computeChannelUnread = (channel: DomainChannel, myUid: string | null): number => {
+export const computeChannelUnread = (channel: DomainChannel, myUid: string | null, localReadNo = 0): number => {
     const lastChatNo = channel.lastChat$?.chatNo ?? channel.chatNo ?? 0;
+    if (localReadNo >= lastChatNo) return 0;
+
     const lastMessageIsMine = !!myUid && channel.lastChat$?.ownerId === myUid;
-    const myReadNo = lastMessageIsMine ? lastChatNo : (channel.$join?.chatNo ?? 0);
-    const localUnread = Math.max(0, lastChatNo - myReadNo);
-    return channel.$join ? localUnread : (channel.unreadCount ?? localUnread);
+    const serverReadNo = lastMessageIsMine ? lastChatNo : (channel.$join?.chatNo ?? 0);
+    const readNo = Math.max(serverReadNo, localReadNo);
+    const derived = Math.max(0, lastChatNo - readNo);
+    return channel.$join ? derived : (channel.unreadCount ?? derived);
 };

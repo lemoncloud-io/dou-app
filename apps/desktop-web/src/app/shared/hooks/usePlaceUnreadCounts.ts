@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
@@ -7,11 +7,14 @@ import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
 
 import { useRepositories } from '@chatic/app-runtime';
 import { computeChannelUnread } from '../utils';
+import { useReadCursorStore } from '../stores';
 
 /**
  * Aggregates unread message counts per place for the active cloud, keyed by
- * place id. Fetches all of the current cloud's channels (`hasSite: false`) and
- * sums `unreadCount` per `sid`. Refetches on verify + channel/chat/join events.
+ * place id. Fetches all of the current cloud's channels (`hasSite: false`),
+ * computes unread client-side (server unreadCount lags), and sums per `sid`.
+ * Refetches on verify + channel/chat/join events; re-derives instantly when the
+ * local read cursor advances so a place badge clears the moment you read.
  *
  * Trimmed desktop port of apps/web usePlaceUnreadCounts (no native badge sync,
  * no 30s polling) — desktop relies on the always-connected socket for freshness.
@@ -21,8 +24,9 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const cloudId = useWebSocketV2Store(s => s.cloudId);
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
+    const readCursors = useReadCursorStore(s => s.cursors);
 
-    const [counts, setCounts] = useState<Record<string, number>>({});
+    const [channels, setChannels] = useState<DomainChannel[]>([]);
     const seqRef = useRef(0);
 
     const fetchCounts = useCallback(async () => {
@@ -36,22 +40,15 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
                 { cachePolicy: 'network-only' }
             );
             if (seqRef.current !== seq) return;
-
-            const grouped: Record<string, number> = {};
-            for (const ch of (result.list ?? []) as DomainChannel[]) {
-                if (!ch.sid) continue;
-                // Local compute, not server unreadCount — self-sent messages stay at 0.
-                grouped[ch.sid] = (grouped[ch.sid] ?? 0) + computeChannelUnread(ch, myUid);
-            }
-            setCounts(grouped);
+            setChannels((result.list ?? []) as DomainChannel[]);
         } catch (error) {
             if (seqRef.current === seq) logger.error('PLACE_UNREAD', '[usePlaceUnreadCounts] failed', { error });
         }
-    }, [channelRepository, myUid]);
+    }, [channelRepository]);
 
     // Reset on cloud change to avoid showing the previous cloud's badges.
     useEffect(() => {
-        setCounts({});
+        setChannels([]);
         ++seqRef.current;
     }, [cloudId]);
 
@@ -70,5 +67,12 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
         return () => unsubs.forEach(fn => fn());
     }, [channelRepository, chatRepository, joinRepository, fetchCounts]);
 
-    return counts;
+    return useMemo(() => {
+        const grouped: Record<string, number> = {};
+        for (const ch of channels) {
+            if (!ch.sid) continue;
+            grouped[ch.sid] = (grouped[ch.sid] ?? 0) + computeChannelUnread(ch, myUid, readCursors[ch.id ?? '']);
+        }
+        return grouped;
+    }, [channels, myUid, readCursors]);
 };

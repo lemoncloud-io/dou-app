@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react';
 import type { DomainChat } from '@chatic/data';
 import { useRepositories } from '@chatic/app-runtime';
 
+import { useReadCursorStore } from '../stores';
+
 const DEBOUNCE_MS = 500;
 
 const maxChatNoOf = (messages: DomainChat[]): number =>
@@ -47,6 +49,9 @@ export const useReadReceipts = (channelId: string | null, messages: DomainChat[]
             const chatNo = maxChatNoOf(messages);
             if (chatNo <= lastSentRef.current) return;
             lastSentRef.current = chatNo;
+            // Optimistically record our read position so the unread badge clears
+            // immediately, without waiting for the server join:update round-trip.
+            useReadCursorStore.getState().markRead(channelId, chatNo);
             void joinRepository.readChat({ channelId, chatNo }).catch(() => {
                 // Roll back so a later attempt retries this chatNo.
                 if (lastSentRef.current === chatNo) lastSentRef.current = 0;
@@ -57,6 +62,14 @@ export const useReadReceipts = (channelId: string | null, messages: DomainChat[]
             clearTimer();
             timerRef.current = setTimeout(flush, DEBOUNCE_MS);
         };
+
+        // While the channel is open + focused, mark read locally the instant a
+        // message arrives (network readChat stays debounced) so the unread badge
+        // never flashes during the debounce window.
+        if (isWindowActive()) {
+            const chatNo = maxChatNoOf(messages);
+            if (chatNo > 0) useReadCursorStore.getState().markRead(channelId, chatNo);
+        }
 
         schedule();
 
