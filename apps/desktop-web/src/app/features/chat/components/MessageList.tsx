@@ -12,13 +12,15 @@ interface MessageListProps {
     messages: DomainChat[];
     isLoading: boolean;
     viewer: MessageViewer;
+    /** channel member id → display name, used to name authors when owner$ is absent. */
+    names?: ReadonlyMap<string, string>;
 }
 
-export const MessageList = ({ messages, isLoading, viewer }: MessageListProps) => {
+export const MessageList = ({ messages, isLoading, viewer, names }: MessageListProps) => {
     const { t } = useTranslation();
     const bottomRef = useRef<HTMLDivElement>(null);
 
-    const rows = useMemo(() => buildMessageRows(messages, viewer), [messages, viewer]);
+    const rows = useMemo(() => buildMessageRows(messages, viewer, names), [messages, viewer, names]);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ block: 'end' });

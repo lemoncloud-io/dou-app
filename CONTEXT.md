@@ -44,3 +44,13 @@ _Avoid_: chat, bubble
 **Invite Code**:
 The credential that admits a user to a Place (and its Cloud). The primary login path — distinct from social OAuth.
 _Avoid_: join link, token
+
+## People & Identity
+
+**Profile**:
+The signed-in user's own account view, rich with their own data (name, email, user id). Rendered as a full page. Editable scope is the user's own data only.
+_Avoid_: my page, account settings
+
+**Profile card**:
+A read-only popover shown when you click another member's avatar or name in a Message or member list. Backed only by the fields the server returns for other users — avatar, name, nick — never email or phone. It is not the self Profile and must not imply data the server doesn't expose.
+_Avoid_: user modal, hovercard, mini-profile

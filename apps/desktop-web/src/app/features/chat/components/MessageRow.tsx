@@ -1,7 +1,7 @@
 import { cn } from '@chatic/lib/utils';
 
 import type { MessageGroup } from '../utils';
-import { avatarStyle } from '../../../shared';
+import { UserProfilePopover, avatarStyle } from '../../../shared';
 
 interface MessageRowProps {
     group: MessageGroup;
@@ -16,18 +16,29 @@ const formatTime = (ms: number): string => {
 
 export const MessageRow = ({ group }: MessageRowProps) => {
     const initial = group.ownerName.charAt(0).toUpperCase() || '?';
+    const userId = group.ownerId ?? '';
 
     return (
         <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 transition-colors hover:bg-accent/40">
-            <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-sm font-semibold"
-                style={avatarStyle(group.ownerId || group.ownerName || '?')}
-            >
-                {initial}
-            </div>
+            <UserProfilePopover userId={userId} fallbackName={group.ownerName}>
+                <button
+                    type="button"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    style={avatarStyle(group.ownerId || group.ownerName || '?')}
+                >
+                    {initial}
+                </button>
+            </UserProfilePopover>
             <div className="flex min-w-0 flex-1 flex-col">
                 <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-semibold text-foreground">{group.ownerName}</span>
+                    <UserProfilePopover userId={userId} fallbackName={group.ownerName}>
+                        <button
+                            type="button"
+                            className="truncate rounded text-sm font-semibold text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                            {group.ownerName}
+                        </button>
+                    </UserProfilePopover>
                     <span className="text-xs tabular-nums text-muted-foreground">{formatTime(group.timestamp)}</span>
                 </div>
                 <div className="flex flex-col gap-0.5">

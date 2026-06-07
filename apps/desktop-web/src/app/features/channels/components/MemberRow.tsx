@@ -12,7 +12,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
 import type { ChannelMember } from '../hooks';
-import { avatarStyle } from '../../../shared';
+import { UserProfilePopover, avatarStyle, displayName } from '../../../shared';
 
 interface MemberRowProps {
     member: ChannelMember;
@@ -22,22 +22,27 @@ interface MemberRowProps {
     onKick: (userId: string) => void;
 }
 
-const displayNameOf = (member: ChannelMember): string => member.name ?? member.nick ?? member.id;
-
 export const MemberRow = ({ member, isMe, canKick, onKick }: MemberRowProps) => {
     const { t } = useTranslation();
-    const name = displayNameOf(member);
+    const name = displayName(member);
     const initial = name.charAt(0).toUpperCase() || '?';
     const showKebab = canKick && !isMe;
 
     return (
         <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent/50">
-            <Avatar className="size-8 shrink-0">
-                <AvatarFallback className="text-xs font-semibold" style={avatarStyle(member.id || name)}>
-                    {initial}
-                </AvatarFallback>
-            </Avatar>
-            <span className="flex-1 truncate text-sm text-foreground">{name}</span>
+            <UserProfilePopover userId={member.id} fallbackName={name} isOwner={member.isOwner}>
+                <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                    <Avatar className="size-8 shrink-0">
+                        <AvatarFallback className="text-xs font-semibold" style={avatarStyle(member.id || name)}>
+                            {initial}
+                        </AvatarFallback>
+                    </Avatar>
+                    <span className="flex-1 truncate text-sm text-foreground">{name}</span>
+                </button>
+            </UserProfilePopover>
             {member.isOwner && (
                 <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary">
                     {t('channels.members.owner')}

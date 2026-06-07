@@ -22,9 +22,12 @@ const GROUP_TIME_GAP_MS = 5 * 60 * 1000;
 
 // The server's ChatView only embeds owner$ for persisted messages — optimistic
 // and own messages have no owner$, so resolve those from the viewer's profile.
-const getOwnerName = (chat: DomainChat, viewer: MessageViewer): string => {
+// For other authors the server often omits owner$ too, so fall back to the
+// channel member roster (id → name) before giving up with "Unknown".
+const getOwnerName = (chat: DomainChat, viewer: MessageViewer, names?: ReadonlyMap<string, string>): string => {
     if (viewer.uid && chat.ownerId === viewer.uid) return viewer.name || chat.owner$?.name || 'You';
-    return chat.owner$?.name ?? 'Unknown';
+    const fromMembers = chat.ownerId ? names?.get(chat.ownerId) : undefined;
+    return chat.owner$?.name ?? fromMembers ?? 'Unknown';
 };
 
 const getTimestamp = (chat: DomainChat): number => chat.createdAt ?? chat.createdAtMs ?? 0;
@@ -48,7 +51,11 @@ const startOfDay = (ms: number): number => {
  * - consecutive messages by the same author within {@link GROUP_TIME_GAP_MS}
  *   collapse into one `group` (single avatar + name + time header).
  */
-export const buildMessageRows = (messages: DomainChat[], viewer: MessageViewer): MessageRowItem[] => {
+export const buildMessageRows = (
+    messages: DomainChat[],
+    viewer: MessageViewer,
+    names?: ReadonlyMap<string, string>
+): MessageRowItem[] => {
     const rows: MessageRowItem[] = [];
     let currentGroup: MessageGroup | null = null;
     let lastTimestamp = 0;
@@ -77,7 +84,7 @@ export const buildMessageRows = (messages: DomainChat[], viewer: MessageViewer):
             currentGroup = {
                 key: message.id ?? message.tempId ?? `${message.channelId}:${message.chatNo}`,
                 ownerId: message.ownerId,
-                ownerName: getOwnerName(message, viewer),
+                ownerName: getOwnerName(message, viewer, names),
                 timestamp,
                 messages: [message],
             };

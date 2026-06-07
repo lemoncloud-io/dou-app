@@ -85,6 +85,8 @@ const resources = {
             'channels.rename.lengthHint': 'Use 2 to 20 characters.',
             'channels.members.empty': 'No members yet',
             'channels.members.failed': 'Could not load members.',
+            'channels.members.search': 'Search members',
+            'channels.members.noMatches': 'No members match your search',
             'channels.members.owner': 'Owner',
             'channels.members.me': 'You',
             'channels.members.remove': 'Remove from channel',

@@ -1,16 +1,21 @@
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
 import { Button } from '@chatic/ui-kit/components/ui/button';
+import { Input } from '@chatic/ui-kit/components/ui/input';
 
-import { useSelectedChannelStore } from '../../../shared';
+import { displayName, useSelectedChannelStore } from '../../../shared';
 import { useChannelActions, useChannelMembers } from '../hooks';
 import { useChannelSettingsStore } from '../stores';
 import { isChannelOwner } from '../utils';
 import { ChannelActionDialogs } from './ChannelActionDialogs';
 import { MemberList } from './MemberList';
+
+/** Below this member count the roster is short enough to scan without a filter. */
+const MEMBER_SEARCH_THRESHOLD = 5;
 
 interface ChannelSettingsPanelProps {
     /** The channel matching the store's openChannelId, resolved by the host. */
@@ -36,6 +41,16 @@ export const ChannelSettingsPanel = ({ channel, myUid }: ChannelSettingsPanelPro
 
     const { members, isLoading, error } = useChannelMembers(channelId, ownerId);
     const memberCount = members.length || channel?.memberNo || 0;
+
+    // Filter only kicks in on larger rosters — a handful of members needs no search box.
+    const [memberQuery, setMemberQuery] = useState('');
+    const showMemberSearch = members.length > MEMBER_SEARCH_THRESHOLD;
+    const filteredMembers = useMemo(() => {
+        const q = memberQuery.trim().toLowerCase();
+        if (!q) return members;
+        return members.filter(m => displayName(m).toLowerCase().includes(q));
+    }, [members, memberQuery]);
+    const noMatches = memberQuery.trim().length > 0 && filteredMembers.length === 0;
 
     const actions = useChannelActions(channelId, {
         onRemoved: () => {
@@ -88,14 +103,32 @@ export const ChannelSettingsPanel = ({ channel, myUid }: ChannelSettingsPanelPro
                         {t('channels.settings.membersSection')} ·{' '}
                         {t('channels.settings.memberCount', { count: memberCount })}
                     </h3>
-                    <MemberList
-                        members={members}
-                        isLoading={isLoading}
-                        error={error}
-                        myUid={myUid}
-                        canKick={isOwner}
-                        onKick={openKick}
-                    />
+                    {showMemberSearch && (
+                        <div className="relative">
+                            <Search
+                                size={14}
+                                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                            />
+                            <Input
+                                value={memberQuery}
+                                onChange={e => setMemberQuery(e.target.value)}
+                                placeholder={t('channels.members.search')}
+                                className="h-8 bg-background pl-8 text-sm"
+                            />
+                        </div>
+                    )}
+                    {noMatches ? (
+                        <p className="px-2 py-2 text-sm text-muted-foreground">{t('channels.members.noMatches')}</p>
+                    ) : (
+                        <MemberList
+                            members={filteredMembers}
+                            isLoading={isLoading}
+                            error={error}
+                            myUid={myUid}
+                            canKick={isOwner}
+                            onKick={openKick}
+                        />
+                    )}
                     <Button variant="outline" size="sm" onClick={() => openDialog('invite')}>
                         {t('channels.settings.invite')}
                     </Button>

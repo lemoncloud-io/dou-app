@@ -41,6 +41,10 @@
         --avatar-l: 40%;
         --avatar-fg: 0 0% 100%;
 
+        /* Profile-card banner: soft hue-tinted gradient the avatar straddles */
+        --banner-from-l: 90%;
+        --banner-to-l: 82%;
+
         --destructive: 0 84% 60%;
         --destructive-foreground: 0 0% 100%;
 
@@ -111,6 +115,10 @@
 
         --avatar-l: 58%;
         --avatar-fg: 0 0% 8%;
+
+        /* Profile-card banner (dark): dim hue tint */
+        --banner-from-l: 26%;
+        --banner-to-l: 17%;
 
         --destructive: 0 62% 50%;
         --destructive-foreground: 0 0% 98%;

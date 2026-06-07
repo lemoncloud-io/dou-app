@@ -5,7 +5,8 @@ import { useWebCoreStore } from '@chatic/web-core';
 
 import type { DomainChannel } from '@chatic/data';
 
-import { useChatMutations, useChats, useReadReceipts } from '../../../shared';
+import { displayName, useChatMutations, useChats, useReadReceipts } from '../../../shared';
+import { useChannelMembers } from '../../channels';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
@@ -22,6 +23,15 @@ export const ChatPane = ({ channel }: ChatPaneProps) => {
     const viewer = useMemo(() => ({ uid: myUid, name: myName }), [myUid, myName]);
     const { messages, isLoading } = useChats(channelId);
     const { sendMessage, isSending } = useChatMutations();
+
+    // The server frequently omits owner$ on other users' messages, so resolve
+    // author names from the channel roster (id → name) for the message list.
+    const { members } = useChannelMembers(channelId, channel?.ownerId);
+    const memberNames = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const member of members) map.set(member.id, displayName(member));
+        return map;
+    }, [members]);
 
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages);
@@ -60,7 +70,7 @@ export const ChatPane = ({ channel }: ChatPaneProps) => {
                 </div>
                 <ChannelHeaderMenu channel={channel} myUid={myUid} />
             </header>
-            <MessageList messages={messages} isLoading={isLoading} viewer={viewer} />
+            <MessageList messages={messages} isLoading={isLoading} viewer={viewer} names={memberNames} />
             <Composer disabled={isSending} onSend={handleSend} />
         </>
     );
