@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { DomainChannel } from '@chatic/data';
@@ -41,6 +41,11 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, myU
     const { t } = useTranslation();
     // Tick once a minute so the relative "11m" preview times stay current.
     useTick(60_000);
+    // Keep the selected channel visible (e.g. when moved by keyboard nav).
+    const activeRef = useRef<HTMLButtonElement>(null);
+    useEffect(() => {
+        activeRef.current?.scrollIntoView({ block: 'nearest' });
+    }, [selectedChannelId]);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -85,6 +90,7 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, myU
                 return (
                     <button
                         key={id}
+                        ref={isActive ? activeRef : undefined}
                         onClick={() => onSelect(id)}
                         title={channel.name ?? id}
                         aria-current={isActive ? 'true' : undefined}

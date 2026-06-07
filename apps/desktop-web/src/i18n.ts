@@ -37,6 +37,7 @@ const resources = {
             'chat.noChannels': 'No channels yet',
             'chat.noChannelsHint': 'Create one with the + above to get started.',
             'chat.loading': 'Loading...',
+            'chat.connecting': 'Connecting…',
             'chat.today': 'Today',
             'chat.yesterday': 'Yesterday',
             'cloud.empty': 'No clouds',

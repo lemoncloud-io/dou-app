@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useWebCoreStore } from '@chatic/web-core';
+import { useWebSocketV2Store } from '@chatic/socket';
 
 import type { DomainChannel } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -28,6 +29,7 @@ export const ChatPane = ({ channel, members }: ChatPaneProps) => {
     const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(channelId);
     const { sendMessage, retryMessage, isSending } = useChatMutations();
     const openSettings = useChannelSettingsStore(s => s.open);
+    const isVerified = useWebSocketV2Store(s => s.isVerified);
     const [sendTick, setSendTick] = useState(0);
 
     // Snapshot the read position when the channel opens, before HomePage's
@@ -96,7 +98,15 @@ export const ChatPane = ({ channel, members }: ChatPaneProps) => {
                         </span>
                     )}
                 </button>
-                <ChannelHeaderMenu channel={channel} myUid={myUid} />
+                <div className="flex shrink-0 items-center gap-2">
+                    {!isVerified && (
+                        <span className="flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500 motion-reduce:animate-none" />
+                            {t('chat.connecting')}
+                        </span>
+                    )}
+                    <ChannelHeaderMenu channel={channel} myUid={myUid} />
+                </div>
             </header>
             <MessageList
                 key={channelId}
