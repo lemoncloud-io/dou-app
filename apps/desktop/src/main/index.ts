@@ -123,11 +123,24 @@ const createTray = (win: BrowserWindow): void => {
     tray.on('click', () => (win.isVisible() ? win.focus() : win.show()));
 };
 
+// Minimal dark splash (matches the app's rail chrome + lime accent) shown until
+// the remote web app loads. Inlined so it needs no bundled asset.
+const SPLASH_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
+  html,body{margin:0;height:100%;background:#0b0d10}
+  .wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+  .ring{width:38px;height:38px;border:3px solid #23272e;border-top-color:#8fbf2e;border-radius:50%;animation:spin .8s linear infinite}
+  .label{color:#5b616b;font-size:13px;letter-spacing:.04em}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.ring{animation:none}}
+</style></head><body><div class="wrap"><div class="ring"></div><div class="label">Loading Chatic…</div></div></body></html>`;
+
 const createWindow = (): BrowserWindow => {
     const win = new BrowserWindow({
         width: 1280,
         height: 832,
         show: false,
+        // Match the app's dark rail chrome so first paint / show has no white flash.
+        backgroundColor: '#0b0d10',
         webPreferences: {
             preload: join(__dirname, '../preload/index.js'),
             additionalArguments: [`--chatic-device-id=${getOrCreateDeviceId()}`],
@@ -184,7 +197,18 @@ const createWindow = (): BrowserWindow => {
         if (!isTrustedUrl(validatedURL) || !RETRYABLE_LOAD_ERRORS.has(errorCode)) return;
         setTimeout(() => win.loadURL(DESKTOP_WEB_URL), 700);
     });
-    win.loadURL(DESKTOP_WEB_URL);
+
+    // Paint an instant splash so the window shows a branded loader immediately
+    // instead of staying hidden while the remote web bundle downloads/parses.
+    // The real app replaces it once the splash has rendered.
+    let appLoadStarted = false;
+    const loadApp = (): void => {
+        if (appLoadStarted) return;
+        appLoadStarted = true;
+        void win.loadURL(DESKTOP_WEB_URL);
+    };
+    win.webContents.once('did-finish-load', loadApp);
+    void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(SPLASH_HTML)}`);
 
     // Stash host for deeplink delivery from app-level events.
     deeplinkHost = host;

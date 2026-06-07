@@ -10,10 +10,13 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 
+import { Skeleton } from '../../../shared';
+
 interface SidebarHeaderProps {
     places: DomainSite[];
     selectedPlaceId: string | null;
     unreadByPlace: Record<string, number>;
+    isLoading: boolean;
     query: string;
     onQueryChange: (value: string) => void;
     onSelectPlace: (placeId: string) => void;
@@ -31,6 +34,7 @@ export const SidebarHeader = ({
     places,
     selectedPlaceId,
     unreadByPlace,
+    isLoading,
     query,
     onQueryChange,
     onSelectPlace,
@@ -38,6 +42,7 @@ export const SidebarHeader = ({
 }: SidebarHeaderProps) => {
     const { t } = useTranslation();
     const current = places.find(p => p.id === selectedPlaceId);
+    const showPlaceSkeleton = isLoading && !current;
 
     return (
         <div className="flex flex-col gap-2 border-b border-border/60 px-3 pb-3 pt-3">
@@ -46,9 +51,13 @@ export const SidebarHeader = ({
                     className="flex items-center justify-between gap-2 rounded-md px-1 py-1 text-left outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                     disabled={places.length === 0}
                 >
-                    <span className="truncate text-base font-bold text-sidebar-foreground">
-                        {placeName(current) || t('place.none')}
-                    </span>
+                    {showPlaceSkeleton ? (
+                        <Skeleton className="h-5 w-28" />
+                    ) : (
+                        <span className="truncate text-base font-bold text-sidebar-foreground">
+                            {placeName(current) || t('place.none')}
+                        </span>
+                    )}
                     <svg className="h-4 w-4 shrink-0 text-muted-foreground" viewBox="0 0 16 16" fill="none" aria-hidden>
                         <path
                             d="M4 6l4 4 4-4"

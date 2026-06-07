@@ -10,6 +10,7 @@ import { DataProvider, GlobalChatSync, WebSocketV2Connection, useAutoSelectCloud
 
 import i18n from '../i18n';
 import { AppRouter } from './routes';
+import { AppShellSkeleton } from './shared';
 import { useDesktopNotifications } from './shared/hooks';
 
 /** Mounts desktop OS-notification wiring inside DataProvider (needs engine repositories). */
@@ -44,13 +45,17 @@ export function App() {
         (isWebCoreReady && (!isAuthenticated || !!profile || (isTokenInitialized && initStatus === 'failed'))) ||
         !!profile;
 
+    // Authenticated boots land on the chat shell, so show the shell skeleton (not a
+    // bare spinner) for better perceived performance; pre-auth keeps the plain loader.
+    const BootFallback = isAuthenticated ? <AppShellSkeleton /> : <LoadingFallback />;
+
     if (!canRenderApp) {
-        return <LoadingFallback />;
+        return BootFallback;
     }
 
     return (
         <I18nextProvider i18n={i18n}>
-            <Suspense fallback={<LoadingFallback />}>
+            <Suspense fallback={BootFallback}>
                 <QueryClientProvider client={queryClient}>
                     <ThemeProvider>
                         <DataProvider>

@@ -22,7 +22,7 @@ import { ChannelList, ChatPane, CloudRail, DesktopLayout, SidebarHeader } from '
 
 export const HomePage = () => {
     const { clouds, activeCloudId } = useClouds();
-    const { places } = usePlaces();
+    const { places, isLoading: placesLoading } = usePlaces();
     const unreadByPlace = usePlaceUnreadCounts();
 
     const selectedPlaceId = useSelectedPlaceStore(s => s.selectedPlaceId);
@@ -83,6 +83,7 @@ export const HomePage = () => {
                             places={places}
                             selectedPlaceId={selectedPlaceId}
                             unreadByPlace={unreadByPlace}
+                            isLoading={placesLoading}
                             query={query}
                             onQueryChange={setQuery}
                             onSelectPlace={placeId => void switchPlace(placeId)}

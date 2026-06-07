@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { DomainChat } from '@chatic/data';
 
+import { Skeleton } from '../../../shared';
 import { buildMessageRows, type MessageViewer } from '../utils';
 import { DateSeparator } from './DateSeparator';
 import { MessageRow } from './MessageRow';
@@ -28,10 +29,10 @@ export const MessageList = ({ messages, isLoading, viewer }: MessageListProps) =
             <div role="status" aria-live="polite" aria-label={t('chat.loading')} className="flex flex-1 flex-col gap-5 overflow-hidden p-4">
                 {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className="flex gap-3">
-                        <span className="h-9 w-9 shrink-0 rounded-md bg-muted" />
+                        <Skeleton className="h-9 w-9 shrink-0" />
                         <div className="flex flex-1 flex-col gap-2 pt-1">
-                            <span className="h-3 w-24 rounded bg-muted" />
-                            <span className="h-3 rounded bg-muted/70" style={{ width: `${55 + ((i * 17) % 35)}%` }} />
+                            <Skeleton className="h-3 w-24" />
+                            <Skeleton className="h-3" style={{ width: `${55 + ((i * 17) % 35)}%` }} />
                         </div>
                     </div>
                 ))}

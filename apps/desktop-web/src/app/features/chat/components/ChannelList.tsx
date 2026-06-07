@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 
+import { Skeleton } from '../../../shared';
+
 interface ChannelListProps {
     channels: DomainChannel[];
     isLoading: boolean;
@@ -16,8 +18,8 @@ const ChannelSkeleton = () => (
     <div role="status" aria-label="Loading channels" className="flex flex-col gap-1 p-2">
         {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="flex items-center gap-2 px-3 py-2">
-                <span className="h-3 w-3 shrink-0 rounded-sm bg-muted" />
-                <span className="h-3 rounded bg-muted" style={{ width: `${45 + ((i * 13) % 40)}%` }} />
+                <Skeleton className="h-3 w-3 shrink-0 rounded-sm" />
+                <Skeleton className="h-3" style={{ width: `${45 + ((i * 13) % 40)}%` }} />
             </div>
         ))}
     </div>
