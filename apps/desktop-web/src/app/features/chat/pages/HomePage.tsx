@@ -13,6 +13,7 @@ import {
     useChannels,
     useClouds,
     useCloudSwitchFlow,
+    useDesktopBadge,
     usePlaceUnreadCounts,
     usePlaces,
     useReadCursorStore,
@@ -96,6 +97,9 @@ export const HomePage = () => {
     useEffect(() => {
         document.title = totalUnread > 0 ? `(${totalUnread > 99 ? '99+' : totalUnread}) Chatic` : 'Chatic';
     }, [totalUnread]);
+
+    // Mirror unread onto the OS dock/taskbar badge (desktop shell only).
+    useDesktopBadge(totalUnread);
 
     return (
         <>

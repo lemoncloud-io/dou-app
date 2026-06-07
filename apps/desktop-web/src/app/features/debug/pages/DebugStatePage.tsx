@@ -79,9 +79,14 @@ export const DebugStatePage = () => {
                     <Row label="Channels (place)" value={channels.length} />
                 </Section>
 
-                <Button variant="outline" size="sm" className="self-start" onClick={() => navigate('/debug/chat')}>
-                    {t('debug.cacheStream')}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" onClick={() => navigate('/debug/chat')}>
+                        {t('debug.cacheStream')}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => navigate('/debug/badge')}>
+                        {t('debug.badge')}
+                    </Button>
+                </div>
             </div>
         </div>
     );

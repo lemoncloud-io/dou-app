@@ -11,3 +11,4 @@ export * from './usePlaceUnreadCounts';
 export * from './useClouds';
 export * from './useUser';
 export * from './useCopyToClipboard';
+export * from './useDesktopBadge';
