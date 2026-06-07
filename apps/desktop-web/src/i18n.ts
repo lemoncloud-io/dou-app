@@ -67,6 +67,7 @@ const resources = {
             'rail.menu.debug': 'Debug state',
             'rail.menu.logout': 'Log out',
             'debug.title': 'Debug state',
+            'debug.cacheStream': 'Cache stream playground →',
             'channels.create.title': 'Create channel',
             'channels.create.nameLabel': 'Channel name',
             'channels.create.namePlaceholder': 'e.g. marketing',

@@ -78,6 +78,10 @@ export const DebugStatePage = () => {
                     <Row label="Places" value={places.length} />
                     <Row label="Channels (place)" value={channels.length} />
                 </Section>
+
+                <Button variant="outline" size="sm" className="self-start" onClick={() => navigate('/debug/chat')}>
+                    {t('debug.cacheStream')}
+                </Button>
             </div>
         </div>
     );
