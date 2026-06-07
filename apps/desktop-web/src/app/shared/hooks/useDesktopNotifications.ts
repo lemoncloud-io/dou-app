@@ -50,7 +50,7 @@ export const useDesktopNotifications = (): void => {
         let active = true;
         const unsubs: Array<() => void> = [];
 
-        const subscribeChannel = (channel: DomainChannel) => {
+        const subscribeChannel = (placeId: string, channel: DomainChannel) => {
             unsubs.push(
                 chatRepository.subscribeList(channel.id, result => {
                     const list = result?.list ?? [];
@@ -79,26 +79,29 @@ export const useDesktopNotifications = (): void => {
                             title: channelName(channel),
                             body: latest.content ?? '',
                             channelId: channel.id,
+                            // Clicking the notification routes here (place + channel).
+                            deeplink: `chatic-open:${encodeURIComponent(placeId)}|${encodeURIComponent(channel.id)}`,
                         })
                         .catch(() => undefined);
                 })
             );
         };
 
-        // Gather channels across all places, then subscribe to each channel's chat list.
+        // Gather channels across all places (keeping each channel's place), then
+        // subscribe to each channel's chat list.
         void Promise.all(
             places.map(place =>
                 channelRepository
                     .fetchChannel({ sid: place.id, limit: CHANNEL_LIMIT }, { cachePolicy: 'cache-first' })
-                    .then(result => result.list ?? [])
-                    .catch(() => [] as DomainChannel[])
+                    .then(result => (result.list ?? []).map(channel => ({ placeId: place.id, channel })))
+                    .catch(() => [] as Array<{ placeId: string; channel: DomainChannel }>)
             )
-        ).then(channelLists => {
+        ).then(entries => {
             if (!active) return;
 
-            const channelById = new Map<string, DomainChannel>();
-            for (const channel of channelLists.flat()) {
-                if (channel.id) channelById.set(channel.id, channel);
+            const channelById = new Map<string, { placeId: string; channel: DomainChannel }>();
+            for (const entry of entries.flat()) {
+                if (entry.channel.id) channelById.set(entry.channel.id, entry);
             }
 
             // Prune seen-map entries for channels that no longer exist.
@@ -106,7 +109,7 @@ export const useDesktopNotifications = (): void => {
                 if (!channelById.has(id)) seen.current.delete(id);
             }
 
-            channelById.forEach(channel => subscribeChannel(channel));
+            channelById.forEach(({ placeId, channel }) => subscribeChannel(placeId, channel));
         });
 
         return () => {

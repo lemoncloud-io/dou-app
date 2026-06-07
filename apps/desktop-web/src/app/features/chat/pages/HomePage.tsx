@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+import { isNative, webClient } from '@chatic/bridges';
 import { useWebCoreStore } from '@chatic/web-core';
 
 import {
@@ -43,6 +44,29 @@ export const HomePage = () => {
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
 
     const [query, setQuery] = useState('');
+    // A channel to open once its place's channels have loaded (notification click
+    // across places: switchPlace resets selection, so we re-apply it here).
+    const pendingChannelRef = useRef<string | null>(null);
+
+    // Notification click → open the target place + channel (desktop shell only).
+    useEffect(() => {
+        if (!isNative()) return;
+        return webClient.onEvent('OnReceiveNotification', message => {
+            const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
+                ?.deeplink;
+            if (!deeplink?.startsWith('chatic-open:')) return;
+            const [rawPlace, rawChannel] = deeplink.slice('chatic-open:'.length).split('|');
+            const placeId = rawPlace ? decodeURIComponent(rawPlace) : '';
+            const channelId = rawChannel ? decodeURIComponent(rawChannel) : '';
+            if (!channelId) return;
+            if (placeId && placeId !== selectedPlaceId) {
+                pendingChannelRef.current = channelId;
+                void switchPlace(placeId);
+            } else {
+                selectChannel(channelId);
+            }
+        });
+    }, [selectedPlaceId, switchPlace, selectChannel]);
 
     // Default to the first place once places load (socket is already verified for
     // the persisted place at this point, so no re-auth needed here).
@@ -65,6 +89,13 @@ export const HomePage = () => {
     }, [selectedChannelId, closeSettings]);
 
     useEffect(() => {
+        // Honor a pending notification target once its channel has loaded.
+        const pending = pendingChannelRef.current;
+        if (pending && channels.some(channel => channel.id === pending)) {
+            pendingChannelRef.current = null;
+            selectChannel(pending);
+            return;
+        }
         if (!selectedChannelId && channels.length > 0) {
             const firstId = channels[0]?.id;
             if (firstId) selectChannel(firstId);
