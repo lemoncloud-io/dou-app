@@ -111,7 +111,11 @@ export const ChatPane = ({ channel, members }: ChatPaneProps) => {
                 isLoadingOlder={isLoadingOlder}
                 scrollSignal={sendTick}
             />
-            <Composer disabled={isSending} onSend={handleSend} />
+            <Composer
+                disabled={isSending}
+                onSend={handleSend}
+                placeholder={t('chat.composer.placeholderChannel', { name: channel.name ?? channelId })}
+            />
         </>
     );
 };

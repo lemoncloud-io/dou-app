@@ -9,6 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/componen
 interface ComposerProps {
     disabled: boolean;
     onSend: (content: string) => void;
+    /** Overrides the default "Message" placeholder (e.g. "Message #general"). */
+    placeholder?: string;
 }
 
 const MAX_HEIGHT = 160;
@@ -20,10 +22,11 @@ const EMOJIS = [
     '❤️', '💯', '👀', '✅', '❌', '⚡', '🚀', '😴',
 ];
 
-export const Composer = ({ disabled, onSend }: ComposerProps) => {
+export const Composer = ({ disabled, onSend, placeholder }: ComposerProps) => {
     const { t } = useTranslation();
     const [value, setValue] = useState('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const placeholderText = placeholder ?? t('chat.composer.placeholder');
 
     const resize = () => {
         const el = textareaRef.current;
@@ -81,8 +84,8 @@ export const Composer = ({ disabled, onSend }: ComposerProps) => {
                         resize();
                     }}
                     onKeyDown={handleKeyDown}
-                    aria-label={t('chat.composer.placeholder')}
-                    placeholder={t('chat.composer.placeholder')}
+                    aria-label={placeholderText}
+                    placeholder={placeholderText}
                     className="max-h-40 flex-1 resize-none bg-transparent text-sm leading-relaxed text-foreground outline-none placeholder:text-placeholder disabled:opacity-50"
                 />
                 <Popover>

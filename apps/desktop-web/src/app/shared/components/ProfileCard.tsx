@@ -35,6 +35,7 @@ const ProfileCardContent = ({ userId, fallbackName, isOwner }: Omit<UserProfileP
     const initial = name.charAt(0).toUpperCase() || '?';
     const seed = userId || name;
     const thumbnail = user?.thumbnail;
+    const channelCount = user?.channelIds?.length ?? 0;
 
     const handleCopy = () => {
         if (userId) copy(userId);
@@ -60,6 +61,11 @@ const ProfileCardContent = ({ userId, fallbackName, isOwner }: Omit<UserProfileP
                     )}
                 </div>
                 {nick && <span className="block truncate text-sm text-muted-foreground">@{nick}</span>}
+                {channelCount > 0 && (
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                        {t('profile.channelCount', { count: channelCount })}
+                    </span>
+                )}
 
                 {userId && (
                     <button

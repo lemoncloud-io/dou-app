@@ -91,6 +91,12 @@ export const HomePage = () => {
         if (selectedChannelId && selectedLastChatNo > 0) markRead(selectedChannelId, selectedLastChatNo);
     }, [selectedChannelId, selectedLastChatNo, markRead]);
 
+    // Reflect total unread in the window/tab title (e.g. "(3) Chatic").
+    const totalUnread = Object.values(unreadByPlace).reduce((sum, count) => sum + count, 0);
+    useEffect(() => {
+        document.title = totalUnread > 0 ? `(${totalUnread > 99 ? '99+' : totalUnread}) Chatic` : 'Chatic';
+    }, [totalUnread]);
+
     return (
         <>
             <DesktopLayout
