@@ -138,6 +138,12 @@ const resources = {
             'channels.kick.confirm': 'Remove',
             'chat.header.settings': 'Channel settings',
             'chat.header.menu': 'More',
+            'shortcuts.title': 'Keyboard shortcuts',
+            'shortcuts.search': 'Search channels',
+            'shortcuts.navigate': 'Move between channels',
+            'shortcuts.send': 'Send · new line',
+            'shortcuts.closePanel': 'Close panel / dialog',
+            'shortcuts.help': 'Show this help',
         },
     },
 } as const;

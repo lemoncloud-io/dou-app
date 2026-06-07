@@ -20,7 +20,7 @@ import {
     useSelectedChannelStore,
     useSelectedPlaceStore,
 } from '../../../shared';
-import { ChannelList, ChatPane, CloudRail, DesktopLayout, SidebarHeader } from '../components';
+import { ChannelList, ChatPane, CloudRail, DesktopLayout, ShortcutsDialog, SidebarHeader } from '../components';
 
 export const HomePage = () => {
     const { clouds, activeCloudId } = useClouds();
@@ -146,6 +146,7 @@ export const HomePage = () => {
                 }
             />
             <CreateChannelDialog />
+            <ShortcutsDialog />
         </>
     );
 };
