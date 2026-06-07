@@ -124,6 +124,7 @@ export const ChatPane = ({ channel, members }: ChatPaneProps) => {
             <Composer
                 disabled={isSending}
                 onSend={handleSend}
+                channelId={channelId}
                 placeholder={t('chat.composer.placeholderChannel', { name: channel.name ?? channelId })}
             />
         </>

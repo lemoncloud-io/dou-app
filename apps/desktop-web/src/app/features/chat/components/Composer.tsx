@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Smile } from 'lucide-react';
@@ -6,9 +6,13 @@ import { Smile } from 'lucide-react';
 import { cn } from '@chatic/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 
+import { useComposerDraftStore } from '../../../shared';
+
 interface ComposerProps {
     disabled: boolean;
     onSend: (content: string) => void;
+    /** Channel the draft belongs to — preserves unsent text across switches. */
+    channelId: string;
     /** Overrides the default "Message" placeholder (e.g. "Message #general"). */
     placeholder?: string;
 }
@@ -22,10 +26,12 @@ const EMOJIS = [
     '❤️', '💯', '👀', '✅', '❌', '⚡', '🚀', '😴',
 ];
 
-export const Composer = ({ disabled, onSend, placeholder }: ComposerProps) => {
+export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerProps) => {
     const { t } = useTranslation();
     const [value, setValue] = useState('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const setDraft = useComposerDraftStore(s => s.setDraft);
+    const clearDraft = useComposerDraftStore(s => s.clearDraft);
     const placeholderText = placeholder ?? t('chat.composer.placeholder');
 
     const resize = () => {
@@ -35,11 +41,24 @@ export const Composer = ({ disabled, onSend, placeholder }: ComposerProps) => {
         el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`;
     };
 
+    // Load this channel's saved draft on switch (read once — no subscription).
+    useEffect(() => {
+        setValue(useComposerDraftStore.getState().drafts[channelId] ?? '');
+        requestAnimationFrame(resize);
+    }, [channelId]);
+
+    const handleChange = (next: string) => {
+        setValue(next);
+        setDraft(channelId, next);
+        resize();
+    };
+
     const submit = () => {
         const trimmed = value.trim();
         if (!trimmed || disabled) return;
         onSend(trimmed);
         setValue('');
+        clearDraft(channelId);
         requestAnimationFrame(resize);
     };
 
@@ -56,6 +75,7 @@ export const Composer = ({ disabled, onSend, placeholder }: ComposerProps) => {
         const end = el?.selectionEnd ?? value.length;
         const next = value.slice(0, start) + emoji + value.slice(end);
         setValue(next);
+        setDraft(channelId, next);
         requestAnimationFrame(() => {
             const pos = start + emoji.length;
             el?.focus();
@@ -79,10 +99,7 @@ export const Composer = ({ disabled, onSend, placeholder }: ComposerProps) => {
                     rows={1}
                     value={value}
                     disabled={disabled}
-                    onChange={e => {
-                        setValue(e.target.value);
-                        resize();
-                    }}
+                    onChange={e => handleChange(e.target.value)}
                     onKeyDown={handleKeyDown}
                     aria-label={placeholderText}
                     placeholder={placeholderText}
