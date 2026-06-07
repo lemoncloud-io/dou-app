@@ -2,7 +2,7 @@ import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-d
 
 import { useWebCoreStore } from '@chatic/web-core';
 
-import { InviteLoginPage, TokenLoginPage } from './features/auth';
+import { DebugLoginPage, InviteLoginPage, TokenLoginPage } from './features/auth';
 import { HomePage } from './features/chat';
 import { ProfilePage } from './features/profile';
 import { SettingsPage } from './features/settings';
@@ -26,6 +26,7 @@ export const AppRouter = () => {
                     <>
                         <Route path="/auth/token/:token" element={<TokenLoginPage />} />
                         <Route path="/auth/login" element={<InviteLoginPage />} />
+                        {import.meta.env.DEV && <Route path="/auth/debug" element={<DebugLoginPage />} />}
                         <Route path="*" element={<Navigate to="/auth/login" replace />} />
                     </>
                 )}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
 
@@ -7,6 +8,7 @@ import { useInviteLogin } from '../hooks/useInviteLogin';
 
 export const InviteLoginPage = () => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const { login, isSubmitting, isError } = useInviteLogin();
     const [code, setCode] = useState('');
 
@@ -68,6 +70,15 @@ export const InviteLoginPage = () => {
                 >
                     {isSubmitting ? t('auth.invite.preparing') : t('auth.invite.submit')}
                 </button>
+                {import.meta.env.DEV && (
+                    <button
+                        type="button"
+                        onClick={() => navigate('/auth/debug')}
+                        className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                    >
+                        {t('auth.debug.link')}
+                    </button>
+                )}
             </form>
         </div>
     );
