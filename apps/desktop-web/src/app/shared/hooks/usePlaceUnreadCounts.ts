@@ -3,10 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { logger } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useWebCoreStore } from '@chatic/web-core';
-import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
+import type { DomainChannel, DomainChannelListPayload, DomainChat } from '@chatic/data';
 
 import { useRepositories } from '@chatic/app-runtime';
-import { computeChannelUnread } from '../utils';
+import { computeChannelUnread, mergeChannelsKeepingLatest, withIncomingChat } from '../utils';
 import { useReadCursorStore } from '../stores';
 
 /**
@@ -40,7 +40,9 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
                 { cachePolicy: 'network-only' }
             );
             if (seqRef.current !== seq) return;
-            setChannels((result.list ?? []) as DomainChannel[]);
+            const next = (result.list ?? []) as DomainChannel[];
+            // Don't let the lagging channel endpoint regress a just-arrived unread.
+            setChannels(prev => mergeChannelsKeepingLatest(prev, next));
         } catch (error) {
             if (seqRef.current === seq) logger.error('PLACE_UNREAD', '[usePlaceUnreadCounts] failed', { error });
         }
@@ -57,11 +59,14 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
     }, [isVerified, cloudId, fetchCounts]);
 
     useEffect(() => {
+        // A new message updates unread locally from the live event (the channel
+        // refetch lags and would reset the place badge); other events refetch.
+        const onIncomingChat = (chat: DomainChat) => setChannels(prev => withIncomingChat(prev, chat));
         const unsubs = [
             channelRepository.onChannelCreated(() => void fetchCounts()),
             channelRepository.onChannelUpdated(() => void fetchCounts()),
             channelRepository.onChannelDeleted(() => void fetchCounts()),
-            chatRepository.onChatCreated(() => void fetchCounts()),
+            chatRepository.onChatCreated(onIncomingChat),
             joinRepository.onJoinUpdated(() => void fetchCounts()),
         ];
         return () => unsubs.forEach(fn => fn());

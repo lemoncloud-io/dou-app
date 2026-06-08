@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/data';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useWebCoreStore } from '@chatic/web-core';
 
 import { useRepositories } from '@chatic/app-runtime';
-import { computeChannelUnread } from '../utils';
+import { computeChannelUnread, mergeChannelsKeepingLatest, withIncomingChat } from '../utils';
 import { useReadCursorStore } from '../stores';
 
 const CHANNEL_LIMIT = 100;
@@ -53,11 +53,19 @@ export const useChannels = (placeId: string | undefined) => {
                 .fetchChannel({ sid: placeId, detail: true, limit: CHANNEL_LIMIT }, { cachePolicy })
                 .then(result => {
                     if (!active) return;
-                    setRawChannels(sortByName((result.list ?? []) as DomainChannel[]));
+                    const next = (result.list ?? []) as DomainChannel[];
+                    setRawChannels(prev => sortByName(mergeChannelsKeepingLatest(prev, next)));
                 })
                 .finally(() => {
                     if (active) setIsLoading(false);
                 });
+        };
+
+        // A new message bumps the channel's last message + unread badge. Apply it
+        // locally from the live chat event rather than refetching: the channel
+        // endpoint lags, so a refetch here would race the event and reset the badge.
+        const applyIncomingChat = (chat: DomainChat) => {
+            if (active) setRawChannels(prev => withIncomingChat(prev, chat));
         };
 
         fetchChannels('cache-first');
@@ -67,7 +75,7 @@ export const useChannels = (placeId: string | undefined) => {
             channelRepository.onChannelCreated(refresh),
             channelRepository.onChannelUpdated(refresh),
             channelRepository.onChannelDeleted(refresh),
-            chatRepository.onChatCreated(refresh),
+            chatRepository.onChatCreated(applyIncomingChat),
             joinRepository.onJoinUpdated(refresh),
         ];
 
