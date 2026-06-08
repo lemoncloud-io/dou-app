@@ -95,7 +95,7 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, myU
                         title={channel.name ?? id}
                         aria-current={isActive ? 'true' : undefined}
                         className={cn(
-                            'relative flex flex-col gap-0.5 rounded-md px-3 py-1.5 text-left text-sm transition-colors',
+                            'relative flex min-w-0 flex-col gap-0.5 rounded-md px-3 py-1.5 text-left text-sm transition-colors',
                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50',
                             isActive ? 'bg-primary/15' : 'hover:bg-accent'
                         )}
@@ -129,7 +129,7 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, myU
                         {preview && (
                             <span
                                 className={cn(
-                                    'truncate pl-5 text-xs',
+                                    'w-full min-w-0 truncate pl-5 text-xs',
                                     hasUnread ? 'text-foreground/80' : 'text-muted-foreground/70'
                                 )}
                             >

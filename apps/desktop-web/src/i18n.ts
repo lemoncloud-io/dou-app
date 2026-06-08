@@ -9,6 +9,8 @@ const resources = {
         translation: {
             'auth.invite.title': 'Welcome to Chatic',
             'auth.invite.subtitle': 'Enter your invite link or code to join.',
+            'auth.join.title': 'Join a workspace',
+            'auth.join.subtitle': 'Paste an invite link or code to join a workspace.',
             'auth.invite.placeholder': 'Paste invite link or invt:… code',
             'auth.invite.submit': 'Join',
             'auth.invite.preparing': 'Preparing...',
@@ -111,6 +113,7 @@ const resources = {
             'profile.unknown': '-',
             'common.cancel': 'Cancel',
             'common.confirm': 'Confirm',
+            'common.back': 'Back',
             'toast.channelCreated': 'Channel created',
             'toast.channelDeleted': 'Channel deleted',
             'toast.channelLeft': 'You left the channel',

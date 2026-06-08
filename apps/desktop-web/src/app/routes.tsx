@@ -19,8 +19,6 @@ export const AppRouter = () => {
                         <Route path="/" element={<HomePage />} />
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/settings" element={<SettingsPage />} />
-                        {/* In-app invite join for an already-authenticated (e.g. guest) session. */}
-                        <Route path="/join" element={<InviteLoginPage />} />
                         {import.meta.env.DEV && <Route path="/debug" element={<DebugStatePage />} />}
                         {import.meta.env.DEV && <Route path="/debug/chat" element={<DebugChatPage />} />}
                         {import.meta.env.DEV && <Route path="/debug/badge" element={<DebugBadgeCountPage />} />}

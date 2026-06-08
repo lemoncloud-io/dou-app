@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
+import { useWebCoreStore } from '@chatic/web-core';
 
 import { AuthCard } from '../components';
 import { useInviteLogin } from '../hooks/useInviteLogin';
@@ -10,8 +11,14 @@ import { useInviteLogin } from '../hooks/useInviteLogin';
 export const InviteLoginPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const isAuthenticated = useWebCoreStore(s => s.isAuthenticated);
     const { login, isSubmitting, isError } = useInviteLogin();
     const [code, setCode] = useState('');
+
+    // Authenticated (in-app /join) → back to chat; unauthenticated (/auth/login)
+    // → back to the welcome landing. Explicit targets stay correct even with no
+    // history (refresh / deep link), unlike navigate(-1).
+    const handleBack = () => navigate(isAuthenticated ? '/' : '/auth/welcome');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,7 +31,7 @@ export const InviteLoginPage = () => {
     };
 
     return (
-        <AuthCard title={t('auth.invite.title')} subtitle={t('auth.invite.subtitle')}>
+        <AuthCard title={t('auth.invite.title')} subtitle={t('auth.invite.subtitle')} onBack={handleBack}>
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
                 <label htmlFor="invite-code" className="sr-only">
                     {t('auth.invite.placeholder')}
