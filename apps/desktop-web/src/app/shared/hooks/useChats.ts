@@ -76,8 +76,9 @@ export const useChats = (channelId: string | null) => {
 
     // Persist the channel's loaded state so re-opening restores it instead of
     // reloading. Keeps the scrolled-up history and pagination cursor across switches.
+    // Skip the null (not-yet-loaded) state so it never overwrites a saved entry.
     useEffect(() => {
-        if (channelId) channelMemo.set(channelId, { live, older, feedCursorNo });
+        if (channelId && live !== null) channelMemo.set(channelId, { live, older, feedCursorNo });
     }, [channelId, live, older, feedCursorNo]);
 
     useEffect(() => {

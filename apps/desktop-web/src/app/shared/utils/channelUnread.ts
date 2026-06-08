@@ -1,5 +1,7 @@
 import type { DomainChannel } from '@chatic/data';
 
+import { lastChatNoOf } from './channelMerge';
+
 /**
  * Unread count for a channel, computed client-side (mirrors apps/web useChannels).
  *
@@ -14,7 +16,7 @@ import type { DomainChannel } from '@chatic/data';
  * never flashes an unread badge while the server catches up.
  */
 export const computeChannelUnread = (channel: DomainChannel, myUid: string | null, localReadNo = 0): number => {
-    const lastChatNo = channel.lastChat$?.chatNo ?? channel.chatNo ?? 0;
+    const lastChatNo = lastChatNoOf(channel);
     if (localReadNo >= lastChatNo) return 0;
 
     const lastMessageIsMine = !!myUid && channel.lastChat$?.ownerId === myUid;

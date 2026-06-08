@@ -29,8 +29,11 @@ export const mergeChannelsKeepingLatest = (prev: DomainChannel[], next: DomainCh
  */
 export const withIncomingChat = (channels: DomainChannel[], chat: DomainChat): DomainChannel[] => {
     if (!chat.channelId) return channels;
-    return channels.map(channel => {
-        if (channel.id !== chat.channelId || (chat.chatNo ?? 0) <= lastChatNoOf(channel)) return channel;
-        return { ...channel, lastChat$: chat, chatNo: chat.chatNo ?? channel.chatNo };
-    });
+    // Runs on every incoming message; only allocate a new list when this chat
+    // actually advances its channel's last message (the common case is a no-op).
+    const index = channels.findIndex(channel => channel.id === chat.channelId);
+    if (index < 0 || (chat.chatNo ?? 0) <= lastChatNoOf(channels[index])) return channels;
+    const next = [...channels];
+    next[index] = { ...next[index], lastChat$: chat, chatNo: chat.chatNo ?? next[index].chatNo };
+    return next;
 };

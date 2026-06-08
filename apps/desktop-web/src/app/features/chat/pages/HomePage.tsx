@@ -12,6 +12,7 @@ import {
     useCreateChannelDialogStore,
 } from '../../channels';
 import {
+    lastChatNoOf,
     useChannels,
     useClouds,
     useCloudSwitchFlow,
@@ -131,7 +132,7 @@ export const HomePage = () => {
     // new messages arrive while it's open), so it never shows unread after you
     // switch away — independent of the read-receipt debounce / window focus.
     const markRead = useReadCursorStore(s => s.markRead);
-    const selectedLastChatNo = selectedChannel?.lastChat$?.chatNo ?? selectedChannel?.chatNo ?? 0;
+    const selectedLastChatNo = selectedChannel ? lastChatNoOf(selectedChannel) : 0;
     useEffect(() => {
         if (selectedChannelId && selectedLastChatNo > 0) markRead(selectedChannelId, selectedLastChatNo);
     }, [selectedChannelId, selectedLastChatNo, markRead]);

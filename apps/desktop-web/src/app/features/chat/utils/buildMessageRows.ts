@@ -35,6 +35,10 @@ export interface MessageViewer {
 /** Split a run of same-author messages when they are more than this far apart. */
 const GROUP_TIME_GAP_MS = 5 * 60 * 1000;
 
+// A blank or UUID-style name (guest auto-name) is not a real name — treat it as
+// unresolved so it never shows, falling back to "You" / the roster / a skeleton.
+const realName = (name?: string): string | undefined => (isPlaceholderName(name) ? undefined : name?.trim());
+
 // The server's ChatView only embeds owner$ for persisted messages — optimistic
 // and own messages have no owner$, so resolve those from the viewer's profile.
 // For other authors the server often omits owner$ too, so fall back to the
@@ -45,9 +49,6 @@ const resolveOwnerName = (
     viewer: MessageViewer,
     names?: ReadonlyMap<string, string>
 ): string | null => {
-    // A blank or UUID-style name (guest auto-name) is not a real name — treat it
-    // as unresolved so it never shows, falling back to "You" / the roster / a skeleton.
-    const realName = (name?: string): string | undefined => (isPlaceholderName(name) ? undefined : name?.trim());
     if (viewer.uid && chat.ownerId === viewer.uid) return realName(viewer.name) || realName(chat.owner$?.name) || 'You';
     const fromOwner = realName(chat.owner$?.name);
     const fromMembers = chat.ownerId ? realName(names?.get(chat.ownerId)) : undefined;
