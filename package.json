@@ -5,7 +5,7 @@
     "scripts": {
         "clean:cache": "(rm -rf ./node_modules/.vite ./node_modules/.cache || true) && (rm -rf ./.nx || true)",
         "prepare": "husky",
-        "postinstall": "([ \"$CI\" != \"true\" ] || [ \"$RUNNER_OS\" = \"macOS\" ]) && yarn mobile:pod || true",
+        "postinstall": "if [ -n \"$SKIP_MOBILE_POD\" ]; then exit 0; fi; ([ \"$CI\" != \"true\" ] || [ \"$RUNNER_OS\" = \"macOS\" ]) && yarn mobile:pod || true",
         "lint": "npx nx run-many --target=lint",
         "lint:fix": "npx nx run-many --target=lint --fix",
         "prettier": "prettier --config ./.prettierrc --write \"**/*.{js,jsx,ts,json,tsx,scss,css,html}\"",
