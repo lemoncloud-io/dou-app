@@ -29,6 +29,14 @@ The version gap that arises when a remotely-loaded Web client and its Shell are 
 An isolated tenant boundary. A user's identity, places, and channels are scoped to a Cloud; switching Cloud re-scopes the whole session.
 _Avoid_: tenant, org, server
 
+**Default Cloud**:
+The broker-hosted relay tenant (`id: 'default'`) that exists before any subscription. A user reaches it through a Guest Session — no Invite Code, no email, no Place to join — and it hosts their Self Channel from first launch. Distinct from a subscribed Cloud, which is a dedicated per-email deployment with its own URL.
+_Avoid_: relay, broker tenant, public cloud
+
+**Guest Session**:
+A session established by device registration alone, against the broker, with no Invite Code and no email. Scoped to the Default Cloud. The default first-launch state on every client that supports it.
+_Avoid_: anonymous login, temp account, device login
+
 **Place**:
 A workspace within a Cloud that groups channels and members. The unit a user joins via an Invite Code.
 _Avoid_: site, space, room
@@ -37,12 +45,16 @@ _Avoid_: site, space, room
 A conversation stream inside a Place that members exchange Messages in.
 _Avoid_: chat room, group
 
+**Self Channel**:
+The solo Channel (`stereo: 'self'`) auto-present in the Default Cloud — the user's private space, available from first launch without any join. One per Guest Session.
+_Avoid_: my chat, notes to self, default room
+
 **Message**:
 A single entry posted to a Channel. Carries pending / failed / sent state until acknowledged.
 _Avoid_: chat, bubble
 
 **Invite Code**:
-The credential that admits a user to a Place (and its Cloud). The primary login path — distinct from social OAuth.
+The credential that admits a user to a Place (and its subscribed Cloud). One way in — not the only one: a client may instead start in a Guest Session on the Default Cloud. Distinct from social OAuth.
 _Avoid_: join link, token
 
 ## People & Identity

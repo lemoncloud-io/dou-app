@@ -5,7 +5,7 @@
     "scripts": {
         "clean:cache": "(rm -rf ./node_modules/.vite ./node_modules/.cache || true) && (rm -rf ./.nx || true)",
         "prepare": "husky",
-        "postinstall": "if [ -n \"$SKIP_MOBILE_POD\" ]; then exit 0; fi; ([ \"$CI\" != \"true\" ] || [ \"$RUNNER_OS\" = \"macOS\" ]) && yarn mobile:pod || true",
+        "postinstall": "node -e \"const cp=require('child_process'); const run=!process.env.SKIP_MOBILE_POD&&(process.env.CI!=='true'||process.env.RUNNER_OS==='macOS'); if(run){try{cp.execSync('yarn mobile:pod',{stdio:'inherit'})}catch(e){}}\"",
         "lint": "npx nx run-many --target=lint",
         "lint:fix": "npx nx run-many --target=lint --fix",
         "prettier": "prettier --config ./.prettierrc --write \"**/*.{js,jsx,ts,json,tsx,scss,css,html}\"",

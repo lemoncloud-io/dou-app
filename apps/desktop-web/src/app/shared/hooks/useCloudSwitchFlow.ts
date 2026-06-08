@@ -76,6 +76,16 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions = {}) => {
 
             setIsLoading(true, t('cloud.switching'));
             try {
+                // Returning to the Default Cloud has no token to exchange —
+                // selectCloud('default') would fail. Clear the delegation and let the
+                // socket fall back to relay, then land on the 'default' place.
+                if (cloudId === 'default') {
+                    rollbackToDefault();
+                    await waitForVerified(10_000);
+                    options.onPlaceSelected?.('default');
+                    return;
+                }
+
                 await selectCloud(cloudId);
 
                 if (!(await waitForVerified(10_000))) throw new Error('Cloud auth timeout');
@@ -103,7 +113,7 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions = {}) => {
                 setIsLoading(false);
             }
         },
-         
+
         [selectCloud, siteRepository, channelRepository, setIsLoading, t, toast, options.onPlaceSelected]
     );
 

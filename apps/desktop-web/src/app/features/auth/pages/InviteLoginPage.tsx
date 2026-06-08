@@ -15,7 +15,11 @@ export const InviteLoginPage = () => {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (isSubmitting) return;
-        void login(code);
+        // Navigate home on success so the in-app /join path advances; the
+        // unauthenticated path also lands here harmlessly after the auth flip.
+        void login(code).then(ok => {
+            if (ok) navigate('/');
+        });
     };
 
     return (

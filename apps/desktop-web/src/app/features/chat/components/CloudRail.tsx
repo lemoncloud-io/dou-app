@@ -92,6 +92,7 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: C
                 <DropdownMenuContent side="right" align="end">
                     <DropdownMenuItem onClick={() => navigate('/profile')}>{t('rail.menu.profile')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/join')}>{t('rail.menu.join')}</DropdownMenuItem>
                     {import.meta.env.DEV && (
                         <DropdownMenuItem onClick={() => navigate('/debug')}>{t('rail.menu.debug')}</DropdownMenuItem>
                     )}

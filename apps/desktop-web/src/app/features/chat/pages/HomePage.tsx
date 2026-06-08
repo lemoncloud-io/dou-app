@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { isNative, webClient } from '@chatic/bridges';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useWebSocketV2Store } from '@chatic/socket';
+import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 
 import {
     ChannelSettingsPanel,
@@ -42,6 +43,10 @@ export const HomePage = () => {
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
+    const socketCloudId = useWebSocketV2Store(s => s.cloudId);
+    // Default Cloud (relay / Guest Session): no joinable places — force the
+    // 'default' place so the Self Channel loads; the sidebar hides the switcher.
+    const isDefaultMode = (socketCloudId ?? cloudCore.getSelectedCloudId() ?? 'default') === 'default';
 
     const [query, setQuery] = useState('');
     // A channel to open once its place's channels have loaded (notification click
@@ -68,14 +73,21 @@ export const HomePage = () => {
         });
     }, [selectedPlaceId, switchPlace, selectChannel]);
 
-    // Default to the first place once places load (socket is already verified for
-    // the persisted place at this point, so no re-auth needed here).
+    // Default Cloud: pin the 'default' place (Self Channel). Otherwise select the
+    // first place whenever the current selection isn't in the loaded list — covers
+    // initial load AND a cloud switch / invite-join where the prior place (e.g.
+    // 'default') doesn't exist in the newly-loaded cloud.
     useEffect(() => {
-        if (!selectedPlaceId && places.length > 0) {
+        if (isDefaultMode) {
+            if (selectedPlaceId !== 'default') selectPlace('default');
+            return;
+        }
+        const inList = !!selectedPlaceId && places.some(p => p.id === selectedPlaceId);
+        if (!inList && places.length > 0) {
             const firstId = places[0]?.id;
             if (firstId) selectPlace(firstId);
         }
-    }, [places, selectedPlaceId, selectPlace]);
+    }, [isDefaultMode, places, selectedPlaceId, selectPlace]);
 
     // Reset the open channel when the active place changes; the next effect
     // auto-selects the first channel of the newly-loaded place.
@@ -150,6 +162,7 @@ export const HomePage = () => {
                             selectedPlaceId={selectedPlaceId}
                             unreadByPlace={unreadByPlace}
                             isLoading={placesLoading}
+                            isDefaultMode={isDefaultMode}
                             query={query}
                             onQueryChange={setQuery}
                             onSelectPlace={placeId => void switchPlace(placeId)}

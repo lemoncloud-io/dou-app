@@ -1,9 +1,12 @@
 import { useCallback, useState } from 'react';
 
+import { useQueryClient } from '@tanstack/react-query';
+
 import type { CloudDelegationTokenView, MyInviteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
 import { useRegisterDevice } from '@chatic/auth';
+import { cloudsKeys } from '@chatic/users';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useDynamicDeviceId } from '@chatic/app-runtime';
 import {
@@ -17,6 +20,7 @@ import {
     webCore,
 } from '@chatic/web-core';
 
+import { useJoinedCloudsStore } from '../../../shared';
 import { fetchInviteCodeInfo } from '../apis';
 import { parseInviteInput } from '../utils';
 
@@ -35,6 +39,8 @@ export const useInviteLogin = () => {
     const { deviceId } = useDynamicDeviceId();
     const { mutateAsync: registerDevice } = useRegisterDevice();
     const { setProfile, setIsAuthenticated } = useWebCoreStore();
+    const addJoinedCloud = useJoinedCloudsStore(s => s.addJoinedCloud);
+    const queryClient = useQueryClient();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isError, setIsError] = useState(false);
 
@@ -81,7 +87,17 @@ export const useInviteLogin = () => {
 
                 cloudCore.saveCloudToken(tokenView);
                 const cloudId = info?.cloudId ?? tokenView.cloudId;
-                if (cloudId) cloudCore.saveSelectedCloudId(cloudId);
+                if (cloudId) {
+                    cloudCore.saveSelectedCloudId(cloudId);
+                    // Remember the joined cloud so the rail shows it immediately —
+                    // the broker cloud list is eventually consistent and may omit it.
+                    addJoinedCloud({ id: cloudId, name: info?.cloudName ?? undefined });
+                    // Repoint the socket at the invited cloud + force re-auth, so an
+                    // already-authenticated (guest) session reconnects to the new
+                    // cloud's wss instead of staying on relay (mirrors selectCloud).
+                    useWebSocketV2Store.getState().setCloudId(cloudId);
+                    useWebSocketV2Store.getState().setIsVerified(false);
+                }
 
                 // Pre-select the invited place so the socket connects to it (mirrors web handleAccept).
                 cloudCore.clearSelectedPlace();
@@ -94,6 +110,9 @@ export const useInviteLogin = () => {
 
                 setIsInvitedSession(true);
                 setIsAuthenticated(true);
+                // The broker cloud list is eventually consistent — refetch so the
+                // just-joined cloud appears in the rail alongside the Default Cloud.
+                void queryClient.invalidateQueries({ queryKey: cloudsKeys.all });
                 return true;
             } catch (error) {
                 const err = toError(error);
@@ -105,7 +124,7 @@ export const useInviteLogin = () => {
                 setIsSubmitting(false);
             }
         },
-        [deviceId, registerDevice, setProfile, setIsAuthenticated]
+        [deviceId, registerDevice, setProfile, setIsAuthenticated, addJoinedCloud, queryClient]
     );
 
     return { login, isSubmitting, isError };
