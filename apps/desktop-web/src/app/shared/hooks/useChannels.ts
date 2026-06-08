@@ -10,11 +10,12 @@ import { useReadCursorStore } from '../stores';
 
 const CHANNEL_LIMIT = 100;
 
-/** Most-recent-activity first, so the list order is stable across refetches. */
-const channelTime = (channel: DomainChannel): number => channel.lastActivityAt || channel.lastChat$?.createdAtMs || 0;
+// Fixed alphabetical order (Slack-style) so the list doesn't jump on every new
+// message; unread is surfaced by the row badge, not by reordering.
+const channelLabel = (channel: DomainChannel): string => (channel.name ?? channel.id ?? '').toLowerCase();
 
-const sortByRecency = (list: DomainChannel[]): DomainChannel[] =>
-    [...list].sort((a, b) => channelTime(b) - channelTime(a));
+const sortByName = (list: DomainChannel[]): DomainChannel[] =>
+    [...list].sort((a, b) => channelLabel(a).localeCompare(channelLabel(b)));
 
 /**
  * Streams the channel list for a place via the engine repositories. Initial load
@@ -52,7 +53,7 @@ export const useChannels = (placeId: string | undefined) => {
                 .fetchChannel({ sid: placeId, detail: true, limit: CHANNEL_LIMIT }, { cachePolicy })
                 .then(result => {
                     if (!active) return;
-                    setRawChannels(sortByRecency((result.list ?? []) as DomainChannel[]));
+                    setRawChannels(sortByName((result.list ?? []) as DomainChannel[]));
                 })
                 .finally(() => {
                     if (active) setIsLoading(false);
