@@ -14,6 +14,7 @@
         "build:prod": "electron-vite build --mode production",
         "package:mac:dev": "yarn build:dev && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac -c.appId=io.chatic.desktop.dev -c.productName=\"Chatic Dev\" -c.mac.icon=build/icon-dev.png",
         "package:mac:prod": "yarn build:prod && electron-builder --mac",
+        "package:mac:prod:signed": "yarn build:prod && dotenv -e .env.signing -- electron-builder --mac -c.mac.notarize=true",
         "package:win:dev": "yarn build:dev && electron-builder --win -c.appId=io.chatic.desktop.dev -c.productName=\"Chatic Dev\" -c.win.icon=build/icon-dev.png",
         "package:win:prod": "yarn build:prod && electron-builder --win"
     },
@@ -32,6 +33,7 @@
             "output": "release"
         },
         "afterPack": "build/afterPack.cjs",
+        "afterAllArtifactBuild": "build/afterAllArtifactBuild.cjs",
         "files": [
             "out/**/*"
         ],
