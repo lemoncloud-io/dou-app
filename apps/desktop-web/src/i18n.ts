@@ -42,7 +42,6 @@ const resources = {
             'chat.composer.emoji': 'Emoji',
             'chat.composer.placeholderChannel': 'Message #{{name}}',
             'chat.composer.hint': 'Enter to send · Shift+Enter for a new line',
-            'chat.you': 'You',
             'chat.copy': 'Copy',
             'chat.copied': 'Copied',
             'chat.jumpToLatest': 'Jump to latest',

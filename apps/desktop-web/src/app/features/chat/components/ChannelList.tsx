@@ -12,19 +12,11 @@ interface ChannelListProps {
     isLoading: boolean;
     selectedChannelId: string | null;
     query: string;
-    /** Signed-in user id — prefixes own last message with "You". */
-    myUid: string | null;
     onSelect: (channelId: string) => void;
 }
 
-/** "You: hi" / "Jane: hi" / "hi" — author prefix on the channel's last message. */
-const lastMessagePreview = (channel: DomainChannel, myUid: string | null, you: string): string => {
-    const last = channel.lastChat$;
-    const text = last?.content?.trim();
-    if (!text) return '';
-    const author = myUid && last?.ownerId === myUid ? you : last?.owner$?.name;
-    return author ? `${author}: ${text}` : text;
-};
+/** The channel's last message text — no author prefix. */
+const lastMessagePreview = (channel: DomainChannel): string => channel.lastChat$?.content?.trim() ?? '';
 
 const ChannelSkeleton = () => (
     <div role="status" aria-label="Loading channels" className="flex flex-col gap-1 p-2">
@@ -37,7 +29,7 @@ const ChannelSkeleton = () => (
     </div>
 );
 
-export const ChannelList = ({ channels, isLoading, selectedChannelId, query, myUid, onSelect }: ChannelListProps) => {
+export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onSelect }: ChannelListProps) => {
     const { t } = useTranslation();
     // Tick once a minute so the relative "11m" preview times stay current.
     useTick(60_000);
@@ -85,7 +77,7 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, myU
                 const isActive = id === selectedChannelId;
                 const unread = channel.unreadCount ?? 0;
                 const hasUnread = unread > 0 && !isActive;
-                const preview = lastMessagePreview(channel, myUid, t('chat.you'));
+                const preview = lastMessagePreview(channel);
                 const time = relativeTime(channel.lastChat$?.createdAt ?? channel.lastActivityAt);
                 return (
                     <button

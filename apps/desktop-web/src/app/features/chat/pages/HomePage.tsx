@@ -174,7 +174,6 @@ export const HomePage = () => {
                                 isLoading={isLoading}
                                 selectedChannelId={selectedChannelId}
                                 query={query}
-                                myUid={myUid}
                                 onSelect={selectChannel}
                             />
                         </div>
