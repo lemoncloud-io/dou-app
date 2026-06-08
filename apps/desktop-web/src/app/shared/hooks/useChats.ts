@@ -7,13 +7,19 @@ import { useRepositories } from '@chatic/app-runtime';
 const PAGE_SIZE = 50;
 
 /**
- * Session-scoped, in-memory memo of the last live page per channel. NOT a
- * parallel store — it only mirrors what `subscribeList` last streamed, so
- * re-opening a channel paints its messages on the first frame instead of
- * flashing the loading skeleton while the async cache read resolves. Never
- * persisted; the engine cache stays the source of truth.
+ * Session-scoped, in-memory memo of each channel's loaded state — the live tail
+ * page, the scrolled-up `older` history, and the pagination cursor. NOT a
+ * parallel store: it only mirrors what the engine already streamed/fetched, so
+ * re-opening a channel restores exactly what was on screen (including history
+ * you scrolled up to load) instead of reloading from scratch. Never persisted;
+ * the engine cache stays the source of truth.
  */
-const messageMemo = new Map<string, DomainChat[]>();
+interface ChannelState {
+    live: DomainChat[] | null;
+    older: DomainChat[];
+    feedCursorNo?: number;
+}
+const channelMemo = new Map<string, ChannelState>();
 
 const sortByChatNo = (messages: DomainChat[]) =>
     [...messages].sort((a, b) => {
@@ -40,14 +46,13 @@ const mergeUnique = (...lists: DomainChat[][]): DomainChat[] => {
  */
 export const useChats = (channelId: string | null) => {
     const { chat: chatRepository } = useRepositories();
-    const [live, setLive] = useState<DomainChat[] | null>(() =>
-        channelId ? (messageMemo.get(channelId) ?? null) : []
-    );
-    const [older, setOlder] = useState<DomainChat[]>([]);
+    const initial = channelId ? channelMemo.get(channelId) : undefined;
+    const [live, setLive] = useState<DomainChat[] | null>(() => (channelId ? (initial?.live ?? null) : []));
+    const [older, setOlder] = useState<DomainChat[]>(() => initial?.older ?? []);
     // Server's authoritative older-cursor (mirrors apps/web useChats): the next
     // page is fetched with `cursorNo`, and the engine returns `cursorNo <= 1` once
     // no older history remains. Trust it instead of guessing from page length.
-    const [feedCursorNo, setFeedCursorNo] = useState<number | undefined>(undefined);
+    const [feedCursorNo, setFeedCursorNo] = useState<number | undefined>(initial?.feedCursorNo);
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
     // Tracks the channel the hook is currently bound to, so an in-flight
     // loadOlder() that resolves after a channel switch can bail instead of
@@ -55,35 +60,43 @@ export const useChats = (channelId: string | null) => {
     const channelIdRef = useRef(channelId);
 
     // Adjust state synchronously when the channel changes (React's "derive state
-    // from props" pattern) so the new channel paints in the same render. Seed live
-    // from the session memo — a previously-opened channel shows its messages
-    // instantly with no loading skeleton; a never-opened one resets to null.
+    // from props" pattern) so the new channel paints in the same render. Restore
+    // the full saved state — live tail + scrolled-up history + cursor — so a
+    // revisited channel shows exactly what was there, with no loading skeleton or
+    // re-scroll; a never-opened one resets to a fresh load.
     const [renderedChannel, setRenderedChannel] = useState(channelId);
     if (renderedChannel !== channelId) {
         setRenderedChannel(channelId);
-        setLive(channelId ? (messageMemo.get(channelId) ?? null) : []);
-        setOlder([]);
-        setFeedCursorNo(undefined);
+        const restored = channelId ? channelMemo.get(channelId) : undefined;
+        setLive(channelId ? (restored?.live ?? null) : []);
+        setOlder(restored?.older ?? []);
+        setFeedCursorNo(restored?.feedCursorNo);
         setIsLoadingOlder(false);
     }
+
+    // Persist the channel's loaded state so re-opening restores it instead of
+    // reloading. Keeps the scrolled-up history and pagination cursor across switches.
+    useEffect(() => {
+        if (channelId) channelMemo.set(channelId, { live, older, feedCursorNo });
+    }, [channelId, live, older, feedCursorNo]);
 
     useEffect(() => {
         channelIdRef.current = channelId;
         if (!channelId) return;
 
-        const unsubscribe = chatRepository.subscribeList(channelId, result => {
-            const list = result?.list ?? [];
-            messageMemo.set(channelId, list);
-            setLive(list);
-        });
+        const unsubscribe = chatRepository.subscribeList(channelId, result => setLive(result?.list ?? []));
 
-        // Kick a network fetch so the cache (and thus the subscription) is populated.
-        void chatRepository
-            .fetchChat({ channelId, limit: PAGE_SIZE }, { cachePolicy: 'cache-first' })
-            .then(result => {
-                if (channelId === channelIdRef.current) setFeedCursorNo(result.meta?.cursorNo);
-            })
-            .catch(() => undefined);
+        // Only hit the network the first time this channel is opened this session.
+        // On revisit the cached pages are restored from memo and the socket keeps
+        // the live tail fresh, so skip the redundant reload.
+        if (!channelMemo.get(channelId)?.live) {
+            void chatRepository
+                .fetchChat({ channelId, limit: PAGE_SIZE }, { cachePolicy: 'cache-first' })
+                .then(result => {
+                    if (channelId === channelIdRef.current) setFeedCursorNo(result.meta?.cursorNo);
+                })
+                .catch(() => undefined);
+        }
 
         return () => unsubscribe();
     }, [channelId, chatRepository]);
