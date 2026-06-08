@@ -7,6 +7,9 @@ const { join } = require('node:path');
 // signature that lets it run locally. Replaced by real Developer ID signing + notarization later.
 exports.default = async function afterPack(context) {
     if (context.electronPlatformName !== 'darwin') return;
+    // When a real Developer ID cert is provided (CSC_LINK, prod CI), let electron-builder do the
+    // proper signing + notarization instead — skip the ad-hoc stopgap.
+    if (process.env.CSC_LINK) return;
     const appPath = join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`);
     execFileSync('codesign', ['--force', '--deep', '--sign', '-', appPath], { stdio: 'inherit' });
 };

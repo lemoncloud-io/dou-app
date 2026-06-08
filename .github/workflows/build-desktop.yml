@@ -47,8 +47,33 @@ jobs:
             - name: Install dependencies
               run: yarn install --frozen-lockfile
 
+            # macOS prod is Developer-ID signed + notarized when the signing secrets are present;
+            # otherwise (dev, Windows, or secrets unset) the build stays unsigned / ad-hoc.
             - name: Package ${{ matrix.platform }} installer
-              run: yarn workspace @chatic/desktop package:${{ matrix.platform }}:${{ inputs.env }}
+              shell: bash
+              env:
+                  CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+                  CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+                  APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+                  APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+                  APPLE_API_KEY_B64: ${{ secrets.APPLE_API_KEY }}
+              run: |
+                  set -e
+                  EXTRA=""
+                  if [ "${{ matrix.platform }}" = "mac" ] && [ "${{ inputs.env }}" = "prod" ] && [ -n "$CSC_LINK" ]; then
+                    if [ -n "$APPLE_API_KEY_B64" ]; then
+                      echo "$APPLE_API_KEY_B64" | base64 --decode > "$RUNNER_TEMP/apple_api_key.p8"
+                      export APPLE_API_KEY="$RUNNER_TEMP/apple_api_key.p8"
+                      EXTRA="-c.mac.notarize=true"
+                      echo "macOS prod: Developer ID signing + notarization enabled"
+                    else
+                      echo "macOS prod: signing only (no notarization credentials)"
+                    fi
+                  else
+                    # Don't leak the macOS cert into Windows/dev builds — keep them ad-hoc/unsigned.
+                    unset CSC_LINK CSC_KEY_PASSWORD
+                  fi
+                  yarn workspace @chatic/desktop package:${{ matrix.platform }}:${{ inputs.env }} $EXTRA
 
             # Artifact is the transport to the release job below (and a fallback download).
             - name: Upload installer artifact

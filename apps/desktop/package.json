@@ -13,7 +13,7 @@
         "build:dev": "electron-vite build --mode dev",
         "build:prod": "electron-vite build --mode production",
         "package:mac:dev": "yarn build:dev && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac -c.appId=io.chatic.desktop.dev -c.productName=\"Chatic Dev\" -c.mac.icon=build/icon-dev.png",
-        "package:mac:prod": "yarn build:prod && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
+        "package:mac:prod": "yarn build:prod && electron-builder --mac",
         "package:win:dev": "yarn build:dev && electron-builder --win -c.appId=io.chatic.desktop.dev -c.productName=\"Chatic Dev\" -c.win.icon=build/icon-dev.png",
         "package:win:prod": "yarn build:prod && electron-builder --win"
     },
@@ -53,7 +53,11 @@
             "target": [
                 "dmg"
             ],
-            "category": "public.app-category.social-networking"
+            "category": "public.app-category.social-networking",
+            "hardenedRuntime": true,
+            "gatekeeperAssess": false,
+            "entitlements": "build/entitlements.mac.plist",
+            "entitlementsInherit": "build/entitlements.mac.plist"
         },
         "win": {
             "target": [
