@@ -56,7 +56,14 @@ jobs:
                   python-version: '3.11'
 
             - name: Install dependencies
-              run: yarn install --frozen-lockfile
+              shell: bash
+              run: |
+                  for i in 1 2 3; do
+                    yarn install --frozen-lockfile && exit 0
+                    echo "install attempt $i failed (transient download?); retrying in 15s"
+                    sleep 15
+                  done
+                  exit 1
 
             # macOS prod is Developer-ID signed + notarized when the signing secrets are present;
             # otherwise (dev, Windows, or secrets unset) the build stays unsigned / ad-hoc.
@@ -137,7 +144,8 @@ jobs:
     notify-slack:
         name: Notify Slack
         needs: [build, release]
-        if: ${{ always() }}
+        # Only notify for real manual builds — never for push-triggered smoke tests.
+        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
         runs-on: ubuntu-latest
         steps:
             - name: Prepare Slack message
