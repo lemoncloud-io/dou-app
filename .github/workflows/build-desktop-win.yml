@@ -14,10 +14,15 @@ on:
                     - dev
                     - prod
                 default: dev
+    # TEMP: smoke-test the Windows build on the feature branch before merging to develop.
+    # Remove this push trigger once verified.
+    push:
+        branches:
+            - feature/louis-update-electron
 
 jobs:
     build:
-        name: Build Windows installer (${{ inputs.env }})
+        name: Build Windows installer (${{ inputs.env || 'dev' }})
         runs-on: windows-latest
         steps:
             - name: Checkout code
@@ -39,11 +44,11 @@ jobs:
               run: yarn install --frozen-lockfile
 
             - name: Package Windows installer
-              run: yarn workspace @chatic/desktop package:win:${{ inputs.env }}
+              run: yarn workspace @chatic/desktop package:win:${{ inputs.env || 'dev' }}
 
             - name: Upload installer artifact
               uses: actions/upload-artifact@v4
               with:
-                  name: chatic-desktop-${{ inputs.env }}-win
+                  name: chatic-desktop-${{ inputs.env || 'dev' }}-win
                   path: apps/desktop/release/*.exe
                   if-no-files-found: error
