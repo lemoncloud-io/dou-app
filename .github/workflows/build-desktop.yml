@@ -65,31 +65,47 @@ jobs:
                   done
                   exit 1
 
-            # macOS prod is Developer-ID signed + notarized when the signing secrets are present;
-            # otherwise (dev, Windows, or secrets unset) the build stays unsigned / ad-hoc.
+            # macOS prod signing: import the Developer ID cert into a dedicated keychain so BOTH
+            # electron-builder (the .app) and the afterAllArtifactBuild hook (the .dmg) resolve it
+            # by name. No-op when the cert secret is absent → build stays unsigned / ad-hoc.
+            - name: Set up macOS signing keychain
+              if: ${{ matrix.platform == 'mac' && (inputs.env || 'prod') == 'prod' }}
+              env:
+                  MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+                  MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+              run: |
+                  set -e
+                  if [ -z "$MAC_CSC_LINK" ]; then echo "no signing cert → unsigned build"; exit 0; fi
+                  KC="$RUNNER_TEMP/chatic-signing.keychain-db"
+                  KP="$(openssl rand -base64 24)"
+                  echo "$MAC_CSC_LINK" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+                  security create-keychain -p "$KP" "$KC"
+                  security set-keychain-settings -lut 21600 "$KC"
+                  security unlock-keychain -p "$KP" "$KC"
+                  security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$MAC_CSC_KEY_PASSWORD" -T /usr/bin/codesign
+                  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KP" "$KC" >/dev/null
+                  security list-keychains -d user -s "$KC" login.keychain-db
+                  rm -f "$RUNNER_TEMP/cert.p12"
+                  security find-identity -v -p codesigning "$KC"
+
+            # electron-builder auto-discovers the Developer ID from the keychain above (no CSC_LINK).
+            # Windows/dev or missing cert → unsigned. Notarization runs when the API key is present.
             - name: Package ${{ matrix.platform }} installer
               shell: bash
               env:
-                  CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-                  CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
                   APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
                   APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
                   APPLE_API_KEY_B64: ${{ secrets.APPLE_API_KEY }}
               run: |
                   set -e
                   EXTRA=""
-                  if [ "${{ matrix.platform }}" = "mac" ] && [ "${{ inputs.env || 'prod' }}" = "prod" ] && [ -n "$CSC_LINK" ]; then
-                    if [ -n "$APPLE_API_KEY_B64" ]; then
-                      echo "$APPLE_API_KEY_B64" | base64 --decode > "$RUNNER_TEMP/apple_api_key.p8"
-                      export APPLE_API_KEY="$RUNNER_TEMP/apple_api_key.p8"
-                      EXTRA="-c.mac.notarize=true"
-                      echo "macOS prod: Developer ID signing + notarization enabled"
-                    else
-                      echo "macOS prod: signing only (no notarization credentials)"
-                    fi
-                  else
-                    # Don't leak the macOS cert into Windows/dev builds — keep them ad-hoc/unsigned.
-                    unset CSC_LINK CSC_KEY_PASSWORD
+                  if [ "${{ matrix.platform }}" = "mac" ] && [ "${{ inputs.env || 'prod' }}" = "prod" ] \
+                     && security find-identity -v -p codesigning | grep -q "Developer ID Application" \
+                     && [ -n "$APPLE_API_KEY_B64" ]; then
+                    echo "$APPLE_API_KEY_B64" | base64 --decode > "$RUNNER_TEMP/apple_api_key.p8"
+                    export APPLE_API_KEY="$RUNNER_TEMP/apple_api_key.p8"
+                    EXTRA="-c.mac.notarize=true"
+                    echo "macOS prod: Developer ID signing + notarization enabled"
                   fi
                   yarn workspace @chatic/desktop package:${{ matrix.platform }}:${{ inputs.env || 'prod' }} $EXTRA
 
