@@ -33,7 +33,7 @@ export const useChannelMembers = (channelId: string | null, ownerId?: string) =>
     const [error, setError] = useState<Error | null>(null);
 
     useEffect(() => {
-        if (!channelId || !isVerified) {
+        if (!channelId) {
             setRawMembers([]);
             setIsLoading(false);
             return;
@@ -44,8 +44,12 @@ export const useChannelMembers = (channelId: string | null, ownerId?: string) =>
         setIsLoading(true);
         setError(null);
 
-        // Initial load may serve cache; event-driven refetches must hit the network,
-        // otherwise live join/leave/profile updates would return the stale cached list.
+        // Initial load is cache-first — a local IndexedDB read needs no socket, so
+        // the roster (and thus author names) resolves immediately even before the
+        // socket verifies on launch, instead of flashing "Unknown". The cache-first
+        // call also kicks a background network refresh once connected. Event-driven
+        // refetches must hit the network so live join/leave/profile updates aren't
+        // served stale from cache.
         const fetchMembers = (cachePolicy: 'cache-first' | 'network-only' = 'cache-first') => {
             userRepository
                 .fetchUsers({ channelId, detail: true, limit: MEMBER_LIMIT }, { cachePolicy })

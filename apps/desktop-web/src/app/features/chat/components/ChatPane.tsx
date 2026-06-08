@@ -14,11 +14,6 @@ import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
 
-// Session-wide author name cache (userId/ownerId → name), harvested from member
-// rosters and message owner$ across every channel. Survives channel switches so
-// a once-seen author resolves instantly instead of flashing "Unknown".
-const authorNameCache = new Map<string, string>();
-
 interface ChatPaneProps {
     channel: DomainChannel | undefined;
     /** Roster for the open channel (lifted to HomePage so it's fetched once). */
@@ -56,23 +51,16 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     const baselineReadNo = baselineRef.current.no;
 
     // owner$ is often omitted on other users' messages; resolve author names from
-    // the channel roster (id → name) AND from any owner$ embedded on loaded
-    // messages, harvested into a module cache that survives channel switches — so
-    // an author seen once never flashes "Unknown" again before the roster/live
-    // record re-arrives. Keyed by both ownerId and owner$.id to span id quirks.
+    // the channel roster (id → name). The roster comes from the `user` cache
+    // (IndexedDB, persisted, cache-first even before socket verify), so it is the
+    // single source — no parallel name cache needed. A message that does carry
+    // owner$ resolves directly in getOwnerName; until the roster lands the header
+    // shows a skeleton (namePending).
     const memberNames = useMemo(() => {
-        for (const member of members) {
-            const name = displayName(member);
-            if (name && name !== member.id) authorNameCache.set(member.id, name);
-        }
-        for (const msg of messages) {
-            const name = msg.owner$?.name;
-            if (!name) continue;
-            if (msg.ownerId) authorNameCache.set(msg.ownerId, name);
-            if (msg.owner$?.id) authorNameCache.set(msg.owner$.id, name);
-        }
-        return new Map(authorNameCache);
-    }, [members, messages]);
+        const map = new Map<string, string>();
+        for (const member of members) map.set(member.id, displayName(member));
+        return map;
+    }, [members]);
 
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages);
