@@ -107,16 +107,33 @@ export const MessageList = ({
             else bottomRef.current?.scrollIntoView({ block: 'end' });
             return;
         }
-        // New tail message (or first load) while pinned to bottom → follow it.
-        if (grew && atBottom) bottomRef.current?.scrollIntoView({ block: 'end' });
+        // New tail message while pinned to bottom → follow it. Setting scrollTop
+        // directly is reliable here; scrollIntoView on the 0-height bottom anchor
+        // lands a message-height short in this flex column.
+        if (grew && atBottom) el.scrollTop = el.scrollHeight;
     }, [messages, atBottom, maxChatNo, viewer.uid]);
 
-    // After sending, snap to the latest even if the reader had scrolled up; the
-    // follow-on-grow path then keeps tracking the optimistic message.
+    // After sending, snap to the latest even if the reader had scrolled up. A
+    // single scroll lands short: the optimistic message renders, then the list
+    // reflows over the next few frames (optimistic→server swap, height change),
+    // each nudging the viewport off the bottom. Pin to the bottom every frame
+    // until the height settles (3 stable frames) or a short deadline passes.
     useEffect(() => {
         if (!scrollSignal) return;
         setAtBottom(true);
-        bottomRef.current?.scrollIntoView({ block: 'end' });
+        // Pin to the bottom every frame for a short window: a single scroll lands
+        // short because the list keeps reflowing after the send (optimistic message
+        // render, optimistic→server swap, height change), each nudging the viewport
+        // off the bottom. Pinning the whole window rides through all of them.
+        const deadline = performance.now() + 600;
+        let raf = 0;
+        const snap = () => {
+            const el = scrollRef.current;
+            if (el) el.scrollTop = el.scrollHeight;
+            if (performance.now() < deadline) raf = requestAnimationFrame(snap);
+        };
+        raf = requestAnimationFrame(snap);
+        return () => cancelAnimationFrame(raf);
     }, [scrollSignal]);
 
     const onScroll = () => {
