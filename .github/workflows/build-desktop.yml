@@ -14,10 +14,6 @@ on:
                     - dev
                     - prod
                 default: dev
-    # TEMP: smoke-test mac+win+Slack on the feature branch before merging. Remove after.
-    push:
-        branches:
-            - feature/louis-update-electron
 
 # The desktop build never needs the mobile CocoaPods install that the root postinstall
 # runs on macOS runners — skip it to save minutes and drop an unrelated failure surface.
@@ -26,7 +22,7 @@ env:
 
 jobs:
     build:
-        name: Build ${{ matrix.platform }} (${{ inputs.env || 'dev' }})
+        name: Build ${{ matrix.platform }} (${{ inputs.env }})
         runs-on: ${{ matrix.os }}
         strategy:
             fail-fast: false
@@ -51,12 +47,12 @@ jobs:
               run: yarn install --frozen-lockfile
 
             - name: Package ${{ matrix.platform }} installer
-              run: yarn workspace @chatic/desktop package:${{ matrix.platform }}:${{ inputs.env || 'dev' }}
+              run: yarn workspace @chatic/desktop package:${{ matrix.platform }}:${{ inputs.env }}
 
             - name: Upload installer artifact
               uses: actions/upload-artifact@v4
               with:
-                  name: chatic-desktop-${{ inputs.env || 'dev' }}-${{ matrix.platform }}
+                  name: chatic-desktop-${{ inputs.env }}-${{ matrix.platform }}
                   path: ${{ matrix.artifact }}
                   if-no-files-found: error
 
@@ -74,11 +70,11 @@ jobs:
                   COMMIT_SHA="${GITHUB_SHA:0:7}"
                   if [[ "${{ needs.build.result }}" == "success" ]]; then
                     echo "emoji=:desktop_computer:" >> $GITHUB_OUTPUT
-                    echo "title=Chatic 데스크톱 빌드 완료 (${{ inputs.env || 'dev' }})" >> $GITHUB_OUTPUT
+                    echo "title=Chatic 데스크톱 빌드 완료 (${{ inputs.env }})" >> $GITHUB_OUTPUT
                     echo "body=• mac \`.dmg\` + win \`.exe\` 생성 — Actions Run의 Artifacts에서 다운로드" >> $GITHUB_OUTPUT
                   else
                     echo "emoji=:x:" >> $GITHUB_OUTPUT
-                    echo "title=Chatic 데스크톱 빌드 실패 (${{ inputs.env || 'dev' }})" >> $GITHUB_OUTPUT
+                    echo "title=Chatic 데스크톱 빌드 실패 (${{ inputs.env }})" >> $GITHUB_OUTPUT
                     echo "body=• 빌드 결과: \`${{ needs.build.result }}\` — 로그 확인 필요" >> $GITHUB_OUTPUT
                   fi
                   echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
