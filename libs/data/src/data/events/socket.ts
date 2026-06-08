@@ -14,7 +14,7 @@ import type {
     UserView,
 } from '@lemoncloud/chatic-socials-api';
 
-import type { ListResult, Synced } from './common';
+import type { ChannelSyncView, ListResult, Synced } from './common';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 /**
@@ -56,6 +56,7 @@ export interface SocketEventMap {
     'channel:subscribe': SocketEventDetail<ChannelPayload>;
     'channel:unsubscribe': SocketEventDetail<ChannelPayload>;
     'channel:error': SocketEventDetail<ChatErrorPayload>;
+    'channel:sync': SocketEventDetail<ChannelSyncView>;
 
     // ------------------------------------------
     // 3. Join (채팅방 참여 정보)

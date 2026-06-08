@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
 import { useWebSocketV2Store } from '@chatic/socket';
@@ -32,9 +32,26 @@ export const GlobalChatSync = () => {
         return () => unsub();
     }, [channelRepository, selectedPlaceId]);
 
-    // 포그라운드 복귀 시 현재 place의 채널 리스트를 서버에서 refetch
-    // 토큰 refresh chain(foreground-resync)에 의존하지 않고 visibilitychange를 직접 감지
-    // → 소켓이 이미 verified 상태이면 즉시 채널만 가져옴
+    // 서버에서 채널 목록을 가져와 channels state에 직접 반영하는 헬퍼
+    // subscribeList 콜백에 의존하지 않고 결과를 직접 setChannels로 반영
+    const fetchAndApply = useCallback(
+        async (cachePolicy: 'cache-only' | 'network-only') => {
+            const sid = useWebSocketV2Store.getState().selectedPlaceId || undefined;
+            try {
+                const result = await channelRepository.fetchChannel({ sid }, { cachePolicy });
+                if (result?.list?.length) {
+                    setChannels(result.list);
+                }
+            } catch {
+                // 캐시/네트워크 실패 무시
+            }
+        },
+        [channelRepository]
+    );
+
+    // 포그라운드 복귀 시 채널 리스트 갱신
+    // 1) 캐시에서 즉시 읽어 channels 반영 → useChatSync가 gap 감지
+    // 2) 소켓 연결 상태면 서버에서도 가져옴
     const hiddenAtRef = useRef<number | null>(null);
     useEffect(() => {
         const handler = () => {
@@ -48,15 +65,51 @@ export const GlobalChatSync = () => {
             hiddenAtRef.current = null;
             if (elapsed < MIN_HIDDEN_MS) return;
 
-            const { isVerified } = useWebSocketV2Store.getState();
-            if (!isVerified) return;
+            void fetchAndApply('cache-only');
 
-            const sid = useWebSocketV2Store.getState().selectedPlaceId || undefined;
-            void channelRepository.fetchChannel({ sid }, { cachePolicy: 'network-only' });
+            const { isVerified } = useWebSocketV2Store.getState();
+            if (isVerified) {
+                void fetchAndApply('network-only');
+            }
         };
         document.addEventListener('visibilitychange', handler);
         return () => document.removeEventListener('visibilitychange', handler);
-    }, [channelRepository]);
+    }, [fetchAndApply]);
+
+    // 소켓 재연결 완료 시 채널 목록 서버 refetch
+    // 포그라운드 복귀 시점에 소켓이 아직 미연결이면 visibilitychange가 커버하지 못하므로
+    // isVerified: false→true 전환을 직접 감지하여 누락된 메시지 gap을 해소
+    useEffect(() => {
+        let prevVerified = useWebSocketV2Store.getState().isVerified;
+        let hadDisconnection = false;
+
+        const unsubConnected = useWebSocketV2Store.subscribe(
+            s => s.isConnected,
+            isConnected => {
+                if (!isConnected) {
+                    hadDisconnection = true;
+                }
+            }
+        );
+
+        const unsubVerified = useWebSocketV2Store.subscribe(
+            s => s.isVerified,
+            isVerified => {
+                if (isVerified && !prevVerified && hadDisconnection) {
+                    void fetchAndApply('network-only');
+                }
+                if (isVerified) {
+                    hadDisconnection = false;
+                }
+                prevVerified = isVerified;
+            }
+        );
+
+        return () => {
+            unsubConnected();
+            unsubVerified();
+        };
+    }, [fetchAndApply]);
 
     useChatSync(channels);
 

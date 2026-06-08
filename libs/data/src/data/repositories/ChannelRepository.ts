@@ -19,6 +19,7 @@ import {
     toDomainChannel,
 } from '../domain';
 import type { ChannelView, ChatView, JoinView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelSyncView } from '../events/common';
 import type {
     ChatDeleteChannelPayload,
     ChatInvitePayload,
@@ -69,6 +70,9 @@ export interface IChannelRepository extends ILocalCacheMutationRepository<Domain
     ): () => void;
 
     subscribeItem(id: string, callback: (channel: DomainChannel | null) => void): () => void;
+
+    /** 서버와 채널 목록을 동기화합니다. since 이후 변경분만 반영하고 삭제/이탈 채널을 제거합니다. */
+    syncChannels(since: number): Promise<{ syncedAt: number; updatedCount: number; removedCount: number }>;
 }
 
 export class ChannelRepository extends BaseRepository implements IChannelRepository, ISyncRepository {
@@ -85,8 +89,9 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         this.initializeInternalListeners();
     }
 
-    sync(id?: string, meta?: Record<string, unknown>): Promise<void> {
-        throw new Error('Method not implemented.');
+    async sync(_id?: string, meta?: Record<string, unknown>): Promise<void> {
+        const since = (meta?.since as number) ?? 0;
+        await this.syncChannels(since);
     }
 
     // --- Remote API ---
@@ -223,6 +228,58 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
             items.map(it => ({ id: it.id, ...it.patch })),
             this.getRepositoryContext()
         );
+    }
+
+    // --- Sync Logic ---
+    public async syncChannels(
+        since: number
+    ): Promise<{ syncedAt: number; updatedCount: number; removedCount: number }> {
+        const requestScope = this.getDomainScope();
+        const requestContext = this.getRepositoryContext();
+
+        const result = await this.requestRemote<ChannelSyncView>(ref =>
+            this.channelRemoteDataSource.syncChannel({ since }, ref)
+        );
+
+        // cloud 전환 감지 — cross-cloud 오염 방지
+        const currentCid = this.getRepositoryContext().cid;
+        if (currentCid !== requestContext.cid) {
+            return { syncedAt: result.syncedAt, updatedCount: 0, removedCount: 0 };
+        }
+
+        // 1. 변경된 채널 upsert
+        // sync는 클라우드 레벨이므로 sid를 비워서 각 채널 자체의 sid를 보존한다.
+        // scope.sid를 그대로 쓰면 $:{} 인 채널에 현재 place의 sid가 오염됨
+        const syncScope = { ...requestScope, sid: '' };
+        const domainList = (result.list || [])
+            .map(item => ({
+                ...toDomainChannel(item, syncScope),
+                cid: requestScope.cid,
+            }))
+            .filter(ch => !!ch.sid && !!ch.id && !this.leftChannelIds.has(ch.id));
+
+        if (domainList.length > 0) {
+            // sid가 없는 context를 전달하여 upsertMany의 fallback에서 현재 place sid 오염 방지
+            const syncContext = { ...requestContext, sid: '' };
+            await this.channelLocalDataSource.upsertMany(domainList, syncContext);
+        }
+
+        // 2. 삭제/이탈 감지: 로컬에 있지만 서버 ids에 없는 채널 제거
+        let removedCount = 0;
+        if (result.ids) {
+            const activeIds = new Set(result.ids);
+            const localResult = await this.channelLocalDataSource.fetchList({}, requestContext);
+            const staleIds = (localResult?.list || [])
+                .map(ch => ch.id)
+                .filter((id): id is string => !!id && !activeIds.has(id));
+
+            if (staleIds.length > 0) {
+                await this.channelLocalDataSource.removeMany(staleIds, requestContext);
+                removedCount = staleIds.length;
+            }
+        }
+
+        return { syncedAt: result.syncedAt, updatedCount: domainList.length, removedCount };
     }
 
     // --- Internal Logic ---

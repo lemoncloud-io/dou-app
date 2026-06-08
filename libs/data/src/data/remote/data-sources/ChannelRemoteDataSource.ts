@@ -1,4 +1,5 @@
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelSyncBody, ChannelSyncView } from '../../events/common';
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap, ListResult, SocketEventMap } from '../../events/types';
 import type { IWebSocketClient } from '../clients';
@@ -9,11 +10,15 @@ import type {
     ChatStartPayload,
     ChatInvitePayload,
     ChatLeavePayload,
+    WSSEventDomainType,
+    WSSActionType,
 } from '@lemoncloud/chatic-sockets-api';
 
 export interface IChannelRemoteDataSource {
     /** 내가 참여 중인 채널 목록을 서버에 요청합니다. */
     fetchChannel(payload: ChatMinePayload, ref?: string): void;
+    /** 채널 동기화를 서버에 요청합니다. */
+    syncChannel(payload: ChannelSyncBody, ref?: string): void;
     /** 채널의 정보(이름, 설정 등) 수정을 요청합니다. */
     updateChannel(payload: ChatUpdateChannelPayload, ref?: string): void;
     /** 채널 삭제(또는 종료)를 요청합니다. */
@@ -71,6 +76,13 @@ export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
                 ref: detail.ref,
             });
         });
+
+        this.socketEventBus.on('channel:sync', detail => {
+            this.domainEventBus.emit('channel:sync', {
+                data: detail.payload as ChannelSyncView,
+                ref: detail.ref,
+            });
+        });
     }
 
     public fetchChannel(payload: ChatMinePayload, ref?: string) {
@@ -95,5 +107,9 @@ export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
 
     public leaveChannel(payload: ChatLeavePayload, ref?: string) {
         this.wssClient.send('chat', 'leave', payload, ref);
+    }
+
+    public syncChannel(payload: ChannelSyncBody, ref?: string) {
+        this.wssClient.send('chat' as WSSEventDomainType, 'sync' as WSSActionType, payload, ref);
     }
 }
