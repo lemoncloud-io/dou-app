@@ -1,5 +1,7 @@
 import type { DomainChat } from '@chatic/data';
 
+import { isPlaceholderName } from '../../../shared/utils';
+
 export interface MessageGroup {
     key: string;
     ownerId: string | undefined;
@@ -43,11 +45,12 @@ const resolveOwnerName = (
     viewer: MessageViewer,
     names?: ReadonlyMap<string, string>
 ): string | null => {
-    if (viewer.uid && chat.ownerId === viewer.uid) return viewer.name || chat.owner$?.name || 'You';
-    // owner$ is sometimes embedded without a name (server omits it on the feed);
-    // treat a blank name as unresolved so it shows a skeleton, not "Unknown".
-    const fromOwner = chat.owner$?.name?.trim();
-    const fromMembers = chat.ownerId ? names?.get(chat.ownerId)?.trim() : undefined;
+    // A blank or UUID-style name (guest auto-name) is not a real name — treat it
+    // as unresolved so it never shows, falling back to "You" / the roster / a skeleton.
+    const realName = (name?: string): string | undefined => (isPlaceholderName(name) ? undefined : name?.trim());
+    if (viewer.uid && chat.ownerId === viewer.uid) return realName(viewer.name) || realName(chat.owner$?.name) || 'You';
+    const fromOwner = realName(chat.owner$?.name);
+    const fromMembers = chat.ownerId ? realName(names?.get(chat.ownerId)) : undefined;
     return fromOwner || fromMembers || null;
 };
 

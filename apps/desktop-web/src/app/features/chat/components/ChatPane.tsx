@@ -9,6 +9,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     displayName,
+    isPlaceholderName,
     useAuthorNames,
     useChatMutations,
     useChats,
@@ -33,7 +34,10 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     const { t } = useTranslation();
     const channelId = channel?.id ?? null;
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
-    const myName = useWebCoreStore(s => s.profile?.$user?.name ?? '');
+    // Guest accounts carry a UUID as their name — drop it so own messages fall back
+    // to a friendly label ("You") instead of showing the raw UUID.
+    const rawMyName = useWebCoreStore(s => s.profile?.$user?.name ?? '');
+    const myName = isPlaceholderName(rawMyName) ? '' : rawMyName;
     const viewer = useMemo(() => ({ uid: myUid, name: myName }), [myUid, myName]);
     const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(channelId);
     const { sendMessage, retryMessage, isSending } = useChatMutations();
