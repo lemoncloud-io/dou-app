@@ -41,27 +41,42 @@ export const useChannelMembers = (channelId: string | null, ownerId?: string) =>
 
         let active = true;
         let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+        // Once the authoritative network roster lands, ignore a slower cache read so
+        // it can't clobber freshly-fetched names back to a blank cached record.
+        let networkSettled = false;
         setIsLoading(true);
         setError(null);
 
-        // Initial load is cache-first — a local IndexedDB read needs no socket, so
-        // the roster (and thus author names) resolves immediately even before the
-        // socket verifies on launch, instead of flashing "Unknown". The cache-first
-        // call also kicks a background network refresh once connected. Event-driven
-        // refetches must hit the network so live join/leave/profile updates aren't
-        // served stale from cache.
-        const fetchMembers = (cachePolicy: 'cache-first' | 'network-only' = 'cache-first') => {
+        const applyResult = (list: DomainUser[], fromNetwork: boolean) => {
+            if (!active || (!fromNetwork && networkSettled)) return;
+            if (fromNetwork) networkSettled = true;
+            setRawMembers(list);
+        };
+
+        // Cache-first paints the roster instantly (a local read needs no socket).
+        // When the cache already has the roster we show it immediately and stop
+        // loading — no skeleton on the common path. Only when the cache is empty
+        // (a channel opened for the first time) do we keep the skeleton up until
+        // the network roster lands, so a brand-new author shows a skeleton rather
+        // than "Unknown". The background network refresh updates names silently.
+        const fetchMembers = (cachePolicy: 'cache-first' | 'network-only') => {
+            const fromNetwork = cachePolicy === 'network-only';
             userRepository
                 .fetchUsers({ channelId, detail: true, limit: MEMBER_LIMIT }, { cachePolicy })
                 .then(result => {
-                    if (!active) return;
-                    setRawMembers(result.list ?? []);
+                    const list = result.list ?? [];
+                    applyResult(list, fromNetwork);
+                    if (fromNetwork && active) setError(null);
+                    // Stop loading as soon as we have something to show; an empty
+                    // cache paint stays loading until the network result arrives.
+                    if (active && (fromNetwork || list.length > 0)) setIsLoading(false);
                 })
                 .catch((err: unknown) => {
-                    if (active) setError(err instanceof Error ? err : new Error(String(err)));
+                    if (active && fromNetwork) setError(err instanceof Error ? err : new Error(String(err)));
                 })
                 .finally(() => {
-                    if (active) setIsLoading(false);
+                    // The network result always clears loading (even when empty/failed).
+                    if (active && fromNetwork) setIsLoading(false);
                 });
         };
 
@@ -75,7 +90,8 @@ export const useChannelMembers = (channelId: string | null, ownerId?: string) =>
             scheduleRefetch();
         };
 
-        fetchMembers();
+        fetchMembers('cache-first');
+        fetchMembers('network-only');
 
         const unsubs = [userRepository.onUserUpdated(scheduleRefetch), joinRepository.onJoinUpdated(onJoin)];
 

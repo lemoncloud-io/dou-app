@@ -44,8 +44,11 @@ const resolveOwnerName = (
     names?: ReadonlyMap<string, string>
 ): string | null => {
     if (viewer.uid && chat.ownerId === viewer.uid) return viewer.name || chat.owner$?.name || 'You';
-    const fromMembers = chat.ownerId ? names?.get(chat.ownerId) : undefined;
-    return chat.owner$?.name ?? fromMembers ?? null;
+    // owner$ is sometimes embedded without a name (server omits it on the feed);
+    // treat a blank name as unresolved so it shows a skeleton, not "Unknown".
+    const fromOwner = chat.owner$?.name?.trim();
+    const fromMembers = chat.ownerId ? names?.get(chat.ownerId)?.trim() : undefined;
+    return fromOwner || fromMembers || null;
 };
 
 const getTimestamp = (chat: DomainChat): number => chat.createdAt ?? chat.createdAtMs ?? 0;
