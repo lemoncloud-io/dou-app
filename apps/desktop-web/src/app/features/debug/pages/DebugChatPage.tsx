@@ -67,7 +67,7 @@ export const DebugChatPage = () => {
         if (!activePlaceId) return;
 
         channelUnsubRef.current?.();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- debug tool: loose payload
+         
         channelUnsubRef.current = channelRepository.subscribeList({ placeId: activePlaceId, page: 0, limit: 100 } as any, result => {
             setChannelSnapshot(result);
             const firstId = result?.list?.[0]?.id;
@@ -95,7 +95,7 @@ export const DebugChatPage = () => {
             name: `Debug Channel ${id.slice(-4)}`,
             updatedAt: Date.now(),
             createdAt: Date.now(),
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- debug tool: partial record
+             
         } as any);
         setSelectedChannelId(id);
         pushChannelLog(`cacheCreate channel: ${id}`);
@@ -153,7 +153,7 @@ export const DebugChatPage = () => {
             chatNo,
             content: `Sample chat #${chatNo}`,
             createdAt: Date.now(),
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- debug tool: partial record
+             
         } as any);
         pushChatLog(`cacheCreate chat: ${id} (chatNo=${chatNo})`);
     }, [chatRepository, nextAutoChatNo, pushChatLog, selectedChannelId]);
@@ -170,7 +170,7 @@ export const DebugChatPage = () => {
             content: `[sample] #${baseNo + index}`,
             createdAt: now + index,
         }));
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- debug tool: partial records
+         
         await chatRepository.cacheBulkCreate(items as any);
         pushChatLog(`cacheBulkCreate chats: ${count} items (start chatNo=${baseNo})`);
     }, [chatRepository, nextAutoChatNo, pushChatLog, sampleCount, selectedChannelId]);
@@ -186,7 +186,7 @@ export const DebugChatPage = () => {
 
     const saveEditChat = useCallback(async () => {
         if (!editingChatId.trim()) return;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- debug tool: partial patch
+         
         await chatRepository.cacheUpdate(editingChatId.trim(), { content: editingChatContent } as any);
         pushChatLog(`cacheUpdate content: ${editingChatId.trim()}`);
         setEditingChatId('');

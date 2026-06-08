@@ -24,7 +24,7 @@ export const DebugBadgeCountPage = () => {
         }
         try {
             const res = await webClient.request('SetBadgeCount', { count: value });
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- debug log of loose response
+             
             push(`SetBadgeCount(${value}) → ${JSON.stringify((res as any)?.data ?? res)}`);
         } catch (error) {
             push(`error: ${String(error)}`);

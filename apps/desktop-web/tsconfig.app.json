@@ -12,13 +12,13 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../../libs/socket/tsconfig.lib.json"
-        },
-        {
             "path": "../../libs/data/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/ui-kit/tsconfig.lib.json"
+            "path": "../../libs/socket/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/users/tsconfig.lib.json"
         },
         {
             "path": "../../libs/auth/tsconfig.lib.json"
@@ -31,6 +31,9 @@
         },
         {
             "path": "../../libs/web-core/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/ui-kit/tsconfig.lib.json"
         },
         {
             "path": "../../libs/theme/tsconfig.lib.json"
