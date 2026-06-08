@@ -109,14 +109,14 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, myU
                             </span>
                             <span
                                 className={cn(
-                                    'truncate',
+                                    'min-w-0 flex-1 truncate',
                                     isActive || hasUnread ? 'font-semibold text-foreground' : 'text-muted-foreground'
                                 )}
                             >
                                 {channel.name ?? id}
                             </span>
                             {time && (
-                                <span className="ml-auto shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
+                                <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
                                     {time}
                                 </span>
                             )}
