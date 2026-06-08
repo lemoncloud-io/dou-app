@@ -48,6 +48,13 @@ jobs:
               with:
                   node-version-file: '.nvmrc'
 
+            # node-gyp (better-sqlite3 falls back to source build when no prebuild is fetched)
+            # needs distutils, removed from Python 3.12+. Pin 3.11 so the compile can succeed.
+            - name: Setup Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: '3.11'
+
             - name: Install dependencies
               run: yarn install --frozen-lockfile
 
