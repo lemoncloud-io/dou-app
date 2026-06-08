@@ -3,7 +3,8 @@ name: build-desktop
 # Builds the Electron desktop installers for both platforms in one run:
 # macOS .dmg (macos-latest) + Windows .exe (windows-latest). Unsigned / ad-hoc,
 # internal distribution (ADR-0003). Manual trigger; pick dev or prod per run so
-# the two environments stay managed separately.
+# the two environments stay managed separately. Installers are published to a
+# rolling per-env GitHub Release (desktop-dev / desktop-prod) for easy download.
 on:
     workflow_dispatch:
         inputs:
@@ -14,6 +15,10 @@ on:
                     - dev
                     - prod
                 default: dev
+    # TEMP: smoke-test the release flow on the feature branch before merging. Remove after.
+    push:
+        branches:
+            - feature/louis-update-electron
 
 # The desktop build never needs the mobile CocoaPods install that the root postinstall
 # runs on macOS runners — skip it to save minutes and drop an unrelated failure surface.
@@ -22,7 +27,7 @@ env:
 
 jobs:
     build:
-        name: Build ${{ matrix.platform }} (${{ inputs.env }})
+        name: Build ${{ matrix.platform }} (${{ inputs.env || 'dev' }})
         runs-on: ${{ matrix.os }}
         strategy:
             fail-fast: false
@@ -47,18 +52,59 @@ jobs:
               run: yarn install --frozen-lockfile
 
             - name: Package ${{ matrix.platform }} installer
-              run: yarn workspace @chatic/desktop package:${{ matrix.platform }}:${{ inputs.env }}
+              run: yarn workspace @chatic/desktop package:${{ matrix.platform }}:${{ inputs.env || 'dev' }}
 
+            # Artifact is the transport to the release job below (and a fallback download).
             - name: Upload installer artifact
               uses: actions/upload-artifact@v4
               with:
-                  name: chatic-desktop-${{ inputs.env }}-${{ matrix.platform }}
+                  name: chatic-desktop-${{ inputs.env || 'dev' }}-${{ matrix.platform }}
                   path: ${{ matrix.artifact }}
                   if-no-files-found: error
 
+    release:
+        name: Publish GitHub Release
+        needs: build
+        if: ${{ needs.build.result == 'success' }}
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        outputs:
+            url: ${{ steps.publish.outputs.url }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Download installers
+              uses: actions/download-artifact@v4
+              with:
+                  path: dist
+
+            - name: Publish rolling release
+              id: publish
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  TAG: desktop-${{ inputs.env || 'dev' }}
+              run: |
+                  set -e
+                  VERSION=$(node -p "require('./apps/desktop/package.json').version")
+                  TITLE="Chatic Desktop (${{ inputs.env || 'dev' }}) v${VERSION}"
+                  PRERELEASE=""
+                  [ "${{ inputs.env || 'dev' }}" = "dev" ] && PRERELEASE="--prerelease"
+                  # Rolling release per env: drop the previous one so the tag always points at the
+                  # latest build and holds only the current installers (internal "grab latest").
+                  gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+                  gh release create "$TAG" dist/*/*.dmg dist/*/*.exe \
+                      --title "$TITLE" \
+                      --target "$GITHUB_SHA" \
+                      --notes "Unsigned internal build (\`${{ inputs.env || 'dev' }}\`). macOS \`.dmg\` + Windows \`.exe\`. Build ${{ github.run_number }}, commit \`${GITHUB_SHA:0:7}\`." \
+                      $PRERELEASE
+                  URL=$(gh release view "$TAG" --json url -q .url)
+                  echo "url=${URL}" >> "$GITHUB_OUTPUT"
+
     notify-slack:
         name: Notify Slack
-        needs: build
+        needs: [build, release]
         if: ${{ always() }}
         runs-on: ubuntu-latest
         steps:
@@ -68,17 +114,21 @@ jobs:
                   set -e
                   TIMESTAMP=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S')
                   COMMIT_SHA="${GITHUB_SHA:0:7}"
-                  if [[ "${{ needs.build.result }}" == "success" ]]; then
-                    echo "emoji=:desktop_computer:" >> $GITHUB_OUTPUT
-                    echo "title=Chatic 데스크톱 빌드 완료 (${{ inputs.env }})" >> $GITHUB_OUTPUT
-                    echo "body=• mac \`.dmg\` + win \`.exe\` 생성 — Actions Run의 Artifacts에서 다운로드" >> $GITHUB_OUTPUT
+                  if [[ "${{ needs.release.result }}" == "success" ]]; then
+                    echo "emoji=:desktop_computer:" >> "$GITHUB_OUTPUT"
+                    echo "title=Chatic 데스크톱 빌드 완료 (${{ inputs.env || 'dev' }})" >> "$GITHUB_OUTPUT"
+                    echo "body=• mac \`.dmg\` + win \`.exe\` → <${{ needs.release.outputs.url }}|GitHub Release에서 다운로드>" >> "$GITHUB_OUTPUT"
+                  elif [[ "${{ needs.build.result }}" != "success" ]]; then
+                    echo "emoji=:x:" >> "$GITHUB_OUTPUT"
+                    echo "title=Chatic 데스크톱 빌드 실패 (${{ inputs.env || 'dev' }})" >> "$GITHUB_OUTPUT"
+                    echo "body=• 빌드 결과: \`${{ needs.build.result }}\` — 로그 확인 필요" >> "$GITHUB_OUTPUT"
                   else
-                    echo "emoji=:x:" >> $GITHUB_OUTPUT
-                    echo "title=Chatic 데스크톱 빌드 실패 (${{ inputs.env }})" >> $GITHUB_OUTPUT
-                    echo "body=• 빌드 결과: \`${{ needs.build.result }}\` — 로그 확인 필요" >> $GITHUB_OUTPUT
+                    echo "emoji=:warning:" >> "$GITHUB_OUTPUT"
+                    echo "title=Chatic 데스크톱 릴리즈 실패 (${{ inputs.env || 'dev' }})" >> "$GITHUB_OUTPUT"
+                    echo "body=• 빌드는 성공했으나 릴리즈 단계 실패 — 로그 확인 필요" >> "$GITHUB_OUTPUT"
                   fi
-                  echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
-                  echo "commit_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
+                  echo "timestamp=${TIMESTAMP}" >> "$GITHUB_OUTPUT"
+                  echo "commit_sha=${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
 
             - name: Post to Slack
               continue-on-error: true
