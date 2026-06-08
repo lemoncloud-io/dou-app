@@ -114,7 +114,9 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
             });
             if (requestSeqRef.current !== requestSeq) return [];
             return sortChannels(
-                (cacheResult.list ?? []).map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
+                (cacheResult.list ?? [])
+                    .filter((ch: DomainChannel) => !!(ch as any).$?.sid)
+                    .map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
             );
         },
         [channelRepository]
@@ -157,7 +159,9 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
                 if (requestSeqRef.current !== requestSeq) return;
 
                 const nextChannels = sortChannels(
-                    (result.list ?? []).map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
+                    (result.list ?? [])
+                        .filter((ch: DomainChannel) => !!(ch as any).$?.sid)
+                        .map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
                 );
                 logger.info('CHANNEL', '[useChannels] fetchChannels result', {
                     data: { resultCount: nextChannels.length, source: result.meta?.source },
@@ -186,29 +190,29 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     );
 
     const syncFromServer = useCallback(async () => {
-        if (!cloudId || !isVerified) return;
+        // store/ref에서 직접 읽어 stale closure 방지
+        const currentCloudId = cloudIdRef.current;
+        const { isVerified: currentIsVerified } = useWebSocketV2Store.getState();
+        if (!currentCloudId || !currentIsVerified) return;
 
         const { getSyncedAt, setSyncedAt, setStatus } = useChannelSyncStore.getState();
-        const since = getSyncedAt(cloudId);
+        const since = getSyncedAt(currentCloudId);
 
         setStatus('syncing');
         try {
             const result = await channelRepository.syncChannels(since);
-            // cloud 전환 체크
-            if (cloudIdRef.current !== cloudId) return;
+            if (cloudIdRef.current !== currentCloudId) return;
 
-            setSyncedAt(cloudId, result.syncedAt);
+            setSyncedAt(currentCloudId, result.syncedAt);
             setStatus('synced');
 
-            // sync로 캐시가 변경되었으면 화면에 반영
-            if (result.updatedCount > 0 || result.removedCount > 0) {
-                const params = currentParamsRef.current;
-                if (params.sid) {
-                    const requestSeq = ++requestSeqRef.current;
-                    const cached = await loadFromCache(params, requestSeq);
-                    if (requestSeqRef.current === requestSeq && cached.length > 0) {
-                        setChannels(cached);
-                    }
+            // sync 완료 후 항상 캐시에서 읽어 화면 반영 (updatedCount 조건 제거)
+            const params = currentParamsRef.current;
+            if (params.sid) {
+                const requestSeq = ++requestSeqRef.current;
+                const cached = await loadFromCache(params, requestSeq);
+                if (requestSeqRef.current === requestSeq) {
+                    setChannels(cached);
                 }
             }
 
@@ -216,11 +220,11 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
                 data: { since, syncedAt: result.syncedAt, updated: result.updatedCount, removed: result.removedCount },
             });
         } catch (error) {
-            if (cloudIdRef.current !== cloudId) return;
+            if (cloudIdRef.current !== currentCloudId) return;
             setStatus('error', error instanceof Error ? error.message : String(error));
             logger.error('CHANNEL', '[useChannels] syncFromServer failed', { error });
         }
-    }, [cloudId, isVerified, channelRepository, loadFromCache]);
+    }, [channelRepository, loadFromCache]);
 
     // isVerified 전이라도 IndexedDB 캐시에서 채널을 즉시 읽기
     useEffect(() => {
@@ -259,21 +263,14 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         currentParamsRef.current = initialParams;
 
         if (isCloudSwitch) {
-            // 클라우드 전환: channel.mine으로 빠른 렌더 + channel.sync(since:0)으로 full sync
             useChannelSyncStore.getState().setStatus('idle');
-            void fetchChannels({ loading: channelsRef.current.length === 0 }).then(() => {
-                void syncFromServer();
-            });
-        } else if (isPlaceSwitch) {
-            // place 전환만: channel.mine으로 즉시 렌더 (sync는 이미 클라우드 레벨에서 유지 중)
-            void fetchChannels({ loading: channelsRef.current.length === 0, forceNetwork: true });
-        } else {
-            // 재진입 (같은 cloud/place로 복귀): 캐시 표시 후 sync로 보정
-            void fetchChannels({ loading: channelsRef.current.length === 0 }).then(() => {
-                void syncFromServer();
-            });
         }
-    }, [fetchChannels, syncFromServer, cloudId, targetPlaceId, isVerified]);
+
+        // 캐시에서 즉시 표시 → channel:mine으로 서버 최신 데이터로 교체
+        void fetchChannels({ loading: channelsRef.current.length === 0 }).then(() => {
+            void fetchChannels({ forceNetwork: true, silent: true });
+        });
+    }, [fetchChannels, cloudId, targetPlaceId, isVerified]);
 
     // 채널/채팅/조인 이벤트에 대한 캐시 재로드 트리거
     useEffect(() => {
@@ -308,7 +305,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         return () => unsubs.forEach(fn => fn());
     }, [channelRepository, chatRepository, joinRepository, loadFromCache]);
 
-    // 포그라운드 복귀 및 WebSocket 재연결 시 channel.sync delta 동기화
+    // 포그라운드 복귀 및 WebSocket 재연결 시 channel:mine 재요청
     const syncFromLocal = useCallback(async () => {
         const params = currentParamsRef.current;
         if (!params.sid) return;
@@ -319,11 +316,30 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         }
     }, [loadFromCache]);
 
-    const triggerSync = useCallback(() => {
-        void syncFromServer();
-    }, [syncFromServer]);
+    const triggerNetworkFetch = useCallback(() => {
+        void fetchChannels({ forceNetwork: true, silent: true });
+    }, [fetchChannels]);
 
-    useConnectionRecoverySync(syncFromLocal, triggerSync);
+    useConnectionRecoverySync(syncFromLocal, triggerNetworkFetch);
+
+    // 포그라운드 복귀 시 channel:mine으로 채널 리스트 최신화
+    useEffect(() => {
+        let hiddenAt: number | null = null;
+        const handler = () => {
+            if (document.visibilityState === 'hidden') {
+                hiddenAt = Date.now();
+                return;
+            }
+            if (document.visibilityState !== 'visible' || hiddenAt === null) return;
+            const elapsed = Date.now() - hiddenAt;
+            hiddenAt = null;
+            if (elapsed < 5_000) return;
+
+            void fetchChannels({ forceNetwork: true, silent: true });
+        };
+        document.addEventListener('visibilitychange', handler);
+        return () => document.removeEventListener('visibilitychange', handler);
+    }, [fetchChannels]);
 
     const fullDebugInfo: ChannelDebugInfo = {
         ...debugInfo,
@@ -334,7 +350,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     };
 
     return {
-        channels,
+        channels: channels.filter(c => !!c.$?.sid),
         isLoading,
         isSyncing,
         isError,
