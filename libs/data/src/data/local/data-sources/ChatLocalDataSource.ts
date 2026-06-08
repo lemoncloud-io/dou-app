@@ -12,9 +12,7 @@ import type { CacheStorage, CacheStorageItem } from '../storages';
 import type { DomainChat, DomainListResult } from '../../domain';
 import { createDomainListResult, toDomainChat as toDomainChatBase } from '../../domain';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
-import { resolveScopedContext } from '../storages/utils';
 import type { CacheChatView, ChatQueryOptions } from '@chatic/app-messages';
-import { logger } from '@chatic/bridges';
 
 type ChatCache = CacheStorageItem<'chat'>;
 type ChatSortable = Partial<DomainChat> | ChatCache;
@@ -104,13 +102,6 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
                 ) as ChatCache
         );
 
-        // 🔍 DEBUG: trace scope used by saveAll
-        const debugSaveScope = resolveScopedContext('chat', this.contextProvider);
-        logger.info(
-            'CACHE',
-            `[ChatLocal:upsertMany] count=${normalized.length}, scope={cid:${debugSaveScope.cid}, uid:${debugSaveScope.uid}}`
-        );
-
         // 단일 IndexedDB 트랜잭션으로 배치 저장 후 구독자에게 한 번만 알림
         await this.cacheStorage.saveAll(normalized);
         this.debouncedEmitAllStreams();
@@ -159,8 +150,6 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
             ...payload,
             limit,
         } as ChatQueryOptions);
-
-        logger.info('CACHE', `[ChatLocal:fetchList] channelId=${channelId}, loaded=${pageList.length}`);
 
         if (pageList.length === 0) {
             return createDomainListResult([], { total: 0, source: 'local' });
