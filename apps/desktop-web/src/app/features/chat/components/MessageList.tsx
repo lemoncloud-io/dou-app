@@ -190,22 +190,33 @@ export const MessageList = ({
                 })}
                 <div ref={bottomRef} />
             </div>
-            {!atBottom && (
-                <button
-                    type="button"
-                    onClick={scrollToBottom}
-                    aria-label={t('chat.jumpToLatest')}
-                    title={t('chat.jumpToLatest')}
-                    className="absolute bottom-4 right-4 flex h-9 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-foreground shadow-md transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                    {newCount > 0 && (
-                        <span className="text-xs font-semibold tabular-nums text-primary">
-                            {newCount > 99 ? '99+' : newCount} {t('chat.new')}
+            {!atBottom &&
+                (newCount > 0 ? (
+                    // New messages arrived while scrolled up: a filled, centered
+                    // "N new messages" badge (Slack-style) that jumps to the latest.
+                    <button
+                        type="button"
+                        onClick={scrollToBottom}
+                        aria-label={t('chat.jumpToLatest')}
+                        className="absolute bottom-4 left-1/2 flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary pl-3 pr-2.5 text-xs font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                        <span className="tabular-nums">
+                            {t('chat.newMessageBadge', { count: newCount > 99 ? 99 : newCount })}
                         </span>
-                    )}
-                    <ChevronDown size={18} />
-                </button>
-            )}
+                        <ChevronDown size={16} />
+                    </button>
+                ) : (
+                    // Scrolled up with nothing new: a plain jump-to-latest control.
+                    <button
+                        type="button"
+                        onClick={scrollToBottom}
+                        aria-label={t('chat.jumpToLatest')}
+                        title={t('chat.jumpToLatest')}
+                        className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-md transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                        <ChevronDown size={18} />
+                    </button>
+                ))}
         </div>
     );
 };
