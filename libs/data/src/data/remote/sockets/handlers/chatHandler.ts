@@ -1,7 +1,14 @@
 import type { ChatErrorPayload, WSSChatActionType, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
-import type { ChannelView, ChatFeedResult, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
+import type {
+    ChannelSyncView,
+    ChannelView,
+    ChatFeedResult,
+    ChatView,
+    JoinView,
+    UserView,
+} from '@lemoncloud/chatic-socials-api';
 import { logger } from '@chatic/bridges';
-import type { ListResult, SocketEventMap, ChannelSyncResult } from '../../../events/types';
+import type { ListResult, SocketEventMap } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
 
 /**
@@ -67,7 +74,7 @@ export const chatHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEve
 
         // 채널 동기화 결과 처리
         case 'sync':
-            eventBus.emit('channel:sync', { ...detail, payload: payload as ChannelSyncResult });
+            eventBus.emit('channel:sync', { ...detail, payload: payload as ChannelSyncView });
             break;
 
         // 새로운 채팅방 또는 채널 생성 처리

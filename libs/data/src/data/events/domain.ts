@@ -1,6 +1,7 @@
 import type { AuthPayload } from '@lemoncloud/chatic-sockets-api';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type {
+    ChannelSyncView,
     ChannelView,
     ChatFeedResult,
     ChatView,
@@ -9,7 +10,7 @@ import type {
     UserView,
 } from '@lemoncloud/chatic-socials-api';
 
-import type { ListResult, ChannelSyncResult } from './common';
+import type { ListResult } from './common';
 
 /**
  * 도메인 계층으로 전달되는 데이터를 위한 가벼운 래퍼(Wrapper)입니다.
@@ -55,7 +56,7 @@ export interface DomainEventMap {
     /** 사용자가 참여 중인 채널 목록 조회 결과 (mine 대응) */
     'channel:list': DomainPayload<ListResult<ChannelView>>;
     /** 채널 동기화 결과 (channel.sync 대응) */
-    'channel:sync': DomainPayload<ChannelSyncResult>;
+    'channel:sync': DomainPayload<ChannelSyncView>;
 
     // ------------------------------------------
     // 4. User Domain (사용자)
