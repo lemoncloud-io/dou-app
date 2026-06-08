@@ -84,6 +84,9 @@ export const useChannelMembers = (channelId: string | null, ownerId?: string) =>
             if (debounceTimer) clearTimeout(debounceTimer);
             unsubs.forEach(fn => fn());
         };
+        // isVerified is a dep (not read in the body): the initial fetch is
+        // cache-first and runs before the socket connects, so re-running once the
+        // socket verifies kicks the network refresh that couldn't fire offline.
     }, [channelId, isVerified, userRepository, joinRepository]);
 
     const members = useMemo<ChannelMember[]>(

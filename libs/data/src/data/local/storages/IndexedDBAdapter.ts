@@ -9,6 +9,10 @@ import { BaseDbAdapter } from './types';
 const isQuotaExceeded = (error: unknown): boolean =>
     error instanceof DOMException && (error.name === 'QuotaExceededError' || error.code === 22);
 
+// On a quota overflow, drop this share of the scope's chats (but at least this many).
+const CHAT_EVICT_FRACTION = 0.2;
+const CHAT_EVICT_MIN = 50;
+
 /**
  * IndexedDB를 저장소로 사용하는 개별 캐시 스토리지 어댑터 클래스입니다.
  * BaseDbAdapter를 상속하여 스코프 계산 등의 기능을 상속하고,
@@ -94,13 +98,20 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
         }
     }
 
-    /** Delete the oldest chats (by chat_no) for the current scope to reclaim space. */
-    private async evictOldestChats(fraction = 0.2, minDelete = 50): Promise<void> {
+    /**
+     * Delete the oldest chats (by chat_no) for the current scope to reclaim space.
+     * Always targets 'chat' rows regardless of this adapter's own type — chat is the
+     * unbounded bulk consumer, so freeing chats is what makes room for any write.
+     */
+    private async evictOldestChats(): Promise<void> {
         const scope = this.getScope();
         const rows = await this.db.loadAll<'chat'>(TYPE_CID_UID_INDEX, ['chat', scope.cid, scope.uid]);
         if (rows.length === 0) return;
         const oldestFirst = [...rows].sort((a, b) => (a.chat_no ?? 0) - (b.chat_no ?? 0));
-        const count = Math.min(oldestFirst.length, Math.max(minDelete, Math.floor(oldestFirst.length * fraction)));
+        const count = Math.min(
+            oldestFirst.length,
+            Math.max(CHAT_EVICT_MIN, Math.floor(oldestFirst.length * CHAT_EVICT_FRACTION))
+        );
         await this.db.deleteAll(oldestFirst.slice(0, count).map(row => row.key));
     }
 
