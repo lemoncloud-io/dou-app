@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
 
+import { AuthCard } from '../components';
 import { useInviteLogin } from '../hooks/useInviteLogin';
 
 export const InviteLoginPage = () => {
@@ -23,30 +24,8 @@ export const InviteLoginPage = () => {
     };
 
     return (
-        <div className="relative flex h-screen items-center justify-center overflow-hidden bg-background">
-            {/* ambient brand glow — keeps the empty login screen from feeling sterile */}
-            <div
-                className="pointer-events-none absolute inset-0 opacity-60"
-                style={{
-                    background:
-                        'radial-gradient(60% 50% at 50% 0%, hsl(var(--primary) / 0.12), transparent 70%), radial-gradient(40% 40% at 80% 100%, hsl(var(--primary) / 0.08), transparent 70%)',
-                }}
-                aria-hidden
-            />
-            <form
-                onSubmit={handleSubmit}
-                className="relative flex w-full max-w-sm flex-col gap-5 rounded-2xl border border-border bg-card p-8 shadow-xl shadow-primary/5"
-            >
-                <div className="flex flex-col gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-xl font-bold text-primary-foreground shadow-lg shadow-primary/25">
-                        C
-                    </div>
-                    <div className="flex flex-col gap-1">
-                        <h1 className="text-xl font-bold tracking-tight text-foreground">{t('auth.invite.title')}</h1>
-                        <p className="text-sm text-muted-foreground">{t('auth.invite.subtitle')}</p>
-                    </div>
-                </div>
-
+        <AuthCard title={t('auth.invite.title')} subtitle={t('auth.invite.subtitle')}>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
                 <label htmlFor="invite-code" className="sr-only">
                     {t('auth.invite.placeholder')}
                 </label>
@@ -84,6 +63,6 @@ export const InviteLoginPage = () => {
                     </button>
                 )}
             </form>
-        </div>
+        </AuthCard>
     );
 };

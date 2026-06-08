@@ -95,8 +95,9 @@ export const useInviteLogin = () => {
                     // Repoint the socket at the invited cloud + force re-auth, so an
                     // already-authenticated (guest) session reconnects to the new
                     // cloud's wss instead of staying on relay (mirrors selectCloud).
-                    useWebSocketV2Store.getState().setCloudId(cloudId);
-                    useWebSocketV2Store.getState().setIsVerified(false);
+                    const wsStore = useWebSocketV2Store.getState();
+                    wsStore.setCloudId(cloudId);
+                    wsStore.setIsVerified(false);
                 }
 
                 // Pre-select the invited place so the socket connects to it (mirrors web handleAccept).

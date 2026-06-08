@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { isNative, webClient } from '@chatic/bridges';
-import { useWebSocketV2Store } from '@chatic/socket';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { useWebCoreStore } from '@chatic/web-core';
 
 import {
     ChannelSettingsPanel,
@@ -43,10 +42,10 @@ export const HomePage = () => {
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
-    const socketCloudId = useWebSocketV2Store(s => s.cloudId);
     // Default Cloud (relay / Guest Session): no joinable places — force the
     // 'default' place so the Self Channel loads; the sidebar hides the switcher.
-    const isDefaultMode = (socketCloudId ?? cloudCore.getSelectedCloudId() ?? 'default') === 'default';
+    // activeCloudId (from useClouds) already resolves socket → persisted → fallback.
+    const isDefaultMode = (activeCloudId ?? 'default') === 'default';
 
     const [query, setQuery] = useState('');
     // A channel to open once its place's channels have loaded (notification click
