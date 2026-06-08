@@ -18,7 +18,8 @@ import {
     type DomainListResult,
     toDomainChannel,
 } from '../domain';
-import type { ChannelView, ChatView, JoinView, ChannelSyncView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelView, ChatView, JoinView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelSyncView } from '../events/common';
 import type {
     ChatDeleteChannelPayload,
     ChatInvitePayload,
@@ -247,15 +248,20 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         }
 
         // 1. 변경된 채널 upsert
+        // sync는 클라우드 레벨이므로 sid를 비워서 각 채널 자체의 sid를 보존한다.
+        // scope.sid를 그대로 쓰면 $:{} 인 채널에 현재 place의 sid가 오염됨
+        const syncScope = { ...requestScope, sid: '' };
         const domainList = (result.list || [])
             .map(item => ({
-                ...toDomainChannel(item, requestScope),
+                ...toDomainChannel(item, syncScope),
                 cid: requestScope.cid,
             }))
-            .filter(ch => !ch.id || !this.leftChannelIds.has(ch.id));
+            .filter(ch => !!ch.sid && !!ch.id && !this.leftChannelIds.has(ch.id));
 
         if (domainList.length > 0) {
-            await this.channelLocalDataSource.upsertMany(domainList, requestContext);
+            // sid가 없는 context를 전달하여 upsertMany의 fallback에서 현재 place sid 오염 방지
+            const syncContext = { ...requestContext, sid: '' };
+            await this.channelLocalDataSource.upsertMany(domainList, syncContext);
         }
 
         // 2. 삭제/이탈 감지: 로컬에 있지만 서버 ids에 없는 채널 제거

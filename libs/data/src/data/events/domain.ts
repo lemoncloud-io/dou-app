@@ -1,7 +1,6 @@
 import type { AuthPayload } from '@lemoncloud/chatic-sockets-api';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type {
-    ChannelSyncView,
     ChannelView,
     ChatFeedResult,
     ChatView,
@@ -10,7 +9,7 @@ import type {
     UserView,
 } from '@lemoncloud/chatic-socials-api';
 
-import type { ListResult } from './common';
+import type { ChannelSyncView, ListResult } from './common';
 
 /**
  * 도메인 계층으로 전달되는 데이터를 위한 가벼운 래퍼(Wrapper)입니다.

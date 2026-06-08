@@ -1,4 +1,5 @@
-import type { ChannelSyncBody, ChannelSyncView, ChannelView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelSyncBody, ChannelSyncView } from '../../events/common';
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap, ListResult, SocketEventMap } from '../../events/types';
 import type { IWebSocketClient } from '../clients';

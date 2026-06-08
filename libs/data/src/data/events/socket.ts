@@ -6,7 +6,6 @@ import type {
     SystemPayload,
 } from '@lemoncloud/chatic-sockets-api';
 import type {
-    ChannelSyncView,
     ChannelView,
     ChatFeedResult,
     ChatView,
@@ -15,7 +14,7 @@ import type {
     UserView,
 } from '@lemoncloud/chatic-socials-api';
 
-import type { ListResult, Synced } from './common';
+import type { ChannelSyncView, ListResult, Synced } from './common';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 /**
