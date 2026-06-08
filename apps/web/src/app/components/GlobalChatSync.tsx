@@ -58,6 +58,42 @@ export const GlobalChatSync = () => {
         return () => document.removeEventListener('visibilitychange', handler);
     }, [channelRepository]);
 
+    // 소켓 재연결 완료 시 채널 목록 서버 refetch
+    // 포그라운드 복귀 시점에 소켓이 아직 미연결이면 visibilitychange가 커버하지 못하므로
+    // isVerified: false→true 전환을 직접 감지하여 누락된 메시지 gap을 해소
+    useEffect(() => {
+        let prevVerified = useWebSocketV2Store.getState().isVerified;
+        let hadDisconnection = false;
+
+        const unsubConnected = useWebSocketV2Store.subscribe(
+            s => s.isConnected,
+            isConnected => {
+                if (!isConnected) {
+                    hadDisconnection = true;
+                }
+            }
+        );
+
+        const unsubVerified = useWebSocketV2Store.subscribe(
+            s => s.isVerified,
+            isVerified => {
+                if (isVerified && !prevVerified && hadDisconnection) {
+                    const sid = useWebSocketV2Store.getState().selectedPlaceId || undefined;
+                    void channelRepository.fetchChannel({ sid }, { cachePolicy: 'network-only' });
+                }
+                if (isVerified) {
+                    hadDisconnection = false;
+                }
+                prevVerified = isVerified;
+            }
+        );
+
+        return () => {
+            unsubConnected();
+            unsubVerified();
+        };
+    }, [channelRepository]);
+
     useChatSync(channels);
 
     return null;
