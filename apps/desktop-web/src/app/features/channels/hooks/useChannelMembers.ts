@@ -53,29 +53,26 @@ export const useChannelMembers = (channelId: string | null, ownerId?: string) =>
             setRawMembers(list);
         };
 
-        // Cache-first paints the roster instantly (a local read needs no socket).
-        // When the cache already has the roster we show it immediately and stop
-        // loading — no skeleton on the common path. Only when the cache is empty
-        // (a channel opened for the first time) do we keep the skeleton up until
-        // the network roster lands, so a brand-new author shows a skeleton rather
-        // than "Unknown". The background network refresh updates names silently.
+        // Cache-first paints the roster instantly (a local read needs no socket) so
+        // members render right away, but it is only a *fallback* for author names —
+        // useAuthorNames resolves seen authors from the user cache without waiting
+        // on this. isLoading (the name skeleton) is cleared only when the network
+        // roster lands, so an author the roster hasn't confirmed yet shows a skeleton
+        // rather than flashing "Unknown". Already-resolved names ignore isLoading, so
+        // this never adds a skeleton to a name we can already show.
         const fetchMembers = (cachePolicy: 'cache-first' | 'network-only') => {
             const fromNetwork = cachePolicy === 'network-only';
             userRepository
                 .fetchUsers({ channelId, detail: true, limit: MEMBER_LIMIT }, { cachePolicy })
                 .then(result => {
-                    const list = result.list ?? [];
-                    applyResult(list, fromNetwork);
+                    applyResult(result.list ?? [], fromNetwork);
                     if (fromNetwork && active) setError(null);
-                    // Stop loading as soon as we have something to show; an empty
-                    // cache paint stays loading until the network result arrives.
-                    if (active && (fromNetwork || list.length > 0)) setIsLoading(false);
                 })
                 .catch((err: unknown) => {
                     if (active && fromNetwork) setError(err instanceof Error ? err : new Error(String(err)));
                 })
                 .finally(() => {
-                    // The network result always clears loading (even when empty/failed).
+                    // Only the network result clears loading — the cache paint keeps it up.
                     if (active && fromNetwork) setIsLoading(false);
                 });
         };

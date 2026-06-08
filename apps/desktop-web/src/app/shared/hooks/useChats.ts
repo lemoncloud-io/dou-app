@@ -6,6 +6,15 @@ import { useRepositories } from '@chatic/app-runtime';
 
 const PAGE_SIZE = 50;
 
+/**
+ * Session-scoped, in-memory memo of the last live page per channel. NOT a
+ * parallel store — it only mirrors what `subscribeList` last streamed, so
+ * re-opening a channel paints its messages on the first frame instead of
+ * flashing the loading skeleton while the async cache read resolves. Never
+ * persisted; the engine cache stays the source of truth.
+ */
+const messageMemo = new Map<string, DomainChat[]>();
+
 const sortByChatNo = (messages: DomainChat[]) =>
     [...messages].sort((a, b) => {
         const aNo = a.chatNo ?? Number.MAX_SAFE_INTEGER;
@@ -31,7 +40,9 @@ const mergeUnique = (...lists: DomainChat[][]): DomainChat[] => {
  */
 export const useChats = (channelId: string | null) => {
     const { chat: chatRepository } = useRepositories();
-    const [live, setLive] = useState<DomainChat[] | null>(null);
+    const [live, setLive] = useState<DomainChat[] | null>(() =>
+        channelId ? (messageMemo.get(channelId) ?? null) : []
+    );
     const [older, setOlder] = useState<DomainChat[]>([]);
     // Server's authoritative older-cursor (mirrors apps/web useChats): the next
     // page is fetched with `cursorNo`, and the engine returns `cursorNo <= 1` once
@@ -43,22 +54,28 @@ export const useChats = (channelId: string | null) => {
     // merging the previous channel's history into the new one.
     const channelIdRef = useRef(channelId);
 
-    useEffect(() => {
-        channelIdRef.current = channelId;
-        if (!channelId) {
-            setLive([]);
-            setOlder([]);
-            setFeedCursorNo(undefined);
-            setIsLoadingOlder(false);
-            return;
-        }
-
-        setLive(null);
+    // Adjust state synchronously when the channel changes (React's "derive state
+    // from props" pattern) so the new channel paints in the same render. Seed live
+    // from the session memo — a previously-opened channel shows its messages
+    // instantly with no loading skeleton; a never-opened one resets to null.
+    const [renderedChannel, setRenderedChannel] = useState(channelId);
+    if (renderedChannel !== channelId) {
+        setRenderedChannel(channelId);
+        setLive(channelId ? (messageMemo.get(channelId) ?? null) : []);
         setOlder([]);
         setFeedCursorNo(undefined);
         setIsLoadingOlder(false);
+    }
 
-        const unsubscribe = chatRepository.subscribeList(channelId, result => setLive(result?.list ?? []));
+    useEffect(() => {
+        channelIdRef.current = channelId;
+        if (!channelId) return;
+
+        const unsubscribe = chatRepository.subscribeList(channelId, result => {
+            const list = result?.list ?? [];
+            messageMemo.set(channelId, list);
+            setLive(list);
+        });
 
         // Kick a network fetch so the cache (and thus the subscription) is populated.
         void chatRepository

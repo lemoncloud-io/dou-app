@@ -7,7 +7,14 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { displayName, useChatMutations, useChats, useReadCursorStore, useReadReceipts } from '../../../shared';
+import {
+    displayName,
+    useAuthorNames,
+    useChatMutations,
+    useChats,
+    useReadCursorStore,
+    useReadReceipts,
+} from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { useChannelSettingsStore } from '../../channels';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
@@ -50,17 +57,23 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     }
     const baselineReadNo = baselineRef.current.no;
 
-    // owner$ is often omitted on other users' messages; resolve author names from
-    // the channel roster (id → name). The roster comes from the `user` cache
-    // (IndexedDB, persisted, cache-first even before socket verify), so it is the
-    // single source — no parallel name cache needed. A message that does carry
-    // owner$ resolves directly in getOwnerName; until the roster lands the header
-    // shows a skeleton (namePending).
+    // owner$ is often omitted on other users' messages, so resolve author names
+    // from the `user` cache keyed by owner id (useAuthorNames) — that paints a
+    // previously-seen author instantly, with no roster-reload flicker. The channel
+    // roster is only a fallback for members not yet held individually. Until either
+    // resolves, the header shows a skeleton (namePending) rather than "Unknown".
+    const authorIds = useMemo(() => messages.map(m => m.ownerId), [messages]);
+    const cachedNames = useAuthorNames(authorIds);
     const memberNames = useMemo(() => {
         const map = new Map<string, string>();
-        for (const member of members) map.set(member.id, displayName(member));
+        for (const member of members) {
+            const name = displayName(member);
+            // displayName falls back to the id — skip so a raw id never shows as a name.
+            if (name && name !== member.id) map.set(member.id, name);
+        }
+        for (const [id, name] of cachedNames) map.set(id, name);
         return map;
-    }, [members]);
+    }, [members, cachedNames]);
 
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages);
