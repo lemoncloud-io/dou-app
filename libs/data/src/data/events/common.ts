@@ -1,4 +1,5 @@
 import type { ModelSyncPayload } from '@lemoncloud/chatic-sockets-api';
+import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 
 /**
  * 백엔드의 모델 동기화 메타데이터(ModelSyncPayload)와 프론트엔드의 도메인 모델(T)을 결합한 타입입니다.
@@ -24,4 +25,14 @@ export interface ListResult<T, R = any> {
     list: T[];
     /** 추가적인 집계 데이터 배열 또는 객체 (선택) */
     aggr?: R | R[];
+}
+
+/** channel.sync 응답 구조 */
+export interface ChannelSyncResult {
+    /** since 이후 변경된 채널 목록 */
+    list: ChannelView[];
+    /** 현재 활성 채널 전체 ID 배열 */
+    ids: string[];
+    /** 다음 sync 요청에 사용할 cursor timestamp */
+    syncedAt: number;
 }
