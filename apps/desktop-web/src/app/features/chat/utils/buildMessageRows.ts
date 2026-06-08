@@ -4,6 +4,12 @@ export interface MessageGroup {
     key: string;
     ownerId: string | undefined;
     ownerName: string;
+    /**
+     * True while the author name is still resolving (no owner$ yet and the member
+     * roster is still loading). The header shows a name skeleton instead of
+     * flashing "Unknown" before the roster / live record arrives.
+     */
+    namePending: boolean;
     /** Author avatar (base64 thumbnail) when the server embedded it; else undefined. */
     avatar: string | undefined;
     /** True when the signed-in user authored this group — drives delivery status. */
@@ -30,11 +36,16 @@ const GROUP_TIME_GAP_MS = 5 * 60 * 1000;
 // The server's ChatView only embeds owner$ for persisted messages — optimistic
 // and own messages have no owner$, so resolve those from the viewer's profile.
 // For other authors the server often omits owner$ too, so fall back to the
-// channel member roster (id → name) before giving up with "Unknown".
-const getOwnerName = (chat: DomainChat, viewer: MessageViewer, names?: ReadonlyMap<string, string>): string => {
+// channel member roster (id → name). Returns null when the author is still
+// unresolved, so the caller can show a skeleton while it loads instead of "Unknown".
+const resolveOwnerName = (
+    chat: DomainChat,
+    viewer: MessageViewer,
+    names?: ReadonlyMap<string, string>
+): string | null => {
     if (viewer.uid && chat.ownerId === viewer.uid) return viewer.name || chat.owner$?.name || 'You';
     const fromMembers = chat.ownerId ? names?.get(chat.ownerId) : undefined;
-    return chat.owner$?.name ?? fromMembers ?? 'Unknown';
+    return chat.owner$?.name ?? fromMembers ?? null;
 };
 
 const getTimestamp = (chat: DomainChat): number => chat.createdAt ?? chat.createdAtMs ?? 0;
@@ -62,7 +73,8 @@ export const buildMessageRows = (
     messages: DomainChat[],
     viewer: MessageViewer,
     names?: ReadonlyMap<string, string>,
-    baselineReadNo = 0
+    baselineReadNo = 0,
+    membersLoading = false
 ): MessageRowItem[] => {
     const rows: MessageRowItem[] = [];
     let currentGroup: MessageGroup | null = null;
@@ -100,10 +112,12 @@ export const buildMessageRows = (
             currentGroup.messages.push(message);
         } else {
             flush();
+            const resolvedName = resolveOwnerName(message, viewer, names);
             currentGroup = {
                 key: message.id ?? message.tempId ?? `${message.channelId}:${message.chatNo}`,
                 ownerId: message.ownerId,
-                ownerName: getOwnerName(message, viewer, names),
+                ownerName: resolvedName ?? 'Unknown',
+                namePending: resolvedName === null && membersLoading,
                 avatar: message.owner$?.thumbnail,
                 isMine: viewer.uid != null && message.ownerId === viewer.uid,
                 timestamp,

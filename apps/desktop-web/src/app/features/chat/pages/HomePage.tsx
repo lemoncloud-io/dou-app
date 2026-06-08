@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { isNative, webClient } from '@chatic/bridges';
 import { useWebCoreStore } from '@chatic/web-core';
 
+import { JoinWithInviteDialog } from '../../auth';
 import {
     ChannelSettingsPanel,
     CreateChannelDialog,
@@ -179,7 +180,7 @@ export const HomePage = () => {
                         </div>
                     </>
                 }
-                main={<ChatPane channel={selectedChannel} members={members} />}
+                main={<ChatPane channel={selectedChannel} members={members} membersLoading={membersLoading} />}
                 panel={
                     settingsChannel ? (
                         <ChannelSettingsPanel
@@ -193,6 +194,7 @@ export const HomePage = () => {
                 }
             />
             <CreateChannelDialog />
+            <JoinWithInviteDialog />
             <ShortcutsDialog />
         </>
     );

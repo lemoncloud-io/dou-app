@@ -91,8 +91,17 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         const cid = context.cid || this.getCid(contextOverride);
         const scope = { cid, sid: context.sid || '', uid: context.uid };
 
+        // Merge with the existing cached record per id (same contract as single
+        // upsert). List responses omit fields the detail view carries — most
+        // importantly `owner$` for other users — so a bulk overwrite would drop a
+        // previously-resolved author and flash "Unknown" on the next render.
+        const existing = await Promise.all(validChats.map(chat => this.cacheStorage.load(chat.id as string)));
         const normalized = validChats.map(
-            chat => toDomainChatBase({ ...(chat as Record<string, unknown>), cid }, scope) as ChatCache
+            (chat, i) =>
+                toDomainChatBase(
+                    { ...(existing[i] ?? {}), ...(chat as Record<string, unknown>), cid },
+                    scope
+                ) as ChatCache
         );
 
         // 🔍 DEBUG: trace scope used by saveAll

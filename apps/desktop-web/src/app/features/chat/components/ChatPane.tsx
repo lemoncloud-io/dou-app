@@ -14,13 +14,20 @@ import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
 
+// Session-wide author name cache (userId/ownerId → name), harvested from member
+// rosters and message owner$ across every channel. Survives channel switches so
+// a once-seen author resolves instantly instead of flashing "Unknown".
+const authorNameCache = new Map<string, string>();
+
 interface ChatPaneProps {
     channel: DomainChannel | undefined;
     /** Roster for the open channel (lifted to HomePage so it's fetched once). */
     members: ChannelMember[];
+    /** Roster still loading — message headers show a name skeleton, not "Unknown". */
+    membersLoading?: boolean;
 }
 
-export const ChatPane = ({ channel, members }: ChatPaneProps) => {
+export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) => {
     const { t } = useTranslation();
     const channelId = channel?.id ?? null;
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
@@ -40,7 +47,7 @@ export const ChatPane = ({ channel, members }: ChatPaneProps) => {
     // Subscribe to the cursor (rather than reading getState() in render) so the
     // baseline captures a consistent value; the ref guard below freezes it after
     // the first capture, so the later mark-read advance doesn't move the divider.
-    const localCursor = useReadCursorStore(s => (channelId ? s.cursors[channelId] ?? 0 : 0));
+    const localCursor = useReadCursorStore(s => (channelId ? (s.cursors[channelId] ?? 0) : 0));
     // Re-capture once the channel's $join arrives (it can land a render after the
     // channelId flips), otherwise the divider would freeze at a stale 0 baseline.
     if (baselineRef.current.id !== channelId || (baselineRef.current.no === 0 && serverJoinNo > 0)) {
@@ -49,12 +56,23 @@ export const ChatPane = ({ channel, members }: ChatPaneProps) => {
     const baselineReadNo = baselineRef.current.no;
 
     // owner$ is often omitted on other users' messages; resolve author names from
-    // the channel roster (id → name). Members are fetched once in HomePage.
+    // the channel roster (id → name) AND from any owner$ embedded on loaded
+    // messages, harvested into a module cache that survives channel switches — so
+    // an author seen once never flashes "Unknown" again before the roster/live
+    // record re-arrives. Keyed by both ownerId and owner$.id to span id quirks.
     const memberNames = useMemo(() => {
-        const map = new Map<string, string>();
-        for (const member of members) map.set(member.id, displayName(member));
-        return map;
-    }, [members]);
+        for (const member of members) {
+            const name = displayName(member);
+            if (name && name !== member.id) authorNameCache.set(member.id, name);
+        }
+        for (const msg of messages) {
+            const name = msg.owner$?.name;
+            if (!name) continue;
+            if (msg.ownerId) authorNameCache.set(msg.ownerId, name);
+            if (msg.owner$?.id) authorNameCache.set(msg.owner$.id, name);
+        }
+        return new Map(authorNameCache);
+    }, [members, messages]);
 
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages);
@@ -117,6 +135,7 @@ export const ChatPane = ({ channel, members }: ChatPaneProps) => {
                 isLoading={isLoading}
                 viewer={viewer}
                 names={memberNames}
+                membersLoading={membersLoading}
                 baselineReadNo={baselineReadNo}
                 onRetry={retryMessage}
                 onLoadOlder={() => void loadOlder()}

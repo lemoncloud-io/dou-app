@@ -8,7 +8,7 @@ import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import type { MessageGroup } from '../utils';
-import { UserProfilePopover, avatarStyle } from '../../../shared';
+import { Skeleton, UserProfilePopover, avatarStyle } from '../../../shared';
 import { RichText } from './RichText';
 
 interface MessageRowProps {
@@ -27,7 +27,8 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
     const { t } = useTranslation();
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
     const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const initial = group.ownerName.charAt(0).toUpperCase() || '?';
+    // Blank the avatar initial while the name resolves so "U" (Unknown) never flashes.
+    const initial = group.namePending ? '' : group.ownerName.charAt(0).toUpperCase() || '?';
     const userId = group.ownerId ?? '';
 
     const copy = (key: string, content: string) => {
@@ -39,9 +40,12 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
     };
 
     // Cancel a pending "copied" reset if this row unmounts mid-feedback.
-    useEffect(() => () => {
-        if (copyTimer.current) clearTimeout(copyTimer.current);
-    }, []);
+    useEffect(
+        () => () => {
+            if (copyTimer.current) clearTimeout(copyTimer.current);
+        },
+        []
+    );
 
     return (
         <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 transition-colors hover:bg-accent/40">
@@ -63,14 +67,18 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
             </UserProfilePopover>
             <div className="flex min-w-0 flex-1 flex-col">
                 <div className="flex items-baseline gap-2">
-                    <UserProfilePopover userId={userId} fallbackName={group.ownerName}>
-                        <button
-                            type="button"
-                            className="truncate rounded text-sm font-semibold text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                            {group.ownerName}
-                        </button>
-                    </UserProfilePopover>
+                    {group.namePending ? (
+                        <Skeleton className="h-3.5 w-24 rounded" />
+                    ) : (
+                        <UserProfilePopover userId={userId} fallbackName={group.ownerName}>
+                            <button
+                                type="button"
+                                className="truncate rounded text-sm font-semibold text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                                {group.ownerName}
+                            </button>
+                        </UserProfilePopover>
+                    )}
                     <span className="text-xs tabular-nums text-muted-foreground">{formatTime(group.timestamp)}</span>
                 </div>
                 <div className="flex flex-col gap-0.5">
@@ -132,11 +140,7 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
                                                 : 'opacity-0 group-hover/msg:opacity-100 focus-visible:opacity-100'
                                         )}
                                     >
-                                        {isCopied ? (
-                                            <Check size={12} className="text-primary" />
-                                        ) : (
-                                            <Copy size={12} />
-                                        )}
+                                        {isCopied ? <Check size={12} className="text-primary" /> : <Copy size={12} />}
                                     </button>
                                 )}
                             </div>

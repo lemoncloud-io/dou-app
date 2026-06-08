@@ -16,6 +16,8 @@ interface MessageListProps {
     viewer: MessageViewer;
     /** channel member id → display name, used to name authors when owner$ is absent. */
     names?: ReadonlyMap<string, string>;
+    /** Member roster still loading — render a name skeleton instead of "Unknown". */
+    membersLoading?: boolean;
     /** Read position when the channel was opened — drives the "new messages" divider. */
     baselineReadNo?: number;
     onRetry?: (message: DomainChat) => void;
@@ -35,6 +37,7 @@ export const MessageList = ({
     isLoading,
     viewer,
     names,
+    membersLoading,
     baselineReadNo,
     onRetry,
     onLoadOlder,
@@ -64,8 +67,8 @@ export const MessageList = ({
     const didInitRef = useRef(false);
 
     const rows = useMemo(
-        () => buildMessageRows(messages, viewer, names, baselineReadNo),
-        [messages, viewer, names, baselineReadNo]
+        () => buildMessageRows(messages, viewer, names, baselineReadNo, membersLoading),
+        [messages, viewer, names, baselineReadNo, membersLoading]
     );
 
     const maxChatNo = useMemo(() => messages.reduce((m, c) => Math.max(m, c.chatNo ?? 0), 0), [messages]);
@@ -130,7 +133,12 @@ export const MessageList = ({
 
     if (isLoading) {
         return (
-            <div role="status" aria-live="polite" aria-label={t('chat.loading')} className="flex flex-1 flex-col gap-5 overflow-hidden p-4">
+            <div
+                role="status"
+                aria-live="polite"
+                aria-label={t('chat.loading')}
+                className="flex flex-1 flex-col gap-5 overflow-hidden p-4"
+            >
                 {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className="flex gap-3">
                         <Skeleton className="h-9 w-9 shrink-0" />
