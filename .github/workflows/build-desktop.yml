@@ -15,10 +15,6 @@ on:
                     - dev
                     - prod
                 default: dev
-    # TEMP: verify CI macOS signing/notarization on a prod build. Remove after.
-    push:
-        branches:
-            - feature/louis-update-electron
 
 # The desktop build never needs the mobile CocoaPods install that the root postinstall
 # runs on macOS runners — skip it to save minutes and drop an unrelated failure surface.
@@ -27,7 +23,7 @@ env:
 
 jobs:
     build:
-        name: Build ${{ matrix.platform }} (${{ inputs.env || 'prod' }})
+        name: Build ${{ matrix.platform }} (${{ inputs.env }})
         runs-on: ${{ matrix.os }}
         strategy:
             fail-fast: false
@@ -55,13 +51,24 @@ jobs:
               with:
                   python-version: '3.11'
 
+            # Cache the official Electron binary download so a transient github.com 504 on one run
+            # doesn't block the next (and to avoid re-downloading 100MB each time).
+            - name: Cache Electron download
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cache/electron
+                      ~/Library/Caches/electron
+                      ~\AppData\Local\electron\Cache
+                  key: electron-${{ runner.os }}-33.4.11
+
             - name: Install dependencies
               shell: bash
               run: |
-                  for i in 1 2 3; do
+                  for i in 1 2 3 4 5; do
                     yarn install --frozen-lockfile && exit 0
-                    echo "install attempt $i failed (transient download?); retrying in 15s"
-                    sleep 15
+                    echo "install attempt $i failed (transient download?); retrying in 30s"
+                    sleep 30
                   done
                   exit 1
 
@@ -69,7 +76,7 @@ jobs:
             # electron-builder (the .app) and the afterAllArtifactBuild hook (the .dmg) resolve it
             # by name. No-op when the cert secret is absent → build stays unsigned / ad-hoc.
             - name: Set up macOS signing keychain
-              if: ${{ matrix.platform == 'mac' && (inputs.env || 'prod') == 'prod' }}
+              if: ${{ matrix.platform == 'mac' && inputs.env == 'prod' }}
               env:
                   MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
                   MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
@@ -99,7 +106,7 @@ jobs:
               run: |
                   set -e
                   EXTRA=""
-                  if [ "${{ matrix.platform }}" = "mac" ] && [ "${{ inputs.env || 'prod' }}" = "prod" ] \
+                  if [ "${{ matrix.platform }}" = "mac" ] && [ "${{ inputs.env }}" = "prod" ] \
                      && security find-identity -v -p codesigning | grep -q "Developer ID Application" \
                      && [ -n "$APPLE_API_KEY_B64" ]; then
                     echo "$APPLE_API_KEY_B64" | base64 --decode > "$RUNNER_TEMP/apple_api_key.p8"
@@ -107,13 +114,13 @@ jobs:
                     EXTRA="-c.mac.notarize=true"
                     echo "macOS prod: Developer ID signing + notarization enabled"
                   fi
-                  yarn workspace @chatic/desktop package:${{ matrix.platform }}:${{ inputs.env || 'prod' }} $EXTRA
+                  yarn workspace @chatic/desktop package:${{ matrix.platform }}:${{ inputs.env }} $EXTRA
 
             # Artifact is the transport to the release job below (and a fallback download).
             - name: Upload installer artifact
               uses: actions/upload-artifact@v4
               with:
-                  name: chatic-desktop-${{ inputs.env || 'prod' }}-${{ matrix.platform }}
+                  name: chatic-desktop-${{ inputs.env }}-${{ matrix.platform }}
                   path: ${{ matrix.artifact }}
                   if-no-files-found: error
 
@@ -139,20 +146,20 @@ jobs:
               id: publish
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  TAG: desktop-${{ inputs.env || 'prod' }}
+                  TAG: desktop-${{ inputs.env }}
               run: |
                   set -e
                   VERSION=$(node -p "require('./apps/desktop/package.json').version")
-                  TITLE="Chatic Desktop (${{ inputs.env || 'prod' }}) v${VERSION}"
+                  TITLE="Chatic Desktop (${{ inputs.env }}) v${VERSION}"
                   PRERELEASE=""
-                  [ "${{ inputs.env || 'prod' }}" = "dev" ] && PRERELEASE="--prerelease"
+                  [ "${{ inputs.env }}" = "dev" ] && PRERELEASE="--prerelease"
                   # Rolling release per env: drop the previous one so the tag always points at the
                   # latest build and holds only the current installers (internal "grab latest").
                   gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
                   gh release create "$TAG" dist/*/*.dmg dist/*/*.exe \
                       --title "$TITLE" \
                       --target "$GITHUB_SHA" \
-                      --notes "Unsigned internal build (\`${{ inputs.env || 'prod' }}\`). macOS \`.dmg\` + Windows \`.exe\`. Build ${{ github.run_number }}, commit \`${GITHUB_SHA:0:7}\`." \
+                      --notes "Unsigned internal build (\`${{ inputs.env }}\`). macOS \`.dmg\` + Windows \`.exe\`. Build ${{ github.run_number }}, commit \`${GITHUB_SHA:0:7}\`." \
                       $PRERELEASE
                   URL=$(gh release view "$TAG" --json url -q .url)
                   echo "url=${URL}" >> "$GITHUB_OUTPUT"
@@ -172,15 +179,15 @@ jobs:
                   COMMIT_SHA="${GITHUB_SHA:0:7}"
                   if [[ "${{ needs.release.result }}" == "success" ]]; then
                     echo "emoji=:desktop_computer:" >> "$GITHUB_OUTPUT"
-                    echo "title=Chatic 데스크톱 빌드 완료 (${{ inputs.env || 'prod' }})" >> "$GITHUB_OUTPUT"
+                    echo "title=Chatic 데스크톱 빌드 완료 (${{ inputs.env }})" >> "$GITHUB_OUTPUT"
                     echo "body=• mac \`.dmg\` + win \`.exe\` → <${{ needs.release.outputs.url }}|GitHub Release에서 다운로드>" >> "$GITHUB_OUTPUT"
                   elif [[ "${{ needs.build.result }}" != "success" ]]; then
                     echo "emoji=:x:" >> "$GITHUB_OUTPUT"
-                    echo "title=Chatic 데스크톱 빌드 실패 (${{ inputs.env || 'prod' }})" >> "$GITHUB_OUTPUT"
+                    echo "title=Chatic 데스크톱 빌드 실패 (${{ inputs.env }})" >> "$GITHUB_OUTPUT"
                     echo "body=• 빌드 결과: \`${{ needs.build.result }}\` — 로그 확인 필요" >> "$GITHUB_OUTPUT"
                   else
                     echo "emoji=:warning:" >> "$GITHUB_OUTPUT"
-                    echo "title=Chatic 데스크톱 릴리즈 실패 (${{ inputs.env || 'prod' }})" >> "$GITHUB_OUTPUT"
+                    echo "title=Chatic 데스크톱 릴리즈 실패 (${{ inputs.env }})" >> "$GITHUB_OUTPUT"
                     echo "body=• 빌드는 성공했으나 릴리즈 단계 실패 — 로그 확인 필요" >> "$GITHUB_OUTPUT"
                   fi
                   echo "timestamp=${TIMESTAMP}" >> "$GITHUB_OUTPUT"
