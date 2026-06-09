@@ -42,31 +42,31 @@ export const ChannelHeaderMenu = ({ channel, myUid }: ChannelHeaderMenuProps) =>
                     <button
                         type="button"
                         aria-label={t('chat.header.menu')}
-                        className="rounded p-1 text-muted-foreground hover:bg-accent"
+                        className="focus-ring tactile flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
                     >
                         <MoreVertical size={18} />
                     </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={() => openSettings(channelId)} className="cursor-pointer">
+                <DropdownMenuContent align="end" className="w-48 shadow-overlay">
+                    <DropdownMenuItem onClick={() => openSettings(channelId)} className="cursor-pointer py-2">
                         {t('chat.header.settings')}
                     </DropdownMenuItem>
                     {isOwner && (
-                        <DropdownMenuItem onClick={() => openDialog('rename')} className="cursor-pointer">
+                        <DropdownMenuItem onClick={() => openDialog('rename')} className="cursor-pointer py-2">
                             {t('channels.settings.rename')}
                         </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={() => openDialog('invite')} className="cursor-pointer">
+                    <DropdownMenuItem onClick={() => openDialog('invite')} className="cursor-pointer py-2">
                         {t('channels.settings.invite')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => openDialog('leave')} className="cursor-pointer">
+                    <DropdownMenuItem onClick={() => openDialog('leave')} className="cursor-pointer py-2">
                         {t('channels.settings.leave')}
                     </DropdownMenuItem>
                     {isOwner && (
                         <DropdownMenuItem
                             onClick={() => openDialog('delete')}
-                            className="cursor-pointer text-destructive focus:text-destructive"
+                            className="cursor-pointer py-2 text-destructive focus:text-destructive"
                         >
                             {t('channels.settings.delete')}
                         </DropdownMenuItem>

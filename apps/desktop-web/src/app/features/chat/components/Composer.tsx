@@ -21,9 +21,30 @@ const MAX_HEIGHT = 160;
 
 // Curated quick-pick set — a small, common spread, not a full emoji keyboard.
 const EMOJIS = [
-    '😀', '😂', '😊', '😍', '😎', '🤔', '😅', '😭',
-    '👍', '👎', '🙏', '👏', '🙌', '🔥', '🎉', '✨',
-    '❤️', '💯', '👀', '✅', '❌', '⚡', '🚀', '😴',
+    '😀',
+    '😂',
+    '😊',
+    '😍',
+    '😎',
+    '🤔',
+    '😅',
+    '😭',
+    '👍',
+    '👎',
+    '🙏',
+    '👏',
+    '🙌',
+    '🔥',
+    '🎉',
+    '✨',
+    '❤️',
+    '💯',
+    '👀',
+    '✅',
+    '❌',
+    '⚡',
+    '🚀',
+    '😴',
 ];
 
 export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerProps) => {
@@ -94,8 +115,8 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
         <div className="px-4 pb-4 pt-1">
             <div
                 className={cn(
-                    'flex items-end gap-2 rounded-xl border border-input bg-background px-3 py-2 transition-colors',
-                    'focus-within:border-focus-border'
+                    'border-hairline flex items-end gap-2 rounded-xl border bg-elevated px-3 py-2 shadow-raised transition-colors ease-tactile',
+                    'focus-within:ring-2 focus-within:ring-primary/40'
                 )}
             >
                 <textarea
@@ -107,7 +128,7 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
                     onKeyDown={handleKeyDown}
                     aria-label={placeholderText}
                     placeholder={placeholderText}
-                    className="max-h-40 flex-1 resize-none bg-transparent text-sm leading-relaxed text-foreground outline-none placeholder:text-placeholder disabled:opacity-50"
+                    className="max-h-40 flex-1 resize-none bg-transparent text-body text-foreground outline-none placeholder:text-placeholder disabled:opacity-50"
                 />
                 <Popover>
                     <PopoverTrigger asChild>
@@ -116,7 +137,7 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
                             disabled={disabled}
                             title={t('chat.composer.emoji')}
                             aria-label={t('chat.composer.emoji')}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                            className="focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground disabled:opacity-50"
                         >
                             <Smile className="h-5 w-5" />
                         </button>
@@ -128,7 +149,7 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
                                     key={emoji}
                                     type="button"
                                     onClick={() => insertEmoji(emoji)}
-                                    className="flex h-8 w-8 items-center justify-center rounded-md text-lg transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-lg transition-colors ease-tactile hover:bg-accent"
                                 >
                                     {emoji}
                                 </button>
@@ -142,10 +163,9 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
                     disabled={!canSend}
                     title={t('chat.composer.send')}
                     className={cn(
-                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all',
-                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+                        'focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-all ease-tactile',
                         canSend
-                            ? 'bg-primary text-primary-foreground hover:opacity-90 active:scale-95'
+                            ? 'bg-primary text-primary-foreground hover:opacity-90'
                             : 'bg-muted text-muted-foreground'
                     )}
                 >
@@ -159,7 +179,7 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
                     </svg>
                 </button>
             </div>
-            <p className="mt-1 px-1 text-[11px] text-muted-foreground">{t('chat.composer.hint')}</p>
+            <p className="mt-1 px-1 text-caption text-muted-foreground">{t('chat.composer.hint')}</p>
         </div>
     );
 };

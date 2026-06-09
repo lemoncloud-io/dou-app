@@ -28,14 +28,14 @@ const renderInline = (text: string, keyBase: string): ReactNode[] => {
                     href={url}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="text-primary underline underline-offset-2 hover:opacity-80"
+                    className="text-primary underline-offset-2 hover:underline"
                 >
                     {url}
                 </a>
             );
         } else {
             nodes.push(
-                <span key={key} className="rounded bg-primary/15 px-0.5 font-medium text-primary">
+                <span key={key} className="rounded bg-primary/10 px-1 font-medium text-primary">
                     {mention}
                 </span>
             );
@@ -60,7 +60,7 @@ export const RichText = ({ content }: RichTextProps): ReactNode => {
     if (!content) return null;
     return content.split(/(`[^`\n]+`)/g).map((part, idx) =>
         idx % 2 === 1 ? (
-            <code key={idx} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">
+            <code key={idx} className="rounded bg-well px-1 py-0.5 font-mono text-[0.85em]">
                 {part.slice(1, -1)}
             </code>
         ) : (

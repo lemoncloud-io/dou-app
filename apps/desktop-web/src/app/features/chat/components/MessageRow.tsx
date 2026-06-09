@@ -48,12 +48,9 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
     );
 
     return (
-        <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 transition-colors hover:bg-accent/40">
+        <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 transition-colors ease-tactile hover:bg-accent/40">
             <UserProfilePopover userId={userId} fallbackName={group.ownerName}>
-                <button
-                    type="button"
-                    className="h-9 w-9 shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
+                <button type="button" className="focus-ring tactile h-9 w-9 shrink-0 rounded-md">
                     <Avatar className="h-9 w-9 rounded-md">
                         {group.avatar && <AvatarImage src={group.avatar} alt={group.ownerName} />}
                         <AvatarFallback
@@ -73,13 +70,15 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
                         <UserProfilePopover userId={userId} fallbackName={group.ownerName}>
                             <button
                                 type="button"
-                                className="truncate rounded text-sm font-semibold text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                className="focus-ring truncate rounded text-heading text-foreground hover:underline"
                             >
                                 {group.ownerName}
                             </button>
                         </UserProfilePopover>
                     )}
-                    <span className="text-xs tabular-nums text-muted-foreground">{formatTime(group.timestamp)}</span>
+                    <span className="text-caption tabular-nums text-muted-foreground">
+                        {formatTime(group.timestamp)}
+                    </span>
                 </div>
                 <div className="flex flex-col gap-0.5">
                     {group.messages.map((message, i) => {
@@ -98,7 +97,7 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
                                 )}
                                 <p
                                     className={cn(
-                                        'whitespace-pre-wrap break-words text-sm leading-relaxed',
+                                        'whitespace-pre-wrap break-words text-body',
                                         isFailed ? 'text-destructive' : 'text-foreground',
                                         isPending && 'opacity-50'
                                     )}
@@ -106,13 +105,13 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
                                     <RichText content={content} />
                                 </p>
                                 {isFailed && (
-                                    <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-destructive">
+                                    <span className="mt-0.5 flex items-center gap-1.5 text-caption text-destructive">
                                         {t('chat.failed')}
                                         {onRetry && (
                                             <button
                                                 type="button"
                                                 onClick={() => onRetry(message)}
-                                                className="font-semibold underline underline-offset-2 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                className="focus-ring tactile inline-flex min-h-[36px] items-center font-semibold underline underline-offset-2 hover:opacity-80"
                                             >
                                                 {t('chat.retry')}
                                             </button>
@@ -134,7 +133,7 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
                                         title={isCopied ? t('chat.copied') : t('chat.copy')}
                                         aria-label={t('chat.copy')}
                                         className={cn(
-                                            'absolute right-0 top-0 flex h-6 w-6 items-center justify-center rounded border border-border bg-background text-muted-foreground transition-opacity hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                            'focus-ring tactile border-hairline absolute right-0 top-0 flex h-7 w-7 items-center justify-center rounded border bg-elevated text-muted-foreground shadow-raised transition-opacity ease-tactile hover:bg-accent/40 hover:text-foreground',
                                             isCopied
                                                 ? 'opacity-100'
                                                 : 'opacity-0 group-hover/msg:opacity-100 focus-visible:opacity-100'

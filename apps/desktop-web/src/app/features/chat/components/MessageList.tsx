@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, MessageSquare } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 
@@ -171,9 +171,14 @@ export const MessageList = ({
 
     if (messages.length === 0) {
         return (
-            <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
-                <p className="text-sm font-medium text-foreground">{t('chat.threadEmpty')}</p>
-                <p className="max-w-xs text-xs text-muted-foreground">{t('chat.threadEmptyHint')}</p>
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-well text-muted-foreground">
+                    <MessageSquare size={22} />
+                </div>
+                <div className="flex flex-col gap-1">
+                    <p className="text-heading text-foreground">{t('chat.threadEmpty')}</p>
+                    <p className="max-w-xs text-caption text-muted-foreground">{t('chat.threadEmptyHint')}</p>
+                </div>
             </div>
         );
     }
@@ -195,11 +200,11 @@ export const MessageList = ({
                     if (row.kind === 'unread') {
                         return (
                             <div key={row.key} ref={unreadRef} className="my-1 flex items-center gap-2 px-2">
-                                <span className="h-px flex-1 bg-destructive/40" />
-                                <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-destructive">
+                                <span className="h-px flex-1 bg-badge-unread/40" />
+                                <span className="shrink-0 rounded-full bg-badge-unread px-2 py-0.5 text-overline text-badge-unread-foreground">
                                     {t('chat.newMessages')}
                                 </span>
-                                <span className="h-px flex-1 bg-destructive/40" />
+                                <span className="h-px flex-1 bg-badge-unread/40" />
                             </div>
                         );
                     }
@@ -215,7 +220,7 @@ export const MessageList = ({
                         type="button"
                         onClick={scrollToBottom}
                         aria-label={t('chat.jumpToLatest')}
-                        className="absolute bottom-4 left-1/2 flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary pl-3 pr-2.5 text-xs font-semibold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="focus-ring tactile absolute bottom-4 left-1/2 flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary pl-3 pr-2.5 text-caption font-semibold text-primary-foreground shadow-overlay transition-transform ease-tactile hover:bg-primary/90"
                     >
                         <span className="tabular-nums">
                             {t('chat.newMessageBadge', { count: newCount > 99 ? 99 : newCount })}
@@ -229,7 +234,7 @@ export const MessageList = ({
                         onClick={scrollToBottom}
                         aria-label={t('chat.jumpToLatest')}
                         title={t('chat.jumpToLatest')}
-                        className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-md transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="focus-ring tactile border-hairline absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border bg-elevated text-foreground shadow-overlay transition-transform ease-tactile hover:bg-accent"
                     >
                         <ChevronDown size={18} />
                     </button>

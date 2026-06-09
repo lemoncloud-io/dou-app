@@ -92,8 +92,8 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-2xl font-semibold text-primary">
                     #
                 </div>
-                <p className="text-sm font-medium text-foreground">{t('chat.empty')}</p>
-                <p className="max-w-xs text-xs text-muted-foreground">{t('chat.emptyHint')}</p>
+                <p className="text-heading text-foreground">{t('chat.empty')}</p>
+                <p className="max-w-xs text-caption text-muted-foreground">{t('chat.emptyHint')}</p>
             </div>
         );
     }
@@ -110,27 +110,27 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
 
     return (
         <>
-            <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
+            <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-hairline border-b px-4">
                 <button
                     type="button"
                     onClick={() => openSettings(channelId)}
                     title={t('chat.header.settings')}
-                    className="flex min-w-0 items-center gap-2 rounded-md py-1 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="focus-ring tactile flex min-w-0 items-center gap-2 rounded-md py-1 text-left transition-colors ease-tactile hover:bg-accent"
                 >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-sm font-bold text-primary">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-heading text-primary">
                         #
                     </span>
-                    <span className="truncate text-base font-bold text-foreground">{channel.name ?? channelId}</span>
-                    {desc && <span className="truncate text-xs text-muted-foreground">{desc}</span>}
+                    <span className="truncate text-title text-foreground">{channel.name ?? channelId}</span>
+                    {desc && <span className="truncate text-caption text-muted-foreground">{desc}</span>}
                     {memberCount > 0 && (
-                        <span className="shrink-0 border-l border-border pl-2 text-xs tabular-nums text-muted-foreground">
+                        <span className="border-hairline shrink-0 border-l pl-2 text-caption tabular-nums text-muted-foreground">
                             {t('channels.settings.memberCount', { count: memberCount })}
                         </span>
                     )}
                 </button>
                 <div className="flex shrink-0 items-center gap-2">
                     {!isVerified && (
-                        <span className="flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                        <span className="flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2 py-0.5 text-caption font-medium text-amber-600 dark:text-amber-400">
                             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500 motion-reduce:animate-none" />
                             {t('chat.connecting')}
                         </span>
