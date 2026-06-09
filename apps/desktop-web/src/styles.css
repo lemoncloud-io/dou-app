@@ -82,6 +82,14 @@
         --tab-active: 220 30% 18%;
         --tab-inactive: 220 10% 60%;
         --overlay: 220 20% 10%;
+
+        /* Engineering pass — layering + elevation primitives (extend, theme-aware).
+           elevated = raised surface; hairline = crisp 1px divider; well = inset field.
+           shadow-color is cool-tinted (never flat black) for honest depth. */
+        --elevated: 0 0% 100%;
+        --hairline: 220 16% 90%;
+        --well: 220 16% 96%;
+        --shadow-color: 222 45% 14%;
     }
 
     .dark {
@@ -155,6 +163,12 @@
         --tab-active: 0 0% 98%;
         --tab-inactive: 0 0% 50%;
         --overlay: 0 0% 0%;
+
+        /* Engineering pass — layering + elevation primitives (dark). */
+        --elevated: 0 0% 12%;
+        --hairline: 0 0% 19%;
+        --well: 0 0% 6%;
+        --shadow-color: 220 60% 2%;
     }
 }
 
@@ -215,5 +229,27 @@
     }
     .safe-bottom {
         padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    /* Standardized keyboard focus — brand-lime ring, consistent across every
+       interactive element (a11y). Uses --ring-offset = surface behind control. */
+    .focus-ring {
+        outline: 2px solid transparent;
+        outline-offset: 2px;
+    }
+    .focus-ring:focus-visible {
+        outline: none;
+        box-shadow:
+            0 0 0 2px hsl(var(--background)),
+            0 0 0 4px hsl(var(--primary) / 0.6);
+    }
+
+    /* Tactile press — GPU-only (transform), springy ease. No layout thrash. */
+    .tactile {
+        transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: transform;
+    }
+    .tactile:active {
+        transform: scale(0.97);
     }
 }

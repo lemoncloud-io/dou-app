@@ -93,11 +93,37 @@ module.exports = {
                 'tab-active': 'hsl(var(--tab-active))',
                 'tab-inactive': 'hsl(var(--tab-inactive))',
                 overlay: 'hsl(var(--overlay))',
+                // Engineering pass — layering surfaces (depth without hardcoded grays)
+                elevated: 'hsl(var(--elevated))',
+                hairline: 'hsl(var(--hairline))',
+                well: 'hsl(var(--well))',
             },
             borderRadius: {
                 lg: 'var(--radius)',
                 md: 'calc(var(--radius) - 2px)',
                 sm: 'calc(var(--radius) - 4px)',
+            },
+            // Semantic type scale (size / leading / tracking / weight) — controls
+            // hierarchy via weight+tracking, not just size (skill Rule 1).
+            fontSize: {
+                display: ['1.625rem', { lineHeight: '2rem', letterSpacing: '-0.02em', fontWeight: '700' }],
+                title: ['1.0625rem', { lineHeight: '1.5rem', letterSpacing: '-0.013em', fontWeight: '600' }],
+                heading: ['0.9375rem', { lineHeight: '1.375rem', letterSpacing: '-0.008em', fontWeight: '600' }],
+                body: ['0.9375rem', { lineHeight: '1.45rem', letterSpacing: '-0.003em' }],
+                callout: ['0.875rem', { lineHeight: '1.3rem', letterSpacing: '-0.002em' }],
+                caption: ['0.8125rem', { lineHeight: '1.1rem', letterSpacing: '0' }],
+                overline: ['0.6875rem', { lineHeight: '1rem', letterSpacing: '0.07em', fontWeight: '600' }],
+            },
+            // Restrained, tinted elevation by level. Cool --shadow-color, low opacity —
+            // honest depth, not heavy decorative shadows.
+            boxShadow: {
+                raised: '0 1px 2px 0 hsl(var(--shadow-color) / 0.04), 0 1px 3px -1px hsl(var(--shadow-color) / 0.07)',
+                overlay:
+                    '0 2px 6px -2px hsl(var(--shadow-color) / 0.1), 0 10px 28px -10px hsl(var(--shadow-color) / 0.2)',
+                well: 'inset 0 1px 2px 0 hsl(var(--shadow-color) / 0.05)',
+            },
+            transitionTimingFunction: {
+                tactile: 'cubic-bezier(0.16, 1, 0.3, 1)',
             },
             keyframes: {
                 'slide-in-from-top': {

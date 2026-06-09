@@ -22,7 +22,7 @@ export const DesktopLayout = ({ rail, sidebar, main, panel }: DesktopLayoutProps
         >
             {rail}
         </nav>
-        <aside className="flex w-56 shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar text-sidebar-foreground lg:w-64">
+        <aside className="z-10 flex w-56 shrink-0 flex-col overflow-hidden border-r border-hairline bg-sidebar text-sidebar-foreground lg:w-64">
             {sidebar}
         </aside>
         <main className="flex flex-1 flex-col overflow-hidden">{main}</main>
