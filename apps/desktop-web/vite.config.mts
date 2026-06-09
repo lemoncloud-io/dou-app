@@ -118,6 +118,23 @@ export default defineConfig({
             strictRequires: true,
             transformMixedEsModules: true,
         },
+        rollupOptions: {
+            output: {
+                // Split rarely-changing vendor code into long-cacheable chunks so an
+                // app-code change doesn't invalidate the whole 1MB+ bundle. Order
+                // matters: match the more specific package names before 'react'.
+                manualChunks(id) {
+                    if (!id.includes('node_modules')) return undefined;
+                    if (id.includes('/i18next') || id.includes('/react-i18next')) return 'i18n';
+                    if (id.includes('/react-router')) return 'router';
+                    if (id.includes('/@radix-ui/') || id.includes('/cmdk/')) return 'radix';
+                    if (id.includes('/@tanstack/')) return 'tanstack';
+                    if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/'))
+                        {return 'react-vendor';}
+                    return 'vendor';
+                },
+            },
+        },
     },
 
     css: {
