@@ -34,11 +34,11 @@ export const MemberList = ({ members, isLoading, error, myUid, canKick, onKick }
     }
 
     if (error) {
-        return <p className="px-2 py-2 text-sm text-destructive">{t('channels.members.failed')}</p>;
+        return <p className="px-2 py-2 text-callout text-destructive">{t('channels.members.failed')}</p>;
     }
 
     if (members.length === 0) {
-        return <p className="px-2 py-2 text-sm text-muted-foreground">{t('channels.members.empty')}</p>;
+        return <p className="px-2 py-2 text-callout text-muted-foreground">{t('channels.members.empty')}</p>;
     }
 
     return (

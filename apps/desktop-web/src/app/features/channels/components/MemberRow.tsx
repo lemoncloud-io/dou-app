@@ -29,11 +29,11 @@ export const MemberRow = ({ member, isMe, canKick, onKick }: MemberRowProps) => 
     const showKebab = canKick && !isMe;
 
     return (
-        <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent/50">
+        <div className="group flex min-h-9 items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent">
             <UserProfilePopover userId={member.id} fallbackName={name} isOwner={member.isOwner}>
                 <button
                     type="button"
-                    className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-md text-left"
                 >
                     <Avatar className="size-8 shrink-0">
                         {member.thumbnail && <AvatarImage src={member.thumbnail} alt={name} />}
@@ -41,16 +41,16 @@ export const MemberRow = ({ member, isMe, canKick, onKick }: MemberRowProps) => 
                             {initial}
                         </AvatarFallback>
                     </Avatar>
-                    <span className="flex-1 truncate text-sm text-foreground">{name}</span>
+                    <span className="flex-1 truncate text-callout text-foreground">{name}</span>
                 </button>
             </UserProfilePopover>
             {member.isOwner && (
-                <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary">
+                <span className="rounded bg-badge-member/15 px-1.5 py-0.5 text-overline text-badge-member">
                     {t('channels.members.owner')}
                 </span>
             )}
             {isMe && (
-                <span className="rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold uppercase text-accent-foreground">
+                <span className="rounded bg-accent px-1.5 py-0.5 text-overline text-accent-foreground">
                     {t('channels.members.me')}
                 </span>
             )}
@@ -60,7 +60,7 @@ export const MemberRow = ({ member, isMe, canKick, onKick }: MemberRowProps) => 
                         <button
                             type="button"
                             aria-label={t('channels.members.remove')}
-                            className="flex items-center justify-center rounded p-1 text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="focus-ring flex items-center justify-center rounded p-1 text-muted-foreground opacity-0 transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
                         >
                             <MoreHorizontal size={16} />
                         </button>

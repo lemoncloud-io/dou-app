@@ -87,14 +87,14 @@ export const ChannelSettingsPanel = ({
     const isMuted = !!mutedChannels[channelId];
 
     return (
-        <aside className="scrollbar-thin absolute inset-y-0 right-0 z-30 flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card shadow-xl xl:static xl:z-auto xl:shadow-none">
-            <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
-                <span className="truncate text-sm font-semibold text-foreground">{t('channels.settings.title')}</span>
+        <aside className="scrollbar-thin absolute inset-y-0 right-0 z-30 flex w-80 shrink-0 flex-col overflow-y-auto border-l border-hairline bg-elevated shadow-raised xl:static xl:z-auto xl:shadow-none">
+            <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
+                <span className="truncate text-title text-foreground">{t('channels.settings.title')}</span>
                 <button
                     type="button"
                     aria-label={t('channels.settings.close')}
                     onClick={close}
-                    className="rounded p-1 text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="focus-ring tactile flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
                     <X size={18} />
                 </button>
@@ -102,26 +102,29 @@ export const ChannelSettingsPanel = ({
 
             <div className="flex flex-col gap-6 p-4">
                 <section className="flex flex-col gap-2">
-                    <h3 className="text-xs font-semibold uppercase text-muted-foreground">
-                        {t('channels.settings.nameSection')}
-                    </h3>
+                    <h3 className="text-overline text-muted-foreground">{t('channels.settings.nameSection')}</h3>
                     <div className="flex items-center justify-between gap-2">
-                        <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+                        <span className="flex min-w-0 items-center gap-2 text-heading text-foreground">
                             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary/10 text-xs font-bold text-primary">
                                 #
                             </span>
                             <span className="truncate">{channel.name ?? channelId}</span>
                         </span>
                         {isOwner && (
-                            <Button variant="ghost" size="sm" onClick={() => openDialog('rename')}>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="focus-ring tactile transition-colors"
+                                onClick={() => openDialog('rename')}
+                            >
                                 {t('channels.settings.rename')}
                             </Button>
                         )}
                     </div>
                 </section>
 
-                <section className="flex flex-col gap-2">
-                    <h3 className="text-xs font-semibold uppercase text-muted-foreground">
+                <section className="flex flex-col gap-2 border-t border-hairline pt-4">
+                    <h3 className="text-overline text-muted-foreground">
                         {t('channels.settings.membersSection')} ·{' '}
                         {t('channels.settings.memberCount', { count: memberCount })}
                     </h3>
@@ -135,12 +138,14 @@ export const ChannelSettingsPanel = ({
                                 value={memberQuery}
                                 onChange={e => setMemberQuery(e.target.value)}
                                 placeholder={t('channels.members.search')}
-                                className="h-8 bg-background pl-8 text-sm"
+                                className="focus-ring h-9 border-hairline bg-well pl-8 text-callout shadow-well"
                             />
                         </div>
                     )}
                     {noMatches ? (
-                        <p className="px-2 py-2 text-sm text-muted-foreground">{t('channels.members.noMatches')}</p>
+                        <p className="px-2 py-2 text-callout text-muted-foreground">
+                            {t('channels.members.noMatches')}
+                        </p>
                     ) : (
                         <MemberList
                             members={filteredMembers}
@@ -151,13 +156,18 @@ export const ChannelSettingsPanel = ({
                             onKick={openKick}
                         />
                     )}
-                    <Button variant="outline" size="sm" onClick={() => openDialog('invite')}>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="focus-ring tactile transition-colors"
+                        onClick={() => openDialog('invite')}
+                    >
                         {t('channels.settings.invite')}
                     </Button>
                 </section>
 
-                <section className="flex flex-col gap-2 border-t border-border pt-4">
-                    <label className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-foreground">
+                <section className="flex flex-col gap-2 border-t border-hairline pt-4">
+                    <label className="flex min-h-9 cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-callout text-foreground transition-colors hover:bg-accent">
                         <span className="flex items-center gap-2">
                             {isMuted ? (
                                 <BellOff size={16} className="text-muted-foreground" />
@@ -168,14 +178,19 @@ export const ChannelSettingsPanel = ({
                         </span>
                         <Switch checked={isMuted} onCheckedChange={() => toggleMute(channelId)} />
                     </label>
-                    <Button variant="ghost" size="sm" className="justify-start" onClick={() => openDialog('leave')}>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="focus-ring tactile justify-start transition-colors"
+                        onClick={() => openDialog('leave')}
+                    >
                         {t('channels.settings.leave')}
                     </Button>
                     {isOwner && (
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="justify-start text-destructive hover:text-destructive"
+                            className="focus-ring tactile justify-start text-destructive transition-colors hover:bg-destructive/10 hover:text-destructive"
                             onClick={() => openDialog('delete')}
                         >
                             {t('channels.settings.delete')}
