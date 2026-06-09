@@ -36,35 +36,37 @@ const sortMessages = (messages: ClientChatView[]) =>
     });
 
 // 중복 메시지를 제거하고, chatNo 또는 timestamp 기준으로 정렬된 새 배열을 반환합니다.
+// incoming(캐시 결과)을 source of truth로 사용하고, existing에서는 pending/failed인 로컬 전용 메시지만 보존합니다.
 const mergeAndSortMessages = (existing: DomainChat[], incoming: DomainChat[]): DomainChat[] => {
-    // 기존 데이터를 기반으로 Map 초기화
     const messageMap = new Map<string, DomainChat>();
 
     // 안전한 ID 추출 헬퍼 함수
     const getMessageId = (msg: DomainChat) =>
         msg.id || (msg.chatNo !== undefined ? `${msg.channelId}:${msg.chatNo}` : undefined);
 
-    for (const msg of existing) {
-        const key = getMessageId(msg) || msg.tempId;
-        if (key) messageMap.set(key, msg);
-    }
-
-    // 새로운(incoming) 데이터를 병합하면서, tempId가 있다면 기존 임시 메시지 교체
+    // incoming(캐시) 기준으로 Map 구성 — 캐시가 source of truth
+    const incomingIds = new Set<string>();
     for (const msg of incoming) {
         const key = getMessageId(msg);
-
-        // incoming 메시지에 tempId가 명시되어 있다면, 기존에 존재하던 해당 tempId의 임시 메시지를 삭제
-        if (msg.tempId && messageMap.has(msg.tempId)) {
-            messageMap.delete(msg.tempId);
-        }
-
-        // 새 메시지를 Map에 추가 (같은 key가 있다면 덮어씀)
         if (key) {
             messageMap.set(key, msg);
-        } else if (msg.tempId) {
-            // key가 없고 tempId만 있는 낙관적 메시지인 경우
-            messageMap.set(msg.tempId, msg);
+            incomingIds.add(key);
         }
+        if (msg.tempId) incomingIds.add(msg.tempId);
+    }
+
+    // existing에서 캐시에 없지만 로컬 전용(pending/failed)인 메시지만 보존
+    for (const msg of existing) {
+        const key = getMessageId(msg) || msg.tempId;
+        if (!key) continue;
+        if (incomingIds.has(key)) continue;
+        if (msg.tempId && incomingIds.has(msg.tempId)) continue;
+
+        // 캐시에 없는 메시지: pending/failed만 유지 (아직 캐시에 반영 안 된 낙관적 메시지)
+        if (msg.isPending || msg.isFailed) {
+            messageMap.set(key, msg);
+        }
+        // 그 외(정상 메시지인데 캐시에 없음) → 삭제된 것이므로 버림
     }
 
     // 정리된 메시지 목록을 정렬하여 반환
