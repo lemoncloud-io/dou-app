@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import Config from 'react-native-config';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -12,6 +12,8 @@ import { RootNavigator } from './features/core/navigation';
 import { useAppVersionCheck, useResolvedTheme } from './hooks';
 import { deeplinkService, logger, notificationService, offlinePushQueue } from './services';
 import { FloatingMenu, SystemBars } from './features/core/components';
+import { DebugOverlay } from './features/debug';
+import type { DebugOverlayEntryKey } from './features/debug/debugMenu';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 const SHOW_DEBUG_MENU = __DEV__ || Config.VITE_ENV !== 'PROD';
@@ -47,6 +49,8 @@ const linking: LinkingOptions<any> = {
 
 export const App = () => {
     const { hasUpdate, showUpdateAlert } = useAppVersionCheck(true);
+    const [isDebugOverlayVisible, setDebugOverlayVisible] = useState(false);
+    const [debugOverlayEntry, setDebugOverlayEntry] = useState<DebugOverlayEntryKey>('FeatureTests');
 
     // Signal that Firebase is ready for deep link processing immediately
     useEffect(() => {
@@ -61,10 +65,9 @@ export const App = () => {
         }
     }, [hasUpdate, showUpdateAlert]);
 
-    const handleNavigate = (screenName: keyof RootStackParamList) => {
-        if (navigationRef.isReady()) {
-            navigationRef.navigate(screenName as any);
-        }
+    const openDebugOverlay = (entry: DebugOverlayEntryKey) => {
+        setDebugOverlayEntry(entry);
+        setDebugOverlayVisible(true);
     };
 
     const { backgroundColor } = useResolvedTheme();
@@ -75,7 +78,10 @@ export const App = () => {
             <NavigationContainer ref={navigationRef} linking={linking}>
                 <View style={{ flex: 1, backgroundColor }}>
                     <RootNavigator />
-                    {SHOW_DEBUG_MENU && <FloatingMenu onNavigate={handleNavigate} />}
+                    {SHOW_DEBUG_MENU && !isDebugOverlayVisible && <FloatingMenu onOpenDebug={openDebugOverlay} />}
+                    {SHOW_DEBUG_MENU && isDebugOverlayVisible && (
+                        <DebugOverlay initialEntry={debugOverlayEntry} onClose={() => setDebugOverlayVisible(false)} />
+                    )}
                 </View>
             </NavigationContainer>
         </SafeAreaProvider>
