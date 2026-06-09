@@ -162,10 +162,10 @@ const createTray = (win: BrowserWindow): void => {
         ? join(process.resourcesPath, 'tray.png')
         : join(__dirname, '../../build/tray.png');
     tray = new Tray(nativeImage.createFromPath(trayIconPath));
-    tray.setToolTip('Chatic');
+    tray.setToolTip('DoU');
     tray.setContextMenu(
         Menu.buildFromTemplate([
-            { label: 'Open Chatic', click: () => (win.isVisible() ? win.focus() : win.show()) },
+            { label: 'Open DoU', click: () => (win.isVisible() ? win.focus() : win.show()) },
             { type: 'separator' },
             {
                 label: 'Quit',
@@ -188,7 +188,7 @@ const SPLASH_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
   .label{color:#5b616b;font-size:13px;letter-spacing:.04em}
   @keyframes spin{to{transform:rotate(360deg)}}
   @media (prefers-reduced-motion:reduce){.ring{animation:none}}
-</style></head><body><div class="wrap"><div class="ring"></div><div class="label">Loading Chatic…</div></div></body></html>`;
+</style></head><body><div class="wrap"><div class="ring"></div><div class="label">Loading DoU…</div></div></body></html>`;
 
 // Branded error page shown when the remote web fails to load, so a failure is a visible,
 // actionable screen instead of a blank window or a raw Chromium error. The retry link points

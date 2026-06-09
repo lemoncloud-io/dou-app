@@ -147,9 +147,9 @@ export const HomePage = () => {
         if (selectedChannelId && selectedLastChatNo > 0) markRead(selectedChannelId, selectedLastChatNo);
     }, [selectedChannelId, selectedLastChatNo, markRead]);
 
-    // Reflect total unread in the window/tab title (e.g. "(3) Chatic").
+    // Reflect total unread in the window/tab title (e.g. "(3) DoU").
     useEffect(() => {
-        document.title = totalUnread > 0 ? `(${totalUnread > 99 ? '99+' : totalUnread}) Chatic` : 'Chatic';
+        document.title = totalUnread > 0 ? `(${totalUnread > 99 ? '99+' : totalUnread}) DoU` : 'DoU';
     }, [totalUnread]);
 
     // Mirror unread onto the OS dock/taskbar badge (desktop shell only).
