@@ -19,8 +19,9 @@
         --popover: 96 24% 99%;
         --popover-foreground: 100 10% 10%;
 
-        /* Single brand accent — desaturated lime (unchanged identity anchor). */
-        --primary: 76 56% 44%;
+        /* Single brand accent — lime, sharpened (56%->63% sat) so active/send/unread
+           read more decisively without tipping into neon (<80% sat). */
+        --primary: 76 63% 44%;
         /* Neutral-tinted dark ink on lime fills (7:1, AA). */
         --primary-foreground: 100 10% 10%;
         /* Lime as TEXT on light surfaces (links, mentions, active glyphs, tints):
@@ -89,7 +90,7 @@
         --bubble-other-foreground: 100 10% 10%;
         --badge-unread: 0 75% 51%; /* AA: white-on-red 4.7:1 */
         --badge-unread-foreground: 0 0% 100%;
-        --badge-member: 76 56% 44%;
+        --badge-member: 76 63% 44%;
         --tab-active: 130 16% 18%;
         --tab-inactive: 90 9% 42%; /* AA on white (4.7:1) */
         --overlay: 100 10% 10%;
@@ -114,10 +115,10 @@
         --popover: 90 8% 10%;
         --popover-foreground: 90 5% 98%;
 
-        --primary: 76 54% 48%;
+        --primary: 76 61% 48%;
         --primary-foreground: 90 10% 8%;
         /* On dark surfaces the fill lime already reads as text (8.6:1), so ink = fill. */
-        --primary-ink: 76 54% 48%;
+        --primary-ink: 76 61% 48%;
 
         --secondary: 90 6% 15%;
         --secondary-foreground: 90 5% 98%;
@@ -176,7 +177,7 @@
         --bubble-other-foreground: 90 5% 98%;
         --badge-unread: 0 75% 51%; /* AA: white-on-red 4.7:1 */
         --badge-unread-foreground: 0 0% 100%;
-        --badge-member: 76 54% 48%;
+        --badge-member: 76 61% 48%;
         --tab-active: 90 5% 98%;
         --tab-inactive: 90 5% 50%;
         --overlay: 0 0% 0%;

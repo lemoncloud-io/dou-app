@@ -91,11 +91,11 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onS
                         aria-current={isActive ? 'true' : undefined}
                         className={cn(
                             'focus-ring relative flex min-h-9 min-w-0 flex-col justify-center gap-0.5 rounded-md px-3 py-1.5 text-left transition-colors duration-150 ease-tactile',
-                            isActive ? 'bg-accent' : 'hover:bg-accent/50'
+                            isActive ? 'bg-primary/12' : 'hover:bg-accent/50'
                         )}
                     >
                         {isActive && (
-                            <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
+                            <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
                         )}
                         <span className="flex w-full items-center gap-2">
                             <span className={cn('shrink-0', isActive ? 'text-primary-ink' : 'text-muted-foreground')}>

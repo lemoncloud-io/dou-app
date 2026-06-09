@@ -111,8 +111,8 @@ module.exports = {
             // Semantic type scale (size / leading / tracking / weight) — controls
             // hierarchy via weight+tracking, not just size (skill Rule 1).
             fontSize: {
-                display: ['1.5rem', { lineHeight: '1.875rem', letterSpacing: '-0.022em', fontWeight: '700' }],
-                title: ['1.125rem', { lineHeight: '1.625rem', letterSpacing: '-0.016em', fontWeight: '600' }],
+                display: ['1.5rem', { lineHeight: '1.875rem', letterSpacing: '-0.024em', fontWeight: '800' }],
+                title: ['1.125rem', { lineHeight: '1.625rem', letterSpacing: '-0.017em', fontWeight: '700' }],
                 heading: ['0.9375rem', { lineHeight: '1.375rem', letterSpacing: '-0.009em', fontWeight: '600' }],
                 body: ['0.9375rem', { lineHeight: '1.45rem', letterSpacing: '-0.003em' }],
                 callout: ['0.875rem', { lineHeight: '1.3rem', letterSpacing: '-0.002em' }],
