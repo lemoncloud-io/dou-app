@@ -94,11 +94,12 @@ export const HomePage = () => {
     const [limitDialogType, setLimitDialogType] = useState<'place' | 'channel' | null>(null);
     const [isNameSetupOpen, setIsNameSetupOpen] = useState(false);
 
-    useEffect(() => {
-        if (consumeNameSetupFlag()) {
-            setIsNameSetupOpen(true);
-        }
-    }, []);
+    // TODO: 이름 설정 다이얼로그 활성화 예정
+    // useEffect(() => {
+    //     if (consumeNameSetupFlag()) {
+    //         setIsNameSetupOpen(true);
+    //     }
+    // }, []);
 
     const handleLogout = () => {
         logout();
