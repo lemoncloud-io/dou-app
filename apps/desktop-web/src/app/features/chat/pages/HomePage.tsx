@@ -4,7 +4,6 @@ import { isNative, webClient } from '@chatic/bridges';
 import { useWebCoreStore } from '@chatic/web-core';
 
 import { JoinWithInviteDialog } from '../../auth';
-import { EditPlaceProfileDialog } from '../../profile/components';
 import {
     ChannelSettingsPanel,
     CreateChannelDialog,
@@ -214,7 +213,6 @@ export const HomePage = () => {
             />
             <CreateChannelDialog />
             <JoinWithInviteDialog />
-            <EditPlaceProfileDialog />
             <ShortcutsDialog />
         </>
     );

@@ -5,7 +5,6 @@ import { cn } from '@chatic/lib/utils';
 import { useWebCoreStore } from '@chatic/web-core';
 
 import { useJoinDialogStore } from '../../auth';
-import { useEditPlaceProfileDialogStore } from '../../profile/stores';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import {
     DropdownMenu,
@@ -36,7 +35,6 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: C
     const { t } = useTranslation();
     const navigate = useNavigate();
     const openJoinDialog = useJoinDialogStore(s => s.open);
-    const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const profile = useWebCoreStore(s => s.profile);
     const logout = useWebCoreStore(s => s.logout);
 
@@ -112,7 +110,6 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: C
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="right" align="end">
                     <DropdownMenuItem onClick={() => navigate('/profile')}>{t('rail.menu.profile')}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={openEditPlaceProfile}>{t('rail.menu.editPlaceProfile')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={openJoinDialog}>{t('rail.menu.join')}</DropdownMenuItem>
                     {import.meta.env.DEV && (

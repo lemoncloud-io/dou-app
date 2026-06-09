@@ -5,7 +5,9 @@ import { useWebCoreStore } from '@chatic/web-core';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-import { avatarStyle, useCopyToClipboard } from '../../../shared';
+import { avatarStyle, isPlaceholderName, useCopyToClipboard, useDisplayProfile, useSiteProfiles } from '../../../shared';
+import { EditPlaceProfileDialog } from '../components';
+import { useEditPlaceProfileDialogStore } from '../stores';
 
 interface ProfileFieldProps {
     label: string;
@@ -33,19 +35,42 @@ const ProfileField = ({ label, value, onCopy, copied, copyLabel, copiedLabel }: 
     </div>
 );
 
+const SectionTitle = ({ children }: { children: string }) => (
+    <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</h2>
+);
+
+/**
+ * Single profile surface. The "This place" card is how you appear in the current
+ * place (per-place nick/photo, edited via the optimistic dialog); the "Account"
+ * card is the read-only canonical (global) identity. One door — there is no
+ * separate place-profile menu entry.
+ */
 export const ProfilePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const profile = useWebCoreStore(s => s.profile);
     const [copied, copy] = useCopyToClipboard();
+    const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
+
+    // Keep the display store fed on this route too — HomePage's subscription is
+    // unmounted here, so without this the optimistic self-edit would not reflect
+    // in the "This place" card until navigating back home.
+    useSiteProfiles();
 
     const user = profile?.$user;
     const fallback = t('profile.unknown');
     const name = user?.name ?? fallback;
     const email = user?.email ?? fallback;
     const uid = profile?.uid ?? fallback;
-    const photo = user?.photo ?? '';
-    const initial = (user?.name ?? '?').charAt(0).toUpperCase();
+
+    // Effective display = my Place Profile when active, else the global identity.
+    const globalName = isPlaceholderName(user?.name) ? '' : (user?.name ?? '');
+    const { name: displayName, thumbnail: displayPhoto } = useDisplayProfile(
+        profile?.uid ?? '',
+        globalName || fallback,
+        user?.photo ?? undefined
+    );
+    const initial = displayName.charAt(0).toUpperCase() || '?';
 
     const handleCopyUid = () => {
         if (profile?.uid) copy(profile.uid);
@@ -61,32 +86,43 @@ export const ProfilePage = () => {
             </header>
 
             <div className="scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8">
-                <div className="mb-8 flex items-center gap-4">
-                    <Avatar className="h-20 w-20 ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
-                        {photo && <AvatarImage src={photo} alt={name} />}
-                        <AvatarFallback className="text-2xl font-semibold" style={avatarStyle(profile?.uid || name)}>
-                            {initial}
-                        </AvatarFallback>
-                    </Avatar>
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="truncate text-xl font-bold tracking-tight text-foreground">{name}</span>
-                        {email !== fallback && <span className="truncate text-sm text-muted-foreground">{email}</span>}
+                <section className="flex flex-col gap-4">
+                    <SectionTitle>{t('profile.thisPlace')}</SectionTitle>
+                    <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5">
+                        <Avatar className="h-16 w-16 ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
+                            {displayPhoto && <AvatarImage src={displayPhoto} alt={displayName} />}
+                            <AvatarFallback className="text-xl font-semibold" style={avatarStyle(profile?.uid || displayName)}>
+                                {initial}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <span className="truncate text-lg font-bold tracking-tight text-foreground">{displayName}</span>
+                            <span className="text-xs text-muted-foreground">{t('profile.thisPlaceHint')}</span>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={openEditPlaceProfile}>
+                            {t('profile.editPlace')}
+                        </Button>
                     </div>
-                </div>
+                </section>
 
-                <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
-                    <ProfileField label={t('profile.name')} value={name} />
-                    <ProfileField label={t('profile.email')} value={email} />
-                    <ProfileField
-                        label={t('profile.id')}
-                        value={uid}
-                        onCopy={profile?.uid ? handleCopyUid : undefined}
-                        copied={copied}
-                        copyLabel={t('profile.copy')}
-                        copiedLabel={t('profile.copied')}
-                    />
-                </div>
+                <section className="mt-8 flex flex-col gap-4">
+                    <SectionTitle>{t('profile.account')}</SectionTitle>
+                    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
+                        <ProfileField label={t('profile.name')} value={name} />
+                        <ProfileField label={t('profile.email')} value={email} />
+                        <ProfileField
+                            label={t('profile.id')}
+                            value={uid}
+                            onCopy={profile?.uid ? handleCopyUid : undefined}
+                            copied={copied}
+                            copyLabel={t('profile.copy')}
+                            copiedLabel={t('profile.copied')}
+                        />
+                    </div>
+                </section>
             </div>
+
+            <EditPlaceProfileDialog />
         </div>
     );
 };

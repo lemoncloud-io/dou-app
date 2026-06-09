@@ -8,9 +8,11 @@ import { type ResolvedDisplay, resolveDisplay } from '../utils/displayProfile';
 
 /**
  * Single subscription that mirrors the engine `profile` cache (current place)
- * into useSiteProfilesStore. Mount once (HomePage). Re-subscribes and resets on
- * place switch so the previous place's overrides never leak. Every display
- * surface reads the store via useDisplayProfile rather than subscribing itself.
+ * into useSiteProfilesStore. Mount on each route that renders place-profile data
+ * (HomePage, ProfilePage) — routes are mutually exclusive, so there is never a
+ * concurrent subscription. Re-subscribes and resets on place switch so the
+ * previous place's overrides never leak. Every display surface reads the store
+ * via useDisplayProfile rather than subscribing itself.
  */
 export const useSiteProfiles = (): void => {
     const { profile: profileRepository } = useRepositories();
