@@ -49,7 +49,7 @@ const realName = (name?: string): string | undefined => (isPlaceholderName(name)
 // messages carry it) or my per-channel cloud user id (the server rewrites the
 // owner to this once the message persists) — so own messages stay identified
 // across the optimistic→persisted swap.
-const isOwnMessage = (chat: DomainChat, viewer: MessageViewer): boolean =>
+export const isOwnMessage = (chat: DomainChat, viewer: MessageViewer): boolean =>
     (!!viewer.uid && chat.ownerId === viewer.uid) || (!!viewer.cloudUid && chat.ownerId === viewer.cloudUid);
 
 // The server's ChatView only embeds owner$ for persisted messages — optimistic
@@ -124,8 +124,11 @@ export const buildMessageRows = (
 
         // Mark the first unread message from someone else (relative to where the
         // reader left off on open). Breaks the current group so the divider sits
-        // directly above it.
-        const isUnread = (message.chatNo ?? 0) > baselineReadNo && message.ownerId !== viewer.uid;
+        // directly above it. Use isOwnMessage (not a raw uid compare): the server
+        // rewrites my own messages' ownerId to my cloud id once persisted, so a
+        // plain `!== viewer.uid` would mis-flag my own messages as unread and pin
+        // the divider above them forever.
+        const isUnread = (message.chatNo ?? 0) > baselineReadNo && !isOwnMessage(message, viewer);
         if (!unreadInserted && baselineReadNo > 0 && isUnread) {
             flush();
             rows.push({ kind: 'unread', key: `unread:${message.chatNo}` });

@@ -6,7 +6,7 @@ import { ChevronDown, MessageSquare } from 'lucide-react';
 import type { DomainChat } from '@chatic/data';
 
 import { Skeleton } from '../../../shared';
-import { buildMessageRows, type MessageViewer } from '../utils';
+import { buildMessageRows, isOwnMessage, type MessageViewer } from '../utils';
 import { DateSeparator } from './DateSeparator';
 import { MessageRow } from './MessageRow';
 
@@ -87,7 +87,7 @@ export const MessageList = ({
         } else {
             setNewCount(
                 messages.reduce(
-                    (n, c) => ((c.chatNo ?? 0) > seenMaxRef.current && c.ownerId !== viewer.uid ? n + 1 : n),
+                    (n, c) => ((c.chatNo ?? 0) > seenMaxRef.current && !isOwnMessage(c, viewer) ? n + 1 : n),
                     0
                 )
             );
@@ -111,7 +111,7 @@ export const MessageList = ({
         // directly is reliable here; scrollIntoView on the 0-height bottom anchor
         // lands a message-height short in this flex column.
         if (grew && atBottom) el.scrollTop = el.scrollHeight;
-    }, [messages, atBottom, maxChatNo, viewer.uid]);
+    }, [messages, atBottom, maxChatNo, viewer]);
 
     // After sending, snap to the latest even if the reader had scrolled up. A
     // single scroll lands short: the optimistic message renders, then the list
