@@ -16,3 +16,7 @@ export type TranslationKey =
     | 'notification.channel.notice'
     | 'notification.channel.marketing'
     | 'notification.channel.cloud';
+
+export type TranslationTree = {
+    [key: string]: string | TranslationTree;
+};
