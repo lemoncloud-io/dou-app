@@ -7,7 +7,7 @@ import { useRepositories } from '../data';
 import type { ClientChatView } from '../types';
 
 const DEFAULT_CHAT_LIMIT = 50;
-const PENDING_TIMEOUT_MS = 30_000; // 30초
+const PENDING_TIMEOUT_MS = 10_000; // 10초
 
 const toClientChat = (chat: DomainChat, userId?: string): ClientChatView => {
     const createdAt = chat.createdAt ?? Date.now();
