@@ -312,14 +312,19 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
                 if (!existing) return;
 
                 const isOwnMessage = !!context.uid && chat.ownerId === context.uid;
-                const prevUnread = existing.unreadCount ?? 0;
+                // join:update 핸들러와 동일한 절대식(lastChatNo − myReadNo)으로 통일 —
+                // prevUnread+1 누적은 중복/순서뒤바뀜 echo에서 drift함. 내 메시지면 0
+                // (computeChannelUnread의 "마지막이 내 메시지 → 0" 규칙과 일치).
+                const lastChatNo = chat.chatNo ?? existing.chatNo ?? 0;
+                const myReadNo = (existing.$join as { chatNo?: number } | undefined)?.chatNo ?? 0;
+                const unreadCount = isOwnMessage ? 0 : Math.max(0, lastChatNo - myReadNo);
 
                 await this.channelLocalDataSource.upsert(
                     {
                         id: channelId,
                         lastChat$: chat,
                         chatNo: chat.chatNo,
-                        unreadCount: isOwnMessage ? prevUnread : prevUnread + 1,
+                        unreadCount,
                     } as unknown as Partial<DomainChannel>,
                     context
                 );

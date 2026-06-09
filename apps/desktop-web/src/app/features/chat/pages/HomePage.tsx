@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { isNative, webClient } from '@chatic/bridges';
 import { useWebCoreStore } from '@chatic/web-core';
 
 import { JoinWithInviteDialog } from '../../auth';
@@ -16,8 +15,7 @@ import {
     useChannels,
     useClouds,
     useCloudSwitchFlow,
-    useDesktopBadge,
-    usePlaceUnreadCounts,
+    usePendingOpenStore,
     usePlaces,
     useReadCursorStore,
     useSelectPlace,
@@ -25,6 +23,7 @@ import {
     useSelectedPlaceStore,
     useSiteProfileSync,
     useSiteProfiles,
+    useUnreadStore,
 } from '../../../shared';
 import {
     ChannelList,
@@ -39,7 +38,9 @@ import {
 export const HomePage = () => {
     const { clouds, activeCloudId } = useClouds();
     const { places, isLoading: placesLoading } = usePlaces();
-    const unreadByPlace = usePlaceUnreadCounts();
+    // Unread is aggregated once in the always-mounted shell (ShellUnreadSync) and
+    // published to the store — read it here for the rail/place switcher.
+    const unreadByPlace = useUnreadStore(s => s.byPlace);
 
     const selectedPlaceId = useSelectedPlaceStore(s => s.selectedPlaceId);
     const selectPlace = useSelectedPlaceStore(s => s.selectPlace);
@@ -68,25 +69,25 @@ export const HomePage = () => {
     // across places: switchPlace resets selection, so we re-apply it here).
     const pendingChannelRef = useRef<string | null>(null);
 
-    // Notification click → open the target place + channel (desktop shell only).
+    // Notification-click target (set by the always-mounted listener in routes, so
+    // it works from any route). Apply it: switch place if needed (the channel is
+    // applied once it loads, below), else select directly. Clear once consumed so
+    // returning to home later doesn't re-jump.
+    const pendingOpen = usePendingOpenStore(s => s.target);
+    const clearPendingOpen = usePendingOpenStore(s => s.clear);
     useEffect(() => {
-        if (!isNative()) return;
-        return webClient.onEvent('OnReceiveNotification', message => {
-            const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
-                ?.deeplink;
-            if (!deeplink?.startsWith('chatic-open:')) return;
-            const [rawPlace, rawChannel] = deeplink.slice('chatic-open:'.length).split('|');
-            const placeId = rawPlace ? decodeURIComponent(rawPlace) : '';
-            const channelId = rawChannel ? decodeURIComponent(rawChannel) : '';
-            if (!channelId) return;
-            if (placeId && placeId !== selectedPlaceId) {
-                pendingChannelRef.current = channelId;
-                void switchPlace(placeId);
-            } else {
-                selectChannel(channelId);
-            }
-        });
-    }, [selectedPlaceId, switchPlace, selectChannel]);
+        if (!pendingOpen?.channelId) return;
+        const { placeId, channelId } = pendingOpen;
+        if (placeId && placeId !== selectedPlaceId) {
+            pendingChannelRef.current = channelId;
+            void switchPlace(placeId);
+        } else {
+            selectChannel(channelId);
+        }
+        clearPendingOpen();
+        // Re-fire only on a new notification (nonce), not on selectedPlaceId churn.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pendingOpen?.nonce]);
 
     // Default Cloud: pin the 'default' place (Self Channel). Otherwise select the
     // first place whenever the current selection isn't in the loaded list — covers
@@ -153,14 +154,6 @@ export const HomePage = () => {
     useEffect(() => {
         if (selectedChannelId && selectedLastChatNo > 0) markRead(selectedChannelId, selectedLastChatNo);
     }, [selectedChannelId, selectedLastChatNo, markRead]);
-
-    // Reflect total unread in the window/tab title (e.g. "(3) DoU").
-    useEffect(() => {
-        document.title = totalUnread > 0 ? `(${totalUnread > 99 ? '99+' : totalUnread}) DoU` : 'DoU';
-    }, [totalUnread]);
-
-    // Mirror unread onto the OS dock/taskbar badge (desktop shell only).
-    useDesktopBadge(totalUnread);
 
     return (
         <>

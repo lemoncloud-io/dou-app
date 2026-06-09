@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect, useMemo } from 'react';
 import { I18nextProvider } from 'react-i18next';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -11,12 +11,34 @@ import { DataProvider, GlobalChatSync, WebSocketV2Connection, useAutoSelectCloud
 
 import i18n from '../i18n';
 import { AppRouter } from './routes';
-import { AppShellSkeleton } from './shared';
-import { useDesktopNotifications } from './shared/hooks';
+import { AppShellSkeleton, ConnectionBanner } from './shared';
+import { useDesktopBadge, useDesktopNotifications, usePlaceUnreadCounts, useUnreadStore } from './shared';
 
 /** Mounts desktop OS-notification wiring inside DataProvider (needs engine repositories). */
 const DesktopNotifications = () => {
     useDesktopNotifications();
+    return null;
+};
+
+/**
+ * Always-mounted unread sync: runs the per-place unread aggregation once and
+ * publishes it to useUnreadStore, then mirrors the total onto the OS badge and
+ * the window title. Lives here (not in HomePage) so the badge/title keep
+ * updating on /profile and /settings where HomePage is unmounted.
+ */
+const ShellUnreadSync = () => {
+    const byPlace = usePlaceUnreadCounts();
+    const setByPlace = useUnreadStore(s => s.setByPlace);
+    useEffect(() => {
+        setByPlace(byPlace);
+    }, [byPlace, setByPlace]);
+
+    const total = useMemo(() => Object.values(byPlace).reduce((sum, n) => sum + n, 0), [byPlace]);
+    useDesktopBadge(total);
+    useEffect(() => {
+        document.title = total > 0 ? `(${total > 99 ? '99+' : total}) DoU` : 'DoU';
+    }, [total]);
+
     return null;
 };
 
@@ -64,6 +86,8 @@ export function App() {
                             {isAuthenticated && isWebCoreReady && <GlobalChatSync />}
                             {isAuthenticated && isWebCoreReady && <CloudBootstrap />}
                             {isAuthenticated && isWebCoreReady && <DesktopNotifications />}
+                            {isAuthenticated && isWebCoreReady && <ShellUnreadSync />}
+                            {isAuthenticated && isWebCoreReady && <ConnectionBanner />}
                             <AppRouter />
                             <Toaster />
                         </DataProvider>

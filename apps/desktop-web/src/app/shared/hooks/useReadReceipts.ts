@@ -28,12 +28,19 @@ export const useReadReceipts = (channelId: string | null, messages: DomainChat[]
     const { join: joinRepository } = useRepositories();
     const lastSentRef = useRef(0);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Keep the latest messages in a ref so the listener/flush effect does not have
+    // to depend on `messages` (a fresh array every tail update) — otherwise the
+    // visibility/focus listeners + debounce timer churn on every incoming message.
+    const messagesRef = useRef(messages);
+    messagesRef.current = messages;
+    const scheduleRef = useRef<(() => void) | null>(null);
 
     // Reset baseline when the channel changes — a fresh channel starts unsent.
     useEffect(() => {
         lastSentRef.current = 0;
     }, [channelId]);
 
+    // Listener + debounce live only as long as the channel/repo — not per message.
     useEffect(() => {
         if (!channelId) return;
 
@@ -46,7 +53,7 @@ export const useReadReceipts = (channelId: string | null, messages: DomainChat[]
 
         const flush = () => {
             if (!isWindowActive()) return;
-            const chatNo = maxChatNoOf(messages);
+            const chatNo = maxChatNoOf(messagesRef.current);
             if (chatNo <= lastSentRef.current) return;
             lastSentRef.current = chatNo;
             // Optimistically record our read position so the unread badge clears
@@ -62,14 +69,7 @@ export const useReadReceipts = (channelId: string | null, messages: DomainChat[]
             clearTimer();
             timerRef.current = setTimeout(flush, DEBOUNCE_MS);
         };
-
-        // While the channel is open + focused, mark read locally the instant a
-        // message arrives (network readChat stays debounced) so the unread badge
-        // never flashes during the debounce window.
-        if (isWindowActive()) {
-            const chatNo = maxChatNoOf(messages);
-            if (chatNo > 0) useReadCursorStore.getState().markRead(channelId, chatNo);
-        }
+        scheduleRef.current = schedule;
 
         schedule();
 
@@ -81,8 +81,21 @@ export const useReadReceipts = (channelId: string | null, messages: DomainChat[]
 
         return () => {
             clearTimer();
+            scheduleRef.current = null;
             document.removeEventListener('visibilitychange', onActivity);
             window.removeEventListener('focus', onActivity);
         };
-    }, [channelId, messages, joinRepository]);
+    }, [channelId, joinRepository]);
+
+    // On each tail update: mark read locally the instant a message arrives (while
+    // focused) so the badge never flashes during the debounce, then (re)arm the
+    // network flush — without tearing down the listeners above.
+    useEffect(() => {
+        if (!channelId) return;
+        if (isWindowActive()) {
+            const chatNo = maxChatNoOf(messages);
+            if (chatNo > 0) useReadCursorStore.getState().markRead(channelId, chatNo);
+        }
+        scheduleRef.current?.();
+    }, [channelId, messages]);
 };

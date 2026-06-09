@@ -1,9 +1,36 @@
-import { Suspense, lazy } from 'react';
-import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { Suspense, lazy, useEffect } from 'react';
+import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'react-router-dom';
 
+import { isNative, webClient } from '@chatic/bridges';
 import { useWebCoreStore } from '@chatic/web-core';
 
-import { AppShellSkeleton } from './shared';
+import { AppShellSkeleton, usePendingOpenStore } from './shared';
+
+/**
+ * Desktop-shell OS-notification click handler. Mounted inside the Router (so it
+ * can navigate) and route-independent, so a click works from /profile or
+ * /settings — not just the home route. Routes home and stashes the target;
+ * HomePage applies it once its channels load.
+ */
+const NotificationOpenListener = () => {
+    const navigate = useNavigate();
+    const request = usePendingOpenStore(s => s.request);
+    useEffect(() => {
+        if (!isNative()) return;
+        return webClient.onEvent('OnReceiveNotification', message => {
+            const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
+                ?.deeplink;
+            if (!deeplink?.startsWith('chatic-open:')) return;
+            const [rawPlace, rawChannel] = deeplink.slice('chatic-open:'.length).split('|');
+            const placeId = rawPlace ? decodeURIComponent(rawPlace) : '';
+            const channelId = rawChannel ? decodeURIComponent(rawChannel) : '';
+            if (!channelId) return;
+            request(placeId, channelId);
+            navigate('/');
+        });
+    }, [navigate, request]);
+    return null;
+};
 
 // Route-level code splitting: the auth branch, the messenger shell, and the
 // settings/profile/debug pages each become their own chunk, so the initial load
@@ -24,6 +51,7 @@ export const AppRouter = () => {
 
     return (
         <Router>
+            {isAuthenticated && <NotificationOpenListener />}
             <Suspense fallback={<AppShellSkeleton />}>
                 <Routes>
                     {isAuthenticated ? (

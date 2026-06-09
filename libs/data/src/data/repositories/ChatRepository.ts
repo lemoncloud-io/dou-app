@@ -26,6 +26,13 @@ export interface IChatRepository extends ILocalCacheMutationRepository<DomainCha
     /** 서버의 chat:send 요청을 수행합니다. */
     sendChat(payload: ChatSendPayload, options?: RepositoryRequestOptions): Promise<DomainChat>;
 
+    /**
+     * 전송 실패(오프라인/타임아웃)로 보류 중인 메시지를 원래 ref 그대로 재전송합니다.
+     * 재연결 시 호출 — ref가 동일하므로 서버는 멱등 처리하고, 같은 optimistic id를
+     * 재사용해 실패 행을 pending→정상 행으로 교체합니다.
+     */
+    flushFailedChats(): Promise<void>;
+
     /** 서버의 chat:feed 요청을 수행하여 채널의 메시지 피드를 조회합니다. */
     fetchChat(payload: ChatFeedPayload, options?: RepositoryRequestOptions): Promise<DomainListResult<DomainChat>>;
 
@@ -70,6 +77,13 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
         throw new Error('Method not implemented.');
     }
 
+    /**
+     * 전송 실패로 보류 중인 발신 메시지. key는 optimistic id, 재전송 시 원래 payload+ref를
+     * 그대로 재사용해 서버 멱등성과 같은 행 교체를 보장합니다. (재연결 세션 내 한정 — 새로고침
+     * 후에는 캐시에 isFailed로 남아 수동 Retry로 처리)
+     */
+    private readonly pendingRetry = new Map<string, { payload: ChatSendPayload; ref: string }>();
+
     /** 메시지 발신을 data source에 위임하고 응답을 기다립니다. */
     public async sendChat(payload: ChatSendPayload, options?: RepositoryRequestOptions): Promise<DomainChat> {
         const requestRef = options?.ref ?? `chat-send-${Date.now()}`;
@@ -77,7 +91,8 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
         const repositoryContext = this.getRepositoryContext();
         const domainScope = this.getDomainScope();
 
-        const optimisticChat = this.createOptimisticChat(payload, `optimistic-${requestRef}`, domainScope);
+        const optimisticId = `optimistic-${requestRef}`;
+        const optimisticChat = this.createOptimisticChat(payload, optimisticId, domainScope);
         await this.chatLocalDataSource.upsert(optimisticChat, repositoryContext);
 
         try {
@@ -96,10 +111,15 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
                 domainScope
             );
 
-            await this.chatLocalDataSource.upsert(domainChat, repositoryContext);
-            if (domainChat.id && optimisticChat.id !== domainChat.id) {
+            // optimistic→persisted 교체를 단일 스트림 emit으로 처리해 두 행이 동시에
+            // 렌더되는 깜빡임을 막습니다: 새 행 upsert는 emit을 미루고, 뒤따르는 remove가
+            // 최종 상태(낙관행 제거됨)로 한 번만 알립니다. (id가 같으면 remove가 없으므로 upsert가 emit)
+            const willRemoveOptimistic = !!domainChat.id && optimisticChat.id !== domainChat.id;
+            await this.chatLocalDataSource.upsert(domainChat, repositoryContext, !willRemoveOptimistic);
+            if (willRemoveOptimistic) {
                 await this.chatLocalDataSource.remove(optimisticChat.id, repositoryContext);
             }
+            this.pendingRetry.delete(optimisticId);
             return domainChat;
         } catch (error) {
             const failedAt = Date.now();
@@ -112,7 +132,22 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
                 },
                 repositoryContext
             );
+            // 재연결 시 자동 재전송 대상으로 등록 (원래 ref 보존 → 서버 멱등).
+            this.pendingRetry.set(optimisticId, { payload, ref: requestRef });
             throw error;
+        }
+    }
+
+    public async flushFailedChats(): Promise<void> {
+        if (this.pendingRetry.size === 0) return;
+        // Map 삽입 순서 = 전송 시도 순서 ≈ createdAt 순서. 순차 재전송으로 순서 보존.
+        const entries = [...this.pendingRetry.values()];
+        for (const { payload, ref } of entries) {
+            try {
+                await this.sendChat(payload, { ref });
+            } catch {
+                // 여전히 실패하면 pendingRetry에 남아 다음 재연결에 다시 시도.
+            }
         }
     }
 

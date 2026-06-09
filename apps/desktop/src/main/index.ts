@@ -401,7 +401,15 @@ if (!singleInstanceLock) {
         if (app.isPackaged) electronUpdater.autoUpdater.checkForUpdatesAndNotify();
 
         app.on('activate', () => {
-            if (BrowserWindow.getAllWindows().length === 0) createWindow();
+            const [existing] = BrowserWindow.getAllWindows();
+            if (!existing) {
+                createWindow();
+                return;
+            }
+            // Close-to-tray hides (does not destroy) the window, so it still counts
+            // in getAllWindows — a macOS dock-icon click must explicitly reshow it.
+            if (!existing.isVisible()) existing.show();
+            existing.focus();
         });
     });
 

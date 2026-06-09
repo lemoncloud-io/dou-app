@@ -99,6 +99,8 @@ const resources = {
             'settings.desktopNotifications': 'Desktop notifications',
             'settings.desktopNotificationsHint': 'Show an OS notification for new messages.',
             'settings.back': 'Back',
+            'connection.offline': 'You are offline — reconnecting…',
+            'connection.reconnecting': 'Reconnecting…',
             'profile.title': 'My profile',
             'profile.name': 'Name',
             'profile.email': 'Email',
