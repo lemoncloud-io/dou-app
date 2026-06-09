@@ -65,7 +65,6 @@
         "desktop:build": "yarn workspace @chatic/desktop build",
         "desktop:typecheck": "yarn workspace @chatic/desktop typecheck",
         "desktop:package:mac:dev": "yarn workspace @chatic/desktop package:mac:dev",
-        "desktop:package:mac:prod": "yarn workspace @chatic/desktop package:mac:prod",
         "desktop:package:mac:prod:signed": "yarn workspace @chatic/desktop package:mac:prod:signed",
         "desktop:package:win:dev": "yarn workspace @chatic/desktop package:win:dev",
         "desktop:package:win:prod": "yarn workspace @chatic/desktop package:win:prod",
