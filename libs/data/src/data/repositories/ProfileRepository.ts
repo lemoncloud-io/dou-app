@@ -89,10 +89,36 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
         }
 
         try {
-            return await this.requestRemote<ProfileView>(
+            const view = await this.requestRemote<ProfileView>(
                 ref => this.profileRemoteDataSource.setMyProfile(body, ref),
                 options
             );
+            // The optimistic write keys by the local account uid, but my own
+            // messages (and the sync delta) are keyed by the server's canonical
+            // userId — which can differ. Mirror the write under that canonical id
+            // (from the response) so every surface, not just the self avatar,
+            // reflects the change. Sync keeps it fresh thereafter.
+            const canonicalUid = view?.userId;
+            if (canonicalUid && canonicalUid !== uid) {
+                const canonicalId = buildProfileId(domainScope.sid, canonicalUid);
+                if (body.active === false) {
+                    await this.profileLocalDataSource.remove(canonicalId, repositoryContext);
+                } else {
+                    await this.profileLocalDataSource.upsert(
+                        {
+                            id: canonicalId,
+                            cid: domainScope.cid,
+                            sid: domainScope.sid,
+                            uid: canonicalUid,
+                            nick: body.nick,
+                            thumbnail: body.thumbnail,
+                            updatedAt: Date.now(),
+                        },
+                        repositoryContext
+                    );
+                }
+            }
+            return view;
         } catch (error) {
             // 실패 시 직전 값으로 롤백 — 이전에 값이 있었으면 복원, 없었으면 제거합니다.
             if (uid) {
