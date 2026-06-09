@@ -7,6 +7,7 @@ import { useRepositories } from '../data';
 import type { ClientChatView } from '../types';
 
 const DEFAULT_CHAT_LIMIT = 50;
+const PENDING_TIMEOUT_MS = 30_000; // 30초
 
 const toClientChat = (chat: DomainChat, userId?: string): ClientChatView => {
     const createdAt = chat.createdAt ?? Date.now();
@@ -145,6 +146,48 @@ export const useChats = (initialParams: ChatFeedPayload) => {
 
     const isLoading = domainMessages === null;
     const isEmpty = domainMessages !== null && domainMessages.length === 0;
+
+    // 전송중 메시지 만료 감지 — 30초 이상 pending이면 isFailed로 전환
+    useEffect(() => {
+        if (!domainMessages || domainMessages.length === 0) return;
+
+        const pendingMessages = domainMessages.filter(msg => msg.isPending && msg.createdAtMs > 0);
+        if (pendingMessages.length === 0) return;
+
+        const now = Date.now();
+        const expiredMessages = pendingMessages.filter(msg => now - msg.createdAtMs >= PENDING_TIMEOUT_MS);
+
+        for (const msg of expiredMessages) {
+            if (msg.id) {
+                void chatRepository.cacheUpdate(msg.id, {
+                    isPending: false,
+                    isFailed: true,
+                });
+            }
+        }
+
+        const remainingPending = pendingMessages.filter(msg => now - msg.createdAtMs < PENDING_TIMEOUT_MS);
+        if (remainingPending.length === 0) return;
+
+        const nearestExpiry = Math.min(...remainingPending.map(msg => PENDING_TIMEOUT_MS - (now - msg.createdAtMs)));
+
+        const timer = setTimeout(
+            () => {
+                const currentTime = Date.now();
+                for (const msg of remainingPending) {
+                    if (currentTime - msg.createdAtMs >= PENDING_TIMEOUT_MS && msg.id) {
+                        void chatRepository.cacheUpdate(msg.id, {
+                            isPending: false,
+                            isFailed: true,
+                        });
+                    }
+                }
+            },
+            Math.max(nearestExpiry, 100)
+        );
+
+        return () => clearTimeout(timer);
+    }, [domainMessages, chatRepository]);
 
     const messages = useMemo(() => {
         if (!domainMessages) return [];
