@@ -117,6 +117,7 @@ module.exports = {
                 body: ['0.9375rem', { lineHeight: '1.45rem', letterSpacing: '-0.003em' }],
                 callout: ['0.875rem', { lineHeight: '1.3rem', letterSpacing: '-0.002em' }],
                 caption: ['0.8125rem', { lineHeight: '1.1rem', letterSpacing: '0' }],
+                micro: ['0.72rem', { lineHeight: '0.95rem', letterSpacing: '0' }],
                 overline: ['0.6875rem', { lineHeight: '1rem', letterSpacing: '0.08em', fontWeight: '600' }],
             },
             // Restrained, tinted elevation by level. Cool --shadow-color, low opacity —

@@ -116,7 +116,7 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onS
                             {time && (
                                 <span
                                     className={cn(
-                                        'shrink-0 text-caption tabular-nums',
+                                        'shrink-0 text-micro tabular-nums',
                                         isActive ? 'font-medium text-foreground' : 'text-muted-foreground'
                                     )}
                                 >
@@ -132,7 +132,7 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onS
                         {preview && (
                             <span
                                 className={cn(
-                                    'w-full min-w-0 truncate pl-5 text-caption',
+                                    'w-full min-w-0 truncate pl-5 text-micro',
                                     isActive || hasUnread ? 'text-foreground' : 'text-muted-foreground'
                                 )}
                             >
