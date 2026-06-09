@@ -55,7 +55,7 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
                         {group.avatar && <AvatarImage src={group.avatar} alt={group.ownerName} />}
                         <AvatarFallback
                             className="rounded-md text-sm font-semibold"
-                            style={avatarStyle(group.ownerId || group.ownerName || '?')}
+                            style={avatarStyle(group.colorSeed)}
                         >
                             {initial}
                         </AvatarFallback>

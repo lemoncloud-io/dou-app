@@ -16,6 +16,13 @@ export interface MessageGroup {
     avatar: string | undefined;
     /** True when the signed-in user authored this group — drives delivery status. */
     isMine: boolean;
+    /**
+     * Seed for the deterministic avatar color. For my own messages this is my
+     * canonical id (cloud id, falling back to account id) so the optimistic and
+     * persisted copies share one color — the server rewrites ownerId from my
+     * account id to my cloud id on persist, which would otherwise flip the hue.
+     */
+    colorSeed: string;
     timestamp: number;
     messages: DomainChat[];
 }
@@ -143,13 +150,17 @@ export const buildMessageRows = (
         } else {
             flush();
             const resolvedName = resolveOwnerName(message, viewer, names);
+            const isMine = isOwnMessage(message, viewer);
             currentGroup = {
                 key: message.id ?? message.tempId ?? `${message.channelId}:${message.chatNo}`,
                 ownerId: message.ownerId,
                 ownerName: resolvedName ?? 'Unknown',
                 namePending: resolvedName === null && membersLoading,
                 avatar: message.owner$?.thumbnail,
-                isMine: isOwnMessage(message, viewer),
+                isMine,
+                colorSeed: isMine
+                    ? viewer.cloudUid || viewer.uid || message.ownerId || '?'
+                    : message.ownerId || resolvedName || '?',
                 timestamp,
                 messages: [message],
             };
