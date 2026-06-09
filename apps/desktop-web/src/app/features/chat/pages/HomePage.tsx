@@ -24,7 +24,15 @@ import {
     useSelectedChannelStore,
     useSelectedPlaceStore,
 } from '../../../shared';
-import { ChannelList, ChatPane, CloudRail, DesktopLayout, ShortcutsDialog, SidebarHeader } from '../components';
+import {
+    ChannelList,
+    ChatPane,
+    CloudRail,
+    DesktopLayout,
+    ShortcutsDialog,
+    SidebarHeader,
+    SwitchingOverlay,
+} from '../components';
 
 export const HomePage = () => {
     const { clouds, activeCloudId } = useClouds();
@@ -85,9 +93,13 @@ export const HomePage = () => {
         const inList = !!selectedPlaceId && places.some(p => p.id === selectedPlaceId);
         if (!inList && places.length > 0) {
             const firstId = places[0]?.id;
-            if (firstId) selectPlace(firstId);
+            // Use switchPlace (runs authPlace) — not the raw setter — so the first
+            // place gets its per-place token in cloud mode; otherwise the channel
+            // fetch hits an unauthed place and the shell stays stuck on the empty
+            // state after a cloud-account login.
+            if (firstId) void switchPlace(firstId);
         }
-    }, [isDefaultMode, places, selectedPlaceId, selectPlace]);
+    }, [isDefaultMode, places, selectedPlaceId, selectPlace, switchPlace]);
 
     // The settings panel belongs to one channel — close it when you switch away.
     useEffect(() => {
@@ -190,6 +202,7 @@ export const HomePage = () => {
                         />
                     ) : undefined
                 }
+                overlay={<SwitchingOverlay />}
             />
             <CreateChannelDialog />
             <JoinWithInviteDialog />

@@ -6,6 +6,8 @@ interface DesktopLayoutProps {
     main: ReactNode;
     /** Optional right-side panel (channel settings); collapses when null. */
     panel?: ReactNode;
+    /** Optional overlay (cloud/place switch loader) — positioned over sidebar+main. */
+    overlay?: ReactNode;
 }
 
 /**
@@ -14,7 +16,7 @@ interface DesktopLayoutProps {
  * The trailing panel is a collapsible 4th pane — rendered only when provided.
  * Colors come from theme tokens (--rail/--sidebar) so both light/dark hold up.
  */
-export const DesktopLayout = ({ rail, sidebar, main, panel }: DesktopLayoutProps) => (
+export const DesktopLayout = ({ rail, sidebar, main, panel, overlay }: DesktopLayoutProps) => (
     <div className="relative flex h-dvh bg-background">
         <nav
             aria-label="Cloud workspaces"
@@ -27,5 +29,6 @@ export const DesktopLayout = ({ rail, sidebar, main, panel }: DesktopLayoutProps
         </aside>
         <main className="flex flex-1 flex-col overflow-hidden">{main}</main>
         {panel}
+        {overlay}
     </div>
 );
