@@ -11,16 +11,24 @@ import type { ModalHandler } from '../../../webview/hooks/useModalHandler';
 import { useAppBridge } from '../../../webview/hooks';
 import { logger } from '../../../services';
 import { useResolvedTheme } from '../../../hooks';
+import { useDebugRuntimeStore, useDebugSettingsStore } from '../../../stores';
 
 export const MainScreen = ({ navigation, route }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
     const { bridge, onMessage } = useAppBridge(webViewRef);
     const { isDark } = useResolvedTheme();
+    const webViewBaseUrl = useDebugSettingsStore(state => state.getResolvedWebviewBaseUrl());
+    const webViewReloadToken = useDebugRuntimeStore(state => state.webViewReloadToken);
+    const updateWebViewState = useDebugRuntimeStore(state => state.updateWebViewState);
 
     const { setWebCanGoBack, setNavCanGoBack } = useWebViewNavigation(bridge);
     const { source, handleWebViewLoad, deepLinkError, deepLinkErrorReason, handleDismissError } = useWebViewDeepLink(
         webViewRef,
-        route
+        route,
+        {
+            webViewBaseUrl,
+            reloadToken: webViewReloadToken,
+        }
     );
 
     const modalHandler: ModalHandler = useMemo(
@@ -64,18 +72,35 @@ export const MainScreen = ({ navigation, route }: MainScreenProps) => {
                 scrollEnabled={false}
                 onLoad={handleWebViewLoad}
                 onLoadStart={event => {
+                    updateWebViewState({
+                        isLoading: true,
+                        isWebAppReady: false,
+                        currentUrl: event.nativeEvent.url,
+                        lastLoadStartUrl: event.nativeEvent.url,
+                    });
                     logger.info('DEEPLINK', '[MainScreen] WebView load started', {
                         url: event.nativeEvent.url,
                         routeParams: route.params,
                     });
                 }}
                 onLoadEnd={event => {
+                    updateWebViewState({
+                        isLoading: false,
+                        currentUrl: event.nativeEvent.url,
+                        lastLoadEndUrl: event.nativeEvent.url,
+                    });
                     logger.info('DEEPLINK', '[MainScreen] WebView load ended', {
                         url: event.nativeEvent.url,
                         routeParams: route.params,
                     });
                 }}
                 onNavigationStateChange={navState => {
+                    updateWebViewState({
+                        currentUrl: navState.url,
+                        isLoading: navState.loading,
+                        canGoBack: navState.canGoBack,
+                        canGoForward: navState.canGoForward,
+                    });
                     logger.info('DEEPLINK', '[MainScreen] WebView navigation state changed', {
                         url: navState.url,
                         loading: navState.loading,
@@ -83,6 +108,12 @@ export const MainScreen = ({ navigation, route }: MainScreenProps) => {
                         routeParams: route.params,
                     });
                     setNavCanGoBack(navState.canGoBack);
+                }}
+                onError={event => {
+                    updateWebViewState({
+                        isLoading: false,
+                        lastError: event.nativeEvent.description,
+                    });
                 }}
                 modalHandler={modalHandler}
                 setWebCanGoBack={setWebCanGoBack}
