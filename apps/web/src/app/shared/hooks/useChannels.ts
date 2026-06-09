@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { logger } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
-import { cloudCore, useDynamicProfile } from '@chatic/web-core';
+import { cloudCore, useDynamicProfile, useUserContext } from '@chatic/web-core';
 
 import { useRepositories } from '../data';
 import type { ClientChannelView } from '../types';
@@ -64,6 +64,7 @@ const buildFetchPayload = ({ sid: _placeId, ...params }: DomainChannelListPayloa
 export const useChannels = (initialParams: DomainChannelListPayload) => {
     const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
     const profile = useDynamicProfile();
+    const { currentWSS } = useUserContext();
     const userId = profile?.uid;
     const targetPlaceId = initialParams.sid;
     const storeCloudId = useWebSocketV2Store(s => s.cloudId);
@@ -114,9 +115,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
             });
             if (requestSeqRef.current !== requestSeq) return [];
             return sortChannels(
-                (cacheResult.list ?? [])
-                    .filter((ch: DomainChannel) => !!(ch as any).$?.sid)
-                    .map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
+                (cacheResult.list ?? []).map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
             );
         },
         [channelRepository]
@@ -159,9 +158,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
                 if (requestSeqRef.current !== requestSeq) return;
 
                 const nextChannels = sortChannels(
-                    (result.list ?? [])
-                        .filter((ch: DomainChannel) => !!(ch as any).$?.sid)
-                        .map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
+                    (result.list ?? []).map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
                 );
                 logger.info('CHANNEL', '[useChannels] fetchChannels result', {
                     data: { resultCount: nextChannels.length, source: result.meta?.source },
@@ -350,7 +347,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     };
 
     return {
-        channels: channels.filter(c => !!c.$?.sid),
+        channels: currentWSS === 'cloud' ? channels.filter(c => !!c.$?.sid) : channels,
         isLoading,
         isSyncing,
         isError,

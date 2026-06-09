@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { logger } from '@chatic/bridges';
 import type { DomainChat, DomainListResult } from '@chatic/data';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
@@ -37,7 +37,10 @@ const sortMessages = (messages: ClientChatView[]) =>
     });
 
 // 중복 메시지를 제거하고, chatNo 또는 timestamp 기준으로 정렬된 새 배열을 반환합니다.
-// incoming(캐시 결과)을 source of truth로 사용하고, existing에서는 pending/failed인 로컬 전용 메시지만 보존합니다.
+// incoming의 chatNo 범위(min~max)를 기준으로:
+//   - 범위 밖 existing 메시지는 보존 (loadMore로 로드된 이전/이후 메시지)
+//   - 범위 안 existing 메시지는 incoming에 있어야 보존 (없으면 삭제된 것으로 간주)
+//   - pending/failed 메시지는 항상 보존
 const mergeAndSortMessages = (existing: DomainChat[], incoming: DomainChat[]): DomainChat[] => {
     const messageMap = new Map<string, DomainChat>();
 
@@ -45,7 +48,14 @@ const mergeAndSortMessages = (existing: DomainChat[], incoming: DomainChat[]): D
     const getMessageId = (msg: DomainChat) =>
         msg.id || (msg.chatNo !== undefined ? `${msg.channelId}:${msg.chatNo}` : undefined);
 
-    // incoming(캐시) 기준으로 Map 구성 — 캐시가 source of truth
+    // incoming의 chatNo 범위 계산
+    const incomingChatNos = incoming
+        .map(m => m.chatNo)
+        .filter((n): n is number => n !== undefined && n > 0 && n !== Number.MAX_SAFE_INTEGER);
+    const minIncomingChatNo = incomingChatNos.length > 0 ? Math.min(...incomingChatNos) : 0;
+    const maxIncomingChatNo = incomingChatNos.length > 0 ? Math.max(...incomingChatNos) : 0;
+
+    // incoming 기준으로 Map 구성 — 범위 내에서는 incoming이 source of truth
     const incomingIds = new Set<string>();
     for (const msg of incoming) {
         const key = getMessageId(msg);
@@ -56,32 +66,40 @@ const mergeAndSortMessages = (existing: DomainChat[], incoming: DomainChat[]): D
         if (msg.tempId) incomingIds.add(msg.tempId);
     }
 
-    // existing에서 캐시에 없지만 로컬 전용(pending/failed)인 메시지만 보존
+    // existing 처리
     for (const msg of existing) {
         const key = getMessageId(msg) || msg.tempId;
         if (!key) continue;
         if (incomingIds.has(key)) continue;
         if (msg.tempId && incomingIds.has(msg.tempId)) continue;
 
-        // 캐시에 없는 메시지: pending/failed만 유지 (아직 캐시에 반영 안 된 낙관적 메시지)
+        // pending/failed는 항상 유지 (아직 캐시에 반영 안 된 낙관적 메시지)
         if (msg.isPending || msg.isFailed) {
             messageMap.set(key, msg);
+            continue;
         }
-        // 그 외(정상 메시지인데 캐시에 없음) → 삭제된 것이므로 버림
+
+        // incoming 범위 밖 메시지는 보존 — loadMore로 로드된 메시지 또는 아직 incoming에 포함 안 된 최신 메시지
+        const chatNo = msg.chatNo;
+        if (chatNo !== undefined && chatNo > 0 && chatNo !== Number.MAX_SAFE_INTEGER) {
+            if (chatNo < minIncomingChatNo || chatNo > maxIncomingChatNo) {
+                messageMap.set(key, msg);
+                continue;
+            }
+        }
+
+        // incoming 범위 안인데 incoming에 없음 → 삭제된 것이므로 버림
     }
 
     // 정리된 메시지 목록을 정렬하여 반환
     return Array.from(messageMap.values()).sort((a, b) => {
-        // 낙관적 메시지(chatNo가 매우 큰 값) 처리 포함
         const aChatNo = a.chatNo ?? Number.MAX_SAFE_INTEGER;
         const bChatNo = b.chatNo ?? Number.MAX_SAFE_INTEGER;
 
         if (aChatNo !== bChatNo) {
-            // 정상 메시지들 또는 낙관적 메시지와의 비교
             return aChatNo - bChatNo;
         }
 
-        // chatNo가 같거나 둘 다 없는 경우 timestamp(createdAt)로 비교
         return (a.createdAt ?? 0) - (b.createdAt ?? 0);
     });
 };
@@ -99,6 +117,10 @@ export const useChats = (initialParams: ChatFeedPayload) => {
         isLoadingMore: false,
         isError: false,
     });
+    // 동시 loadMore 호출 방지 — React 배치 업데이트 전 연속 호출을 ref로 즉시 차단
+    const isLoadingMoreRef = useRef(false);
+    // loadMore 완료 후 쿨다운 — DOM 업데이트로 인한 스크롤 이벤트 연쇄 트리거 방지
+    const loadMoreCooldownRef = useRef(false);
 
     /**
      * 로컬 캐시 구독 — chat:feed 를 직접 호출하지 않고,
@@ -196,8 +218,16 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     }, [domainMessages, userId]);
 
     const loadMore = useCallback(() => {
-        if (!targetChannelId || feedCursorNo === undefined || feedCursorNo <= 1 || status.isLoadingMore) return;
+        if (
+            !targetChannelId ||
+            feedCursorNo === undefined ||
+            feedCursorNo <= 1 ||
+            isLoadingMoreRef.current ||
+            loadMoreCooldownRef.current
+        )
+            {return;}
 
+        isLoadingMoreRef.current = true;
         setStatus(prev => ({ ...prev, isLoadingMore: true, isError: false }));
 
         chatRepository
@@ -222,9 +252,15 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 setStatus(prev => ({ ...prev, isError: true }));
             })
             .finally(() => {
+                isLoadingMoreRef.current = false;
                 setStatus(prev => ({ ...prev, isLoadingMore: false }));
+                // DOM 업데이트 후 스크롤 이벤트로 인한 연쇄 loadMore 방지
+                loadMoreCooldownRef.current = true;
+                setTimeout(() => {
+                    loadMoreCooldownRef.current = false;
+                }, 500);
             });
-    }, [targetChannelId, feedCursorNo, pageSize, status.isLoadingMore, chatRepository]);
+    }, [targetChannelId, feedCursorNo, pageSize, chatRepository]);
 
     const hasMore = feedCursorNo !== undefined && feedCursorNo > 1;
 
