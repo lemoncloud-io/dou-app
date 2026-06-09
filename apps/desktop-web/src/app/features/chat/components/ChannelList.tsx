@@ -104,15 +104,24 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onS
                             <span
                                 className={cn(
                                     'min-w-0 flex-1 truncate',
-                                    isActive || hasUnread
-                                        ? 'text-heading text-foreground'
-                                        : 'text-callout text-muted-foreground'
+                                    isActive
+                                        ? 'text-callout font-bold text-foreground'
+                                        : hasUnread
+                                          ? 'text-callout font-semibold text-foreground'
+                                          : 'text-callout text-muted-foreground'
                                 )}
                             >
                                 {channel.name ?? id}
                             </span>
                             {time && (
-                                <span className="shrink-0 text-caption tabular-nums text-muted-foreground">{time}</span>
+                                <span
+                                    className={cn(
+                                        'shrink-0 text-caption tabular-nums',
+                                        isActive ? 'font-medium text-foreground' : 'text-muted-foreground'
+                                    )}
+                                >
+                                    {time}
+                                </span>
                             )}
                             {hasUnread && (
                                 <span className="shrink-0 rounded-full bg-badge-unread px-1.5 text-caption font-semibold tabular-nums text-badge-unread-foreground">
@@ -124,7 +133,7 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onS
                             <span
                                 className={cn(
                                     'w-full min-w-0 truncate pl-5 text-caption',
-                                    hasUnread ? 'text-foreground' : 'text-muted-foreground'
+                                    isActive || hasUnread ? 'text-foreground' : 'text-muted-foreground'
                                 )}
                             >
                                 {preview}
