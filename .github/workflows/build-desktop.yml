@@ -127,7 +127,10 @@ jobs:
     release:
         name: Publish GitHub Release
         needs: build
-        if: ${{ needs.build.result == 'success' }}
+        # Publish whatever installers built — a cancelled/failed mac leg must not block a
+        # successful win release (and vice-versa). The publish step itself fails only when NO
+        # installer was produced. Skipped only if the build job never ran at all.
+        if: ${{ always() && needs.build.result != 'skipped' }}
         runs-on: ubuntu-latest
         permissions:
             contents: write
@@ -155,11 +158,17 @@ jobs:
                   [ "${{ inputs.env }}" = "dev" ] && PRERELEASE="--prerelease"
                   # Rolling release per env: drop the previous one so the tag always points at the
                   # latest build and holds only the current installers (internal "grab latest").
+                  shopt -s nullglob
+                  FILES=(dist/*/*.dmg dist/*/*.exe)
+                  if [ ${#FILES[@]} -eq 0 ]; then
+                    echo "no installers were produced — nothing to publish"
+                    exit 1
+                  fi
                   gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
-                  gh release create "$TAG" dist/*/*.dmg dist/*/*.exe \
+                  gh release create "$TAG" "${FILES[@]}" \
                       --title "$TITLE" \
                       --target "$GITHUB_SHA" \
-                      --notes "Unsigned internal build (\`${{ inputs.env }}\`). macOS \`.dmg\` + Windows \`.exe\`. Build ${{ github.run_number }}, commit \`${GITHUB_SHA:0:7}\`." \
+                      --notes "Unsigned internal build (\`${{ inputs.env }}\`). Installers: ${FILES[*]##*/}. Build ${{ github.run_number }}, commit \`${GITHUB_SHA:0:7}\`." \
                       $PRERELEASE
                   URL=$(gh release view "$TAG" --json url -q .url)
                   echo "url=${URL}" >> "$GITHUB_OUTPUT"
