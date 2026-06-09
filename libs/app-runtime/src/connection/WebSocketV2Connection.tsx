@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
+import { forceReconnect, useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useUserContext } from '@chatic/web-core';
 
 import { useDynamicDeviceId } from '../hooks/useDynamicDeviceId';
@@ -46,6 +46,30 @@ export const WebSocketV2Connection = () => {
     });
 
     useCloudTokenRefresh();
+
+    // Force an immediate reconnect on network-restore and after OS sleep, instead
+    // of waiting out the package's backoff. After sleep no `visibilitychange`
+    // fires (the page stayed "visible"), so we detect resume via a wall-clock gap:
+    // if a timer tick lands far later than scheduled, timers were frozen → wake.
+    // forceReconnect no-ops when the socket is already healthy.
+    useEffect(() => {
+        const onOnline = () => forceReconnect();
+        window.addEventListener('online', onOnline);
+
+        const TICK_MS = 30_000;
+        const GAP_MS = 70_000; // > 2 ticks ⇒ frozen timers (sleep), not normal jitter
+        let last = Date.now();
+        const timer = window.setInterval(() => {
+            const now = Date.now();
+            if (now - last > GAP_MS) forceReconnect();
+            last = now;
+        }, TICK_MS);
+
+        return () => {
+            window.removeEventListener('online', onOnline);
+            window.clearInterval(timer);
+        };
+    }, []);
 
     return null;
 };

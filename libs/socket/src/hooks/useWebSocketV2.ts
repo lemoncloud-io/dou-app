@@ -12,7 +12,6 @@ import {
     type DeviceSocketRuntime,
     type ClientSocketState,
     type SocketMessage,
-    type DomainSyncPlan,
 } from '@lemoncloud/chatic-sockets-lib';
 import type { ConnectionStatus } from '../types';
 
@@ -22,7 +21,6 @@ export interface UseWebSocketV2Config {
     enabled?: boolean;
     logPrefix?: string;
     wssType?: 'relay' | 'cloud';
-    extraSyncPlans?: DomainSyncPlan<any>[];
 }
 
 // ---------------------------------------------------------------------------
@@ -162,6 +160,21 @@ export const checkSocketHealth = (): Promise<'connected' | 'reconnecting'> => {
     return Promise.resolve(globalClientRef.state === 'connected' ? 'connected' : 'reconnecting');
 };
 
+/**
+ * Force an immediate reconnect, short-circuiting the package's backoff timer.
+ * No-op when already connected. Use on network-restore ('online') and after OS
+ * sleep/resume, where the backoff would otherwise wait the full interval (up to
+ * 30s) before retrying. The reconnect's `connected` edge then drives chat
+ * catch-up (GlobalChatSync).
+ */
+export const forceReconnect = (): void => {
+    const client = globalClientRef;
+    const runtime = globalRuntimeRef;
+    if (!client || !runtime) return;
+    if (client.state === 'connected') return;
+    void runtime.reconnect.restart();
+};
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -196,7 +209,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
         };
     }
 
-    const { endpoint, connectParams, enabled = true, logPrefix = '[WebSocketV2]', wssType, extraSyncPlans } = config;
+    const { endpoint, connectParams, enabled = true, logPrefix = '[WebSocketV2]', wssType } = config;
 
     // -----------------------------------------------------------------------
     // connect
@@ -301,7 +314,6 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                         if (view.connId) store.setConnectionId(view.connId);
                     },
                 },
-                extraSyncPlans,
             });
             runtimeRef.current = runtime;
             globalRuntimeRef = runtime;
@@ -311,7 +323,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
             logger.error('SOCKET', `${logPrefix} Failed to connect`, { error });
             store.setConnectionStatus('error');
         }
-    }, [endpoint, logPrefix, connectParams, store, wssType, extraSyncPlans]);
+    }, [endpoint, logPrefix, connectParams, store, wssType]);
 
     // -----------------------------------------------------------------------
     // disconnect

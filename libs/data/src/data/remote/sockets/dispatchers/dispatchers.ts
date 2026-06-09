@@ -40,6 +40,15 @@ export class SocketDispatcher implements ISocketDispatcher {
                     chatHandler(envelope, this.eventBus);
                     break;
                 }
+                // channel.* server types are normally remapped to the `chat` domain
+                // via INBOUND_TYPE_MAP; a raw `channel` here is an UNMAPPED channel.*
+                // type. Route it to chatHandler (action-keyed, safe default) so a new
+                // server type isn't silently dropped — the class of bug that hid
+                // channel.sync-site-profile until its mapping was added.
+                case 'channel': {
+                    chatHandler(envelope, this.eventBus);
+                    break;
+                }
                 case 'auth': {
                     authHandler(envelope, this.eventBus);
                     break;
@@ -54,6 +63,12 @@ export class SocketDispatcher implements ISocketDispatcher {
                 }
                 case 'system': {
                     systemHandler(envelope, this.eventBus);
+                    break;
+                }
+                // device.* (read/save) responses are consumed in the socket layer
+                // (useWebSocketV2 sets isDeviceRegistered/connId); nothing downstream
+                // needs them. Swallow quietly so they don't log as "Unhandled domain".
+                case 'device': {
                     break;
                 }
                 default: {

@@ -122,13 +122,39 @@ const pushDeeplink = (host: AppBridgeHost, url: string): void => {
     });
 };
 
+/** A red count badge as a 16×16 taskbar overlay icon (Windows has no dock badge). */
+const makeBadgeOverlay = (count: number): Electron.NativeImage => {
+    const label = count > 9 ? '9+' : String(count);
+    const fontSize = count > 9 ? 8 : 10;
+    const svg =
+        `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">` +
+        `<circle cx="8" cy="8" r="8" fill="#ef4444"/>` +
+        `<text x="8" y="11" font-size="${fontSize}" font-family="Arial, sans-serif" ` +
+        `font-weight="bold" fill="white" text-anchor="middle">${label}</text></svg>`;
+    return nativeImage.createFromDataURL(`data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`);
+};
+
+// Last OS notification shown per channel (keyed by deeplink). Electron's
+// Notification has no web-style `tag`, so we coalesce by closing the prior toast
+// for the same channel before showing a new one — rapid messages replace instead
+// of stacking.
+const activeNotifications = new Map<string, Notification>();
+
 /** Register native-capability handlers on the bridge host (web → app requests). */
 const registerHandlers = (host: AppBridgeHost, win: BrowserWindow): void => {
     // ShowNotification: live web WS detected a message → show an OS notification (desktop has no FCM).
     host.registerHandler('ShowNotification', message => {
         const { title, body, deeplink } = message.data;
         if (Notification.isSupported()) {
+            // Coalesce per channel: replace any prior toast for the same deeplink so
+            // a burst of messages doesn't stack into many toasts.
+            const key = deeplink || title;
+            activeNotifications.get(key)?.close();
             const notification = new Notification({ title, body });
+            activeNotifications.set(key, notification);
+            notification.on('close', () => {
+                if (activeNotifications.get(key) === notification) activeNotifications.delete(key);
+            });
             notification.on('click', () => {
                 if (win.isMinimized()) win.restore();
                 win.show();
@@ -146,9 +172,15 @@ const registerHandlers = (host: AppBridgeHost, win: BrowserWindow): void => {
         return { type: 'OnShowNotification', success: true, data: { success: true } };
     });
 
-    // SetBadgeCount: unread badge. macOS/Linux dock; Windows setBadgeCount is a no-op (overlay needed) — guarded.
+    // SetBadgeCount: unread badge. macOS/Linux use the dock badge; Windows has none,
+    // so render a taskbar overlay icon (cleared with null at zero).
     host.registerHandler('SetBadgeCount', message => {
-        const ok = process.platform === 'win32' ? false : app.setBadgeCount(message.data.count);
+        const { count } = message.data;
+        if (process.platform === 'win32') {
+            win.setOverlayIcon(count > 0 ? makeBadgeOverlay(count) : null, count > 0 ? `${count} unread` : '');
+            return { type: 'OnSetBadgeCount', success: true, data: { success: true } };
+        }
+        const ok = app.setBadgeCount(count);
         return { type: 'OnSetBadgeCount', success: true, data: { success: ok } };
     });
 };

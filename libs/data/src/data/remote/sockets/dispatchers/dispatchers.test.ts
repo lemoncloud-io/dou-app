@@ -74,4 +74,24 @@ describe('SocketDispatcher', () => {
         expect(chatHandler).not.toHaveBeenCalled();
         expect(modelHandler).not.toHaveBeenCalled();
     });
+
+    // 매핑되지 않은 channel.* 타입이 raw 'channel' 도메인으로 도착해도 chatHandler로
+    // 라우팅되어 silently drop 되지 않아야 한다 (channel.sync-site-profile 부류 회귀 방지).
+    it('도메인 타입이 "channel"일 때 chatHandler로 라우팅해야 한다', () => {
+        const envelope = { type: 'channel' as any, action: 'sync-site-profile', payload: {} } as any;
+
+        dispatcher.dispatch(envelope);
+
+        expect(chatHandler).toHaveBeenCalledWith(envelope, mockEventBus);
+    });
+
+    // device.* 응답은 소켓 계층에서 소비됨 — 디스패처는 조용히 무시(에러/핸들러 호출 없음).
+    it('도메인 타입이 "device"일 때 핸들러를 호출하지 않고 조용히 무시해야 한다', () => {
+        const envelope = { type: 'device' as any, action: 'save', payload: {} } as any;
+
+        expect(() => dispatcher.dispatch(envelope)).not.toThrow();
+        expect(chatHandler).not.toHaveBeenCalled();
+        expect(authHandler).not.toHaveBeenCalled();
+        expect(modelHandler).not.toHaveBeenCalled();
+    });
 });
