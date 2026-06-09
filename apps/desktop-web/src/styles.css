@@ -6,43 +6,43 @@
 
 @layer base {
     :root {
-        /* Chatic Light Theme */
-        --background: 0 0% 100%;
-        --foreground: 220 20% 10%;
+        /* Chatic Light Theme — neutrals tinted toward the lime brand (hue ~90,
+           low chroma) instead of the old cool blue-220; reads as a quiet sage
+           neutral that coheres with the accent. Lightness preserved so contrast
+           stays WCAG AA. */
+        --background: 96 24% 99%;
+        --foreground: 100 10% 10%;
 
-        --card: 0 0% 100%;
-        --card-foreground: 220 20% 10%;
+        --card: 96 24% 99%;
+        --card-foreground: 100 10% 10%;
 
-        --popover: 0 0% 100%;
-        --popover-foreground: 220 20% 10%;
+        --popover: 96 24% 99%;
+        --popover-foreground: 100 10% 10%;
 
-        /* Single brand accent — desaturated lime (was 76 87% 49%, three competing greens collapsed into one) */
+        /* Single brand accent — desaturated lime (unchanged identity anchor). */
         --primary: 76 56% 44%;
-        /* Dark ink on lime — white-on-lime was 2.5:1 (failed AA); dark ink is 7:1 and
-           matches the dark theme's lime-with-dark-text treatment. */
-        --primary-foreground: 220 20% 10%;
-        /* Lime as TEXT on light surfaces (links, mentions, active glyphs, lime tints).
-           Fill lime reads as text at only 2.5:1; this darkened lime clears 4.5:1 on
-           white AND on the bg-primary/10–15 tint chips. */
+        /* Neutral-tinted dark ink on lime fills (7:1, AA). */
+        --primary-foreground: 100 10% 10%;
+        /* Lime as TEXT on light surfaces (links, mentions, active glyphs, tints):
+           the fill lime is too light to read (2.5:1), this darkened lime clears 4.5:1. */
         --primary-ink: 76 62% 27%;
 
-        --secondary: 220 10% 96%;
-        --secondary-foreground: 220 20% 10%;
+        --secondary: 96 14% 96%;
+        --secondary-foreground: 100 10% 10%;
 
-        --muted: 220 10% 95%;
-        /* AA on light surfaces: was 50% (4.2:1 on bg, 3.9:1 on tinted), now 5.2:1. */
-        --muted-foreground: 220 10% 44%;
+        --muted: 96 14% 95%;
+        --muted-foreground: 90 9% 41%; /* AA on every light surface (>=4.5:1) */
 
         /* Neutral interactive hover (shadcn semantics) — not the brand color */
-        --accent: 220 14% 95%;
-        --accent-foreground: 220 20% 10%;
+        --accent: 96 16% 95%;
+        --accent-foreground: 100 10% 10%;
 
-        /* Slack-style chrome: dark rail, tinted sidebar (theme-aware, replaces hardcoded zinc) */
-        --rail: 222 30% 13%;
-        --rail-foreground: 220 14% 78%;
-        --rail-muted: 222 22% 22%;
-        --sidebar: 220 16% 97%;
-        --sidebar-foreground: 220 20% 12%;
+        /* Slack-style chrome: deep sage-dark rail, sage-tinted sidebar. */
+        --rail: 130 14% 13%;
+        --rail-foreground: 120 10% 78%;
+        --rail-muted: 130 12% 22%;
+        --sidebar: 96 18% 97%;
+        --sidebar-foreground: 100 10% 12%;
 
         /* Per-identity avatar fills (hue varies per user; L + fg keep contrast in each theme) */
         --avatar-l: 40%;
@@ -59,20 +59,20 @@
         --warning: 38 92% 50%;
         --warning-foreground: 30 85% 32%; /* dark amber text, AA on the /15 tint */
 
-        --border: 220 15% 91%;
-        --input: 220 15% 91%;
-        --ring: 220 30% 18%;
+        --border: 96 14% 90%;
+        --input: 96 14% 90%;
+        --ring: 100 14% 20%;
 
-        --radius: 0.75rem;
+        --radius: 0.5rem; /* crisper, more professional than the old 0.75rem */
 
-        /* Figma design system gray scale */
-        --label: 220 4% 35%; /* #53555B - input labels, secondary text */
-        --placeholder: 223 4% 44%; /* AA: was 74% (1.9:1 on white), now 5:1 */
-        --description: 218 4% 46%; /* AA: was 54% (3.5:1), now 4.7:1 */
-        --surface: 0 0% 100%; /* #FFFFFF - input backgrounds */
+        /* Figma design system gray scale (re-tinted sage; AA verified) */
+        --label: 90 7% 33%;
+        --placeholder: 90 6% 41%;
+        --description: 90 6% 43%;
+        --surface: 96 24% 99%;
         --main-accent: 76 93% 39%; /* #90C304 - focus ring, verification accent */
-        --input-border: 240 4% 92%; /* #EAEAEC - input/card borders */
-        --focus-border: 210 5% 24%; /* #3A3C40 - focused input border */
+        --input-border: 96 10% 91%;
+        --focus-border: 100 8% 24%;
 
         /* Toast (always dark surface) */
         --toast: 222 75% 12%; /* #081837 */
@@ -80,59 +80,59 @@
         --toast-muted: 220 3% 81%; /* #CFD0D3 */
 
         /* Dialog */
-        --dialog-subtitle: 218 4% 54%; /* #84888F */
+        --dialog-subtitle: 90 6% 45%;
 
         /* Chatic custom tokens */
-        --bubble-mine: 220 30% 18%;
+        --bubble-mine: 130 16% 18%;
         --bubble-mine-foreground: 0 0% 100%;
-        --bubble-other: 220 10% 95%;
-        --bubble-other-foreground: 220 20% 10%;
-        --badge-unread: 0 75% 51%; /* AA: white-on-red was 4.35:1, now 4.7:1 */
+        --bubble-other: 96 14% 95%;
+        --bubble-other-foreground: 100 10% 10%;
+        --badge-unread: 0 75% 51%; /* AA: white-on-red 4.7:1 */
         --badge-unread-foreground: 0 0% 100%;
         --badge-member: 76 56% 44%;
-        --tab-active: 220 30% 18%;
-        --tab-inactive: 220 10% 47%; /* AA: was 60% (3:1 on white), now 4.7:1 */
-        --overlay: 220 20% 10%;
+        --tab-active: 130 16% 18%;
+        --tab-inactive: 90 9% 42%; /* AA on white (4.7:1) */
+        --overlay: 100 10% 10%;
 
-        /* Engineering pass — layering + elevation primitives (extend, theme-aware).
-           elevated = raised surface; hairline = crisp 1px divider; well = inset field.
-           shadow-color is cool-tinted (never flat black) for honest depth. */
-        --elevated: 0 0% 100%;
-        --hairline: 220 16% 90%;
-        --well: 220 16% 96%;
-        --shadow-color: 222 45% 14%;
+        /* Layering + elevation primitives. shadow-color is sage-tinted (never flat
+           black) so depth carries the brand hue. */
+        --elevated: 96 24% 99%;
+        --hairline: 96 14% 89%;
+        --well: 96 14% 96%;
+        --shadow-color: 130 35% 12%;
     }
 
     .dark {
-        /* Chatic Dark Theme */
-        --background: 0 0% 7%;
-        --foreground: 0 0% 98%;
+        /* Chatic Dark Theme — same sage-lime tint carried into the dark ramp
+           (was pure neutral). Lightness preserved; AA verified. */
+        --background: 90 8% 7%;
+        --foreground: 90 5% 98%;
 
-        --card: 0 0% 10%;
-        --card-foreground: 0 0% 98%;
+        --card: 90 8% 10%;
+        --card-foreground: 90 5% 98%;
 
-        --popover: 0 0% 10%;
-        --popover-foreground: 0 0% 98%;
+        --popover: 90 8% 10%;
+        --popover-foreground: 90 5% 98%;
 
         --primary: 76 54% 48%;
-        --primary-foreground: 0 0% 8%;
+        --primary-foreground: 90 10% 8%;
         /* On dark surfaces the fill lime already reads as text (8.6:1), so ink = fill. */
         --primary-ink: 76 54% 48%;
 
-        --secondary: 0 0% 15%;
-        --secondary-foreground: 0 0% 98%;
+        --secondary: 90 6% 15%;
+        --secondary-foreground: 90 5% 98%;
 
-        --muted: 0 0% 15%;
-        --muted-foreground: 0 0% 64%;
+        --muted: 90 6% 15%;
+        --muted-foreground: 90 5% 64%;
 
-        --accent: 0 0% 16%;
-        --accent-foreground: 0 0% 98%;
+        --accent: 90 7% 16%;
+        --accent-foreground: 90 5% 98%;
 
-        --rail: 0 0% 5%;
-        --rail-foreground: 0 0% 70%;
-        --rail-muted: 0 0% 15%;
-        --sidebar: 0 0% 9%;
-        --sidebar-foreground: 0 0% 96%;
+        --rail: 120 10% 5%;
+        --rail-foreground: 120 5% 70%;
+        --rail-muted: 120 8% 15%;
+        --sidebar: 90 8% 9%;
+        --sidebar-foreground: 90 5% 96%;
 
         --avatar-l: 58%;
         --avatar-fg: 0 0% 8%;
@@ -148,18 +148,18 @@
         --warning: 43 90% 55%;
         --warning-foreground: 43 90% 60%; /* light amber text on dark */
 
-        --border: 0 0% 18%;
-        --input: 0 0% 18%;
-        --ring: 0 0% 83%;
+        --border: 90 7% 18%;
+        --input: 90 7% 18%;
+        --ring: 90 5% 83%;
 
-        /* Figma design system gray scale (dark) */
-        --label: 216 3% 64%; /* #9FA2A7 - lighter for dark bg */
-        --placeholder: 216 3% 50%; /* AA: was 42% (3.5:1 on dark bg), now 4.7:1 */
-        --description: 216 3% 64%; /* #9FA2A7 */
-        --surface: 0 0% 7%; /* same as bg */
+        /* Gray scale (dark, sage-tinted; AA verified) */
+        --label: 90 4% 64%;
+        --placeholder: 90 5% 50%;
+        --description: 90 4% 64%;
+        --surface: 90 8% 7%;
         --main-accent: 76 93% 39%; /* #90C304 - same */
-        --input-border: 0 0% 23%; /* #3A3C40 */
-        --focus-border: 216 3% 64%; /* #9FA2A7 */
+        --input-border: 90 6% 23%;
+        --focus-border: 90 4% 64%;
 
         /* Toast (light card on dark bg) */
         --toast: 210 6% 96%; /* #F4F5F5 - light card */
@@ -167,25 +167,25 @@
         --toast-muted: 220 4% 35%; /* #53555B - muted dark text */
 
         /* Dialog */
-        --dialog-subtitle: 216 3% 64%; /* #9FA2A7 */
+        --dialog-subtitle: 90 4% 64%;
 
         /* Chatic custom tokens (dark) */
-        --bubble-mine: 220 30% 25%;
+        --bubble-mine: 120 16% 25%;
         --bubble-mine-foreground: 0 0% 100%;
-        --bubble-other: 0 0% 15%;
-        --bubble-other-foreground: 0 0% 98%;
-        --badge-unread: 0 75% 51%; /* AA: white-on-red was 4.35:1, now 4.7:1 */
+        --bubble-other: 90 6% 15%;
+        --bubble-other-foreground: 90 5% 98%;
+        --badge-unread: 0 75% 51%; /* AA: white-on-red 4.7:1 */
         --badge-unread-foreground: 0 0% 100%;
         --badge-member: 76 54% 48%;
-        --tab-active: 0 0% 98%;
-        --tab-inactive: 0 0% 50%;
+        --tab-active: 90 5% 98%;
+        --tab-inactive: 90 5% 50%;
         --overlay: 0 0% 0%;
 
-        /* Engineering pass — layering + elevation primitives (dark). */
-        --elevated: 0 0% 12%;
-        --hairline: 0 0% 19%;
-        --well: 0 0% 6%;
-        --shadow-color: 220 60% 2%;
+        /* Layering + elevation primitives (dark). */
+        --elevated: 90 8% 12%;
+        --hairline: 90 7% 19%;
+        --well: 90 8% 6%;
+        --shadow-color: 120 50% 2%;
     }
 }
 

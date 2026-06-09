@@ -111,13 +111,13 @@ module.exports = {
             // Semantic type scale (size / leading / tracking / weight) — controls
             // hierarchy via weight+tracking, not just size (skill Rule 1).
             fontSize: {
-                display: ['1.625rem', { lineHeight: '2rem', letterSpacing: '-0.02em', fontWeight: '700' }],
-                title: ['1.0625rem', { lineHeight: '1.5rem', letterSpacing: '-0.013em', fontWeight: '600' }],
-                heading: ['0.9375rem', { lineHeight: '1.375rem', letterSpacing: '-0.008em', fontWeight: '600' }],
+                display: ['1.5rem', { lineHeight: '1.875rem', letterSpacing: '-0.022em', fontWeight: '700' }],
+                title: ['1.125rem', { lineHeight: '1.625rem', letterSpacing: '-0.016em', fontWeight: '600' }],
+                heading: ['0.9375rem', { lineHeight: '1.375rem', letterSpacing: '-0.009em', fontWeight: '600' }],
                 body: ['0.9375rem', { lineHeight: '1.45rem', letterSpacing: '-0.003em' }],
                 callout: ['0.875rem', { lineHeight: '1.3rem', letterSpacing: '-0.002em' }],
                 caption: ['0.8125rem', { lineHeight: '1.1rem', letterSpacing: '0' }],
-                overline: ['0.6875rem', { lineHeight: '1rem', letterSpacing: '0.07em', fontWeight: '600' }],
+                overline: ['0.6875rem', { lineHeight: '1rem', letterSpacing: '0.08em', fontWeight: '600' }],
             },
             // Restrained, tinted elevation by level. Cool --shadow-color, low opacity —
             // honest depth, not heavy decorative shadows.
