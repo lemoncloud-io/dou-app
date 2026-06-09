@@ -84,22 +84,17 @@ export const SortablePlaceItem = ({ place, isOwner, onSettings, onDelete, onLeav
                     align="end"
                     className="w-[160px] rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.13)]"
                 >
-                    <DropdownMenuItem onClick={() => onSettings(place)} className="cursor-pointer px-[16px] py-[11px]">
-                        <span className="text-[16px]">{t('placeOrder.settings')}</span>
-                    </DropdownMenuItem>
-                    {isOwner ? (
+                    {isOwner && (
+                        <DropdownMenuItem onClick={() => onSettings(place)} className="cursor-pointer px-[16px] py-[11px]">
+                            <span className="text-[16px]">{t('placeOrder.settings')}</span>
+                        </DropdownMenuItem>
+                    )}
+                    {isOwner && (
                         <DropdownMenuItem
                             onClick={() => onDelete(place)}
                             className="cursor-pointer px-[16px] py-[11px] text-destructive focus:text-destructive"
                         >
                             <span className="text-[16px]">{t('placeOrder.delete')}</span>
-                        </DropdownMenuItem>
-                    ) : (
-                        <DropdownMenuItem
-                            onClick={() => onLeave(place)}
-                            className="cursor-pointer px-[16px] py-[11px] text-destructive focus:text-destructive"
-                        >
-                            <span className="text-[16px]">{t('placeOrder.leave')}</span>
                         </DropdownMenuItem>
                     )}
                 </DropdownMenuContent>

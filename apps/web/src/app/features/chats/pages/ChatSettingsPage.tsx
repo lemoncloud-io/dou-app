@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Bell, LogOut, Trash2, UserPlus } from 'lucide-react';
+import { Bell, LogOut, Pencil, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -38,18 +38,22 @@ const ActionButton = ({ icon: Icon, label, onClick, variant = 'default' }: Actio
     </button>
 );
 
-const ChatProfileIcon = () => (
-    <div className="flex size-14 items-center justify-center rounded-full bg-muted">
-        <svg width="32" height="32" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-                d="M28 8C16.954 8 8 16.954 8 28C8 32.944 9.712 37.486 12.586 41.04L10.5 46L16.5 44.5C20.054 46.988 24.328 48 28 48C39.046 48 48 39.046 48 28C48 16.954 39.046 8 28 8Z"
-                className="stroke-foreground"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-            />
-        </svg>
+const ChatProfileIcon = ({ thumbnail }: { thumbnail?: string }) => (
+    <div className="flex size-14 items-center justify-center overflow-hidden rounded-full bg-muted">
+        {thumbnail ? (
+            <img src={thumbnail} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+        ) : (
+            <svg width="32" height="32" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M28 8C16.954 8 8 16.954 8 28C8 32.944 9.712 37.486 12.586 41.04L10.5 46L16.5 44.5C20.054 46.988 24.328 48 28 48C39.046 48 48 39.046 48 28C48 16.954 39.046 8 28 8Z"
+                    className="stroke-foreground"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                />
+            </svg>
+        )}
     </div>
 );
 
@@ -163,11 +167,23 @@ export const ChatSettingsPage = () => {
                 <div className="flex flex-col items-center gap-[19px]">
                     {/* Room Icon & Name */}
                     <div className="flex flex-col items-center gap-2">
-                        <ChatProfileIcon />
+                        <ChatProfileIcon thumbnail={channel?.thumbnail} />
                         <div className="flex flex-col items-center gap-1">
-                            <h2 className="text-[17px] font-semibold leading-[22px] tracking-[-0.34px] text-foreground">
-                                {channel?.name || t('chat.settings.roomName')}
-                            </h2>
+                            {channel?.isOwner && !channel?.isSelfChat ? (
+                                <button
+                                    onClick={() => openDialog('update')}
+                                    className="flex items-center gap-1.5"
+                                >
+                                    <h2 className="text-[17px] font-semibold leading-[22px] tracking-[-0.34px] text-foreground">
+                                        {channel?.name || t('chat.settings.roomName')}
+                                    </h2>
+                                    <Pencil size={14} className="text-muted-foreground" />
+                                </button>
+                            ) : (
+                                <h2 className="text-[17px] font-semibold leading-[22px] tracking-[-0.34px] text-foreground">
+                                    {channel?.name || t('chat.settings.roomName')}
+                                </h2>
+                            )}
                         </div>
                     </div>
 

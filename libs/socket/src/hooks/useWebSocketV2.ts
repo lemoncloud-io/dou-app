@@ -107,9 +107,10 @@ const toSocketMessage = (envelope: WSSEnvelope): SocketMessage => {
 
 /** Inbound: SocketMessage → WSSEnvelope (package → consumer) */
 const toWSSEnvelope = (msg: SocketMessage): WSSEnvelope => {
-    // Strip :ok / :error suffixes
+    // Strip :ok / :error / .ok / .error suffixes
     // e.g. 'channel.create:ok' → 'channel.create' → mapped to {type:'chat', action:'start'}
-    const baseType = msg.type.replace(/:ok$|:error$/, '');
+    // e.g. 'user.get-site-profile.ok' → 'user.get-site-profile'
+    const baseType = msg.type.replace(/:ok$|:error$|\.ok$|\.error$/, '');
     const mapped = INBOUND_TYPE_MAP[baseType];
     const domain = mapped
         ? mapped.domain
