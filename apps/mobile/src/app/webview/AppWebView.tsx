@@ -14,7 +14,7 @@ import { useVersionCheckHandler } from './hooks';
 import { FullScreenLoader } from '../features/core/components';
 import type { ModalHandler } from './hooks/useModalHandler';
 import type { IAppBridgeHost } from '@chatic/bridges';
-import { type ThemeMode, useThemeStore } from '../stores';
+import { type ThemeMode, useDebugRuntimeStore, useThemeStore } from '../stores';
 
 const LIGHT_BG = '#ffffff';
 const DARK_BG = '#121212';
@@ -43,6 +43,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const { bridge, onMessage, modalHandler, setWebCanGoBack, ...restProps } = props;
 
     const { cacheCrudService, firebaseInstallationService } = useServices();
+    const updateDebugWebViewState = useDebugRuntimeStore(state => state.updateWebViewState);
     const [injectionScript, setInjectionScript] = useState<string | null>(null);
     const { isDark } = useResolvedTheme();
     const bgColor = isDark ? DARK_BG : LIGHT_BG;
@@ -60,6 +61,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     });
 
     useVersionCheckHandler(bridge);
+
+    useEffect(() => {
+        setIsWebAppReady(false);
+        updateDebugWebViewState({ isWebAppReady: false });
+    }, [props.source, updateDebugWebViewState]);
 
     // iOS: content process가 OS에 의해 종료된 경우 리로드
     const handleContentProcessDidTerminate = useCallback(() => {
@@ -158,6 +164,10 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         [propsOnLoad]
     );
 
+    useEffect(() => {
+        updateDebugWebViewState({ isWebAppReady });
+    }, [isWebAppReady, updateDebugWebViewState]);
+
     // WebAppReady / ResumeReady 메시지를 가로채서 처리, 나머지는 bridge onMessage로 전달
     const handleMessage = useCallback(
         (event: Parameters<NonNullable<WebViewProps['onMessage']>>[0]) => {
@@ -169,6 +179,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 if (data?.type === 'WebAppReady') {
                     if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
                     setIsWebAppReady(true);
+                    updateDebugWebViewState({ isWebAppReady: true });
                     // Flush MMKV offline push queue when WebView is fully ready
                     const { offlinePushQueue } = require('../services');
                     void offlinePushQueue.flush();
