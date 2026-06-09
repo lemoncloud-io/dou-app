@@ -98,7 +98,7 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onS
                             <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
                         )}
                         <span className="flex w-full items-center gap-2">
-                            <span className={cn('shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')}>
+                            <span className={cn('shrink-0', isActive ? 'text-primary-ink' : 'text-muted-foreground')}>
                                 #
                             </span>
                             <span

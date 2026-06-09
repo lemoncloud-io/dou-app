@@ -18,13 +18,20 @@
 
         /* Single brand accent — desaturated lime (was 76 87% 49%, three competing greens collapsed into one) */
         --primary: 76 56% 44%;
-        --primary-foreground: 0 0% 100%;
+        /* Dark ink on lime — white-on-lime was 2.5:1 (failed AA); dark ink is 7:1 and
+           matches the dark theme's lime-with-dark-text treatment. */
+        --primary-foreground: 220 20% 10%;
+        /* Lime as TEXT on light surfaces (links, mentions, active glyphs, lime tints).
+           Fill lime reads as text at only 2.5:1; this darkened lime clears 4.5:1 on
+           white AND on the bg-primary/10–15 tint chips. */
+        --primary-ink: 76 62% 27%;
 
         --secondary: 220 10% 96%;
         --secondary-foreground: 220 20% 10%;
 
         --muted: 220 10% 95%;
-        --muted-foreground: 220 10% 50%;
+        /* AA on light surfaces: was 50% (4.2:1 on bg, 3.9:1 on tinted), now 5.2:1. */
+        --muted-foreground: 220 10% 44%;
 
         /* Neutral interactive hover (shadcn semantics) — not the brand color */
         --accent: 220 14% 95%;
@@ -56,8 +63,8 @@
 
         /* Figma design system gray scale */
         --label: 220 4% 35%; /* #53555B - input labels, secondary text */
-        --placeholder: 223 4% 74%; /* #BABCC0 - input placeholders */
-        --description: 218 4% 54%; /* #84888F - descriptions, sub text */
+        --placeholder: 223 4% 44%; /* AA: was 74% (1.9:1 on white), now 5:1 */
+        --description: 218 4% 46%; /* AA: was 54% (3.5:1), now 4.7:1 */
         --surface: 0 0% 100%; /* #FFFFFF - input backgrounds */
         --main-accent: 76 93% 39%; /* #90C304 - focus ring, verification accent */
         --input-border: 240 4% 92%; /* #EAEAEC - input/card borders */
@@ -76,11 +83,11 @@
         --bubble-mine-foreground: 0 0% 100%;
         --bubble-other: 220 10% 95%;
         --bubble-other-foreground: 220 20% 10%;
-        --badge-unread: 0 75% 55%;
+        --badge-unread: 0 75% 51%; /* AA: white-on-red was 4.35:1, now 4.7:1 */
         --badge-unread-foreground: 0 0% 100%;
         --badge-member: 76 56% 44%;
         --tab-active: 220 30% 18%;
-        --tab-inactive: 220 10% 60%;
+        --tab-inactive: 220 10% 47%; /* AA: was 60% (3:1 on white), now 4.7:1 */
         --overlay: 220 20% 10%;
 
         /* Engineering pass — layering + elevation primitives (extend, theme-aware).
@@ -105,6 +112,8 @@
 
         --primary: 76 54% 48%;
         --primary-foreground: 0 0% 8%;
+        /* On dark surfaces the fill lime already reads as text (8.6:1), so ink = fill. */
+        --primary-ink: 76 54% 48%;
 
         --secondary: 0 0% 15%;
         --secondary-foreground: 0 0% 98%;
@@ -137,7 +146,7 @@
 
         /* Figma design system gray scale (dark) */
         --label: 216 3% 64%; /* #9FA2A7 - lighter for dark bg */
-        --placeholder: 216 3% 42%; /* #6B6D72 - muted on dark bg */
+        --placeholder: 216 3% 50%; /* AA: was 42% (3.5:1 on dark bg), now 4.7:1 */
         --description: 216 3% 64%; /* #9FA2A7 */
         --surface: 0 0% 7%; /* same as bg */
         --main-accent: 76 93% 39%; /* #90C304 - same */
@@ -157,7 +166,7 @@
         --bubble-mine-foreground: 0 0% 100%;
         --bubble-other: 0 0% 15%;
         --bubble-other-foreground: 0 0% 98%;
-        --badge-unread: 0 75% 55%;
+        --badge-unread: 0 75% 51%; /* AA: white-on-red was 4.35:1, now 4.7:1 */
         --badge-unread-foreground: 0 0% 100%;
         --badge-member: 76 54% 48%;
         --tab-active: 0 0% 98%;

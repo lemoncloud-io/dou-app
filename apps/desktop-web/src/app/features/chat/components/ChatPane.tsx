@@ -89,7 +89,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     if (!channelId || !channel) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-2xl font-semibold text-primary">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-2xl font-semibold text-primary-ink">
                     #
                 </div>
                 <p className="text-heading text-foreground">{t('chat.empty')}</p>
@@ -117,7 +117,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                     title={t('chat.header.settings')}
                     className="focus-ring tactile flex min-w-0 items-center gap-2 rounded-md py-1 text-left transition-colors ease-tactile hover:bg-accent"
                 >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-heading text-primary">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-heading text-primary-ink">
                         #
                     </span>
                     <span className="truncate text-title text-foreground">{channel.name ?? channelId}</span>

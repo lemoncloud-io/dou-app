@@ -45,7 +45,7 @@ export const MemberRow = ({ member, isMe, canKick, onKick }: MemberRowProps) => 
                 </button>
             </UserProfilePopover>
             {member.isOwner && (
-                <span className="rounded bg-badge-member/15 px-1.5 py-0.5 text-overline text-badge-member">
+                <span className="rounded bg-badge-member/15 px-1.5 py-0.5 text-overline text-primary-ink">
                     {t('channels.members.owner')}
                 </span>
             )}

@@ -28,14 +28,14 @@ const renderInline = (text: string, keyBase: string): ReactNode[] => {
                     href={url}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="text-primary underline-offset-2 hover:underline"
+                    className="text-primary-ink underline-offset-2 hover:underline"
                 >
                     {url}
                 </a>
             );
         } else {
             nodes.push(
-                <span key={key} className="rounded bg-primary/10 px-1 font-medium text-primary">
+                <span key={key} className="rounded bg-primary/10 px-1 font-medium text-primary-ink">
                     {mention}
                 </span>
             );

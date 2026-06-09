@@ -139,7 +139,11 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
                                                 : 'opacity-0 group-hover/msg:opacity-100 focus-visible:opacity-100'
                                         )}
                                     >
-                                        {isCopied ? <Check size={12} className="text-primary" /> : <Copy size={12} />}
+                                        {isCopied ? (
+                                            <Check size={12} className="text-primary-ink" />
+                                        ) : (
+                                            <Copy size={12} />
+                                        )}
                                     </button>
                                 )}
                             </div>

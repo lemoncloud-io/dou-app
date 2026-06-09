@@ -105,7 +105,7 @@ export const ChannelSettingsPanel = ({
                     <h3 className="text-overline text-muted-foreground">{t('channels.settings.nameSection')}</h3>
                     <div className="flex items-center justify-between gap-2">
                         <span className="flex min-w-0 items-center gap-2 text-heading text-foreground">
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary/10 text-xs font-bold text-primary">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary/10 text-xs font-bold text-primary-ink">
                                 #
                             </span>
                             <span className="truncate">{channel.name ?? channelId}</span>
