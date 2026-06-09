@@ -55,6 +55,10 @@
         --destructive: 0 84% 60%;
         --destructive-foreground: 0 0% 100%;
 
+        /* Transient warning / connecting state (replaces hardcoded amber-*). */
+        --warning: 38 92% 50%;
+        --warning-foreground: 30 85% 32%; /* dark amber text, AA on the /15 tint */
+
         --border: 220 15% 91%;
         --input: 220 15% 91%;
         --ring: 220 30% 18%;
@@ -139,6 +143,10 @@
 
         --destructive: 0 62% 50%;
         --destructive-foreground: 0 0% 98%;
+
+        /* Transient warning / connecting state (dark). */
+        --warning: 43 90% 55%;
+        --warning-foreground: 43 90% 60%; /* light amber text on dark */
 
         --border: 0 0% 18%;
         --input: 0 0% 18%;
@@ -260,5 +268,23 @@
     }
     .tactile:active {
         transform: scale(0.97);
+    }
+}
+
+/* Honor prefers-reduced-motion globally (PRODUCT.md commitment). Neutralizes the
+   tactile press, ease-tactile transitions, and tailwindcss-animate keyframes
+   (slide/fade/cloud-bounce) for users who ask for less motion. State still changes
+   instantly; nothing is gated on a transition, so content never goes missing. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    .tactile {
+        will-change: auto;
     }
 }

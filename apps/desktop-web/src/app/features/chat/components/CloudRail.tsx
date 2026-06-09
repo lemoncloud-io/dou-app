@@ -57,6 +57,8 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: C
                             key={cloud.id}
                             onClick={() => onSelectCloud(cloud.id)}
                             title={cloud.name ?? cloud.id}
+                            aria-label={cloud.name ?? cloud.id}
+                            aria-current={isActive ? 'true' : undefined}
                             className={cn(
                                 'group relative flex h-11 w-11 items-center justify-center text-callout font-semibold transition-all duration-150 ease-tactile tactile',
                                 'rounded-2xl hover:rounded-xl focus-ring',
@@ -75,7 +77,10 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: C
                             />
                             {cloudInitial(cloud)}
                             {isActive && hasUnread && (
-                                <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail bg-badge-unread shadow-raised" />
+                                <span
+                                    aria-hidden
+                                    className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail bg-badge-unread shadow-raised"
+                                />
                             )}
                         </button>
                     );
@@ -85,7 +90,10 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: C
             <div className="my-2 h-px w-8 shrink-0 bg-hairline" />
 
             <DropdownMenu>
-                <DropdownMenuTrigger className="flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-150 ease-tactile tactile focus-ring">
+                <DropdownMenuTrigger
+                    aria-label={profile?.$user?.name || t('rail.menu.profile')}
+                    className="flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-150 ease-tactile tactile focus-ring"
+                >
                     <Avatar className="h-10 w-10 border border-rail-muted">
                         {userPhoto && <AvatarImage src={userPhoto} alt={profile?.$user?.name ?? ''} />}
                         <AvatarFallback className="bg-rail-muted text-callout font-semibold text-rail-foreground">
