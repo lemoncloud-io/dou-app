@@ -1,6 +1,6 @@
 // src/types/model/preference.ts
 
-export type PreferenceKey = 'isFirstRun' | 'theme' | 'language';
+export type PreferenceKey = 'isFirstRun' | 'theme' | 'language' | 'debugSettings';
 
 export type FetchPreferencePayload = {
     key: PreferenceKey;

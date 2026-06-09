@@ -1,15 +1,19 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { HomeScreenProps } from '../navigation';
+import { FEATURE_TEST_MENU_SECTION, type DebugOverlayScreenKey } from '../debugMenu';
 import { useDebugTheme } from '../theme';
 
-export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
+interface DebugHomeScreenProps {
+    onSelect: (screen: DebugOverlayScreenKey) => void;
+}
+
+export const DebugHomeScreen = ({ onSelect }: DebugHomeScreenProps) => {
     const colors = useDebugTheme();
 
-    const renderMenuItem = (title: string, onPress: () => void) => (
+    const renderMenuItem = (key: string, title: string, onPress: () => void) => (
         <TouchableOpacity
+            key={key}
             style={[styles.menuItem, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
             onPress={onPress}
             activeOpacity={0.7}
@@ -20,50 +24,18 @@ export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
     );
 
     return (
-        <SafeAreaView
-            style={[styles.container, { backgroundColor: colors.background }]}
-            edges={['bottom', 'left', 'right']}
-        >
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: colors.subtleText }]}>테스트 메뉴</Text>
-
-                    {renderMenuItem('소켓 테스트', () => {
-                        navigation.navigate('SocketTest');
-                    })}
-                    {renderMenuItem('인앱결제 테스트', () => {
-                        navigation.navigate('InAppPurchaseTest');
-                    })}
-                    {renderMenuItem('알림 테스트', () => {
-                        navigation.navigate('NotificationTest');
-                    })}
-                    {renderMenuItem('딥링크 테스트', () => {
-                        navigation.navigate('DeeplinkTest');
-                    })}
-                    {renderMenuItem('디바이스 기능 테스트', () => {
-                        navigation.navigate('DeviceTest');
-                    })}
-                    {renderMenuItem('SMS 테스트', () => {
-                        navigation.navigate('SmsTest');
-                    })}
-                    {renderMenuItem('앱 아이콘 테스트', () => {
-                        navigation.navigate('AppIconTest');
-                    })}
-                    {renderMenuItem('브릿지 테스트', () => {
-                        navigation.navigate('BridgeTest');
-                    })}
-                    {renderMenuItem('대용량 업로드 테스트', () => {
-                        navigation.navigate('UploadTest');
-                    })}
-                    {renderMenuItem('OAuth 테스트', () => {
-                        navigation.navigate('OAuthTest');
-                    })}
-                    {renderMenuItem('스토리지 테스트', () => {
-                        navigation.navigate('StorageTest');
-                    })}
+                    <Text style={[styles.sectionTitle, { color: colors.subtleText }]}>
+                        {FEATURE_TEST_MENU_SECTION.title}
+                    </Text>
+                    {FEATURE_TEST_MENU_SECTION.items.map(item =>
+                        renderMenuItem(item.key, item.title, () => onSelect(item.key))
+                    )}
                 </View>
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 };
 

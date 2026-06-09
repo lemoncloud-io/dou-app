@@ -1,14 +1,20 @@
 import React, { useRef, useState } from 'react';
 import { Animated, PanResponder, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
-import type { RootStackParamList } from '../navigation';
+import type { DebugOverlayEntryKey } from '../../debug/debugMenu';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface FloatingMenuProps {
-    onNavigate: (screenName: keyof RootStackParamList) => void;
+    onOpenDebug: (entry: DebugOverlayEntryKey) => void;
 }
 
-export const FloatingMenu = ({ onNavigate }: FloatingMenuProps) => {
+type FloatingMenuItem = {
+    id: string;
+    label: string;
+    onPress: () => void;
+};
+
+export const FloatingMenu = ({ onOpenDebug }: FloatingMenuProps) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const insets = useSafeAreaInsets();
 
@@ -52,14 +58,15 @@ export const FloatingMenu = ({ onNavigate }: FloatingMenuProps) => {
         setIsExpanded(!isExpanded);
     };
 
-    const handlePress = (screenName: keyof RootStackParamList) => {
-        onNavigate(screenName);
+    const handlePress = (onPress: () => void) => {
+        onPress();
         toggleMenu();
     };
 
-    const menuItems: { id: string; label: string; target: keyof RootStackParamList }[] = [
-        { id: 'web', label: 'DoU 접속', target: 'Main' },
-        { id: 'debug', label: '디버그 메뉴', target: 'Debug' },
+    const menuItems: FloatingMenuItem[] = [
+        { id: 'feature-tests', label: '기능 테스트', onPress: () => onOpenDebug('FeatureTests') },
+        { id: 'settings', label: '환경설정', onPress: () => onOpenDebug('EnvironmentSettings') },
+        { id: 'monitoring', label: '모니터링', onPress: () => onOpenDebug('Monitoring') },
     ];
 
     const menuStyle = {
@@ -96,7 +103,7 @@ export const FloatingMenu = ({ onNavigate }: FloatingMenuProps) => {
                         <TouchableOpacity
                             key={item.id}
                             style={styles.menuItemFab}
-                            onPress={() => handlePress(item.target)}
+                            onPress={() => handlePress(item.onPress)}
                         >
                             <Text style={styles.menuText}>{item.label}</Text>
                         </TouchableOpacity>
