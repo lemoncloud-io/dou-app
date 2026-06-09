@@ -1,3 +1,4 @@
+import { logger } from '@chatic/bridges';
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/types';
 
@@ -73,7 +74,10 @@ export class SocketRequestManager implements ISocketRequestManager {
      * 소켓 발신 로직을 Promise로 감싸주어, 응답을 동기적으로 대기할 수 있도록 지원하는 메서드입니다.
      * * @template T - 응답으로 기대하는 반환 데이터의 타입
      * @param sendAction - 실제 소켓 발신을 수행할 콜백 함수 (생성되거나 주입된 고유 ref를 주입받습니다)
-     * @param customRef - (선택) 외부에서 주입할 고유 참조자. 주입하지 않으면 내부에서 자동 생성됩니다.
+     * @param customRef - (선택) 외부에서 주입할 참조자. **logical request마다 고유해야 합니다** —
+     *   서버는 이 ref를 mid로 echo하고, 인터셉터는 ref가 일치하는 첫 도메인 이벤트로 Promise를
+     *   resolve하므로, 두 동시 요청이 같은 ref를 쓰면 응답이 교차 매칭됩니다. 주입하지 않으면
+     *   내부에서 고유 ref를 생성합니다. (idempotent 재전송은 의도적으로 같은 ref 재사용)
      * @param timeoutMs - 타임아웃 제한 시간 (기본값: 30s)
      * @returns {Promise} 서버로부터 수신된 결과 데이터
      */
@@ -81,6 +85,15 @@ export class SocketRequestManager implements ISocketRequestManager {
         return new Promise((resolve, reject) => {
             // 외부 주입 ref가 존재하면 사용하고, 없으면 기존처럼 자동 생성합니다.
             const ref = customRef || `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+            // 같은 ref가 이미 in-flight면 set()이 이전 항목을 덮어써 그 Promise가 영영
+            // resolve되지 않고 timeout까지 샙니다. customRef 비고유가 원인 — 조기 발견용 경고.
+            if (this.pendingRequests.has(ref)) {
+                logger.warn(
+                    'SOCKET_REQ',
+                    `[SocketRequestManager] 중복 in-flight ref "${ref}" — caller ref는 요청마다 고유해야 합니다. 이전 요청이 leak/timeout 됩니다.`
+                );
+            }
 
             // 지정된 시간이 초과되면 대기열에서 제거하고 타임아웃 에러를 발생시킵니다.
             const timer = setTimeout(() => {

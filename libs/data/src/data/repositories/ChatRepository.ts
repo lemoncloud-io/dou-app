@@ -86,7 +86,9 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
 
     /** 메시지 발신을 data source에 위임하고 응답을 기다립니다. */
     public async sendChat(payload: ChatSendPayload, options?: RepositoryRequestOptions): Promise<DomainChat> {
-        const requestRef = options?.ref ?? `chat-send-${Date.now()}`;
+        // ref는 logical message마다 고유해야 합니다(동시 전송 충돌 방지). 재전송은
+        // options.ref로 원래 값을 그대로 넘겨 서버 멱등 + 같은 행 교체를 유지합니다.
+        const requestRef = options?.ref ?? `chat-send-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         const requestOptions: RepositoryRequestOptions = { ...options, ref: requestRef };
         const repositoryContext = this.getRepositoryContext();
         const domainScope = this.getDomainScope();

@@ -128,9 +128,22 @@ export const MessageList = ({
         // off the bottom. Pinning the whole window rides through all of them.
         const deadline = performance.now() + 600;
         let raf = 0;
+        let lastHeight = -1;
+        let stableFrames = 0;
         const snap = () => {
             const el = scrollRef.current;
-            if (el) el.scrollTop = el.scrollHeight;
+            if (el) {
+                el.scrollTop = el.scrollHeight;
+                // Stop early once the height stops changing for 3 frames — the
+                // post-send reflow (optimistic render → server swap) has settled, so
+                // there's no need to keep pinning for the full 600ms.
+                if (el.scrollHeight === lastHeight) {
+                    if (++stableFrames >= 3) return;
+                } else {
+                    stableFrames = 0;
+                    lastHeight = el.scrollHeight;
+                }
+            }
             if (performance.now() < deadline) raf = requestAnimationFrame(snap);
         };
         raf = requestAnimationFrame(snap);
