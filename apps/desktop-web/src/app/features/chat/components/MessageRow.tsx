@@ -136,7 +136,7 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
                                             'focus-ring tactile border-hairline absolute right-0 top-0 flex h-7 w-7 items-center justify-center rounded border bg-elevated text-muted-foreground shadow-raised transition-opacity ease-tactile hover:bg-accent/40 hover:text-foreground',
                                             isCopied
                                                 ? 'opacity-100'
-                                                : 'opacity-0 group-hover/msg:opacity-100 focus-visible:opacity-100'
+                                                : 'opacity-100 focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:opacity-100'
                                         )}
                                     >
                                         {isCopied ? (
