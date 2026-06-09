@@ -4,7 +4,7 @@ import { provider } from '../services';
 import type { PreferenceKey } from '@chatic/app-messages';
 
 const isPreferenceKey = (key: string): key is PreferenceKey => {
-    const validKeys: PreferenceKey[] = ['isFirstRun', 'theme', 'language'];
+    const validKeys = ['isFirstRun', 'theme', 'language', 'debugSettings'];
     return (validKeys as string[]).includes(key);
 };
 
