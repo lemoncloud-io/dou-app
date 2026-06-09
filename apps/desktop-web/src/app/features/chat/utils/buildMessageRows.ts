@@ -30,6 +30,12 @@ export type MessageRowItem =
 export interface MessageViewer {
     uid: string | null;
     name: string;
+    /**
+     * My per-channel cloud user id (`channel.$join.userId`). Optimistic messages
+     * carry my account id as `ownerId`, but the server rewrites it to this cloud
+     * id once the message persists — so both ids identify my own messages.
+     */
+    cloudUid?: string | null;
 }
 
 /** Split a run of same-author messages when they are more than this far apart. */
@@ -38,6 +44,13 @@ const GROUP_TIME_GAP_MS = 5 * 60 * 1000;
 // A blank or UUID-style name (guest auto-name) is not a real name — treat it as
 // unresolved so it never shows, falling back to "You" / the roster / a skeleton.
 const realName = (name?: string): string | undefined => (isPlaceholderName(name) ? undefined : name?.trim());
+
+// A message is "mine" when its owner matches either my account id (optimistic
+// messages carry it) or my per-channel cloud user id (the server rewrites the
+// owner to this once the message persists) — so own messages stay identified
+// across the optimistic→persisted swap.
+const isOwnMessage = (chat: DomainChat, viewer: MessageViewer): boolean =>
+    (!!viewer.uid && chat.ownerId === viewer.uid) || (!!viewer.cloudUid && chat.ownerId === viewer.cloudUid);
 
 // The server's ChatView only embeds owner$ for persisted messages — optimistic
 // and own messages have no owner$, so resolve those from the viewer's profile.
@@ -49,7 +62,14 @@ const resolveOwnerName = (
     viewer: MessageViewer,
     names?: ReadonlyMap<string, string>
 ): string | null => {
-    if (viewer.uid && chat.ownerId === viewer.uid) return realName(viewer.name) || realName(chat.owner$?.name) || 'You';
+    if (isOwnMessage(chat, viewer)) {
+        // Name my own messages the same way whether optimistic (no owner$, owner is
+        // my account id) or persisted (owner$ present, owner is my cloud id): prefer
+        // my profile name, then my cloud display name from the roster, so the author
+        // never flashes "You" before the persisted record settles.
+        const fromCloud = viewer.cloudUid ? realName(names?.get(viewer.cloudUid)) : undefined;
+        return realName(viewer.name) || fromCloud || realName(chat.owner$?.name) || 'You';
+    }
     const fromOwner = realName(chat.owner$?.name);
     const fromMembers = chat.ownerId ? realName(names?.get(chat.ownerId)) : undefined;
     return fromOwner || fromMembers || null;
@@ -126,7 +146,7 @@ export const buildMessageRows = (
                 ownerName: resolvedName ?? 'Unknown',
                 namePending: resolvedName === null && membersLoading,
                 avatar: message.owner$?.thumbnail,
-                isMine: viewer.uid != null && message.ownerId === viewer.uid,
+                isMine: isOwnMessage(message, viewer),
                 timestamp,
                 messages: [message],
             };

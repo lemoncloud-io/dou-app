@@ -38,7 +38,11 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     // to a friendly label ("You") instead of showing the raw UUID.
     const rawMyName = useWebCoreStore(s => s.profile?.$user?.name ?? '');
     const myName = isPlaceholderName(rawMyName) ? '' : rawMyName;
-    const viewer = useMemo(() => ({ uid: myUid, name: myName }), [myUid, myName]);
+    // My cloud user id for this channel: the server rewrites my own messages'
+    // ownerId from my account id to this once they persist, so it also identifies
+    // my messages (and my optimistic→persisted swap) — see resolveOwnerName.
+    const cloudUid = channel?.$join?.userId ?? null;
+    const viewer = useMemo(() => ({ uid: myUid, name: myName, cloudUid }), [myUid, myName, cloudUid]);
     const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(channelId);
     const { sendMessage, retryMessage, isSending } = useChatMutations();
     const openSettings = useChannelSettingsStore(s => s.open);
