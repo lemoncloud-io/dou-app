@@ -1,5 +1,12 @@
 import type { ChatErrorPayload, WSSChatActionType, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
-import type { ChannelView, ChatFeedResult, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
+import type {
+    ChannelView,
+    ChatFeedResult,
+    ChatView,
+    JoinView,
+    SiteProfileSyncView,
+    UserView,
+} from '@lemoncloud/chatic-socials-api';
 import { logger } from '@chatic/bridges';
 import type { ListResult, SocketEventMap } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
@@ -85,6 +92,11 @@ export const chatHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEve
         // 채널 내 참여 사용자 목록 조회 결과 처리
         case 'users':
             eventBus.emit('user:read', { ...detail, payload: payload as ListResult<UserView> });
+            break;
+
+        // 도달 가능한 사용자들의 플레이스 프로필 동기화 delta 처리
+        case 'sync-site-profile':
+            eventBus.emit('profile:sync', { ...detail, payload: payload as SiteProfileSyncView });
             break;
 
         default:

@@ -5,7 +5,7 @@ import { ChevronDown, MessageSquare } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 
-import { Skeleton } from '../../../shared';
+import { Skeleton, useSiteProfileMap } from '../../../shared';
 import { buildMessageRows, isOwnMessage, type MessageViewer } from '../utils';
 import { DateSeparator } from './DateSeparator';
 import { MessageRow } from './MessageRow';
@@ -66,9 +66,10 @@ export const MessageList = ({
     const unreadRef = useRef<HTMLDivElement>(null);
     const didInitRef = useRef(false);
 
+    const placeProfiles = useSiteProfileMap();
     const rows = useMemo(
-        () => buildMessageRows(messages, viewer, names, baselineReadNo, membersLoading),
-        [messages, viewer, names, baselineReadNo, membersLoading]
+        () => buildMessageRows(messages, viewer, names, baselineReadNo, membersLoading, placeProfiles),
+        [messages, viewer, names, baselineReadNo, membersLoading, placeProfiles]
     );
 
     const maxChatNo = useMemo(() => messages.reduce((m, c) => Math.max(m, c.chatNo ?? 0), 0), [messages]);

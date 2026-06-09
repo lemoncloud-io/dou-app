@@ -66,3 +66,33 @@ _Avoid_: my page, account settings
 **Profile card**:
 A read-only popover shown when you click another member's avatar or name in a Message or member list. Backed only by the fields the server returns for other users — avatar, name, nick — never email or phone. It is not the self Profile and must not imply data the server doesn't expose.
 _Avoid_: user modal, hovercard, mini-profile
+
+## Place Profiles (per-place identity)
+
+**Global Profile**:
+A user's canonical, cross-Place identity — `name` / `nick` / `thumbnail` on the user record. One per user, the same in every Cloud and Place. The fallback identity when no Place Profile applies. On the client it is the `user` cache (IndexedDB, `{cid,uid}`-scoped) — per ADR 0006 the single source for author names. (The self-account *page* is still just "Profile"; "Global Profile" names the identity data, not the screen.)
+_Avoid_: canonical user, base profile
+
+**Place Profile**:
+A user's display identity scoped to one Place — `nick` / `thumbnail` plus an `active` flag. One per `{Place, user}`. Lets a user present a different nick/avatar per Place. Stored on the client in a dedicated `profile` cache, never merged into the Global Profile record. The API names it "site profile" (`sid`); the product term is Place Profile.
+_Avoid_: site profile, multi-profile, alias
+
+**Display Profile**:
+The nick/thumbnail actually rendered for a user in the current Place — `placeProfile[uid] ?? globalProfile`, resolved field-by-field at render time. Not a stored object; a render-time merge. Applied uniformly everywhere a user shows (Messages, member roster, self).
+_Avoid_: merged profile, effective profile
+
+**active**:
+Whether a Place Profile is the live display identity for its Place. `true` → use it. `false` → a *reset to Global Profile fallback*, not a deletion: the record persists with its nick/thumbnail and can be re-activated. Changing only nick/thumbnail does not auto-activate; `active` is set explicitly.
+_Avoid_: enabled, deleted
+
+**Reachable users**:
+The users whose Place Profiles the current user may see in the current Place — the channel-member union plus self. The sync op returns their changed Display Profiles.
+_Avoid_: visible users, audience
+
+**Reset delta**:
+In a profile sync response, `placeProfile[uid] = null` — "this Place Profile went inactive; drop it from the client cache and fall back to Global Profile". Distinct from a *missing key*, which means "no change". Apply must be idempotent (duplicate deltas allowed).
+_Avoid_: tombstone, deletion
+
+**Sync cursor (`syncedAt`)**:
+The server watermark returned by a profile sync, sent back as the next `since`. Server-issued — never the client's local clock. The catch-up path on Place-switch, app start, and reconnect. (The realtime `invalidate` hint in the spec is **not emitted by the backend yet**, so these triggers are the only ones today.)
+_Avoid_: timestamp, last-sync

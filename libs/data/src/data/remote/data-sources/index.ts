@@ -10,6 +10,8 @@ import type { IChatRemoteDataSource } from './ChatRemoteDataSource';
 import { ChatRemoteDataSource } from './ChatRemoteDataSource';
 import type { IJoinRemoteDataSource } from './JoinRemoteDataSource';
 import { JoinRemoteDataSource } from './JoinRemoteDataSource';
+import type { IProfileRemoteDataSource } from './ProfileRemoteDataSource';
+import { ProfileRemoteDataSource } from './ProfileRemoteDataSource';
 import type { ISiteRemoteDataSource } from './SiteRemoteDataSource';
 import { SiteRemoteDataSource } from './SiteRemoteDataSource';
 import type { IUserRemoteDataSource } from './UserRemoteDataSource';
@@ -19,6 +21,7 @@ export * from './AuthRemoteDataSource';
 export * from './ChannelRemoteDataSource';
 export * from './ChatRemoteDataSource';
 export * from './JoinRemoteDataSource';
+export * from './ProfileRemoteDataSource';
 export * from './SiteRemoteDataSource';
 export * from './UserRemoteDataSource';
 
@@ -27,6 +30,7 @@ export interface RemoteDataSources {
     channel: IChannelRemoteDataSource;
     chat: IChatRemoteDataSource;
     join: IJoinRemoteDataSource;
+    profile: IProfileRemoteDataSource;
     site: ISiteRemoteDataSource;
     user: IUserRemoteDataSource;
 }
@@ -48,6 +52,7 @@ export const createRemoteDataSources = ({
     channel: new ChannelRemoteDataSource(socketEventBus, domainEventBus, wssClient),
     chat: new ChatRemoteDataSource(socketEventBus, domainEventBus, wssClient),
     join: new JoinRemoteDataSource(socketEventBus, domainEventBus, wssClient),
+    profile: new ProfileRemoteDataSource(socketEventBus, domainEventBus, wssClient),
     site: new SiteRemoteDataSource(socketEventBus, domainEventBus, wssClient),
     user: new UserRemoteDataSource(socketEventBus, domainEventBus, wssClient),
 });

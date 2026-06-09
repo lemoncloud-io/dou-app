@@ -4,6 +4,7 @@ import { isNative, webClient } from '@chatic/bridges';
 import { useWebCoreStore } from '@chatic/web-core';
 
 import { JoinWithInviteDialog } from '../../auth';
+import { EditPlaceProfileDialog } from '../../profile/components';
 import {
     ChannelSettingsPanel,
     CreateChannelDialog,
@@ -23,6 +24,8 @@ import {
     useSelectPlace,
     useSelectedChannelStore,
     useSelectedPlaceStore,
+    useSiteProfileSync,
+    useSiteProfiles,
 } from '../../../shared';
 import {
     ChannelList,
@@ -43,6 +46,11 @@ export const HomePage = () => {
     const selectPlace = useSelectedPlaceStore(s => s.selectPlace);
     const { switchPlace } = useSelectPlace();
     const { switchCloud } = useCloudSwitchFlow({ onPlaceSelected: selectPlace });
+
+    // Place Profiles: mirror the current place's overrides into the store (one
+    // subscription) and pull deltas on place-switch / verified / reconnect.
+    useSiteProfiles();
+    useSiteProfileSync();
 
     const { channels, isLoading } = useChannels(selectedPlaceId ?? undefined);
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
@@ -206,6 +214,7 @@ export const HomePage = () => {
             />
             <CreateChannelDialog />
             <JoinWithInviteDialog />
+            <EditPlaceProfileDialog />
             <ShortcutsDialog />
         </>
     );

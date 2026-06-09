@@ -66,6 +66,7 @@ const appReadPolicies: Record<CacheType, CacheReadPolicy> = {
     channel: 'hot-first',
     invitecloud: 'hot-first',
     join: 'cold-first',
+    profile: 'hot-first',
     site: 'hot-first',
     user: 'hot-first',
 };
@@ -75,6 +76,7 @@ const appLoadAllPolicies: Record<CacheType, CacheReadPolicy> = {
     channel: 'hot-first',
     invitecloud: 'hot-first',
     join: 'cold-first',
+    profile: 'hot-first',
     site: 'hot-first',
     user: 'hot-first',
 };

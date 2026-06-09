@@ -5,6 +5,7 @@ import { cn } from '@chatic/lib/utils';
 import { useWebCoreStore } from '@chatic/web-core';
 
 import { useJoinDialogStore } from '../../auth';
+import { useEditPlaceProfileDialogStore } from '../../profile/stores';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import {
     DropdownMenu,
@@ -14,7 +15,7 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
-import type { RailCloud } from '../../../shared';
+import { type RailCloud, isPlaceholderName, useDisplayProfile } from '../../../shared';
 
 interface CloudRailProps {
     clouds: RailCloud[];
@@ -35,11 +36,19 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: C
     const { t } = useTranslation();
     const navigate = useNavigate();
     const openJoinDialog = useJoinDialogStore(s => s.open);
+    const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const profile = useWebCoreStore(s => s.profile);
     const logout = useWebCoreStore(s => s.logout);
 
-    const userInitial = (profile?.$user?.name ?? '').charAt(0).toUpperCase() || '?';
-    const userPhoto = profile?.$user?.photo;
+    // Self Display Profile: show my Place nick/photo here when set for this place.
+    const rawName = profile?.$user?.name ?? '';
+    const globalName = isPlaceholderName(rawName) ? '' : rawName;
+    const { name: selfName, thumbnail: userPhoto } = useDisplayProfile(
+        profile?.uid ?? '',
+        globalName,
+        profile?.$user?.photo ?? undefined
+    );
+    const userInitial = selfName.charAt(0).toUpperCase() || '?';
 
     return (
         <div className="flex h-full w-full flex-col items-center">
@@ -91,11 +100,11 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: C
 
             <DropdownMenu>
                 <DropdownMenuTrigger
-                    aria-label={profile?.$user?.name || t('rail.menu.profile')}
+                    aria-label={selfName || t('rail.menu.profile')}
                     className="flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-150 ease-tactile tactile focus-ring"
                 >
                     <Avatar className="h-10 w-10 border border-rail-muted">
-                        {userPhoto && <AvatarImage src={userPhoto} alt={profile?.$user?.name ?? ''} />}
+                        {userPhoto && <AvatarImage src={userPhoto} alt={selfName} />}
                         <AvatarFallback className="bg-rail-muted text-callout font-semibold text-rail-foreground">
                             {userInitial}
                         </AvatarFallback>
@@ -103,6 +112,7 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: C
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="right" align="end">
                     <DropdownMenuItem onClick={() => navigate('/profile')}>{t('rail.menu.profile')}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={openEditPlaceProfile}>{t('rail.menu.editPlaceProfile')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={openJoinDialog}>{t('rail.menu.join')}</DropdownMenuItem>
                     {import.meta.env.DEV && (

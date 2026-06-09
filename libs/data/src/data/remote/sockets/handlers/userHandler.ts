@@ -1,5 +1,5 @@
 import type { ChatErrorPayload, WSSEnvelope, WSSUserActionType } from '@lemoncloud/chatic-sockets-api';
-import type { SiteView, UserView } from '@lemoncloud/chatic-socials-api';
+import type { ProfileView, SiteView, UserView } from '@lemoncloud/chatic-socials-api';
 import { logger } from '@chatic/bridges';
 import type { SocketEventMap } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
@@ -53,6 +53,16 @@ export const userHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEve
         // 사용자 본인의 프로필 정보 수정 처리
         case 'update-profile': {
             eventBus.emit('user:update', { ...detail, payload: payload as UserView });
+            break;
+        }
+        // 본인 플레이스 프로필 조회 결과 처리
+        case 'get-site-profile': {
+            eventBus.emit('profile:get', { ...detail, payload: payload as ProfileView });
+            break;
+        }
+        // 본인 플레이스 프로필 변경 결과 처리
+        case 'set-site-profile': {
+            eventBus.emit('profile:update', { ...detail, payload: payload as ProfileView });
             break;
         }
         // 타 사용자에 대한 초대 결과 처리

@@ -88,6 +88,9 @@ const INBOUND_TYPE_MAP: Record<string, { domain: string; action: string }> = {
     'channel.update-join': { domain: 'chat', action: 'update-join' },
     'channel.delete': { domain: 'chat', action: 'delete-channel' },
     'channel.join': { domain: 'chat', action: 'join' },
+    // Place-Profile sync rides the `channel` domain on the wire but is handled by
+    // chatHandler (the dispatcher has no raw `channel` case) — remap like the rest.
+    'channel.sync-site-profile': { domain: 'chat', action: 'sync-site-profile' },
 };
 
 /** Outbound: WSSEnvelope → SocketMessage (consumer → package) */

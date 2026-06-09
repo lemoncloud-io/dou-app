@@ -4,3 +4,5 @@ export * from './useReadCursorStore';
 export * from './useNotificationPrefsStore';
 export * from './useComposerDraftStore';
 export * from './useJoinedCloudsStore';
+export * from './useSiteProfilesStore';
+export * from './useSiteProfileCursorStore';

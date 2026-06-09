@@ -6,7 +6,7 @@ import { Check, Copy } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 
-import { useCopyToClipboard, useUser } from '../hooks';
+import { useCopyToClipboard, useDisplayProfile, useUser } from '../hooks';
 import { avatarStyle, bannerStyle } from '../utils';
 
 interface UserProfilePopoverProps {
@@ -30,11 +30,12 @@ const ProfileCardContent = ({ userId, fallbackName, isOwner }: Omit<UserProfileP
     const user = useUser(userId || null);
     const [copied, copy] = useCopyToClipboard();
 
-    const name = user?.name ?? user?.nick ?? fallbackName ?? userId;
+    const globalName = user?.name ?? user?.nick ?? fallbackName ?? userId;
+    // Display Profile: a Place nick/thumbnail overrides the global identity here too.
+    const { name, thumbnail } = useDisplayProfile(userId, globalName, user?.thumbnail);
     const nick = user?.nick && user.nick !== name ? user.nick : undefined;
     const initial = name.charAt(0).toUpperCase() || '?';
     const seed = userId || name;
-    const thumbnail = user?.thumbnail;
     const channelCount = user?.channelIds?.length ?? 0;
 
     return (

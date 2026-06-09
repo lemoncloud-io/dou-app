@@ -1,8 +1,8 @@
-import type { ChannelView, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelView, ChatView, JoinView, ProfileDisplay, UserView } from '@lemoncloud/chatic-socials-api';
 import type { CloudView, MySiteView } from '@lemoncloud/chatic-backend-api';
 
 /** 캐시 가능한 도메인 타입 정의 */
-export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud';
+export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile';
 
 /** 페이징 및 리스트 처리를 위한 공통 메타데이터 */
 export type PagingMeta = {
@@ -42,6 +42,7 @@ export type CacheModelMap = {
     join: CacheJoinView;
     site: CacheSiteView;
     user: CacheUserView;
+    profile: CacheProfileView;
 };
 
 export type CacheModelOf<TType extends CacheType> = CacheModelMap[TType];
@@ -91,6 +92,15 @@ export type CacheUserView = UserView &
         cid: string;
     };
 
+/** 플레이스(사이트)별 표시 프로필 뷰 — id = `${sid}@${uid}` */
+export type CacheProfileView = ProfileDisplay &
+    CacheViewBase & {
+        id: string;
+        cid: string;
+        sid?: string;
+        uid: string;
+    };
+
 /**
  * FetchAll/SaveAll 시 어떤 조건(정렬, 필터 등)으로 데이터를 식별할지 정의합니다.
  */
@@ -130,6 +140,11 @@ export type SiteQueryOptions = BaseQueryOptions & {
     keyword?: string; // 검색 키워드
 };
 
+/** 플레이스 프로필 쿼리 */
+export type ProfileQueryOptions = BaseQueryOptions & {
+    sid?: string; // 특정 사이트/플레이스 필터
+};
+
 /** 도메인별 쿼리 옵션 매핑 */
 export type CacheQueryMap = {
     channel: ChannelQueryOptions;
@@ -138,6 +153,7 @@ export type CacheQueryMap = {
     site: SiteQueryOptions;
     join: JoinQueryOptions;
     invitecloud: InviteCloudQueryOptions;
+    profile: ProfileQueryOptions;
 };
 
 /** [요청] ID 기반 단일 데이터 조회 */

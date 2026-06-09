@@ -12,7 +12,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
 import type { ChannelMember } from '../hooks';
-import { UserProfilePopover, avatarStyle, displayName } from '../../../shared';
+import { UserProfilePopover, avatarStyle, displayName, useDisplayProfile } from '../../../shared';
 
 interface MemberRowProps {
     member: ChannelMember;
@@ -24,7 +24,8 @@ interface MemberRowProps {
 
 export const MemberRow = ({ member, isMe, canKick, onKick }: MemberRowProps) => {
     const { t } = useTranslation();
-    const name = displayName(member);
+    // Display Profile: a Place nick/thumbnail overrides the global member identity.
+    const { name, thumbnail } = useDisplayProfile(member.id, displayName(member), member.thumbnail);
     const initial = name.charAt(0).toUpperCase() || '?';
     const showKebab = canKick && !isMe;
 
@@ -36,7 +37,7 @@ export const MemberRow = ({ member, isMe, canKick, onKick }: MemberRowProps) => 
                     className="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-md text-left"
                 >
                     <Avatar className="size-8 shrink-0">
-                        {member.thumbnail && <AvatarImage src={member.thumbnail} alt={name} />}
+                        {thumbnail && <AvatarImage src={thumbnail} alt={name} />}
                         <AvatarFallback className="text-xs font-semibold" style={avatarStyle(member.id || name)}>
                             {initial}
                         </AvatarFallback>

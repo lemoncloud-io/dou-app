@@ -1,6 +1,6 @@
 import type { DomainChat } from '@chatic/data';
 
-import { isPlaceholderName } from '../../../shared/utils';
+import { isPlaceholderName, resolveDisplay } from '../../../shared/utils';
 
 export interface MessageGroup {
     key: string;
@@ -108,7 +108,9 @@ export const buildMessageRows = (
     viewer: MessageViewer,
     names?: ReadonlyMap<string, string>,
     baselineReadNo = 0,
-    membersLoading = false
+    membersLoading = false,
+    /** uid → active Place Profile for the current place; overrides nick/thumbnail. */
+    placeProfiles: Record<string, { nick?: string; thumbnail?: string }> = {}
 ): MessageRowItem[] => {
     const rows: MessageRowItem[] = [];
     let currentGroup: MessageGroup | null = null;
@@ -151,12 +153,29 @@ export const buildMessageRows = (
             flush();
             const resolvedName = resolveOwnerName(message, viewer, names);
             const isMine = isOwnMessage(message, viewer);
+            // Place Profile override: look up by the canonical uid — for my own
+            // messages that is my cloud id (the server rewrites ownerId on persist),
+            // matching the colorSeed/isOwnMessage logic.
+            // For my own messages the override may be keyed by either my cloud id
+            // (server-rewritten ownerId / sync) or my account id (the optimistic
+            // self-write uses the account uid) — try both. Others key by ownerId.
+            const place = isMine
+                ? (viewer.cloudUid ? placeProfiles[viewer.cloudUid] : undefined) ??
+                  (viewer.uid ? placeProfiles[viewer.uid] : undefined) ??
+                  (message.ownerId ? placeProfiles[message.ownerId] : undefined)
+                : message.ownerId
+                  ? placeProfiles[message.ownerId]
+                  : undefined;
+            const placeNick = place?.nick?.trim();
+            // Same single merge as every other surface (resolveDisplay): a Place
+            // nick/thumbnail overrides the global fallback resolved above.
+            const display = resolveDisplay(place, resolvedName ?? '', message.owner$?.thumbnail);
             currentGroup = {
                 key: message.id ?? message.tempId ?? `${message.channelId}:${message.chatNo}`,
                 ownerId: message.ownerId,
-                ownerName: resolvedName ?? 'Unknown',
-                namePending: resolvedName === null && membersLoading,
-                avatar: message.owner$?.thumbnail,
+                ownerName: display.name || 'Unknown',
+                namePending: !placeNick && resolvedName === null && membersLoading,
+                avatar: display.thumbnail,
                 isMine,
                 colorSeed: isMine
                     ? viewer.cloudUid || viewer.uid || message.ownerId || '?'
