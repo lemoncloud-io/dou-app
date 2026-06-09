@@ -39,7 +39,6 @@ export const HomePage = () => {
     const { channels, isLoading } = useChannels(selectedPlaceId ?? undefined);
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
     const selectChannel = useSelectedChannelStore(s => s.selectChannel);
-    const clearChannel = useSelectedChannelStore(s => s.clearChannel);
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
     const closeSettings = useChannelSettingsStore(s => s.close);
@@ -90,12 +89,6 @@ export const HomePage = () => {
         }
     }, [isDefaultMode, places, selectedPlaceId, selectPlace]);
 
-    // Reset the open channel when the active place changes; the next effect
-    // auto-selects the first channel of the newly-loaded place.
-    useEffect(() => {
-        clearChannel();
-    }, [selectedPlaceId, clearChannel]);
-
     // The settings panel belongs to one channel — close it when you switch away.
     useEffect(() => {
         closeSettings();
@@ -109,7 +102,12 @@ export const HomePage = () => {
             selectChannel(pending);
             return;
         }
-        if (!selectedChannelId && channels.length > 0) {
+        // Keep the current selection if it still exists in the loaded list (survives
+        // a HomePage remount after navigating to profile/settings and back). Fall back
+        // to the first channel only when the selection is absent — initial load, or a
+        // place switch where the prior channel doesn't exist in the new place.
+        const stillValid = !!selectedChannelId && channels.some(channel => channel.id === selectedChannelId);
+        if (!stillValid && channels.length > 0) {
             const firstId = channels[0]?.id;
             if (firstId) selectChannel(firstId);
         }

@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Check, Clock, Copy } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -116,14 +116,6 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
                                                 {t('chat.retry')}
                                             </button>
                                         )}
-                                    </span>
-                                )}
-                                {group.isMine && !isFailed && (
-                                    <span
-                                        className="absolute bottom-0 right-0 text-muted-foreground/60"
-                                        title={isPending ? t('chat.statusSending') : t('chat.statusSent')}
-                                    >
-                                        {isPending ? <Clock size={11} /> : <Check size={11} />}
                                     </span>
                                 )}
                                 {content && (

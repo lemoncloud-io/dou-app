@@ -115,7 +115,7 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
         <div className="px-4 pb-4 pt-1">
             <div
                 className={cn(
-                    'border-hairline flex items-end gap-2 rounded-xl border bg-elevated px-3 py-2 shadow-raised transition-colors ease-tactile',
+                    'border-hairline flex items-center gap-2 rounded-xl border bg-elevated px-3 py-2 shadow-raised transition-colors ease-tactile',
                     'focus-within:ring-2 focus-within:ring-primary/40'
                 )}
             >
