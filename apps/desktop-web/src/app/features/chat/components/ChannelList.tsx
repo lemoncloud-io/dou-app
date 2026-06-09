@@ -19,11 +19,11 @@ interface ChannelListProps {
 const lastMessagePreview = (channel: DomainChannel): string => channel.lastChat$?.content?.trim() ?? '';
 
 const ChannelSkeleton = () => (
-    <div role="status" aria-label="Loading channels" className="flex flex-col gap-1 p-2">
+    <div role="status" aria-label="Loading channels" className="flex flex-col gap-0.5 p-2">
         {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-2 px-3 py-2">
-                <Skeleton className="h-3 w-3 shrink-0 rounded-sm" />
-                <Skeleton className="h-3" style={{ width: `${45 + ((i * 13) % 40)}%` }} />
+            <div key={i} className="flex min-h-9 items-center gap-2 px-3 py-1.5">
+                <Skeleton className="h-3 w-3 shrink-0 rounded-sm bg-muted animate-pulse" />
+                <Skeleton className="h-3 bg-muted animate-pulse" style={{ width: `${45 + ((i * 13) % 40)}%` }} />
             </div>
         ))}
     </div>
@@ -49,15 +49,18 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onS
 
     if (channels.length === 0) {
         return (
-            <div className="flex flex-col items-center gap-1 px-4 py-10 text-center">
-                <span className="text-sm font-medium text-foreground">{t('chat.noChannels')}</span>
-                <span className="text-xs text-muted-foreground">{t('chat.noChannelsHint')}</span>
+            <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-hairline bg-well text-lg text-muted-foreground shadow-well">
+                    #
+                </span>
+                <span className="text-callout text-foreground">{t('chat.noChannels')}</span>
+                <span className="text-caption text-muted-foreground">{t('chat.noChannelsHint')}</span>
             </div>
         );
     }
 
     if (filtered.length === 0) {
-        return <div className="px-4 py-8 text-center text-sm text-muted-foreground">{t('sidebar.noMatches')}</div>;
+        return <div className="px-4 py-8 text-center text-callout text-muted-foreground">{t('sidebar.noMatches')}</div>;
     }
 
     const onKeyDown = (e: React.KeyboardEvent) => {
@@ -87,9 +90,8 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onS
                         title={channel.name ?? id}
                         aria-current={isActive ? 'true' : undefined}
                         className={cn(
-                            'relative flex min-w-0 flex-col gap-0.5 rounded-md px-3 py-1.5 text-left text-sm transition-colors',
-                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50',
-                            isActive ? 'bg-primary/15' : 'hover:bg-accent'
+                            'focus-ring relative flex min-h-9 min-w-0 flex-col justify-center gap-0.5 rounded-md px-3 py-1.5 text-left transition-colors duration-150 ease-tactile',
+                            isActive ? 'bg-accent' : 'hover:bg-accent/50'
                         )}
                     >
                         {isActive && (
@@ -102,18 +104,18 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onS
                             <span
                                 className={cn(
                                     'min-w-0 flex-1 truncate',
-                                    isActive || hasUnread ? 'font-semibold text-foreground' : 'text-muted-foreground'
+                                    isActive || hasUnread
+                                        ? 'text-heading text-foreground'
+                                        : 'text-callout text-muted-foreground'
                                 )}
                             >
                                 {channel.name ?? id}
                             </span>
                             {time && (
-                                <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
-                                    {time}
-                                </span>
+                                <span className="shrink-0 text-caption tabular-nums text-muted-foreground">{time}</span>
                             )}
                             {hasUnread && (
-                                <span className="shrink-0 rounded-full bg-badge-unread px-1.5 text-[11px] font-semibold tabular-nums text-badge-unread-foreground">
+                                <span className="shrink-0 rounded-full bg-badge-unread px-1.5 text-caption font-semibold tabular-nums text-badge-unread-foreground">
                                     {unread > 99 ? '99+' : unread}
                                 </span>
                             )}
@@ -121,8 +123,8 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onS
                         {preview && (
                             <span
                                 className={cn(
-                                    'w-full min-w-0 truncate pl-5 text-xs',
-                                    hasUnread ? 'text-foreground/80' : 'text-muted-foreground/70'
+                                    'w-full min-w-0 truncate pl-5 text-caption',
+                                    hasUnread ? 'text-foreground' : 'text-muted-foreground'
                                 )}
                             >
                                 {preview}

@@ -64,21 +64,19 @@ export const SidebarHeader = ({
     }, []);
 
     return (
-        <div className="flex flex-col gap-2 border-b border-border/60 px-3 pb-3 pt-3">
+        <div className="flex flex-col gap-2.5 border-b border-hairline px-3 pb-3 pt-3">
             {isDefaultMode ? (
-                <span className="truncate px-1 py-1 text-base font-bold text-sidebar-foreground">
-                    {t('place.home')}
-                </span>
+                <span className="truncate px-2 py-1.5 text-title text-sidebar-foreground">{t('place.home')}</span>
             ) : (
                 <DropdownMenu>
                     <DropdownMenuTrigger
-                        className="flex items-center justify-between gap-2 rounded-md px-1 py-1 text-left outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                        className="focus-ring tactile flex min-h-9 items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors ease-tactile hover:bg-accent disabled:opacity-50"
                         disabled={places.length === 0}
                     >
                         {showPlaceSkeleton ? (
                             <Skeleton className="h-5 w-28" />
                         ) : (
-                            <span className="truncate text-base font-bold text-sidebar-foreground">
+                            <span className="truncate text-title text-sidebar-foreground">
                                 {placeName(current) || t('place.none')}
                             </span>
                         )}
@@ -111,7 +109,7 @@ export const SidebarHeader = ({
                                         {placeName(place)}
                                     </span>
                                     {unread > 0 && (
-                                        <span className="ml-auto rounded-full bg-badge-unread px-1.5 text-[11px] font-semibold tabular-nums text-badge-unread-foreground">
+                                        <span className="ml-auto rounded-full bg-badge-unread px-1.5 text-caption font-semibold tabular-nums text-badge-unread-foreground">
                                             {unread > 99 ? '99+' : unread}
                                         </span>
                                     )}
@@ -132,18 +130,16 @@ export const SidebarHeader = ({
                     value={query}
                     onChange={e => onQueryChange(e.target.value)}
                     placeholder={t('sidebar.search')}
-                    className="h-8 bg-background pl-8 text-sm"
+                    className="focus-ring min-h-9 border-hairline bg-well pl-8 text-callout shadow-well transition-shadow ease-tactile"
                 />
             </div>
 
-            <div className="flex items-center justify-between px-1 pt-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {t('sidebar.channels')}
-                </span>
+            <div className="flex items-center justify-between px-2 pt-1">
+                <span className="text-overline text-muted-foreground">{t('sidebar.channels')}</span>
                 <button
                     onClick={onCreateChannel}
                     title={t('rail.addChannel')}
-                    className="flex h-5 w-5 items-center justify-center rounded text-base leading-none text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="focus-ring tactile -mr-1 flex h-9 w-9 items-center justify-center rounded-md text-base leading-none text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
                 >
                     +
                 </button>
