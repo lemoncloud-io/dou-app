@@ -1,0 +1,110 @@
+name: build-desktop-win
+
+# Windows-only Electron installer build. The combined `build-desktop` workflow runs a
+# mac+win matrix; a cancelled/failed mac job there blocks the shared release publish even
+# when win succeeds. This workflow builds just the Windows `.exe` on a windows-latest
+# runner and publishes it to its own rolling release, so a Windows build is never coupled
+# to macOS. Unsigned / ad-hoc, internal distribution (ADR-0003). Manual trigger; pick the
+# environment per run. Win path mirrors the proven `build-desktop` win job.
+on:
+    workflow_dispatch:
+        inputs:
+            env:
+                description: Target environment
+                type: choice
+                options:
+                    - dev
+                    - prod
+                default: dev
+
+# The desktop build never needs the mobile CocoaPods install the root postinstall runs —
+# skip it to save minutes and drop an unrelated failure surface.
+env:
+    SKIP_MOBILE_POD: '1'
+
+jobs:
+    build:
+        name: Build Windows installer (${{ inputs.env }})
+        runs-on: windows-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            # node-gyp (better-sqlite3 falls back to source build when no prebuild is fetched)
+            # needs distutils, removed from Python 3.12+. Pin 3.11 so the compile can succeed.
+            - name: Setup Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: '3.11'
+
+            # Cache the official Electron binary download so a transient github.com 504 on one
+            # run doesn't block the next (and to avoid re-downloading 100MB each time).
+            - name: Cache Electron download
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~\AppData\Local\electron\Cache
+                  key: electron-${{ runner.os }}-33.4.11
+
+            - name: Install dependencies
+              shell: bash
+              run: |
+                  for i in 1 2 3 4 5; do
+                    yarn install --frozen-lockfile && exit 0
+                    echo "install attempt $i failed (transient download?); retrying in 30s"
+                    sleep 30
+                  done
+                  exit 1
+
+            # Windows / unsigned: electron-builder builds an ad-hoc installer (no cert).
+            - name: Package Windows installer
+              shell: bash
+              run: yarn workspace @chatic/desktop package:win:${{ inputs.env }}
+
+            # Artifact is the transport to the release job below (and a fallback download).
+            - name: Upload installer artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: chatic-desktop-${{ inputs.env }}-win
+                  path: apps/desktop/release/*.exe
+                  if-no-files-found: error
+
+    release:
+        name: Publish GitHub Release
+        needs: build
+        if: ${{ needs.build.result == 'success' }}
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Download installer
+              uses: actions/download-artifact@v4
+              with:
+                  path: dist
+
+            - name: Publish rolling release
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  TAG: desktop-win-${{ inputs.env }}
+              run: |
+                  set -e
+                  VERSION=$(node -p "require('./apps/desktop/package.json').version")
+                  TITLE="DoU Desktop Windows (${{ inputs.env }}) v${VERSION}"
+                  PRERELEASE=""
+                  [ "${{ inputs.env }}" = "dev" ] && PRERELEASE="--prerelease"
+                  # Rolling release per env: drop the previous one so the tag always points at the
+                  # latest build and holds only the current installer (internal "grab latest").
+                  gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+                  gh release create "$TAG" dist/*/*.exe \
+                      --title "$TITLE" \
+                      --target "$GITHUB_SHA" \
+                      --notes "Unsigned internal Windows build (\`${{ inputs.env }}\`). \`.exe\` only. Build ${{ github.run_number }}, commit \`${GITHUB_SHA:0:7}\`." \
+                      $PRERELEASE
