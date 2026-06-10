@@ -22,8 +22,10 @@ const sortByName = (list: DomainChannel[]): DomainChannel[] =>
  * is cache-first; channel/chat/join events trigger a network-only refetch so
  * unread badges stay fresh — a new message from another user fires chat:create
  * (and join:update), not channel:update, so those must be subscribed too or the
- * channel row's unread count never moves. Results are sorted by recency and the
- * list is cleared on place switch so the previous place's channels don't flash.
+ * channel row's unread count never moves. Being invited to a brand-new channel
+ * fires join:create (a new membership, via the model push) — subscribe it too or
+ * the channel never appears until a manual refresh. Results are sorted by recency
+ * and the list is cleared on place switch so the previous place's channels don't flash.
  */
 export const useChannels = (placeId: string | undefined) => {
     const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
@@ -76,6 +78,7 @@ export const useChannels = (placeId: string | undefined) => {
             channelRepository.onChannelUpdated(refresh),
             channelRepository.onChannelDeleted(refresh),
             chatRepository.onChatCreated(applyIncomingChat),
+            joinRepository.onJoinCreated(refresh),
             joinRepository.onJoinUpdated(refresh),
         ];
 
