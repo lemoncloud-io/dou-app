@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo } from 'react';
+import { Suspense, useEffect } from 'react';
 import { I18nextProvider } from 'react-i18next';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -33,7 +33,7 @@ const ShellUnreadSync = () => {
         setByPlace(byPlace);
     }, [byPlace, setByPlace]);
 
-    const total = useMemo(() => Object.values(byPlace).reduce((sum, n) => sum + n, 0), [byPlace]);
+    const total = Object.values(byPlace).reduce((sum, n) => sum + n, 0);
     useDesktopBadge(total);
     useEffect(() => {
         document.title = total > 0 ? `(${total > 99 ? '99+' : total}) DoU` : 'DoU';
