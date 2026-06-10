@@ -149,12 +149,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
         withCompletionHandler completionHandler:
             @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        // 포그라운드에서도 알림 배너, 사운드, 배지를 정상적으로 표시하도록 시스템에 지시
-        if #available(iOS 14.0, *) {
-            completionHandler([.list, .badge, .sound])
-        } else {
-            completionHandler([.alert, .badge, .sound])
-        }
+        // RNCPushNotificationIOS에 알림을 전달하여 JS 측이 포그라운드 이벤트를 수신하도록 함
+        RNCPushNotificationIOS.didReceive(notification)
+        
+        // 포그라운드이므로 시스템 배너(배너, 사운드, 진동)를 화면에 노출하지 않음
+        completionHandler([])
     }
 }
 
