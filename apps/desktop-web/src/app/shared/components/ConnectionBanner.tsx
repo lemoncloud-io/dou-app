@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
+import { useGlobalLoader } from '@chatic/shared';
 import { cn } from '@chatic/lib/utils';
 import { useWebSocketV2Store } from '@chatic/socket';
 
@@ -13,10 +14,14 @@ export const ConnectionBanner = () => {
     const { t } = useTranslation();
     const status = useWebSocketV2Store(s => s.connectionStatus);
     const isVerified = useWebSocketV2Store(s => s.isVerified);
+    // A cloud/place switch intentionally tears the socket down and re-verifies;
+    // SwitchingOverlay already shows that progress. Surfacing "Reconnecting…" on
+    // top reads as a failure, so stay quiet while a deliberate switch is in flight.
+    const isSwitching = useGlobalLoader().isLoading;
 
     const offline = status === 'disconnected' || status === 'error';
     const reconnecting = status === 'connecting' || (status === 'connected' && !isVerified);
-    if (!offline && !reconnecting) return null;
+    if (isSwitching || (!offline && !reconnecting)) return null;
 
     return (
         <div
