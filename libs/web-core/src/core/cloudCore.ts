@@ -60,6 +60,8 @@ interface CloudCore {
     getInvitedCloud: (cloudId: string) => InvitedCloudBundle | null;
     /** Restore a captured invited-cloud bundle into the active session slots. */
     applyInvitedCloud: (cloudId: string) => boolean;
+    /** Forget a single invited cloud's captured session. */
+    clearInvitedCloud: (cloudId: string) => void;
     clearInvitedClouds: () => void;
     buildRequest: (config: AxiosRequestConfig) => RequestBuilder;
     refreshToken: (target?: string) => Promise<UserTokenView>;
@@ -147,6 +149,13 @@ export const cloudCore: CloudCore = {
         cloudCore.saveSelectedCloudId(cloudId);
         if (bundle.siteId) cloudCore.saveSelectedSiteId(bundle.siteId);
         return true;
+    },
+
+    clearInvitedCloud: (cloudId: string): void => {
+        const bundles = readInvitedBundles();
+        if (!(cloudId in bundles)) return;
+        delete bundles[cloudId];
+        coreStorage.set(CLOUD_INVITED_BUNDLES_KEY, JSON.stringify(bundles));
     },
 
     clearInvitedClouds: (): void => {

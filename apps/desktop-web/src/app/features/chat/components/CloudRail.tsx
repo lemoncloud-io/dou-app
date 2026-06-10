@@ -1,10 +1,23 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+
+import { X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { useWebCoreStore } from '@chatic/web-core';
 
 import { useJoinDialogStore } from '../../auth';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@chatic/ui-kit/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import {
     DropdownMenu,
@@ -14,7 +27,7 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
-import { type RailCloud, isPlaceholderName, useDisplayProfile } from '../../../shared';
+import { type RailCloud, isPlaceholderName, useDisplayProfile, useRemoveCloud } from '../../../shared';
 
 interface CloudRailProps {
     clouds: RailCloud[];
@@ -51,6 +64,25 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud, isS
     );
     const userInitial = selfName.charAt(0).toUpperCase() || '?';
 
+    // Cloud removal: invited clouds are forgotten locally, owned clouds are
+    // deleted on the backend — both gated behind a confirm dialog.
+    const { removeInvitedCloud, deleteOwnedCloud, isDeleting } = useRemoveCloud();
+    const [pendingRemove, setPendingRemove] = useState<RailCloud | null>(null);
+    const isOwnedRemoval = pendingRemove?.kind === 'owned';
+
+    const confirmRemove = async () => {
+        if (!pendingRemove) return;
+        const { id, kind } = pendingRemove;
+        try {
+            if (kind === 'owned') await deleteOwnedCloud(id);
+            else removeInvitedCloud(id);
+        } catch {
+            return; // keep the dialog open so the user can retry
+        }
+        if (id === activeCloudId) onSelectCloud('default');
+        setPendingRemove(null);
+    };
+
     return (
         <div className="flex h-full w-full flex-col items-center">
             <div className="flex flex-1 flex-col items-center gap-1.5 overflow-y-auto scrollbar-hide py-1">
@@ -62,41 +94,56 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud, isS
                 {clouds.map(cloud => {
                     const isActive = cloud.id === activeCloudId;
                     const isInactive = cloud.status && cloud.status !== 'active';
+                    // Home/Default can't be removed; owned + invited clouds can.
+                    const removable = cloud.kind !== 'home';
                     return (
-                        <button
-                            key={cloud.id}
-                            onClick={() => onSelectCloud(cloud.id)}
-                            disabled={isSwitching}
-                            title={cloud.name ?? cloud.id}
-                            aria-label={cloud.name ?? cloud.id}
-                            aria-current={isActive ? 'true' : undefined}
-                            className={cn(
-                                'group relative flex h-11 w-11 items-center justify-center text-callout font-semibold transition-all duration-150 ease-tactile tactile',
-                                'rounded-2xl hover:rounded-xl focus-ring',
-                                isActive
-                                    ? 'rounded-xl bg-primary text-primary-foreground shadow-raised'
-                                    : 'bg-rail-muted text-rail-foreground hover:bg-rail-muted/70',
-                                isInactive && 'opacity-50',
-                                // Block a second switch mid-handshake; dim non-active icons for feedback.
-                                isSwitching && 'cursor-not-allowed',
-                                isSwitching && !isActive && 'opacity-40'
-                            )}
-                        >
-                            {/* active indicator pill (Slack-style left bar) */}
-                            <span
+                        <div key={cloud.id} className="group relative">
+                            <button
+                                onClick={() => onSelectCloud(cloud.id)}
+                                disabled={isSwitching}
+                                title={cloud.name ?? cloud.id}
+                                aria-label={cloud.name ?? cloud.id}
+                                aria-current={isActive ? 'true' : undefined}
                                 className={cn(
-                                    'absolute -left-3 w-1 rounded-r-full bg-primary transition-all duration-150 ease-tactile',
-                                    isActive ? 'h-6' : 'h-0 group-hover:h-2'
+                                    'relative flex h-11 w-11 items-center justify-center text-callout font-semibold transition-all duration-150 ease-tactile tactile',
+                                    'rounded-2xl hover:rounded-xl focus-ring',
+                                    isActive
+                                        ? 'rounded-xl bg-primary text-primary-foreground shadow-raised'
+                                        : 'bg-rail-muted text-rail-foreground hover:bg-rail-muted/70',
+                                    isInactive && 'opacity-50',
+                                    // Block a second switch mid-handshake; dim non-active icons for feedback.
+                                    isSwitching && 'cursor-not-allowed',
+                                    isSwitching && !isActive && 'opacity-40'
                                 )}
-                            />
-                            {cloudInitial(cloud)}
-                            {isActive && hasUnread && (
+                            >
+                                {/* active indicator pill (Slack-style left bar) */}
                                 <span
-                                    aria-hidden
-                                    className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail bg-badge-unread shadow-raised"
+                                    className={cn(
+                                        'absolute -left-3 w-1 rounded-r-full bg-primary transition-all duration-150 ease-tactile',
+                                        isActive ? 'h-6' : 'h-0 group-hover:h-2'
+                                    )}
                                 />
+                                {cloudInitial(cloud)}
+                                {isActive && hasUnread && (
+                                    <span
+                                        aria-hidden
+                                        className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail bg-badge-unread shadow-raised"
+                                    />
+                                )}
+                            </button>
+                            {removable && (
+                                <button
+                                    type="button"
+                                    onClick={() => setPendingRemove(cloud)}
+                                    disabled={isSwitching}
+                                    aria-label={t('cloud.remove.action')}
+                                    title={t('cloud.remove.action')}
+                                    className="focus-ring absolute -right-1 -top-1 z-10 hidden h-4 w-4 items-center justify-center rounded-full border border-rail bg-destructive text-destructive-foreground shadow-raised transition-opacity group-hover:flex disabled:opacity-50"
+                                >
+                                    <X className="h-2.5 w-2.5" aria-hidden />
+                                </button>
                             )}
-                        </button>
+                        </div>
                     );
                 })}
             </div>
@@ -126,6 +173,38 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud, isS
                     <DropdownMenuItem onClick={() => void logout()}>{t('rail.menu.logout')}</DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
+
+            <AlertDialog open={!!pendingRemove} onOpenChange={open => !open && !isDeleting && setPendingRemove(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {t(isOwnedRemoval ? 'cloud.delete.title' : 'cloud.remove.title')}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {t(isOwnedRemoval ? 'cloud.delete.description' : 'cloud.remove.description')}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>{t('cloud.delete.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={isDeleting}
+                            onClick={e => {
+                                e.preventDefault();
+                                void confirmRemove();
+                            }}
+                            className={cn(
+                                isOwnedRemoval && 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                            )}
+                        >
+                            {isOwnedRemoval
+                                ? isDeleting
+                                    ? t('cloud.delete.deleting')
+                                    : t('cloud.delete.confirm')
+                                : t('cloud.remove.confirm')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

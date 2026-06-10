@@ -10,6 +10,8 @@ interface JoinedCloudsState {
     /** cloudId → cloud joined via invite, kept until the broker list reflects it. */
     joinedClouds: Record<string, JoinedCloud>;
     addJoinedCloud: (cloud: JoinedCloud) => void;
+    /** Forget an invite-joined cloud (remove it from the rail). */
+    removeJoinedCloud: (cloudId: string) => void;
 }
 
 /**
@@ -23,6 +25,11 @@ export const useJoinedCloudsStore = create<JoinedCloudsState>()(
         set => ({
             joinedClouds: {},
             addJoinedCloud: cloud => set(state => ({ joinedClouds: { ...state.joinedClouds, [cloud.id]: cloud } })),
+            removeJoinedCloud: cloudId =>
+                set(state => {
+                    const { [cloudId]: _removed, ...rest } = state.joinedClouds;
+                    return { joinedClouds: rest };
+                }),
         }),
         { name: 'chatic-joined-clouds' }
     )
