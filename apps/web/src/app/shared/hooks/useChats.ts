@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { logger } from '@chatic/bridges';
 import type { DomainChat, DomainListResult } from '@chatic/data';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
@@ -7,6 +7,7 @@ import { useRepositories } from '../data';
 import type { ClientChatView } from '../types';
 
 const DEFAULT_CHAT_LIMIT = 50;
+const PENDING_TIMEOUT_MS = 10_000; // 10초
 
 const toClientChat = (chat: DomainChat, userId?: string): ClientChatView => {
     const createdAt = chat.createdAt ?? Date.now();
@@ -36,49 +37,69 @@ const sortMessages = (messages: ClientChatView[]) =>
     });
 
 // 중복 메시지를 제거하고, chatNo 또는 timestamp 기준으로 정렬된 새 배열을 반환합니다.
+// incoming의 chatNo 범위(min~max)를 기준으로:
+//   - 범위 밖 existing 메시지는 보존 (loadMore로 로드된 이전/이후 메시지)
+//   - 범위 안 existing 메시지는 incoming에 있어야 보존 (없으면 삭제된 것으로 간주)
+//   - pending/failed 메시지는 항상 보존
 const mergeAndSortMessages = (existing: DomainChat[], incoming: DomainChat[]): DomainChat[] => {
-    // 기존 데이터를 기반으로 Map 초기화
     const messageMap = new Map<string, DomainChat>();
 
     // 안전한 ID 추출 헬퍼 함수
     const getMessageId = (msg: DomainChat) =>
         msg.id || (msg.chatNo !== undefined ? `${msg.channelId}:${msg.chatNo}` : undefined);
 
-    for (const msg of existing) {
-        const key = getMessageId(msg) || msg.tempId;
-        if (key) messageMap.set(key, msg);
-    }
+    // incoming의 chatNo 범위 계산
+    const incomingChatNos = incoming
+        .map(m => m.chatNo)
+        .filter((n): n is number => n !== undefined && n > 0 && n !== Number.MAX_SAFE_INTEGER);
+    const minIncomingChatNo = incomingChatNos.length > 0 ? Math.min(...incomingChatNos) : 0;
+    const maxIncomingChatNo = incomingChatNos.length > 0 ? Math.max(...incomingChatNos) : 0;
 
-    // 새로운(incoming) 데이터를 병합하면서, tempId가 있다면 기존 임시 메시지 교체
+    // incoming 기준으로 Map 구성 — 범위 내에서는 incoming이 source of truth
+    const incomingIds = new Set<string>();
     for (const msg of incoming) {
         const key = getMessageId(msg);
-
-        // incoming 메시지에 tempId가 명시되어 있다면, 기존에 존재하던 해당 tempId의 임시 메시지를 삭제
-        if (msg.tempId && messageMap.has(msg.tempId)) {
-            messageMap.delete(msg.tempId);
-        }
-
-        // 새 메시지를 Map에 추가 (같은 key가 있다면 덮어씀)
         if (key) {
             messageMap.set(key, msg);
-        } else if (msg.tempId) {
-            // key가 없고 tempId만 있는 낙관적 메시지인 경우
-            messageMap.set(msg.tempId, msg);
+            incomingIds.add(key);
         }
+        if (msg.tempId) incomingIds.add(msg.tempId);
+    }
+
+    // existing 처리
+    for (const msg of existing) {
+        const key = getMessageId(msg) || msg.tempId;
+        if (!key) continue;
+        if (incomingIds.has(key)) continue;
+        if (msg.tempId && incomingIds.has(msg.tempId)) continue;
+
+        // pending/failed는 항상 유지 (아직 캐시에 반영 안 된 낙관적 메시지)
+        if (msg.isPending || msg.isFailed) {
+            messageMap.set(key, msg);
+            continue;
+        }
+
+        // incoming 범위 밖 메시지는 보존 — loadMore로 로드된 메시지 또는 아직 incoming에 포함 안 된 최신 메시지
+        const chatNo = msg.chatNo;
+        if (chatNo !== undefined && chatNo > 0 && chatNo !== Number.MAX_SAFE_INTEGER) {
+            if (chatNo < minIncomingChatNo || chatNo > maxIncomingChatNo) {
+                messageMap.set(key, msg);
+                continue;
+            }
+        }
+
+        // incoming 범위 안인데 incoming에 없음 → 삭제된 것이므로 버림
     }
 
     // 정리된 메시지 목록을 정렬하여 반환
     return Array.from(messageMap.values()).sort((a, b) => {
-        // 낙관적 메시지(chatNo가 매우 큰 값) 처리 포함
         const aChatNo = a.chatNo ?? Number.MAX_SAFE_INTEGER;
         const bChatNo = b.chatNo ?? Number.MAX_SAFE_INTEGER;
 
         if (aChatNo !== bChatNo) {
-            // 정상 메시지들 또는 낙관적 메시지와의 비교
             return aChatNo - bChatNo;
         }
 
-        // chatNo가 같거나 둘 다 없는 경우 timestamp(createdAt)로 비교
         return (a.createdAt ?? 0) - (b.createdAt ?? 0);
     });
 };
@@ -96,6 +117,10 @@ export const useChats = (initialParams: ChatFeedPayload) => {
         isLoadingMore: false,
         isError: false,
     });
+    // 동시 loadMore 호출 방지 — React 배치 업데이트 전 연속 호출을 ref로 즉시 차단
+    const isLoadingMoreRef = useRef(false);
+    // loadMore 완료 후 쿨다운 — DOM 업데이트로 인한 스크롤 이벤트 연쇄 트리거 방지
+    const loadMoreCooldownRef = useRef(false);
 
     /**
      * 로컬 캐시 구독 — chat:feed 를 직접 호출하지 않고,
@@ -144,6 +169,48 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     const isLoading = domainMessages === null;
     const isEmpty = domainMessages !== null && domainMessages.length === 0;
 
+    // 전송중 메시지 만료 감지 — 30초 이상 pending이면 isFailed로 전환
+    useEffect(() => {
+        if (!domainMessages || domainMessages.length === 0) return;
+
+        const pendingMessages = domainMessages.filter(msg => msg.isPending && msg.createdAtMs > 0);
+        if (pendingMessages.length === 0) return;
+
+        const now = Date.now();
+        const expiredMessages = pendingMessages.filter(msg => now - msg.createdAtMs >= PENDING_TIMEOUT_MS);
+
+        for (const msg of expiredMessages) {
+            if (msg.id) {
+                void chatRepository.cacheUpdate(msg.id, {
+                    isPending: false,
+                    isFailed: true,
+                });
+            }
+        }
+
+        const remainingPending = pendingMessages.filter(msg => now - msg.createdAtMs < PENDING_TIMEOUT_MS);
+        if (remainingPending.length === 0) return;
+
+        const nearestExpiry = Math.min(...remainingPending.map(msg => PENDING_TIMEOUT_MS - (now - msg.createdAtMs)));
+
+        const timer = setTimeout(
+            () => {
+                const currentTime = Date.now();
+                for (const msg of remainingPending) {
+                    if (currentTime - msg.createdAtMs >= PENDING_TIMEOUT_MS && msg.id) {
+                        void chatRepository.cacheUpdate(msg.id, {
+                            isPending: false,
+                            isFailed: true,
+                        });
+                    }
+                }
+            },
+            Math.max(nearestExpiry, 100)
+        );
+
+        return () => clearTimeout(timer);
+    }, [domainMessages, chatRepository]);
+
     const messages = useMemo(() => {
         if (!domainMessages) return [];
         const clientMessages = domainMessages.map(chat => toClientChat(chat, userId));
@@ -151,8 +218,16 @@ export const useChats = (initialParams: ChatFeedPayload) => {
     }, [domainMessages, userId]);
 
     const loadMore = useCallback(() => {
-        if (!targetChannelId || feedCursorNo === undefined || feedCursorNo <= 1 || status.isLoadingMore) return;
+        if (
+            !targetChannelId ||
+            feedCursorNo === undefined ||
+            feedCursorNo <= 1 ||
+            isLoadingMoreRef.current ||
+            loadMoreCooldownRef.current
+        )
+            {return;}
 
+        isLoadingMoreRef.current = true;
         setStatus(prev => ({ ...prev, isLoadingMore: true, isError: false }));
 
         chatRepository
@@ -177,9 +252,15 @@ export const useChats = (initialParams: ChatFeedPayload) => {
                 setStatus(prev => ({ ...prev, isError: true }));
             })
             .finally(() => {
+                isLoadingMoreRef.current = false;
                 setStatus(prev => ({ ...prev, isLoadingMore: false }));
+                // DOM 업데이트 후 스크롤 이벤트로 인한 연쇄 loadMore 방지
+                loadMoreCooldownRef.current = true;
+                setTimeout(() => {
+                    loadMoreCooldownRef.current = false;
+                }, 500);
             });
-    }, [targetChannelId, feedCursorNo, pageSize, status.isLoadingMore, chatRepository]);
+    }, [targetChannelId, feedCursorNo, pageSize, chatRepository]);
 
     const hasMore = feedCursorNo !== undefined && feedCursorNo > 1;
 

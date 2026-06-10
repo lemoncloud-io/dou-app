@@ -31,7 +31,7 @@ import type {
 import { useRegisterDevice } from '@chatic/auth';
 import { useDynamicDeviceId } from '../../../shared/hooks/useDynamicDeviceId';
 import { useInviteMutations } from '../../../shared/hooks/useInviteMutations';
-import { markInvitePlaceSyncPending } from '../../../shared/hooks/usePlaces';
+import { markInvitePlaceSyncPending, markNameSetupPending } from '../../../shared/hooks/usePlaces';
 import { fetchInviteCodeInfo } from '../../chats/apis/invite-api';
 
 export const LoginPage = (): JSX.Element => {
@@ -123,26 +123,21 @@ export const LoginPage = (): JSX.Element => {
                 fetchInviteCodeInfo(code, backend)
                     .then(info => {
                         setInviteInfo(info);
-                        // GET 응답에서 사이트 정보 추출 (URL 파라미터 폴백)
-                        const name = info.cloudName ?? siteName;
-                        const id = info.cloudId ?? siteId;
-                        if (id && name) {
-                            setSiteInfo({ id, name });
-                        } else if (siteId && siteName) {
-                            setSiteInfo({ id: siteId, name: siteName });
-                        }
+                        // GET 응답에서 사이트 정보 추출 (URL 파라미터 → 응답 필드 → fallback)
+                        const name = info.cloudName ?? siteName ?? info.name ?? '';
+                        const id = info.cloudId ?? siteId ?? info.id ?? code;
+                        setSiteInfo({ id, name });
                     })
                     .catch(err => {
                         logger.warn('AUTH', '[LoginPage] GET invite-code failed, falling back to URL params', {
                             error: err,
                         });
-                        // 폴백: URL 파라미터 기반
-                        if (siteId && siteName) {
-                            setSiteInfo({ id: siteId, name: siteName });
-                        }
+                        // 폴백: URL 파라미터 또는 code 기반
+                        setSiteInfo({ id: siteId ?? code, name: siteName ?? '' });
                     });
-            } else if (siteId && siteName) {
-                setSiteInfo({ id: siteId, name: siteName });
+            } else {
+                // backend 없어도 초대 수락 UI는 표시 — URL 파라미터 또는 code 기반
+                setSiteInfo({ id: siteId ?? code, name: siteName ?? '' });
             }
         } else {
             handleDeviceRegistration();
@@ -245,6 +240,7 @@ export const LoginPage = (): JSX.Element => {
             // 6. Mark as invited + place 동기화 플래그 설정 (리로드 후 usePlaces에서 소비)
             setIsInvitedSession(true);
             markInvitePlaceSyncPending();
+            markNameSetupPending();
 
             // 7. Reset selected place, then pre-select the invited place
             cloudCore.clearSelectedPlace();

@@ -1,6 +1,6 @@
 import { ArrowLeftRight, Bell, Bug, ChevronDown, CircleAlert, EllipsisVertical, Search, User } from 'lucide-react';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -19,7 +19,7 @@ import { useLogout } from '@chatic/auth';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
-import { usePlaces } from '../../../shared/hooks/usePlaces';
+import { consumeNameSetupFlag, usePlaces } from '../../../shared/hooks/usePlaces';
 import { usePlaceUnreadCounts } from '../../../shared/hooks/usePlaceUnreadCounts';
 import { useChannels } from '../../../shared/hooks/useChannels';
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';
@@ -34,6 +34,7 @@ import { ChannelList } from '../components/ChannelList';
 import { CloudSessionSheet } from '../components/CloudSessionSheet';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
 import { CreatePlaceDialog } from '../components/CreatePlaceDialog';
+import { NameSetupDialog } from '../components/NameSetupDialog';
 import { PlaceList } from '../components/PlaceList';
 
 const IS_LOCAL = import.meta.env.VITE_ENV === 'LOCAL';
@@ -91,6 +92,14 @@ export const HomePage = () => {
     const [isReportIssueOpen, setIsReportIssueOpen] = useState(false);
     const [isDebugOpen, setIsDebugOpen] = useState(false);
     const [limitDialogType, setLimitDialogType] = useState<'place' | 'channel' | null>(null);
+    const [isNameSetupOpen, setIsNameSetupOpen] = useState(false);
+
+    // TODO: 이름 설정 다이얼로그 활성화 예정
+    // useEffect(() => {
+    //     if (consumeNameSetupFlag()) {
+    //         setIsNameSetupOpen(true);
+    //     }
+    // }, []);
 
     const handleLogout = () => {
         logout();
@@ -242,6 +251,7 @@ export const HomePage = () => {
                         showCreateButton={!isChannelsLoading && (isMyCloud || (isDefaultCloud && channelCount === 0))}
                         onCreateChannel={handleCreateChannel}
                         channelLimit={maxChannels}
+                        placeName={placesResult.places.find(p => p.id === selectedPlaceId)?.name}
                     />
                 ) : null}
             </section>
@@ -253,6 +263,7 @@ export const HomePage = () => {
             <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
             {isSearchOpen && <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />}
             <ReportIssueDialog open={isReportIssueOpen} onOpenChange={setIsReportIssueOpen} />
+            <NameSetupDialog open={isNameSetupOpen} onComplete={() => setIsNameSetupOpen(false)} />
             <LimitExceededDialog
                 open={limitDialogType !== null}
                 onOpenChange={open => !open && setLimitDialogType(null)}

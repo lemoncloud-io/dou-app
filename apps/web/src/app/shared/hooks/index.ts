@@ -11,5 +11,6 @@ export * from './useForegroundResync';
 export * from './useJoinPositions';
 export * from './usePlaceMutations';
 export * from './usePlaces';
+export * from './useSiteProfile';
 export * from './useUserMutations';
 export * from './useHandleAppMessage';

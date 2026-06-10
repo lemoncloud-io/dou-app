@@ -829,6 +829,44 @@
         "subscriptionRequired": "You can only add an account on your subscribed platform",
         "cloudUserRequired": "Only cloud users can add an account"
     },
+    "nameSetup": {
+        "title": "Set Your Name",
+        "description": "Enter the name you'd like to use in chat",
+        "placeholder": "Enter your name",
+        "save": "Save",
+        "skip": "Later",
+        "validation": {
+            "required": "Name is required",
+            "tooShort": "Name must be at least 2 characters"
+        }
+    },
+    "profileNameEdit": {
+        "title": "Change Name",
+        "description": "Change the name you use in chat",
+        "myName": "My name:",
+        "nameLabel": "Name",
+        "placeholder": "Enter your name",
+        "save": "Save",
+        "success": "Name has been changed",
+        "error": "Failed to change name",
+        "validation": {
+            "required": "Name is required",
+            "tooShort": "Name must be at least 2 characters"
+        }
+    },
+    "cloudNameEdit": {
+        "title": "Change Cloud Name",
+        "description": "Change the display name of your cloud.",
+        "nameLabel": "Cloud Name",
+        "placeholder": "Enter a name",
+        "save": "Save",
+        "success": "Cloud name has been changed.",
+        "error": "Failed to change the name.",
+        "validation": {
+            "required": "Please enter a name.",
+            "tooShort": "Must be at least 2 characters."
+        }
+    },
     "reportIssue": {
         "title": "Report Issue",
         "description": "Having a problem? Describe it and we'll look into it.",

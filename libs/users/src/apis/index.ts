@@ -6,6 +6,7 @@ import type {
     CloudDelegationTokenView,
     RegisterDeviceTokenBody,
     UserTokenView,
+    CloudBody,
     CloudView,
     CloudVerifyEmailBody,
     CloudVerifyEmailView,
@@ -36,6 +37,18 @@ export const fetchClouds = async (params: Params = {}): Promise<ListResult<Cloud
         })
         .setParams({ ...params, view: 'mine' })
         .execute<ListResult<CloudView> & { error?: string }>();
+
+    return throwIfApiError(data);
+};
+
+export const updateCloud = async (cloudId: string, body: CloudBody): Promise<CloudView> => {
+    const { data } = await webCore
+        .buildSignedRequest({
+            method: 'PUT',
+            baseURL: `${DOU_ENDPOINT}/clouds/${cloudId}`,
+        })
+        .setBody(body)
+        .execute<CloudView & { error?: string }>();
 
     return throwIfApiError(data);
 };

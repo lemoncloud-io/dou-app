@@ -13,7 +13,7 @@ import {
     User,
     X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
@@ -62,6 +62,8 @@ export const ChatRoomPage = () => {
 
     // 중복 읽음 처리 방지
     const lastReadChatNoRef = useRef<number | null>(null);
+    // loadMore 시 스크롤 위치 보존용
+    const scrollPreserveRef = useRef<number | null>(null);
 
     const dynamicProfile = useDynamicProfile();
     const { userType, currentWSS } = useUserContext();
@@ -182,6 +184,19 @@ export const ChatRoomPage = () => {
             window.removeEventListener(FOREGROUND_RESYNC_EVENT_NAME, handleForegroundResync);
         };
     }, [lastChatNo, stableChannelId, readMessage, isVerified]);
+
+    // loadMore 후 스크롤 위치 보정 — DOM 변경 직후, 브라우저 paint 전에 실행
+    // flex-col-reverse: scrollTop=0이 하단, 음수가 상단 방향
+    // 상단에 콘텐츠 추가 시 하단 앵커 기준 scrollTop을 그대로 복원하면 같은 위치 유지
+    useLayoutEffect(() => {
+        if (scrollPreserveRef.current === null) return;
+
+        const el = messagesEndRef.current;
+        if (!el) return;
+
+        el.scrollTop = scrollPreserveRef.current;
+        scrollPreserveRef.current = null;
+    }, [messages]);
 
     const prevMessageCountRef = useRef(messages.length);
     const prevLastMessageIdRef = useRef<string | undefined>(undefined);
@@ -307,11 +322,16 @@ export const ChatRoomPage = () => {
 
         const distanceFromTop = el.scrollHeight - el.clientHeight - Math.abs(el.scrollTop);
         if (distanceFromTop < 200) {
+            scrollPreserveRef.current = el.scrollTop;
             loadMore();
         }
     }, [hasMore, isLoadingMore, loadMore]);
 
-    const debouncedHandleScroll = useMemo(() => debounce(handleScroll, 100), [handleScroll]);
+    // ref로 최신 handleScroll을 참조 — debounce 인스턴스를 재생성하지 않아 orphaned timer 방지
+    const handleScrollRef = useRef(handleScroll);
+    handleScrollRef.current = handleScroll;
+
+    const debouncedHandleScroll = useMemo(() => debounce(() => handleScrollRef.current(), 100), []);
 
     const formatTime = (date: Date) => {
         const hours = date.getHours();
