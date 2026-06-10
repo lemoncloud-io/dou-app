@@ -2,19 +2,15 @@ import { WebBridgeClient } from './WebBridgeClient';
 import type { BridgeAdapter } from './adapters';
 import type { ResponseMessage } from '../common';
 import { BRIDGE_PROTOCOL_VERSION } from '../version';
-
 describe('WebBridgeClient Buffering & Detection', () => {
     let mockAdapter: jest.Mocked<BridgeAdapter>;
-
     beforeEach(() => {
         jest.useFakeTimers();
-
         // Mock adapter
         mockAdapter = {
             postMessage: jest.fn(),
             onMessage: jest.fn(),
         } as any;
-
         // Clean up window properties
         if (typeof window !== 'undefined') {
             delete (window as any).ReactNativeWebView;
@@ -22,7 +18,6 @@ describe('WebBridgeClient Buffering & Detection', () => {
             delete (window as any).webkit;
         }
     });
-
     afterEach(() => {
         if (typeof window !== 'undefined') {
             delete (window as any).ReactNativeWebView;
@@ -31,22 +26,17 @@ describe('WebBridgeClient Buffering & Detection', () => {
         }
         jest.useRealTimers();
     });
-
     it('should buffer post requests and flush them when bridge becomes available via polling', () => {
         const client = new WebBridgeClient({ adapter: mockAdapter });
-
         // Initially no bridge, so no post message sent
-        client.post('Ping' as any, { data: { payload: 'hello' } } as any);
+        client.post({ type: 'Ping', data: { payload: 'hello' } });
         expect(mockAdapter.postMessage).not.toHaveBeenCalled();
-
         // Simulate bridge becomes available
         (global as any).window.ReactNativeWebView = {
             postMessage: jest.fn(),
         };
-
         // Advance timer for polling (50ms interval)
         jest.advanceTimersByTime(50);
-
         // Buffered message should be flushed now
         expect(mockAdapter.postMessage).toHaveBeenCalledTimes(1);
         expect(mockAdapter.postMessage).toHaveBeenCalledWith(
@@ -56,32 +46,24 @@ describe('WebBridgeClient Buffering & Detection', () => {
             })
         );
     });
-
     it('should buffer request promises and resolve them after bridge becomes available and responds', async () => {
         const client = new WebBridgeClient({ adapter: mockAdapter });
-
         // Simulate a request
-        const requestPromise = client.request('Ping' as any, { data: { payload: 'test' } } as any);
-
+        const requestPromise = client.request({ type: 'Ping', data: { payload: 'test' } });
         // Initially buffered
         expect(mockAdapter.postMessage).not.toHaveBeenCalled();
-
         // Simulate bridge becomes available
         (global as any).window.ReactNativeWebView = {
             postMessage: jest.fn(),
         };
-
         // Advance timers to trigger polling detection
         jest.advanceTimersByTime(50);
-
         expect(mockAdapter.postMessage).toHaveBeenCalledTimes(1);
         const sentMessage = mockAdapter.postMessage.mock.calls[0][0] as any;
         const refId = sentMessage.refId;
         expect(refId).toBeDefined();
-
         // Capture the handleMessage callback registered on the adapter
         const onMessageCallback = mockAdapter.onMessage.mock.calls[0][0];
-
         // Simulate native response
         const mockResponse: ResponseMessage = {
             type: 'Pong' as any,
@@ -89,32 +71,23 @@ describe('WebBridgeClient Buffering & Detection', () => {
             success: true,
             data: { payload: 'test' },
         };
-
         onMessageCallback(mockResponse);
-
         const response = await requestPromise;
         expect(response).toEqual(mockResponse);
     });
-
     it('should start request timeout timer ONLY AFTER the request is actually dispatched to native', async () => {
         const client = new WebBridgeClient({ adapter: mockAdapter, timeoutMs: 1000 });
-
-        const requestPromise = client.request('Ping' as any, { data: { payload: 'test' } } as any);
-
+        const requestPromise = client.request({ type: 'Ping', data: { payload: 'test' } });
         // Advance time while buffered - timeout should NOT trigger because it hasn't dispatched
         jest.advanceTimersByTime(2000);
-
         // Simulate bridge becomes available
         (global as any).window.ReactNativeWebView = {
             postMessage: jest.fn(),
         };
         jest.advanceTimersByTime(50);
-
         expect(mockAdapter.postMessage).toHaveBeenCalledTimes(1);
-
         // Now that it has dispatched, let's advance time by 1000ms to trigger the timeout
         jest.advanceTimersByTime(1000);
-
         await expect(requestPromise).rejects.toEqual(
             expect.objectContaining({
                 code: 'TIMEOUT',
@@ -124,29 +97,37 @@ describe('WebBridgeClient Buffering & Detection', () => {
             })
         );
     });
-
+    it('should reject buffered requests when the native bridge never becomes available', async () => {
+        const client = new WebBridgeClient({
+            adapter: mockAdapter,
+            bridgeReadyTimeoutMs: 1000,
+        });
+        const requestPromise = client.request({ type: 'Ping', data: { payload: 'test' } });
+        jest.advanceTimersByTime(1000);
+        await expect(requestPromise).rejects.toEqual(
+            expect.objectContaining({
+                code: 'NATIVE_NOT_SUPPORTED',
+                requestType: 'Ping',
+                recoverable: true,
+            })
+        );
+        expect(mockAdapter.postMessage).not.toHaveBeenCalled();
+    });
     it('should dispatch immediately without buffering if bridge is already available at construction', () => {
         // Pre-configure bridge
         (global as any).window.ReactNativeWebView = {
             postMessage: jest.fn(),
         };
-
         const client = new WebBridgeClient({ adapter: mockAdapter });
-
-        client.post('Ping' as any, { data: { payload: 'instant' } } as any);
-
+        client.post({ type: 'Ping', data: { payload: 'instant' } });
         expect(mockAdapter.postMessage).toHaveBeenCalledTimes(1);
     });
-
     it('should support object-style post and request messages', async () => {
         (global as any).window.ReactNativeWebView = {
             postMessage: jest.fn(),
         };
-
         const client = new WebBridgeClient({ adapter: mockAdapter });
-
         client.post({ type: 'Ping', data: { payload: 'object-post' } } as any);
-
         expect(mockAdapter.postMessage).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: 'Ping',
@@ -155,18 +136,15 @@ describe('WebBridgeClient Buffering & Detection', () => {
                 refId: expect.any(String),
             })
         );
-
         const requestPromise = client.request({ type: 'Ping', data: { payload: 'object-request' } } as any);
         const sentRequest = mockAdapter.postMessage.mock.calls[1][0] as any;
         const onMessageCallback = mockAdapter.onMessage.mock.calls[0][0];
-
         onMessageCallback({
             type: 'Pong',
             refId: sentRequest.refId,
             success: true,
             data: { payload: 'object-request' },
         } as any);
-
         await expect(requestPromise).resolves.toEqual(
             expect.objectContaining({
                 type: 'Pong',
@@ -174,16 +152,12 @@ describe('WebBridgeClient Buffering & Detection', () => {
             })
         );
     });
-
     it('should send object-style OAuthLogin with provider inside data for app compatibility', () => {
         (global as any).window.ReactNativeWebView = {
             postMessage: jest.fn(),
         };
-
         const client = new WebBridgeClient({ adapter: mockAdapter });
-
         client.post({ type: 'OAuthLogin', data: { provider: 'google' } });
-
         expect(mockAdapter.postMessage).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: 'OAuthLogin',
@@ -193,41 +167,12 @@ describe('WebBridgeClient Buffering & Detection', () => {
         );
         expect(mockAdapter.postMessage.mock.calls[0][0]).not.toHaveProperty('provider');
     });
-
-    it('should normalize legacy overload payload params into data for current web to app compatibility', () => {
+    it('should preserve object-style metadata beside data payload', () => {
         (global as any).window.ReactNativeWebView = {
             postMessage: jest.fn(),
         };
-
         const client = new WebBridgeClient({ adapter: mockAdapter });
-
-        client.post('OAuthLogin' as any, { provider: 'google' } as any);
-
-        expect(mockAdapter.postMessage).toHaveBeenCalledWith(
-            expect.objectContaining({
-                type: 'OAuthLogin',
-                data: { provider: 'google' },
-                refId: expect.any(String),
-            })
-        );
-        expect(mockAdapter.postMessage.mock.calls[0][0]).not.toHaveProperty('provider');
-    });
-
-    it('should preserve legacy overload metadata while normalizing direct payload params', () => {
-        (global as any).window.ReactNativeWebView = {
-            postMessage: jest.fn(),
-        };
-
-        const client = new WebBridgeClient({ adapter: mockAdapter });
-
-        client.post(
-            'FetchAppLogBuffer' as any,
-            {
-                nonce: 'log-nonce',
-                count: 50,
-            } as any
-        );
-
+        client.post({ type: 'FetchAppLogBuffer', nonce: 'log-nonce', data: { count: 50 } });
         expect(mockAdapter.postMessage).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: 'FetchAppLogBuffer',
@@ -237,24 +182,20 @@ describe('WebBridgeClient Buffering & Detection', () => {
             })
         );
     });
-
     it('should reject response type mismatches with traceable protocol metadata', async () => {
         (global as any).window.ReactNativeWebView = {
             postMessage: jest.fn(),
         };
-
         const client = new WebBridgeClient({ adapter: mockAdapter });
-        const requestPromise = client.request('Ping' as any, { data: { payload: 'test' } } as any);
+        const requestPromise = client.request({ type: 'Ping', data: { payload: 'test' } });
         const sentRequest = mockAdapter.postMessage.mock.calls[0][0] as any;
         const onMessageCallback = mockAdapter.onMessage.mock.calls[0][0];
-
         onMessageCallback({
             type: 'OnFetchSafeArea',
             refId: sentRequest.refId,
             success: true,
             data: { top: 0, bottom: 0, left: 0, right: 0 },
         } as any);
-
         await expect(requestPromise).rejects.toEqual(
             expect.objectContaining({
                 code: 'RESPONSE_TYPE_MISMATCH',
@@ -265,17 +206,14 @@ describe('WebBridgeClient Buffering & Detection', () => {
             })
         );
     });
-
     it('should normalize legacy WebAppReady responses for compatibility', async () => {
         (global as any).window.ReactNativeWebView = {
             postMessage: jest.fn(),
         };
-
         const client = new WebBridgeClient({ adapter: mockAdapter });
-        const requestPromise = client.request('WebAppReady' as any, { data: {} } as any);
+        const requestPromise = client.request({ type: 'WebAppReady', data: {} });
         const sentRequest = mockAdapter.postMessage.mock.calls[0][0] as any;
         const onMessageCallback = mockAdapter.onMessage.mock.calls[0][0];
-
         onMessageCallback({
             type: 'WebAppReady',
             refId: sentRequest.refId,
@@ -283,7 +221,6 @@ describe('WebBridgeClient Buffering & Detection', () => {
             success: true,
             data: {},
         } as any);
-
         await expect(requestPromise).resolves.toEqual(
             expect.objectContaining({
                 type: 'OnWebAppReady',

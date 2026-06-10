@@ -2,7 +2,6 @@ import type {
     AppMessageData,
     AppMessageType,
     WebMessageData,
-    WebMessageRequestParams,
     WebMessageSuccessResponse,
     WebMessageType,
 } from '@chatic/app-messages';
@@ -15,11 +14,6 @@ export interface IWebBridgeClient {
      * [Web -> App] 응답을 기다리지 않는 단방향 전송 (Fire-and-Forget)
      */
     post<K extends WebMessageType>(message: WebMessageData<K>): void;
-    /**
-     * @deprecated 현재 Web -> 과거 App 호환을 위해서만 유지합니다.
-     * 새 호출부는 `post({ type, data })` message object 형태를 사용하세요.
-     */
-    post<K extends WebMessageType>(type: K, messageParams?: WebMessageRequestParams<K>): void;
 
     /**
      * [Web -> App] 앱에 요청을 보내고 결과를 비동기로 대기 (Request-Response)
@@ -27,15 +21,6 @@ export interface IWebBridgeClient {
     request<K extends WebMessageType>(
         message: WebMessageData<K>,
         options?: { timeoutMs?: number }
-    ): Promise<WebMessageSuccessResponse<K>>;
-    /**
-     * @deprecated 현재 Web -> 과거 App 호환을 위해서만 유지합니다.
-     * 새 호출부는 `request({ type, data }, options)` message object 형태를 사용하세요.
-     */
-    request<K extends WebMessageType>(
-        type: K,
-        messageParams?: WebMessageRequestParams<K>,
-        customTimeoutMs?: number
     ): Promise<WebMessageSuccessResponse<K>>;
 
     /**

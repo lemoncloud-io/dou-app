@@ -6,10 +6,8 @@ import {
     WEB_MESSAGE_RESPONSE_TYPE,
     type AppMessageData,
     type AppMessageType,
-    type BaseMessage,
     type BridgeError,
     type WebMessageData,
-    type WebMessageRequestParams,
     type WebMessageSuccessResponse,
     type WebMessageType,
 } from '@chatic/app-messages';
@@ -19,6 +17,8 @@ export interface WebBridgeClientConfig {
     adapter: BridgeAdapter;
     version?: string;
     timeoutMs?: number;
+    bridgeReadyTimeoutMs?: number;
+    isBridgeAvailable?: () => boolean;
     pendingBuffer?: IMessageQueue<RequestMessage>;
 }
 
@@ -36,48 +36,58 @@ export class WebBridgeClient implements IWebBridgeClient {
     private adapter: BridgeAdapter;
     private version: string;
     private timeoutMs: number;
+    private bridgeReadyTimeoutMs: number;
+    private isBridgeAvailable: () => boolean;
 
     private eventListeners = new Map<string, Set<(message: any) => void>>();
     private pendingRequests = new Map<string, PendingRequest>();
 
     private isReady = false;
+    private availabilityFailed = false;
     private pendingBuffer: IMessageQueue<RequestMessage>;
 
     constructor(config: WebBridgeClientConfig) {
         this.adapter = config.adapter;
         this.version = config.version ?? BRIDGE_PROTOCOL_VERSION;
         this.timeoutMs = config.timeoutMs ?? 10000;
+        this.bridgeReadyTimeoutMs = config.bridgeReadyTimeoutMs ?? 10000;
+        this.isBridgeAvailable = config.isBridgeAvailable ?? this.checkNativeBridgeAvailable;
         this.pendingBuffer = config.pendingBuffer ?? new MessageQueue();
 
         this.adapter.onMessage(this.handleMessage);
         this.initBridgeDetection();
     }
 
-    private checkBridgeAvailable(): boolean {
+    private checkNativeBridgeAvailable = (): boolean => {
         if (typeof window === 'undefined') return false;
         return !!(
             window.ReactNativeWebView?.postMessage ||
             window.ChaticMessageHandler?.postMessage ||
             window.webkit?.messageHandlers?.ChaticMessageHandler?.postMessage
         );
-    }
+    };
 
     private initBridgeDetection(): void {
-        if (this.checkBridgeAvailable()) {
+        if (this.isBridgeAvailable()) {
             this.isReady = true;
             this.flushBuffer();
             return;
         }
 
         const intervalId = setInterval(() => {
-            if (this.checkBridgeAvailable()) {
+            if (this.isBridgeAvailable()) {
                 clearInterval(intervalId);
                 this.isReady = true;
                 this.flushBuffer();
             }
         }, 50);
 
-        setTimeout(() => clearInterval(intervalId), 10000);
+        setTimeout(() => {
+            clearInterval(intervalId);
+            if (!this.isReady) {
+                this.failBufferedRequests();
+            }
+        }, this.bridgeReadyTimeoutMs);
     }
 
     private flushBuffer(): void {
@@ -118,6 +128,20 @@ export class WebBridgeClient implements IWebBridgeClient {
         }
 
         this.adapter.postMessage(message);
+    }
+
+    private failBufferedRequests(): void {
+        this.availabilityFailed = true;
+        this.pendingBuffer.clear();
+
+        this.pendingRequests.forEach(pending => {
+            if (pending.timeoutId) return;
+            pending.reject(this.createNativeNotSupportedError(pending.requestType));
+        });
+
+        [...this.pendingRequests.entries()].forEach(([refId, pending]) => {
+            if (!pending.timeoutId) this.pendingRequests.delete(refId);
+        });
     }
 
     private handleMessage = (message: ResponseMessage | EventMessage): void => {
@@ -176,66 +200,51 @@ export class WebBridgeClient implements IWebBridgeClient {
         return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
     }
 
-    public post<K extends WebMessageType>(message: WebMessageData<K>): void;
-    /**
-     * @deprecated 현재 Web -> 과거 App 호환을 위해서만 유지합니다.
-     * 새 호출부는 `post({ type, data })` message object 형태를 사용하세요.
-     */
-    public post<K extends WebMessageType>(type: K, messageParams?: WebMessageRequestParams<K>): void;
-    public post<K extends WebMessageType>(
-        messageOrType: K | WebMessageData<K>,
-        messageParams?: WebMessageRequestParams<K>
-    ): void {
-        const message = this.createRequestMessage(messageOrType, messageParams);
+    public post<K extends WebMessageType>(message: WebMessageData<K>): void {
+        const type = message.type;
+        if (this.availabilityFailed) {
+            console.warn(
+                `[WebBridgeClient] post [${String(type)}] 호출이 무시되었습니다. 네이티브 브릿지 인터페이스를 찾을 수 없습니다.`
+            );
+            return;
+        }
+
+        const requestMessage = this.createRequestMessage(message);
 
         if (!this.isReady) {
-            this.pendingBuffer.enqueue(message);
+            this.pendingBuffer.enqueue(requestMessage);
         } else {
-            this.adapter.postMessage(message);
+            this.adapter.postMessage(requestMessage);
         }
     }
 
     public request<K extends WebMessageType>(
         message: WebMessageData<K>,
         options?: { timeoutMs?: number }
-    ): Promise<WebMessageSuccessResponse<K>>;
-    /**
-     * @deprecated 현재 Web -> 과거 App 호환을 위해서만 유지합니다.
-     * 새 호출부는 `request({ type, data }, options)` message object 형태를 사용하세요.
-     */
-    public request<K extends WebMessageType>(
-        type: K,
-        messageParams?: WebMessageRequestParams<K>,
-        customTimeoutMs?: number
-    ): Promise<WebMessageSuccessResponse<K>>;
-    public request<K extends WebMessageType>(
-        messageOrType: K | WebMessageData<K>,
-        messageParamsOrOptions?: WebMessageRequestParams<K> | { timeoutMs?: number },
-        customTimeoutMs?: number
     ): Promise<WebMessageSuccessResponse<K>> {
-        const requestOptions =
-            typeof messageOrType === 'string' ? undefined : (messageParamsOrOptions as { timeoutMs?: number });
-        const messageParams =
-            typeof messageOrType === 'string' ? (messageParamsOrOptions as WebMessageRequestParams<K>) : undefined;
-        const requestType = typeof messageOrType === 'string' ? messageOrType : messageOrType.type;
+        const requestType = message.type;
         const expectedResponseType = WEB_MESSAGE_RESPONSE_TYPE[requestType];
+        if (this.availabilityFailed) {
+            return Promise.reject(this.createNativeNotSupportedError(requestType));
+        }
+
         return new Promise((resolve, reject) => {
-            const message = this.createRequestMessage(messageOrType, messageParams);
-            const refId = message.refId ?? this.generateRefId();
-            message.refId = refId;
+            const requestMessage = this.createRequestMessage(message);
+            const refId = requestMessage.refId ?? this.generateRefId();
+            requestMessage.refId = refId;
 
             this.pendingRequests.set(refId, {
                 resolve,
                 reject,
-                timeoutMs: customTimeoutMs ?? requestOptions?.timeoutMs ?? this.timeoutMs,
+                timeoutMs: options?.timeoutMs ?? this.timeoutMs,
                 requestType,
                 expectedResponseType,
             });
 
             if (!this.isReady) {
-                this.pendingBuffer.enqueue(message);
+                this.pendingBuffer.enqueue(requestMessage);
             } else {
-                this.dispatchRequest(message);
+                this.dispatchRequest(requestMessage);
             }
         });
     }
@@ -255,47 +264,12 @@ export class WebBridgeClient implements IWebBridgeClient {
         };
     }
 
-    private createRequestMessage<K extends WebMessageType>(
-        messageOrType: K | WebMessageData<K>,
-        messageParams?: WebMessageRequestParams<K>
-    ): RequestMessage {
-        if (typeof messageOrType !== 'string') {
-            return {
-                version: this.version,
-                ...messageOrType,
-                refId: messageOrType.refId ?? this.generateRefId(),
-            } as unknown as RequestMessage;
-        }
-
-        const normalizedParams = this.normalizeLegacyRequestParams(messageParams);
-
+    private createRequestMessage<K extends WebMessageType>(message: WebMessageData<K>): RequestMessage {
         return {
-            type: messageOrType,
-            ...normalizedParams,
-            version: normalizedParams.version ?? this.version,
-            refId: normalizedParams.refId ?? this.generateRefId(),
+            version: this.version,
+            ...message,
+            refId: message.refId ?? this.generateRefId(),
         } as unknown as RequestMessage;
-    }
-
-    private normalizeLegacyRequestParams<K extends WebMessageType>(
-        messageParams?: WebMessageRequestParams<K>
-    ): BaseMessage & { data: unknown } {
-        if (!messageParams) {
-            return { data: {} };
-        }
-
-        if ('data' in messageParams) {
-            return messageParams as BaseMessage & { data: unknown };
-        }
-
-        const params = messageParams as BaseMessage & Record<string, unknown>;
-        const { refId, version, nonce, ...payload } = params;
-        return {
-            refId,
-            version,
-            nonce,
-            data: payload,
-        };
     }
 
     private normalizeLegacyWebAppReady(message: ResponseMessage): WebMessageSuccessResponse<'WebAppReady'> {
@@ -324,6 +298,18 @@ export class WebBridgeClient implements IWebBridgeClient {
             requestType: pending.requestType,
             expectedResponseType: pending.expectedResponseType,
             actualResponseType,
+            protocolVersion: this.version,
+            webVersion: this.version,
+            recoverable: true,
+        };
+    }
+
+    private createNativeNotSupportedError(requestType: WebMessageType): BridgeError {
+        return {
+            code: 'NATIVE_NOT_SUPPORTED',
+            message: '일반 브라우저 환경에서는 네이티브 브릿지 기능을 사용할 수 없습니다.',
+            reason: 'No native bridge adapter became available before the configured readiness timeout.',
+            requestType,
             protocolVersion: this.version,
             webVersion: this.version,
             recoverable: true,
