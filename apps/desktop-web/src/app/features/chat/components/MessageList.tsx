@@ -202,8 +202,12 @@ export const MessageList = ({
             <div
                 ref={scrollRef}
                 onScroll={onScroll}
-                className="scrollbar-thin flex flex-1 flex-col gap-0.5 overflow-y-auto p-4"
+                className="scrollbar-thin flex flex-1 flex-col overflow-y-auto p-4"
             >
+                {/* mt-auto pins a sparse conversation to the bottom (Slack-style); it
+                    collapses to no effect once content overflows, so the scroll-anchor
+                    / jump-to-bottom math is unaffected. */}
+                <div className="flex flex-col gap-0.5 mt-auto">
                 {isLoadingOlder && (
                     <div className="flex justify-center py-2" role="status" aria-label={t('chat.loading')}>
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground motion-reduce:animate-none" />
@@ -225,6 +229,7 @@ export const MessageList = ({
                     return <MessageRow key={row.group.key} group={row.group} onRetry={onRetry} />;
                 })}
                 <div ref={bottomRef} />
+                </div>
             </div>
             {!atBottom &&
                 (newCount > 0 ? (
