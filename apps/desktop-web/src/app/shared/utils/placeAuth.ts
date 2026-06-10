@@ -1,6 +1,6 @@
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
-import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
+import type { UserProfile$, UserView } from '@lemoncloud/chatic-backend-api';
 
 import { waitForVerified } from './waitForVerified';
 
@@ -30,9 +30,16 @@ export const authPlace = async (placeId: string): Promise<void> => {
 
     const currentProfile = useWebCoreStore.getState().profile;
     const { Token: _token, ...cloudProfile } = refreshed;
-    // refreshed token only partially overlaps UserProfile$; the socket auth handshake
-    // populates the remaining required fields. Cast needed until UserProfile$ relaxes them.
-    useWebCoreStore.getState().setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
+    // The refreshed token is a flat UserView (id/name/…), not a UserProfile$. Preserve
+    // the structured identity (uid/$user) so a null/partial currentProfile (boot
+    // auto-select race, first login) never collapses the profile surface to "-" until a
+    // hard refresh re-fetches it. Cast needed until UserProfile$ relaxes the token fields.
+    useWebCoreStore.getState().setProfile({
+        ...currentProfile,
+        ...cloudProfile,
+        uid: currentProfile?.uid ?? (cloudProfile as { id?: string }).id,
+        $user: currentProfile?.$user ?? (cloudProfile as unknown as UserView),
+    } as unknown as UserProfile$);
 
     // useCloudTokenRefresh observes isVerified=false → emits auth:update.
     useWebSocketV2Store.getState().setIsVerified(false);

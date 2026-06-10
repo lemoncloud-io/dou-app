@@ -5,7 +5,23 @@ import { useWebSocketV2Store } from '@chatic/socket';
 
 import { useClouds } from '@chatic/users';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
-import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
+import type { UserProfile$, UserView } from '@lemoncloud/chatic-backend-api';
+
+/**
+ * Merge a cloud token's user fields onto the signed-in profile WITHOUT collapsing
+ * the canonical identity. The cloud token is a flat `UserView` (id/name/…), not a
+ * `UserProfile$` — so when `current` is absent (boot auto-select race, first login)
+ * a naive `{...current, ...cloudUser}` yields a UserView with no `uid`/`$user`, and
+ * every profile surface renders "-" until a hard refresh re-fetches the full profile.
+ * Always derive a structured `uid`/`$user` so that never happens.
+ */
+const mergeCloudProfile = (current: UserProfile$ | null, cloudUser: Partial<UserView>): UserProfile$ =>
+    ({
+        ...current,
+        ...cloudUser,
+        uid: current?.uid ?? (cloudUser as { id?: string }).id,
+        $user: current?.$user ?? (cloudUser as unknown as UserView),
+    }) as unknown as UserProfile$;
 
 export const getCloudSession = () => {
     const wss = cloudCore.getWss();
@@ -48,7 +64,7 @@ export const useCloudSession = () => {
 
             const currentProfile = useWebCoreStore.getState().profile;
             const { Token: _Token, ...cloudProfile } = userToken;
-            setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
+            setProfile(mergeCloudProfile(currentProfile, cloudProfile));
 
             // WebSocket store의 cloudId 업데이트 → usePlaces 등 데이터 훅이 재실행
             useWebSocketV2Store.getState().setCloudId(cloudId);
@@ -76,7 +92,7 @@ export const useCloudSession = () => {
             if (cloudToken) {
                 const currentProfile = useWebCoreStore.getState().profile;
                 const { Token: _Token, ...cloudProfile } = cloudToken;
-                setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
+                setProfile(mergeCloudProfile(currentProfile, cloudProfile));
             }
 
             // Land back on the invited place the bundle was captured with, then
