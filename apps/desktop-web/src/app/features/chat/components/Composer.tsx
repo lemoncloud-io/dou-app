@@ -85,7 +85,10 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
         onSend(trimmed);
         setValue('');
         clearDraft(channelId);
-        requestAnimationFrame(resize);
+        requestAnimationFrame(() => {
+            resize();
+            textareaRef.current?.focus();
+        });
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -123,12 +126,11 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
                     ref={textareaRef}
                     rows={1}
                     value={value}
-                    disabled={disabled}
                     onChange={e => handleChange(e.target.value)}
                     onKeyDown={handleKeyDown}
                     aria-label={placeholderText}
                     placeholder={placeholderText}
-                    className="max-h-40 flex-1 resize-none bg-transparent text-body text-foreground outline-none placeholder:text-placeholder disabled:opacity-50"
+                    className="max-h-40 flex-1 resize-none bg-transparent text-body text-foreground outline-none placeholder:text-placeholder"
                 />
                 <Popover>
                     <PopoverTrigger asChild>
