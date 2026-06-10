@@ -2,7 +2,7 @@ import type { EventMessage, RequestMessage, ResponseMessage } from '../../common
 
 /**
  * 웹(Web)과 앱(App) 환경 간의 물리적 통신 채널을 추상화한 어댑터 인터페이스입니다.
- * Native(실제 기기) 환경이나 Mock(테스트) 환경에 따라 다르게 구현하여 주입(DI)할 수 있습니다.
+ * Native(실제 기기) 환경이나 테스트 transport 환경에 따라 다르게 구현하여 주입(DI)할 수 있습니다.
  */
 export interface BridgeAdapter {
     /**
