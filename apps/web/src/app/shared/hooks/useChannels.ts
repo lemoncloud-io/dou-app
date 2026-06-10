@@ -275,11 +275,10 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     // subscribeList가 이를 감지하여 콜백을 호출합니다.
     // requestSeqRef를 건드리지 않으므로 fetchChannels의 network 응답이 drop되지 않습니다.
     useEffect(() => {
-        const params = currentParamsRef.current;
-        if (!params.sid) return;
+        if (!targetPlaceId) return;
 
         const unsub = channelRepository.subscribeList(
-            buildFetchPayload(params),
+            buildFetchPayload({ ...currentParamsRef.current, sid: targetPlaceId }),
             result => {
                 if (!result) return;
                 const nextChannels = sortChannels(

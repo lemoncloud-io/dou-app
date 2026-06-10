@@ -47,6 +47,7 @@ export const NameSetupDialog = ({ open, onComplete }: NameSetupDialogProps) => {
     };
 
     return (
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         <Dialog open={open} onOpenChange={() => {}}>
             <DialogContent className="h-full max-w-none rounded-none p-0 sm:rounded-none" hideClose>
                 <DialogTitle className="sr-only">{t('nameSetup.title')}</DialogTitle>
@@ -74,9 +75,7 @@ export const NameSetupDialog = ({ open, onComplete }: NameSetupDialogProps) => {
                                 className="h-11 rounded-[10px] border border-border bg-background px-3.5 text-[15px] font-medium leading-[1.45] tracking-[0.005em] text-foreground placeholder:text-muted-foreground"
                                 autoFocus
                             />
-                            {errors.name && (
-                                <span className="text-[12px] text-destructive">{errors.name.message}</span>
-                            )}
+                            {errors.name && <span className="text-[12px] text-destructive">{errors.name.message}</span>}
                         </div>
 
                         <div className="mt-auto flex flex-col gap-3 pb-safe-bottom">
@@ -85,11 +84,7 @@ export const NameSetupDialog = ({ open, onComplete }: NameSetupDialogProps) => {
                                 disabled={!isValidName || isSubmitting}
                                 className="flex h-[50px] items-center justify-center gap-1.5 rounded-full bg-[#B0EA10] px-6 py-3 text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-muted disabled:text-muted-foreground"
                             >
-                                {isSubmitting ? (
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                ) : (
-                                    t('nameSetup.save')
-                                )}
+                                {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : t('nameSetup.save')}
                             </Button>
                             <Button
                                 type="button"
