@@ -150,7 +150,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
             @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         // RNCPushNotificationIOS에 알림을 전달하여 JS 측이 포그라운드 이벤트를 수신하도록 함
-        RNCPushNotificationIOS.didReceive(notification)
+        RNCPushNotificationIOS.didReceiveRemoteNotification(notification.request.content.userInfo)
         
         // 포그라운드이므로 시스템 배너(배너, 사운드, 진동)를 화면에 노출하지 않음
         completionHandler([])
