@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 
-import { forceReconnect, useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
+import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useUserContext } from '@chatic/web-core';
 
 import { useDynamicDeviceId } from '../hooks/useDynamicDeviceId';
 import { useCloudTokenRefresh } from '../hooks/useCloudTokenRefresh';
 import { useCloudSession } from '../hooks/useCloudSession';
+import { useSocketSupervisor } from './useSocketSupervisor';
 
 export const WebSocketV2Connection = () => {
     const { deviceId } = useDynamicDeviceId();
@@ -16,6 +17,7 @@ export const WebSocketV2Connection = () => {
 
     // 현재 WSS 타입에 따라 endpoint 결정
     const endpoint = currentWSS === 'cloud' ? endpoints.cloudWSS : endpoints.relayWSS;
+    const connectionEnabled = !!deviceId && !isPending && !!endpoint;
 
     // cloudId 설정 (cloud WSS 사용 시만 실제 cloudId, 아니면 'default')
     const selectedCloudId = currentWSS === 'cloud' ? cloudCore.getSelectedCloudId() || 'default' : 'default';
@@ -41,35 +43,16 @@ export const WebSocketV2Connection = () => {
     useWebSocketV2({
         endpoint,
         connectParams: { deviceId },
-        enabled: !!deviceId && !isPending && !!endpoint,
+        enabled: connectionEnabled,
         wssType: currentWSS,
     });
 
     useCloudTokenRefresh();
 
-    // Force an immediate reconnect on network-restore and after OS sleep, instead
-    // of waiting out the package's backoff. After sleep no `visibilitychange`
-    // fires (the page stayed "visible"), so we detect resume via a wall-clock gap:
-    // if a timer tick lands far later than scheduled, timers were frozen → wake.
-    // forceReconnect no-ops when the socket is already healthy.
-    useEffect(() => {
-        const onOnline = () => forceReconnect();
-        window.addEventListener('online', onOnline);
-
-        const TICK_MS = 30_000;
-        const GAP_MS = 70_000; // > 2 ticks ⇒ frozen timers (sleep), not normal jitter
-        let last = Date.now();
-        const timer = window.setInterval(() => {
-            const now = Date.now();
-            if (now - last > GAP_MS) forceReconnect();
-            last = now;
-        }, TICK_MS);
-
-        return () => {
-            window.removeEventListener('online', onOnline);
-            window.clearInterval(timer);
-        };
-    }, []);
+    // Recover the socket on resume/online and via a foreground watchdog — covers
+    // the zombie-connection, stuck-disconnected, and wedged-handshake cases the
+    // package's own backoff can't self-heal (see useSocketSupervisor).
+    useSocketSupervisor({ enabled: connectionEnabled });
 
     return null;
 };

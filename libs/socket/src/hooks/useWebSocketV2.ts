@@ -175,6 +175,48 @@ export const forceReconnect = (): void => {
     void runtime.reconnect.restart();
 };
 
+/**
+ * Liveness probe: send a ping and wait for the pong. Resolves `false` when the
+ * socket is absent, not `connected`, or the ping times out. Use to detect a
+ * **zombie** socket — one the browser still reports as OPEN after OS sleep or a
+ * network change, so `state` stays `connected` and `forceReconnect` no-ops, yet
+ * no traffic flows. A failed probe is the signal to `restartSocket`.
+ */
+export const probeSocket = async (timeoutMs = 5000): Promise<boolean> => {
+    const client = globalClientRef;
+    if (!client || client.state !== 'connected') return false;
+    try {
+        await client.request('system.ping', null, { timeoutMs });
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+let restarting = false;
+
+/**
+ * Hard restart of the socket: full `runtime.stop()` + `start()` cycle. Unlike
+ * `forceReconnect` (which no-ops on a `connected` socket and, in the package,
+ * fails to reconnect after disconnecting a live one), this tears the connection
+ * down and rebuilds it from any state — including a zombie `connected` socket or
+ * a wedged auth handshake — re-running device.save + auth.update so the store
+ * re-verifies. This is the in-place equivalent of a page refresh's reconnect.
+ */
+export const restartSocket = async (): Promise<void> => {
+    const runtime = globalRuntimeRef;
+    if (!runtime || restarting) return;
+    restarting = true;
+    try {
+        await runtime.stop();
+        await runtime.start();
+    } catch (error) {
+        logger.error('SOCKET', '[WebSocketV2] restartSocket failed', { error });
+    } finally {
+        restarting = false;
+    }
+};
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
