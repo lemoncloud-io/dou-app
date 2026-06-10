@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { forceReconnect, probeSocket, restartSocket, useWebSocketV2Store } from '@chatic/socket';
+import { forceReconnect, isSocketRestarting, probeSocket, restartSocket, useWebSocketV2Store } from '@chatic/socket';
 
 /**
  * Time the socket may stay unhealthy before the watchdog forces recovery. The
@@ -49,9 +49,13 @@ export const useSocketSupervisor = ({ enabled }: SupervisorParams): void => {
 
         const cooldownOk = () => Date.now() - lastRecoverAt > RECOVER_COOLDOWN_MS;
 
-        // Pick the cheapest recovery that fits the current state.
+        // Pick the cheapest recovery that fits the current state. Bail while a
+        // restart is already in flight so the watchdog can't stack a second one
+        // mid-handshake. (No store-health short-circuit here: a zombie reads as
+        // healthy — connected + verified — so only the caller's probe can tell it
+        // apart, and the caller has already decided recovery is needed.)
         const recover = async () => {
-            if (disposed || !cooldownOk()) return;
+            if (disposed || isSocketRestarting() || !cooldownOk()) return;
             lastRecoverAt = Date.now();
             const { connectionStatus } = useWebSocketV2Store.getState();
             // Not connected → just kick the backoff. Connected (zombie or wedged
@@ -61,7 +65,10 @@ export const useSocketSupervisor = ({ enabled }: SupervisorParams): void => {
         };
 
         // Resume path: when the socket claims to be healthy, a zombie can only be
-        // ruled out by an actual round-trip — so probe before trusting it.
+        // ruled out by an actual round-trip — so probe before trusting it. The
+        // probe is authoritative: this branch is reached only when the store says
+        // connected, so nothing else is reconnecting underneath it (backoff runs
+        // only while disconnected; keepalive's ~50s window ≫ the probe).
         const onResume = async () => {
             if (disposed) return;
             const { connectionStatus, isVerified } = useWebSocketV2Store.getState();
@@ -73,15 +80,25 @@ export const useSocketSupervisor = ({ enabled }: SupervisorParams): void => {
             if (!alive) await recover();
         };
 
-        const onVisible = () => {
-            if (document.visibilityState === 'visible') void onResume();
+        // online + focus + visibilitychange routinely co-fire on a single
+        // network-restore or alt-tab — collapse the burst into one probe.
+        let resumeTimer: ReturnType<typeof setTimeout> | null = null;
+        const scheduleResume = () => {
+            if (resumeTimer) clearTimeout(resumeTimer);
+            resumeTimer = setTimeout(() => {
+                resumeTimer = null;
+                void onResume();
+            }, 200);
         };
-        const onFocus = () => void onResume();
-        const onOnline = () => void onResume();
+
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') scheduleResume();
+        };
+        const onFocusOrOnline = () => scheduleResume();
 
         document.addEventListener('visibilitychange', onVisible);
-        window.addEventListener('focus', onFocus);
-        window.addEventListener('online', onOnline);
+        window.addEventListener('focus', onFocusOrOnline);
+        window.addEventListener('online', onFocusOrOnline);
 
         const watchdog = window.setInterval(() => {
             if (document.visibilityState !== 'visible') return;
@@ -93,14 +110,18 @@ export const useSocketSupervisor = ({ enabled }: SupervisorParams): void => {
                 unhealthySince = Date.now();
                 return;
             }
-            if (Date.now() - unhealthySince > UNHEALTHY_GRACE_MS) void recover();
+            if (Date.now() - unhealthySince > UNHEALTHY_GRACE_MS) {
+                unhealthySince = 0; // re-arm so a cooldown-blocked tick doesn't re-fire every interval
+                void recover();
+            }
         }, WATCHDOG_MS);
 
         return () => {
             disposed = true;
+            if (resumeTimer) clearTimeout(resumeTimer);
             document.removeEventListener('visibilitychange', onVisible);
-            window.removeEventListener('focus', onFocus);
-            window.removeEventListener('online', onOnline);
+            window.removeEventListener('focus', onFocusOrOnline);
+            window.removeEventListener('online', onFocusOrOnline);
             window.clearInterval(watchdog);
         };
     }, [enabled]);

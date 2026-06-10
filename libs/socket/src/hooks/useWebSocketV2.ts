@@ -195,6 +195,9 @@ export const probeSocket = async (timeoutMs = 5000): Promise<boolean> => {
 
 let restarting = false;
 
+/** True while a `restartSocket()` cycle is in flight — gate recovery on it. */
+export const isSocketRestarting = (): boolean => restarting;
+
 /**
  * Hard restart of the socket: full `runtime.stop()` + `start()` cycle. Unlike
  * `forceReconnect` (which no-ops on a `connected` socket and, in the package,
@@ -209,6 +212,10 @@ export const restartSocket = async (): Promise<void> => {
     restarting = true;
     try {
         await runtime.stop();
+        // React may have torn the connection down mid-restart (cloud switch,
+        // logout → globals nulled + a fresh runtime started). Don't revive the
+        // orphaned one — that would leak a socket.
+        if (globalRuntimeRef !== runtime) return;
         await runtime.start();
     } catch (error) {
         logger.error('SOCKET', '[WebSocketV2] restartSocket failed', { error });
