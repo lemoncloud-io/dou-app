@@ -5,12 +5,12 @@ import type { NavigationProp, RouteProp } from '@react-navigation/native';
 
 import { WEBVIEW_URL } from '../utils/constants';
 import { logger } from '../../services';
-import type { MainStackParamList } from '../../features/core/navigation/type';
+import type { MainStackParamList } from '../../features/core/navigation';
 
-export const toLocalUrl = (url: string): string => {
+export const toLocalUrl = (url: string, webViewBaseUrl = WEBVIEW_URL): string => {
     try {
         if (url.startsWith('/')) {
-            const baseUrl = WEBVIEW_URL.endsWith('/') ? WEBVIEW_URL.slice(0, -1) : WEBVIEW_URL;
+            const baseUrl = webViewBaseUrl.endsWith('/') ? webViewBaseUrl.slice(0, -1) : webViewBaseUrl;
             return `${baseUrl}${url}`;
         }
 
@@ -26,7 +26,7 @@ export const toLocalUrl = (url: string): string => {
         }
 
         const parsed = new URL(normalized);
-        const baseUrl = WEBVIEW_URL.endsWith('/') ? WEBVIEW_URL.slice(0, -1) : WEBVIEW_URL;
+        const baseUrl = webViewBaseUrl.endsWith('/') ? webViewBaseUrl.slice(0, -1) : webViewBaseUrl;
 
         let pathname = parsed.pathname;
         if (!pathname.startsWith('/')) {
@@ -40,10 +40,10 @@ export const toLocalUrl = (url: string): string => {
             const schemeMatch = url.match(/^[a-zA-Z][a-zA-Z0-9+\-.]*:\/\/(.*)/);
             const pathAndQuery = schemeMatch ? schemeMatch[1] : url;
             const cleanPath = pathAndQuery.startsWith('/') ? pathAndQuery : `/${pathAndQuery}`;
-            const baseUrl = WEBVIEW_URL.endsWith('/') ? WEBVIEW_URL.slice(0, -1) : WEBVIEW_URL;
+            const baseUrl = webViewBaseUrl.endsWith('/') ? webViewBaseUrl.slice(0, -1) : webViewBaseUrl;
             return `${baseUrl}${cleanPath}`;
         } catch {
-            return WEBVIEW_URL;
+            return webViewBaseUrl;
         }
     }
 };
@@ -98,9 +98,15 @@ const resolveDeepLinkRouteParams = (params: unknown): ResolvedDeepLinkRouteParam
 
 export const useWebViewDeepLink = (
     webViewRef: React.RefObject<WebView | null>,
-    route: RouteProp<MainStackParamList, 'Main'>
+    route: RouteProp<MainStackParamList, 'Main'>,
+    options?: {
+        webViewBaseUrl?: string;
+        reloadToken?: number;
+    }
 ) => {
     const navigation = useNavigation<NavigationProp<MainStackParamList>>();
+    const webViewBaseUrl = options?.webViewBaseUrl || WEBVIEW_URL;
+    const reloadToken = options?.reloadToken ?? 0;
     const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
     const resolvedRouteParams = resolveDeepLinkRouteParams(route.params);
 
@@ -109,19 +115,20 @@ export const useWebViewDeepLink = (
     const hasHandledInitialUrl = useRef(false);
     const pendingRedirectUrlRef = useRef<string | null>(null);
     const handledRouteUrlRef = useRef<string | null>(null);
+    const lastReloadTokenRef = useRef(reloadToken);
 
     // WebView source setup
     const [source, setSource] = useState<{ uri: string }>(() => {
         if (initialError) {
-            return { uri: WEBVIEW_URL };
+            return { uri: webViewBaseUrl };
         }
         if (initialUrlParam) {
-            const targetUrl = toLocalUrl(initialUrlParam);
+            const targetUrl = toLocalUrl(initialUrlParam, webViewBaseUrl);
             logger.info('DEEPLINK', `Cold start deep link configured on mount: ${targetUrl}`);
             hasHandledInitialUrl.current = true;
             return { uri: targetUrl };
         }
-        return { uri: WEBVIEW_URL };
+        return { uri: webViewBaseUrl };
     });
 
     const [deepLinkError, setDeepLinkError] = useState(!!initialError);
@@ -183,6 +190,18 @@ export const useWebViewDeepLink = (
         }
     }, [redirectWebView]);
 
+    useEffect(() => {
+        if (reloadToken === lastReloadTokenRef.current) return;
+
+        lastReloadTokenRef.current = reloadToken;
+        setIsWebViewLoaded(false);
+        hasHandledInitialUrl.current = false;
+        pendingRedirectUrlRef.current = null;
+        handledRouteUrlRef.current = null;
+        setSource({ uri: webViewBaseUrl });
+        logger.info('WEBVIEW', 'WebView source reset by debug settings', { webViewBaseUrl, reloadToken });
+    }, [reloadToken, webViewBaseUrl]);
+
     // Handle warm start deep links via route.params updates
     useEffect(() => {
         logger.info('DEEPLINK', '[useWebViewDeepLink] Route params effect triggered', {
@@ -230,7 +249,7 @@ export const useWebViewDeepLink = (
         }
         handledRouteUrlRef.current = url;
 
-        const targetUrl = appendRedirectNonce(toLocalUrl(url));
+        const targetUrl = appendRedirectNonce(toLocalUrl(url, webViewBaseUrl));
         logger.info('DEEPLINK', '[useWebViewDeepLink] Warm-start URL converted for WebView', {
             rawUrl: url,
             targetUrl,
@@ -258,6 +277,7 @@ export const useWebViewDeepLink = (
         redirectWebView,
         clearDeepLinkRouteParams,
         source.uri,
+        webViewBaseUrl,
         webViewRef,
     ]);
 

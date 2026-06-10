@@ -1,5 +1,5 @@
 import { createContext, useEffect, useState } from 'react';
-import { isNative } from '@chatic/bridges';
+import { isNative, webClient } from '@chatic/bridges';
 
 export type Theme = 'dark' | 'light' | 'system';
 
@@ -28,6 +28,7 @@ export function ThemeProvider({
     ...props
 }: ThemeProviderProps) {
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(storageKey) as Theme) || defaultTheme);
+    const isOnMobileApp = isNative();
 
     useEffect(() => {
         const root = window.document.documentElement;
@@ -46,17 +47,15 @@ export function ThemeProvider({
 
     // Sync theme with native app (following SetLanguage pattern)
     useEffect(() => {
-        const isOnMobileApp = isNative();
         if (!isOnMobileApp) return;
 
-        postMessage({
-            type: 'SavePreference',
+        webClient.post('SavePreference', {
             data: {
                 key: 'theme',
                 value: theme,
             },
         });
-    }, [theme]);
+    }, [theme, isOnMobileApp]);
 
     const value = {
         theme,

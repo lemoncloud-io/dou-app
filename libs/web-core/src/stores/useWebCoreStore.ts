@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import type { OAuthLoginProvider } from '@chatic/app-messages';
-import { isNative, logger } from '@chatic/bridges';
+import { isNative, logger, webClient } from '@chatic/bridges';
 
 import { updateProfile } from '../api';
 import { cloudCore, coreStorage, LANGUAGE_KEY, resetWebCoreInit, startWebCoreInit, webCore } from '../core';
@@ -212,7 +212,7 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         const oauthProvider = getOAuthProvider();
         const isOnMobileApp = isNative();
         if (oauthProvider && isOnMobileApp) {
-            postMessage({ type: 'OAuthLogout', data: { provider: oauthProvider } });
+            webClient.post('OAuthLogout', { data: { provider: oauthProvider } });
         }
         setOAuthProvider(null);
 

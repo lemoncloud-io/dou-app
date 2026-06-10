@@ -829,6 +829,44 @@
         "subscriptionRequired": "구독 중인 플랫폼에서만 계정을 추가할 수 있어요",
         "cloudUserRequired": "클라우드 사용자만 계정을 추가할 수 있어요"
     },
+    "nameSetup": {
+        "title": "이름 설정",
+        "description": "채팅에서 사용할 이름을 입력해주세요",
+        "placeholder": "이름을 입력하세요",
+        "save": "저장",
+        "skip": "나중에",
+        "validation": {
+            "required": "이름을 입력해주세요",
+            "tooShort": "이름은 2자 이상이어야 합니다"
+        }
+    },
+    "profileNameEdit": {
+        "title": "이름 변경",
+        "description": "채팅에서 사용할 이름을 변경해주세요",
+        "myName": "내 이름:",
+        "nameLabel": "이름",
+        "placeholder": "이름을 입력하세요",
+        "save": "저장",
+        "success": "이름이 변경되었습니다",
+        "error": "이름 변경에 실패했습니다",
+        "validation": {
+            "required": "이름을 입력해주세요",
+            "tooShort": "이름은 2자 이상이어야 합니다"
+        }
+    },
+    "cloudNameEdit": {
+        "title": "클라우드 이름 변경",
+        "description": "클라우드의 표시 이름을 변경합니다.",
+        "nameLabel": "클라우드 이름",
+        "placeholder": "이름을 입력하세요",
+        "save": "저장",
+        "success": "클라우드 이름이 변경되었습니다.",
+        "error": "이름 변경에 실패했습니다.",
+        "validation": {
+            "required": "이름을 입력해주세요.",
+            "tooShort": "2자 이상 입력해주세요."
+        }
+    },
     "reportIssue": {
         "title": "이슈 보고",
         "description": "문제가 발생했나요? 내용을 적어주시면 확인 후 개선하겠습니다.",

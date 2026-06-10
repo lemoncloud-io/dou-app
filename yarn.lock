@@ -3112,14 +3112,14 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-sockets-api@^0.26.519":
+"@lemoncloud/chatic-sockets-api@0.26.519":
   version "0.26.519"
   resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.519.tgz#ff2864f8b28be251ce791b00bf1a73d0df60f9a9"
   integrity sha512-YiHspWE7Sc4aF/0zyfmK9mifq9uEm+BoxV19LrYYHnjxweQroDF0Jxtb6RyJrKWcLQH/M3Y3YxOnXsS/rRkjWQ==
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-sockets-lib@^0.2.0":
+"@lemoncloud/chatic-sockets-lib@0.2.0":
   version "0.2.0"
   resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.2.0.tgz#75eb1164baa8ff0adbed02afb2dd43d5a7c14446"
   integrity sha512-KcHyjE2JI201YcwQ4Nhw2NrFHpPwnV/RJ0Oe7FveBWN6gkvemF7OtJK09cHV168/8guZuFdupZySqk+/zdNGIw==

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useServices } from '../../../hooks';
+import { useDebugTheme } from '../theme';
 
 type LogType = 'info' | 'success' | 'error';
 
@@ -23,6 +24,7 @@ interface LogItem {
 }
 
 export const SmsTestScreen = () => {
+    const colors = useDebugTheme();
     const insets = useSafeAreaInsets();
     const { smsService, deviceService, logService: logger } = useServices();
 
@@ -139,12 +141,12 @@ export const SmsTestScreen = () => {
     };
 
     return (
-        <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
+        <View style={[styles.screen, { paddingBottom: insets.bottom, backgroundColor: colors.background }]}>
             {/* Header */}
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>SMS Service Test</Text>
+            <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>SMS Service Test</Text>
                 <TouchableOpacity onPress={handleClearLogs} style={styles.clearButton}>
-                    <Text style={styles.clearButtonText}>Clear Logs</Text>
+                    <Text style={[styles.clearButtonText, { color: colors.subtleText }]}>Clear Logs</Text>
                 </TouchableOpacity>
             </View>
 
@@ -152,13 +154,16 @@ export const SmsTestScreen = () => {
             <ScrollView style={styles.form} keyboardShouldPersistTaps="handled">
                 <View style={styles.inputGroup}>
                     <View style={styles.inputHeader}>
-                        <Text style={styles.label}>Recipients (Comma-separated)</Text>
+                        <Text style={[styles.label, { color: colors.mutedText }]}>Recipients (Comma-separated)</Text>
                         <TouchableOpacity style={styles.contactPickButton} onPress={handleFetchContacts}>
                             <Text style={styles.contactPickText}>+ Contacts</Text>
                         </TouchableOpacity>
                     </View>
                     <TextInput
-                        style={styles.textInput}
+                        style={[
+                            styles.textInput,
+                            { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text },
+                        ]}
                         placeholder="e.g. 01012345678, 01087654321"
                         placeholderTextColor="#555"
                         value={recipients}
@@ -168,9 +173,13 @@ export const SmsTestScreen = () => {
                 </View>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Message Body</Text>
+                    <Text style={[styles.label, { color: colors.mutedText }]}>Message Body</Text>
                     <TextInput
-                        style={[styles.textInput, styles.multilineInput]}
+                        style={[
+                            styles.textInput,
+                            styles.multilineInput,
+                            { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text },
+                        ]}
                         placeholder="Enter message text here"
                         placeholderTextColor="#555"
                         value={message}
@@ -186,8 +195,12 @@ export const SmsTestScreen = () => {
             </ScrollView>
 
             {/* Logs Area */}
-            <View style={styles.logContainer}>
-                <Text style={styles.logHeader}>Console Logs</Text>
+            <View
+                style={[styles.logContainer, { backgroundColor: colors.logBackground, borderTopColor: colors.border }]}
+            >
+                <Text style={[styles.logHeader, { backgroundColor: colors.surface, color: colors.subtleText }]}>
+                    Console Logs
+                </Text>
                 <FlatList
                     ref={flatListRef}
                     data={logs}
@@ -195,7 +208,9 @@ export const SmsTestScreen = () => {
                     renderItem={renderLogItem}
                     style={styles.logList}
                     contentContainerStyle={styles.logContent}
-                    ListEmptyComponent={<Text style={styles.emptyText}>로그가 비어있습니다.</Text>}
+                    ListEmptyComponent={
+                        <Text style={[styles.emptyText, { color: colors.subtleText }]}>로그가 비어있습니다.</Text>
+                    }
                 />
             </View>
 
@@ -239,7 +254,9 @@ export const SmsTestScreen = () => {
                                 );
                             }}
                             ListEmptyComponent={
-                                <Text style={styles.emptyText}>No contacts available with phone numbers.</Text>
+                                <Text style={[styles.emptyText, { color: colors.subtleText }]}>
+                                    No contacts available with phone numbers.
+                                </Text>
                             }
                         />
                     </View>

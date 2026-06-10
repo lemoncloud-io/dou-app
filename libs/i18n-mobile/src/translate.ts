@@ -1,15 +1,15 @@
 import { en, ko } from './locales';
 
-import type { TranslationKey } from './types';
+import type { TranslationKey, TranslationTree } from './types';
 
-const translations: Record<string, typeof en> = { en, ko };
+const translations: Record<string, TranslationTree> = { en, ko };
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 
 /**
  * Get all translations for a given language
  */
-export const getTranslations = (lang: string): typeof en => {
+export const getTranslations = (lang: string): TranslationTree => {
     return translations[lang] ?? translations.en;
 };
 

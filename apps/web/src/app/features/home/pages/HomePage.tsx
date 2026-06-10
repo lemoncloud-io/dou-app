@@ -1,6 +1,6 @@
 import { ArrowLeftRight, Bell, Bug, ChevronDown, CircleAlert, EllipsisVertical, Search, User } from 'lucide-react';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -242,6 +242,7 @@ export const HomePage = () => {
                         showCreateButton={!isChannelsLoading && (isMyCloud || (isDefaultCloud && channelCount === 0))}
                         onCreateChannel={handleCreateChannel}
                         channelLimit={maxChannels}
+                        placeName={placesResult.places.find(p => p.id === selectedPlaceId)?.name}
                     />
                 ) : null}
             </section>

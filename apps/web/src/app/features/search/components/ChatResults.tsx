@@ -43,7 +43,17 @@ const ChatItem = ({ channel, matchCount, onSelect }: ChatItemProps) => {
             {/* Avatar */}
             <div className="relative shrink-0">
                 <div className="flex size-10 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                    <span className="text-base text-muted-foreground">{channel.memberNo === 1 ? '👤' : '👥'}</span>
+                    {channel.thumbnail ? (
+                        <img
+                            src={channel.thumbnail}
+                            alt={channel.name || ''}
+                            loading="lazy"
+                            decoding="async"
+                            className="h-full w-full object-cover"
+                        />
+                    ) : (
+                        <span className="text-base text-muted-foreground">{channel.memberNo === 1 ? '👤' : '👥'}</span>
+                    )}
                 </div>
                 {matchCount > 0 && (
                     <span className="absolute -left-[2px] -top-[2px] flex h-[17px] min-w-[17px] items-center justify-center rounded-full border border-[#90C304] bg-background/75 px-[5px] text-[11px] font-medium tracking-[-0.025em] text-muted-foreground shadow-sm backdrop-blur-sm">

@@ -7,6 +7,7 @@ import type {
     SiteProfileSyncView,
     UserView,
 } from '@lemoncloud/chatic-socials-api';
+import type { ChannelSyncView } from '../../events/common';
 import { logger } from '@chatic/bridges';
 import type { ListResult, SocketEventMap } from '../../../events/types';
 import type { IEventBus } from '../../../events/eventBus';
@@ -70,6 +71,11 @@ export const chatHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEve
         // 사용자의 참여 채널 목록 조회 처리
         case 'mine':
             eventBus.emit('channel:read', { ...detail, payload: payload as ListResult<ChannelView> });
+            break;
+
+        // 채널 동기화 결과 처리
+        case 'sync':
+            eventBus.emit('channel:sync', { ...detail, payload: payload as ChannelSyncView });
             break;
 
         // 새로운 채팅방 또는 채널 생성 처리

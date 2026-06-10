@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { useInterval } from '@chatic/shared';
 import { useWebSocketV2Store } from '@chatic/socket';
-import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
-import { cloudCore, useDynamicProfile } from '@chatic/web-core';
+import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
+import { cloudCore, useDynamicProfile, useUserContext } from '@chatic/web-core';
 
 import { useRepositories } from '@chatic/app-runtime';
 import type { ClientChannelView } from '../types';
-import { debounce } from '../utils/debounce';
+
+import { useChannelSyncStore } from '../stores/useChannelSyncStore';
+import { useConnectionRecoverySync } from './useConnectionRecoverySync';
 
 const DEFAULT_CHANNEL_LIMIT = 100;
-const CHANNEL_POLL_INTERVAL_MS = 15_000;
 
 export interface ChannelDebugInfo {
     fetchCount: number;
@@ -62,8 +62,9 @@ const buildFetchPayload = ({ sid: _placeId, ...params }: DomainChannelListPayloa
 });
 
 export const useChannels = (initialParams: DomainChannelListPayload) => {
-    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
+    const { channel: channelRepository } = useRepositories();
     const profile = useDynamicProfile();
+    const { currentWSS } = useUserContext();
     const userId = profile?.uid;
     const targetPlaceId = initialParams.sid;
     const storeCloudId = useWebSocketV2Store(s => s.cloudId);
@@ -185,6 +186,43 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         [channelRepository, loadFromCache]
     );
 
+    const syncFromServer = useCallback(async () => {
+        // store/ref에서 직접 읽어 stale closure 방지
+        const currentCloudId = cloudIdRef.current;
+        const { isVerified: currentIsVerified } = useWebSocketV2Store.getState();
+        if (!currentCloudId || !currentIsVerified) return;
+
+        const { getSyncedAt, setSyncedAt, setStatus } = useChannelSyncStore.getState();
+        const since = getSyncedAt(currentCloudId);
+
+        setStatus('syncing');
+        try {
+            const result = await channelRepository.syncChannels(since);
+            if (cloudIdRef.current !== currentCloudId) return;
+
+            setSyncedAt(currentCloudId, result.syncedAt);
+            setStatus('synced');
+
+            // sync 완료 후 항상 캐시에서 읽어 화면 반영 (updatedCount 조건 제거)
+            const params = currentParamsRef.current;
+            if (params.sid) {
+                const requestSeq = ++requestSeqRef.current;
+                const cached = await loadFromCache(params, requestSeq);
+                if (requestSeqRef.current === requestSeq) {
+                    setChannels(cached);
+                }
+            }
+
+            logger.info('CHANNEL', '[useChannels] syncFromServer complete', {
+                data: { since, syncedAt: result.syncedAt, updated: result.updatedCount, removed: result.removedCount },
+            });
+        } catch (error) {
+            if (cloudIdRef.current !== currentCloudId) return;
+            setStatus('error', error instanceof Error ? error.message : String(error));
+            logger.error('CHANNEL', '[useChannels] syncFromServer failed', { error });
+        }
+    }, [channelRepository, loadFromCache]);
+
     // isVerified 전이라도 IndexedDB 캐시에서 채널을 즉시 읽기
     useEffect(() => {
         if (!cloudId || !targetPlaceId || isVerified) return;
@@ -214,53 +252,80 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         if (prevFetchKeyRef.current === fetchKey) return;
         prevFetchKeyRef.current = fetchKey;
 
-        const isSwitch =
-            (lastFetchedCloudId !== undefined && lastFetchedCloudId !== cloudId) ||
-            (lastFetchedPlaceId !== undefined && lastFetchedPlaceId !== targetPlaceId);
-
-        // 재진입(같은 cloud/place로 다시 마운트): 캐시를 먼저 표시 후 서버에서 갱신
-        // chatroom에서 읽음 처리 후 복귀 시 cache-first의 백그라운드 fetch는 state를 갱신하지 않아
-        // 읽음 상태가 반영되지 않는 문제를 방지
-        const isReentry = !isSwitch && lastFetchedCloudId !== undefined;
+        const isCloudSwitch = lastFetchedCloudId !== undefined && lastFetchedCloudId !== cloudId;
+        const isPlaceSwitch = lastFetchedPlaceId !== undefined && lastFetchedPlaceId !== targetPlaceId;
 
         lastFetchedCloudId = cloudId;
         lastFetchedPlaceId = targetPlaceId;
-
         currentParamsRef.current = initialParams;
 
-        // 캐시 먼저 표시 후 네트워크 갱신
-        void fetchChannels({ loading: channelsRef.current.length === 0 }).then(() =>
-            fetchChannels({ forceNetwork: true, silent: true })
-        );
+        if (isCloudSwitch) {
+            useChannelSyncStore.getState().setStatus('idle');
+        }
+
+        // 캐시에서 즉시 표시 → channel:mine으로 서버 최신 데이터로 교체
+        void fetchChannels({ loading: channelsRef.current.length === 0 }).then(() => {
+            void fetchChannels({ forceNetwork: true, silent: true });
+        });
     }, [fetchChannels, cloudId, targetPlaceId, isVerified]);
 
-    // 채널/채팅/조인 이벤트에 대한 동기화 트리거
+    // 캐시(IndexedDB) 변경을 subscribeList로 자동 감지하여 UI 반영
+    // channel:create/update/delete, chat:create, join:update 등 모든 캐시 기록이
+    // ChannelRepository.initializeInternalListeners를 통해 localDataSource에 반영되고,
+    // subscribeList가 이를 감지하여 콜백을 호출합니다.
+    // requestSeqRef를 건드리지 않으므로 fetchChannels의 network 응답이 drop되지 않습니다.
     useEffect(() => {
-        const debouncedFetch = debounce(() => fetchChannels({ forceNetwork: true }), 300);
+        if (!targetPlaceId) return;
 
-        const unsubs = [
-            channelRepository.onChannelCreated(() => void debouncedFetch()),
-            channelRepository.onChannelUpdated(() => void debouncedFetch()),
-            channelRepository.onChannelDeleted(() => void debouncedFetch()),
-            chatRepository.onChatCreated((chat: DomainChat) => {
-                if (!chat.channelId || channelsRef.current.length === 0) return;
-                if (channelsRef.current.some(ch => ch.id === chat.channelId)) {
-                    void debouncedFetch();
-                }
-            }),
-            joinRepository.onJoinUpdated((join: DomainJoin) => {
-                if (!join.channelId || channelsRef.current.length === 0) return;
-                if (channelsRef.current.some(ch => ch.id === join.channelId)) {
-                    void debouncedFetch();
-                }
-            }),
-        ];
+        const unsub = channelRepository.subscribeList(
+            buildFetchPayload({ ...currentParamsRef.current, sid: targetPlaceId }),
+            result => {
+                if (!result) return;
+                const nextChannels = sortChannels(
+                    (result.list ?? []).map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
+                );
+                setChannels(nextChannels);
+            }
+        );
 
-        return () => unsubs.forEach(fn => fn());
-    }, [channelRepository, chatRepository, joinRepository, fetchChannels]);
+        return unsub;
+    }, [channelRepository, targetPlaceId]);
 
-    // 채널 목록 주기적 폴링 (WebSocket push 누락 시 보완)
-    useInterval(() => void fetchChannels(), targetPlaceId && cloudId ? CHANNEL_POLL_INTERVAL_MS : null);
+    // 포그라운드 복귀 및 WebSocket 재연결 시 channel:mine 재요청
+    const syncFromLocal = useCallback(async () => {
+        const params = currentParamsRef.current;
+        if (!params.sid) return;
+        const requestSeq = ++requestSeqRef.current;
+        const cached = await loadFromCache(params, requestSeq);
+        if (requestSeqRef.current === requestSeq && cached.length > 0) {
+            setChannels(cached);
+        }
+    }, [loadFromCache]);
+
+    const triggerNetworkFetch = useCallback(() => {
+        void fetchChannels({ forceNetwork: true, silent: true });
+    }, [fetchChannels]);
+
+    useConnectionRecoverySync(syncFromLocal, triggerNetworkFetch);
+
+    // 포그라운드 복귀 시 channel:mine으로 채널 리스트 최신화
+    useEffect(() => {
+        let hiddenAt: number | null = null;
+        const handler = () => {
+            if (document.visibilityState === 'hidden') {
+                hiddenAt = Date.now();
+                return;
+            }
+            if (document.visibilityState !== 'visible' || hiddenAt === null) return;
+            const elapsed = Date.now() - hiddenAt;
+            hiddenAt = null;
+            if (elapsed < 5_000) return;
+
+            void fetchChannels({ forceNetwork: true, silent: true });
+        };
+        document.addEventListener('visibilitychange', handler);
+        return () => document.removeEventListener('visibilitychange', handler);
+    }, [fetchChannels]);
 
     const fullDebugInfo: ChannelDebugInfo = {
         ...debugInfo,
@@ -271,16 +336,13 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     };
 
     return {
-        channels,
+        channels: currentWSS === 'cloud' ? channels.filter(c => !!c.$?.sid) : channels,
         isLoading,
         isSyncing,
         isError,
         errorMessage,
         refresh: () => fetchChannels({ forceNetwork: true }),
-        sync: (options?: DomainChannelListPayload) => {
-            if (options) currentParamsRef.current = { ...currentParamsRef.current, ...options };
-            return fetchChannels();
-        },
+        sync: () => syncFromServer(),
         debugInfo: fullDebugInfo,
     };
 };

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useQueryClient } from '@tanstack/react-query';
 
-import { AlertCircle, Check, Home, Loader2, Plus, User, X } from 'lucide-react';
+import { AlertCircle, Check, Home, Loader2, Pencil, Plus, User, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { useInterval } from '@chatic/shared';
@@ -17,6 +17,7 @@ import { cloudsKeys } from '@chatic/users';
 import { useCloudSession } from '@chatic/app-runtime';
 import { useCloudSwitchFlow } from '../../../shared/hooks/useCloudSwitchFlow';
 import { useInviteClouds } from '../../../shared/hooks/useInviteClouds';
+import { CloudNameEditDialog } from './CloudNameEditDialog';
 import { SubscriptionSelectDialog } from './SubscriptionSelectDialog';
 import { SubscriptionRequiredDialog } from './SubscriptionRequiredDialog';
 
@@ -101,9 +102,10 @@ interface CloudItemProps {
     isDisabled: boolean;
     onSelectCloud: (cloudId: string) => void;
     onErrorClick: () => void;
+    onEditCloud?: (cloud: CloudView) => void;
 }
 
-const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick }: CloudItemProps) => {
+const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick, onEditCloud }: CloudItemProps) => {
     const { t } = useTranslation();
     const isError = cloud.status === 'error';
     const isActive = cloud.status === 'active';
@@ -146,6 +148,18 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick 
                             <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
                                 {displayName}
                             </span>
+                            {isSelected && isActive && onEditCloud && (
+                                <button
+                                    type="button"
+                                    onClick={e => {
+                                        e.stopPropagation();
+                                        onEditCloud(cloud);
+                                    }}
+                                    className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+                                >
+                                    <Pencil size={14} />
+                                </button>
+                            )}
                             <CloudStatusBadge status={cloud.status} />
                         </div>
                     ) : (
@@ -290,6 +304,7 @@ export const CloudSessionSheet = ({ open, onOpenChange, onCloudSwitchComplete }:
     const [isSubscriptionSelectOpen, setIsSubscriptionSelectOpen] = useState(false);
     const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
     const [tab, setTab] = useState<Tab>('my');
+    const [editingCloud, setEditingCloud] = useState<CloudView | null>(null);
 
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
     const prevCloudStatusesRef = useRef<Map<string, NonNullable<CloudView['status']>>>(new Map());
@@ -432,6 +447,7 @@ export const CloudSessionSheet = ({ open, onOpenChange, onCloudSwitchComplete }:
                                                         variant: 'destructive',
                                                     })
                                                 }
+                                                onEditCloud={setEditingCloud}
                                             />
                                         ))}
                                     </div>
@@ -477,6 +493,25 @@ export const CloudSessionSheet = ({ open, onOpenChange, onCloudSwitchComplete }:
                 open={isSubscriptionRequiredOpen}
                 onClose={() => setIsSubscriptionRequiredOpen(false)}
             />
+            {editingCloud?.id && (
+                <CloudNameEditDialog
+                    open={!!editingCloud}
+                    onOpenChange={open => !open && setEditingCloud(null)}
+                    currentName={getCloudDisplayName(editingCloud)}
+                    cloudId={editingCloud.id}
+                    onSuccess={newName => {
+                        queryClient.setQueriesData({ queryKey: cloudsKeys.lists() }, (old: any) => {
+                            if (!old?.list) return old;
+                            return {
+                                ...old,
+                                list: old.list.map((c: any) =>
+                                    c.id === editingCloud.id ? { ...c, name: newName } : c
+                                ),
+                            };
+                        });
+                    }}
+                />
+            )}
         </>
     );
 };

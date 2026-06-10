@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Config from 'react-native-config';
 
 import { deeplinkService } from '../../../services';
+import { useDebugTheme } from '../theme';
 
 const TEST_DEV_URL = 'chatic-dev://s';
 const TEST_PROD_URL = 'chatic://s';
@@ -12,6 +13,7 @@ const TEST_RELATIVE_PATH = '/home';
 export const DeeplinkTestScreen = () => {
     const [result, setResult] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
+    const colors = useDebugTheme();
 
     const handleTestUrl = async (url: string) => {
         setIsLoading(true);
@@ -39,14 +41,17 @@ export const DeeplinkTestScreen = () => {
     );
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
-            <StatusBar barStyle="light-content" backgroundColor="#121212" />
-
+        <SafeAreaView
+            style={[styles.container, { backgroundColor: colors.background }]}
+            edges={['bottom', 'left', 'right']}
+        >
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Deep Link Service Tester</Text>
-                    <Text style={styles.infoText}>Current Env: {Config.VITE_ENV || 'PROD'}</Text>
-                    <Text style={styles.infoText}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Deep Link Service Tester</Text>
+                    <Text style={[styles.infoText, { color: colors.mutedText }]}>
+                        Current Env: {Config.VITE_ENV || 'PROD'}
+                    </Text>
+                    <Text style={[styles.infoText, { color: colors.mutedText }]}>
                         This screen simulates incoming deep links to verify routing and domain conversion.
                     </Text>
                 </View>
@@ -58,9 +63,14 @@ export const DeeplinkTestScreen = () => {
                 </View>
 
                 <View style={styles.resultSection}>
-                    <Text style={styles.resultTitle}>Status Log:</Text>
-                    <ScrollView style={styles.resultScroll} nestedScrollEnabled>
-                        <Text style={styles.resultText}>{result || 'No actions triggered yet'}</Text>
+                    <Text style={[styles.resultTitle, { color: colors.subtleText }]}>Status Log:</Text>
+                    <ScrollView
+                        style={[styles.resultScroll, { backgroundColor: colors.logBackground }]}
+                        nestedScrollEnabled
+                    >
+                        <Text style={[styles.resultText, { color: colors.mutedText }]}>
+                            {result || 'No actions triggered yet'}
+                        </Text>
                     </ScrollView>
                 </View>
             </ScrollView>
