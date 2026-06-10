@@ -194,7 +194,7 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
     ) {
         try {
             val reactApplication = applicationContext as? ReactApplication ?: return
-            val reactContext = reactApplication.reactHost.currentReactContext ?: return
+            val reactContext = reactApplication.reactHost?.currentReactContext ?: return
 
             if (reactContext.hasActiveCatalystInstance()) {
                 val params = Arguments.createMap().apply {
