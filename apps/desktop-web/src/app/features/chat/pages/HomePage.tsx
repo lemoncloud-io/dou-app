@@ -11,6 +11,7 @@ import {
     useChannelSettingsStore,
     useCreateChannelDialogStore,
 } from '../../channels';
+import { EditPlaceProfileDialog, useEditPlaceProfileDialogStore } from '../../profile';
 import {
     lastChatNoOf,
     useChannels,
@@ -60,6 +61,7 @@ export const HomePage = () => {
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
     const selectChannel = useSelectedChannelStore(s => s.selectChannel);
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
+    const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
@@ -183,6 +185,7 @@ export const HomePage = () => {
                             onQueryChange={setQuery}
                             onSelectPlace={placeId => void switchPlace(placeId)}
                             onCreateChannel={openCreateChannel}
+                            onEditPlaceProfile={openEditPlaceProfile}
                         />
                         <div className="flex-1 overflow-y-auto scrollbar-hide">
                             <ChannelList
@@ -211,6 +214,7 @@ export const HomePage = () => {
             />
             <CreateChannelDialog />
             <JoinWithInviteDialog />
+            <EditPlaceProfileDialog />
             <ShortcutsDialog />
         </>
     );

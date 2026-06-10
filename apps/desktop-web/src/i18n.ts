@@ -69,6 +69,7 @@ const resources = {
             'sidebar.search': 'Search channels',
             'sidebar.channels': 'Channels',
             'sidebar.noMatches': 'No channels match your search',
+            'sidebar.editMyProfile': 'Edit my profile here',
             'rail.addChannel': 'Add channel',
             'rail.menu.profile': 'Profile',
             'rail.menu.settings': 'Settings',

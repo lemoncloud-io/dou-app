@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ChevronDown, Plus, Search } from 'lucide-react';
+import { ChevronDown, Plus, Search, UserPen } from 'lucide-react';
 
 import type { DomainSite } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -9,6 +9,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { Input } from '@chatic/ui-kit/components/ui/input';
@@ -26,6 +27,8 @@ interface SidebarHeaderProps {
     onQueryChange: (value: string) => void;
     onSelectPlace: (placeId: string) => void;
     onCreateChannel: () => void;
+    /** Open the place-profile editor for the active place (per-place identity lives here). */
+    onEditPlaceProfile: () => void;
 }
 
 const placeName = (place: DomainSite | undefined): string => place?.name ?? place?.id ?? '';
@@ -45,6 +48,7 @@ export const SidebarHeader = ({
     onQueryChange,
     onSelectPlace,
     onCreateChannel,
+    onEditPlaceProfile,
 }: SidebarHeaderProps) => {
     const { t } = useTranslation();
     const current = places.find(p => p.id === selectedPlaceId);
@@ -103,6 +107,11 @@ export const SidebarHeader = ({
                                 </DropdownMenuItem>
                             );
                         })}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={onEditPlaceProfile} className="gap-2 text-muted-foreground">
+                            <UserPen size={15} aria-hidden />
+                            {t('sidebar.editMyProfile')}
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             )}
