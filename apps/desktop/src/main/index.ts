@@ -3,7 +3,18 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { AppBridgeHost } from '@chatic/bridges';
-import { app, BrowserWindow, ipcMain, Menu, type MenuItemConstructorOptions, nativeImage, Notification, screen, shell, Tray } from 'electron';
+import {
+    app,
+    BrowserWindow,
+    ipcMain,
+    Menu,
+    type MenuItemConstructorOptions,
+    nativeImage,
+    Notification,
+    screen,
+    shell,
+    Tray,
+} from 'electron';
 import electronUpdater from 'electron-updater';
 
 /**
@@ -32,6 +43,27 @@ const BOUNDS_MIN_WIDTH = 720;
 const BOUNDS_MIN_HEIGHT = 480;
 
 const windowBoundsFile = (): string => join(app.getPath('userData'), 'chatic-window-bounds.json');
+
+const notifRegisteredFile = (): string => join(app.getPath('userData'), 'chatic-notifications-registered');
+
+/**
+ * macOS: a freshly-installed, never-notified bundle has no Notification Center
+ * entry, so every Notification.show() silently no-ops AND the app never appears
+ * in System Settings > Notifications for the user to allow it (there is no
+ * requestPermission API for main-process Notifications). Post one silent
+ * notification at first launch to register the bundle. Once per install (flag in
+ * userData) so it isn't shown on every start.
+ */
+const registerMacNotifications = (): void => {
+    if (process.platform !== 'darwin' || !Notification.isSupported()) return;
+    if (existsSync(notifRegisteredFile())) return;
+    try {
+        new Notification({ title: 'DoU', body: 'Notifications are enabled.', silent: true }).show();
+        writeFileSync(notifRegisteredFile(), '1');
+    } catch {
+        // best-effort registration — ignore failures
+    }
+};
 
 /** Restore the last window size/position so the app reopens where the user left it. */
 const loadWindowBounds = (): { x?: number; y?: number; width: number; height: number } | null => {
@@ -421,6 +453,10 @@ if (!singleInstanceLock) {
     app.whenReady().then(() => {
         Menu.setApplicationMenu(buildAppMenu());
         createWindow();
+
+        // macOS: register the bundle with Notification Center on first launch so
+        // OS toasts actually surface and the app is toggleable in System Settings.
+        registerMacNotifications();
 
         // Flush a cold-start deeplink (Windows/Linux argv) once the window exists.
         const coldUrl = pendingDeeplink ?? extractDeeplink(process.argv);

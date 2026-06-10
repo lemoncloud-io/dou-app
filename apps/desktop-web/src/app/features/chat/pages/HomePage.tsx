@@ -37,6 +37,9 @@ import {
     SwitchingOverlay,
 } from '../components';
 
+const isWindowActive = (): boolean =>
+    typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
+
 export const HomePage = () => {
     const { clouds, activeCloudId } = useClouds();
     const { places, isLoading: placesLoading } = usePlaces();
@@ -92,7 +95,7 @@ export const HomePage = () => {
         }
         clearPendingOpen();
         // Re-fire only on a new notification (nonce), not on selectedPlaceId churn.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [pendingOpen?.nonce]);
 
     // Default Cloud: pin the 'default' place (Self Channel). Otherwise select the
@@ -154,11 +157,16 @@ export const HomePage = () => {
 
     // Keep the open channel marked read up to its latest message (cursor grows as
     // new messages arrive while it's open), so it never shows unread after you
-    // switch away — independent of the read-receipt debounce / window focus.
+    // switch away. Gate on window focus/visibility: a message arriving while the
+    // window is hidden must NOT advance the cursor, or the desktop-notification
+    // hook treats it as already-read and suppresses the OS toast. On refocus,
+    // ChatPane's useReadReceipts flushes the read, so the badge still clears.
     const markRead = useReadCursorStore(s => s.markRead);
     const selectedLastChatNo = selectedChannel ? lastChatNoOf(selectedChannel) : 0;
     useEffect(() => {
-        if (selectedChannelId && selectedLastChatNo > 0) markRead(selectedChannelId, selectedLastChatNo);
+        if (selectedChannelId && selectedLastChatNo > 0 && isWindowActive()) {
+            markRead(selectedChannelId, selectedLastChatNo);
+        }
     }, [selectedChannelId, selectedLastChatNo, markRead]);
 
     return (
