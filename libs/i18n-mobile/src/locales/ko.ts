@@ -33,5 +33,14 @@ export const ko = {
             marketing: '이벤트 및 혜택',
             cloud: '클라우드',
         },
+        chat: {
+            title: '{0}',
+            message: '{0}',
+        },
+        cloud: {
+            sync_complete: "클라우드 '{0}' 생성 완료",
+        },
     },
+    push_chat_message_title: '{0}',
+    push_chat_message_body: '{0}',
 } as const;
