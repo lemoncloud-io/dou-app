@@ -91,7 +91,7 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
                         return (
                             <div key={key} className="group/msg relative pr-8">
                                 {i > 0 && msgTime && (
-                                    <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-[10px] tabular-nums text-muted-foreground/50 group-hover/msg:block">
+                                    <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-[10px] tabular-nums text-muted-foreground/70 group-hover/msg:block">
                                         {msgTime}
                                     </span>
                                 )}

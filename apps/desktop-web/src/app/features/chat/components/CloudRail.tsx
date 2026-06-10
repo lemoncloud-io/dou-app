@@ -115,7 +115,7 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud, isS
                         </AvatarFallback>
                     </Avatar>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent side="right" align="end">
+                <DropdownMenuContent side="right" align="end" sideOffset={6}>
                     <DropdownMenuItem onClick={() => navigate('/profile')}>{t('rail.menu.profile')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={openJoinDialog}>{t('rail.menu.join')}</DropdownMenuItem>

@@ -111,6 +111,7 @@ const resources = {
             'profile.channelCount_one': '{{count}} channel',
             'profile.channelCount_other': '{{count}} channels',
             'profile.unknown': '-',
+            'profile.notSet': 'Not set',
             'profile.thisPlace': 'This place',
             'profile.thisPlaceHint': 'How you appear in this place.',
             'profile.editPlace': 'Edit',

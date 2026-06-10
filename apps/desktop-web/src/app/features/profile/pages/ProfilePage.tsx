@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { ChevronLeft } from 'lucide-react';
+
 import { useWebCoreStore } from '@chatic/web-core';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -60,7 +62,7 @@ export const ProfilePage = () => {
     const user = profile?.$user;
     const fallback = t('profile.unknown');
     const name = user?.name ?? fallback;
-    const email = user?.email ?? fallback;
+    const email = user?.email || t('profile.notSet');
     const uid = profile?.uid ?? fallback;
 
     // Effective display = my Place Profile when active, else the global identity.
@@ -79,7 +81,8 @@ export const ProfilePage = () => {
     return (
         <div className="flex h-screen flex-col bg-background">
             <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-6">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
+                <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => navigate('/')}>
+                    <ChevronLeft className="h-4 w-4" />
                     {t('profile.back')}
                 </Button>
                 <h1 className="text-base font-semibold text-foreground">{t('profile.title')}</h1>
@@ -89,9 +92,9 @@ export const ProfilePage = () => {
                 <section className="flex flex-col gap-4">
                     <SectionTitle>{t('profile.thisPlace')}</SectionTitle>
                     <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5">
-                        <Avatar className="h-16 w-16 ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
-                            {displayPhoto && <AvatarImage src={displayPhoto} alt={displayName} />}
-                            <AvatarFallback className="text-xl font-semibold" style={avatarStyle(profile?.uid || displayName)}>
+                        <Avatar className="h-16 w-16 rounded-xl ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
+                            {displayPhoto && <AvatarImage src={displayPhoto} alt={displayName} className="rounded-xl" />}
+                            <AvatarFallback className="rounded-xl text-xl font-semibold" style={avatarStyle(profile?.uid || displayName)}>
                                 {initial}
                             </AvatarFallback>
                         </Avatar>

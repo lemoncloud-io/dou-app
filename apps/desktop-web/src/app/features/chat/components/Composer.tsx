@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Smile } from 'lucide-react';
+import { SendHorizontal, Smile } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
@@ -169,14 +169,7 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
                             : 'bg-muted text-muted-foreground'
                     )}
                 >
-                    <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden>
-                        <path
-                            d="M3 10l14-7-5 14-2.5-5.5L3 10z"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinejoin="round"
-                        />
-                    </svg>
+                    <SendHorizontal className="h-4 w-4" aria-hidden />
                 </button>
             </div>
             <p className="mt-1 px-1 text-caption text-muted-foreground">{t('chat.composer.hint')}</p>

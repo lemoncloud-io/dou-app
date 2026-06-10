@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { ChevronLeft } from 'lucide-react';
+
 import { cn } from '@chatic/lib/utils';
 import { type Theme, useTheme } from '@chatic/theme';
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -28,7 +30,8 @@ export const SettingsPage = () => {
     return (
         <div className="flex h-screen flex-col bg-background">
             <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-6">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
+                <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => navigate('/')}>
+                    <ChevronLeft className="h-4 w-4" />
                     {t('settings.back')}
                 </Button>
                 <h1 className="text-base font-semibold text-foreground">{t('settings.title')}</h1>
@@ -49,7 +52,7 @@ export const SettingsPage = () => {
                                         key={option}
                                         onClick={() => setTheme(option)}
                                         className={cn(
-                                            'flex flex-1 flex-col items-center gap-2 rounded-lg border p-3 text-sm capitalize transition-all active:scale-[0.98]',
+                                            'focus-ring flex flex-1 flex-col items-center gap-2 rounded-lg border p-3 text-sm capitalize transition-all active:scale-[0.98]',
                                             theme === option
                                                 ? 'border-primary bg-primary/10 font-semibold text-foreground'
                                                 : 'border-input text-muted-foreground hover:border-border hover:bg-accent'
@@ -70,7 +73,7 @@ export const SettingsPage = () => {
                                         key={lng}
                                         onClick={() => void i18n.changeLanguage(lng)}
                                         className={cn(
-                                            'rounded-lg border px-4 py-2 text-sm uppercase transition-all active:scale-[0.98]',
+                                            'focus-ring rounded-lg border px-4 py-2 text-sm uppercase transition-all active:scale-[0.98]',
                                             i18n.language === lng
                                                 ? 'border-primary bg-primary/10 font-semibold text-foreground'
                                                 : 'border-input text-muted-foreground hover:border-border hover:bg-accent'

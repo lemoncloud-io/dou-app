@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Search } from 'lucide-react';
+import { ChevronDown, Plus, Search } from 'lucide-react';
 
 import type { DomainSite } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -80,20 +80,7 @@ export const SidebarHeader = ({
                                 {placeName(current) || t('place.none')}
                             </span>
                         )}
-                        <svg
-                            className="h-4 w-4 shrink-0 text-muted-foreground"
-                            viewBox="0 0 16 16"
-                            fill="none"
-                            aria-hidden
-                        >
-                            <path
-                                d="M4 6l4 4 4-4"
-                                stroke="currentColor"
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            />
-                        </svg>
+                        <ChevronDown size={16} className="shrink-0 text-muted-foreground" aria-hidden />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="min-w-[220px]">
                         {places.map(place => {
@@ -139,9 +126,10 @@ export const SidebarHeader = ({
                 <button
                     onClick={onCreateChannel}
                     title={t('rail.addChannel')}
-                    className="focus-ring tactile -mr-1 flex h-9 w-9 items-center justify-center rounded-md text-base leading-none text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                    aria-label={t('rail.addChannel')}
+                    className="focus-ring tactile -mr-1 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
                 >
-                    +
+                    <Plus size={16} aria-hidden />
                 </button>
             </div>
         </div>
