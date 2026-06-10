@@ -73,7 +73,7 @@ interface UseCloudSwitchFlowOptions {
 }
 
 export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions) => {
-    const { selectCloud } = useCloudSession();
+    const { selectCloud, restoreInvitedCloud } = useCloudSession();
     const { site: siteRepository, channel: channelRepository } = useRepositories();
     const setIsLoading = useLoaderStore(s => s.setIsLoading);
     const { t } = useTranslation();
@@ -129,7 +129,13 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions) => {
                 // Step 1: Cloud 전환 — 토큰 발급 + 스토어 업데이트
                 logger.info('SESSION', '[CloudSwitchFlow] Step 1: selectCloud', { data: { cloudId } });
                 try {
-                    await selectCloud(cloudId);
+                    // Invite-joined clouds aren't broker-delegable (delegate-cloud
+                    // 404s); re-enter them by replaying the captured session instead.
+                    if (cloudCore.getInvitedCloud(cloudId)) {
+                        await restoreInvitedCloud(cloudId);
+                    } else {
+                        await selectCloud(cloudId);
+                    }
                 } catch (e) {
                     showError('switchFailed', e);
                     throw e;
@@ -200,7 +206,16 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions) => {
                 setIsLoading(false);
             }
         },
-        [selectCloud, siteRepository, channelRepository, setIsLoading, t, toast, options.onPlaceSelected]
+        [
+            selectCloud,
+            restoreInvitedCloud,
+            siteRepository,
+            channelRepository,
+            setIsLoading,
+            t,
+            toast,
+            options.onPlaceSelected,
+        ]
     );
 
     return { switchCloud };

@@ -62,7 +62,44 @@ export const useCloudSession = () => {
         }
     };
 
-    return { selectCloud, isPending, clouds, isCloudsError, isFetchingClouds: isFetching, refetchClouds: refetch };
+    // Re-enter an invite-joined cloud by replaying the session captured at
+    // invite-login. The home broker's delegate-cloud 404s for invited clouds
+    // (they aren't in view=mine), so selectCloud can't be used — instead restore
+    // the saved delegation + cloud token and re-run the socket auth handshake.
+    const restoreInvitedCloud = async (cloudId: string) => {
+        try {
+            if (!cloudCore.applyInvitedCloud(cloudId)) {
+                throw new Error(`No invited-cloud session for ${cloudId}`);
+            }
+
+            const cloudToken = cloudCore.getCloudToken();
+            if (cloudToken) {
+                const currentProfile = useWebCoreStore.getState().profile;
+                const { Token: _Token, ...cloudProfile } = cloudToken;
+                setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
+            }
+
+            // Land back on the invited place the bundle was captured with, then
+            // re-run the auth handshake (mirrors selectCloud's tail).
+            const siteId = cloudCore.getSelectedPlaceId();
+            useWebSocketV2Store.getState().setCloudId(cloudId);
+            if (siteId) useWebSocketV2Store.getState().setSelectedPlaceId(siteId);
+            useWebSocketV2Store.getState().setIsVerified(false);
+        } catch (e) {
+            logger.error('SESSION', '[useCloudSession] restoreInvitedCloud failed', { error: e });
+            throw e;
+        }
+    };
+
+    return {
+        selectCloud,
+        restoreInvitedCloud,
+        isPending,
+        clouds,
+        isCloudsError,
+        isFetchingClouds: isFetching,
+        refetchClouds: refetch,
+    };
 };
 
 export const useAutoSelectCloud = () => {

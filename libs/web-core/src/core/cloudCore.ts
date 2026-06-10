@@ -12,6 +12,23 @@ export const CLOUD_TOKEN_KEY = 'chatic-cloud-token';
 export const CLOUD_SELECTED_CLOUD_KEY = 'chatic-selected-cloud-id';
 export const CLOUD_SELECTED_PLACE_KEY = 'chatic-selected-place-id';
 export const CLOUD_PLACE_ORDER_KEY_PREFIX = 'chatic-place-order-';
+export const CLOUD_INVITED_BUNDLES_KEY = 'chatic-invited-clouds';
+
+/**
+ * A self-contained credential snapshot for an invite-joined cloud, keyed per
+ * cloudId. Invite-joined clouds live on their own deployment and are NOT in the
+ * home broker's `/clouds/0/list?view=mine`, so `delegate-cloud` 404s for them —
+ * they can only be re-entered by replaying the session captured at invite-login.
+ * Stored in the same `coreStorage` as the live cloud token (sessionStorage on
+ * web, localStorage on the native shells), so it shares the existing token's
+ * lifetime and exposure rather than introducing a new credential store.
+ */
+export interface InvitedCloudBundle {
+    delegation: CloudDelegationTokenView | null;
+    cloudToken: UserTokenView;
+    siteId?: string;
+    name?: string;
+}
 
 interface RequestBuilder {
     setBody: (body: unknown) => RequestBuilder;
@@ -38,9 +55,20 @@ interface CloudCore {
     savePlaceOrder: (cloudId: string, order: string[]) => void;
     getPlaceOrder: (cloudId: string) => string[] | null;
     clearPlaceOrder: (cloudId: string) => void;
+    /** Snapshot the current session as the re-entry bundle for an invited cloud. */
+    captureInvitedCloud: (cloudId: string, name?: string) => void;
+    getInvitedCloud: (cloudId: string) => InvitedCloudBundle | null;
+    /** Restore a captured invited-cloud bundle into the active session slots. */
+    applyInvitedCloud: (cloudId: string) => boolean;
+    clearInvitedClouds: () => void;
     buildRequest: (config: AxiosRequestConfig) => RequestBuilder;
     refreshToken: (target?: string) => Promise<UserTokenView>;
 }
+
+const readInvitedBundles = (): Record<string, InvitedCloudBundle> => {
+    const raw = coreStorage.get(CLOUD_INVITED_BUNDLES_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, InvitedCloudBundle>) : {};
+};
 
 export const cloudCore: CloudCore = {
     saveDelegationToken: (token: CloudDelegationTokenView): void => {
@@ -94,6 +122,37 @@ export const cloudCore: CloudCore = {
         coreStorage.remove(`${CLOUD_PLACE_ORDER_KEY_PREFIX}${cloudId}`);
     },
 
+    captureInvitedCloud: (cloudId: string, name?: string): void => {
+        const cloudToken = cloudCore.getCloudToken();
+        if (!cloudId || !cloudToken) return;
+        const bundles = readInvitedBundles();
+        bundles[cloudId] = {
+            delegation: cloudCore.getDelegationToken(),
+            cloudToken,
+            siteId: cloudCore.getSelectedPlaceId() ?? undefined,
+            name,
+        };
+        coreStorage.set(CLOUD_INVITED_BUNDLES_KEY, JSON.stringify(bundles));
+    },
+
+    getInvitedCloud: (cloudId: string): InvitedCloudBundle | null => {
+        return readInvitedBundles()[cloudId] ?? null;
+    },
+
+    applyInvitedCloud: (cloudId: string): boolean => {
+        const bundle = readInvitedBundles()[cloudId];
+        if (!bundle) return false;
+        if (bundle.delegation) cloudCore.saveDelegationToken(bundle.delegation);
+        cloudCore.saveCloudToken(bundle.cloudToken);
+        cloudCore.saveSelectedCloudId(cloudId);
+        if (bundle.siteId) cloudCore.saveSelectedSiteId(bundle.siteId);
+        return true;
+    },
+
+    clearInvitedClouds: (): void => {
+        coreStorage.remove(CLOUD_INVITED_BUNDLES_KEY);
+    },
+
     clearDelegationToken: (): void => {
         coreStorage.remove(CLOUD_DELEGATION_TOKEN_KEY);
         coreStorage.remove(CLOUD_TOKEN_KEY);
@@ -106,6 +165,7 @@ export const cloudCore: CloudCore = {
         coreStorage.remove(CLOUD_TOKEN_KEY);
         coreStorage.remove(CLOUD_SELECTED_CLOUD_KEY);
         coreStorage.remove(CLOUD_SELECTED_PLACE_KEY);
+        coreStorage.remove(CLOUD_INVITED_BUNDLES_KEY);
 
         // Clear endpoint overrides from both storages (web uses sessionStorage, mobile uses localStorage)
         sessionStorage.removeItem('CHATIC_OAUTH_ENDPOINT');

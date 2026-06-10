@@ -29,7 +29,7 @@ const resolveTargetPlace = (places: DomainSite[]): string | null => {
  * the previous cloud (or relay default) on any failure.
  */
 export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions = {}) => {
-    const { selectCloud } = useCloudSession();
+    const { selectCloud, restoreInvitedCloud } = useCloudSession();
     const { site: siteRepository, channel: channelRepository } = useRepositories();
     const setIsLoading = useLoaderStore(s => s.setIsLoading);
     const { t } = useTranslation();
@@ -86,7 +86,13 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions = {}) => {
                     return;
                 }
 
-                await selectCloud(cloudId);
+                // Invite-joined clouds aren't broker-delegable (delegate-cloud
+                // 404s); re-enter them by replaying the captured session instead.
+                if (cloudCore.getInvitedCloud(cloudId)) {
+                    await restoreInvitedCloud(cloudId);
+                } else {
+                    await selectCloud(cloudId);
+                }
 
                 if (!(await waitForVerified(10_000))) throw new Error('Cloud auth timeout');
 
@@ -114,7 +120,16 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions = {}) => {
             }
         },
 
-        [selectCloud, siteRepository, channelRepository, setIsLoading, t, toast, options.onPlaceSelected]
+        [
+            selectCloud,
+            restoreInvitedCloud,
+            siteRepository,
+            channelRepository,
+            setIsLoading,
+            t,
+            toast,
+            options.onPlaceSelected,
+        ]
     );
 
     return { switchCloud };

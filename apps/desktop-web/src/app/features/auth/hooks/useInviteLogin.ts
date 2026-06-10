@@ -109,6 +109,10 @@ export const useInviteLogin = () => {
                     useWebSocketV2Store.getState().setSelectedPlaceId(siteId);
                 }
 
+                // Remember this invited cloud's full session so the rail can
+                // re-enter it later — the broker can't delegate invited clouds.
+                if (cloudId) cloudCore.captureInvitedCloud(cloudId, info?.cloudName ?? undefined);
+
                 setIsInvitedSession(true);
                 setIsAuthenticated(true);
                 // The broker cloud list is eventually consistent — refetch so the

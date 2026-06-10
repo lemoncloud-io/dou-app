@@ -251,6 +251,10 @@ export const LoginPage = (): JSX.Element => {
                 useWebSocketV2Store.getState().setSelectedPlaceId(invitedSiteId);
             }
 
+            // Remember this invited cloud's full session so the cloud switcher can
+            // re-enter it later — invited clouds aren't broker-delegable.
+            if (effectiveCloudId) cloudCore.captureInvitedCloud(effectiveCloudId, urlCloudName ?? data.name);
+
             // 8. Authenticate — 풀 리로드로 홈 전환 (invite flow에서 SPA 전환이 불안정하여 리로드 사용)
             logger.info('AUTH', '[handleAccept] complete, navigating to home', {
                 data: { effectiveCloudId, invitedSiteId, isInvited: true },
