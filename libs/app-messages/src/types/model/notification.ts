@@ -32,6 +32,12 @@ export type OnNotificationPayload = {
 /** [요청] 뱃지 카운트 설정 페이로드 */
 export type SetBadgeCountPayload = {
     count: number;
+    /**
+     * 선택. Windows 전용 — 태스크바 overlay 아이콘으로 쓸 PNG data URL.
+     * Windows에는 dock 뱃지가 없어 overlay 아이콘이 필요하고, Electron nativeImage는
+     * SVG를 못 그리므로 렌더러(canvas)에서 PNG로 그려 전달합니다. macOS/Linux는 무시.
+     */
+    overlayIconDataUrl?: string;
 };
 
 /** [응답] 뱃지 카운트 조회 결과 페이로드 */

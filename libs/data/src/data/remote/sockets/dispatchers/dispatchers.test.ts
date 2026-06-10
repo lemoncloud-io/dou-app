@@ -78,7 +78,9 @@ describe('SocketDispatcher', () => {
     // 매핑되지 않은 channel.* 타입이 raw 'channel' 도메인으로 도착해도 chatHandler로
     // 라우팅되어 silently drop 되지 않아야 한다 (channel.sync-site-profile 부류 회귀 방지).
     it('도메인 타입이 "channel"일 때 chatHandler로 라우팅해야 한다', () => {
-        const envelope = { type: 'channel' as any, action: 'sync-site-profile', payload: {} } as any;
+        // 매핑되지 않은(새로운) channel.* 액션 — INBOUND_TYPE_MAP에 없어 raw 'channel'
+        // 도메인으로 도착하는 시나리오. chatHandler로 위임되어 drop 되지 않아야 한다.
+        const envelope = { type: 'channel' as any, action: 'subscribe', payload: {} } as any;
 
         dispatcher.dispatch(envelope);
 

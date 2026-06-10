@@ -122,18 +122,6 @@ const pushDeeplink = (host: AppBridgeHost, url: string): void => {
     });
 };
 
-/** A red count badge as a 16×16 taskbar overlay icon (Windows has no dock badge). */
-const makeBadgeOverlay = (count: number): Electron.NativeImage => {
-    const label = count > 9 ? '9+' : String(count);
-    const fontSize = count > 9 ? 8 : 10;
-    const svg =
-        `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">` +
-        `<circle cx="8" cy="8" r="8" fill="#ef4444"/>` +
-        `<text x="8" y="11" font-size="${fontSize}" font-family="Arial, sans-serif" ` +
-        `font-weight="bold" fill="white" text-anchor="middle">${label}</text></svg>`;
-    return nativeImage.createFromDataURL(`data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`);
-};
-
 // Last OS notification shown per channel (keyed by deeplink). Electron's
 // Notification has no web-style `tag`, so we coalesce by closing the prior toast
 // for the same channel before showing a new one — rapid messages replace instead
@@ -173,11 +161,21 @@ const registerHandlers = (host: AppBridgeHost, win: BrowserWindow): void => {
     });
 
     // SetBadgeCount: unread badge. macOS/Linux use the dock badge; Windows has none,
-    // so render a taskbar overlay icon (cleared with null at zero).
+    // so paint a taskbar overlay icon from the PNG the renderer rendered (Electron's
+    // nativeImage can't rasterize SVG). Cleared with null at zero.
     host.registerHandler('SetBadgeCount', message => {
         const { count } = message.data;
+        // Optional Windows overlay PNG. Read structurally: the field crosses the
+        // @chatic/app-messages → bridges project-reference boundary, where the
+        // emitted declaration can lag the source type.
+        const { overlayIconDataUrl } = message.data as { overlayIconDataUrl?: string };
         if (process.platform === 'win32') {
-            win.setOverlayIcon(count > 0 ? makeBadgeOverlay(count) : null, count > 0 ? `${count} unread` : '');
+            let icon: Electron.NativeImage | null = null;
+            if (count > 0 && overlayIconDataUrl) {
+                const img = nativeImage.createFromDataURL(overlayIconDataUrl);
+                if (!img.isEmpty()) icon = img;
+            }
+            win.setOverlayIcon(icon, count > 0 ? `${count} unread` : '');
             return { type: 'OnSetBadgeCount', success: true, data: { success: true } };
         }
         const ok = app.setBadgeCount(count);
