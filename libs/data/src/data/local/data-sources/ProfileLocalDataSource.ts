@@ -128,16 +128,27 @@ export class ProfileLocalDataSource extends BaseLocalDataSource implements IProf
 
     public async fetchList(
         _query: WSSPayload | undefined,
-        _contextOverride?: LocalDataSourceContextOverride
+        contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainProfile> | null> {
+        const context = this.getContext(contextOverride);
         const profiles = await this.cacheStorage.loadAll();
+        const domainProfiles = profiles.map(toDomainProfile);
 
-        if (profiles.length === 0) {
+        // Scope to the current place. Records are keyed `${sid}@${uid}` and the
+        // storage's loadAll spans every place in the cloud, so without this filter
+        // another place's override bleeds in — uid collisions collapse to the last
+        // record written. Default cloud has no places → don't filter (mirrors
+        // ChannelLocalDataSource.fetchList).
+        const placeId = context.sid;
+        const isDefaultCloud = context.cid === 'default';
+        const scoped =
+            isDefaultCloud || !placeId ? domainProfiles : domainProfiles.filter(profile => profile.sid === placeId);
+
+        if (scoped.length === 0) {
             return createDomainListResult([], { total: 0, source: 'local' });
         }
 
-        const domainProfiles = profiles.map(toDomainProfile);
-        const sorted = domainProfiles.sort((left, right) => (left.uid || '').localeCompare(right.uid || ''));
+        const sorted = scoped.sort((left, right) => (left.uid || '').localeCompare(right.uid || ''));
 
         return createDomainListResult(sorted, {
             total: sorted.length,
