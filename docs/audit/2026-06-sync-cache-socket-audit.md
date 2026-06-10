@@ -76,22 +76,39 @@ backend work and were intentionally not attempted.
 - **#15** Optimistic→persisted swap emits a single stream snapshot (deferred emit).
 - **#12** Electron dock-icon click reshows a tray-hidden window.
 
-## Remaining (Tier 2 — higher risk / larger, deferred)
+## Fixed (Tier 2)
 
-- **#2** OS suspend/resume + browser `online` forced reconnect (Electron
-  `powerMonitor` + bridge event). Today the socket can stay dead after laptop sleep.
-- **#3** Harden request correlation — app mutations bypass the package's
-  `client.request` (mid/timeout/backpressure); the homegrown `SocketRequestManager`
-  resolves the first ref-matching frame regardless of type (already hand-patched
-  with a `-bg-sync` ref suffix). Use a unique internal ref matched on response type.
-- **#6** Dead `ChatSyncPlan` + `useChatSyncTargets` (the package's request-based
-  sync plan is wired but never registered via `extraSyncPlans`). Pick one path.
-- **#8** No type-map ↔ dispatcher parity test (the `channel.sync-site-profile`
-  drop was this class of bug; `device.*` is currently logged as "Unhandled domain").
-- **#9** IndexedDB TTL is stamped (`expiresAt`, 30 min on channel/join/user/site)
-  but never enforced; the storages README documents a GC-on-read that doesn't exist.
-- **#10** Message list is not virtualized (unbounded DOM growth).
-- **#13** Windows badge overlay icon + per-channel notification collapse tag.
+- **#2** Force reconnect on browser `online` + after OS sleep — detected via a
+  wall-clock gap (timers freeze during sleep; no `visibilitychange` on wake).
+  `forceReconnect()` short-circuits the package backoff via `runtime.reconnect.restart()`,
+  no-op when already connected. Pure renderer (browser + Electron); no
+  `powerMonitor`/bridge contract added.
+- **#3** Request correlation hardened *conservatively*: unique `sendChat` ref so
+  concurrent sends never share a wire ref (retries reuse the original via
+  `options.ref` for idempotency); `SocketRequestManager` warns on a duplicate
+  in-flight ref and documents the uniqueness contract. Full type-aware matching
+  was **not** attempted — the ref triple-serves as correlation key, wire mid, and
+  idempotency key, and the error-event semantics are subtle; a rewrite risks
+  regressing send idempotency + error propagation.
+- **#6** Deleted dead `ChatSyncPlan` + `useChatSyncTargets` + the unused
+  `extraSyncPlans` seam; kept the live `ChatSyncScheduler` (replace, don't deprecate).
+- **#8** Dispatcher routes a raw `channel` domain to `chatHandler` (unmapped
+  `channel.*` would otherwise be silently dropped) and swallows `device` quietly
+  (consumed in the socket layer). Added dispatcher regression tests.
+- **#9** Corrected the storages README: the TTL is advisory and **not** enforced
+  (no GC-on-read). Freshness comes from socket events + explicit sync; expiry
+  eviction without a refresh path would only cause stale-blank.
+- **#13** Windows taskbar overlay badge — rendered as a **PNG in the renderer**
+  (Electron `nativeImage` can't rasterize SVG) and painted via `setOverlayIcon`
+  (`!isEmpty()` guarded); plus per-channel OS-notification coalescing.
+
+## Remaining (Tier 2 — deferred)
+
+- **#10** Message list virtualization (unbounded DOM growth in very long sessions).
+  Done *partially*: the post-send RAF pin now exits once height settles. Full
+  windowing is deferred — it needs a new dependency (`@tanstack/react-virtual`)
+  and a rewrite of the tuned scroll-anchor / jump-to-bottom / load-older engine
+  (highest regression risk; a perf issue, not a correctness/sync one).
 
 ## Server ceilings (need backend work — not client bugs)
 
