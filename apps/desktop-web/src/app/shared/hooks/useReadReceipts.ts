@@ -7,8 +7,15 @@ import { useReadCursorStore } from '../stores';
 
 const DEBOUNCE_MS = 500;
 
+// Exclude optimistic/pending messages: they carry a sentinel chatNo
+// (Number.MAX_SAFE_INTEGER, so they sort to the bottom) which must never be sent
+// as the read cursor — the server rejects it (chat.read:error). Only persisted
+// messages advance the read position.
 const maxChatNoOf = (messages: DomainChat[]): number =>
-    messages.reduce((max, m) => (m.chatNo && m.chatNo > max ? m.chatNo : max), 0);
+    messages.reduce(
+        (max, m) => (!m.isPending && m.chatNo && m.chatNo !== Number.MAX_SAFE_INTEGER && m.chatNo > max ? m.chatNo : max),
+        0
+    );
 
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
