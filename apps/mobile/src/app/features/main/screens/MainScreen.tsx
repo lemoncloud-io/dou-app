@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useRef } from 'react';
 import type { WebView } from 'react-native-webview';
 import { Image, StyleSheet, View } from 'react-native';
 
@@ -7,13 +7,12 @@ import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigatio
 import { AppWebView } from '../../../webview';
 import { DeepLinkErrorView } from '../../core/components';
 import type { MainScreenProps } from '../navigation';
-import type { ModalHandler } from '../../../webview/hooks/useModalHandler';
 import { useAppBridge } from '../../../webview/hooks';
 import { logger } from '../../../services';
 import { useResolvedTheme } from '../../../hooks';
 import { useDebugRuntimeStore, useDebugSettingsStore } from '../../../stores';
 
-export const MainScreen = ({ navigation, route }: MainScreenProps) => {
+export const MainScreen = ({ route }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
     const { bridge, onMessage } = useAppBridge(webViewRef);
     const { isDark } = useResolvedTheme();
@@ -21,7 +20,7 @@ export const MainScreen = ({ navigation, route }: MainScreenProps) => {
     const webViewReloadToken = useDebugRuntimeStore(state => state.webViewReloadToken);
     const updateWebViewState = useDebugRuntimeStore(state => state.updateWebViewState);
 
-    const { setWebCanGoBack, setNavCanGoBack } = useWebViewNavigation(bridge);
+    const { setNavCanGoBack } = useWebViewNavigation(bridge);
     const { source, handleWebViewLoad, deepLinkError, deepLinkErrorReason, handleDismissError } = useWebViewDeepLink(
         webViewRef,
         route,
@@ -29,21 +28,6 @@ export const MainScreen = ({ navigation, route }: MainScreenProps) => {
             webViewBaseUrl,
             reloadToken: webViewReloadToken,
         }
-    );
-
-    const modalHandler: ModalHandler = useMemo(
-        () => ({
-            openModal: ({ url, type, heightRatio, dragHandle }) => {
-                navigation.navigate('Modal', { url, type, heightRatio, dragHandle });
-            },
-            closeModal: () => {
-                if (navigation.canGoBack()) {
-                    navigation.goBack();
-                }
-            },
-            canGoBack: () => navigation.canGoBack(),
-        }),
-        [navigation]
     );
 
     if (!source) {
@@ -115,8 +99,6 @@ export const MainScreen = ({ navigation, route }: MainScreenProps) => {
                         lastError: event.nativeEvent.description,
                     });
                 }}
-                modalHandler={modalHandler}
-                setWebCanGoBack={setWebCanGoBack}
             />
         </View>
     );

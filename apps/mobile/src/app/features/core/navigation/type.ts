@@ -11,7 +11,6 @@ export type MainStackParamList = {
               error?: string;
           }
         | undefined;
-    Modal: ModalScreenParams;
 };
 
 export type ModalScreenParams = {

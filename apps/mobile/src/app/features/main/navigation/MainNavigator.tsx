@@ -1,7 +1,6 @@
 import { createNativeStackNavigator, type NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainStackParamList } from '../../core/navigation';
 import { MainScreen } from '../screens';
-import { ModalScreen } from '../screens';
 
 export type MainScreenProps = NativeStackScreenProps<MainStackParamList, 'Main'>;
 
@@ -16,15 +15,6 @@ export const MainNavigator = () => {
             }}
         >
             <MainStack.Screen name="Main" component={MainScreen}></MainStack.Screen>
-            <MainStack.Screen
-                name="Modal"
-                component={ModalScreen}
-                options={{
-                    presentation: 'transparentModal',
-                    animation: 'fade',
-                    gestureEnabled: true,
-                }}
-            />
         </MainStack.Navigator>
     );
 };
