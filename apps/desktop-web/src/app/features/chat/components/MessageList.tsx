@@ -117,8 +117,8 @@ export const MessageList = ({
     // After sending, snap to the latest even if the reader had scrolled up. A
     // single scroll lands short: the optimistic message renders, then the list
     // reflows over the next few frames (optimistic→server swap, height change),
-    // each nudging the viewport off the bottom. Pin to the bottom every frame
-    // until the height settles (3 stable frames) or a short deadline passes.
+    // each nudging the viewport off the bottom. Pin to the bottom every frame for
+    // a short window so it rides through all of them.
     useEffect(() => {
         if (!scrollSignal) return;
         setAtBottom(true);
@@ -128,22 +128,9 @@ export const MessageList = ({
         // off the bottom. Pinning the whole window rides through all of them.
         const deadline = performance.now() + 600;
         let raf = 0;
-        let lastHeight = -1;
-        let stableFrames = 0;
         const snap = () => {
             const el = scrollRef.current;
-            if (el) {
-                el.scrollTop = el.scrollHeight;
-                // Stop early once the height stops changing for 3 frames — the
-                // post-send reflow (optimistic render → server swap) has settled, so
-                // there's no need to keep pinning for the full 600ms.
-                if (el.scrollHeight === lastHeight) {
-                    if (++stableFrames >= 3) return;
-                } else {
-                    stableFrames = 0;
-                    lastHeight = el.scrollHeight;
-                }
-            }
+            if (el) el.scrollTop = el.scrollHeight;
             if (performance.now() < deadline) raf = requestAnimationFrame(snap);
         };
         raf = requestAnimationFrame(snap);
@@ -202,12 +189,8 @@ export const MessageList = ({
             <div
                 ref={scrollRef}
                 onScroll={onScroll}
-                className="scrollbar-thin flex flex-1 flex-col overflow-y-auto p-4"
+                className="scrollbar-thin flex flex-1 flex-col gap-0.5 overflow-y-auto p-4"
             >
-                {/* mt-auto pins a sparse conversation to the bottom (Slack-style); it
-                    collapses to no effect once content overflows, so the scroll-anchor
-                    / jump-to-bottom math is unaffected. */}
-                <div className="flex flex-col gap-0.5 mt-auto">
                 {isLoadingOlder && (
                     <div className="flex justify-center py-2" role="status" aria-label={t('chat.loading')}>
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground motion-reduce:animate-none" />
@@ -229,7 +212,6 @@ export const MessageList = ({
                     return <MessageRow key={row.group.key} group={row.group} onRetry={onRetry} />;
                 })}
                 <div ref={bottomRef} />
-                </div>
             </div>
             {!atBottom &&
                 (newCount > 0 ? (
