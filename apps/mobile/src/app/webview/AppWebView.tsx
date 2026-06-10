@@ -12,7 +12,6 @@ import { getConsoleOverrideScript, getDeviceInfoScript, getSafeAreaScript } from
 import { useWebMessageRouter } from './hooks/useWebMessageRouter';
 import { useVersionCheckHandler } from './hooks';
 import { FullScreenLoader } from '../features/core/components';
-import type { ModalHandler } from './hooks/useModalHandler';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import { type ThemeMode, useDebugRuntimeStore, useThemeStore } from '../stores';
 
@@ -27,8 +26,6 @@ const ResumeOverlay = ({ isDark }: { isDark: boolean }) => (
 
 interface AppWebViewProps extends WebViewProps {
     bridge: IAppBridgeHost;
-    modalHandler: ModalHandler;
-    setWebCanGoBack: (back: boolean) => void;
 }
 
 const appName = Config.VIEW_APP_NAME ?? '';
@@ -40,7 +37,7 @@ const userAgentSuffix = `(${APP_USER_AGENT_PREFIX}; ${appName}/${appVersion}; ${
 const isThemeMode = (value: unknown): value is ThemeMode => value === 'dark' || value === 'light' || value === 'system';
 
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
-    const { bridge, onMessage, modalHandler, setWebCanGoBack, ...restProps } = props;
+    const { bridge, onMessage, ...restProps } = props;
 
     const { cacheCrudService, firebaseInstallationService } = useServices();
     const updateDebugWebViewState = useDebugRuntimeStore(state => state.updateWebViewState);
@@ -54,11 +51,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const [isWebAppReady, setIsWebAppReady] = useState(false);
     const webAppReadyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const { isIapLoading } = useWebMessageRouter({
-        bridge,
-        modalHandler,
-        setWebCanGoBack,
-    });
+    const { isIapLoading } = useWebMessageRouter({ bridge });
 
     useVersionCheckHandler(bridge);
 
