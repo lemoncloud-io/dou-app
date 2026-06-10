@@ -8,7 +8,6 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
-import { Switch } from '@chatic/ui-kit/components/ui/switch';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { avatarStyle, isPlaceholderName, useCurrentPlace, useMyProfile, useSiteProfilesStore } from '../../../shared';
@@ -39,9 +38,11 @@ export const EditPlaceProfileDialog = () => {
 
     const [nick, setNick] = useState('');
     const [thumbnail, setThumbnail] = useState<string | undefined>(undefined);
-    const [active, setActive] = useState(false);
     const [isError, setIsError] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
+    // Whether an active place override already exists — gates the "use account
+    // profile" reset (there's nothing to revert until one is set).
+    const hasActiveProfile = useSiteProfilesStore(s => (myUid ? !!s.profiles[myUid] : false));
 
     // Seed the form when the dialog opens. Precedence: the freshly-loaded Place
     // Profile → the locally-cached active override (covers a get-site-profile
@@ -53,7 +54,6 @@ export const EditPlaceProfileDialog = () => {
             const cached = myUid ? useSiteProfilesStore.getState().profiles[myUid] : undefined;
             setNick(profile?.nick || cached?.nick || globalName);
             setThumbnail(profile?.thumbnail || cached?.thumbnail || globalPhoto || undefined);
-            setActive(profile?.active ?? !!cached);
         });
     }, [isOpen, load, myUid, globalName, globalPhoto]);
 
@@ -72,15 +72,31 @@ export const EditPlaceProfileDialog = () => {
         }
     };
 
+    // Saving a nick/photo means you want it used here — no separate "active" toggle.
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const trimmed = nick.trim();
         if (!trimmed || isSaving) return;
         setIsError(false);
         try {
-            await save({ nick: trimmed, thumbnail, active });
+            await save({ nick: trimmed, thumbnail, active: true });
             close();
             toast({ description: t('profile.place.saved') });
+        } catch {
+            setIsError(true);
+        }
+    };
+
+    // Revert to the account identity: deactivate the place profile (the server
+    // keeps the nick, display falls back to the account). Only offered when one
+    // is active, so it never reads as "delete something I haven't set".
+    const handleUseAccount = async () => {
+        if (isSaving) return;
+        setIsError(false);
+        try {
+            await save({ nick: nick.trim() || globalName || '-', thumbnail, active: false });
+            close();
+            toast({ description: t('profile.place.reset') });
         } catch {
             setIsError(true);
         }
@@ -140,23 +156,36 @@ export const EditPlaceProfileDialog = () => {
                         />
                     </div>
 
-                    <label className="flex items-center justify-between gap-3 rounded-md border border-input px-3 py-2">
-                        <span className="flex flex-col">
-                            <span className="text-sm font-medium text-foreground">{t('profile.place.activeLabel')}</span>
-                            <span className="text-caption text-muted-foreground">{t('profile.place.activeHint')}</span>
-                        </span>
-                        <Switch checked={active} onCheckedChange={setActive} disabled={busy} />
-                    </label>
-
                     {isError && <p className="text-sm text-destructive">{t('profile.place.failed')}</p>}
 
-                    <div className="flex justify-end gap-2 pt-2">
-                        <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)} disabled={isSaving}>
-                            {t('profile.place.cancel')}
-                        </Button>
-                        <Button type="submit" disabled={busy || !nick.trim()}>
-                            {isSaving ? t('profile.place.saving') : t('profile.place.save')}
-                        </Button>
+                    <div className="flex items-center justify-between gap-2 pt-2">
+                        {hasActiveProfile ? (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="text-muted-foreground"
+                                onClick={() => void handleUseAccount()}
+                                disabled={busy}
+                            >
+                                {t('profile.place.useAccount')}
+                            </Button>
+                        ) : (
+                            <span />
+                        )}
+                        <div className="flex gap-2">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => handleOpenChange(false)}
+                                disabled={isSaving}
+                            >
+                                {t('profile.place.cancel')}
+                            </Button>
+                            <Button type="submit" disabled={busy || !nick.trim()}>
+                                {isSaving ? t('profile.place.saving') : t('profile.place.save')}
+                            </Button>
+                        </div>
                     </div>
                 </form>
             </DialogContent>
