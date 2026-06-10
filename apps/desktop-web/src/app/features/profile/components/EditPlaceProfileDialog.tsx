@@ -11,7 +11,8 @@ import { Label } from '@chatic/ui-kit/components/ui/label';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { avatarStyle, isPlaceholderName, useMyProfile, useSiteProfilesStore } from '../../../shared';
+import { avatarStyle, isPlaceholderName, useCurrentPlace, useMyProfile, useSiteProfilesStore } from '../../../shared';
+import { PlaceChip } from './PlaceChip';
 import { useEditPlaceProfileDialogStore } from '../stores';
 
 const THUMBNAIL_SIZE = 150;
@@ -28,6 +29,8 @@ export const EditPlaceProfileDialog = () => {
     const close = useEditPlaceProfileDialogStore(s => s.close);
     const { isLoading, isSaving, load, save } = useMyProfile();
     const busy = isLoading || isSaving;
+    const { placeName } = useCurrentPlace();
+    const placeLabel = placeName || t('profile.thisPlaceFallback');
 
     const myUid = useWebCoreStore(s => s.profile?.uid ?? '');
     const rawName = useWebCoreStore(s => s.profile?.$user?.name ?? '');
@@ -88,8 +91,11 @@ export const EditPlaceProfileDialog = () => {
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogContent className="sm:max-w-md">
-                <DialogTitle>{t('profile.place.title')}</DialogTitle>
-                <DialogDescription>{t('profile.place.hint')}</DialogDescription>
+                <div className="flex flex-wrap items-center gap-2">
+                    <DialogTitle>{t('profile.place.title')}</DialogTitle>
+                    {placeName && <PlaceChip name={placeName} />}
+                </div>
+                <DialogDescription>{t('profile.place.hint', { place: placeLabel })}</DialogDescription>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">
                     <div className="flex items-center gap-3">
                         <Avatar className="h-14 w-14 rounded-xl">

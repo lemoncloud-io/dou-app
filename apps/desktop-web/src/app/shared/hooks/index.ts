@@ -1,4 +1,5 @@
 export * from './usePlaces';
+export * from './useCurrentPlace';
 export * from './useChannels';
 export * from './useChats';
 export * from './useChatMutations';

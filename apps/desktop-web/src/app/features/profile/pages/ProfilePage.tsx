@@ -7,8 +7,16 @@ import { useWebCoreStore } from '@chatic/web-core';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-import { avatarStyle, isPlaceholderName, useCopyToClipboard, useDisplayProfile, useSiteProfiles } from '../../../shared';
-import { EditPlaceProfileDialog } from '../components';
+import {
+    avatarStyle,
+    isPlaceholderName,
+    useCopyToClipboard,
+    useCurrentPlace,
+    useDisplayProfile,
+    useSiteProfileMap,
+    useSiteProfiles,
+} from '../../../shared';
+import { EditPlaceProfileDialog, PlaceChip } from '../components';
 import { useEditPlaceProfileDialogStore } from '../stores';
 
 interface ProfileFieldProps {
@@ -58,6 +66,10 @@ export const ProfilePage = () => {
     // unmounted here, so without this the optimistic self-edit would not reflect
     // in the "This place" card until navigating back home.
     useSiteProfiles();
+    const { placeName } = useCurrentPlace();
+    const placeLabel = placeName || t('profile.thisPlaceFallback');
+    // Whether I have an active per-place override here (vs falling back to the account).
+    const hasPlaceProfile = !!useSiteProfileMap()[profile?.uid ?? ''];
 
     const user = profile?.$user;
     const fallback = t('profile.unknown');
@@ -89,8 +101,11 @@ export const ProfilePage = () => {
             </header>
 
             <div className="scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8">
-                <section className="flex flex-col gap-4">
-                    <SectionTitle>{t('profile.thisPlace')}</SectionTitle>
+                <section className="flex flex-col gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <SectionTitle>{t('profile.thisPlace')}</SectionTitle>
+                        {placeName && <PlaceChip name={placeName} />}
+                    </div>
                     <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5">
                         <Avatar className="h-16 w-16 rounded-xl ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
                             {displayPhoto && <AvatarImage src={displayPhoto} alt={displayName} className="rounded-xl" />}
@@ -100,10 +115,18 @@ export const ProfilePage = () => {
                         </Avatar>
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                             <span className="truncate text-lg font-bold tracking-tight text-foreground">{displayName}</span>
-                            <span className="text-xs text-muted-foreground">{t('profile.thisPlaceHint')}</span>
+                            <span className="text-xs text-muted-foreground">
+                                {hasPlaceProfile
+                                    ? t('profile.thisPlaceHint', { place: placeLabel })
+                                    : t('profile.usingAccountHere')}
+                            </span>
                         </div>
-                        <Button variant="outline" size="sm" onClick={openEditPlaceProfile}>
-                            {t('profile.editPlace')}
+                        <Button
+                            variant={hasPlaceProfile ? 'outline' : 'default'}
+                            size="sm"
+                            onClick={openEditPlaceProfile}
+                        >
+                            {hasPlaceProfile ? t('profile.editPlace') : t('profile.setUpPlace')}
                         </Button>
                     </div>
                 </section>
