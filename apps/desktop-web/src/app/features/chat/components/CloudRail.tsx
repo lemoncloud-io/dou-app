@@ -21,6 +21,9 @@ interface CloudRailProps {
     activeCloudId: string | null;
     hasUnread: boolean;
     onSelectCloud: (cloudId: string) => void;
+    /** A cloud/place switch is in flight — disable the cloud buttons to block a
+     * second switch mid-handshake (the pipeline is serial). */
+    isSwitching?: boolean;
 }
 
 const cloudInitial = (cloud: RailCloud): string =>
@@ -31,7 +34,7 @@ const cloudInitial = (cloud: RailCloud): string =>
  * front/API URL); selecting one runs the cloud switch pipeline. The signed-in
  * user's menu is pinned to the bottom.
  */
-export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: CloudRailProps) => {
+export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud, isSwitching }: CloudRailProps) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const openJoinDialog = useJoinDialogStore(s => s.open);
@@ -63,6 +66,7 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: C
                         <button
                             key={cloud.id}
                             onClick={() => onSelectCloud(cloud.id)}
+                            disabled={isSwitching}
                             title={cloud.name ?? cloud.id}
                             aria-label={cloud.name ?? cloud.id}
                             aria-current={isActive ? 'true' : undefined}
@@ -72,7 +76,10 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud }: C
                                 isActive
                                     ? 'rounded-xl bg-primary text-primary-foreground shadow-raised'
                                     : 'bg-rail-muted text-rail-foreground hover:bg-rail-muted/70',
-                                isInactive && 'opacity-50'
+                                isInactive && 'opacity-50',
+                                // Block a second switch mid-handshake; dim non-active icons for feedback.
+                                isSwitching && 'cursor-not-allowed',
+                                isSwitching && !isActive && 'opacity-40'
                             )}
                         >
                             {/* active indicator pill (Slack-style left bar) */}

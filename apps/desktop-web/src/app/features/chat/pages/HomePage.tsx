@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { useGlobalLoader } from '@chatic/shared';
 import { useWebCoreStore } from '@chatic/web-core';
 
 import { JoinWithInviteDialog } from '../../auth';
@@ -46,6 +47,9 @@ export const HomePage = () => {
     const selectPlace = useSelectedPlaceStore(s => s.selectPlace);
     const { switchPlace } = useSelectPlace();
     const { switchCloud } = useCloudSwitchFlow({ onPlaceSelected: selectPlace });
+    // True while a cloud/place switch handshake is in flight — disables the rail
+    // cloud buttons so a second switch can't be fired mid-pipeline.
+    const { isLoading: isSwitching } = useGlobalLoader();
 
     // Place Profiles: mirror the current place's overrides into the store (one
     // subscription) and pull deltas on place-switch / verified / reconnect.
@@ -164,6 +168,7 @@ export const HomePage = () => {
                         activeCloudId={activeCloudId}
                         hasUnread={cloudHasUnread}
                         onSelectCloud={cloudId => void switchCloud(cloudId)}
+                        isSwitching={isSwitching}
                     />
                 }
                 sidebar={
