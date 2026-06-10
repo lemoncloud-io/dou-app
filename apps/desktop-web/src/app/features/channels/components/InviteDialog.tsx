@@ -15,6 +15,20 @@ interface InviteDialogProps {
     channelId: string;
 }
 
+// Valid Korean mobile prefixes: 010, 011, 016, 017, 018, 019
+// (mirrors apps/web InviteFriendsDialog).
+const KOREAN_MOBILE_PREFIXES = ['010', '011', '016', '017', '018', '019'];
+
+/** Normalize a +82 international number to local form (0XX…). */
+const normalizeKoreanPhone = (digits: string): string =>
+    digits.startsWith('82') && digits.length >= 12 ? '0' + digits.slice(2) : digits;
+
+const isValidKoreanPhone = (digits: string): boolean => {
+    const normalized = normalizeKoreanPhone(digits);
+    if (normalized.length < 10 || normalized.length > 11) return false;
+    return KOREAN_MOBILE_PREFIXES.some(prefix => normalized.startsWith(prefix));
+};
+
 /**
  * Desktop invite: enter a phone number, generate a shareable invite link, and
  * copy it. The backend invite is recipient-bound (user.invite-batch requires a
@@ -39,11 +53,16 @@ export const InviteDialog = ({ open, onOpenChange, channelId }: InviteDialogProp
         }
     }, [open]);
 
+    const digits = normalizeKoreanPhone(alias.replace(/\D/g, ''));
+    const isValidPhone = isValidKoreanPhone(digits);
+    const showInvalid = alias.trim().length > 0 && !isValidPhone;
+
     const handleGenerate = async () => {
+        if (!isValidPhone) return;
         setIsError(false);
         setCopied(false);
         try {
-            const generated = await createInvite(channelId, alias);
+            const generated = await createInvite(channelId, digits);
             setLink(generated);
             await navigator.clipboard.writeText(generated);
             setCopied(true);
@@ -80,13 +99,15 @@ export const InviteDialog = ({ open, onOpenChange, channelId }: InviteDialogProp
                         />
                     )}
 
+                    {showInvalid && <p className="text-sm text-destructive">{t('channels.invite.invalidPhone')}</p>}
+
                     {isError && <p className="text-sm text-destructive">{t('channels.invite.failed')}</p>}
 
                     <div className="flex justify-end gap-2">
                         <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isCreating}>
                             {t('channels.invite.close')}
                         </Button>
-                        <Button type="button" onClick={handleGenerate} disabled={isCreating || !alias.trim()}>
+                        <Button type="button" onClick={handleGenerate} disabled={isCreating || !isValidPhone}>
                             {copied ? <Check size={16} /> : <Copy size={16} />}
                             {isCreating
                                 ? t('channels.invite.creating')

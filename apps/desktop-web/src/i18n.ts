@@ -174,6 +174,7 @@ const resources = {
             'channels.invite.copied': 'Copied',
             'channels.invite.creating': 'Generating link...',
             'channels.invite.failed': 'Could not generate an invite link. Try again.',
+            'channels.invite.invalidPhone': 'Enter a valid Korean mobile number (e.g. 01012345678).',
             'channels.invite.placeholder': 'Generate a link to share',
             'channels.invite.close': 'Close',
             'channels.delete.title': 'Delete channel?',
