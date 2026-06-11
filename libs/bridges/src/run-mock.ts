@@ -1,6 +1,10 @@
 import * as readline from 'readline';
 import type { AppMessageData } from '@chatic/app-messages';
-import { createBridgeSimulationEnvironment } from './simulation';
+import { AppBridgeHost } from './app';
+import { webClient } from './provider';
+import { InMemoryAdapter } from './web/adapters';
+import { JsonProtocol } from './common';
+
 // --- 기본 설정 ---
 const logger = {
     web: (...args: any[]) => console.log('🌐 [Web]', ...args),
@@ -8,14 +12,29 @@ const logger = {
     info: (...args: any[]) => console.log('ℹ️  [Info]', ...args),
     hr: () => console.log('\n' + '-'.repeat(40) + '\n'),
 };
-const { appHost, webClient } = createBridgeSimulationEnvironment({ rttDelayMs: 20 });
+
+const adapter = new InMemoryAdapter();
+const appHost = new AppBridgeHost({
+    sendToWeb: message => {
+        const decoded = JsonProtocol.decode(message);
+        if (decoded) {
+            adapter.receiveFromApp(decoded as any);
+        }
+    },
+});
+adapter.setAppHost(appHost);
+
+// 기존 webClient 싱글톤의 통신 채널을 InMemoryAdapter로 교체하고 시뮬레이션을 설정합니다.
+webClient.setAdapter(adapter);
+webClient.configureEnvironment({ rttDelayMs: 20 });
+
 // ======================================================================
 // AppBridgeHost 핸들러 등록 (테스트 Native 비즈니스 로직)
 // ======================================================================
 appHost.registerHandler('Ping', async message => {
     // 타입 시스템에 의해 message.data가 PingPayload임이 보장되므로 옵셔널 체이닝(?.) 제거
     const pingPayload = message.data.payload;
-    logger.app(`[BridgeSimulationEnvironment] 'Ping' 수신. payload 길이: ${pingPayload.length} bytes`);
+    logger.app(`[InMemoryAdapter] 'Ping' 수신. payload 길이: ${pingPayload.length} bytes`);
     // HandlerResponse<'Ping'> 규격에 따라 refId, version 등의 메타데이터 없이 순수 응답만 반환
     return {
         type: 'Pong',
