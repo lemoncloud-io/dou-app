@@ -103,6 +103,15 @@ jobs:
                   APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
                   APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
                   APPLE_API_KEY_B64: ${{ secrets.APPLE_API_KEY }}
+                  # Cross-cloud push (FCM): Firebase client config injected per env, like the
+                  # web's FIREBASE_* secrets — kept out of the tracked .env (public OSS repo).
+                  # electron-vite bakes process.env MAIN_VITE_* (overrides the .env files).
+                  # Android appId differs from the web FIREBASE_*_APP_ID → its own secret.
+                  MAIN_VITE_FCM_API_KEY: ${{ inputs.env == 'prod' && secrets.FIREBASE_PROD_API_KEY || secrets.FIREBASE_DEV_API_KEY }}
+                  MAIN_VITE_FCM_PROJECT_ID: ${{ inputs.env == 'prod' && secrets.FIREBASE_PROD_PROJECT_ID || secrets.FIREBASE_DEV_PROJECT_ID }}
+                  MAIN_VITE_FCM_SENDER_ID: ${{ inputs.env == 'prod' && secrets.FIREBASE_PROD_MESSAGING_SENDER_ID || secrets.FIREBASE_DEV_MESSAGING_SENDER_ID }}
+                  MAIN_VITE_FCM_APP_ID: ${{ inputs.env == 'prod' && secrets.FIREBASE_PROD_ANDROID_APP_ID || secrets.FIREBASE_DEV_ANDROID_APP_ID }}
+                  MAIN_VITE_FCM_PACKAGE: ${{ inputs.env == 'prod' && 'io.chatic.dou' || 'io.chatic.dou.dev' }}
               run: |
                   set -e
                   EXTRA=""
