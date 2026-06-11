@@ -8,11 +8,15 @@ import type { DomainChat } from '@chatic/data';
  */
 
 /**
- * The id of a message's thread root. A reply points its `parentId` at the root;
- * a root has no `parentId`. Threads are flat (root-only): replying to a reply
- * normalises to the same root, so this collapses any message to its root id.
+ * The thread-root key of a message. The backend stores a reply's `parentId` as
+ * the parent's channel-local sequence (`chatNo`), not its full id — so the key a
+ * reply points at, and the key we filter/send by, is the root's `chatNo` (as a
+ * string). A root has no `parentId`, so its key is its own `chatNo`. Threads are
+ * flat (root-only): replying to a reply normalises to the same root via its
+ * `parentId`.
  */
-export const threadRootId = (chat: DomainChat): string => chat.parentId ?? chat.id ?? '';
+export const threadRootId = (chat: DomainChat): string =>
+    chat.parentId ?? (chat.chatNo != null ? String(chat.chatNo) : (chat.id ?? ''));
 
 const replyTime = (chat: DomainChat): number => chat.createdAt ?? chat.createdAtMs ?? 0;
 
@@ -58,12 +62,16 @@ export interface ThreadView {
     replies: DomainChat[];
 }
 
-/** Derive a single thread (root + its direct replies) from the loaded messages. */
+/**
+ * Derive a single thread (root + its direct replies) from the loaded messages.
+ * `rootId` is the root's `chatNo` as a string (see threadRootId) — that is what
+ * a reply's `parentId` holds.
+ */
 export const buildThread = (messages: DomainChat[], rootId: string): ThreadView => {
     let root: DomainChat | undefined;
     const replies: DomainChat[] = [];
     for (const message of messages) {
-        if (message.id === rootId) root = message;
+        if (message.chatNo != null && String(message.chatNo) === rootId) root = message;
         else if (message.parentId === rootId) replies.push(message);
     }
     return { root, replies: replies.sort(byChatNo) };
