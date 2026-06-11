@@ -53,11 +53,11 @@ sequenceDiagram
 
 `AppWebView.tsx` intercepts these messages before normal bridge routing:
 
-| Message                       | 동작                                                                     |
-| ----------------------------- | ------------------------------------------------------------------------ |
-| `WebAppReady`                 | loading state 해제, debug runtime state 갱신, `offlinePushQueue.flush()` |
-| `ResumeReady`                 | iOS resume overlay 해제                                                  |
-| `SavePreference` with `theme` | native theme store 갱신                                                  |
+| Message                       | 동작                                         |
+| ----------------------------- | -------------------------------------------- |
+| `WebAppReady`                 | loading state 해제, debug runtime state 갱신 |
+| `ResumeReady`                 | iOS resume overlay 해제                      |
+| `SavePreference` with `theme` | native theme store 갱신                      |
 
 ## Injection
 

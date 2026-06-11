@@ -8,6 +8,7 @@
 | ---------------------------- | --------------------------------------------------------------------------------------------------- |
 | TypeScript wrapper           | `src/app/bridge/*Bridge.ts`                                                                         |
 | Android package/module       | `android/app/src/main/java/io/chatic/dou/bridge`, `android/app/src/main/java/io/chatic/dou/module`  |
+| Android push service         | `android/app/src/main/java/io/chatic/dou/push`                                                      |
 | Android background upload    | `android/app/src/main/java/io/chatic/dou/service`, `android/app/src/main/java/io/chatic/dou/worker` |
 | iOS bridge                   | `ios/Bridges`                                                                                       |
 | iOS app delegate integration | `ios/Chatic/AppDelegate.swift`                                                                      |
@@ -21,6 +22,7 @@
 | App icon        | `AppIconBridge.ts`        | `AppIconManagerModule.kt`                                                 | `AppIconManager.m`                                     |
 | System bars     | `SystemBarsBridge.ts`     | `SystemBarsModule.kt`                                                     | platform-specific native behavior                      |
 | Back navigation | `BackNavigationBridge.ts` | `BackNavigationModule.kt`, `BackNavigationHandler.kt`                     | platform-specific native behavior                      |
+| Push delivery   | n/a                       | `push/ChaticFirebaseMessagingService.kt`                                  | `AppDelegate.swift` + `RNCPushNotificationIOS`         |
 
 ## 호출 흐름
 
@@ -47,6 +49,7 @@ sequenceDiagram
 - service는 native module을 직접 호출해도 되지만 WebView handler가 native module을 직접 호출하지 않도록 유지한다.
 - Android/iOS 중 한쪽만 구현된 기능은 문서와 handler에서 명시적으로 fallback 또는 unsupported error를 다룬다.
 - background 작업은 OS lifecycle 제약을 우선 고려한다. upload처럼 장시간 실행되는 기능은 service와 repository에 복구 상태를 남긴다.
+- Push delivery is a native lifecycle concern: Android uses `ChaticFirebaseMessagingService`, while iOS forwards APNs callbacks from `AppDelegate` into `RNCPushNotificationIOS`.
 
 ## 변경 체크리스트
 

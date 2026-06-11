@@ -25,7 +25,7 @@ flowchart TD
 
 | 파일                                                 | 역할                                                                         |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `src/main.tsx`                                       | React Native 앱 등록, background FCM handler 등록                            |
+| `src/main.tsx`                                       | React Native 앱 등록                                                         |
 | `src/main-web.tsx`                                   | web target entrypoint                                                        |
 | `src/app/App.tsx`                                    | navigation, deeplink linking, notification channel init, debug overlay mount |
 | `src/app/features/core/navigation/RootNavigator.tsx` | root navigation stack                                                        |
@@ -39,7 +39,7 @@ flowchart TD
 | Service       | 모바일 기능의 단일 실행 경계와 DI 조립                   | [service.md](./service.md)             |
 | WebView       | web app host, injected runtime, bridge router            | [webview.md](./webview.md)             |
 | Cache         | SQLite/MMKV/local data source                            | [cache.md](./cache.md)                 |
-| Push          | FCM/APNs, badge, foreground event, offline queue         | [push.md](./push.md)                   |
+| Push          | FCM/APNs, native foreground event, badge, click routing  | [push.md](./push.md)                   |
 | Upload        | large file upload, native upload manager, recovery       | [upload.md](./upload.md)               |
 
 ## 기본 실행 시나리오
@@ -58,7 +58,6 @@ sequenceDiagram
     RN->>App: mount
     App->>Provider: read shared services
     App->>Provider: create notification channel
-    App->>Provider: flush offline push queue
     App->>WebView: render main screen
     WebView->>Web: inject device/safe-area/runtime scripts
     Web->>WebView: WebAppReady

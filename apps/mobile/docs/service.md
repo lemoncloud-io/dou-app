@@ -19,17 +19,17 @@ flowchart TD
 
 주요 instance:
 
-| Instance                                                               | 책임                              |
-| ---------------------------------------------------------------------- | --------------------------------- |
-| `logService`, `consoleLogger`, `logBufferService`                      | app logging and in-app log buffer |
-| `keyValueStorage`                                                      | MMKV key-value storage            |
-| `sqliteDatabase`                                                       | SQLite access                     |
-| `cacheCrudService`, `cacheSearchService`                               | local cache bridge-facing API     |
-| `uploadService`                                                        | upload lifecycle orchestration    |
-| `notificationService`, `pushEventManager`, `offlinePushQueue`          | push notification system          |
-| `deeplinkManager`, `deeplinkService`                                   | OS URL capture and routing        |
-| `deviceService`, `clipboardService`, `smsService`, `permissionService` | device capability wrappers        |
-| `oauthService`, `subscriptionIapService`                               | account/payment integrations      |
+| Instance                                                               | 책임                                                                |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `logService`, `consoleLogger`, `logBufferService`                      | app logging and in-app log buffer                                   |
+| `keyValueStorage`                                                      | MMKV key-value storage                                              |
+| `sqliteDatabase`                                                       | SQLite access                                                       |
+| `cacheCrudService`, `cacheSearchService`                               | local cache bridge-facing API                                       |
+| `uploadService`                                                        | upload lifecycle orchestration                                      |
+| `notificationService`, `pushEventManager`                              | push notification permission, token, badge, foreground event broker |
+| `deeplinkManager`, `deeplinkService`                                   | OS URL capture and routing                                          |
+| `deviceService`, `clipboardService`, `smsService`, `permissionService` | device capability wrappers                                          |
+| `oauthService`, `subscriptionIapService`                               | account/payment integrations                                        |
 
 ## Service 추가 시나리오
 

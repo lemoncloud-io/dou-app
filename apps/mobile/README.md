@@ -16,15 +16,15 @@ Start with the architecture map, then jump to the category that owns your change
 
 ## Category Map
 
-| Category                                 | Read when changing                                             | Primary code                                                                              |
-| ---------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| [architecture](./docs/architecture.md)   | app shape, startup, layer ownership                            | `src/main.tsx`, `src/app/App.tsx`, `src/app/features`                                     |
-| [native module](./docs/native-module.md) | Android/iOS native APIs, file/upload bridge, OS behavior       | `src/app/bridge`, `android/app/src/main/java/io/chatic/dou`, `ios/Bridges`                |
-| [service](./docs/service.md)             | mobile domain behavior, dependency injection, shared instances | `src/app/services/provider.ts`, `src/app/services`                                        |
-| [webview](./docs/webview.md)             | web-to-app messages, injected runtime, bridge handlers         | `src/app/webview`                                                                         |
-| [cache](./docs/cache.md)                 | SQLite, MMKV, local data sources, cache bridge APIs            | `src/app/database`, `src/app/data/cache`, `src/app/services/cache`                        |
-| [push](./docs/push.md)                   | FCM/APNs, badge, foreground event, background queue            | `src/main.tsx`, `src/app/services/notification`, `src/app/webview/hooks/useFcmHandler.ts` |
-| [upload](./docs/upload.md)               | large file upload, native upload engine, upload recovery       | `src/app/services/upload`, `src/app/webview/hooks/useUploadHandler.ts`                    |
+| Category                                 | Read when changing                                             | Primary code                                                                                                              |
+| ---------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [architecture](./docs/architecture.md)   | app shape, startup, layer ownership                            | `src/main.tsx`, `src/app/App.tsx`, `src/app/features`                                                                     |
+| [native module](./docs/native-module.md) | Android/iOS native APIs, file/upload bridge, OS behavior       | `src/app/bridge`, `android/app/src/main/java/io/chatic/dou`, `ios/Bridges`                                                |
+| [service](./docs/service.md)             | mobile domain behavior, dependency injection, shared instances | `src/app/services/provider.ts`, `src/app/services`                                                                        |
+| [webview](./docs/webview.md)             | web-to-app messages, injected runtime, bridge handlers         | `src/app/webview`                                                                                                         |
+| [cache](./docs/cache.md)                 | SQLite, MMKV, local data sources, cache bridge APIs            | `src/app/database`, `src/app/data/cache`, `src/app/services/cache`                                                        |
+| [push](./docs/push.md)                   | FCM/APNs, native foreground event, badge, click routing        | `src/app/services/notification`, `src/app/webview/hooks/useFcmHandler.ts`, `android/app/src/main/java/io/chatic/dou/push` |
+| [upload](./docs/upload.md)               | large file upload, native upload engine, upload recovery       | `src/app/services/upload`, `src/app/webview/hooks/useUploadHandler.ts`                                                    |
 
 ## System Shape
 
