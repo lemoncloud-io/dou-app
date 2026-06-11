@@ -100,6 +100,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
             await createBatchInvite({
                 channelId,
                 phones: [phoneDigits],
+                names: [name.trim()],
             });
 
             toast({ title: t('inviteFriends.batchSuccess', { count: 1 }) });

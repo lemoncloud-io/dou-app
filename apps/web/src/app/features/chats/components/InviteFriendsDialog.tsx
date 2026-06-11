@@ -171,19 +171,23 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
     const handleBatchInvite = async () => {
         if (!channelId || selectedContactIds.size === 0 || isBatchInviting) return;
 
-        // 선택된 연락처에서 유효한 번호 추출
+        // 선택된 연락처에서 유효한 번호 + 이름 추출
         const phones: string[] = [];
+        const names: string[] = [];
         for (const contact of contacts) {
             if (!selectedContactIds.has(contact.recordID)) continue;
             const phone = extractValidPhone(contact);
-            if (phone) phones.push(phone);
+            if (phone) {
+                phones.push(phone);
+                names.push(contact.displayName || contact.givenName || '');
+            }
         }
 
         if (phones.length === 0) return;
 
         setIsBatchInviting(true);
         try {
-            await createBatchInvite({ channelId, phones });
+            await createBatchInvite({ channelId, phones, names });
             toast({ title: t('inviteFriends.batchSuccess', { count: phones.length }) });
             onOpenChange?.(false);
         } catch (error) {
