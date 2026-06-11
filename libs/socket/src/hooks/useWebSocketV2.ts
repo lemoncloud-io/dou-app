@@ -175,7 +175,17 @@ export const forceReconnect = (): void => {
     const runtime = globalRuntimeRef;
     if (!client || !runtime) return;
     if (client.state === 'connected') return;
-    void runtime.reconnect.restart();
+    // The package's reconnect controller is the cheap path (kick the backoff to
+    // retry now), but it isn't populated on every lib build — in prod
+    // `runtime.reconnect` came back undefined, so `.restart()` threw and recovery
+    // died, leaving the socket stuck "reconnecting". Guard it and fall back to a
+    // full restart (stop + start), which reconnects reliably from any state.
+    const reconnect = runtime.reconnect as { restart?: () => Promise<void> } | undefined;
+    if (reconnect?.restart) {
+        void reconnect.restart();
+    } else {
+        void restartSocket();
+    }
 };
 
 /**
