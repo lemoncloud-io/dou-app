@@ -1,536 +1,271 @@
-# Chatic Bridges Specification
+# Chatic Bridges Specification & Architecture
 
-`libs/bridges`는 WebView 안의 Web 앱과 React Native 앱 사이의 메시지 통신을 담당하는 bridge 런타임입니다.
-메시지 payload와 요청/응답 타입 계약은 `@chatic/app-messages`가 소유하고, 이 패키지는 전송, 요청-응답 매칭, 이벤트 구독, bridge readiness, 실패 정책, 테스트 시뮬레이션을 담당합니다.
+`libs/bridges`는 WebView 내의 Web 앱과 모바일 Native(Android, iOS WebKit, React Native) 앱 사이의 메시지 통신을 담당하는 하이브리드 브릿지 라이브러리입니다.
 
-핵심 규칙은 하나입니다.
-
-> 모든 `WebMessage` 요청은 `WEB_MESSAGE_RESPONSE_TYPE`에 정의된 정확한 `AppMessage` 성공 응답 타입으로 resolve되어야 한다. 실패는 `BridgeError`로 reject된다.
+메시지 규격 및 요청/응답 타입 매핑 계약은 `@chatic/app-messages`가 전담하며, 이 라이브러리는 **메시지 전송, 요청-응답 매칭, 이벤트 구독, 브릿지 주입 탐지, 실패/시뮬레이션 정책, 그리고 메모리 누수 방지**를 구현합니다.
 
 ---
 
 ## 1. Public Surface
 
-### `@chatic/bridges`
+### `@chatic/bridges` Entrypoint
 
-실제 런타임에서 사용하는 production entrypoint입니다.
+웹 및 네이티브 런타임에서 가져오는 공개 API 구조입니다.
 
 ```ts
-import { bridgeProvider, isNative, webClient } from '@chatic/bridges';
+import { webClient, isNative } from '@chatic/bridges';
 import type { IWebBridgeClient, IAppBridgeHost } from '@chatic/bridges';
 ```
 
-주요 export:
+#### 주요 Exports
 
-| Export                                  | 설명                                                                                |
-| --------------------------------------- | ----------------------------------------------------------------------------------- |
-| `webClient`                             | lazy singleton proxy. 호출 시점에 `BridgeProvider.getWebClient()`로 위임합니다.     |
-| `bridgeProvider` / `BridgeProvider`     | Web client와 App host 생성/주입을 관리하는 DI provider입니다.                       |
-| `isNative()`                            | 현재 window에 native bridge channel이 있는지 확인합니다.                            |
-| `WebBridgeClient`                       | Web runtime용 request/post/onEvent 구현체입니다.                                    |
-| `NativeBridgeAdapter`                   | WebView native channel로 메시지를 전달하는 adapter입니다.                           |
-| `NonNativeFailBridgeClient`             | native bridge를 사용할 수 없는 환경의 명시적 실패 구현체입니다.                     |
-| `AppBridgeHost`                         | App runtime에서 Web 요청을 decode하고 handler 응답을 encode하는 host입니다.         |
-| `JsonProtocol`, `MessageQueue`          | bridge 내부 공통 protocol/queue primitive입니다.                                    |
-| `logger`                                | native bridge 사용 가능 여부에 따라 native/console adapter를 선택하는 logger입니다. |
-| `createBridgeSimulationEnvironment()`   | Web client, App host, in-memory transport를 한 번에 구성합니다.                     |
-| `activateBridgeSimulationEnvironment()` | bridge simulation을 생성하고 shared `bridgeProvider`에 즉시 연결합니다.             |
-| `InMemoryBridgeTransport`               | Web/App 왕복을 메모리에서 시뮬레이션하는 `BridgeAdapter` 구현체입니다.              |
-| `BridgeSimulationEnvironmentConfig`     | RTT delay, 강제 실패, timeout, drop, malformed response 등 시뮬레이션 설정입니다.   |
+| Name                  | Type               | 설명                                                                                                                                                            |
+| :-------------------- | :----------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `webClient`           | `IWebBridgeClient` | **공통 싱글톤 클라이언트**. 실제 디바이스 통신용 `NativeBridgeAdapter`가 기본 바인딩되어 있으며, 서버 사이드 렌더링(SSR) 환경에서도 안전하게 동작합니다.        |
+| `isNative()`          | `() => boolean`    | 현재 실행 환경이 네이티브 WebView 안인지 판별합니다. (`common/utils.ts`에 정의되어 있어 무거운 브릿지 클라이언트 로드 없이 단독으로 빠르게 실행할 수 있습니다.) |
+| `WebBridgeClient`     | `Class`            | 웹 환경의 요청(`request`), 전송(`post`), 이벤트 수신(`onEvent`), 타임아웃, 대기열 버퍼 처리를 구현하는 핵심 클래스입니다.                                       |
+| `NativeBridgeAdapter` | `Class`            | 웹뷰 컨테이너가 제공하는 물리 인터페이스(`window.ReactNativeWebView`, `window.webkit` 등)를 통해 메시지를 전송하고 이벤트를 수신하는 실체 채널 어댑터입니다.    |
+| `InMemoryAdapter`     | `Class`            | 웹과 앱 사이를 인메모리 루프백으로 이어주는 테스트 및 시뮬레이션용 어댑터입니다.                                                                                |
+| `AppBridgeHost`       | `Class`            | 네이티브 앱 환경에서 웹의 요청을 수신하여 등록된 핸들러로 라우팅하고 응답 데이터를 가공/전송하는 역할을 담당합니다.                                             |
 
 ---
 
-## 2. Architecture
+## 2. Architecture Diagram
 
 ```mermaid
-flowchart LR
-    subgraph Contract["@chatic/app-messages"]
-        WebTypes["WebMessageData<K>"]
+flowchart TD
+    subgraph Contract ["@chatic/app-messages"]
+        WebTypes["WebMessageData&lt;K&gt;"]
         ResponseMap["WEB_MESSAGE_RESPONSE_TYPE"]
-        AppTypes["AppMessageData<T>"]
-        BridgeError["BridgeError"]
+        AppTypes["AppMessageData&lt;T&gt;"]
     end
 
-    subgraph Web["@chatic/bridges - Web"]
-        Provider["BridgeProvider"]
-        WebProxy["webClient proxy"]
-        WebClient["WebBridgeClient"]
+    subgraph Web ["@chatic/bridges - Web"]
+        webClient["webClient (WebBridgeClient Singleton)"]
         NativeAdapter["NativeBridgeAdapter"]
-        FailClient["NonNativeFailBridgeClient"]
+        InMemoryAdapter["InMemoryAdapter"]
     end
 
-    subgraph NativeChannel["WebView Channel"]
+    subgraph NativeChannel ["WebView Message Channel"]
         W2A["window.*.postMessage"]
-        A2W["message event"]
+        A2W["window.dispatchEvent (message event)"]
     end
 
-    subgraph App["@chatic/bridges - App"]
+    subgraph App ["@chatic/bridges - App"]
         AppHost["AppBridgeHost"]
-        Router["native handler router"]
-        Handler["WebMessageHandler<K>"]
+        Router["Native Handler Router"]
+        Handler["WebMessageHandler&lt;K&gt;"]
     end
 
-    subgraph Simulation["@chatic/bridges simulation"]
-        SimulationEnv["BridgeSimulationEnvironment"]
-        MemoryTransport["InMemoryBridgeTransport"]
-    end
+    %% Web to App Flow (Production)
+    webClient -->|1. Post/Request| NativeAdapter
+    NativeAdapter -->|2. Serialize| W2A
+    W2A -->|3. Call native| AppHost
+    AppHost -->|4. Route| Router
+    Router -->|5. Execute| Handler
 
-    WebProxy --> Provider
-    Provider --> WebClient
-    Provider --> FailClient
-    WebClient --> NativeAdapter
-    NativeAdapter --> W2A
-    W2A --> AppHost
-    AppHost --> Router
-    Router --> Handler
-    Handler --> AppHost
-    AppHost --> A2W
-    A2W --> NativeAdapter
-    NativeAdapter --> WebClient
+    %% App to Web Flow (Production)
+    Handler -->|6. Return response| AppHost
+    AppHost -->|7. Send back| A2W
+    A2W -->|8. Listen event| NativeAdapter
+    NativeAdapter -->|9. Deserialize & Resolve| webClient
 
-    SimulationEnv --> WebClient
-    SimulationEnv --> AppHost
-    WebClient --> MemoryTransport
-    MemoryTransport --> AppHost
+    %% Test/Mock Loopback Flow
+    webClient <--->|InMemory Swap| InMemoryAdapter
+    InMemoryAdapter <---> AppHost
 
+    %% Type Mapping Dependencies
     WebTypes -.-> ResponseMap
     ResponseMap -.-> AppTypes
-    WebClient -.-> BridgeError
-    AppHost -.-> BridgeError
 ```
 
-### Responsibility
+### Module Responsibilities
 
-| Module               | 파일                                            | 책임                                                                               |
-| -------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Web client           | `src/web/WebBridgeClient.ts`                    | `request`, `post`, `onEvent`, `refId` pending map, timeout, response type guard    |
-| Web adapter          | `src/web/adapters/NativeBridgeAdapter.ts`       | WebView native channel encode/decode 및 DOM message listener 관리                  |
-| Non-native fallback  | `src/web/NonNativeFailBridgeClient.ts`          | native bridge가 없는 환경에서 request를 `NATIVE_NOT_SUPPORTED`로 reject            |
-| App host             | `src/app/AppBridgeHost.ts`                      | App runtime에서 요청 decode, handler routing, metadata 재연결, error response 생성 |
-| Provider             | `src/provider.ts`                               | singleton lifecycle, factory DI, runtime default client/host 생성                  |
-| Simulation transport | `src/simulation/InMemoryBridgeTransport.ts`     | runtime bridge simulation, delay/failure/drop/mismatch simulation                  |
-| Simulation env       | `src/simulation/BridgeSimulationEnvironment.ts` | Web client + App host + transport 조립 및 provider 활성화                          |
+- **[WebBridgeClient.ts](file:///Users/raine/Project/lemon/chatic-front/libs/bridges/src/web/WebBridgeClient.ts)**: 비동기 핑퐁 매칭(`refId` 맵 관리), 기본/개별 타임아웃 타이머 관리, 브릿지 준비 전까지 요청 버퍼링, 기대 응답 타입 유효성 검사, 클라이언트 소멸(`destroy()`) 처리.
+- **[NativeBridgeAdapter.ts](file:///Users/raine/Project/lemon/chatic-front/libs/bridges/src/web/adapters/NativeBridgeAdapter.ts)**: 전역 `window` 객체 유무 파악 및 `postMessage` 전송, DOM 브라우저 `message` 이벤트 리스너 바인딩 및 역직렬화.
+- **[common/utils.ts](file:///Users/raine/Project/lemon/chatic-front/libs/bridges/src/common/utils.ts)**: 네이티브 브릿지 환경 탐지 (`isNative()`).
+- **[AppBridgeHost.ts](file:///Users/raine/Project/lemon/chatic-front/libs/bridges/src/app/AppBridgeHost.ts)**: 앱 내부 핸들러 매핑, 요청 객체의 `refId` 및 메타데이터를 유지하여 역전송, 에러 발생 시 표준 프로토콜 에러 응답(`BridgeErrorResponse`) 작성.
 
 ---
 
-## 3. Message Contract
+## 3. Message Type Contract
 
-Bridge의 타입 단일 출처는 `@chatic/app-messages`입니다.
+브릿지 타입은 `@chatic/app-messages`에서 정의한 맵을 전적으로 만족해야 합니다.
 
 ```ts
+// 예시 계약 정의
 export const WEB_MESSAGE_RESPONSE_TYPE = {
     WebAppReady: 'OnWebAppReady',
     FetchBadgeCount: 'OnFetchBadgeCount',
     SetBadgeCount: 'OnSetBadgeCount',
-    RequestFileUpload: 'OnRequestFileUpload',
     Ping: 'Pong',
-    // ...
 } as const satisfies Record<WebMessageType, AppMessageType>;
 ```
 
-이 맵에서 다음 계약이 파생됩니다.
-
-```ts
-type WebMessageResponse<K extends WebMessageType> = AppSuccessMessage<WebMessageResponseType<K>>;
-
-type WebMessageHandler<K extends WebMessageType> = (
-    message: WebMessageData<K>
-) => WebMessageHandlerResponse<K> | Promise<WebMessageHandlerResponse<K>>;
-```
-
-### Caller Contract
-
-`IWebBridgeClient`는 object-style message만 받습니다.
-
-```ts
-webClient.post({
-    type: 'SetBadgeCount',
-    data: { count: 12 },
-});
-
-const response = await webClient.request({
-    type: 'FetchBadgeCount',
-    data: {},
-});
-
-response.type; // 'OnFetchBadgeCount'
-response.success; // true
-response.data.count;
-```
-
-`request()`는 성공 응답만 resolve합니다. Bridge-level 실패와 App handler 실패는 reject됩니다.
-
-```ts
-try {
-    const response = await webClient.request({ type: 'FetchFcmToken', data: {} });
-    console.log(response.data.token);
-} catch (error) {
-    // BridgeError
-}
-```
-
-### Metadata
-
-`refId`, `version`, `nonce`는 message object의 top-level metadata입니다.
-
-```ts
-webClient.post({
-    type: 'FetchAppLogBuffer',
-    nonce: 'debug-log',
-    data: { count: 100 },
-});
-```
+웹 클라이언트에서 요청 시, `request()` 함수는 이 매핑에 명시된 기대 응답 메시지 타입(`expectedResponseType`)을 수신할 때에만 비동기 `Promise`를 `resolve`시킵니다.
 
 ---
 
-## 4. Web Runtime Flow
+## 4. Interaction Scenarios (시나리오 흐름 명세)
+
+### 시나리오 1. 웹앱 초기화 및 핸드셰이크 (`WebAppReady`)
+
+웹 애플리케이션 로드 후 네이티브와의 상호 기능 명세(Capabilities) 및 프로토콜 버전을 확인하는 과정입니다.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Caller as Web caller
-    participant Client as WebBridgeClient
-    participant Adapter as NativeBridgeAdapter
-    participant Native as Native channel
-    participant Host as AppBridgeHost
-    participant Handler as Native handler
+    participant Web as Web (SPA)
+    participant Client as webClient (WebBridgeClient)
+    participant Host as AppBridgeHost (Native)
 
-    Caller->>Client: request({ type, data })
-    Client->>Client: refId 생성
-    Client->>Client: expectedResponseType 조회
-
-    alt bridge ready
-        Client->>Adapter: postMessage(request)
-    else bridge not ready
-        Client->>Client: pendingBuffer.enqueue(request)
-    end
-
-    Adapter->>Native: encoded message
-    Native->>Host: handleMessage(encoded)
-    Host->>Handler: handler(message)
-    Handler-->>Host: WebMessageHandlerResponse
-    Host->>Native: encoded response
-    Native->>Adapter: message event
-    Adapter->>Client: parsed response
-
-    alt success true and expected type
-        Client-->>Caller: resolve(WebMessageResponse)
-    else success false
-        Client-->>Caller: reject(error)
-    else response type mismatch
-        Client-->>Caller: reject(RESPONSE_TYPE_MISMATCH)
-    end
+    Web->>Client: post({ type: 'WebAppReady', data: {} })
+    Note over Client: 브릿지 준비 대기 및 메시지 직렬화
+    Client->>Host: window.postMessage("WebAppReady")
+    Note over Host: 수신 및 WebAppReady 상태 설정
+    Host->>Web: OnWebAppReady 이벤트 역푸시 (appVersion, supportedMessages 등)
 ```
 
-### Readiness
+### 시나리오 2. Web -> App 요청-응답 (`request`)
 
-`WebBridgeClient`는 생성 시 native channel을 polling합니다.
-
-- bridge가 이미 있으면 즉시 ready입니다.
-- bridge가 아직 없으면 request/post를 buffer에 쌓습니다.
-- bridge가 주입되면 buffer를 flush합니다.
-- `bridgeReadyTimeoutMs` 안에 bridge가 주입되지 않으면 buffered request를 `NATIVE_NOT_SUPPORTED`로 reject합니다.
-
-기본 provider는 브라우저 DOM 환경이면 `WebBridgeClient + NativeBridgeAdapter`를 생성합니다. DOM이 없는 환경에서는 `NonNativeFailBridgeClient`를 생성합니다.
-
----
-
-## 5. App Runtime Flow
+웹에서 네이티브의 특정 기능 호출 후 결과를 비동기적으로 대기하여 취득합니다.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Native as Native WebView layer
-    participant Host as AppBridgeHost
-    participant Handler as Registered handler
-    participant Web as Web runtime
+    participant Caller as Web Caller
+    participant Client as webClient (WebBridgeClient)
+    participant Host as AppBridgeHost (Native)
+    participant Handler as Native Handler
 
-    Native->>Host: handleMessage(encodedString)
-    Host->>Host: JsonProtocol.decode
-    Host->>Host: web ready 처리 및 event buffer flush
-    Host->>Handler: handler(WebMessageData<K>)
+    Caller->>Client: request({ type: 'FetchBadgeCount', data: {} })
+    Note over Client: 고유 refId 생성 및 대기 맵 등록
+    Client->>Host: window.postMessage (JSON Encoded Request)
+    Host->>Handler: execute handler
+    Handler-->>Host: return { success: true, count: 5 }
+    Note over Host: 원본 refId 및 프로토콜 메타데이터 바인딩
+    Host->>Client: window.dispatchEvent (message event)
+    Note over Client: refId 조회 및 기대 타입(OnFetchBadgeCount) 체크
+    Client-->>Caller: Promise.resolve({ success: true, data: { count: 5 } })
+```
 
-    alt handler found
-        Handler-->>Host: { type, success, data/error }
-        Host->>Host: refId/version/nonce 재연결
-        Host-->>Web: sendToWeb(encoded response)
-    else handler missing
-        Host-->>Web: ERROR / NOT_FOUND
-    else handler throws
-        Host-->>Web: ERROR / INTERNAL_ERROR
+### 시나리오 3. App -> Web 단방향 이벤트 푸시 (`onEvent` / `pushEvent`)
+
+네이티브에서 웹의 요청과 무관하게 자발적인 이벤트를 웹으로 직접 밀어주는 방식입니다.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Caller as Web Subscriber
+    participant Client as webClient (WebBridgeClient)
+    participant Host as AppBridgeHost (Native)
+
+    Caller->>Client: onEvent('OnReceiveNotification', callback)
+    Note over Client: 이벤트 리스너 등록
+    Note over Host: 백그라운드 푸시 알림 수신
+    Host->>Client: pushEvent('OnReceiveNotification', data)
+    Note over Client: refId가 대기 맵에 없는 자발적 메시지임을 인지
+    Client->>Caller: callback(eventData)
+```
+
+### 시나리오 4. 브릿지 준비 지연 및 미지원 대응
+
+일반 브라우저 환경이나 하이브리드 브릿지가 아직 컨테이너에 의해 주입되지 않은 시점의 방어 코드 시나리오입니다.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Caller as Web Caller
+    participant Client as webClient (WebBridgeClient)
+
+    Caller->>Client: request({ type: 'Ping' })
+    Note over Client: 브릿지 미준비 상태 탐지 (window.postMessage 없음)
+    Client->>Client: pendingBuffer에 요청 일시 보관
+
+    alt bridgeReadyTimeoutMs 이전에 브릿지 감지됨
+        Note over Client: 버퍼에 대기 중인 모든 요청 Native로 즉시 전송 (Flush)
+    else bridgeReadyTimeoutMs 초과 (일반 브라우저 등)
+        Note over Client: 타이머 작동, 버퍼 클리어
+        Client-->>Caller: Promise.reject(BridgeError: 'NATIVE_NOT_SUPPORTED')
     end
 ```
 
-### Handler Rule
+### 시나리오 5. 예외 에러 전송 및 처리
 
-Handler는 request metadata를 직접 붙이지 않습니다. 도메인 응답만 반환하고, `AppBridgeHost`가 `refId`, `version`, `nonce`를 원 요청에서 다시 연결합니다.
+네이티브 핸들러가 미등록 상태이거나, 실행 도중 에러가 난 상황에 대응합니다.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Caller as Web Caller
+    participant Client as webClient (WebBridgeClient)
+    participant Host as AppBridgeHost (Native)
+
+    Caller->>Client: request({ type: 'GetSecret' })
+    Client->>Host: GetSecret 전송
+
+    alt 핸들러가 없는 경우
+        Host-->>Client: ErrorResponse (code: 'NOT_FOUND')
+    else 실행 중 예외 발생 시
+        Host-->>Client: ErrorResponse (code: 'INTERNAL_ERROR')
+    end
+
+    Note over Client: refId 매칭 후 success: false 감지
+    Client-->>Caller: Promise.reject({ code, message, traceId })
+```
+
+### 시나리오 6. 런타임 통신 채널 동적 변경 (Adapter Swapping)
+
+테스트 환경 및 CLI 모킹 시나리오에서 기본 채널(`NativeBridgeAdapter`)을 인메모리 루프백(`InMemoryAdapter`)으로 교체합니다.
 
 ```ts
-appHost.registerHandler('Ping', async message => ({
-    type: 'Pong',
-    success: true,
-    data: { payload: message.data.payload },
-}));
+import { webClient, InMemoryAdapter } from '@chatic/bridges';
+
+// 1. InMemory 채널로 교체
+const mockAdapter = new InMemoryAdapter();
+webClient.setAdapter(mockAdapter);
+
+// 2. 인메모리 환경에서 지연 시간 및 시뮬레이션 지시
+webClient.configureEnvironment({ rttDelayMs: 20 });
 ```
+
+### 시나리오 7. 메모리 누수 방지 리소스 해제 (`destroy`)
+
+웹 SPA(Single Page Application) 컴포넌트 마운트/언마운트 사이클에서 타이머와 리스너 릭(Leak)을 방지합니다.
+
+```ts
+// 사용을 마치고 클라이언트를 해제할 때 호출
+webClient.destroy();
+```
+
+- **수행 결과**: 폴링 타이머 중단, 전역 `window` 이벤트 리스너 해제, 대기 중이던 모든 미결(Pending) `Promise`에 `'DESTROYED'` 코드를 전달해 즉시 reject 처리.
 
 ---
 
-## 6. App Event Push
+## 5. Error Code Map
 
-App이 Web 요청 없이 이벤트를 밀어보낼 때는 `pushEvent`와 `onEvent`를 사용합니다.
+웹 클라이언트에서 반환 또는 전달받는 표준 오류 코드 표입니다.
 
-```ts
-const unsubscribe = webClient.onEvent('OnUploadProgress', message => {
-    console.log(message.data.progress);
-});
-```
-
-```ts
-appHost.pushEvent({
-    type: 'OnUploadProgress',
-    success: true,
-    data: {
-        uploadId,
-        progress,
-        uploadedBytes,
-        totalBytes,
-        status: 'uploading',
-    },
-});
-```
-
-Event 처리 규칙:
-
-- `WebBridgeClient`는 `refId`가 pending request에 매칭되면 response로 처리합니다.
-- pending request에 매칭되지 않으면 event listener로 dispatch합니다.
-- `AppBridgeHost`는 Web ready 전의 event를 buffer에 쌓고, 첫 Web message 수신 후 flush합니다.
+| Error Code                    | Source            | 발생 조건 / 설명                                                                                      |
+| :---------------------------- | :---------------- | :---------------------------------------------------------------------------------------------------- |
+| `'TIMEOUT'`                   | `WebBridgeClient` | 요청 보낸 후 제한 시간(`timeoutMs`) 내에 네이티브로부터 응답을 수신하지 못한 경우.                    |
+| `'NATIVE_NOT_SUPPORTED'`      | `WebBridgeClient` | 브라우저/서버 사이드 환경에서 네이티브 연동을 아예 탐지할 수 없거나 초기 감지 타임아웃을 초과한 경우. |
+| `'DESTROYED'`                 | `WebBridgeClient` | 응답이 오기 전 `webClient.destroy()`가 호출되어 강제 파기된 경우.                                     |
+| `'RESPONSE_TYPE_MISMATCH'`    | `WebBridgeClient` | 응답을 받았으나 성공 응답 형식이 계약 맵에 정의된 규격과 다른 경우.                                   |
+| `'BRIDGE_SIMULATION_FAILURE'` | `WebBridgeClient` | 시뮬레이터 환경에서 강제 실패(`forceFailure`) 규칙이 주입된 경우.                                     |
+| `'NOT_FOUND'`                 | `AppBridgeHost`   | 네이티브 앱에 해당 메시지 타입을 수집할 수 있는 핸들러가 등록되어 있지 않은 경우.                     |
+| `'INTERNAL_ERROR'`            | `AppBridgeHost`   | 네이티브 측 핸들러 실행 내부 로직에서 uncaught exception 예외가 터진 경우.                            |
 
 ---
 
-## 7. WebAppReady
+## 6. Verification and Compiling
 
-`WebAppReady`는 Web/App capability handshake입니다.
-
-```ts
-webClient.post({
-    type: 'WebAppReady',
-    data: {},
-});
-```
-
-`AppBridgeHost`의 기본 handler는 `OnWebAppReady`를 반환합니다.
-
-```ts
-{
-    type: 'OnWebAppReady',
-    success: true,
-    data: {
-        appVersion,
-        protocolVersion,
-        supportedWebMessages,
-        supportedAppMessages,
-        capabilities: {
-            typedResponses: true,
-        },
-    },
-}
-```
-
-`WebAppReady` 요청의 기대 응답 type은 `OnWebAppReady`입니다. App이 `WebAppReady` type으로 응답하면 `WebBridgeClient`는 `RESPONSE_TYPE_MISMATCH`로 reject합니다.
-
----
-
-## 8. Error Model
-
-Bridge 실패는 `BridgeError` shape로 reject됩니다.
-
-```ts
-type BridgeError = {
-    code: string;
-    message: string;
-    reason?: string;
-    traceId?: string;
-    requestType?: string;
-    expectedResponseType?: string;
-    actualResponseType?: string;
-    protocolVersion?: string;
-    appVersion?: string;
-    webVersion?: string;
-    platform?: string;
-    recoverable?: boolean;
-    details?: unknown;
-};
-```
-
-| Code                        | 발생 위치                                      | 의미                                                                 |
-| --------------------------- | ---------------------------------------------- | -------------------------------------------------------------------- |
-| `NOT_FOUND`                 | `AppBridgeHost`                                | 등록된 handler가 없는 요청입니다.                                    |
-| `INTERNAL_ERROR`            | `AppBridgeHost`                                | handler가 uncaught exception을 던졌습니다.                           |
-| `TIMEOUT`                   | `WebBridgeClient`                              | native로 dispatch된 request가 제한 시간 안에 응답을 받지 못했습니다. |
-| `NATIVE_NOT_SUPPORTED`      | `WebBridgeClient`, `NonNativeFailBridgeClient` | native bridge가 없는 환경에서 native 기능을 호출했습니다.            |
-| `RESPONSE_TYPE_MISMATCH`    | `WebBridgeClient`                              | 실제 응답 type이 `WEB_MESSAGE_RESPONSE_TYPE`의 기대 type과 다릅니다. |
-| `BRIDGE_SIMULATION_FAILURE` | `InMemoryBridgeTransport`                      | bridge simulation이 강제 실패로 설정되었습니다.                      |
-
----
-
-## 9. Provider DI
-
-`BridgeProvider`는 stable `webClient` proxy와 runtime bridge replacement를 제공합니다. 앱 코드가 이미 import한 `webClient`는 그대로 두고, provider의 active client만 교체할 수 있습니다.
-
-```ts
-import { webClient } from '@chatic/bridges';
-import { activateBridgeSimulationEnvironment } from '@chatic/bridges';
-
-const env = activateBridgeSimulationEnvironment({
-    rttDelayMs: 200,
-    handlers: {
-        Ping: async message => ({
-            type: 'Pong',
-            success: true,
-            data: { payload: message.data.payload },
-        }),
-    },
-});
-
-await webClient.request({ type: 'Ping', data: { payload: 'debug' } });
-
-env.restore();
-```
-
-Lifecycle:
-
-| Method                      | 설명                                                                            |
-| --------------------------- | ------------------------------------------------------------------------------- |
-| `getWebClient()`            | active client로 위임하는 stable proxy를 반환합니다.                             |
-| `getActiveWebClient()`      | 현재 proxy가 위임 중인 concrete Web client를 반환합니다.                        |
-| `getAppHost(sendToWeb)`     | cached App host를 반환하거나 factory로 생성합니다.                              |
-| `useBridgeEnvironment(env)` | 실행 중 bridge 환경을 즉시 교체하고 restore 함수를 반환합니다.                  |
-| `reset()`                   | active client/App host cache를 비웁니다. factory 설정은 유지합니다.             |
-| `configure(config)`         | factory를 교체합니다. 기존 proxy event subscription은 새 client에 재연결됩니다. |
-| `restoreDefaults()`         | production default factory로 되돌립니다.                                        |
-
----
-
-## 10. Bridge Simulation
-
-Bridge simulation은 앱 실행 중 실제 bridge 대신 연결할 수 있는 런타임 검증용 bridge 환경입니다. 별도 testing entrypoint가 아니라 `@chatic/bridges` public API에 포함됩니다.
-
-```ts
-import { activateBridgeSimulationEnvironment, createBridgeSimulationEnvironment } from '@chatic/bridges';
-
-const env = createBridgeSimulationEnvironment({
-    rttDelayMs: 100,
-    handlers: {
-        Ping: async message => ({
-            type: 'Pong',
-            success: true,
-            data: { payload: message.data.payload },
-        }),
-    },
-});
-
-const response = await env.webClient.request({
-    type: 'Ping',
-    data: { payload: 'hello' },
-});
-```
-
-앱 실행 도중 shared provider를 bridge simulation으로 바꾸려면 `activateBridgeSimulationEnvironment()`를 사용합니다.
-
-```ts
-const activeEnv = activateBridgeSimulationEnvironment({
-    forceFailure: {
-        code: 'FORCED',
-        message: 'forced failure',
-    },
-});
-
-// 기존 앱 코드가 import한 @chatic/bridges의 webClient 호출도 simulation bridge로 전달됩니다.
-
-activeEnv.restore();
-```
-
-### Configuration
-
-| Option                 | Type                                       | 설명                                              |
-| ---------------------- | ------------------------------------------ | ------------------------------------------------- |
-| `version`              | `string`                                   | Web client/App host protocol version override     |
-| `timeoutMs`            | `number`                                   | Web client request timeout                        |
-| `handlers`             | `WebMessageHandlerMap`                     | simulation App host에 등록할 request handler map  |
-| `rttDelayMs`           | `number`                                   | Web -> App -> Web 왕복 delay                      |
-| `forceFailure`         | `boolean \| BridgeSimulationFailureConfig` | App host에 도달하기 전에 모든 request를 실패 처리 |
-| `timeoutMode`          | `boolean`                                  | request를 App host로 보내지 않아 timeout을 유도   |
-| `dropRate`             | `number`                                   | 0~1 사이 message drop 확률                        |
-| `responseTypeMismatch` | `boolean \| AppMessageType`                | 성공 응답 type mismatch 유도                      |
-| `malformedResponse`    | `boolean`                                  | 잘못된 response shape 유도                        |
-| `random`               | `() => number`                             | deterministic drop 테스트용 random provider       |
-| `logger`               | `Pick<Console, 'debug' \| 'warn'>`         | simulation transport 로그 adapter                 |
-
-### Failure Example
-
-```ts
-const env = createBridgeSimulationEnvironment({
-    forceFailure: {
-        code: 'FORCED',
-        message: 'forced failure',
-    },
-});
-
-await expect(env.webClient.request({ type: 'Ping', data: { payload: 'x' } })).rejects.toMatchObject({
-    code: 'FORCED',
-});
-```
-
----
-
-## 11. Adding A New Message
-
-새 bridge message를 추가할 때는 `@chatic/app-messages`와 native handler를 같이 갱신합니다.
-
-1. `libs/app-messages/src/types/web-message.ts`에 Web request payload를 추가합니다.
-2. `libs/app-messages/src/types/app-message.ts`에 App response/event payload를 추가합니다.
-3. `libs/app-messages/src/types/web-message-response.ts`의 `WEB_MESSAGE_RESPONSE_TYPE`에 request -> response mapping을 추가합니다.
-4. App side handler를 `WebMessageHandler<'NewMessage'>` 계약에 맞게 등록합니다.
-5. Web caller는 `webClient.request({ type: 'NewMessage', data })` 또는 `webClient.post({ type: 'NewMessage', data })`만 사용합니다.
-6. 필요한 경우 `libs/bridges/src/web/WebBridgeClient.spec.ts` 또는 `src/simulation/BridgeSimulationEnvironment.spec.ts`에 runtime guard/simulation spec을 추가합니다.
-
----
-
-## 12. Versioning
-
-Bridge runtime/protocol version은 `src/version.ts`에서 관리합니다.
-
-```ts
-export const BRIDGE_VERSION = '2.1.0' as const;
-export const BRIDGE_PROTOCOL_VERSION = BRIDGE_VERSION;
-```
-
-Version bump 기준:
-
-- wire contract가 바뀌는 경우
-- `WEB_MESSAGE_RESPONSE_TYPE` mapping이 바뀌는 경우
-- `WebAppReady` capability surface가 바뀌는 경우
-- App/Web 양쪽 배포 호환성 판단에 version signal이 필요한 경우
-
-단순 내부 구현 변경이고 wire contract가 같다면 bump하지 않습니다.
-
----
-
-## 13. Validation
-
-Bridge 계약 변경 후 최소 검증 범위입니다.
+브릿지 코드를 수정한 뒤 빌드 오류나 회귀 버그(Regression)가 없는지 검증하기 위한 절차입니다.
 
 ```sh
-npx tsc -p libs/app-messages/tsconfig.lib.json --noEmit
+# 1. 타입 확인
 npx tsc -p libs/bridges/tsconfig.lib.json --noEmit
+
+# 2. 유닛 테스트 (총 28개 스펙 통과 확인)
 npx jest --config libs/bridges/jest.config.js --runInBand --watchman=false
 ```
-
-관련 caller가 있는 패키지를 수정했다면 해당 패키지 타입 체크도 같이 실행합니다.
-
-```sh
-npx tsc -p libs/theme/tsconfig.lib.json --noEmit
-npx tsc -p libs/web-core/tsconfig.lib.json --noEmit
-```
-
-`libs/bridges/dist`는 git ignored build output입니다. 소스 명세는 `src/**`와 `README.md`를 기준으로 합니다.
