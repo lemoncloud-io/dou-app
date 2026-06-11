@@ -206,7 +206,7 @@ describe('WebBridgeClient Buffering & Detection', () => {
             })
         );
     });
-    it('should normalize legacy WebAppReady responses for compatibility', async () => {
+    it('should reject WebAppReady echo responses as response type mismatches', async () => {
         (global as any).window.ReactNativeWebView = {
             postMessage: jest.fn(),
         };
@@ -221,14 +221,13 @@ describe('WebBridgeClient Buffering & Detection', () => {
             success: true,
             data: {},
         } as any);
-        await expect(requestPromise).resolves.toEqual(
+        await expect(requestPromise).rejects.toEqual(
             expect.objectContaining({
-                type: 'OnWebAppReady',
-                success: true,
-                data: expect.objectContaining({
-                    protocolVersion: '1.0.0',
-                    capabilities: expect.objectContaining({ legacyWebAppReady: true }),
-                }),
+                code: 'RESPONSE_TYPE_MISMATCH',
+                requestType: 'WebAppReady',
+                expectedResponseType: 'OnWebAppReady',
+                actualResponseType: 'WebAppReady',
+                recoverable: true,
             })
         );
     });

@@ -3,7 +3,7 @@ import type {
     AppMessageData,
     AppMessageType,
     WebMessageData,
-    WebMessageSuccessResponse,
+    WebMessageResponse,
     WebMessageType,
 } from '@chatic/app-messages';
 
@@ -28,7 +28,7 @@ export class NonNativeFailBridgeClient implements IWebBridgeClient {
     public request<K extends WebMessageType>(
         message: WebMessageData<K>,
         options?: { timeoutMs?: number }
-    ): Promise<WebMessageSuccessResponse<K>> {
+    ): Promise<WebMessageResponse<K>> {
         const type = message.type;
         console.error(`[NonNativeFailBridgeClient] request [${String(type)}] 호출 실패: NATIVE_NOT_SUPPORTED`);
         return Promise.reject({
@@ -42,7 +42,7 @@ export class NonNativeFailBridgeClient implements IWebBridgeClient {
         });
     }
 
-    public send<K extends WebMessageType>(message: WebMessageData<K>): Promise<WebMessageSuccessResponse<K>> {
+    public send<K extends WebMessageType>(message: WebMessageData<K>): Promise<WebMessageResponse<K>> {
         return this.request(message);
     }
 

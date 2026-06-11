@@ -2,7 +2,7 @@ import type {
     AppMessageData,
     AppMessageType,
     WebMessageData,
-    WebMessageSuccessResponse,
+    WebMessageResponse,
     WebMessageType,
 } from '@chatic/app-messages';
 
@@ -21,7 +21,7 @@ export interface IWebBridgeClient {
     request<K extends WebMessageType>(
         message: WebMessageData<K>,
         options?: { timeoutMs?: number }
-    ): Promise<WebMessageSuccessResponse<K>>;
+    ): Promise<WebMessageResponse<K>>;
 
     /**
      * [App -> Web] 네이티브에서 발생하는 단방향 이벤트를 구독 (Event Subscription)

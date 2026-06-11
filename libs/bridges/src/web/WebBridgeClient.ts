@@ -8,7 +8,7 @@ import {
     type AppMessageType,
     type BridgeError,
     type WebMessageData,
-    type WebMessageSuccessResponse,
+    type WebMessageResponse,
     type WebMessageType,
 } from '@chatic/app-messages';
 import { BRIDGE_PROTOCOL_VERSION } from '../version';
@@ -171,12 +171,6 @@ export class WebBridgeClient implements IWebBridgeClient {
             return;
         }
 
-        // 구버전 모바일은 WebAppReady 요청에 WebAppReady type으로 응답할 수 있습니다.
-        if (pending.requestType === 'WebAppReady' && message.type === 'WebAppReady') {
-            pending.resolve(this.normalizeLegacyWebAppReady(message));
-            return;
-        }
-
         // 웹/모바일 배포 싱크가 어긋난 경우를 조기에 드러내기 위한 runtime guard입니다.
         if (message.type !== pending.expectedResponseType) {
             pending.reject(
@@ -221,7 +215,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     public request<K extends WebMessageType>(
         message: WebMessageData<K>,
         options?: { timeoutMs?: number }
-    ): Promise<WebMessageSuccessResponse<K>> {
+    ): Promise<WebMessageResponse<K>> {
         const requestType = message.type;
         const expectedResponseType = WEB_MESSAGE_RESPONSE_TYPE[requestType];
         if (this.availabilityFailed) {
@@ -270,23 +264,6 @@ export class WebBridgeClient implements IWebBridgeClient {
             ...message,
             refId: message.refId ?? this.generateRefId(),
         } as unknown as RequestMessage;
-    }
-
-    private normalizeLegacyWebAppReady(message: ResponseMessage): WebMessageSuccessResponse<'WebAppReady'> {
-        // legacy 응답을 신규 OnWebAppReady shape로 맞춰 caller가 분기 없이 처리하게 합니다.
-        return {
-            ...message,
-            type: 'OnWebAppReady',
-            success: true,
-            data: {
-                protocolVersion: message.version ?? this.version,
-                supportedWebMessages: [],
-                supportedAppMessages: [],
-                capabilities: {
-                    legacyWebAppReady: true,
-                },
-            },
-        } as WebMessageSuccessResponse<'WebAppReady'>;
     }
 
     private createResponseTypeMismatchError(pending: PendingRequest, actualResponseType?: string): BridgeError {
