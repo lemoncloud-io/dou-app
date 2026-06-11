@@ -6,6 +6,7 @@ export * from './useChatMutations';
 export * from './useChannelMutations';
 export * from './useReadReceipts';
 export * from './useDesktopNotifications';
+export * from './useDeviceTokenRegistration';
 export * from './useCloudSwitchFlow';
 export * from './useSelectPlace';
 export * from './usePlaceUnreadCounts';

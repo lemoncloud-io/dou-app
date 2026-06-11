@@ -1,0 +1,133 @@
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { app } from 'electron';
+
+import { AndroidFCM, Client, type PushReceiverMessage } from '@liamcottle/push-receiver';
+
+/** FCM project credentials (mirror apps/mobile google-services.json), baked via MAIN_VITE_FCM_*. */
+export interface FcmConfig {
+    apiKey: string;
+    projectId: string;
+    senderId: string;
+    appId: string;
+    packageName: string;
+}
+
+/** A push parsed from the FCM data payload, ready for an OS notification + tap routing. */
+export interface FcmPush {
+    title?: string;
+    body?: string;
+    deeplink?: string;
+    data: Record<string, string>;
+}
+
+interface SavedCreds {
+    androidId: string;
+    securityToken: string;
+    token: string;
+    /** Ids of pushes already seen — replayed-on-reconnect dedupe (push-receiver contract). */
+    persistentIds: string[];
+}
+
+const RECONNECT_MS = 5_000;
+const credsFile = (): string => join(app.getPath('userData'), 'chatic-fcm.json');
+
+const loadCreds = (): SavedCreds | null => {
+    try {
+        const f = credsFile();
+        return existsSync(f) ? (JSON.parse(readFileSync(f, 'utf8')) as SavedCreds) : null;
+    } catch {
+        return null;
+    }
+};
+
+const saveCreds = (creds: SavedCreds): void => {
+    try {
+        writeFileSync(credsFile(), JSON.stringify(creds));
+    } catch {
+        // best-effort persistence; a fresh register on next launch is acceptable.
+    }
+};
+
+const appDataToObject = (appData: PushReceiverMessage['appData'] = []): Record<string, string> =>
+    appData.reduce<Record<string, string>>((out, kv) => {
+        if (kv?.key) out[kv.key] = kv.value;
+        return out;
+    }, {});
+
+/**
+ * Cross-cloud push receiver. Desktop has no native FCM, so we register as an
+ * Android device via push-receiver (validated: empty cert works, the API key is
+ * not cert-restricted) and hold an MTLS connection to mtalk.google.com to
+ * receive the pushes the backend fans out for every cloud (mobile-proven path).
+ *
+ * - `onToken` reports the FCM token so the renderer registers it with the broker
+ *   (`reg-dev`, platform 'desktop'); the central pushes-api then targets this
+ *   device for messages in ANY cloud.
+ * - `onPush` gets each parsed push for an OS notification + deeplink routing.
+ *
+ * Best-effort: any failure is swallowed and logged so the app degrades to the
+ * existing live-WebSocket same-cloud notifications rather than breaking.
+ */
+export const startFcm = async (
+    config: FcmConfig,
+    handlers: { onToken: (token: string) => void; onPush: (push: FcmPush) => void },
+): Promise<void> => {
+    if (!config.apiKey || !config.senderId || !config.appId) return; // not configured for this build
+
+    let creds = loadCreds();
+    if (!creds?.token || !creds.androidId || !creds.securityToken) {
+        const registered = await AndroidFCM.register(
+            config.apiKey,
+            config.projectId,
+            config.senderId,
+            config.appId,
+            config.packageName,
+            '',
+        );
+        creds = {
+            androidId: registered.gcm.androidId,
+            securityToken: registered.gcm.securityToken,
+            token: registered.fcm.token,
+            persistentIds: [],
+        };
+        saveCreds(creds);
+    }
+    const session = creds;
+
+    handlers.onToken(session.token);
+
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const connect = (): void => {
+        const client = new Client(session.androidId, session.securityToken, session.persistentIds);
+
+        client.on('ON_DATA_RECEIVED', message => {
+            if (message.persistentId) {
+                session.persistentIds.push(message.persistentId);
+                saveCreds(session);
+            }
+            const data = appDataToObject(message.appData);
+            handlers.onPush({
+                title: data.title,
+                body: data.body,
+                deeplink: data.deeplink || data.url || data.link,
+                data,
+            });
+        });
+
+        client.on('disconnect', () => {
+            // push-receiver does not auto-reconnect; re-establish after a short delay.
+            if (reconnectTimer) return;
+            reconnectTimer = setTimeout(() => {
+                reconnectTimer = null;
+                connect();
+            }, RECONNECT_MS);
+        });
+
+        client.connect();
+    };
+
+    connect();
+};

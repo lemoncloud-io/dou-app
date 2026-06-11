@@ -12,11 +12,19 @@ import { DataProvider, GlobalChatSync, WebSocketV2Connection, useAutoSelectCloud
 import i18n from '../i18n';
 import { AppRouter } from './routes';
 import { AppShellSkeleton, ConnectionBanner } from './shared';
-import { useDesktopBadge, useDesktopNotifications, usePlaceUnreadCounts, useUnreadStore } from './shared';
+import {
+    useDesktopBadge,
+    useDesktopNotifications,
+    useDeviceTokenRegistration,
+    usePlaceUnreadCounts,
+    useUnreadStore,
+} from './shared';
 
 /** Mounts desktop OS-notification wiring inside DataProvider (needs engine repositories). */
 const DesktopNotifications = () => {
     useDesktopNotifications();
+    // Cross-cloud push: register this device's FCM token with the broker.
+    useDeviceTokenRegistration();
     return null;
 };
 

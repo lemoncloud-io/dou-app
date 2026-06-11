@@ -19,6 +19,7 @@
         "package:win:prod": "yarn build:prod && electron-builder --win"
     },
     "dependencies": {
+        "@liamcottle/push-receiver": "^0.0.4",
         "electron-updater": "^6.3.9"
     },
     "devDependencies": {

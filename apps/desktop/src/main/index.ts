@@ -17,6 +17,8 @@ import {
 } from 'electron';
 import electronUpdater from 'electron-updater';
 
+import { startFcm, type FcmConfig } from './fcm';
+
 /**
  * Stable per-install device id, persisted under userData. Injected into the web as
  * window.CHATIC_APP_DEVICE_ID so the guest account is consistent across restarts
@@ -160,36 +162,82 @@ const pushDeeplink = (host: AppBridgeHost, url: string): void => {
 // of stacking.
 const activeNotifications = new Map<string, Notification>();
 
+/**
+ * Raise an OS notification (coalesced per channel/deeplink) and draw attention
+ * when unfocused. Shared by the web→app `ShowNotification` bridge (live-WS,
+ * same-cloud) and the FCM receiver (cross-cloud push). Click reshows the window
+ * and routes the deeplink into the web.
+ */
+const showOsNotification = (
+    host: AppBridgeHost,
+    win: BrowserWindow,
+    params: { title: string; body: string; deeplink?: string },
+): void => {
+    const { title, body, deeplink } = params;
+    if (Notification.isSupported()) {
+        const key = deeplink || title;
+        activeNotifications.get(key)?.close();
+        const notification = new Notification({ title, body });
+        activeNotifications.set(key, notification);
+        notification.on('close', () => {
+            if (activeNotifications.get(key) === notification) activeNotifications.delete(key);
+        });
+        notification.on('click', () => {
+            if (win.isMinimized()) win.restore();
+            win.show();
+            win.focus();
+            if (deeplink) pushDeeplink(host, deeplink);
+        });
+        notification.show();
+    }
+    if (!win.isFocused()) {
+        if (process.platform === 'darwin') app.dock?.bounce('informational');
+        else win.flashFrame(true);
+    }
+};
+
+// Cross-cloud push (FCM): the token the renderer registers with the broker, plus
+// resolvers so a FetchFcmToken bridge request can await an in-flight registration.
+let fcmToken: string | null = null;
+let fcmTokenWaiters: Array<(token: string) => void> = [];
+const onFcmToken = (token: string): void => {
+    fcmToken = token;
+    fcmTokenWaiters.forEach(resolve => resolve(token));
+    fcmTokenWaiters = [];
+};
+const awaitFcmToken = (): Promise<string> => {
+    if (fcmToken) return Promise.resolve(fcmToken);
+    return new Promise(resolve => {
+        fcmTokenWaiters.push(resolve);
+        setTimeout(() => resolve(fcmToken ?? ''), 30_000);
+    });
+};
+
+/** FCM project credentials baked per-stage (.env, mirrors apps/mobile google-services.json). */
+const readFcmConfig = (): FcmConfig => ({
+    apiKey: import.meta.env.MAIN_VITE_FCM_API_KEY ?? '',
+    projectId: import.meta.env.MAIN_VITE_FCM_PROJECT_ID ?? '',
+    senderId: import.meta.env.MAIN_VITE_FCM_SENDER_ID ?? '',
+    appId: import.meta.env.MAIN_VITE_FCM_APP_ID ?? '',
+    packageName: import.meta.env.MAIN_VITE_FCM_PACKAGE ?? '',
+});
+
 /** Register native-capability handlers on the bridge host (web → app requests). */
 const registerHandlers = (host: AppBridgeHost, win: BrowserWindow): void => {
-    // ShowNotification: live web WS detected a message → show an OS notification (desktop has no FCM).
+    // ShowNotification: the live web WS detected a message in the CURRENT cloud →
+    // show an OS notification. (Cross-cloud pushes arrive via FCM, see startFcm.)
     host.registerHandler('ShowNotification', message => {
         const { title, body, deeplink } = message.data;
-        if (Notification.isSupported()) {
-            // Coalesce per channel: replace any prior toast for the same deeplink so
-            // a burst of messages doesn't stack into many toasts.
-            const key = deeplink || title;
-            activeNotifications.get(key)?.close();
-            const notification = new Notification({ title, body });
-            activeNotifications.set(key, notification);
-            notification.on('close', () => {
-                if (activeNotifications.get(key) === notification) activeNotifications.delete(key);
-            });
-            notification.on('click', () => {
-                if (win.isMinimized()) win.restore();
-                win.show();
-                win.focus();
-                if (deeplink) pushDeeplink(host, deeplink);
-            });
-            notification.show();
-        }
-        // Draw attention when the window isn't focused: bounce the macOS dock,
-        // flash the taskbar elsewhere (cleared on focus, see createWindow).
-        if (!win.isFocused()) {
-            if (process.platform === 'darwin') app.dock?.bounce('informational');
-            else win.flashFrame(true);
-        }
+        showOsNotification(host, win, { title, body, deeplink });
         return { type: 'OnShowNotification', success: true, data: { success: true } };
+    });
+
+    // FetchFcmToken: the renderer asks for the FCM token to register with the
+    // broker (reg-dev, platform 'desktop'). Awaits the in-flight Android
+    // registration; resolves '' if FCM is unconfigured/slow so the web degrades.
+    host.registerHandler('FetchFcmToken', async () => {
+        const token = await awaitFcmToken();
+        return { type: 'OnFetchFcmToken', success: true, data: { token } };
     });
 
     // SetBadgeCount: unread badge. macOS/Linux use the dock badge; Windows has none,
@@ -341,6 +389,14 @@ const createWindow = (): BrowserWindow => {
         sendToWeb: (message: string) => win.webContents.send(TO_WEB_CHANNEL, message),
     });
     registerHandlers(host, win);
+
+    // Cross-cloud push: register for an FCM token (renderer registers it with the
+    // broker via FetchFcmToken→reg-dev) and surface incoming pushes as OS
+    // notifications. Best-effort — failure degrades to the live-WS same-cloud path.
+    void startFcm(readFcmConfig(), {
+        onToken: onFcmToken,
+        onPush: push => showOsNotification(host, win, { title: push.title ?? 'DoU', body: push.body ?? '', deeplink: push.deeplink }),
+    }).catch(error => console.error('[fcm] start failed', error));
 
     // Only accept bridge requests from the trusted origin's frame.
     ipcMain.on(TO_APP_CHANNEL, (event, data: string) => {
