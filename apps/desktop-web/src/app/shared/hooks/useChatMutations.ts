@@ -35,8 +35,10 @@ export const useChatMutations = () => {
             const staleId = message.id ?? message.tempId;
             if (staleId) void chatRepository.cacheDelete(staleId);
             setIsSending(true);
+            // Preserve parentId so retrying a failed thread reply re-sends it into
+            // the same thread, not as a top-level channel message.
             return chatRepository
-                .sendChat({ channelId: message.channelId, content: message.content })
+                .sendChat({ channelId: message.channelId, content: message.content, parentId: message.parentId })
                 .finally(() => setIsSending(false));
         },
         [chatRepository]

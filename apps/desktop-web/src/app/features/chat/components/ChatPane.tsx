@@ -7,17 +7,12 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import {
-    displayName,
-    isPlaceholderName,
-    useAuthorNames,
-    useChatMutations,
-    useChats,
-    useReadCursorStore,
-    useReadReceipts,
-} from '../../../shared';
+import { useAuthorNames, useChatMutations, useChats, useReadCursorStore, useReadReceipts } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { useChannelSettingsStore } from '../../channels';
+import { buildMemberNames, buildThreadIndex } from '../utils';
+import { useMessageViewer } from '../hooks';
+import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
@@ -34,18 +29,18 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     const { t } = useTranslation();
     const channelId = channel?.id ?? null;
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
-    // Guest accounts carry a UUID as their name — drop it so own messages fall back
-    // to a friendly label ("You") instead of showing the raw UUID.
-    const rawMyName = useWebCoreStore(s => s.profile?.$user?.name ?? '');
-    const myName = isPlaceholderName(rawMyName) ? '' : rawMyName;
-    // My cloud user id for this channel: the server rewrites my own messages'
-    // ownerId from my account id to this once they persist, so it also identifies
-    // my messages (and my optimistic→persisted swap) — see resolveOwnerName.
-    const cloudUid = channel?.$join?.userId ?? null;
-    const viewer = useMemo(() => ({ uid: myUid, name: myName, cloudUid }), [myUid, myName, cloudUid]);
+    // Identity for naming own/optimistic messages (guest-UUID guard + per-channel
+    // cloud id) — shared with the thread panel via useMessageViewer.
+    const viewer = useMessageViewer(channel);
     const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(channelId);
     const { sendMessage, retryMessage, isSending } = useChatMutations();
     const openSettings = useChannelSettingsStore(s => s.open);
+    const openThread = useThreadStore(s => s.open);
+    // Threads are hidden from the main feed (ADR 0008): show only top-level
+    // messages, but count replies from the full set so a root's "N replies"
+    // footer is correct. Replies still arrive in the cache via chat:create.
+    const topLevel = useMemo(() => messages.filter(m => !m.parentId), [messages]);
+    const threadIndex = useMemo(() => buildThreadIndex(messages), [messages]);
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const [sendTick, setSendTick] = useState(0);
 
@@ -72,16 +67,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     // resolves, the header shows a skeleton (namePending) rather than "Unknown".
     const authorIds = useMemo(() => messages.map(m => m.ownerId), [messages]);
     const cachedNames = useAuthorNames(authorIds);
-    const memberNames = useMemo(() => {
-        const map = new Map<string, string>();
-        for (const member of members) {
-            const name = displayName(member);
-            // displayName falls back to the id — skip so a raw id never shows as a name.
-            if (name && name !== member.id) map.set(member.id, name);
-        }
-        for (const [id, name] of cachedNames) map.set(id, name);
-        return map;
-    }, [members, cachedNames]);
+    const memberNames = useMemo(() => buildMemberNames(members, cachedNames), [members, cachedNames]);
 
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages);
@@ -143,7 +129,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
             </header>
             <MessageList
                 key={channelId}
-                messages={messages}
+                messages={topLevel}
                 isLoading={isLoading}
                 viewer={viewer}
                 names={memberNames}
@@ -154,6 +140,8 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 hasMore={hasMore}
                 isLoadingOlder={isLoadingOlder}
                 scrollSignal={sendTick}
+                threadMeta={threadIndex}
+                onOpenThread={openThread}
             />
             <Composer
                 disabled={isSending}

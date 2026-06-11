@@ -1,19 +1,23 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, MessageSquare, Reply } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
-import type { MessageGroup } from '../utils';
+import { threadRootId, type MessageGroup, type ThreadMeta } from '../utils';
 import { Skeleton, UserProfilePopover, avatarStyle } from '../../../shared';
 import { RichText } from './RichText';
 
 interface MessageRowProps {
     group: MessageGroup;
     onRetry?: (message: DomainChat) => void;
+    /** root id → loaded reply aggregate; a message with an entry shows a thread footer. */
+    threadMeta?: ReadonlyMap<string, ThreadMeta>;
+    /** Open the thread for a root id. Absent inside the thread panel (no nested replies). */
+    onOpenThread?: (rootId: string) => void;
 }
 
 const formatTime = (ms: number): string => {
@@ -23,7 +27,7 @@ const formatTime = (ms: number): string => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
+export const MessageRow = memo(({ group, onRetry, threadMeta, onOpenThread }: MessageRowProps) => {
     const { t } = useTranslation();
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
     const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -88,8 +92,12 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
                         const content = message.content ?? '';
                         const isCopied = copiedKey === key;
                         const msgTime = formatTime(message.createdAt ?? message.createdAtMs);
+                        // A loaded thread hangs off this message → show a reply footer.
+                        // threadMeta is only supplied for the main feed (top-level rows);
+                        // the thread panel passes none, so replies never get a footer.
+                        const meta = message.id ? threadMeta?.get(message.id) : undefined;
                         return (
-                            <div key={key} className="group/msg relative pr-8">
+                            <div key={key} className="group/msg relative pr-16">
                                 {i > 0 && msgTime && (
                                     <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-[10px] tabular-nums text-muted-foreground/70 group-hover/msg:block">
                                         {msgTime}
@@ -118,26 +126,58 @@ export const MessageRow = memo(({ group, onRetry }: MessageRowProps) => {
                                         )}
                                     </span>
                                 )}
-                                {content && (
+                                {meta && onOpenThread && (
                                     <button
                                         type="button"
-                                        onClick={() => copy(key, content)}
-                                        title={isCopied ? t('chat.copied') : t('chat.copy')}
-                                        aria-label={t('chat.copy')}
-                                        className={cn(
-                                            'focus-ring tactile border-hairline absolute right-0 top-0 flex h-7 w-7 items-center justify-center rounded border bg-elevated text-muted-foreground shadow-raised transition-opacity ease-tactile hover:bg-accent/40 hover:text-foreground',
-                                            isCopied
-                                                ? 'opacity-100'
-                                                : 'opacity-100 focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:opacity-100'
-                                        )}
+                                        onClick={() => onOpenThread(threadRootId(message))}
+                                        title={t('chat.thread.openThread', { count: meta.count })}
+                                        aria-label={t('chat.thread.openThread', { count: meta.count })}
+                                        className="focus-ring tactile mt-1 inline-flex items-center gap-1.5 rounded-md py-0.5 pr-1 text-caption font-medium text-primary-ink transition-colors ease-tactile hover:underline"
                                     >
-                                        {isCopied ? (
-                                            <Check size={12} className="text-primary-ink" />
-                                        ) : (
-                                            <Copy size={12} />
+                                        <MessageSquare size={13} aria-hidden />
+                                        <span className="tabular-nums">
+                                            {t('chat.thread.replyCount', { count: meta.count })}
+                                        </span>
+                                        {meta.lastReplyAt > 0 && (
+                                            <span className="text-muted-foreground">
+                                                · {formatTime(meta.lastReplyAt)}
+                                            </span>
                                         )}
                                     </button>
                                 )}
+                                <div className="absolute right-0 top-0 flex items-center gap-0.5">
+                                    {onOpenThread && message.id && !isPending && !isFailed && (
+                                        <button
+                                            type="button"
+                                            onClick={() => onOpenThread(threadRootId(message))}
+                                            title={t('chat.thread.replyAction')}
+                                            aria-label={t('chat.thread.replyAction')}
+                                            className="focus-ring tactile border-hairline flex h-7 w-7 items-center justify-center rounded border bg-elevated text-muted-foreground shadow-raised transition-opacity ease-tactile hover:bg-accent/40 hover:text-foreground opacity-100 focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:opacity-100"
+                                        >
+                                            <Reply size={12} />
+                                        </button>
+                                    )}
+                                    {content && (
+                                        <button
+                                            type="button"
+                                            onClick={() => copy(key, content)}
+                                            title={isCopied ? t('chat.copied') : t('chat.copy')}
+                                            aria-label={t('chat.copy')}
+                                            className={cn(
+                                                'focus-ring tactile border-hairline flex h-7 w-7 items-center justify-center rounded border bg-elevated text-muted-foreground shadow-raised transition-opacity ease-tactile hover:bg-accent/40 hover:text-foreground',
+                                                isCopied
+                                                    ? 'opacity-100'
+                                                    : 'opacity-100 focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:opacity-100'
+                                            )}
+                                        >
+                                            {isCopied ? (
+                                                <Check size={12} className="text-primary-ink" />
+                                            ) : (
+                                                <Copy size={12} />
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         );
                     })}

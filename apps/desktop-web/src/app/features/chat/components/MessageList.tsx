@@ -6,7 +6,7 @@ import { ChevronDown, MessageSquare } from 'lucide-react';
 import type { DomainChat } from '@chatic/data';
 
 import { Skeleton, useSiteProfileMap } from '../../../shared';
-import { buildMessageRows, isOwnMessage, type MessageViewer } from '../utils';
+import { buildMessageRows, isOwnMessage, type MessageViewer, type ThreadMeta } from '../utils';
 import { DateSeparator } from './DateSeparator';
 import { MessageRow } from './MessageRow';
 
@@ -27,6 +27,10 @@ interface MessageListProps {
     isLoadingOlder?: boolean;
     /** Increment to force a jump to the latest message (e.g. after you send). */
     scrollSignal?: number;
+    /** root id → loaded reply aggregate; root rows render a thread footer. */
+    threadMeta?: ReadonlyMap<string, ThreadMeta>;
+    /** Open a thread; wired only for the main channel feed (not the thread panel). */
+    onOpenThread?: (rootId: string) => void;
 }
 
 const NEAR_BOTTOM_PX = 80;
@@ -44,6 +48,8 @@ export const MessageList = ({
     hasMore,
     isLoadingOlder,
     scrollSignal,
+    threadMeta,
+    onOpenThread,
 }: MessageListProps) => {
     const { t } = useTranslation();
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -209,7 +215,15 @@ export const MessageList = ({
                             </div>
                         );
                     }
-                    return <MessageRow key={row.group.key} group={row.group} onRetry={onRetry} />;
+                    return (
+                        <MessageRow
+                            key={row.group.key}
+                            group={row.group}
+                            onRetry={onRetry}
+                            threadMeta={threadMeta}
+                            onOpenThread={onOpenThread}
+                        />
+                    );
                 })}
                 <div ref={bottomRef} />
             </div>

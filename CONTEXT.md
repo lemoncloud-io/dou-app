@@ -70,7 +70,7 @@ _Avoid_: user modal, hovercard, mini-profile
 ## Place Profiles (per-place identity)
 
 **Global Profile**:
-A user's canonical, cross-Place identity — `name` / `nick` / `thumbnail` on the user record. One per user, the same in every Cloud and Place. The fallback identity when no Place Profile applies. On the client it is the `user` cache (IndexedDB, `{cid,uid}`-scoped) — per ADR 0006 the single source for author names. (The self-account *page* is still just "Profile"; "Global Profile" names the identity data, not the screen.)
+A user's canonical, cross-Place identity — `name` / `nick` / `thumbnail` on the user record. One per user, the same in every Cloud and Place. The fallback identity when no Place Profile applies. On the client it is the `user` cache (IndexedDB, `{cid,uid}`-scoped) — per ADR 0006 the single source for author names. (The self-account _page_ is still just "Profile"; "Global Profile" names the identity data, not the screen.)
 _Avoid_: canonical user, base profile
 
 **Place Profile**:
@@ -82,7 +82,7 @@ The nick/thumbnail actually rendered for a user in the current Place — `placeP
 _Avoid_: merged profile, effective profile
 
 **active**:
-Whether a Place Profile is the live display identity for its Place. `true` → use it. `false` → a *reset to Global Profile fallback*, not a deletion: the record persists with its nick/thumbnail and can be re-activated. Changing only nick/thumbnail does not auto-activate; `active` is set explicitly.
+Whether a Place Profile is the live display identity for its Place. `true` → use it. `false` → a _reset to Global Profile fallback_, not a deletion: the record persists with its nick/thumbnail and can be re-activated. Changing only nick/thumbnail does not auto-activate; `active` is set explicitly.
 _Avoid_: enabled, deleted
 
 **Reachable users**:
@@ -90,9 +90,31 @@ The users whose Place Profiles the current user may see in the current Place —
 _Avoid_: visible users, audience
 
 **Reset delta**:
-In a profile sync response, `placeProfile[uid] = null` — "this Place Profile went inactive; drop it from the client cache and fall back to Global Profile". Distinct from a *missing key*, which means "no change". Apply must be idempotent (duplicate deltas allowed).
+In a profile sync response, `placeProfile[uid] = null` — "this Place Profile went inactive; drop it from the client cache and fall back to Global Profile". Distinct from a _missing key_, which means "no change". Apply must be idempotent (duplicate deltas allowed).
 _Avoid_: tombstone, deletion
 
 **Sync cursor (`syncedAt`)**:
 The server watermark returned by a profile sync, sent back as the next `since`. Server-issued — never the client's local clock. The catch-up path on Place-switch, app start, and reconnect. (The realtime `invalidate` hint in the spec is **not emitted by the backend yet**, so these triggers are the only ones today.)
 _Avoid_: timestamp, last-sync
+
+## Threads
+
+**Thread**:
+A focused conversation hanging off one Channel Message. Flat — one level only: a Thread has a root and its direct Replies, never replies to replies. The backend models a Thread with nothing but a `parentId` on each Reply; everything else (membership, count, ordering) is derived on the client.
+_Avoid_: subchat, conversation, comments
+
+**Thread Root**:
+The Channel Message a Thread hangs off — the first message of the Thread and the only message a Reply points its `parentId` at. A Thread Root stays in the main Channel feed; its Replies do not.
+_Avoid_: parent, head, anchor
+
+**Reply**:
+A Message that belongs to a Thread rather than the main Channel flow (`parentId` set to its Thread Root). A Reply always points at the Thread Root, never at another Reply. A Reply is hidden from the main Channel feed and appears only inside the Thread Panel.
+_Avoid_: comment, child message
+
+**Reply Count**:
+The number of Replies under a Thread Root, surfaced on the root's row in the Channel feed. Client-derived from the Messages currently loaded, so it can under-count a long-idle Thread until more history is loaded — the server exposes no reply aggregate (see ADR 0008).
+_Avoid_: thread count, comment count
+
+**Thread Panel**:
+The right-side pane showing a Thread Root and its Replies with its own composer. One of the Channel's trailing panes; mutually exclusive with the channel-settings panel (one trailing pane open at a time).
+_Avoid_: thread sidebar, reply pane, drawer

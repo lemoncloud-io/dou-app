@@ -1,0 +1,102 @@
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { X } from 'lucide-react';
+
+import type { DomainChannel } from '@chatic/data';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+
+import { useAuthorNames, useChatMutations, useChats } from '../../../shared';
+import type { ChannelMember } from '../../channels';
+import { buildMemberNames, buildThread } from '../utils';
+import { useMessageViewer } from '../hooks';
+import { useThreadStore } from '../stores';
+import { Composer } from './Composer';
+import { MessageList } from './MessageList';
+
+interface ThreadPanelProps {
+    /** The channel the open thread belongs to (the host's selected channel). */
+    channel: DomainChannel;
+    /** Thread root id from useThreadStore.openRootId. */
+    rootId: string;
+    /** Roster shared with the chat pane — used to name reply authors. */
+    members: ChannelMember[];
+    membersLoading?: boolean;
+}
+
+/**
+ * Slack-style right-side thread pane. Shows the Thread Root + its direct replies
+ * (derived client-side from the loaded cache — see ADR 0008) and a composer that
+ * sends with `parentId` so messages land in this thread, hidden from the main
+ * feed. Reuses MessageList for rendering; passes no thread props down, so the
+ * pane shows no nested reply affordances (threads are root-only).
+ */
+export const ThreadPanel = ({ channel, rootId, members, membersLoading }: ThreadPanelProps) => {
+    const { t } = useTranslation();
+    const channelId = channel.id ?? '';
+    const closeThread = useThreadStore(s => s.close);
+    const { messages } = useChats(channelId);
+    const { sendMessage, retryMessage, isSending } = useChatMutations();
+
+    // Same viewer the chat pane builds, so own/optimistic messages name correctly.
+    const viewer = useMessageViewer(channel);
+
+    const { root, threadMessages } = useMemo(() => {
+        const thread = buildThread(messages, rootId);
+        return { root: thread.root, threadMessages: thread.root ? [thread.root, ...thread.replies] : thread.replies };
+    }, [messages, rootId]);
+
+    // Resolve author names the same way as the chat pane: cached author names
+    // first, channel roster as fallback (own messages name from the viewer).
+    const authorIds = useMemo(() => threadMessages.map(m => m.ownerId), [threadMessages]);
+    const cachedNames = useAuthorNames(authorIds);
+    const names = useMemo(() => buildMemberNames(members, cachedNames), [members, cachedNames]);
+
+    const handleReply = (content: string) => {
+        void sendMessage({ channelId, content, parentId: rootId }).catch(() =>
+            toast({ variant: 'destructive', description: t('toast.messageFailed') })
+        );
+    };
+
+    return (
+        <aside className="absolute inset-y-0 right-0 z-30 flex w-80 max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline bg-background shadow-raised xl:static xl:z-auto xl:max-w-none xl:shadow-none">
+            <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
+                <span className="truncate text-title text-foreground">{t('chat.thread.title')}</span>
+                <button
+                    type="button"
+                    onClick={closeThread}
+                    title={t('chat.thread.close')}
+                    aria-label={t('chat.thread.close')}
+                    className="focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                >
+                    <X size={18} />
+                </button>
+            </header>
+            {root ? (
+                <MessageList
+                    key={rootId}
+                    messages={threadMessages}
+                    isLoading={false}
+                    viewer={viewer}
+                    names={names}
+                    membersLoading={membersLoading}
+                    onRetry={retryMessage}
+                />
+            ) : (
+                <div
+                    role="status"
+                    aria-live="polite"
+                    className="flex flex-1 flex-col items-center justify-center px-6 text-center"
+                >
+                    <p className="max-w-xs text-caption text-muted-foreground">{t('chat.thread.unavailable')}</p>
+                </div>
+            )}
+            <Composer
+                disabled={isSending || !root}
+                onSend={handleReply}
+                channelId={`${channelId}::thread::${rootId}`}
+                placeholder={t('chat.thread.composerPlaceholder')}
+            />
+        </aside>
+    );
+};

@@ -35,7 +35,9 @@ import {
     ShortcutsDialog,
     SidebarHeader,
     SwitchingOverlay,
+    ThreadPanel,
 } from '../components';
+import { useThreadStore } from '../stores';
 
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
@@ -67,6 +69,8 @@ export const HomePage = () => {
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
     const closeSettings = useChannelSettingsStore(s => s.close);
+    const openThreadRootId = useThreadStore(s => s.openRootId);
+    const closeThread = useThreadStore(s => s.close);
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
     // Default Cloud (relay / Guest Session): no joinable places — force the
     // 'default' place so the Self Channel loads; the sidebar hides the switcher.
@@ -95,7 +99,6 @@ export const HomePage = () => {
         }
         clearPendingOpen();
         // Re-fire only on a new notification (nonce), not on selectedPlaceId churn.
-         
     }, [pendingOpen?.nonce]);
 
     // Default Cloud: pin the 'default' place (Self Channel). Otherwise select the
@@ -118,10 +121,18 @@ export const HomePage = () => {
         }
     }, [isDefaultMode, places, selectedPlaceId, selectPlace, switchPlace]);
 
-    // The settings panel belongs to one channel — close it when you switch away.
+    // The settings + thread panels belong to one channel — close both on switch.
     useEffect(() => {
         closeSettings();
-    }, [selectedChannelId, closeSettings]);
+        closeThread();
+    }, [selectedChannelId, closeSettings, closeThread]);
+
+    // Settings and thread share the one trailing pane — opening either closes the
+    // other so the pane never has two owners (thread wins when both fire).
+    useEffect(() => {
+        if (openThreadRootId) closeSettings();
+        else if (settingsChannelId) closeThread();
+    }, [openThreadRootId, settingsChannelId, closeSettings, closeThread]);
 
     useEffect(() => {
         // Honor a pending notification target once its channel has loaded.
@@ -208,7 +219,14 @@ export const HomePage = () => {
                 }
                 main={<ChatPane channel={selectedChannel} members={members} membersLoading={membersLoading} />}
                 panel={
-                    settingsChannel ? (
+                    openThreadRootId && selectedChannel ? (
+                        <ThreadPanel
+                            channel={selectedChannel}
+                            rootId={openThreadRootId}
+                            members={members}
+                            membersLoading={membersLoading}
+                        />
+                    ) : settingsChannel ? (
                         <ChannelSettingsPanel
                             channel={settingsChannel}
                             myUid={myUid}
