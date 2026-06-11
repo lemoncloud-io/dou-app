@@ -22,9 +22,11 @@ export class NativeBridgeAdapter implements BridgeAdapter {
      * [Internal] DOM의 'message' 이벤트를 구독하여 네이티브에서 올라오는 메시지를 감시하기 시작합니다.
      */
     private setupListener() {
-        if (!this.isListening && typeof window !== 'undefined') {
+        if (!this.isListening && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
             window.addEventListener('message', this.handleNativeMessage);
-            document.addEventListener('message', this.handleNativeMessage as EventListener);
+            if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+                document.addEventListener('message', this.handleNativeMessage as EventListener);
+            }
             this.isListening = true;
         }
     }
@@ -33,9 +35,11 @@ export class NativeBridgeAdapter implements BridgeAdapter {
      * [Internal] 더 이상 메시지를 감시할 핸들러가 없을 때 이벤트 리스너를 정리(teardown)합니다.
      */
     private teardownListener() {
-        if (this.isListening && typeof window !== 'undefined') {
+        if (this.isListening && typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
             window.removeEventListener('message', this.handleNativeMessage);
-            document.removeEventListener('message', this.handleNativeMessage as EventListener);
+            if (typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
+                document.removeEventListener('message', this.handleNativeMessage as EventListener);
+            }
             this.isListening = false;
         }
     }
