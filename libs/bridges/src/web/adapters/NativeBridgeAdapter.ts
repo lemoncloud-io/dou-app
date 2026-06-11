@@ -71,21 +71,25 @@ export class NativeBridgeAdapter implements BridgeAdapter {
                 return;
             }
 
-            // 1. Android 커스텀 인터페이스 지원 확인 및 전송
-            if (window.ChaticMessageHandler?.postMessage) {
-                window.ChaticMessageHandler.postMessage(encoded);
-            }
-            // 2. iOS/macOS WebKit MessageHandler 지원 확인 및 전송
-            else if (window.webkit?.messageHandlers?.ChaticMessageHandler?.postMessage) {
-                window.webkit.messageHandlers.ChaticMessageHandler.postMessage(encoded);
-            }
-            // 3. React Native WebView postMessage 채널 지원 확인 및 전송
-            else if (window.ReactNativeWebView?.postMessage) {
-                window.ReactNativeWebView.postMessage(encoded);
-            }
-            // 4. 네이티브 환경 감지 실패 시 경고 출력
-            else {
-                console.warn('[NativeBridgeAdapter] 네이티브 브릿지 인터페이스를 찾을 수 없습니다.');
+            if (typeof window !== 'undefined') {
+                // 1. Android 커스텀 인터페이스 지원 확인 및 전송
+                if (window.ChaticMessageHandler?.postMessage) {
+                    window.ChaticMessageHandler.postMessage(encoded);
+                }
+                // 2. iOS/macOS WebKit MessageHandler 지원 확인 및 전송
+                else if (window.webkit?.messageHandlers?.ChaticMessageHandler?.postMessage) {
+                    window.webkit.messageHandlers.ChaticMessageHandler.postMessage(encoded);
+                }
+                // 3. React Native WebView postMessage 채널 지원 확인 및 전송
+                else if (window.ReactNativeWebView?.postMessage) {
+                    window.ReactNativeWebView.postMessage(encoded);
+                }
+                // 4. 네이티브 환경 감지 실패 시 경고 출력
+                else {
+                    console.warn('[NativeBridgeAdapter] 네이티브 브릿지 인터페이스를 찾을 수 없습니다.');
+                }
+            } else {
+                console.warn('[NativeBridgeAdapter] SSR 환경이므로 네이티브 브릿지 인터페이스가 제공되지 않습니다.');
             }
         } catch (e) {
             console.error('[NativeBridgeAdapter] 메시지 인코딩 실패:', e);
