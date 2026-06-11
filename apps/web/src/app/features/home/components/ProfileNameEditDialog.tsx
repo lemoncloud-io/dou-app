@@ -19,7 +19,12 @@ interface ProfileNameEditDialogProps {
     updateSiteProfile: (body: SiteProfileBody) => Promise<SiteProfileView>;
 }
 
-export const ProfileNameEditDialog = ({ open, onOpenChange, currentNick, updateSiteProfile }: ProfileNameEditDialogProps) => {
+export const ProfileNameEditDialog = ({
+    open,
+    onOpenChange,
+    currentNick,
+    updateSiteProfile,
+}: ProfileNameEditDialogProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,9 +99,7 @@ export const ProfileNameEditDialog = ({ open, onOpenChange, currentNick, updateS
                                 className="h-11 rounded-[10px] border border-border bg-background px-3.5 text-[15px] font-medium leading-[1.45] tracking-[0.005em] text-foreground placeholder:text-muted-foreground"
                                 autoFocus
                             />
-                            {errors.name && (
-                                <span className="text-[12px] text-destructive">{errors.name.message}</span>
-                            )}
+                            {errors.name && <span className="text-[12px] text-destructive">{errors.name.message}</span>}
                         </div>
 
                         <div className="mt-auto flex flex-col gap-3 pb-safe-bottom">

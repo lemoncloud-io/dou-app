@@ -1,6 +1,6 @@
 import { ArrowLeftRight, Bell, Bug, ChevronDown, CircleAlert, EllipsisVertical, Search, User } from 'lucide-react';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -19,7 +19,7 @@ import { useLogout } from '@chatic/auth';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
-import { consumeNameSetupFlag, usePlaces } from '../../../shared/hooks/usePlaces';
+import { usePlaces } from '../../../shared/hooks/usePlaces';
 import { usePlaceUnreadCounts } from '../../../shared/hooks/usePlaceUnreadCounts';
 import { useChannels } from '../../../shared/hooks/useChannels';
 import { useCloudSession } from '../../../shared/hooks/useCloudSession';

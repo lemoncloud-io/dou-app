@@ -170,10 +170,7 @@ export const ChatSettingsPage = () => {
                         <ChatProfileIcon thumbnail={channel?.thumbnail} />
                         <div className="flex flex-col items-center gap-1">
                             {channel?.isOwner && !channel?.isSelfChat ? (
-                                <button
-                                    onClick={() => openDialog('update')}
-                                    className="flex items-center gap-1.5"
-                                >
+                                <button onClick={() => openDialog('update')} className="flex items-center gap-1.5">
                                     <h2 className="text-[17px] font-semibold leading-[22px] tracking-[-0.34px] text-foreground">
                                         {channel?.name || t('chat.settings.roomName')}
                                     </h2>

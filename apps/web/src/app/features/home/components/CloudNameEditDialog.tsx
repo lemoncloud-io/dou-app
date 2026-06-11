@@ -20,7 +20,13 @@ interface CloudNameEditDialogProps {
     onSuccess?: (newName: string) => void;
 }
 
-export const CloudNameEditDialog = ({ open, onOpenChange, currentName, cloudId, onSuccess }: CloudNameEditDialogProps) => {
+export const CloudNameEditDialog = ({
+    open,
+    onOpenChange,
+    currentName,
+    cloudId,
+    onSuccess,
+}: CloudNameEditDialogProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,9 +103,7 @@ export const CloudNameEditDialog = ({ open, onOpenChange, currentName, cloudId, 
                                 className="h-11 rounded-[10px] border border-border bg-background px-3.5 text-[15px] font-medium leading-[1.45] tracking-[0.005em] text-foreground placeholder:text-muted-foreground"
                                 autoFocus
                             />
-                            {errors.name && (
-                                <span className="text-[12px] text-destructive">{errors.name.message}</span>
-                            )}
+                            {errors.name && <span className="text-[12px] text-destructive">{errors.name.message}</span>}
                         </div>
 
                         <div className="mt-auto flex flex-col gap-3 pb-safe-bottom">
@@ -108,11 +112,7 @@ export const CloudNameEditDialog = ({ open, onOpenChange, currentName, cloudId, 
                                 disabled={!isValidName || isSubmitting}
                                 className="flex h-[50px] items-center justify-center gap-1.5 rounded-full bg-[#B0EA10] px-6 py-3 text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-muted disabled:text-muted-foreground"
                             >
-                                {isSubmitting ? (
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                ) : (
-                                    t('cloudNameEdit.save')
-                                )}
+                                {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : t('cloudNameEdit.save')}
                             </Button>
                         </div>
                     </form>

@@ -43,7 +43,11 @@ export const useCreateInviteBatch = () => {
         return { inviteView, shared: true };
     };
 
-    const createBatchInvite = async (params: { channelId: string; phones: string[] }): Promise<MyInviteView[]> => {
+    const createBatchInvite = async (params: {
+        channelId: string;
+        phones: string[];
+        names?: string[];
+    }): Promise<MyInviteView[]> => {
         const selectedCloudId = cloudCore.getSelectedCloudId() ?? '';
         const selectedCloud = cloudsData?.list?.find(c => c.id === selectedCloudId);
 
@@ -52,6 +56,7 @@ export const useCreateInviteBatch = () => {
             channelId: params.channelId,
             cloudId: selectedCloudId,
             cloudName: selectedCloud?.name ?? '',
+            name: params.names?.[0] ?? '',
         };
 
         return requestInviteBatch(payload);

@@ -43,7 +43,9 @@ const ChannelItem = ({ channel }: { channel: DomainChannel }) => {
             {/* Avatar */}
             <div className="relative flex-shrink-0">
                 <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                    {isSelf ? (
+                    {channel.thumbnail ? (
+                        <img src={channel.thumbnail} alt="" className="h-full w-full object-cover" />
+                    ) : isSelf ? (
                         <User size={20} className="text-muted-foreground" />
                     ) : (
                         <Users size={20} className="text-muted-foreground" />

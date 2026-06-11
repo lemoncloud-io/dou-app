@@ -148,7 +148,7 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick,
                             <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
                                 {displayName}
                             </span>
-                            {isSelected && isActive && onEditCloud && (
+                            {isActive && onEditCloud && (
                                 <button
                                     type="button"
                                     onClick={e => {

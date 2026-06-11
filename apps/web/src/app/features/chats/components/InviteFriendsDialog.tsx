@@ -176,7 +176,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
         for (const contact of contacts) {
             if (!selectedContactIds.has(contact.recordID)) continue;
             const phone = extractValidPhone(contact);
-            if (phone) selectedContacts.push({ name: contact.displayName ?? '', phone });
+            if (phone) selectedContacts.push({ name: contact.displayName || contact.givenName || '', phone });
         }
 
         if (selectedContacts.length === 0) return;
@@ -195,6 +195,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
                 await createBatchInvite({
                     channelId,
                     phones: selectedContacts.map(c => c.phone),
+                    names: selectedContacts.map(c => c.name),
                 });
             }
             toast({ title: t('inviteFriends.batchSuccess', { count: selectedContacts.length }) });
