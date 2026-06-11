@@ -3,7 +3,7 @@ import { WEB_MESSAGE_RESPONSE_TYPE } from '@chatic/app-messages';
 import type { EventMessage, RequestMessage, ResponseMessage } from '../common';
 import type { BridgeAdapter } from '../web/adapters';
 
-export interface TestBridgeFailureConfig {
+export interface BridgeSimulationFailureConfig {
     code?: string;
     message?: string;
     recoverable?: boolean;
@@ -13,7 +13,7 @@ export interface InMemoryBridgeTransportConfig {
     /** Web -> App -> Web 왕복 지연 시간입니다. 각 방향에 절반씩 적용합니다. */
     rttDelayMs?: number;
     /** true면 App host를 거치지 않고 모든 request에 bridge-level 실패 응답을 반환합니다. */
-    forceFailure?: boolean | TestBridgeFailureConfig;
+    forceFailure?: boolean | BridgeSimulationFailureConfig;
     /** true면 request를 App host로 보내지 않아 WebBridgeClient timeout을 검증할 수 있습니다. */
     timeoutMode?: boolean;
     /** 0~1 사이 값. 해당 확률로 메시지를 드롭합니다. */
@@ -113,7 +113,10 @@ export class InMemoryBridgeTransport implements BridgeAdapter {
         return message;
     }
 
-    private createFailureResponse(message: RequestMessage, override?: TestBridgeFailureConfig): BridgeErrorResponse {
+    private createFailureResponse(
+        message: RequestMessage,
+        override?: BridgeSimulationFailureConfig
+    ): BridgeErrorResponse {
         const config = typeof this.config.forceFailure === 'object' ? this.config.forceFailure : {};
         const failure = { ...config, ...override };
         const requestType = message.type as WebMessageType;
@@ -125,9 +128,9 @@ export class InMemoryBridgeTransport implements BridgeAdapter {
             nonce: message.nonce,
             success: false,
             error: {
-                code: failure.code ?? 'TEST_BRIDGE_FAILURE',
-                message: failure.message ?? '테스트 브릿지 설정에 의해 요청이 실패했습니다.',
-                reason: 'The in-memory test bridge was configured to fail before reaching the app host.',
+                code: failure.code ?? 'BRIDGE_SIMULATION_FAILURE',
+                message: failure.message ?? '브릿지 시뮬레이션 설정에 의해 요청이 실패했습니다.',
+                reason: 'The in-memory bridge simulation was configured to fail before reaching the app host.',
                 requestType,
                 expectedResponseType: WEB_MESSAGE_RESPONSE_TYPE[requestType],
                 protocolVersion: message.version,

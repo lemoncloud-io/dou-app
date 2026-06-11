@@ -1,14 +1,16 @@
-import { createTestBridgeEnvironment } from './TestBridgeEnvironment';
-describe('TestBridgeEnvironment', () => {
+import { bridgeProvider, webClient } from '../provider';
+import { activateBridgeSimulationEnvironment, createBridgeSimulationEnvironment } from './BridgeSimulationEnvironment';
+describe('BridgeSimulationEnvironment', () => {
     beforeEach(() => {
         jest.useFakeTimers();
     });
     afterEach(() => {
+        bridgeProvider.restoreDefaults();
         jest.clearAllTimers();
         jest.useRealTimers();
     });
     it('should run a typed in-memory request through the app host', async () => {
-        const env = createTestBridgeEnvironment({
+        const env = createBridgeSimulationEnvironment({
             handlers: {
                 Ping: async message => ({
                     type: 'Pong',
@@ -27,7 +29,7 @@ describe('TestBridgeEnvironment', () => {
         );
     });
     it('should apply RTT delay across the in-memory bridge', async () => {
-        const env = createTestBridgeEnvironment({
+        const env = createBridgeSimulationEnvironment({
             rttDelayMs: 100,
             handlers: {
                 Ping: async message => ({
@@ -54,7 +56,7 @@ describe('TestBridgeEnvironment', () => {
     });
     it('should fail before reaching the app host when forceFailure is enabled', async () => {
         const handler = jest.fn();
-        const env = createTestBridgeEnvironment({
+        const env = createBridgeSimulationEnvironment({
             forceFailure: {
                 code: 'FORCED',
                 message: 'forced failure',
@@ -72,5 +74,25 @@ describe('TestBridgeEnvironment', () => {
             })
         );
         expect(handler).not.toHaveBeenCalled();
+    });
+    it('should activate the bridge simulation through the shared provider proxy', async () => {
+        const env = activateBridgeSimulationEnvironment({
+            handlers: {
+                Ping: async message => ({
+                    type: 'Pong',
+                    success: true,
+                    data: { payload: `provider:${message.data.payload}` },
+                }),
+            },
+        });
+
+        await expect(webClient.request({ type: 'Ping', data: { payload: 'active' } })).resolves.toEqual(
+            expect.objectContaining({
+                type: 'Pong',
+                data: { payload: 'provider:active' },
+            })
+        );
+
+        env.restore();
     });
 });
