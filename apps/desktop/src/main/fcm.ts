@@ -109,10 +109,13 @@ export const startFcm = async (
                 saveCreds(session);
             }
             const data = appDataToObject(message.appData);
+            // The backend sends FCM *notification* fields, which push-receiver surfaces as
+            // `gcm.notification.*` data keys (alongside `content`/`link`). Fall back to the
+            // plain keys for test/non-backend payloads.
             handlers.onPush({
-                title: data.title,
-                body: data.body,
-                deeplink: data.deeplink || data.url || data.link,
+                title: data['gcm.notification.title'] || data.title,
+                body: data['gcm.notification.body'] || data.content || data.body,
+                deeplink: data.link || data.deeplink || data.url,
                 data,
             });
         });
