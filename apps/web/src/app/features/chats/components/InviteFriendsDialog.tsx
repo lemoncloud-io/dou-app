@@ -86,7 +86,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
     // Request contacts when dialog opens (mobile only)
     useEffect(() => {
         if (open && isOnMobileApp && !hasRequestedContacts) {
-            webClient.post('GetContacts', { data: {} });
+            webClient.post({ type: 'GetContacts', data: {} });
             setHasRequestedContacts(true);
             setIsWaitingForContacts(true);
         }

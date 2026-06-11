@@ -4,8 +4,7 @@
     "main": "./src/index.ts",
     "types": "./src/index.ts",
     "scripts": {
-        "test": "jest",
-        "run:mock": "ts-node ./src/run-mock.ts"
+        "test": "jest"
     },
     "exports": {
         ".": {

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { setOAuthProvider, useWebCoreStore, webCore } from '@chatic/web-core';
 
-import { isNative, webClient, logger } from '@chatic/bridges';
+import { isNative, logger, webClient } from '@chatic/bridges';
 import type { OAuthTokenResult } from '@chatic/app-messages';
 import { useVerifyNativeAppToken } from '@chatic/users';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
@@ -54,7 +54,7 @@ export const LoginPage = () => {
     const handleOAuthLogin = (provider: 'google' | 'apple') => {
         setIsOAuthPending(true);
         setActiveProvider(provider);
-        webClient.post('OAuthLogin', { provider });
+        webClient.post({ type: 'OAuthLogin', data: { provider } });
     };
 
     useOnOAuthLogin(async message => {

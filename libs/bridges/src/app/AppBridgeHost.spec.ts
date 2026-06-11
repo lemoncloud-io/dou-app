@@ -48,7 +48,6 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
                 protocolVersion: BRIDGE_PROTOCOL_VERSION,
                 supportedWebMessages: expect.arrayContaining(['WebAppReady', 'Ping']),
                 supportedAppMessages: expect.arrayContaining(['OnWebAppReady', 'Pong']),
-                capabilities: expect.objectContaining({ typedResponses: true }),
             })
         );
     });

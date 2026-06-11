@@ -44,7 +44,7 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
         if (lastNativeBadgeCountRef.current === count) return;
 
         lastNativeBadgeCountRef.current = count;
-        webClient.post('SetBadgeCount', { data: { count } });
+        webClient.post({ type: 'SetBadgeCount', data: { count } });
     }, []);
 
     const fetchCounts = useCallback(async () => {

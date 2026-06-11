@@ -20,7 +20,7 @@ const OpenSourceHero = () => {
 
     const handleGithubClick = () => {
         if (isNative()) {
-            webClient.post('OpenURL', { data: { url: GITHUB_URL } });
+            webClient.post({ type: 'OpenURL', data: { url: GITHUB_URL } });
         } else {
             window.open(GITHUB_URL, '_blank');
         }

@@ -8,7 +8,7 @@ export const PermissionDeniedBanner = () => {
 
     const handleOpenSettings = () => {
         if (isNative()) {
-            webClient.post('OpenSettings', { data: {} });
+            webClient.post({ type: 'OpenSettings', data: {} });
         }
     };
 

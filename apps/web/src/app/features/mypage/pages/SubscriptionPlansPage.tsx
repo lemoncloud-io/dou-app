@@ -10,9 +10,9 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     useFetchActiveSubscriptions,
     useFetchReceiptDetail,
+    useProductPlans,
     useValidateApple,
     useValidateGoogle,
-    useProductPlans,
 } from '@chatic/subscriptions';
 
 import { useSubscriptionIap } from '../hooks';
@@ -73,7 +73,7 @@ export const SubscriptionPlansPage = () => {
 
     const openPolicyUrl = (path: string) => {
         const url = `${POLICY_BASE_URL}${path}`;
-        if (isOnMobileApp) webClient.post('OpenURL', { data: { url } });
+        if (isOnMobileApp) webClient.post({ type: 'OpenURL', data: { url } });
         else window.open(url, '_blank');
     };
 

@@ -48,10 +48,6 @@ export class AppBridgeHost implements IAppBridgeHost {
                     protocolVersion: message.version ?? this.version,
                     supportedWebMessages: Object.keys(WEB_MESSAGE_RESPONSE_TYPE),
                     supportedAppMessages: Object.values(WEB_MESSAGE_RESPONSE_TYPE),
-                    capabilities: {
-                        typedResponses: true,
-                        legacyWebAppReady: true,
-                    },
                 },
             };
         });
