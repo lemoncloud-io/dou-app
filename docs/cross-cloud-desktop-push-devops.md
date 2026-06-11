@@ -23,11 +23,17 @@
   `application.findByName(<application>-<platform>-<stage>)`
   (`chatic-pushes-api/src/modules/pushes/proxy.ts:276-288`).
   없으면 **throw**: `"@name[...] is invalid (no application, run /applications/sync-list)"`.
-  → `platform='desktop'`(또는 `web`)으로 등록하면 **`chatic-desktop-<stage>` SNS 앱이
-  반드시 존재해야** 한다. 기존 `chatic-Android`(GCM)로 **자동 폴백 안 됨**.
-- SNS 타입은 `APNS | APNS_SANDBOX | GCM`. **GCM = FCM**. ARN 예시:
-  `app/APNS_SANDBOX/Eureka-iOS-dev` → 이름 형식 `<App>-<Platform>-<stage>`.
-  → 데스크탑/web FCM 토큰은 **GCM 플랫폼**(android와 동일 FCM 자격증명)으로 처리 가능.
+  → `platform='desktop'`으로 등록하면 **`chatic-desktop-<stage>` SNS 앱이
+  반드시 존재해야** 한다. 기존 `chatic-android`(FCM)로 **자동 폴백 안 됨**.
+- **platform 문자열은 enum 검증 안 함** — 비어있지만 않으면 통과(transformer:524),
+  소문자화 후 그대로 앱 이름에 쓰임(`asDeviceModel`, proxy.ts:379). 그래서 `'desktop'`
+  그대로 OK (`'web'` 강제 아님). `isWEB=startsWith('web')`라 'desktop'은 ios/android/web
+  플래그가 0이지만 **그 플래그는 메타데이터일 뿐 배달/페이로드 분기에 안 쓰임**(무해).
+- **provider(FCM/APNS)는 platform이 아니라 SNS 앱의 실제 타입에서 옴**:
+  `service: $app.type`(proxy.ts:258). sandbox도 endpoint/stage 기준(proxy.ts:657).
+  → `chatic-desktop-*`를 **FCM(GCM)으로 생성**하면 FCM 배달. android와 동일 FCM 자격증명.
+- 기존 명명 = `chatic-<platform>-<stage>` (`chatic-android-dev/prod`, `chatic-ios-dev/prod`,
+  모두 SNS 콘솔에서 확인됨) → 데스크탑은 **`chatic-desktop-dev` / `chatic-desktop-prod`**.
 
 ---
 
@@ -37,15 +43,16 @@
 재사용**하므로 새 Firebase 프로젝트/서버키는 필요 없다.
 
 1. AWS SNS 콘솔(리전 `ap-northeast-2`) → **Create platform application**
-    - Push notification platform: **Firebase Cloud Messaging (GCM)**
-    - 이름: **`chatic-desktop-dev`**, **`chatic-desktop-prod`** (각 스테이지)
-        - ⚠️ 기존 모바일 앱의 **실제 명명 규칙에 맞춰** 주세요. 예: 현재가
-          `chatic-Android-prod`면 `chatic-desktop-prod`, `android-chatic-prod`면
-          `desktop-chatic-prod`. (아래 "확인 1" 참고)
-    - Credential: **기존 `chatic-Android-*`와 동일한 FCM 서버키 / 서비스계정**
-      (동일 Firebase 프로젝트, sender id `429595905351`).
+    - 이름: **`chatic-desktop-dev`**, **`chatic-desktop-prod`** (각 스테이지 1개씩)
+      — 기존 `chatic-android-dev/prod` 패턴과 동일 (`chatic-<platform>-<stage>`, SNS 콘솔 확인됨).
+    - Push notification platform: **Firebase Cloud Messaging (FCM)** (chatic-android과 동일)
+    - Authentication method: **Token** (서비스계정 JSON; 구글이 2024.6 레거시 서버키 폐기)
+        - **chatic-android과 동일 Firebase 프로젝트**(sender `429595905351`)의 서비스계정 JSON.
+          Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성 → JSON 붙여넣기.
+        - FCM은 APNs처럼 sandbox 구분 없음 → dev/prod 둘 다 **같은 자격증명**, 이름만 다름.
 2. `chatic-pushes-api` 의 **`POST /applications/0/sync-list`** 호출 → DB에 sync.
 3. 확인: `GET /applications/0` 목록에 `chatic-desktop-*`(type=GCM)이 보이면 완료.
+4. 데스크탑 등록 시 전송값: `application:'chatic'`, `platform:'desktop'`, `stage:'dev'|'prod'`.
 
 ## ✅ 요청 2 — Firebase **Web 앱** config 제공
 
@@ -63,16 +70,13 @@ Node 수신기는 Web 앱 config + VAPID 를 쓴다.)
 
 ## ❓ 확인 요청 (작음)
 
-1. **SNS 명명 규칙**: 현재 운영 SNS PlatformApplication 정확한 이름?
-   (`chatic-Android-prod` vs `android-chatic-prod` vs `chatic-prod-Android` …)
-   → 데스크탑 앱 이름을 여기에 맞춰 만든다.
-2. **데스크탑이 `reg-dev`로 보낼 값** 확정 — 제안: `application:'chatic'`,
-   `platform:'desktop'`(또는 `'web'`), `stage:'dev'|'prod'`.
-   `application`을 `'chatic'`로 통일할지 `'chatic-desktop'`로 분리할지 결정 필요
-   (SNS 앱 이름이 여기서 파생됨).
-3. **FCM data payload 모양**: 클라우드 메시지 푸시의 `data`에 어떤 키로
-   딥링크/대상-클라우드 endpoint(`_backend`/`api`/`stage`)·`badge`·`title`/`body`가
-   실리는지? (데스크탑이 탭→클라우드 전환 라우팅을 모바일과 동일하게 재사용하려면 필요.)
+> ~~SNS 명명 규칙 / platform 값~~ → **해결됨.** SNS 콘솔에서 기존 명명
+> `chatic-<platform>-<stage>` 확인(`chatic-android-prod` 등), 서버 코드상 platform 문자열은
+> enum 검증 없이 그대로 앱 이름에 쓰임(proxy.ts:379) → **`chatic-desktop-*` + `platform:'desktop'`**
+> 확정. provider는 SNS 앱 타입(FCM)에서 옴(proxy.ts:258).
+> **남은 확인 1개 — FCM data payload 모양**: 클라우드 메시지 푸시의 `data`에 어떤 키로
+> 딥링크/대상-클라우드 endpoint(`_backend`/`api`/`stage`)·`badge`·`title`/`body`가
+> 실리는지? (데스크탑이 탭→클라우드 전환 라우팅을 모바일과 동일하게 재사용하려면 필요.)
 
 ---
 
