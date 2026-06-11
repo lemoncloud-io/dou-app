@@ -51,11 +51,13 @@
           sender도 다름 — dev=`429595905351`). chatic-android과 **동일 프로젝트** 사용.
         - 각 프로젝트: Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성 → JSON.
           `chatic-desktop-dev` ← Dev 프로젝트 JSON, `chatic-desktop-prod` ← Prod 프로젝트 JSON.
-2. `chatic-pushes-api` **`GET /applications/sync-list`** (aws4 서명) 호출 → SNS→DB sync.
-   각 스테이지 pushes-api에 1번씩 (prod 예시:
-   `https://z2515o8a8b.execute-api.ap-northeast-2.amazonaws.com/prod/applications/sync-list`).
-3. 확인: `GET /applications/0` 목록에 `chatic-desktop-*`(type=GCM)이 보이면 완료.
-4. 데스크탑 등록 시 전송값: `application:'chatic'`, `platform:'desktop'`, `stage:'dev'|'prod'`.
+2. ✅ **완료** — `chatic-pushes-api` **`GET /applications/sync-list`** (aws4, `--profile lemon`)
+   를 dev/prod 각 게이트웨이에 호출 → SNS→DB sync 됨. 실제 게이트웨이(acct 085403634746):
+    - dev: `https://nv9i08zwd6.execute-api.ap-northeast-2.amazonaws.com/dev/applications/sync-list`
+    - prod: `https://0z2nshq7r0.execute-api.ap-northeast-2.amazonaws.com/prod/applications/sync-list`
+    - (코드 주석의 `z2515o8a8b` URL은 stale.) DB에 `chatic-desktop-dev`(id 1000012) +
+      `chatic-desktop`(id 1000013, prod, GCM) 등록 확인됨.
+3. 데스크탑 등록 시 전송값: `application:'chatic'`, `platform:'desktop'`, `stage:'dev'|'prod'`.
 
 ## ✅ 요청 2 — Firebase **Web 앱** config 제공
 
