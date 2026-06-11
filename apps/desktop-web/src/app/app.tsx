@@ -13,6 +13,7 @@ import i18n from '../i18n';
 import { AppRouter } from './routes';
 import { AppShellSkeleton, ConnectionBanner } from './shared';
 import {
+    useCrossCloudPushToast,
     useDesktopBadge,
     useDesktopNotifications,
     useDeviceTokenRegistration,
@@ -25,6 +26,8 @@ const DesktopNotifications = () => {
     useDesktopNotifications();
     // Cross-cloud push: register this device's FCM token with the broker.
     useDeviceTokenRegistration();
+    // Cross-cloud push: in-app toast when focused (macOS hides OS banners then).
+    useCrossCloudPushToast();
     return null;
 };
 

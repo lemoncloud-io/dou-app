@@ -395,7 +395,17 @@ const createWindow = (): BrowserWindow => {
     // notifications. Best-effort — failure degrades to the live-WS same-cloud path.
     void startFcm(readFcmConfig(), {
         onToken: onFcmToken,
-        onPush: push => showOsNotification(host, win, { title: push.title ?? 'DoU', body: push.body ?? '', deeplink: push.deeplink }),
+        onPush: push => {
+            showOsNotification(host, win, { title: push.title ?? 'DoU', body: push.body ?? '', deeplink: push.deeplink });
+            // Also forward to the renderer for an in-app toast: macOS suppresses OS
+            // banners from the focused app, so a cross-cloud push that lands while DoU
+            // is active would otherwise be invisible.
+            host.pushEvent({
+                type: 'OnReceiveNotification',
+                success: true,
+                data: { notification: { title: push.title, body: push.body, data: push.data } },
+            });
+        },
     }).catch(error => console.error('[fcm] start failed', error));
 
     // Only accept bridge requests from the trusted origin's frame.

@@ -7,6 +7,7 @@ export * from './useChannelMutations';
 export * from './useReadReceipts';
 export * from './useDesktopNotifications';
 export * from './useDeviceTokenRegistration';
+export * from './useCrossCloudPushToast';
 export * from './useCloudSwitchFlow';
 export * from './useSelectPlace';
 export * from './usePlaceUnreadCounts';
