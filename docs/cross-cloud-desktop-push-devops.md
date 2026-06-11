@@ -46,27 +46,28 @@
     - 이름: **`chatic-desktop-dev`**, **`chatic-desktop-prod`** (각 스테이지 1개씩)
       — 기존 `chatic-android-dev/prod` 패턴과 동일 (`chatic-<platform>-<stage>`, SNS 콘솔 확인됨).
     - Push notification platform: **Firebase Cloud Messaging (FCM)** (chatic-android과 동일)
-    - Authentication method: **Token** (서비스계정 JSON; 구글이 2024.6 레거시 서버키 폐기)
-        - **chatic-android과 동일 Firebase 프로젝트**(sender `429595905351`)의 서비스계정 JSON.
-          Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성 → JSON 붙여넣기.
-        - FCM은 APNs처럼 sandbox 구분 없음 → dev/prod 둘 다 **같은 자격증명**, 이름만 다름.
+    - Authentication method: **Token** (서비스계정 JSON; 레거시 서버키는 폐기/비활성)
+        - **dev/prod는 별도 Firebase 프로젝트** (`ChaticDoU-Dev` / `ChaticDoU-Prod`,
+          sender도 다름 — dev=`429595905351`). chatic-android과 **동일 프로젝트** 사용.
+        - 각 프로젝트: Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성 → JSON.
+          `chatic-desktop-dev` ← Dev 프로젝트 JSON, `chatic-desktop-prod` ← Prod 프로젝트 JSON.
 2. `chatic-pushes-api` 의 **`POST /applications/0/sync-list`** 호출 → DB에 sync.
 3. 확인: `GET /applications/0` 목록에 `chatic-desktop-*`(type=GCM)이 보이면 완료.
 4. 데스크탑 등록 시 전송값: `application:'chatic'`, `platform:'desktop'`, `stage:'dev'|'prod'`.
 
 ## ✅ 요청 2 — Firebase **Web 앱** config 제공
 
-데스크탑의 Node 수신기(`push-receiver`)가 FCM 토큰을 발급하려면 동일 Firebase
-프로젝트의 **Web 앱** 자격이 필요하다. (모바일은 google-services.json / plist를 쓰지만
-Node 수신기는 Web 앱 config + VAPID 를 쓴다.)
+데스크탑의 Node 수신기(`push-receiver`)가 FCM 토큰을 발급하려면 **Web 앱** 자격 + VAPID가
+필요하다. **dev/prod 별도 프로젝트**(`ChaticDoU-Dev` / `ChaticDoU-Prod`)라 **각각** 수집한다.
 
-- Firebase 콘솔 → 프로젝트 설정 → **앱 추가 → Web** (아직 없으면 1개 추가; 무료)
-- 아래 값을 전달:
-    - `projectId`
-    - `apiKey` (web)
-    - `appId` (web)
-    - `messagingSenderId` (= **429595905351** 확인)
-    - **VAPID public key** (클라우드 메시징 → 웹 푸시 인증서)
+각 프로젝트(Dev, Prod)에서:
+
+1. **Web 앱 추가**: 프로젝트 설정 → **일반** 탭 → 내 앱 → **앱 추가 → 웹(`</>`)** (없으면 1개).
+   → `apiKey`, `appId`, `projectId`, `messagingSenderId` 표시됨.
+2. **VAPID**: 프로젝트 설정 → **클라우드 메시징** 탭 → (Web 앱 추가 후 생기는) **웹 푸시 인증서**
+   → **키 쌍 생성** → public key.
+
+전달 값 (Dev/Prod 각각): `projectId`, `apiKey`, `appId`, `messagingSenderId`, `VAPID public key`.
 
 ## ❓ 확인 요청 (작음)
 
