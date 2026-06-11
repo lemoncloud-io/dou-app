@@ -231,4 +231,191 @@ describe('WebBridgeClient Buffering & Detection', () => {
             })
         );
     });
+
+    describe('WebBridgeClient Environment Simulation', () => {
+        let mockSimAdapter: jest.Mocked<BridgeAdapter>;
+
+        beforeEach(() => {
+            jest.useFakeTimers();
+            mockSimAdapter = {
+                postMessage: jest.fn(),
+                onMessage: jest.fn(),
+            } as any;
+            (global as any).window.ReactNativeWebView = {
+                postMessage: jest.fn(),
+            };
+        });
+
+        afterEach(() => {
+            if (typeof window !== 'undefined') {
+                delete (window as any).ReactNativeWebView;
+            }
+            jest.useRealTimers();
+        });
+
+        it('should apply RTT delay to requests and responses', async () => {
+            const client = new WebBridgeClient({ adapter: mockSimAdapter });
+            client.configureEnvironment({ rttDelayMs: 100 });
+
+            const requestPromise = client.request({ type: 'Ping', data: { payload: 'delayed' } });
+
+            // At 0ms, postMessage has not been called yet (half RTT delay = 50ms)
+            expect(mockSimAdapter.postMessage).not.toHaveBeenCalled();
+
+            await jest.advanceTimersByTimeAsync(50);
+            expect(mockSimAdapter.postMessage).toHaveBeenCalledTimes(1);
+
+            const sentRequest = mockSimAdapter.postMessage.mock.calls[0][0] as any;
+            const onMessageCallback = mockSimAdapter.onMessage.mock.calls[0][0];
+
+            // Receive response instantly on mockSimAdapter
+            onMessageCallback({
+                type: 'Pong',
+                refId: sentRequest.refId,
+                success: true,
+                data: { payload: 'delayed' },
+            } as any);
+
+            // Client shouldn't resolve yet because of incoming delay (half RTT delay = 50ms)
+            let resolved = false;
+            void requestPromise.then(() => {
+                resolved = true;
+            });
+
+            await jest.advanceTimersByTimeAsync(49);
+            expect(resolved).toBe(false);
+
+            await jest.advanceTimersByTimeAsync(1);
+            expect(resolved).toBe(true);
+            await expect(requestPromise).resolves.toEqual(
+                expect.objectContaining({
+                    type: 'Pong',
+                    data: { payload: 'delayed' },
+                })
+            );
+        });
+
+        it('should fail request instantly or with delay when forceFailure is enabled', async () => {
+            const client = new WebBridgeClient({ adapter: mockSimAdapter });
+            client.configureEnvironment({
+                forceFailure: {
+                    code: 'FORCED',
+                    message: 'forced failure',
+                },
+                rttDelayMs: 100,
+            });
+
+            const requestPromise = client.request({ type: 'Ping', data: { payload: 'blocked' } });
+
+            // Advance 50ms, should not reject yet
+            let rejected = false;
+            void requestPromise.catch(() => {
+                rejected = true;
+            });
+
+            await jest.advanceTimersByTimeAsync(50);
+            expect(rejected).toBe(false);
+
+            await jest.advanceTimersByTimeAsync(50); // Total 100ms
+            await expect(requestPromise).rejects.toEqual(
+                expect.objectContaining({
+                    code: 'FORCED',
+                    message: 'forced failure',
+                    requestType: 'Ping',
+                })
+            );
+            expect(mockSimAdapter.postMessage).not.toHaveBeenCalled();
+        });
+
+        it('should drop requests randomly or deterministic when dropRate is 1', async () => {
+            const client = new WebBridgeClient({ adapter: mockSimAdapter });
+            client.configureEnvironment({
+                dropRate: 1,
+            });
+
+            const requestPromise = client.request({ type: 'Ping', data: { payload: 'dropped' } });
+            client.post({ type: 'Ping', data: { payload: 'dropped-post' } });
+
+            await jest.advanceTimersByTimeAsync(100);
+            expect(mockSimAdapter.postMessage).not.toHaveBeenCalled();
+
+            // Promise should never resolve
+            let resolved = false;
+            void requestPromise.then(() => {
+                resolved = true;
+            });
+            await jest.advanceTimersByTimeAsync(10000);
+            expect(resolved).toBe(false);
+        });
+
+        it('should induce response type mismatch when responseTypeMismatch is configured', async () => {
+            const client = new WebBridgeClient({ adapter: mockSimAdapter });
+            client.configureEnvironment({
+                responseTypeMismatch: 'OnFetchSafeArea',
+            });
+
+            const requestPromise = client.request({ type: 'Ping', data: { payload: 'mismatch' } });
+            const sentRequest = mockSimAdapter.postMessage.mock.calls[0][0] as any;
+            const onMessageCallback = mockSimAdapter.onMessage.mock.calls[0][0];
+
+            onMessageCallback({
+                type: 'Pong',
+                refId: sentRequest.refId,
+                success: true,
+                data: { payload: 'mismatch' },
+            } as any);
+
+            await expect(requestPromise).rejects.toEqual(
+                expect.objectContaining({
+                    code: 'RESPONSE_TYPE_MISMATCH',
+                    actualResponseType: 'OnFetchSafeArea',
+                })
+            );
+        });
+
+        it('should induce malformed response when malformedResponse is true', async () => {
+            const client = new WebBridgeClient({ adapter: mockSimAdapter });
+            client.configureEnvironment({
+                malformedResponse: true,
+            });
+
+            const requestPromise = client.request({ type: 'Ping', data: { payload: 'malformed' } });
+            const sentRequest = mockSimAdapter.postMessage.mock.calls[0][0] as any;
+            const onMessageCallback = mockSimAdapter.onMessage.mock.calls[0][0];
+
+            onMessageCallback({
+                type: 'Pong',
+                refId: sentRequest.refId,
+                success: true,
+                data: { payload: 'malformed' },
+            } as any);
+
+            await expect(requestPromise).rejects.toEqual(
+                expect.objectContaining({
+                    code: 'RESPONSE_TYPE_MISMATCH',
+                    actualResponseType: 'ERROR',
+                })
+            );
+        });
+
+        it('should clean up timers, unsubscribe from adapter, and reject pending requests on destroy', async () => {
+            const unsubscribeSpy = jest.fn();
+            mockSimAdapter.onMessage.mockReturnValue(unsubscribeSpy);
+
+            const client = new WebBridgeClient({ adapter: mockSimAdapter });
+            const requestPromise = client.request({ type: 'Ping', data: { payload: 'destroy-test' } });
+
+            expect(mockSimAdapter.onMessage).toHaveBeenCalled();
+
+            client.destroy();
+
+            expect(unsubscribeSpy).toHaveBeenCalled();
+            await expect(requestPromise).rejects.toEqual(
+                expect.objectContaining({
+                    code: 'DESTROYED',
+                    requestType: 'Ping',
+                })
+            );
+        });
+    });
 });

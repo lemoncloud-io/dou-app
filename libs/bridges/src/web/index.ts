@@ -1,4 +1,3 @@
-export * from './IWebBridgeClient';
+export * from './types';
 export * from './WebBridgeClient';
-export * from './NonNativeFailBridgeClient';
 export * from './adapters';
