@@ -37,7 +37,7 @@ export const useDeviceTokenRegistration = () => {
 
         isHandlerReady.current = true;
         appLogger.info('DEVICE_TOKEN', '[DeviceToken] isAppEnv detected, requesting FetchFcmToken');
-        webClient.post('FetchFcmToken', {});
+        webClient.post({ type: 'FetchFcmToken', data: {} });
     }, [isAuthenticated]);
 
     useOnFetchFcmToken(async message => {

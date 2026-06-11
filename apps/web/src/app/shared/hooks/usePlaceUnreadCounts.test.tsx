@@ -86,7 +86,7 @@ describe('usePlaceUnreadCounts', () => {
         renderHook(() => usePlaceUnreadCounts());
 
         await waitFor(() => {
-            expect(webClient.post).toHaveBeenCalledWith('SetBadgeCount', { data: { count: 10 } });
+            expect(webClient.post).toHaveBeenCalledWith({ type: 'SetBadgeCount', data: { count: 10 } });
         });
     });
 
