@@ -496,6 +496,17 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
+     * 실행 중에 브릿지의 물리 전송 어댑터를 동적으로 교체합니다.
+     */
+    public setAdapter(adapter: BridgeAdapter): void {
+        if (this.unsubscribeAdapter) {
+            this.unsubscribeAdapter();
+        }
+        this.adapter = adapter;
+        this.unsubscribeAdapter = this.adapter.onMessage(this.handleMessage);
+    }
+
+    /**
      * [Internal] 웹 호출 규격 데이터를 브릿지 프레임워크 전송 메시지 객체로 포장합니다.
      */
     private createRequestMessage<K extends WebMessageType>(message: WebMessageData<K>): RequestMessage {

@@ -417,5 +417,24 @@ describe('WebBridgeClient Buffering & Detection', () => {
                 })
             );
         });
+
+        it('should allow dynamically swapping the adapter and direct messages to the new adapter', () => {
+            const client = new WebBridgeClient({ adapter: mockSimAdapter });
+
+            const newAdapter = {
+                postMessage: jest.fn(),
+                onMessage: jest.fn(),
+            } as any;
+
+            client.post({ type: 'Ping', data: { payload: 'before-swap' } });
+            expect(mockSimAdapter.postMessage).toHaveBeenCalledTimes(1);
+            expect(newAdapter.postMessage).not.toHaveBeenCalled();
+
+            client.setAdapter(newAdapter);
+
+            client.post({ type: 'Ping', data: { payload: 'after-swap' } });
+            expect(mockSimAdapter.postMessage).toHaveBeenCalledTimes(1);
+            expect(newAdapter.postMessage).toHaveBeenCalledTimes(1);
+        });
     });
 });

@@ -85,4 +85,10 @@ export interface IWebBridgeClient {
      * 브릿지 클라이언트를 해제하고 폴링 타이머 및 등록된 이벤트 리스너를 정리합니다. (메모리 누수 방지)
      */
     destroy(): void;
+
+    /**
+     * 실행 중에 브릿지의 물리 전송 어댑터를 동적으로 교체합니다. (예: 테스트용 InMemoryAdapter로의 교체)
+     * @param adapter 새 물리 전송 어댑터
+     */
+    setAdapter(adapter: BridgeAdapter): void;
 }
