@@ -8,6 +8,8 @@ import { useNavigateWithTransition, resizeImageToBase64 } from '@chatic/shared';
 import { cn } from '@chatic/ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import { cloudCore } from '@chatic/web-core';
+
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';
 import { usePlaces } from '../../../shared/hooks';
@@ -32,6 +34,9 @@ export const PlaceInfoPage = () => {
     const [imageUrl, setImageUrl] = useState('');
     const [imageSizeError, setImageSizeError] = useState(false);
 
+    const myId = cloudCore.getCloudToken()?.id;
+    const isOwner = !!(place && myId && (place as MySiteView & { ownerId?: string }).ownerId === myId);
+
     const initialName = place?.name ?? '';
     const initialThumbnail = place?.thumbnail ?? '';
 
@@ -43,6 +48,13 @@ export const PlaceInfoPage = () => {
             setImageUrl(found?.thumbnail ?? '');
         }
     }, [placeId, places]);
+
+    // owner가 아니면 뒤로 이동
+    useEffect(() => {
+        if (place && myId && (place as MySiteView & { ownerId?: string }).ownerId !== myId) {
+            navigate(-1);
+        }
+    }, [place, myId, navigate]);
 
     const formatDate = useCallback(
         (timestamp?: number) => {

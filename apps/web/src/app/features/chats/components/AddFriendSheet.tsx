@@ -67,7 +67,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
     const [name, setName] = useState('');
     const [phoneDigits, setPhoneDigits] = useState('');
     const [phoneError, setPhoneError] = useState('');
-    const { createBatchInvite, isPending } = useCreateInviteBatch();
+    const { createSingleInvite, isPending } = useCreateInviteBatch();
 
     const handlePhoneChange = (value: string) => {
         const digits = value.replace(/\D/g, '').slice(0, PHONE_DIGITS_MAX);
@@ -97,10 +97,10 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
         if (!validatePhone()) return;
 
         try {
-            await createBatchInvite({
+            await createSingleInvite({
                 channelId,
-                phones: [phoneDigits],
-                names: [name.trim()],
+                name: name.trim(),
+                phone: phoneDigits,
             });
 
             toast({ title: t('inviteFriends.batchSuccess', { count: 1 }) });

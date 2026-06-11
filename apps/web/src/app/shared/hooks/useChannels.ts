@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
-import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
-import { cloudCore, useDynamicProfile } from '@chatic/web-core';
+import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
+import { cloudCore, useDynamicProfile, useUserContext } from '@chatic/web-core';
 
 import { useRepositories } from '../data';
 import type { ClientChannelView } from '../types';
-import { debounce } from '../utils/debounce';
+
 import { useChannelSyncStore } from '../stores/useChannelSyncStore';
 import { useConnectionRecoverySync } from './useConnectionRecoverySync';
 
@@ -62,8 +62,9 @@ const buildFetchPayload = ({ sid: _placeId, ...params }: DomainChannelListPayloa
 });
 
 export const useChannels = (initialParams: DomainChannelListPayload) => {
-    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
+    const { channel: channelRepository } = useRepositories();
     const profile = useDynamicProfile();
+    const { currentWSS } = useUserContext();
     const userId = profile?.uid;
     const targetPlaceId = initialParams.sid;
     const storeCloudId = useWebSocketV2Store(s => s.cloudId);
@@ -114,9 +115,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
             });
             if (requestSeqRef.current !== requestSeq) return [];
             return sortChannels(
-                (cacheResult.list ?? [])
-                    .filter((ch: DomainChannel) => !!(ch as any).$?.sid)
-                    .map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
+                (cacheResult.list ?? []).map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
             );
         },
         [channelRepository]
@@ -159,9 +158,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
                 if (requestSeqRef.current !== requestSeq) return;
 
                 const nextChannels = sortChannels(
-                    (result.list ?? [])
-                        .filter((ch: DomainChannel) => !!(ch as any).$?.sid)
-                        .map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
+                    (result.list ?? []).map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
                 );
                 logger.info('CHANNEL', '[useChannels] fetchChannels result', {
                     data: { resultCount: nextChannels.length, source: result.meta?.source },
@@ -272,38 +269,27 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         });
     }, [fetchChannels, cloudId, targetPlaceId, isVerified]);
 
-    // 채널/채팅/조인 이벤트에 대한 캐시 재로드 트리거
+    // 캐시(IndexedDB) 변경을 subscribeList로 자동 감지하여 UI 반영
+    // channel:create/update/delete, chat:create, join:update 등 모든 캐시 기록이
+    // ChannelRepository.initializeInternalListeners를 통해 localDataSource에 반영되고,
+    // subscribeList가 이를 감지하여 콜백을 호출합니다.
+    // requestSeqRef를 건드리지 않으므로 fetchChannels의 network 응답이 drop되지 않습니다.
     useEffect(() => {
-        const reloadFromCache = debounce(async () => {
-            const params = currentParamsRef.current;
-            if (!params.sid) return;
-            const requestSeq = ++requestSeqRef.current;
-            const cached = await loadFromCache(params, requestSeq);
-            if (requestSeqRef.current === requestSeq) {
-                setChannels(cached);
+        if (!targetPlaceId) return;
+
+        const unsub = channelRepository.subscribeList(
+            buildFetchPayload({ ...currentParamsRef.current, sid: targetPlaceId }),
+            result => {
+                if (!result) return;
+                const nextChannels = sortChannels(
+                    (result.list ?? []).map((ch: DomainChannel) => toClientChannel(ch, userIdRef.current))
+                );
+                setChannels(nextChannels);
             }
-        }, 200);
+        );
 
-        const unsubs = [
-            channelRepository.onChannelCreated(() => void reloadFromCache()),
-            channelRepository.onChannelUpdated(() => void reloadFromCache()),
-            channelRepository.onChannelDeleted(() => void reloadFromCache()),
-            chatRepository.onChatCreated((chat: DomainChat) => {
-                if (!chat.channelId || channelsRef.current.length === 0) return;
-                if (channelsRef.current.some(ch => ch.id === chat.channelId)) {
-                    void reloadFromCache();
-                }
-            }),
-            joinRepository.onJoinUpdated((join: DomainJoin) => {
-                if (!join.channelId || channelsRef.current.length === 0) return;
-                if (channelsRef.current.some(ch => ch.id === join.channelId)) {
-                    void reloadFromCache();
-                }
-            }),
-        ];
-
-        return () => unsubs.forEach(fn => fn());
-    }, [channelRepository, chatRepository, joinRepository, loadFromCache]);
+        return unsub;
+    }, [channelRepository, targetPlaceId]);
 
     // 포그라운드 복귀 및 WebSocket 재연결 시 channel:mine 재요청
     const syncFromLocal = useCallback(async () => {
@@ -350,7 +336,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     };
 
     return {
-        channels: channels.filter(c => !!c.$?.sid),
+        channels: currentWSS === 'cloud' ? channels.filter(c => !!c.$?.sid) : channels,
         isLoading,
         isSyncing,
         isError,

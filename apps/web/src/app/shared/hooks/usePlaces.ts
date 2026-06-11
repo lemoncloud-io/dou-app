@@ -32,6 +32,32 @@ const consumeInvitePlaceSyncFlag = (): boolean => {
     return false;
 };
 
+// 초대 수락 직후 이름 설정이 필요함을 표시하는 일회성 키 (sessionStorage — 탭 종료 시 자동 소멸)
+const NAME_SETUP_KEY = 'chatic-invite-name-setup';
+
+/** LoginPage.handleAccept에서 호출 — 이름 설정 플래그 설정 */
+export const markNameSetupPending = (): void => {
+    try {
+        sessionStorage.setItem(NAME_SETUP_KEY, '1');
+    } catch {
+        // ignore
+    }
+};
+
+/** 일회성 플래그 소비 — 읽는 즉시 삭제 */
+export const consumeNameSetupFlag = (): boolean => {
+    try {
+        const value = sessionStorage.getItem(NAME_SETUP_KEY);
+        if (value) {
+            sessionStorage.removeItem(NAME_SETUP_KEY);
+            return true;
+        }
+    } catch {
+        // ignore
+    }
+    return false;
+};
+
 // 컴포넌트 재마운트(네비게이션 복귀)와 실제 클라우드 전환을 구분하기 위한 모듈 레벨 변수
 // prevCloudIdRef는 unmount 시 리셋되므로 이 변수로 실제 전환 여부를 판단
 let lastFetchedCloudId: string | null | undefined;

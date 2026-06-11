@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useAppPreferenceStore } from '@chatic/web-core';
+import { useAppPreferenceStore, useUserContext } from '@chatic/web-core';
 import type { DomainChannel } from '@chatic/data';
 
 const ChannelSkeleton = () => (
@@ -21,6 +21,7 @@ const ChannelItem = ({ channel }: { channel: DomainChannel }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const blurLastMessage = useAppPreferenceStore(s => s.blurLastMessage);
+    const { currentWSS } = useUserContext();
     const unreadCount = channel.unreadCount ?? 0;
     const isSelf = channel.memberNo === 1;
 
@@ -59,7 +60,7 @@ const ChannelItem = ({ channel }: { channel: DomainChannel }) => {
             <div className="flex min-w-0 flex-1 gap-2">
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-[6px]">
-                        {isSelf && (
+                        {currentWSS === 'relay' && isSelf && (
                             <span className="rounded-[3px] bg-[#102346] px-[5px] py-[3px] text-[11px] font-medium leading-none text-white">
                                 MY
                             </span>

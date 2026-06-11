@@ -63,7 +63,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
 
     const isOnMobileApp = isNative();
     const [isWaitingForContacts, setIsWaitingForContacts] = useState(false);
-    const { createBatchInvite } = useCreateInviteBatch();
+    const { createSingleInvite, createBatchInvite } = useCreateInviteBatch();
 
     // 웹: 연락처 접근 불가 → AddFriendSheet(번호 직접 입력)만 바로 노출
     if (!isOnMobileApp) {
@@ -171,27 +171,37 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
     const handleBatchInvite = async () => {
         if (!channelId || selectedContactIds.size === 0 || isBatchInviting) return;
 
-        // 선택된 연락처에서 유효한 번호 + 이름 추출
-        const phones: string[] = [];
-        const names: string[] = [];
+        // 선택된 연락처에서 유효한 번호와 이름 추출
+        const selectedContacts: { name: string; phone: string }[] = [];
         for (const contact of contacts) {
             if (!selectedContactIds.has(contact.recordID)) continue;
             const phone = extractValidPhone(contact);
-            if (phone) {
-                phones.push(phone);
-                names.push(contact.displayName || contact.givenName || '');
-            }
+            if (phone) selectedContacts.push({ name: contact.displayName || contact.givenName || '', phone });
         }
 
-        if (phones.length === 0) return;
+        if (selectedContacts.length === 0) return;
 
         setIsBatchInviting(true);
         try {
-            await createBatchInvite({ channelId, phones, names });
-            toast({ title: t('inviteFriends.batchSuccess', { count: phones.length }) });
+            if (selectedContacts.length === 1) {
+                // 1명: 단건 초대 (링크 공유)
+                await createSingleInvite({
+                    channelId,
+                    name: selectedContacts[0].name,
+                    phone: selectedContacts[0].phone,
+                });
+            } else {
+                // 2명 이상: 일괄 초대
+                await createBatchInvite({
+                    channelId,
+                    phones: selectedContacts.map(c => c.phone),
+                    names: selectedContacts.map(c => c.name),
+                });
+            }
+            toast({ title: t('inviteFriends.batchSuccess', { count: selectedContacts.length }) });
             onOpenChange?.(false);
         } catch (error) {
-            inviteLogger.error('INVITE', 'Failed to batch invite contacts', { error, data: { channelId } });
+            inviteLogger.error('INVITE', 'Failed to invite contacts', { error, data: { channelId } });
             reportError(toError(error));
             const message = error instanceof Error ? error.message : t('inviteFriends.batchFailed');
             toast({ title: message, variant: 'destructive' });
