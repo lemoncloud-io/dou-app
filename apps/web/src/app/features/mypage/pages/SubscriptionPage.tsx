@@ -5,7 +5,7 @@ import { Trans, useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { isNative, webClient } from '@chatic/bridges';
+import { isNative, logger, webClient } from '@chatic/bridges';
 import { reportError, toError } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useMembershipInfo } from '@chatic/subscriptions';
@@ -218,7 +218,7 @@ export const SubscriptionPage = () => {
                         {/* Manage / Restore */}
                         <div className="flex gap-2">
                             <button
-                                onClick={() => webClient.post('OpenSubscriptionManagement', { data: {} })}
+                                onClick={() => webClient.post({ type: 'OpenSubscriptionManagement', data: {} })}
                                 className="flex-1 rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground"
                             >
                                 {t('mypage.subscription.manageSubscription')}
@@ -265,7 +265,7 @@ export const SubscriptionPage = () => {
                             </span>
                         </div>
                         <button
-                            onClick={() => webClient.post('OpenSubscriptionManagement', { data: {} })}
+                            onClick={() => webClient.post({ type: 'OpenSubscriptionManagement', data: {} })}
                             className="w-full rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground"
                         >
                             {t('mypage.subscription.manageSubscription')}
@@ -310,7 +310,7 @@ export const SubscriptionPage = () => {
                                                         ? 'https://app-dev.chatic.io/policy/terms'
                                                         : 'https://app.chatic.io/policy/terms';
                                                     if (isOnMobileApp) {
-                                                        webClient.post('OpenURL', { data: { url } });
+                                                        webClient.post({ type: 'OpenURL', data: { url } });
                                                     } else {
                                                         window.open(url, '_blank');
                                                     }

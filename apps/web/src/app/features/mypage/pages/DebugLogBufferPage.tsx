@@ -176,7 +176,7 @@ export const DebugLogBufferPage = () => {
             setLimit(normalizedLimit);
             setIsFetchingLogs(true);
             markRequest(action, nonce);
-            webClient.post('FetchAppLogBuffer', { nonce, data: { count: normalizedLimit } } as any);
+            webClient.post({ type: 'FetchAppLogBuffer', nonce, data: { count: normalizedLimit } });
         },
         [markRequest]
     );
@@ -207,19 +207,19 @@ export const DebugLogBufferPage = () => {
     const pollLogs = useCallback(() => {
         const nonce = createNonce('poll-log-buffer');
         markRequest('Poll', nonce);
-        webClient.post('PollAppLogBuffer', { nonce, data: { count: limit } } as any);
+        webClient.post({ type: 'PollAppLogBuffer', nonce, data: { count: limit } });
     }, [limit, markRequest]);
 
     const clearLogs = useCallback(() => {
         const nonce = createNonce('clear-log-buffer');
         markRequest('Clear', nonce);
-        webClient.post('ClearAppLogBuffer', { nonce } as any);
+        webClient.post({ type: 'ClearAppLogBuffer', data: { nonce } });
     }, [markRequest]);
 
     const fetchSize = useCallback(() => {
         const nonce = createNonce('fetch-log-buffer-size');
         markRequest('Size', nonce);
-        webClient.post('FetchAppLogBufferSize', { nonce } as any);
+        webClient.post({ type: 'FetchAppLogBufferSize', data: { nonce } });
     }, [markRequest]);
 
     const generateSampleLogs = useCallback(() => {

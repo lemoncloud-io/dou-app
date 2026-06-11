@@ -2,27 +2,26 @@ import { ChevronRight, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useNavigateWithTransition } from '@chatic/shared';
+import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 
 import { isNative, webClient } from '@chatic/bridges';
 import { useDeviceInfo } from '@chatic/device-utils';
-import { getStoreUrl } from '@chatic/shared';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 import {
-    useOnboardingStore,
-    useWebCoreStore,
-    useDynamicProfile,
-    useUserContext,
-    UserType,
     cloudCore,
     useAppPreferenceStore,
+    useDynamicProfile,
+    useOnboardingStore,
+    UserType,
+    useUserContext,
+    useWebCoreStore,
 } from '@chatic/web-core';
 import { useLogout } from '@chatic/auth';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { useTotalUnreadCount } from '../../../shared/hooks/useTotalUnreadCount';
-import { LanguageSelectSheet, LogoutDialog, AppIconSelectSheet } from '../components';
+import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
 import { DEBUG_STORAGE_KEY } from '../consts';
 import { useCacheMutations } from '../../../shared/hooks/useCacheMutations';
 import type { AppIconOption } from '@chatic/app-messages';
@@ -157,7 +156,7 @@ export const MyPage = () => {
 
         const isOnMobileApp = isNative();
         if (isOnMobileApp) {
-            webClient.post('OpenURL', { url: storeUrl });
+            webClient.post({ type: 'OpenURL', data: { url: storeUrl } });
         } else {
             window.open(storeUrl, '_blank');
         }

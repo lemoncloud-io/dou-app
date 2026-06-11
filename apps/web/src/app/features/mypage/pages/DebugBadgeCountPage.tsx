@@ -1,7 +1,6 @@
 import { Bell, ChevronLeft, Minus, Plus, RefreshCw, RotateCcw, Send } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
-import type { ResponseMessage } from '@chatic/bridges';
 import { isNative, webClient } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 
@@ -20,7 +19,7 @@ type ActionLog = {
 
 const clampBadgeCount = (value: number) => Math.max(0, Math.min(9999, Math.trunc(value)));
 
-const getResponseCount = (response: ResponseMessage): number | null => {
+const getResponseCount = (response: { data?: unknown }): number | null => {
     const data = response.data as { count?: unknown } | undefined;
     return typeof data?.count === 'number' ? data.count : null;
 };
@@ -70,7 +69,7 @@ export const DebugBadgeCountPage = () => {
             setStatus('pending');
             try {
                 if (action === 'fetch') {
-                    const response = await webClient.request('FetchBadgeCount', { data: {} });
+                    const response = await webClient.request({ type: 'FetchBadgeCount', data: {} });
                     const nextCount = getResponseCount(response);
                     setNativeBadgeCount(nextCount);
                     setStatus('success');
@@ -79,7 +78,7 @@ export const DebugBadgeCountPage = () => {
                 }
 
                 const nextCount = clampBadgeCount(count ?? 0);
-                const response = await webClient.request('SetBadgeCount', { data: { count: nextCount } });
+                const response = await webClient.request({ type: 'SetBadgeCount', data: { count: nextCount } });
                 setNativeBadgeCount(nextCount);
                 setStatus('success');
                 appendLog(action, 'success', `Set native badge count to ${nextCount}. success=${response.success}`);

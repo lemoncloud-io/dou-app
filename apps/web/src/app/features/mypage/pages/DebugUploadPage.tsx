@@ -288,7 +288,8 @@ export const DebugUploadPage = () => {
             if (isOnMobileApp) {
                 addLog('info', 'Generator', `Requesting native sparse file allocation: ${sizeInGB}GB...`);
                 try {
-                    const response = await webClient.request('CreateDummyFile', {
+                    const response = await webClient.request({
+                        type: 'CreateDummyFile',
                         data: { sizeInBytes, fileName },
                     });
                     if (response.success && response.data) {
@@ -310,7 +311,7 @@ export const DebugUploadPage = () => {
                         addLog(
                             'error',
                             'Generator',
-                            `Sparse file allocation failed: ${response.error?.message ?? 'Unknown error'}`
+                            'Sparse file allocation failed: response did not include file data.'
                         );
                     }
                 } catch (e: any) {
@@ -339,7 +340,8 @@ export const DebugUploadPage = () => {
     const pickFiles = useCallback(async () => {
         addLog('info', 'DocumentPicker', 'Opening multiple file picker...');
         try {
-            const response = await webClient.request('OpenDocument', {
+            const response = await webClient.request({
+                type: 'OpenDocument',
                 data: {
                     allowMultiSelection: true,
                     includeBase64: false,
@@ -394,7 +396,7 @@ export const DebugUploadPage = () => {
                 return;
             }
             try {
-                await webClient.request('PauseFileUpload', { data: { uploadId } });
+                await webClient.request({ type: 'PauseFileUpload', data: { uploadId } });
             } catch (e: any) {
                 addLog('error', 'UploadControl', `Pause error [ID: ${uploadId}]: ${e.message}`);
             }
@@ -428,7 +430,7 @@ export const DebugUploadPage = () => {
                 };
             });
             try {
-                await webClient.request('ResumeFileUpload', { data: { uploadId } });
+                await webClient.request({ type: 'ResumeFileUpload', data: { uploadId } });
             } catch (e: any) {
                 addLog('error', 'UploadControl', `Resume error [ID: ${uploadId}]: ${e.message}`);
             }
@@ -456,7 +458,7 @@ export const DebugUploadPage = () => {
                 return;
             }
             try {
-                await webClient.request('CancelFileUpload', { data: { uploadId } });
+                await webClient.request({ type: 'CancelFileUpload', data: { uploadId } });
             } catch (e: any) {
                 addLog('error', 'UploadControl', `Cancel error [ID: ${uploadId}]: ${e.message}`);
             }
@@ -507,15 +509,7 @@ export const DebugUploadPage = () => {
             return;
         }
         try {
-            const response = await webClient.request('ListRecoverableUploads');
-            if (!response.success) {
-                addLog(
-                    'error',
-                    'Recovery',
-                    `Failed to fetch recoverables: ${response.error?.message ?? 'Unknown error'}`
-                );
-                return;
-            }
+            const response = await webClient.request({ type: 'ListRecoverableUploads', data: {} });
 
             const data = response.data as any;
             const tasksFromDevice = (data?.tasks ?? []) as RecoverableUploadTaskInfo[];
@@ -580,7 +574,7 @@ export const DebugUploadPage = () => {
                 return;
             }
             try {
-                await webClient.request('RecoverUpload', { data: { uploadId } });
+                await webClient.request({ type: 'RecoverUpload', data: { uploadId } });
             } catch (e: any) {
                 addLog('error', 'Recovery', `Recover error [ID: ${uploadId}]: ${e.message}`);
             }
@@ -615,7 +609,7 @@ export const DebugUploadPage = () => {
                 return;
             }
             try {
-                await webClient.request('RetryUpload', { data: { uploadId } });
+                await webClient.request({ type: 'RetryUpload', data: { uploadId } });
             } catch (e: any) {
                 addLog('error', 'Recovery', `Retry error [ID: ${uploadId}]: ${e.message}`);
             }
@@ -670,7 +664,8 @@ export const DebugUploadPage = () => {
                 }
             } else {
                 try {
-                    await webClient.request('RequestFileUpload', {
+                    await webClient.request({
+                        type: 'RequestFileUpload',
                         data: {
                             uploadId: task.uploadId,
                             fileUri: task.fileUri,
@@ -813,7 +808,8 @@ export const DebugUploadPage = () => {
             }
 
             try {
-                await webClient.request('RequestFileUpload', {
+                await webClient.request({
+                    type: 'RequestFileUpload',
                     data: {
                         uploadId,
                         fileUri: file.uri,
