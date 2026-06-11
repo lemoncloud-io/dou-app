@@ -6,9 +6,8 @@ import type { IClipboardService } from './clipboard';
 import { ClipboardService } from './clipboard';
 import type { IPermissionService } from './permission';
 import { PermissionService } from './permission';
-import type { INotificationService, IOfflinePushQueue, IPushEventManager } from './notification';
+import type { INotificationService, IPushEventManager } from './notification';
 import { NotificationService } from './notification';
-import { OfflinePushQueue } from './notification/OfflinePushQueue';
 import { PushEventManager } from './notification/PushEventManager';
 import { DeepLinkManager } from './deeplinks/DeepLinkManager';
 import type { IDeeplinkService } from './deeplinks/DeeplinkService';
@@ -61,7 +60,6 @@ class DependencyProvider {
     public readonly pushEventManager: IPushEventManager;
     public readonly deeplinkManager: DeepLinkManager;
     public readonly deeplinkService: IDeeplinkService;
-    public readonly offlinePushQueue: IOfflinePushQueue;
     public readonly oauthService: IOAuthService;
     public readonly dynamicAppIconService: IDynamicAppIconService;
     public readonly firebaseCrashlyticsService: IFirebaseCrashlyticsService;
@@ -122,7 +120,6 @@ class DependencyProvider {
         this.pushEventManager = new PushEventManager(this.logService);
         this.deeplinkManager = new DeepLinkManager(this.logService);
         this.deeplinkService = new DeeplinkService(this.deeplinkManager, this.logService);
-        this.offlinePushQueue = new OfflinePushQueue(this.keyValueStorage, this.logService);
 
         this.cacheSearchService = new CacheSearchService(
             this.logService,

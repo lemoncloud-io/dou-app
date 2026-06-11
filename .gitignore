@@ -131,3 +131,9 @@ yarn-error.log
 
 vite.config.*.timestamp*
 .amazonq/
+
+AuthKey_*.p8
+*.p8
+./AuthKey_DEV.p8
+./AuthKey_PROD.p8
+./serviceAccountKey.json
