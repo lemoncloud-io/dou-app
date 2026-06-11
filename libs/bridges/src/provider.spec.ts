@@ -1,5 +1,5 @@
-import { BridgeProvider, isNative } from './provider';
-import { MockWebBridgeClient, WebBridgeClient } from './web';
+import { BridgeProvider, isNative, webClient } from './provider';
+import { WebBridgeClient } from './web';
 
 describe('BridgeProvider DI Container', () => {
     beforeEach(() => {
@@ -17,6 +17,7 @@ describe('BridgeProvider DI Container', () => {
     });
 
     afterEach(() => {
+        BridgeProvider.getInstance().restoreDefaults();
         jest.clearAllTimers();
         jest.useRealTimers();
 
@@ -34,7 +35,7 @@ describe('BridgeProvider DI Container', () => {
     });
 
     it('should construct WebBridgeClient in a browser even before the native bridge is injected', () => {
-        const client = BridgeProvider.getInstance().getWebClient();
+        const client = BridgeProvider.getInstance().getActiveWebClient();
         expect(client).toBeInstanceOf(WebBridgeClient);
     });
 
@@ -43,11 +44,11 @@ describe('BridgeProvider DI Container', () => {
             postMessage: jest.fn(),
         };
 
-        const client = BridgeProvider.getInstance().getWebClient();
+        const client = BridgeProvider.getInstance().getActiveWebClient();
         expect(client).toBeInstanceOf(WebBridgeClient);
     });
 
-    it('should return the same webClient instance (singleton)', () => {
+    it('should return the same stable webClient proxy instance', () => {
         const provider = BridgeProvider.getInstance();
         const client1 = provider.getWebClient();
         const client2 = provider.getWebClient();
@@ -56,17 +57,86 @@ describe('BridgeProvider DI Container', () => {
 
     it('should not replace an early WebBridgeClient with a mock when the native bridge appears later', () => {
         const provider = BridgeProvider.getInstance();
-        const clientBeforeInjection = provider.getWebClient();
+        const clientBeforeInjection = provider.getActiveWebClient();
 
         (window as any).ReactNativeWebView = {
             postMessage: jest.fn(),
         };
 
-        const clientAfterInjection = provider.getWebClient();
+        const clientAfterInjection = provider.getActiveWebClient();
 
         expect(clientBeforeInjection).toBeInstanceOf(WebBridgeClient);
         expect(clientAfterInjection).toBe(clientBeforeInjection);
-        expect(clientAfterInjection).not.toBeInstanceOf(MockWebBridgeClient);
+    });
+
+    it('should allow injecting a web client factory for bridge simulation environments', () => {
+        const provider = BridgeProvider.getInstance();
+        const injectedClient = {
+            post: jest.fn(),
+            request: jest.fn(),
+            onEvent: jest.fn(),
+        } as any;
+
+        provider.configure({
+            createWebClient: () => injectedClient,
+        });
+
+        expect(provider.getActiveWebClient()).toBe(injectedClient);
+    });
+
+    it('should replace the active web client at runtime while keeping the exported proxy stable', () => {
+        const provider = BridgeProvider.getInstance();
+        const proxy = provider.getWebClient();
+        const originalClient = provider.getActiveWebClient();
+        const injectedClient = {
+            post: jest.fn(),
+            request: jest.fn(),
+            onEvent: jest.fn(),
+        } as any;
+
+        const restore = provider.useBridgeEnvironment({ webClient: injectedClient });
+
+        expect(provider.getWebClient()).toBe(proxy);
+        expect(provider.getActiveWebClient()).toBe(injectedClient);
+
+        webClient.post({ type: 'Ping', data: { payload: 'runtime-switch' } });
+        expect(injectedClient.post).toHaveBeenCalledWith({ type: 'Ping', data: { payload: 'runtime-switch' } });
+
+        restore();
+        expect(provider.getActiveWebClient()).toBe(originalClient);
+    });
+
+    it('should rebind exported proxy event subscriptions when the active web client changes', () => {
+        const provider = BridgeProvider.getInstance();
+        const unsubscribeA = jest.fn();
+        const unsubscribeB = jest.fn();
+        const clientA = {
+            post: jest.fn(),
+            request: jest.fn(),
+            onEvent: jest.fn(() => unsubscribeA),
+        } as any;
+        const clientB = {
+            post: jest.fn(),
+            request: jest.fn(),
+            onEvent: jest.fn(() => unsubscribeB),
+        } as any;
+        const handler = jest.fn();
+
+        const restoreA = provider.useBridgeEnvironment({ webClient: clientA });
+        const unsubscribe = webClient.onEvent('OnReceiveNotification' as any, handler);
+
+        expect(clientA.onEvent).toHaveBeenCalledWith('OnReceiveNotification', handler);
+
+        const restoreB = provider.useBridgeEnvironment({ webClient: clientB });
+
+        expect(unsubscribeA).toHaveBeenCalledTimes(1);
+        expect(clientB.onEvent).toHaveBeenCalledWith('OnReceiveNotification', handler);
+
+        unsubscribe();
+        expect(unsubscribeB).toHaveBeenCalledTimes(1);
+
+        restoreB();
+        restoreA();
     });
 
     it('should create and return the singleton AppBridgeHost instance', () => {
