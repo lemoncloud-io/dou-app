@@ -1,11 +1,4 @@
-export interface IMessageQueue<T> {
-    enqueue(item: T): void;
-    dequeue(): T | undefined;
-    isEmpty(): boolean;
-    size(): number;
-    clear(): void;
-    getAll(): T[];
-}
+import type { IMessageQueue } from './types';
 
 export class MessageQueue<T> implements IMessageQueue<T> {
     private items: T[] = [];
