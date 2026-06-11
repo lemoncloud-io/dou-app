@@ -50,7 +50,6 @@ export class AppBridgeHost implements IAppBridgeHost {
                     supportedAppMessages: Object.values(WEB_MESSAGE_RESPONSE_TYPE),
                     capabilities: {
                         typedResponses: true,
-                        legacyWebAppReady: true,
                     },
                 },
             };
