@@ -29,7 +29,8 @@ export const findMentionToken = (text: string, cursor: number): MentionToken | n
     if (at < 0) return null;
     if (at > 0 && !/[\s([{]/.test(head[at - 1])) return null;
     const query = head.slice(at + 1);
-    if (!/^[\w.-]*$/.test(query)) return null;
+    // \p{L}\p{N} (not \w) so non-ASCII names (한글 etc.) stay inside the token.
+    if (!/^[\p{L}\p{N}_.-]*$/u.test(query)) return null;
     return { start: at, end: cursor, query };
 };
 

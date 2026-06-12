@@ -6,7 +6,8 @@ import { GROUP_MENTIONS } from '../../../shared';
 
 // One pass over a non-code run: bold, italic, strikethrough, links, @mentions.
 // Bold is listed before italic so `**x**` matches as bold, not italic.
-const INLINE = /(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(~~[^~\n]+~~)|(https?:\/\/[^\s]+)|(@[\w.-]+)/g;
+// Mention tokens use \p{L}\p{N} (not \w) so non-ASCII names (한글 etc.) match.
+const INLINE = /(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(~~[^~\n]+~~)|(https?:\/\/[^\s]+)|(@[\p{L}\p{N}_.-]+)/gu;
 
 const renderInline = (text: string, keyBase: string, selfNames?: string[]): ReactNode[] => {
     const nodes: ReactNode[] = [];
