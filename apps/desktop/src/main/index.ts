@@ -334,8 +334,8 @@ const buildAppMenu = (): Menu => {
         { role: 'zoomOut' },
         { type: 'separator' },
         { role: 'togglefullscreen' },
-        // DevTools only in dev builds — keep it out of the packaged app's menu.
-        ...(app.isPackaged ? [] : [{ role: 'toggleDevTools' } as MenuItemConstructorOptions]),
+        // DevTools in packaged builds too — internal distribution, needed to debug prod issues.
+        { role: 'toggleDevTools' },
     ];
     const template: MenuItemConstructorOptions[] = [
         ...(isMac ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
