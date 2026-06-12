@@ -519,8 +519,8 @@ const handleDeeplink = (url: string): void => {
     }
 };
 
-// Match both chatic:// and slashless chatic: forms (some platforms route the latter).
-const extractDeeplink = (argv: string[]): string | undefined => argv.find(arg => arg.startsWith('chatic:'));
+// Match both scheme:// and slashless scheme: forms (some platforms route the latter).
+const extractDeeplink = (argv: string[]): string | undefined => argv.find(arg => arg.startsWith(`${PROTOCOL_SCHEME}:`));
 
 const singleInstanceLock = app.requestSingleInstanceLock();
 if (!singleInstanceLock) {
@@ -528,9 +528,9 @@ if (!singleInstanceLock) {
 } else {
     // Dev (unpackaged) must register execPath + script path; packaged registers the app directly.
     if (process.defaultApp && process.argv.length >= 2) {
-        app.setAsDefaultProtocolClient('chatic', process.execPath, [resolve(process.argv[1])]);
+        app.setAsDefaultProtocolClient(PROTOCOL_SCHEME, process.execPath, [resolve(process.argv[1])]);
     } else {
-        app.setAsDefaultProtocolClient('chatic');
+        app.setAsDefaultProtocolClient(PROTOCOL_SCHEME);
     }
 
     // Windows/Linux: deeplink arrives as argv on second launch.
