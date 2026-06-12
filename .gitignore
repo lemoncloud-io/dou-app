@@ -142,3 +142,6 @@ yarn-error.log
 
 vite.config.*.timestamp*
 .amazonq/
+
+# Stray electron-vite output landing at the repo root (misplaced build artifact)
+/index.js
