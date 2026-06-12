@@ -46,6 +46,9 @@ const MAX_JUMP_PAGES = 8;
 /** Slack-style thread footer shows at most this many replier avatars. */
 const MAX_FOOTER_REPLIERS = 3;
 
+const isWindowActive = (): boolean =>
+    typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
+
 export const MessageList = ({
     messages,
     isLoading,
@@ -84,6 +87,12 @@ export const MessageList = ({
     // the bottom. Reset per channel via the key={channelId} remount.
     const unreadRef = useRef<HTMLDivElement>(null);
     const didInitRef = useRef(false);
+    // The "New messages" divider sits above the first message newer than what the
+    // reader has actually seen. seenUpTo advances to the latest while the reader is
+    // at the bottom AND the window is focused (messages read live) and freezes when
+    // they scroll up or blur — so the divider marks only messages that arrived
+    // while they were away, and clears once they return to the bottom.
+    const [seenUpTo, setSeenUpTo] = useState(baselineReadNo ?? 0);
     // Saved-item / search jump: chatNo currently flashing, plus the per-request
     // paging budget and the flash timer.
     const [highlightChatNo, setHighlightChatNo] = useState<number | null>(null);
@@ -92,8 +101,8 @@ export const MessageList = ({
 
     const placeProfiles = useSiteProfileMap();
     const rows = useMemo(
-        () => buildMessageRows(messages, viewer, names, baselineReadNo, membersLoading, placeProfiles),
-        [messages, viewer, names, baselineReadNo, membersLoading, placeProfiles]
+        () => buildMessageRows(messages, viewer, names, seenUpTo, membersLoading, placeProfiles),
+        [messages, viewer, names, seenUpTo, membersLoading, placeProfiles]
     );
 
     // Resolve thread repliers for the footer avatar stack the same way message
@@ -136,6 +145,12 @@ export const MessageList = ({
 
     const maxChatNo = useMemo(() => messages.reduce((m, c) => Math.max(m, c.chatNo ?? 0), 0), [messages]);
 
+    // A late $join can raise the open-time baseline after mount — lift the
+    // divider's floor to match so it anchors at the right place.
+    useEffect(() => {
+        setSeenUpTo(prev => Math.max(prev, baselineReadNo ?? 0));
+    }, [baselineReadNo]);
+
     useLayoutEffect(() => {
         const el = scrollRef.current;
         const grew = messages.length > prevLenRef.current;
@@ -173,7 +188,12 @@ export const MessageList = ({
         // New tail message while pinned to bottom → follow it. Setting scrollTop
         // directly is reliable here; scrollIntoView on the 0-height bottom anchor
         // lands a message-height short in this flex column.
-        if (grew && atBottom) el.scrollTop = el.scrollHeight;
+        if (grew && atBottom) {
+            el.scrollTop = el.scrollHeight;
+            // Read live: a message that lands while you're at the bottom + focused
+            // never raises a sticky divider.
+            if (isWindowActive()) setSeenUpTo(prev => Math.max(prev, maxChatNo));
+        }
     }, [messages, atBottom, maxChatNo, viewer]);
 
     // After sending, snap to the latest even if the reader had scrolled up. A
@@ -239,10 +259,33 @@ export const MessageList = ({
     // Clear a pending flash timer on unmount.
     useEffect(() => () => clearTimeout(highlightTimer.current ?? undefined), []);
 
+    // Re-focusing the window while parked at the bottom clears the divider for
+    // messages that landed while you were away (focus-gated, so they stay "new"
+    // until you actually look at them).
+    useEffect(() => {
+        const onActivity = () => {
+            const el = scrollRef.current;
+            if (!el || !isWindowActive()) return;
+            if (el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX) {
+                setSeenUpTo(prev => Math.max(prev, maxChatNo));
+            }
+        };
+        window.addEventListener('focus', onActivity);
+        document.addEventListener('visibilitychange', onActivity);
+        return () => {
+            window.removeEventListener('focus', onActivity);
+            document.removeEventListener('visibilitychange', onActivity);
+        };
+    }, [maxChatNo]);
+
     const onScroll = () => {
         const el = scrollRef.current;
         if (!el) return;
-        setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX);
+        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
+        setAtBottom(nearBottom);
+        // Reaching the bottom (focused) means you've read down to the latest —
+        // clear the divider.
+        if (nearBottom && isWindowActive()) setSeenUpTo(prev => Math.max(prev, maxChatNo));
         if (el.scrollTop < LOAD_OLDER_PX && hasMore && !isLoadingOlder && onLoadOlder) {
             prependRef.current = { pending: true, prevHeight: el.scrollHeight, prevTop: el.scrollTop };
             onLoadOlder();
