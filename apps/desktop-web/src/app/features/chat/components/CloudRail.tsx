@@ -85,7 +85,10 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud, isS
 
     return (
         <div className="flex h-full w-full flex-col items-center">
-            <div className="flex flex-1 flex-col items-center gap-1.5 overflow-y-auto scrollbar-hide py-1">
+            {/* overflow-y:auto forces overflow-x to clip too, and items-center shrinks
+                this to exactly the tile width — pad so the -right-1/-top-1 remove
+                badge stays inside the clip box instead of getting sliced. */}
+            <div className="flex flex-1 flex-col items-center gap-1.5 overflow-y-auto scrollbar-hide px-1.5 py-1.5">
                 {clouds.length === 0 && (
                     <span className="px-1 text-center text-overline leading-tight text-rail-foreground">
                         {t('cloud.empty')}
