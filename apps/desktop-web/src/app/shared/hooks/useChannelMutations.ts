@@ -6,9 +6,11 @@ import type {
     ChatLeavePayload,
     ChatStartPayload,
     ChatUpdateChannelPayload,
+    ChatUpdateJoinPayload,
 } from '@lemoncloud/chatic-sockets-api';
+import type { JoinNotify } from '@lemoncloud/chatic-socials-api';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel, DomainJoin } from '@chatic/data';
 import { useRepositories } from '@chatic/app-runtime';
 
 /**
@@ -24,7 +26,7 @@ import { useRepositories } from '@chatic/app-runtime';
  * time (dialog/confirm flows), so per-op flags would be needless complexity.
  */
 export const useDesktopChannelMutations = () => {
-    const { channel: channelRepository } = useRepositories();
+    const { channel: channelRepository, join: joinRepository } = useRepositories();
     const [isMutating, setIsMutating] = useState(false);
 
     const run = useCallback(<T>(op: () => Promise<T>): Promise<T> => {
@@ -81,5 +83,24 @@ export const useDesktopChannelMutations = () => {
         [channelRepository, run]
     );
 
-    return { createChannel, updateChannel, deleteChannel, leaveChannel, inviteChannel, isMutating };
+    const setChannelNotify = useCallback(
+        ({
+            channelId,
+            userId,
+            notify,
+        }: {
+            channelId: string;
+            /** My cloud user id in this channel (channel.$join.userId). */
+            userId: string;
+            notify: JoinNotify;
+        }): Promise<DomainJoin> => {
+            if (!channelId) return Promise.reject(new Error('channelId is required'));
+            if (!userId) return Promise.reject(new Error('userId is required'));
+            const payload: ChatUpdateJoinPayload = { channelId, userId, notify };
+            return run(() => joinRepository.updateJoin(payload));
+        },
+        [joinRepository, run]
+    );
+
+    return { createChannel, updateChannel, deleteChannel, leaveChannel, inviteChannel, setChannelNotify, isMutating };
 };

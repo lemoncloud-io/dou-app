@@ -1,14 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Bell, BellOff, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
+import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
-import { displayName, useNotificationPrefsStore, useSelectedChannelStore } from '../../../shared';
+import {
+    displayName,
+    useDesktopChannelMutations,
+    useNotificationPrefsStore,
+    useSelectedChannelStore,
+    type ChannelNotifyMode,
+} from '../../../shared';
 import type { ChannelMember } from '../hooks';
 import { useChannelActions } from '../hooks';
 import { useChannelSettingsStore } from '../stores';
@@ -47,7 +53,9 @@ export const ChannelSettingsPanel = ({
     const close = useChannelSettingsStore(s => s.close);
     const clearChannel = useSelectedChannelStore(s => s.clearChannel);
     const mutedChannels = useNotificationPrefsStore(s => s.mutedChannels);
-    const toggleMute = useNotificationPrefsStore(s => s.toggleMute);
+    const channelNotify = useNotificationPrefsStore(s => s.channelNotify);
+    const setChannelNotifyPref = useNotificationPrefsStore(s => s.setChannelNotify);
+    const { setChannelNotify } = useDesktopChannelMutations();
 
     // Esc closes the panel (matches dropdowns/dialogs elsewhere).
     useEffect(() => {
@@ -84,7 +92,23 @@ export const ChannelSettingsPanel = ({
     if (!channel || !channelId) return null;
 
     const kickName = members.find(m => m.id === kickTarget)?.name ?? '';
-    const isMuted = !!mutedChannels[channelId];
+
+    // Local pref first (instant, what the notifier reads), then the server's
+    // join.notify (set from another device), then the legacy mute map.
+    const joinNotify = channel.$join?.notify;
+    const serverMode =
+        joinNotify === 'all' || joinNotify === 'mention' || joinNotify === 'none' ? joinNotify : undefined;
+    const notifyMode: ChannelNotifyMode =
+        channelNotify[channelId] ?? serverMode ?? (mutedChannels[channelId] ? 'none' : 'all');
+
+    const onNotifyChange = (mode: ChannelNotifyMode) => {
+        if (mode === notifyMode) return;
+        setChannelNotifyPref(channelId, mode);
+        const joinUserId = channel.$join?.userId ?? myUid ?? '';
+        // Best-effort server sync (keeps other clients aligned) — the local
+        // pref stands even if this fails.
+        if (joinUserId) void setChannelNotify({ channelId, userId: joinUserId, notify: mode }).catch(() => undefined);
+    };
 
     return (
         <aside className="scrollbar-thin absolute inset-y-0 right-0 z-30 flex w-80 max-w-[85vw] shrink-0 flex-col overflow-y-auto border-l border-hairline bg-elevated shadow-raised xl:static xl:z-auto xl:max-w-none xl:shadow-none">
@@ -167,17 +191,30 @@ export const ChannelSettingsPanel = ({
                 </section>
 
                 <section className="flex flex-col gap-2 border-t border-hairline pt-4">
-                    <label className="flex min-h-9 cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-callout text-foreground transition-colors hover:bg-accent">
-                        <span className="flex items-center gap-2">
-                            {isMuted ? (
-                                <BellOff size={16} className="text-muted-foreground" />
-                            ) : (
-                                <Bell size={16} className="text-muted-foreground" />
-                            )}
-                            {t('channels.settings.mute')}
-                        </span>
-                        <Switch checked={isMuted} onCheckedChange={() => toggleMute(channelId)} />
-                    </label>
+                    <h3 className="text-overline text-muted-foreground">{t('channels.settings.notifications')}</h3>
+                    <div
+                        role="radiogroup"
+                        aria-label={t('channels.settings.notifications')}
+                        className="flex rounded-lg border border-hairline bg-well p-0.5"
+                    >
+                        {(['all', 'mention', 'none'] as const).map(mode => (
+                            <button
+                                key={mode}
+                                type="button"
+                                role="radio"
+                                aria-checked={notifyMode === mode}
+                                onClick={() => onNotifyChange(mode)}
+                                className={cn(
+                                    'focus-ring tactile flex-1 rounded-md px-2 py-1.5 text-caption font-medium transition-colors ease-tactile',
+                                    notifyMode === mode
+                                        ? 'bg-elevated text-foreground shadow-raised'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                )}
+                            >
+                                {t(`channels.settings.notify.${mode}`)}
+                            </button>
+                        ))}
+                    </div>
                     <Button
                         variant="ghost"
                         size="sm"

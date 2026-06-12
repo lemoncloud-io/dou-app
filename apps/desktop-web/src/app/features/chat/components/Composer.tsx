@@ -8,6 +8,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/componen
 
 import { useComposerDraftStore } from '../../../shared';
 import { EmojiPicker } from './EmojiPicker';
+import {
+    MentionAutocomplete,
+    useMentionAutocomplete,
+    type MentionToken,
+    type Mentionable,
+} from './MentionAutocomplete';
 
 interface ComposerProps {
     disabled: boolean;
@@ -16,17 +22,32 @@ interface ComposerProps {
     channelId: string;
     /** Overrides the default "Message" placeholder (e.g. "Message #general"). */
     placeholder?: string;
+    /** Roster for @-autocomplete; omit to disable (e.g. while members load). */
+    mentionables?: Mentionable[];
 }
 
 const MAX_HEIGHT = 160;
 
-export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerProps) => {
+export const Composer = ({ disabled, onSend, channelId, placeholder, mentionables = [] }: ComposerProps) => {
     const { t } = useTranslation();
     const [value, setValue] = useState('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const setDraft = useComposerDraftStore(s => s.setDraft);
     const clearDraft = useComposerDraftStore(s => s.clearDraft);
     const placeholderText = placeholder ?? t('chat.composer.placeholder');
+
+    const applyMention = (token: MentionToken, picked: Mentionable) => {
+        const insert = `@${picked.name} `;
+        handleChange(value.slice(0, token.start) + insert + value.slice(token.end));
+        requestAnimationFrame(() => {
+            const el = textareaRef.current;
+            const pos = token.start + insert.length;
+            el?.focus();
+            el?.setSelectionRange(pos, pos);
+            resize();
+        });
+    };
+    const mention = useMentionAutocomplete({ mentionables, onApply: applyMention });
 
     const resize = () => {
         const el = textareaRef.current;
@@ -79,6 +100,8 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        // Autocomplete owns navigation keys while it's open (Enter picks, not sends).
+        if (mention.handleKeyDown(e)) return;
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             submit();
@@ -112,15 +135,27 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
         <div className="px-4 pb-4 pt-1">
             <div
                 className={cn(
-                    'border-hairline flex items-center gap-2 rounded-xl border bg-elevated px-3 py-2 shadow-raised transition-colors ease-tactile',
+                    'border-hairline relative flex items-center gap-2 rounded-xl border bg-elevated px-3 py-2 shadow-raised transition-colors ease-tactile',
                     'focus-within:ring-2 focus-within:ring-primary/40'
                 )}
             >
+                {mention.open && (
+                    <MentionAutocomplete
+                        items={mention.items}
+                        activeIndex={mention.activeIndex}
+                        onSelect={mention.select}
+                    />
+                )}
                 <textarea
                     ref={textareaRef}
                     rows={1}
                     value={value}
-                    onChange={e => handleChange(e.target.value)}
+                    onChange={e => {
+                        handleChange(e.target.value);
+                        mention.sync(e.target.value, e.target.selectionStart ?? e.target.value.length);
+                    }}
+                    onClick={e => mention.sync(value, e.currentTarget.selectionStart ?? value.length)}
+                    onBlur={mention.close}
                     onKeyDown={handleKeyDown}
                     aria-label={placeholderText}
                     placeholder={placeholderText}

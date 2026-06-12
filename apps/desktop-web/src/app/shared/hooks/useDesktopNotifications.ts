@@ -7,7 +7,14 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import { useRepositories } from '@chatic/app-runtime';
 
 import { usePlaces } from './usePlaces';
-import { useNotificationPrefsStore, useReadCursorStore, useSelectedChannelStore } from '../stores';
+import { isMentioned } from '../utils';
+import {
+    channelNotifyMode,
+    useNotificationPrefsStore,
+    useReadCursorStore,
+    useSelectedChannelStore,
+    useSiteProfilesStore,
+} from '../stores';
 
 const CHANNEL_LIMIT = 100;
 
@@ -73,9 +80,10 @@ export const useDesktopNotifications = (): void => {
 
             // Skip the first snapshot (cache warm-up) — only notify on a real increase.
             if (prev === undefined || top <= prev) return;
-            // Respect the user's notification preferences (global off / muted channel).
+            // Respect the user's notification preferences (global off / channel mode).
             const prefs = useNotificationPrefsStore.getState();
-            if (!prefs.desktopEnabled || prefs.mutedChannels[channel.id]) return;
+            const notifyMode = channelNotifyMode(prefs, channel.id);
+            if (!prefs.desktopEnabled || notifyMode === 'none') return;
             // Don't notify for a channel you're actively viewing (you can see it).
             if (isViewing(channel.id)) return;
             // Don't re-notify a message already marked read (e.g. resync redelivery).
@@ -84,6 +92,18 @@ export const useDesktopNotifications = (): void => {
             const latest = newestChat(list);
             const authorId = chatAuthorId(latest);
             if (authorId && (authorId === myIdRef.current || authorId === myUidRef.current)) return;
+
+            // Mentions-only channels: drop anything that doesn't @-mention me
+            // (global profile name + this place's nick, plus @channel/@here).
+            if (notifyMode === 'mention') {
+                const placeProfiles = useSiteProfilesStore.getState().profiles;
+                const myNames = [
+                    useWebCoreStore.getState().profile?.$user?.name,
+                    myUidRef.current ? placeProfiles[myUidRef.current]?.nick : undefined,
+                    myIdRef.current ? placeProfiles[myIdRef.current]?.nick : undefined,
+                ];
+                if (!isMentioned(latest.content ?? '', myNames)) return;
+            }
 
             void webClient
                 .request('ShowNotification', {

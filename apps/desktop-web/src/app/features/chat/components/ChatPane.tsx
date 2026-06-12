@@ -7,7 +7,16 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useAuthorNames, useChatMutations, useChats, useReadCursorStore, useReadReceipts } from '../../../shared';
+import {
+    displayName,
+    resolveDisplay,
+    useAuthorNames,
+    useChatMutations,
+    useChats,
+    useReadCursorStore,
+    useReadReceipts,
+    useSiteProfileMap,
+} from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { useChannelSettingsStore } from '../../channels';
 import { buildMemberNames, buildThreadIndex } from '../utils';
@@ -68,6 +77,25 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     const authorIds = useMemo(() => messages.map(m => m.ownerId), [messages]);
     const cachedNames = useAuthorNames(authorIds);
     const memberNames = useMemo(() => buildMemberNames(members, cachedNames), [members, cachedNames]);
+
+    // Roster resolved for @-autocomplete the same way names render elsewhere
+    // (Place Profile nick/thumbnail over the global identity).
+    const placeProfiles = useSiteProfileMap();
+    const mentionables = useMemo(
+        () =>
+            members
+                .map(member => {
+                    const display = resolveDisplay(
+                        member.id ? placeProfiles[member.id] : undefined,
+                        displayName(member),
+                        member.thumbnail
+                    );
+                    return { id: member.id ?? '', name: display.name, thumbnail: display.thumbnail };
+                })
+                .filter(m => m.id && m.name)
+                .sort((a, b) => a.name.localeCompare(b.name)),
+        [members, placeProfiles]
+    );
 
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages);
@@ -149,6 +177,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 onSend={handleSend}
                 channelId={channelId}
                 placeholder={t('chat.composer.placeholderChannel', { name: channel.name ?? channelId })}
+                mentionables={mentionables}
             />
         </>
     );
