@@ -33,6 +33,9 @@ interface CloudRailProps {
     clouds: RailCloud[];
     activeCloudId: string | null;
     hasUnread: boolean;
+    /** Clouds with a pending cross-cloud push (socket only covers the active
+     * cloud, so this is the only unread signal for the other tiles). */
+    badgedClouds?: Record<string, true>;
     onSelectCloud: (cloudId: string) => void;
     /** A cloud/place switch is in flight — disable the cloud buttons to block a
      * second switch mid-handshake (the pipeline is serial). */
@@ -47,7 +50,14 @@ const cloudInitial = (cloud: RailCloud): string =>
  * front/API URL); selecting one runs the cloud switch pipeline. The signed-in
  * user's menu is pinned to the bottom.
  */
-export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud, isSwitching }: CloudRailProps) => {
+export const CloudRail = ({
+    clouds,
+    activeCloudId,
+    hasUnread,
+    badgedClouds,
+    onSelectCloud,
+    isSwitching,
+}: CloudRailProps) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const openJoinDialog = useJoinDialogStore(s => s.open);
@@ -127,7 +137,9 @@ export const CloudRail = ({ clouds, activeCloudId, hasUnread, onSelectCloud, isS
                                     )}
                                 />
                                 {cloudInitial(cloud)}
-                                {isActive && hasUnread && (
+                                {/* Active tile: live socket unread. Other tiles: a pending
+                                    cross-cloud push (the only unread signal available for them). */}
+                                {((isActive && hasUnread) || (!isActive && !!badgedClouds?.[cloud.id])) && (
                                     <span
                                         aria-hidden
                                         className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail bg-badge-unread shadow-raised"

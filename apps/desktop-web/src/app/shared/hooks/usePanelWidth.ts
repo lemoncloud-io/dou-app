@@ -1,37 +1,42 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 
-const STORAGE_KEY = 'chatic.threadPanel.width';
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 720;
-const DEFAULT_WIDTH = 384;
 const KEYBOARD_STEP = 16;
 
 const clampWidth = (width: number): number => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width));
 
-const readStoredWidth = (): number => {
-    const stored = Number(localStorage.getItem(STORAGE_KEY));
-    return Number.isFinite(stored) && stored > 0 ? clampWidth(stored) : DEFAULT_WIDTH;
+const readStoredWidth = (storageKey: string, defaultWidth: number): number => {
+    const stored = Number(localStorage.getItem(storageKey));
+    return Number.isFinite(stored) && stored > 0 ? clampWidth(stored) : defaultWidth;
 };
 
+interface PanelWidthOptions {
+    /** localStorage key the width persists under — one per panel kind. */
+    storageKey: string;
+    defaultWidth: number;
+}
+
 /**
- * Drag-resizable thread panel width, persisted across sessions. The handle sits
- * on the panel's LEFT edge, so dragging (or ArrowLeft) toward the chat grows
- * the panel. Width is clamped to [280, 720] px.
+ * Drag-resizable trailing-panel width, persisted across sessions. The handle
+ * sits on the panel's LEFT edge, so dragging (or ArrowLeft) toward the chat
+ * grows the panel. Width is clamped to [280, 720] px. Shared by the thread and
+ * profile panes — each passes its own storage key.
  *
  * While a drag is live the width is written straight to `panelRef`'s style — a
  * React state write per pointermove would re-render the whole panel subtree
  * (message list included) every frame. State is committed once on release.
  */
-export const useThreadPanelWidth = () => {
-    const [width, setWidth] = useState(readStoredWidth);
+export const usePanelWidth = ({ storageKey, defaultWidth }: PanelWidthOptions) => {
+    const [width, setWidth] = useState(() => readStoredWidth(storageKey, defaultWidth));
     const widthRef = useRef(width);
     const panelRef = useRef<HTMLElement | null>(null);
     const endDragRef = useRef<(() => void) | null>(null);
 
     const persist = useCallback(() => {
-        localStorage.setItem(STORAGE_KEY, String(widthRef.current));
-    }, []);
+        localStorage.setItem(storageKey, String(widthRef.current));
+    }, [storageKey]);
 
     const startResize = useCallback(
         (event: ReactPointerEvent<HTMLElement>) => {

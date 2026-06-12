@@ -13,12 +13,15 @@ import {
 } from '../../channels';
 import { EditPlaceProfileDialog, useEditPlaceProfileDialogStore } from '../../profile';
 import {
+    ProfilePanel,
     lastChatNoOf,
     useChannels,
+    useCloudPushBadgeStore,
     useClouds,
     useCloudSwitchFlow,
     usePendingOpenStore,
     usePlaces,
+    useProfilePanelStore,
     useReadCursorStore,
     useSelectPlace,
     useSelectedChannelStore,
@@ -49,6 +52,9 @@ export const HomePage = () => {
     // Unread is aggregated once in the always-mounted shell (ShellUnreadSync) and
     // published to the store — read it here for the rail/place switcher.
     const unreadByPlace = useUnreadStore(s => s.byPlace);
+    // Other clouds' unread can't be counted (socket is active-cloud only) — a
+    // received cross-cloud push marks its source cloud's tile instead.
+    const badgedClouds = useCloudPushBadgeStore(s => s.badged);
 
     const selectedPlaceId = useSelectedPlaceStore(s => s.selectedPlaceId);
     const selectPlace = useSelectedPlaceStore(s => s.selectPlace);
@@ -72,6 +78,8 @@ export const HomePage = () => {
     const closeSettings = useChannelSettingsStore(s => s.close);
     const openThreadRootId = useThreadStore(s => s.openRootId);
     const closeThread = useThreadStore(s => s.close);
+    const profileTarget = useProfilePanelStore(s => s.target);
+    const closeProfile = useProfilePanelStore(s => s.close);
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
     // Default Cloud (relay / Guest Session): no joinable places — force the
     // 'default' place so the Self Channel loads; the sidebar hides the switcher.
@@ -129,17 +137,34 @@ export const HomePage = () => {
     }, [isDefaultMode, isSwitching, places, selectedPlaceId, selectPlace, switchPlace]);
 
     // The settings + thread panels belong to one channel — close both on switch.
+    // The profile panel follows for a clean pane handoff.
     useEffect(() => {
         closeSettings();
         closeThread();
-    }, [selectedChannelId, closeSettings, closeThread]);
+        closeProfile();
+    }, [selectedChannelId, closeSettings, closeThread, closeProfile]);
 
-    // Settings and thread share the one trailing pane — opening either closes the
-    // other so the pane never has two owners (thread wins when both fire).
+    // Settings, thread, and profile share the one trailing pane — opening any
+    // closes the others so the pane never has two owners (each effect fires on
+    // its own opener only, so the last one opened wins).
     useEffect(() => {
-        if (openThreadRootId) closeSettings();
-        else if (settingsChannelId) closeThread();
-    }, [openThreadRootId, settingsChannelId, closeSettings, closeThread]);
+        if (openThreadRootId) {
+            closeSettings();
+            closeProfile();
+        }
+    }, [openThreadRootId, closeSettings, closeProfile]);
+    useEffect(() => {
+        if (settingsChannelId) {
+            closeThread();
+            closeProfile();
+        }
+    }, [settingsChannelId, closeThread, closeProfile]);
+    useEffect(() => {
+        if (profileTarget) {
+            closeThread();
+            closeSettings();
+        }
+    }, [profileTarget, closeThread, closeSettings]);
 
     useEffect(() => {
         // Honor a pending notification target once its channel has loaded.
@@ -171,7 +196,11 @@ export const HomePage = () => {
         members,
         isLoading: membersLoading,
         error: membersError,
-    } = useChannelMembers(selectedChannelId ?? null, selectedChannel?.ownerId);
+        // Key off the RESOLVED channel (present in the loaded list), not the raw
+        // store id: after a cloud switch the store can briefly hold the previous
+        // cloud's channel, and fetching members for it fires a cross-cloud
+        // channel.list-user at the new socket → 403 not-a-member on the relay.
+    } = useChannelMembers(selectedChannel?.id ?? null, selectedChannel?.ownerId);
 
     // Keep the open channel marked read up to its latest message (cursor grows as
     // new messages arrive while it's open), so it never shows unread after you
@@ -195,6 +224,7 @@ export const HomePage = () => {
                         clouds={clouds}
                         activeCloudId={activeCloudId}
                         hasUnread={cloudHasUnread}
+                        badgedClouds={badgedClouds}
                         onSelectCloud={cloudId => void switchCloud(cloudId)}
                         isSwitching={isSwitching}
                     />
@@ -242,6 +272,8 @@ export const HomePage = () => {
                             membersLoading={membersLoading}
                             membersError={membersError}
                         />
+                    ) : profileTarget ? (
+                        <ProfilePanel />
                     ) : undefined
                 }
                 overlay={<SwitchingOverlay />}

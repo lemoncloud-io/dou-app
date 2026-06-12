@@ -31,7 +31,12 @@ export const MemberRow = ({ member, isMe, canKick, onKick }: MemberRowProps) => 
 
     return (
         <div className="group flex min-h-9 items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent">
-            <UserProfilePopover userId={member.id} fallbackName={name} isOwner={member.isOwner}>
+            <UserProfilePopover
+                userId={member.id}
+                fallbackName={name}
+                fallbackThumbnail={thumbnail}
+                isOwner={member.isOwner}
+            >
                 <button
                     type="button"
                     className="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-md text-left"

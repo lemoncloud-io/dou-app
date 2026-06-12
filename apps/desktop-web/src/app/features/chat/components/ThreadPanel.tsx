@@ -6,10 +6,10 @@ import { X } from 'lucide-react';
 import type { DomainChannel } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useAuthorNames, useChatMutations, useChats } from '../../../shared';
+import { useAuthorNames, useChatMutations, useChats, usePanelWidth } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { buildMemberNames, buildThread } from '../utils';
-import { useMessageViewer, useThreadPanelWidth } from '../hooks';
+import { useMessageViewer } from '../hooks';
 import { useThreadStore } from '../stores';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
@@ -35,7 +35,10 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
     const { t } = useTranslation();
     const channelId = channel.id ?? '';
     const closeThread = useThreadStore(s => s.close);
-    const { width, minWidth, maxWidth, panelRef, startResize, resizeByKey } = useThreadPanelWidth();
+    const { width, minWidth, maxWidth, panelRef, startResize, resizeByKey } = usePanelWidth({
+        storageKey: 'chatic.threadPanel.width',
+        defaultWidth: 384,
+    });
     const { messages } = useChats(channelId);
     const { sendMessage, retryMessage, discardMessage, isSending } = useChatMutations();
 

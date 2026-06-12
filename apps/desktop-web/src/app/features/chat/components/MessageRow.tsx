@@ -57,7 +57,14 @@ export const MessageRow = memo(({ group, onRetry, onDiscard, threadMeta, onOpenT
     const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     // Blank the avatar initial while the name resolves so "U" (Unknown) never flashes.
     const initial = group.namePending ? '' : group.ownerName.charAt(0).toUpperCase() || '?';
-    const userId = group.ownerId ?? '';
+    // Same identity for both popover triggers (avatar + name) — the card must
+    // mirror exactly what this row rendered.
+    const profileProps = {
+        userId: group.ownerId ?? '',
+        fallbackName: group.ownerName,
+        fallbackThumbnail: group.avatar,
+        colorSeed: group.colorSeed,
+    };
 
     const copy = (key: string, content: string) => {
         void navigator.clipboard?.writeText(content).then(() => {
@@ -80,7 +87,7 @@ export const MessageRow = memo(({ group, onRetry, onDiscard, threadMeta, onOpenT
         // peripheral vision on wide windows, so it is stronger than a typical
         // list hover.
         <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 transition-colors ease-tactile hover:bg-accent/70">
-            <UserProfilePopover userId={userId} fallbackName={group.ownerName}>
+            <UserProfilePopover {...profileProps}>
                 <button type="button" className="focus-ring tactile h-9 w-9 shrink-0 rounded-md">
                     <Avatar className="h-9 w-9 rounded-md">
                         {group.avatar && <AvatarImage src={group.avatar} alt={group.ownerName} />}
@@ -98,7 +105,7 @@ export const MessageRow = memo(({ group, onRetry, onDiscard, threadMeta, onOpenT
                     {group.namePending ? (
                         <Skeleton className="h-3.5 w-24 rounded" />
                     ) : (
-                        <UserProfilePopover userId={userId} fallbackName={group.ownerName}>
+                        <UserProfilePopover {...profileProps}>
                             <button
                                 type="button"
                                 className="focus-ring truncate rounded text-heading text-foreground hover:underline"

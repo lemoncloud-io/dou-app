@@ -13,6 +13,7 @@ import i18n from '../i18n';
 import { AppRouter } from './routes';
 import { AppShellSkeleton, ConnectionBanner } from './shared';
 import {
+    useCrossCloudPushBadge,
     useCrossCloudPushToast,
     useDesktopBadge,
     useDesktopNotifications,
@@ -28,6 +29,8 @@ const DesktopNotifications = () => {
     useDeviceTokenRegistration();
     // Cross-cloud push: in-app toast when focused (macOS hides OS banners then).
     useCrossCloudPushToast();
+    // Cross-cloud push: mark the source cloud's rail tile until it's visited.
+    useCrossCloudPushBadge();
     return null;
 };
 

@@ -51,8 +51,16 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
         domainEventBus: IEventBus<DomainEventMap>
     ) {
         super(requestManager, contextProvider, domainEventBus);
+        // 소켓으로 수신한 프로필 변경(본인 응답/타인 브로드캐스트)을 즉시 Display
+        // 캐시에 반영합니다 — 적용 없이는 subscribeList 스트림이 갱신되지 않아
+        // 새로고침 전까지 옛 프로필이 보입니다. syncProfiles delta와 idempotent.
+        this.onDomainEvent('profile:update', detail => {
+            void this.applyProfileView(detail.data as ProfileView).catch(() => {
+                // fail-soft: 적용 실패 시 다음 syncProfiles가 따라잡습니다.
+            });
+        });
     }
-    sync(id?: string, meta?: Record<string, unknown>): Promise<void> {
+    sync(_id?: string, _meta?: Record<string, unknown>): Promise<void> {
         throw new Error('Method not implemented.');
     }
 
@@ -173,6 +181,34 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
         return this.profileLocalDataSource.clearAll(this.getRepositoryContext());
     }
 
+    /** profile:update 이벤트 한 건을 로컬 Display 캐시에 적용합니다. */
+    private async applyProfileView(view: ProfileView | undefined): Promise<void> {
+        const uid = view?.userId;
+        if (!uid) return;
+        const domainScope = this.getDomainScope();
+        // 다른 플레이스의 이벤트가 현재 플레이스 캐시를 오염시키지 않게 가드합니다.
+        if (view.siteId && domainScope.sid && view.siteId !== domainScope.sid) return;
+        const sid = view.siteId ?? domainScope.sid;
+        const id = buildProfileId(sid, uid);
+        const repositoryContext = this.getRepositoryContext();
+        if (view.active === false) {
+            await this.profileLocalDataSource.remove(id, repositoryContext);
+            return;
+        }
+        await this.profileLocalDataSource.upsert(
+            {
+                id,
+                cid: domainScope.cid,
+                sid,
+                uid,
+                nick: view.nick,
+                thumbnail: view.thumbnail,
+                updatedAt: view.updatedAt ?? Date.now(),
+            },
+            repositoryContext
+        );
+    }
+
     public onProfileUpdated(callback: (profile: ProfileView) => void): () => void {
         return this.onDomainEvent('profile:update', detail => {
             callback(detail.data as ProfileView);
@@ -213,10 +249,7 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
             items
                 .filter(item => !!item.id)
                 .map(item =>
-                    this.profileLocalDataSource.upsert(
-                        { id: item.id, ...item.patch },
-                        this.getRepositoryContext()
-                    )
+                    this.profileLocalDataSource.upsert({ id: item.id, ...item.patch }, this.getRepositoryContext())
                 )
         );
     }
