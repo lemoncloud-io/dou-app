@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ChevronDown, Plus, Search, UserPen } from 'lucide-react';
@@ -53,19 +53,9 @@ export const SidebarHeader = ({
     const { t } = useTranslation();
     const current = places.find(p => p.id === selectedPlaceId);
     const showPlaceSkeleton = isLoading && !current;
+    // ⌘K now opens the QuickSwitcher (see QuickSwitcher.tsx); the inline filter
+    // below stays click-to-use.
     const searchRef = useRef<HTMLInputElement>(null);
-
-    // ⌘K / Ctrl+K focuses the channel search from anywhere in the app.
-    useEffect(() => {
-        const onKeyDown = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-                e.preventDefault();
-                searchRef.current?.focus();
-            }
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, []);
 
     return (
         <div className="flex flex-col gap-2.5 border-b border-hairline px-3 pb-3 pt-3">
