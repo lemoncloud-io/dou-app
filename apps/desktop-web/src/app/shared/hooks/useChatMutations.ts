@@ -36,13 +36,32 @@ export const useChatMutations = () => {
             if (staleId) void chatRepository.cacheDelete(staleId);
             setIsSending(true);
             // Preserve parentId so retrying a failed thread reply re-sends it into
-            // the same thread, not as a top-level channel message.
+            // the same thread. The server takes the parent's FULL id
+            // `<channelId>:<chatNo>` — rows stranded by the old chatNo-send bug
+            // carry the bare chatNo, so rebuild the full id for those.
+            const parentId = message.parentId
+                ? message.parentId.includes(':')
+                    ? message.parentId
+                    : `${message.channelId}:${message.parentId}`
+                : undefined;
             return chatRepository
-                .sendChat({ channelId: message.channelId, content: message.content, parentId: message.parentId })
+                .sendChat({ channelId: message.channelId, content: message.content, parentId })
                 .finally(() => setIsSending(false));
         },
         [chatRepository]
     );
 
-    return { sendMessage, retryMessage, isSending };
+    // Remove an unsent (failed / stuck-pending) message. These rows exist only in
+    // the local cache — the server has no record (and no chat-delete API anyway),
+    // so a cache delete IS the delete.
+    const discardMessage = useCallback(
+        (message: DomainChat): Promise<void> => {
+            const staleId = message.id ?? message.tempId;
+            if (!staleId) return Promise.resolve();
+            return chatRepository.cacheDelete(staleId);
+        },
+        [chatRepository]
+    );
+
+    return { sendMessage, retryMessage, discardMessage, isSending };
 };

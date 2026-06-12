@@ -21,6 +21,8 @@ interface MessageListProps {
     /** Read position when the channel was opened — drives the "new messages" divider. */
     baselineReadNo?: number;
     onRetry?: (message: DomainChat) => void;
+    /** Remove an unsent (failed / stuck-pending) message from the local cache. */
+    onDiscard?: (message: DomainChat) => void;
     /** Fetch older history when the reader scrolls near the top. */
     onLoadOlder?: () => void;
     hasMore?: boolean;
@@ -44,6 +46,7 @@ export const MessageList = ({
     membersLoading,
     baselineReadNo,
     onRetry,
+    onDiscard,
     onLoadOlder,
     hasMore,
     isLoadingOlder,
@@ -220,6 +223,7 @@ export const MessageList = ({
                             key={row.group.key}
                             group={row.group}
                             onRetry={onRetry}
+                            onDiscard={onDiscard}
                             threadMeta={threadMeta}
                             onOpenThread={onOpenThread}
                         />

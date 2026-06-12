@@ -61,6 +61,7 @@ const resources = {
             'chat.newMessages': 'New messages',
             'chat.failed': 'Not delivered',
             'chat.retry': 'Retry',
+            'chat.deleteUnsent': 'Delete',
             'chat.empty': 'Select a channel to start chatting',
             'chat.emptyHint': 'Pick a channel from the sidebar, or create one to get the conversation going.',
             'chat.noChannels': 'No channels yet',

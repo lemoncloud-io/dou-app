@@ -36,7 +36,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
     const channelId = channel.id ?? '';
     const closeThread = useThreadStore(s => s.close);
     const { messages } = useChats(channelId);
-    const { sendMessage, retryMessage, isSending } = useChatMutations();
+    const { sendMessage, retryMessage, discardMessage, isSending } = useChatMutations();
 
     // Same viewer the chat pane builds, so own/optimistic messages name correctly.
     const viewer = useMessageViewer(channel);
@@ -85,6 +85,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
                     names={names}
                     membersLoading={membersLoading}
                     onRetry={retryMessage}
+                    onDiscard={message => void discardMessage(message)}
                 />
             ) : (
                 <div

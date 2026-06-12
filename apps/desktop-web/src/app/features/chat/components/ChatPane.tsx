@@ -33,7 +33,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     // cloud id) — shared with the thread panel via useMessageViewer.
     const viewer = useMessageViewer(channel);
     const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(channelId);
-    const { sendMessage, retryMessage, isSending } = useChatMutations();
+    const { sendMessage, retryMessage, discardMessage, isSending } = useChatMutations();
     const openSettings = useChannelSettingsStore(s => s.open);
     const openThread = useThreadStore(s => s.open);
     // Threads are hidden from the main feed (ADR 0008): show only top-level
@@ -136,6 +136,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 membersLoading={membersLoading}
                 baselineReadNo={baselineReadNo}
                 onRetry={retryMessage}
+                onDiscard={message => void discardMessage(message)}
                 onLoadOlder={() => void loadOlder()}
                 hasMore={hasMore}
                 isLoadingOlder={isLoadingOlder}

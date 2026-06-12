@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Check, Copy, MessageSquare, Reply } from 'lucide-react';
+import { Check, Copy, MessageSquare, Reply, Trash2 } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -14,11 +14,20 @@ import { RichText } from './RichText';
 interface MessageRowProps {
     group: MessageGroup;
     onRetry?: (message: DomainChat) => void;
+    /** Remove an unsent (failed / stuck-pending) message from the local cache. */
+    onDiscard?: (message: DomainChat) => void;
     /** root id → loaded reply aggregate; a message with an entry shows a thread footer. */
     threadMeta?: ReadonlyMap<string, ThreadMeta>;
     /** Open the thread for a root id. Absent inside the thread panel (no nested replies). */
     onOpenThread?: (rootId: string) => void;
 }
+
+/**
+ * A pending message older than this never got its send resolved (e.g. rows
+ * stranded by the old null-ack bug, or a tab killed mid-send) — surface it as
+ * failed so Retry/Delete apply, instead of dimming it forever.
+ */
+const STUCK_PENDING_MS = 60_000;
 
 const formatTime = (ms: number): string => {
     if (!ms) return '';
@@ -27,7 +36,7 @@ const formatTime = (ms: number): string => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-export const MessageRow = memo(({ group, onRetry, threadMeta, onOpenThread }: MessageRowProps) => {
+export const MessageRow = memo(({ group, onRetry, onDiscard, threadMeta, onOpenThread }: MessageRowProps) => {
     const { t } = useTranslation();
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
     const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -86,8 +95,13 @@ export const MessageRow = memo(({ group, onRetry, threadMeta, onOpenThread }: Me
                 </div>
                 <div className="flex flex-col gap-0.5">
                     {group.messages.map((message, i) => {
-                        const isPending = message.isPending;
-                        const isFailed = message.isFailed;
+                        // A long-pending row is an unsent artifact, not an in-flight
+                        // send — treat it as failed so Retry/Delete are offered.
+                        const isStuck =
+                            !!message.isPending &&
+                            Date.now() - (message.createdAt ?? message.createdAtMs ?? 0) > STUCK_PENDING_MS;
+                        const isPending = message.isPending && !isStuck;
+                        const isFailed = message.isFailed || isStuck;
                         const key = String(message.id ?? message.tempId ?? message.chatNo);
                         const content = message.content ?? '';
                         const isCopied = copiedKey === key;
@@ -124,6 +138,16 @@ export const MessageRow = memo(({ group, onRetry, threadMeta, onOpenThread }: Me
                                                 className="focus-ring tactile inline-flex min-h-[36px] items-center font-semibold underline underline-offset-2 hover:opacity-80"
                                             >
                                                 {t('chat.retry')}
+                                            </button>
+                                        )}
+                                        {onDiscard && (
+                                            <button
+                                                type="button"
+                                                onClick={() => onDiscard(message)}
+                                                className="focus-ring tactile inline-flex min-h-[36px] items-center gap-1 font-semibold text-muted-foreground underline underline-offset-2 hover:opacity-80"
+                                            >
+                                                <Trash2 size={12} aria-hidden />
+                                                {t('chat.deleteUnsent')}
                                             </button>
                                         )}
                                     </span>
