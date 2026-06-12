@@ -8,6 +8,7 @@ export * from './useSiteProfilesStore';
 export * from './useSiteProfileCursorStore';
 export * from './useUnreadStore';
 export * from './usePendingOpenStore';
+export * from './useMessageJumpStore';
 export * from './useProfilePanelStore';
 export * from './useSavedItemsStore';
 export * from './useCloudPushBadgeStore';

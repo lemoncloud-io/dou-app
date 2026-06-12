@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { LexicalTypeaheadMenuPlugin, MenuOption, type MenuTextMatch } from '@lexical/react/LexicalTypeaheadMenuPlugin';
 import { $createTextNode } from 'lexical';
 
+import { MENTION_TOKEN_SOURCE } from '../../../../shared';
 import { MentionAutocomplete, type Mentionable } from '../MentionAutocomplete';
 import { $createMentionNode } from './MentionNode';
 
@@ -14,9 +15,8 @@ class MentionTypeaheadOption extends MenuOption {
     }
 }
 
-// Word-start "@" + unicode token chars up to the caret — \p{L}\p{N} (not \w)
-// so non-ASCII names (한글 etc.) stay inside the token. Mirrors RichText.
-const MENTION_MATCH = /(^|[\s([{])(@([\p{L}\p{N}_.-]*))$/u;
+// Word-start "@" + token chars up to the caret (same class RichText renders).
+const MENTION_MATCH = new RegExp(`(^|[\\s([{])(@(${MENTION_TOKEN_SOURCE}*))$`, 'u');
 
 const checkForMentionMatch = (text: string): MenuTextMatch | null => {
     const match = MENTION_MATCH.exec(text);
@@ -45,9 +45,15 @@ export const MentionsPlugin = ({ mentionables }: MentionsPluginProps) => {
         return matches.map(m => new MentionTypeaheadOption(m));
     }, [mentionables, query]);
 
+    // Stable identity — the plugin re-registers its editor listener when this changes.
+    const triggerFn = useCallback(
+        (text: string) => (mentionables.length ? checkForMentionMatch(text) : null),
+        [mentionables.length]
+    );
+
     return (
         <LexicalTypeaheadMenuPlugin<MentionTypeaheadOption>
-            triggerFn={(text: string) => (mentionables.length ? checkForMentionMatch(text) : null)}
+            triggerFn={triggerFn}
             options={options}
             onQueryChange={setQuery}
             onSelectOption={(option, nodeToReplace, closeMenu) => {
@@ -66,10 +72,7 @@ export const MentionsPlugin = ({ mentionables }: MentionsPluginProps) => {
                           <MentionAutocomplete
                               items={options.map(o => o.mentionable)}
                               activeIndex={selectedIndex ?? 0}
-                              onSelect={picked => {
-                                  const option = options.find(o => o.mentionable.id === picked.id);
-                                  if (option) selectOptionAndCleanUp(option);
-                              }}
+                              onSelect={index => selectOptionAndCleanUp(options[index])}
                           />,
                           anchorElementRef.current
                       )

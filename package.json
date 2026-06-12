@@ -93,7 +93,7 @@
         "@lemoncloud/chatic-sockets-lib": "0.2.0",
         "@lemoncloud/lemon-web-core": "^1.5.0",
         "@lemoncloud/react-page-transition": "1.0.0",
-        "@lexical/code": "^0.45.0",
+        "@lexical/code-core": "^0.45.0",
         "@lexical/markdown": "^0.45.0",
         "@lexical/react": "^0.45.0",
         "@lexical/rich-text": "^0.45.0",

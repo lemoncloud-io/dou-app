@@ -15,6 +15,7 @@ import {
     useAuthorNames,
     useChatMutations,
     useChats,
+    useMessageJumpStore,
     useReadCursorStore,
     useReadReceipts,
 } from '../../../shared';
@@ -46,6 +47,17 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     const { sendMessage, retryMessage, discardMessage, isSending } = useChatMutations();
     const openSettings = useChannelSettingsStore(s => s.open);
     const openThread = useThreadStore(s => s.open);
+    // Saved-item / search jump: forward a target to MessageList only when it
+    // belongs to the open channel; clear it once the list has consumed it.
+    const jumpRequest = useMessageJumpStore(s => s.target);
+    const clearJump = useMessageJumpStore(s => s.clear);
+    const jumpTarget = useMemo(
+        () =>
+            jumpRequest && jumpRequest.channelId === channelId
+                ? { chatNo: jumpRequest.chatNo, nonce: jumpRequest.nonce }
+                : undefined,
+        [jumpRequest, channelId]
+    );
     // Threads are hidden from the main feed (ADR 0008): show only top-level
     // messages, but count replies from the full set so a root's "N replies"
     // footer is correct. Replies still arrive in the cache via chat:create.
@@ -164,6 +176,8 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 scrollSignal={sendTick}
                 threadMeta={threadIndex}
                 onOpenThread={openThread}
+                jumpTarget={jumpTarget}
+                onJumpConsumed={clearJump}
             />
             <Composer
                 disabled={isSending}

@@ -81,6 +81,7 @@ const resources = {
             'saved.empty': 'Nothing saved yet',
             'saved.emptyHint': 'Hover a message and hit the bookmark to keep it here.',
             'saved.deviceLocal': 'Saved on this device only.',
+            'saved.otherPlace': 'Other workspace',
             'chat.failed': 'Not delivered',
             'chat.retry': 'Retry',
             'chat.deleteUnsent': 'Delete',

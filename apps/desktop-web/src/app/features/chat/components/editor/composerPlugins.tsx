@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { $createCodeNode, $isCodeNode } from '@lexical/code';
+import { $createCodeNode, $isCodeNode } from '@lexical/code-core';
 import { $convertFromMarkdownString } from '@lexical/markdown';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $setBlocksType } from '@lexical/selection';
@@ -75,14 +75,10 @@ export const FormatShortcutsPlugin = () => {
                         editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough');
                         return true;
                     }
-                    if (event.code === 'KeyC' && !event.altKey) {
+                    if (event.code === 'KeyC') {
                         event.preventDefault();
-                        editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code');
-                        return true;
-                    }
-                    if (event.code === 'KeyC' && event.altKey) {
-                        event.preventDefault();
-                        toggleCodeBlock(editor);
+                        if (event.altKey) toggleCodeBlock(editor);
+                        else editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code');
                         return true;
                     }
                     return false;

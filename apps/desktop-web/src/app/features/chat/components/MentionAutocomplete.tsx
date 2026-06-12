@@ -15,7 +15,7 @@ export interface Mentionable {
 interface MentionAutocompleteProps {
     items: Mentionable[];
     activeIndex: number;
-    onSelect: (picked: Mentionable) => void;
+    onSelect: (index: number) => void;
 }
 
 /** Floating roster list above the caret while an @-token is being typed. */
@@ -40,7 +40,7 @@ export const MentionAutocomplete = ({ items, activeIndex, onSelect }: MentionAut
                     // mousedown (not click) so the editor keeps focus through the pick.
                     onMouseDown={e => {
                         e.preventDefault();
-                        onSelect(item);
+                        onSelect(i);
                     }}
                     className={cn(
                         'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-callout transition-colors ease-tactile',

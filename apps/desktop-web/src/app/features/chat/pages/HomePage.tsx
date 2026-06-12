@@ -19,6 +19,7 @@ import {
     useCloudPushBadgeStore,
     useClouds,
     useCloudSwitchFlow,
+    useMessageJumpStore,
     usePendingOpenStore,
     usePlaces,
     useProfilePanelStore,
@@ -74,6 +75,7 @@ export const HomePage = () => {
     const { channels, isLoading } = useChannels(selectedPlaceId ?? undefined);
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
     const selectChannel = useSelectedChannelStore(s => s.selectChannel);
+    const requestMessageJump = useMessageJumpStore(s => s.request);
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
@@ -95,6 +97,23 @@ export const HomePage = () => {
     // A channel to open once its place's channels have loaded (notification click
     // across places: switchPlace resets selection, so we re-apply it here).
     const pendingChannelRef = useRef<string | null>(null);
+    // A message to scroll to once a cross-place jump's channel has loaded (paired
+    // with pendingChannelRef when the saved item lives in another place).
+    const pendingJumpRef = useRef<{ channelId: string; chatNo: number } | null>(null);
+
+    // Open a saved item: when it lives in another place, switch place first and
+    // defer the channel select + scroll until its channels load (apply effect
+    // below); otherwise jump in place. The scroll is skipped without a chatNo.
+    const jumpToSaved = (channelId: string, chatNo?: number, placeId?: string) => {
+        if (placeId && placeId !== selectedPlaceId) {
+            pendingChannelRef.current = channelId;
+            pendingJumpRef.current = chatNo != null ? { channelId, chatNo } : null;
+            void switchPlace(placeId);
+            return;
+        }
+        selectChannel(channelId);
+        if (chatNo != null) requestMessageJump(channelId, chatNo);
+    };
 
     // Notification-click target (set by the always-mounted listener in routes, so
     // it works from any route). Apply it: switch place if needed (the channel is
@@ -181,12 +200,24 @@ export const HomePage = () => {
         }
     }, [savedOpen, closeThread, closeSettings, closeProfile]);
 
+    // The saved panel's rows belong to the place you opened it from — close it on
+    // any place or cloud switch so it never shows another place's items.
     useEffect(() => {
-        // Honor a pending notification target once its channel has loaded.
+        closeSaved();
+    }, [selectedPlaceId, activeCloudId, closeSaved]);
+
+    useEffect(() => {
+        // Honor a pending notification / saved-jump target once its channel loads.
         const pending = pendingChannelRef.current;
         if (pending && channels.some(channel => channel.id === pending)) {
             pendingChannelRef.current = null;
             selectChannel(pending);
+            // A deferred cross-place saved jump: now scroll to its message.
+            const jump = pendingJumpRef.current;
+            if (jump && jump.channelId === pending) {
+                pendingJumpRef.current = null;
+                requestMessageJump(pending, jump.chatNo);
+            }
             return;
         }
         // Keep the current selection if it still exists in the loaded list (survives
@@ -198,7 +229,7 @@ export const HomePage = () => {
             const firstId = channels[0]?.id;
             if (firstId) selectChannel(firstId);
         }
-    }, [channels, selectedChannelId, selectChannel]);
+    }, [channels, selectedChannelId, selectChannel, requestMessageJump]);
 
     const selectedChannel = channels.find(channel => channel.id === selectedChannelId);
     const settingsChannel = settingsChannelId ? channels.find(channel => channel.id === settingsChannelId) : undefined;
@@ -291,7 +322,12 @@ export const HomePage = () => {
                     ) : profileTarget ? (
                         <ProfilePanel />
                     ) : savedOpen ? (
-                        <SavedPanel channels={channels} onSelect={selectChannel} />
+                        <SavedPanel
+                            channels={channels}
+                            places={places}
+                            currentPlaceId={selectedPlaceId ?? undefined}
+                            onSelect={jumpToSaved}
+                        />
                     ) : undefined
                 }
                 overlay={<SwitchingOverlay />}

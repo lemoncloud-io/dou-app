@@ -35,6 +35,10 @@ interface ChannelListProps {
 /** The channel's last message text — no author prefix, markdown flattened. */
 const lastMessagePreview = (channel: DomainChannel): string => stripMarkdown(channel.lastChat$?.content?.trim() ?? '');
 
+/** id → preview, recomputed only when the list changes — not on the minute tick. */
+const buildPreviews = (channels: DomainChannel[]): Map<string, string> =>
+    new Map(channels.map(c => [c.id ?? '', lastMessagePreview(c)]));
+
 const ChannelSkeleton = () => (
     <div role="status" aria-label="Loading channels" className="flex flex-col gap-0.5 p-2">
         {Array.from({ length: 6 }).map((_, i) => (
@@ -64,6 +68,8 @@ export const ChannelList = ({
     useEffect(() => {
         activeRef.current?.scrollIntoView({ block: 'nearest' });
     }, [selectedChannelId]);
+
+    const previews = useMemo(() => buildPreviews(channels), [channels]);
 
     // Slack-style sections: named channels, then DMs (self channel included).
     const { regular, dms } = useMemo(() => {
@@ -166,7 +172,7 @@ export const ChannelList = ({
         const isActive = id === selectedChannelId;
         const unread = channel.unreadCount ?? 0;
         const hasUnread = unread > 0 && !isActive;
-        const preview = lastMessagePreview(channel);
+        const preview = previews.get(id) ?? '';
         const time = relativeTime(channel.lastChat$?.createdAt ?? channel.lastActivityAt);
         return (
             <button

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { $convertToMarkdownString } from '@lexical/markdown';
@@ -43,21 +43,24 @@ interface ComposerProps {
 const ComposerInner = ({ disabled, onSend, channelId, placeholder, mentionables = [] }: ComposerProps) => {
     const { t } = useTranslation();
     const [editor] = useLexicalComposerContext();
-    const [hasText, setHasText] = useState(false);
     const setDraft = useComposerDraftStore(s => s.setDraft);
     const clearDraft = useComposerDraftStore(s => s.clearDraft);
+    // Derived from the draft the change handler just wrote — no second copy of
+    // the fact; re-renders only on the empty↔non-empty flip.
+    const hasText = useComposerDraftStore(s => (s.drafts[channelId] ?? '').trim().length > 0);
     const placeholderText = placeholder ?? t('chat.composer.placeholder');
 
-    // Drafts persist as markdown — the store's existing format, so old drafts load.
+    // Drafts persist as markdown — the store's existing format, so old drafts
+    // load. Empty documents drop the entry instead of accumulating '' keys.
     const handleChange = useCallback(
         (state: EditorState) => {
             state.read(() => {
                 const markdown = $convertToMarkdownString(COMPOSER_TRANSFORMERS, undefined, true);
-                setDraft(channelId, markdown);
-                setHasText(markdown.trim().length > 0);
+                if (markdown.trim()) setDraft(channelId, markdown);
+                else clearDraft(channelId);
             });
         },
-        [channelId, setDraft]
+        [channelId, setDraft, clearDraft]
     );
 
     const submit = useCallback(() => {
@@ -67,15 +70,15 @@ const ComposerInner = ({ disabled, onSend, channelId, placeholder, mentionables 
             .trim();
         if (!markdown || disabled) return;
         onSend(markdown);
+        // Clearing the document fires handleChange, which drops the draft.
         editor.update(() => {
             const root = $getRoot();
             root.clear();
             root.append($createParagraphNode());
             root.selectEnd();
         });
-        clearDraft(channelId);
         editor.focus();
-    }, [editor, disabled, onSend, clearDraft, channelId]);
+    }, [editor, disabled, onSend]);
 
     const insertEmoji = (emoji: string) => {
         editor.update(() => {

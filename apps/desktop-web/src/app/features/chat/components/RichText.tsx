@@ -1,13 +1,23 @@
 import { Fragment, type ReactNode } from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { GROUP_MENTIONS, MENTION_TOKEN_SOURCE } from '../../../shared';
 
-import { GROUP_MENTIONS } from '../../../shared';
+// Message styles, shared with the composer theme (editor/editorConfig) and
+// MentionNode so what you type is exactly what readers see.
+export const MSG_BOLD_CLASS = 'font-semibold';
+export const MSG_CODE_INLINE_CLASS = 'rounded bg-well px-1 py-0.5 font-mono text-[0.85em]';
+export const MSG_CODE_BLOCK_CLASS =
+    'my-1 block overflow-x-auto rounded-md border border-hairline bg-well p-2 font-mono text-[0.85em] leading-relaxed';
+export const MSG_QUOTE_CLASS = 'my-0.5 block border-l-2 border-primary/40 pl-2 text-muted-foreground';
+export const MSG_MENTION_CLASS = 'rounded bg-primary/10 px-1 font-medium text-primary-ink';
+export const MSG_MENTION_SELF_CLASS = 'rounded bg-warning/30 px-1 font-medium text-foreground';
 
 // One pass over a non-code run: bold, italic, strikethrough, links, @mentions.
 // Bold is listed before italic so `**x**` matches as bold, not italic.
-// Mention tokens use \p{L}\p{N} (not \w) so non-ASCII names (한글 etc.) match.
-const INLINE = /(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(~~[^~\n]+~~)|(https?:\/\/[^\s]+)|(@[\p{L}\p{N}_.-]+)/gu;
+const INLINE = new RegExp(
+    `(\\*\\*[^*\\n]+\\*\\*)|(\\*[^*\\n]+\\*)|(~~[^~\\n]+~~)|(https?:\\/\\/[^\\s]+)|(@${MENTION_TOKEN_SOURCE}+)`,
+    'gu'
+);
 
 const renderInline = (text: string, keyBase: string, selfNames?: string[]): ReactNode[] => {
     const nodes: ReactNode[] = [];
@@ -20,7 +30,7 @@ const renderInline = (text: string, keyBase: string, selfNames?: string[]): Reac
         const key = `${keyBase}-${match.index}`;
         if (bold) {
             nodes.push(
-                <strong key={key} className="font-semibold">
+                <strong key={key} className={MSG_BOLD_CLASS}>
                     {bold.slice(2, -2)}
                 </strong>
             );
@@ -46,13 +56,7 @@ const renderInline = (text: string, keyBase: string, selfNames?: string[]): Reac
                 !!selfNames?.length &&
                 (GROUP_MENTIONS.includes(mention.toLowerCase()) || selfNames.includes(mention.slice(1).toLowerCase()));
             nodes.push(
-                <span
-                    key={key}
-                    className={cn(
-                        'rounded px-1 font-medium',
-                        isSelf ? 'bg-warning/30 text-foreground' : 'bg-primary/10 text-primary-ink'
-                    )}
-                >
+                <span key={key} className={isSelf ? MSG_MENTION_SELF_CLASS : MSG_MENTION_CLASS}>
                     {mention}
                 </span>
             );
@@ -68,7 +72,7 @@ const renderInline = (text: string, keyBase: string, selfNames?: string[]): Reac
 const renderCodeRuns = (text: string, keyBase: string, selfNames?: string[]): ReactNode[] =>
     text.split(/(`[^`\n]+`)/g).map((part, idx) =>
         idx % 2 === 1 ? (
-            <code key={`${keyBase}-${idx}`} className="rounded bg-well px-1 py-0.5 font-mono text-[0.85em]">
+            <code key={`${keyBase}-${idx}`} className={MSG_CODE_INLINE_CLASS}>
                 {part.slice(1, -1)}
             </code>
         ) : (
@@ -96,10 +100,7 @@ const renderQuoteRuns = (text: string, keyBase: string, selfNames?: string[]): R
         if (!quote.length) return;
         nodes.push(
             // block-level span: legal inside the host <p>, unlike <blockquote>.
-            <span
-                key={`${keyBase}-q${block++}`}
-                className="my-0.5 block border-l-2 border-primary/40 pl-2 text-muted-foreground"
-            >
+            <span key={`${keyBase}-q${block++}`} className={MSG_QUOTE_CLASS}>
                 {renderCodeRuns(quote.join('\n'), `${keyBase}-q${block}`, selfNames)}
             </span>
         );
@@ -140,10 +141,7 @@ export const RichText = ({ content, selfNames }: RichTextProps): ReactNode => {
         if (idx % 2 === 1) {
             const inner = part.slice(3, -3).replace(/^\n/, '').replace(/\n$/, '');
             return (
-                <span
-                    key={idx}
-                    className="my-1 block overflow-x-auto rounded-md border border-hairline bg-well p-2 font-mono text-[0.85em] leading-relaxed"
-                >
+                <span key={idx} className={MSG_CODE_BLOCK_CLASS}>
                     {inner}
                 </span>
             );

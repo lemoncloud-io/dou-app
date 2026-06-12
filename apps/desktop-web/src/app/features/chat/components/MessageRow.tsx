@@ -8,7 +8,7 @@ import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import { threadRootId, type MessageGroup } from '../utils';
-import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
+import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore, useSelectedPlaceStore } from '../../../shared';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { RichText } from './RichText';
 
@@ -38,6 +38,8 @@ interface MessageRowProps {
     onOpenThread?: (rootId: string) => void;
     /** Lowercased names that count as "me" — my mentions render highlighted. */
     selfNames?: string[];
+    /** chatNo of a message to flash (saved-item / search jump landed on it). */
+    highlightChatNo?: number;
 }
 
 /**
@@ -55,11 +57,12 @@ const formatTime = (ms: number): string => {
 };
 
 export const MessageRow = memo(
-    ({ group, onRetry, onDiscard, threadMeta, onOpenThread, selfNames }: MessageRowProps) => {
+    ({ group, onRetry, onDiscard, threadMeta, onOpenThread, selfNames, highlightChatNo }: MessageRowProps) => {
         const { t } = useTranslation();
         const [copiedKey, setCopiedKey] = useState<string | null>(null);
         const savedItems = useSavedItemsStore(s => s.items);
         const toggleSaved = useSavedItemsStore(s => s.toggle);
+        const selectedPlaceId = useSelectedPlaceStore(s => s.selectedPlaceId);
         const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
         // Blank the avatar initial while the name resolves so "U" (Unknown) never flashes.
         const initial = group.namePending ? '' : group.ownerName.charAt(0).toUpperCase() || '?';
@@ -149,7 +152,17 @@ export const MessageRow = memo(
                                 // Reserve the toolbar slot: both actions in the main feed, copy
                                 // only in the (narrower) thread panel — a full 80px reserve there
                                 // wastes scarce width.
-                                <div key={key} className={cn('group/msg relative', onOpenThread ? 'pr-20' : 'pr-12')}>
+                                <div
+                                    key={key}
+                                    data-chat-no={message.chatNo}
+                                    className={cn(
+                                        'group/msg relative rounded-md transition-colors ease-tactile',
+                                        onOpenThread ? 'pr-20' : 'pr-12',
+                                        message.chatNo != null &&
+                                            message.chatNo === highlightChatNo &&
+                                            'bg-primary/10 ring-1 ring-primary/40'
+                                    )}
+                                >
                                     {i > 0 && msgTime && (
                                         <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-[10px] tabular-nums text-muted-foreground/70 group-hover/msg:block">
                                             {msgTime}
@@ -203,6 +216,10 @@ export const MessageRow = memo(
                                                             chatNo: message.chatNo,
                                                             content,
                                                             ownerName: group.ownerName,
+                                                            avatar: group.avatar,
+                                                            colorSeed: group.colorSeed,
+                                                            ownerId: group.ownerId,
+                                                            placeId: selectedPlaceId ?? undefined,
                                                         })
                                                     }
                                                     title={savedItems[key] ? t('chat.unsave') : t('chat.save')}

@@ -13,6 +13,12 @@ export interface SavedItem {
     chatNo?: number;
     content: string;
     ownerName: string;
+    /** Author identity, snapshotted so saved rows render the feed's avatar. */
+    avatar?: string;
+    colorSeed?: string;
+    ownerId?: string;
+    /** Place the message belongs to — groups the list + drives cross-place jump. */
+    placeId?: string;
     savedAt: number;
 }
 

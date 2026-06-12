@@ -1,4 +1,6 @@
-import { $applyNodeReplacement, TextNode, type EditorConfig, type LexicalNode, type SerializedTextNode } from 'lexical';
+import { $applyNodeReplacement, TextNode, type EditorConfig, type SerializedTextNode } from 'lexical';
+
+import { MSG_MENTION_CLASS } from '../RichText';
 
 /**
  * A picked @mention rendered as a chip inside the composer. Plain TextNode
@@ -25,7 +27,7 @@ export class MentionNode extends TextNode {
 
     createDOM(config: EditorConfig): HTMLElement {
         const dom = super.createDOM(config);
-        dom.className = 'rounded bg-primary/10 px-1 font-medium text-primary-ink';
+        dom.className = MSG_MENTION_CLASS;
         return dom;
     }
 
@@ -44,6 +46,3 @@ export class MentionNode extends TextNode {
 
 export const $createMentionNode = (text: string): MentionNode =>
     $applyNodeReplacement(new MentionNode(text).setMode('segmented').toggleDirectionless());
-
-export const $isMentionNode = (node: LexicalNode | null | undefined): node is MentionNode =>
-    node instanceof MentionNode;

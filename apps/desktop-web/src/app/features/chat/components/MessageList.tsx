@@ -33,10 +33,16 @@ interface MessageListProps {
     threadMeta?: ReadonlyMap<string, ThreadMeta>;
     /** Open a thread; wired only for the main channel feed (not the thread panel). */
     onOpenThread?: (rootId: string) => void;
+    /** Scroll a specific message into view + flash it (saved-item / search jump). */
+    jumpTarget?: { chatNo: number; nonce: number };
+    /** Called once a jump is consumed (landed or abandoned) so the store can clear. */
+    onJumpConsumed?: () => void;
 }
 
 const NEAR_BOTTOM_PX = 80;
 const LOAD_OLDER_PX = 120;
+/** Bound how many older pages a jump will fetch before giving up on the target. */
+const MAX_JUMP_PAGES = 8;
 /** Slack-style thread footer shows at most this many replier avatars. */
 const MAX_FOOTER_REPLIERS = 3;
 
@@ -55,6 +61,8 @@ export const MessageList = ({
     scrollSignal,
     threadMeta,
     onOpenThread,
+    jumpTarget,
+    onJumpConsumed,
 }: MessageListProps) => {
     const { t } = useTranslation();
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -76,6 +84,11 @@ export const MessageList = ({
     // the bottom. Reset per channel via the key={channelId} remount.
     const unreadRef = useRef<HTMLDivElement>(null);
     const didInitRef = useRef(false);
+    // Saved-item / search jump: chatNo currently flashing, plus the per-request
+    // paging budget and the flash timer.
+    const [highlightChatNo, setHighlightChatNo] = useState<number | null>(null);
+    const jumpRef = useRef<{ nonce: number; pages: number; done: boolean } | null>(null);
+    const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const placeProfiles = useSiteProfileMap();
     const rows = useMemo(
@@ -186,6 +199,46 @@ export const MessageList = ({
         return () => cancelAnimationFrame(raf);
     }, [scrollSignal]);
 
+    // Drive a jump request: center the target message's DOM node and flash it.
+    // If it isn't loaded (older than the live page), page older — bounded — and
+    // the `messages` dependency re-runs this as each page lands.
+    useEffect(() => {
+        if (!jumpTarget) return;
+        const el = scrollRef.current;
+        if (!el) return;
+        // New request → reset the paging budget + done latch.
+        if (jumpRef.current?.nonce !== jumpTarget.nonce) {
+            jumpRef.current = { nonce: jumpTarget.nonce, pages: 0, done: false };
+        }
+        // Already handled (landed or abandoned) — don't re-scroll on live-tail ticks
+        // that re-run this effect before the store clears the target.
+        if (jumpRef.current.done) return;
+        const node = el.querySelector<HTMLElement>(`[data-chat-no="${jumpTarget.chatNo}"]`);
+        if (node) {
+            node.scrollIntoView({ block: 'center' });
+            setHighlightChatNo(jumpTarget.chatNo);
+            if (highlightTimer.current) clearTimeout(highlightTimer.current);
+            highlightTimer.current = setTimeout(() => setHighlightChatNo(null), 1600);
+            jumpRef.current.done = true;
+            onJumpConsumed?.();
+            return;
+        }
+        // Not loaded yet → page older until found or the budget/history runs out.
+        if (hasMore && !isLoadingOlder && jumpRef.current.pages < MAX_JUMP_PAGES) {
+            jumpRef.current.pages += 1;
+            onLoadOlder?.();
+            return;
+        }
+        // Exhausted: no older history left or the budget was hit — stop re-firing.
+        if (!hasMore || jumpRef.current.pages >= MAX_JUMP_PAGES) {
+            jumpRef.current.done = true;
+            onJumpConsumed?.();
+        }
+    }, [jumpTarget, messages, hasMore, isLoadingOlder, onLoadOlder, onJumpConsumed]);
+
+    // Clear a pending flash timer on unmount.
+    useEffect(() => () => clearTimeout(highlightTimer.current ?? undefined), []);
+
     const onScroll = () => {
         const el = scrollRef.current;
         if (!el) return;
@@ -267,6 +320,7 @@ export const MessageList = ({
                             threadMeta={threadMetaView}
                             onOpenThread={onOpenThread}
                             selfNames={selfNames}
+                            highlightChatNo={highlightChatNo ?? undefined}
                         />
                     );
                 })}
@@ -280,7 +334,7 @@ export const MessageList = ({
                         type="button"
                         onClick={scrollToBottom}
                         aria-label={t('chat.jumpToLatest')}
-                        className="focus-ring tactile absolute bottom-4 left-1/2 flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary pl-3 pr-2.5 text-caption font-semibold text-primary-foreground shadow-overlay transition-transform ease-tactile hover:bg-primary/90"
+                        className="focus-ring tactile absolute bottom-4 left-1/2 z-20 flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary pl-3 pr-2.5 text-caption font-semibold text-primary-foreground shadow-overlay transition-transform ease-tactile hover:bg-primary/90"
                     >
                         <span className="tabular-nums">
                             {t('chat.newMessageBadge', { count: newCount > 99 ? 99 : newCount })}
@@ -294,7 +348,7 @@ export const MessageList = ({
                         onClick={scrollToBottom}
                         aria-label={t('chat.jumpToLatest')}
                         title={t('chat.jumpToLatest')}
-                        className="focus-ring tactile border-hairline absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border bg-elevated text-foreground shadow-overlay transition-transform ease-tactile hover:bg-accent"
+                        className="focus-ring tactile border-hairline absolute bottom-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full border bg-elevated text-foreground shadow-overlay transition-transform ease-tactile hover:bg-accent"
                     >
                         <ChevronDown size={18} />
                     </button>
