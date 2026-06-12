@@ -17,6 +17,7 @@ export interface AppBridgeHostConfig {
     sendToWeb: (message: string) => void;
     version?: string;
     eventBuffer?: IMessageQueue<EventMessage>;
+    onAppReady?: () => void;
 }
 
 export class AppBridgeHost implements IAppBridgeHost {
@@ -40,6 +41,7 @@ export class AppBridgeHost implements IAppBridgeHost {
 
         // WebAppReady는 단순 ready 신호가 아니라 웹/모바일 protocol capability를 교환하는 handshake입니다.
         this.registerHandler('WebAppReady', async message => {
+            config.onAppReady?.();
             return {
                 type: 'OnWebAppReady',
                 success: true,

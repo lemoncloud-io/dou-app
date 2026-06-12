@@ -499,3 +499,21 @@ export type OnBackPressedPayload = {
 export type OnOpenURLPayload = {
     // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
 };
+
+/** [응답] 네이티브 앱에서 웹 앱으로의 동적 네비게이션 요청 페이로드 */
+export type OnNavigatePayload = {
+    /** 이동할 상대 경로 및 쿼리 파라미터 (예: '/chats/ch_123' 또는 '/auth/login?code=...') */
+    path: string;
+    /** React Router navigation 시 replace 여부 (기본값: false) */
+    replace?: boolean;
+};
+
+/** [요청] 웹뷰 백그라운드 복귀 후 오버레이 해제 요청 페이로드 */
+export type DismissResumeOverlayPayload = {
+    // 빈 객체 타입
+};
+
+/** [응답] 웹뷰 백그라운드 복귀 후 오버레이 해제 처리 결과 페이로드 */
+export type OnDismissResumeOverlayPayload = {
+    // 빈 객체 타입
+};
