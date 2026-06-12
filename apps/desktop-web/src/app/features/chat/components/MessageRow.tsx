@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/u
 
 import { threadRootId, type MessageGroup } from '../utils';
 import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
+import { LinkPreviewCard } from './LinkPreviewCard';
 import { RichText } from './RichText';
 
 /** A thread reply author, display-resolved (Place Profile / roster / viewer). */
@@ -135,6 +136,7 @@ export const MessageRow = memo(
                             const isFailed = message.isFailed || isStuck;
                             const key = String(message.id ?? message.tempId ?? message.chatNo);
                             const content = message.content ?? '';
+                            const firstUrl = content.match(/https?:\/\/[^\s]+/)?.[0];
                             const isCopied = copiedKey === key;
                             const msgTime = formatTime(message.createdAt ?? message.createdAtMs);
                             // A loaded thread hangs off this message → show a reply footer.
@@ -162,6 +164,10 @@ export const MessageRow = memo(
                                     >
                                         <RichText content={content} selfNames={selfNames} />
                                     </p>
+                                    {/* Unfurl the first link only (Slack-style single card).
+                                        Message-level, not RichText: the formatter stays pure and
+                                        the card renders outside the host <p>. */}
+                                    {firstUrl && <LinkPreviewCard url={firstUrl} />}
                                     {/* Slack-style action toolbar: an elevated pill at a FIXED
                                     far-right position (spatial muscle memory), aligned with the
                                     message's first line so it stays inside the hover band. It
