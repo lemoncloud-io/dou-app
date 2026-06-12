@@ -50,7 +50,6 @@ describe('toLocalUrl', () => {
 
 describe('useWebViewDeepLink hook', () => {
     let mockNavigation: any;
-    let mockWebViewRef: any;
     let mockBridge: any;
 
     beforeEach(() => {
@@ -59,7 +58,6 @@ describe('useWebViewDeepLink hook', () => {
             setParams: jest.fn(),
         };
         (useNavigation as jest.Mock).mockReturnValue(mockNavigation);
-        mockWebViewRef = { current: { injectJavaScript: jest.fn() } };
         mockBridge = {
             pushEvent: jest.fn(),
         };
@@ -67,7 +65,7 @@ describe('useWebViewDeepLink hook', () => {
 
     it('should initialize source with WEBVIEW_URL if no url param is provided', () => {
         const route = { params: {} } as any;
-        const { result } = renderHook(() => useWebViewDeepLink(mockWebViewRef, route, { bridge: mockBridge }));
+        const { result } = renderHook(() => useWebViewDeepLink(route, { bridge: mockBridge }));
 
         expect(result.current.source).toEqual({ uri: WEBVIEW_URL });
         expect(result.current.isRedirecting).toBe(false);
@@ -75,7 +73,7 @@ describe('useWebViewDeepLink hook', () => {
 
     it('should initialize source with WEBVIEW_URL even on cold start, and push OnNavigate event', () => {
         const route = { params: { url: 'https://dou.chatic.io/auth/login?code=123' } } as any;
-        const { result } = renderHook(({ r }) => useWebViewDeepLink(mockWebViewRef, r, { bridge: mockBridge }), {
+        const { result } = renderHook(({ r }) => useWebViewDeepLink(r, { bridge: mockBridge }), {
             initialProps: { r: route },
         });
 
@@ -100,12 +98,9 @@ describe('useWebViewDeepLink hook', () => {
     it('should push OnNavigate event on warm start when isWebViewLoaded is true', () => {
         // Start without deep link
         const route = { params: {} } as any;
-        const { result, rerender } = renderHook(
-            ({ r }) => useWebViewDeepLink(mockWebViewRef, r, { bridge: mockBridge }),
-            {
-                initialProps: { r: route },
-            }
-        );
+        const { result, rerender } = renderHook(({ r }) => useWebViewDeepLink(r, { bridge: mockBridge }), {
+            initialProps: { r: route },
+        });
 
         expect(result.current.source).toEqual({ uri: WEBVIEW_URL });
 
@@ -135,14 +130,41 @@ describe('useWebViewDeepLink hook', () => {
         expect(mockNavigation.setParams).toHaveBeenCalledWith({ url: undefined, error: undefined });
     });
 
+    it('should push OnNavigate event when the same deep link is triggered again after route params are cleared', () => {
+        const route = { params: { url: 'https://dou.chatic.io/auth/login?code=456' } } as any;
+        const { result, rerender } = renderHook(({ r }) => useWebViewDeepLink(r, { bridge: mockBridge }), {
+            initialProps: { r: route },
+        });
+
+        act(() => {
+            result.current.handleWebViewLoad();
+        });
+        expect(mockBridge.pushEvent).toHaveBeenCalledTimes(1);
+        jest.clearAllMocks();
+
+        // Simulate params cleared
+        rerender({ r: { params: { url: undefined } } as any });
+        jest.clearAllMocks();
+
+        // Trigger the same URL again
+        const sameRoute = { params: { url: 'https://dou.chatic.io/auth/login?code=456' } } as any;
+        rerender({ r: sameRoute });
+
+        expect(mockBridge.pushEvent).toHaveBeenCalledWith({
+            type: 'OnNavigate',
+            success: true,
+            data: {
+                path: '/auth/login?code=456',
+                replace: false,
+            },
+        });
+    });
+
     it('should read nested navigator params and push OnNavigate event', () => {
         const route = { params: {} } as any;
-        const { result, rerender } = renderHook(
-            ({ r }) => useWebViewDeepLink(mockWebViewRef, r, { bridge: mockBridge }),
-            {
-                initialProps: { r: route },
-            }
-        );
+        const { result, rerender } = renderHook(({ r }) => useWebViewDeepLink(r, { bridge: mockBridge }), {
+            initialProps: { r: route },
+        });
 
         act(() => {
             result.current.handleWebViewLoad();
@@ -179,12 +201,9 @@ describe('useWebViewDeepLink hook', () => {
     it('should queue warm start URL if WebView is not loaded (buffered by bridge)', () => {
         // Start without deep link
         const route = { params: {} } as any;
-        const { result, rerender } = renderHook(
-            ({ r }) => useWebViewDeepLink(mockWebViewRef, r, { bridge: mockBridge }),
-            {
-                initialProps: { r: route },
-            }
-        );
+        const { result, rerender } = renderHook(({ r }) => useWebViewDeepLink(r, { bridge: mockBridge }), {
+            initialProps: { r: route },
+        });
 
         expect(result.current.source).toEqual({ uri: WEBVIEW_URL });
         expect(result.current.isWebViewLoaded).toBe(false);

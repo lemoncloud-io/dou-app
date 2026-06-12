@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { WebView } from 'react-native-webview';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp, RouteProp } from '@react-navigation/native';
 
@@ -105,7 +104,6 @@ const resolveDeepLinkRouteParams = (params: unknown): ResolvedDeepLinkRouteParam
  * URL 직접 이동 대신 OnNavigate 브릿지 이벤트를 사용하여 웹앱 내부에서 무중단 라우팅을 수행합니다.
  */
 export const useWebViewDeepLink = (
-    webViewRef: React.RefObject<WebView | null>,
     route: RouteProp<MainStackParamList, 'Main'>,
     options?: {
         webViewBaseUrl?: string;
@@ -117,10 +115,11 @@ export const useWebViewDeepLink = (
     const webViewBaseUrl = options?.webViewBaseUrl || WEBVIEW_URL;
     const reloadToken = options?.reloadToken ?? 0;
     const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
-    const resolvedRouteParams = resolveDeepLinkRouteParams(route.params);
+    const { url, error, isNestedNavigatorParams } = resolveDeepLinkRouteParams(route.params);
 
-    const initialUrlParam = resolvedRouteParams.url;
-    const initialError = resolvedRouteParams.error;
+    // 앱 마운트 시점(콜드 스타트)의 초기 파라미터를 고정하여 캐싱합니다.
+    const initialUrlParam = useRef(url).current;
+    const initialError = useRef(error).current;
     const hasHandledInitialUrl = useRef(false);
     const handledRouteUrlRef = useRef<string | null>(null);
     const lastReloadTokenRef = useRef(reloadToken);
@@ -169,13 +168,13 @@ export const useWebViewDeepLink = (
      * React Navigation 라우트 파라미터를 정리하여 동일한 링크가 중복 처리되지 않도록 합니다.
      */
     const clearDeepLinkRouteParams = useCallback(
-        (isNestedNavigatorParams: boolean) => {
-            const nextParams = isNestedNavigatorParams
+        (isNested: boolean) => {
+            const nextParams = isNested
                 ? { params: { url: undefined, error: undefined } }
                 : { url: undefined, error: undefined };
 
             logger.info('DEEPLINK', '[useWebViewDeepLink] Clearing route params after URL handling', {
-                isNestedNavigatorParams,
+                isNestedNavigatorParams: isNested,
                 nextParams,
             });
             navigation.setParams(nextParams as never);
@@ -211,10 +210,6 @@ export const useWebViewDeepLink = (
 
     // 라우트 파라미터(route.params) 업데이트를 통해 감지되는 딥링크(웜 스타트 및 콜드 스타트 초기 진입)를 처리합니다.
     useEffect(() => {
-        if (!route.params) return;
-
-        const { url, error, isNestedNavigatorParams } = resolvedRouteParams;
-
         if (error) {
             logger.error('DEEPLINK', `Deep link error received in route params: ${error}`);
             setDeepLinkError(true);
@@ -225,6 +220,7 @@ export const useWebViewDeepLink = (
 
         if (!url) {
             handledRouteUrlRef.current = null;
+            hasHandledInitialUrl.current = false;
             return;
         }
 
@@ -272,8 +268,9 @@ export const useWebViewDeepLink = (
 
         clearDeepLinkRouteParams(isNestedNavigatorParams);
     }, [
-        route.params,
-        resolvedRouteParams,
+        url,
+        error,
+        isNestedNavigatorParams,
         isWebViewLoaded,
         initialUrlParam,
         navigateToPath,
@@ -285,8 +282,8 @@ export const useWebViewDeepLink = (
     const handleDismissError = useCallback(() => {
         setDeepLinkError(false);
         setDeepLinkErrorReason(null);
-        clearDeepLinkRouteParams(resolvedRouteParams.isNestedNavigatorParams);
-    }, [clearDeepLinkRouteParams, resolvedRouteParams.isNestedNavigatorParams]);
+        clearDeepLinkRouteParams(isNestedNavigatorParams);
+    }, [clearDeepLinkRouteParams, isNestedNavigatorParams]);
 
     return {
         source,

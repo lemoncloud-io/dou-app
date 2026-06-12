@@ -31,7 +31,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
 
     const { setNavCanGoBack } = useWebViewNavigation(bridge);
     const { source, handleWebViewLoad, deepLinkError, deepLinkErrorReason, handleDismissError, isRedirecting } =
-        useWebViewDeepLink(webViewRef, route, {
+        useWebViewDeepLink(route, {
             webViewBaseUrl,
             reloadToken: webViewReloadToken,
             bridge,
