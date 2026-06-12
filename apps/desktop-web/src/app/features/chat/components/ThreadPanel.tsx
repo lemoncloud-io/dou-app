@@ -9,7 +9,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useAuthorNames, useChatMutations, useChats } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { buildMemberNames, buildThread } from '../utils';
-import { useMessageViewer } from '../hooks';
+import { useMessageViewer, useThreadPanelWidth } from '../hooks';
 import { useThreadStore } from '../stores';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
@@ -35,6 +35,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
     const { t } = useTranslation();
     const channelId = channel.id ?? '';
     const closeThread = useThreadStore(s => s.close);
+    const { width, minWidth, maxWidth, startResize, resizeByKey } = useThreadPanelWidth();
     const { messages } = useChats(channelId);
     const { sendMessage, retryMessage, discardMessage, isSending } = useChatMutations();
 
@@ -63,7 +64,23 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
     };
 
     return (
-        <aside className="absolute inset-y-0 right-0 z-30 flex w-80 max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline bg-background shadow-raised xl:static xl:z-auto xl:max-w-none xl:shadow-none">
+        <aside
+            style={{ width }}
+            className="absolute inset-y-0 right-0 z-30 flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline bg-background shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none"
+        >
+            {/* Drag the panel's left edge to resize (arrow keys when focused). */}
+            <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={t('chat.thread.resize')}
+                aria-valuenow={width}
+                aria-valuemin={minWidth}
+                aria-valuemax={maxWidth}
+                tabIndex={0}
+                onPointerDown={startResize}
+                onKeyDown={resizeByKey}
+                className="focus-ring absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize transition-colors ease-tactile hover:bg-primary/40 active:bg-primary/60"
+            />
             <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
                 <span className="truncate text-title text-foreground">{t('chat.thread.title')}</span>
                 <button

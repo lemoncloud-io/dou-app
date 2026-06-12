@@ -59,6 +59,7 @@ const resources = {
             'chat.thread.lastReplyAt': 'Last reply at {{time}}',
             'chat.thread.view': 'View thread',
             'chat.thread.composerPlaceholder': 'Reply…',
+            'chat.thread.resize': 'Resize thread panel',
             'chat.thread.unavailable': "This message isn't loaded yet — scroll up in the channel to load it.",
             'chat.newMessages': 'New messages',
             'chat.failed': 'Not delivered',
