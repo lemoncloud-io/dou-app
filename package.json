@@ -253,7 +253,6 @@
         "apps/*",
         "libs/socket",
         "libs/chats",
-        "libs/places",
         "libs/data",
         "libs/bridge"
     ],
