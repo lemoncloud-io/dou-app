@@ -64,6 +64,7 @@ import type {
     OnSendSmsPayload,
     OnSetBadgeCountPayload,
     OnShowNotificationPayload,
+    OnFetchUrlMetadataPayload,
     OnSetCanGoBackPayload,
     OnUpdateDeviceInfoPayload,
     OnUploadCompletePayload,
@@ -116,6 +117,7 @@ export type AppMessageDataMap = {
     OnFetchBadgeCount: OnFetchBadgeCountPayload;
     OnSetBadgeCount: OnSetBadgeCountPayload;
     OnShowNotification: OnShowNotificationPayload;
+    OnFetchUrlMetadata: OnFetchUrlMetadataPayload;
 
     // 3. IAP
     OnFetchCurrentPurchases: OnFetchCurrentPurchasesPayload;

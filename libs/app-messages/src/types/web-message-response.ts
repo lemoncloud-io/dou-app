@@ -58,6 +58,7 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     FetchBadgeCount: 'OnFetchBadgeCount',
     SetBadgeCount: 'OnSetBadgeCount',
     ShowNotification: 'OnShowNotification',
+    FetchUrlMetadata: 'OnFetchUrlMetadata',
     FetchProducts: 'OnFetchProducts',
     FetchCurrentPurchases: 'OnFetchCurrentPurchases',
     Purchase: 'OnPurchase',

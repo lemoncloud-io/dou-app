@@ -18,6 +18,7 @@ import {
 import electronUpdater from 'electron-updater';
 
 import { startFcm, type FcmConfig } from './fcm';
+import { fetchUrlMetadata } from './unfurl';
 
 /**
  * Stable per-install device id, persisted under userData. Injected into the web as
@@ -230,6 +231,14 @@ const registerHandlers = (host: AppBridgeHost, win: BrowserWindow): void => {
         const { title, body, deeplink } = message.data;
         showOsNotification(host, win, { title, body, deeplink });
         return { type: 'OnShowNotification', success: true, data: { success: true } };
+    });
+
+    // FetchUrlMetadata: fetch + parse og: tags for chat link previews on the
+    // renderer's behalf (CORS blocks it there). SSRF guards live in unfurl.ts.
+    host.registerHandler('FetchUrlMetadata', async message => {
+        const { url } = message.data;
+        const meta = await fetchUrlMetadata(url);
+        return { type: 'OnFetchUrlMetadata', success: true, data: meta };
     });
 
     // FetchFcmToken: the renderer asks for the FCM token to register with the

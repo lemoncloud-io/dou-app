@@ -1,5 +1,7 @@
 import { Fragment, type ReactNode } from 'react';
 
+import { LinkPreviewCard } from './LinkPreviewCard';
+
 // One pass over a non-code run: bold, italic, strikethrough, links, @mentions.
 // Bold is listed before italic so `**x**` matches as bold, not italic.
 const INLINE = /(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(~~[^~\n]+~~)|(https?:\/\/[^\s]+)|(@[\w.-]+)/g;
@@ -119,18 +121,25 @@ interface RichTextProps {
  */
 export const RichText = ({ content }: RichTextProps): ReactNode => {
     if (!content) return null;
-    return content.split(/(```[\s\S]*?```)/g).map((part, idx) => {
-        if (idx % 2 === 1) {
-            const inner = part.slice(3, -3).replace(/^\n/, '').replace(/\n$/, '');
-            return (
-                <span
-                    key={idx}
-                    className="my-1 block overflow-x-auto rounded-md border border-hairline bg-well p-2 font-mono text-[0.85em] leading-relaxed"
-                >
-                    {inner}
-                </span>
-            );
-        }
-        return <Fragment key={idx}>{renderQuoteRuns(part, String(idx))}</Fragment>;
-    });
+    // Unfurl the first link only (Slack-style single card per message).
+    const firstUrl = content.match(/https?:\/\/[^\s]+/)?.[0];
+    return (
+        <>
+            {content.split(/(```[\s\S]*?```)/g).map((part, idx) => {
+                if (idx % 2 === 1) {
+                    const inner = part.slice(3, -3).replace(/^\n/, '').replace(/\n$/, '');
+                    return (
+                        <span
+                            key={idx}
+                            className="my-1 block overflow-x-auto rounded-md border border-hairline bg-well p-2 font-mono text-[0.85em] leading-relaxed"
+                        >
+                            {inner}
+                        </span>
+                    );
+                }
+                return <Fragment key={idx}>{renderQuoteRuns(part, String(idx))}</Fragment>;
+            })}
+            {firstUrl && <LinkPreviewCard url={firstUrl} />}
+        </>
+    );
 };
