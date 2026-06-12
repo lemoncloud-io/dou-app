@@ -1,14 +1,14 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Check, ChevronRight, Copy, MessageSquare, Reply, Trash2 } from 'lucide-react';
+import { Bookmark, Check, ChevronRight, Copy, MessageSquare, Reply, Trash2 } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import { threadRootId, type MessageGroup } from '../utils';
-import { Skeleton, UserProfilePopover, avatarStyle } from '../../../shared';
+import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
 import { RichText } from './RichText';
 
 /** A thread reply author, display-resolved (Place Profile / roster / viewer). */
@@ -57,6 +57,8 @@ export const MessageRow = memo(
     ({ group, onRetry, onDiscard, threadMeta, onOpenThread, selfNames }: MessageRowProps) => {
         const { t } = useTranslation();
         const [copiedKey, setCopiedKey] = useState<string | null>(null);
+        const savedItems = useSavedItemsStore(s => s.items);
+        const toggleSaved = useSavedItemsStore(s => s.toggle);
         const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
         // Blank the avatar initial while the name resolves so "U" (Unknown) never flashes.
         const initial = group.namePending ? '' : group.ownerName.charAt(0).toUpperCase() || '?';
@@ -183,6 +185,33 @@ export const MessageRow = memo(
                                                     className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
                                                 >
                                                     <Reply size={16} />
+                                                </button>
+                                            )}
+                                            {content && !isPending && !isFailed && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        toggleSaved({
+                                                            id: key,
+                                                            channelId: message.channelId ?? '',
+                                                            chatNo: message.chatNo,
+                                                            content,
+                                                            ownerName: group.ownerName,
+                                                        })
+                                                    }
+                                                    title={savedItems[key] ? t('chat.unsave') : t('chat.save')}
+                                                    aria-label={savedItems[key] ? t('chat.unsave') : t('chat.save')}
+                                                    aria-pressed={!!savedItems[key]}
+                                                    className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                                                >
+                                                    <Bookmark
+                                                        size={16}
+                                                        className={
+                                                            savedItems[key]
+                                                                ? 'fill-current text-primary-ink'
+                                                                : undefined
+                                                        }
+                                                    />
                                                 </button>
                                             )}
                                             {content && (

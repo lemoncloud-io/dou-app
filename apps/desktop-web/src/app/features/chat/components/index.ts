@@ -16,3 +16,4 @@ export * from './EmojiPicker';
 export * from './MentionAutocomplete';
 export * from './QuickSwitcher';
 export * from './LinkPreviewCard';
+export * from './SavedPanel';

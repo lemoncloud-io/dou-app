@@ -22,6 +22,7 @@ import {
     usePendingOpenStore,
     usePlaces,
     useProfilePanelStore,
+    useSavedPanelStore,
     useReadCursorStore,
     useSelectPlace,
     useSelectedChannelStore,
@@ -39,6 +40,7 @@ import {
     ShortcutsDialog,
     SidebarHeader,
     SwitchingOverlay,
+    SavedPanel,
     ThreadPanel,
 } from '../components';
 import { useThreadStore } from '../stores';
@@ -80,6 +82,9 @@ export const HomePage = () => {
     const closeThread = useThreadStore(s => s.close);
     const profileTarget = useProfilePanelStore(s => s.target);
     const closeProfile = useProfilePanelStore(s => s.close);
+    const savedOpen = useSavedPanelStore(s => s.isOpen);
+    const closeSaved = useSavedPanelStore(s => s.close);
+    const openSaved = useSavedPanelStore(s => s.open);
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
     // Default Cloud (relay / Guest Session): no joinable places — force the
     // 'default' place so the Self Channel loads; the sidebar hides the switcher.
@@ -151,20 +156,30 @@ export const HomePage = () => {
         if (openThreadRootId) {
             closeSettings();
             closeProfile();
+            closeSaved();
         }
-    }, [openThreadRootId, closeSettings, closeProfile]);
+    }, [openThreadRootId, closeSettings, closeProfile, closeSaved]);
     useEffect(() => {
         if (settingsChannelId) {
             closeThread();
             closeProfile();
+            closeSaved();
         }
-    }, [settingsChannelId, closeThread, closeProfile]);
+    }, [settingsChannelId, closeThread, closeProfile, closeSaved]);
     useEffect(() => {
         if (profileTarget) {
             closeThread();
             closeSettings();
+            closeSaved();
         }
-    }, [profileTarget, closeThread, closeSettings]);
+    }, [profileTarget, closeThread, closeSettings, closeSaved]);
+    useEffect(() => {
+        if (savedOpen) {
+            closeThread();
+            closeSettings();
+            closeProfile();
+        }
+    }, [savedOpen, closeThread, closeSettings, closeProfile]);
 
     useEffect(() => {
         // Honor a pending notification target once its channel has loaded.
@@ -242,6 +257,7 @@ export const HomePage = () => {
                             onSelectPlace={placeId => void switchPlace(placeId)}
                             onCreateChannel={openCreateChannel}
                             onEditPlaceProfile={openEditPlaceProfile}
+                            onOpenSaved={openSaved}
                         />
                         <div className="flex-1 overflow-y-auto scrollbar-hide">
                             <ChannelList
@@ -274,6 +290,8 @@ export const HomePage = () => {
                         />
                     ) : profileTarget ? (
                         <ProfilePanel />
+                    ) : savedOpen ? (
+                        <SavedPanel channels={channels} onSelect={selectChannel} />
                     ) : undefined
                 }
                 overlay={<SwitchingOverlay />}
