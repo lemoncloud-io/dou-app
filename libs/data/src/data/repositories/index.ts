@@ -82,6 +82,13 @@ export const createRepositories = ({
         context,
         domainEventBus
     ),
-    user: new UserRepository(remoteDataSources.user, localDataSources.user, requestManager, context, domainEventBus),
+    user: new UserRepository(
+        remoteDataSources.user,
+        localDataSources.user,
+        requestManager,
+        context,
+        domainEventBus,
+        localDataSources.profile
+    ),
     inviteCloud: new InviteCloudRepository(localDataSources.inviteCloud, requestManager, context, domainEventBus),
 });
