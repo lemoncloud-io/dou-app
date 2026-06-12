@@ -1,19 +1,33 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Bold, Code, Italic, SendHorizontal, Smile, SquareCode, Strikethrough } from 'lucide-react';
+import { $convertToMarkdownString } from '@lexical/markdown';
+import { LexicalComposer } from '@lexical/react/LexicalComposer';
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
+import { ContentEditable } from '@lexical/react/LexicalContentEditable';
+import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
+import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
+import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
+import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
+import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
+import { $createParagraphNode, $getRoot, $getSelection, type EditorState } from 'lexical';
 
 import { cn } from '@chatic/lib/utils';
-import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 
 import { useComposerDraftStore } from '../../../shared';
-import { EmojiPicker } from './EmojiPicker';
+import type { Mentionable } from './MentionAutocomplete';
 import {
-    MentionAutocomplete,
-    useMentionAutocomplete,
-    type MentionToken,
-    type Mentionable,
-} from './MentionAutocomplete';
+    COMPOSER_NODES,
+    COMPOSER_THEME,
+    COMPOSER_TRANSFORMERS,
+    ChannelDraftPlugin,
+    ComposerActions,
+    ComposerToolbar,
+    EditablePlugin,
+    FormatShortcutsPlugin,
+    MentionsPlugin,
+    SubmitPlugin,
+} from './editor';
 
 interface ComposerProps {
     disabled: boolean;
@@ -26,128 +40,49 @@ interface ComposerProps {
     mentionables?: Mentionable[];
 }
 
-const MAX_HEIGHT = 160;
-
-// Formatting toolbar — markers match what RichText renders. Keyboard
-// equivalents live in handleKeyDown (⌘B/⌘I/⌘⇧X/⌘⇧C/⌘⇧⌥C, Slack's bindings).
-const FORMATS = [
-    { key: 'bold', icon: Bold, prefix: '**' },
-    { key: 'italic', icon: Italic, prefix: '*' },
-    { key: 'strike', icon: Strikethrough, prefix: '~~' },
-    { key: 'code', icon: Code, prefix: '`' },
-    { key: 'codeBlock', icon: SquareCode, prefix: '```\n', suffix: '\n```' },
-] as const;
-
-export const Composer = ({ disabled, onSend, channelId, placeholder, mentionables = [] }: ComposerProps) => {
+const ComposerInner = ({ disabled, onSend, channelId, placeholder, mentionables = [] }: ComposerProps) => {
     const { t } = useTranslation();
-    const [value, setValue] = useState('');
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [editor] = useLexicalComposerContext();
+    const [hasText, setHasText] = useState(false);
     const setDraft = useComposerDraftStore(s => s.setDraft);
     const clearDraft = useComposerDraftStore(s => s.clearDraft);
     const placeholderText = placeholder ?? t('chat.composer.placeholder');
 
-    const applyMention = (token: MentionToken, picked: Mentionable) => {
-        const insert = `@${picked.name} `;
-        handleChange(value.slice(0, token.start) + insert + value.slice(token.end));
-        requestAnimationFrame(() => {
-            const el = textareaRef.current;
-            const pos = token.start + insert.length;
-            el?.focus();
-            el?.setSelectionRange(pos, pos);
-            resize();
+    // Drafts persist as markdown — the store's existing format, so old drafts load.
+    const handleChange = useCallback(
+        (state: EditorState) => {
+            state.read(() => {
+                const markdown = $convertToMarkdownString(COMPOSER_TRANSFORMERS, undefined, true);
+                setDraft(channelId, markdown);
+                setHasText(markdown.trim().length > 0);
+            });
+        },
+        [channelId, setDraft]
+    );
+
+    const submit = useCallback(() => {
+        const markdown = editor
+            .getEditorState()
+            .read(() => $convertToMarkdownString(COMPOSER_TRANSFORMERS, undefined, true))
+            .trim();
+        if (!markdown || disabled) return;
+        onSend(markdown);
+        editor.update(() => {
+            const root = $getRoot();
+            root.clear();
+            root.append($createParagraphNode());
+            root.selectEnd();
         });
-    };
-    const mention = useMentionAutocomplete({ mentionables, onApply: applyMention });
-
-    const resize = () => {
-        const el = textareaRef.current;
-        if (!el) return;
-        el.style.height = 'auto';
-        el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`;
-    };
-
-    // Load this channel's saved draft on switch (read once — no subscription),
-    // then focus so you can type immediately.
-    useEffect(() => {
-        setValue(useComposerDraftStore.getState().drafts[channelId] ?? '');
-        const raf = requestAnimationFrame(() => {
-            resize();
-            textareaRef.current?.focus();
-        });
-        return () => cancelAnimationFrame(raf);
-    }, [channelId]);
-
-    const handleChange = (next: string) => {
-        setValue(next);
-        setDraft(channelId, next);
-        resize();
-    };
-
-    const submit = () => {
-        const trimmed = value.trim();
-        if (!trimmed || disabled) return;
-        onSend(trimmed);
-        setValue('');
         clearDraft(channelId);
-        requestAnimationFrame(() => {
-            resize();
-            textareaRef.current?.focus();
-        });
-    };
-
-    // Wrap the selection in formatting markers (Slack-style ⌘B/⌘I/…). The
-    // selection is restored shifted by the opening marker, so repeating the
-    // shortcut keeps wrapping the same text.
-    const wrapSelection = (prefix: string, suffix: string = prefix) => {
-        const el = textareaRef.current;
-        if (!el) return;
-        const { selectionStart: start, selectionEnd: end } = el;
-        handleChange(value.slice(0, start) + prefix + value.slice(start, end) + suffix + value.slice(end));
-        requestAnimationFrame(() => {
-            el.focus();
-            el.setSelectionRange(start + prefix.length, end + prefix.length);
-        });
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        // Autocomplete owns navigation keys while it's open (Enter picks, not sends).
-        if (mention.handleKeyDown(e)) return;
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            submit();
-            return;
-        }
-        if (!(e.metaKey || e.ctrlKey)) return;
-        if (e.altKey) {
-            // ⌘⇧⌥C — code block. e.code (not e.key): macOS Option remaps e.key.
-            if (e.shiftKey && e.code === 'KeyC') {
-                e.preventDefault();
-                wrapSelection('```\n', '\n```');
-            }
-            return;
-        }
-        const markers: Record<string, string> = e.shiftKey ? { x: '~~', c: '`' } : { b: '**', i: '*' };
-        const marker = markers[e.key.toLowerCase()];
-        if (!marker) return;
-        e.preventDefault();
-        wrapSelection(marker);
-    };
+        editor.focus();
+    }, [editor, disabled, onSend, clearDraft, channelId]);
 
     const insertEmoji = (emoji: string) => {
-        const el = textareaRef.current;
-        const start = el?.selectionStart ?? value.length;
-        const end = el?.selectionEnd ?? value.length;
-        const next = value.slice(0, start) + emoji + value.slice(end);
-        handleChange(next);
-        requestAnimationFrame(() => {
-            const pos = start + emoji.length;
-            el?.focus();
-            el?.setSelectionRange(pos, pos);
-            resize();
+        editor.update(() => {
+            ($getSelection() ?? $getRoot().selectEnd()).insertText(emoji);
         });
+        editor.focus();
     };
-
-    const canSend = value.trim().length > 0 && !disabled;
 
     return (
         <div className="px-4 pb-4 pt-1">
@@ -157,81 +92,61 @@ export const Composer = ({ disabled, onSend, channelId, placeholder, mentionable
                     'focus-within:ring-2 focus-within:ring-primary/40'
                 )}
             >
-                {mention.open && (
-                    <MentionAutocomplete
-                        items={mention.items}
-                        activeIndex={mention.activeIndex}
-                        onSelect={mention.select}
+                <ComposerToolbar disabled={disabled} />
+                <div className="flex items-end gap-2">
+                    <div className="relative flex-1">
+                        <RichTextPlugin
+                            contentEditable={
+                                <ContentEditable
+                                    aria-label={placeholderText}
+                                    className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words bg-transparent py-2 text-body text-foreground outline-none"
+                                />
+                            }
+                            placeholder={
+                                <div className="pointer-events-none absolute left-0 top-2 text-body text-placeholder">
+                                    {placeholderText}
+                                </div>
+                            }
+                            ErrorBoundary={LexicalErrorBoundary}
+                        />
+                    </div>
+                    <ComposerActions
+                        disabled={disabled}
+                        canSend={hasText && !disabled}
+                        onEmoji={insertEmoji}
+                        onSend={submit}
                     />
-                )}
-                <div className="flex items-center gap-0.5" role="toolbar" aria-label={t('chat.composer.formatting')}>
-                    {FORMATS.map(({ key, icon: Icon, prefix, ...rest }) => (
-                        <button
-                            key={key}
-                            type="button"
-                            disabled={disabled}
-                            title={t(`chat.composer.format.${key}`)}
-                            aria-label={t(`chat.composer.format.${key}`)}
-                            // mousedown (not click) so the textarea keeps focus + selection.
-                            onMouseDown={e => {
-                                e.preventDefault();
-                                wrapSelection(prefix, 'suffix' in rest ? rest.suffix : prefix);
-                            }}
-                            className="focus-ring tactile flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground disabled:opacity-50"
-                        >
-                            <Icon className="h-3.5 w-3.5" aria-hidden />
-                        </button>
-                    ))}
-                </div>
-                <div className="flex items-center gap-2">
-                    <textarea
-                        ref={textareaRef}
-                        rows={1}
-                        value={value}
-                        onChange={e => {
-                            handleChange(e.target.value);
-                            mention.sync(e.target.value, e.target.selectionStart ?? e.target.value.length);
-                        }}
-                        onClick={e => mention.sync(value, e.currentTarget.selectionStart ?? value.length)}
-                        onBlur={mention.close}
-                        onKeyDown={handleKeyDown}
-                        aria-label={placeholderText}
-                        placeholder={placeholderText}
-                        className="max-h-40 flex-1 resize-none bg-transparent text-body text-foreground outline-none placeholder:text-placeholder"
-                    />
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <button
-                                type="button"
-                                disabled={disabled}
-                                title={t('chat.composer.emoji')}
-                                aria-label={t('chat.composer.emoji')}
-                                className="focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground disabled:opacity-50"
-                            >
-                                <Smile className="h-5 w-5" />
-                            </button>
-                        </PopoverTrigger>
-                        <PopoverContent align="end" side="top" className="w-auto p-2">
-                            <EmojiPicker onPick={insertEmoji} />
-                        </PopoverContent>
-                    </Popover>
-                    <button
-                        type="button"
-                        onClick={submit}
-                        disabled={!canSend}
-                        title={t('chat.composer.send')}
-                        className={cn(
-                            'focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-all ease-tactile',
-                            canSend
-                                ? 'bg-primary text-primary-foreground hover:opacity-90'
-                                : 'bg-muted text-muted-foreground'
-                        )}
-                    >
-                        <SendHorizontal className="h-4 w-4" aria-hidden />
-                    </button>
                 </div>
             </div>
             <p className="mt-1 px-1 text-caption text-muted-foreground">{t('chat.composer.hint')}</p>
+            <HistoryPlugin />
+            <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
+            <MarkdownShortcutPlugin transformers={COMPOSER_TRANSFORMERS} />
+            <MentionsPlugin mentionables={mentionables} />
+            <SubmitPlugin onSubmit={submit} />
+            <FormatShortcutsPlugin />
+            <EditablePlugin disabled={disabled} />
+            <ChannelDraftPlugin channelId={channelId} />
         </div>
     );
 };
+
+/**
+ * WYSIWYG message composer (Lexical). Formats apply live — Slack-style, no
+ * visible markers — and serialize to the same markdown-lite dialect RichText
+ * renders, so the wire format is unchanged. Typing markdown (e.g. **bold**)
+ * also live-converts via the shortcut plugin.
+ */
+export const Composer = (props: ComposerProps) => (
+    <LexicalComposer
+        initialConfig={{
+            namespace: 'chatic-composer',
+            theme: COMPOSER_THEME,
+            nodes: COMPOSER_NODES,
+            editable: !props.disabled,
+            onError: (error: Error) => console.error('[composer]', error),
+        }}
+    >
+        <ComposerInner {...props} />
+    </LexicalComposer>
+);

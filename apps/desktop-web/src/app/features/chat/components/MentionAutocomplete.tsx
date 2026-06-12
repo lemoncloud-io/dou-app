@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
@@ -12,94 +12,13 @@ export interface Mentionable {
     thumbnail?: string;
 }
 
-/** The "@query" token under the cursor: [start, end) within the composer text. */
-export interface MentionToken {
-    start: number;
-    end: number;
-    query: string;
-}
-
-/**
- * Find an active @-token ending at the cursor: an "@" that starts a word,
- * followed only by token characters. Returns null when the cursor isn't in one.
- */
-export const findMentionToken = (text: string, cursor: number): MentionToken | null => {
-    const head = text.slice(0, cursor);
-    const at = head.lastIndexOf('@');
-    if (at < 0) return null;
-    if (at > 0 && !/[\s([{]/.test(head[at - 1])) return null;
-    const query = head.slice(at + 1);
-    // \p{L}\p{N} (not \w) so non-ASCII names (한글 etc.) stay inside the token.
-    if (!/^[\p{L}\p{N}_.-]*$/u.test(query)) return null;
-    return { start: at, end: cursor, query };
-};
-
-interface UseMentionAutocompleteArgs {
-    mentionables: Mentionable[];
-    /** Replace the token with the picked mention in the composer text. */
-    onApply: (token: MentionToken, picked: Mentionable) => void;
-}
-
-/**
- * Composer-side state machine for @-autocomplete: the host reports text/cursor
- * via sync(), routes keys through handleKeyDown (returns true when consumed),
- * and renders <MentionAutocomplete> while open.
- */
-export const useMentionAutocomplete = ({ mentionables, onApply }: UseMentionAutocompleteArgs) => {
-    const [token, setToken] = useState<MentionToken | null>(null);
-    const [activeIndex, setActiveIndex] = useState(0);
-
-    // Every match is listed (the dropdown scrolls) — a silent cap reads as
-    // "these are all the members" when it isn't.
-    const items = useMemo(() => {
-        if (!token) return [];
-        const query = token.query.toLowerCase();
-        return query ? mentionables.filter(m => m.name.toLowerCase().includes(query)) : mentionables;
-    }, [token, mentionables]);
-
-    const open = !!token && items.length > 0;
-
-    const sync = (text: string, cursor: number) => {
-        setToken(mentionables.length ? findMentionToken(text, cursor) : null);
-        setActiveIndex(0);
-    };
-
-    const close = () => setToken(null);
-
-    const select = (picked: Mentionable) => {
-        if (!token) return;
-        onApply(token, picked);
-        setToken(null);
-    };
-
-    /** Returns true when the key drove the autocomplete (host must not act on it). */
-    const handleKeyDown = (e: React.KeyboardEvent): boolean => {
-        if (!open) return false;
-        if (e.key === 'ArrowDown') {
-            setActiveIndex(i => (i + 1) % items.length);
-        } else if (e.key === 'ArrowUp') {
-            setActiveIndex(i => (i - 1 + items.length) % items.length);
-        } else if (e.key === 'Enter' || e.key === 'Tab') {
-            select(items[activeIndex]);
-        } else if (e.key === 'Escape') {
-            close();
-        } else {
-            return false;
-        }
-        e.preventDefault();
-        return true;
-    };
-
-    return { open, items, activeIndex, sync, close, select, handleKeyDown };
-};
-
 interface MentionAutocompleteProps {
     items: Mentionable[];
     activeIndex: number;
     onSelect: (picked: Mentionable) => void;
 }
 
-/** Floating roster list above the composer while an @-token is being typed. */
+/** Floating roster list above the caret while an @-token is being typed. */
 export const MentionAutocomplete = ({ items, activeIndex, onSelect }: MentionAutocompleteProps) => {
     // Keep the keyboard-active row visible while the list scrolls.
     const activeRef = useRef<HTMLButtonElement>(null);
@@ -118,7 +37,7 @@ export const MentionAutocomplete = ({ items, activeIndex, onSelect }: MentionAut
                     type="button"
                     role="option"
                     aria-selected={i === activeIndex}
-                    // mousedown (not click) so the textarea keeps focus through the pick.
+                    // mousedown (not click) so the editor keeps focus through the pick.
                     onMouseDown={e => {
                         e.preventDefault();
                         onSelect(item);
