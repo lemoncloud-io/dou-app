@@ -35,7 +35,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
     const { t } = useTranslation();
     const channelId = channel.id ?? '';
     const closeThread = useThreadStore(s => s.close);
-    const { width, minWidth, maxWidth, startResize, resizeByKey } = useThreadPanelWidth();
+    const { width, minWidth, maxWidth, panelRef, startResize, resizeByKey } = useThreadPanelWidth();
     const { messages } = useChats(channelId);
     const { sendMessage, retryMessage, discardMessage, isSending } = useChatMutations();
 
@@ -65,6 +65,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
 
     return (
         <aside
+            ref={panelRef}
             style={{ width }}
             className="absolute inset-y-0 right-0 z-30 flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline bg-background shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none"
         >
