@@ -78,7 +78,9 @@ export const useDesktopNotifications = (): void => {
 
             const top = maxChatNo(list);
             const prev = seen.current.get(channel.id);
-            seen.current.set(channel.id, top);
+            // Monotonic: a partial snapshot (resync, page-limited cache read) must not
+            // regress the baseline, or the next full snapshot reads as "new" messages.
+            if (prev === undefined || top > prev) seen.current.set(channel.id, top);
 
             // Skip the first snapshot (cache warm-up) — only notify on a real increase.
             if (prev === undefined || top <= prev) return;
@@ -172,6 +174,12 @@ export const useDesktopNotifications = (): void => {
             offJoinUpdated();
             chatSubs.current.forEach(fn => fn());
             chatSubs.current.clear();
+            // Channel ids are per-cloud sequential numbers and collide across clouds,
+            // so a baseline kept across a cloud switch can be regressed by the other
+            // cloud's same-id channel — resurfacing an already-read message as an OS
+            // banner on the way back. Drop baselines with the subs; the first-snapshot
+            // guard re-establishes them on the next run.
+            seen.current.clear();
         };
     }, [channelRepository, chatRepository, joinRepository, isVerified, placeIds]);
 };
