@@ -90,3 +90,6 @@ export const useOnOAuthLogin = (handler: (message: AppMessageData<'OnOAuthLogin'
 
 export const useOnFetchFcmToken = (handler: (message: AppMessageData<'OnFetchFcmToken'>) => void) =>
     useHandleAppMessage('OnFetchFcmToken', handler);
+
+export const useOnNavigate = (handler: (message: AppMessageData<'OnNavigate'>) => void) =>
+    useHandleAppMessage('OnNavigate', handler);
