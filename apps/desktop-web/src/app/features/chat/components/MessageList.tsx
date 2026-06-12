@@ -5,10 +5,10 @@ import { ChevronDown, MessageSquare } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 
-import { Skeleton, useSiteProfileMap } from '../../../shared';
+import { Skeleton, resolveDisplay, useSiteProfileMap } from '../../../shared';
 import { buildMessageRows, isOwnMessage, type MessageViewer, type ThreadMeta } from '../utils';
 import { DateSeparator } from './DateSeparator';
-import { MessageRow } from './MessageRow';
+import { MessageRow, type ThreadMetaView } from './MessageRow';
 
 interface MessageListProps {
     messages: DomainChat[];
@@ -37,6 +37,8 @@ interface MessageListProps {
 
 const NEAR_BOTTOM_PX = 80;
 const LOAD_OLDER_PX = 120;
+/** Slack-style thread footer shows at most this many replier avatars. */
+const MAX_FOOTER_REPLIERS = 3;
 
 export const MessageList = ({
     messages,
@@ -80,6 +82,33 @@ export const MessageList = ({
         () => buildMessageRows(messages, viewer, names, baselineReadNo, membersLoading, placeProfiles),
         [messages, viewer, names, baselineReadNo, membersLoading, placeProfiles]
     );
+
+    // Resolve thread repliers for the footer avatar stack the same way message
+    // authors resolve: Place Profile override → roster name → viewer (own replies,
+    // whose ownerId may be either the account or cloud id — see isOwnMessage).
+    const threadMetaView = useMemo(() => {
+        if (!threadMeta) return undefined;
+        const view = new Map<string, ThreadMetaView>();
+        for (const [rootKey, meta] of threadMeta) {
+            const repliers = meta.repliers.slice(0, MAX_FOOTER_REPLIERS).map(replier => {
+                const isMine = replier.id === viewer.uid || (!!viewer.cloudUid && replier.id === viewer.cloudUid);
+                const place = isMine
+                    ? ((viewer.cloudUid ? placeProfiles[viewer.cloudUid] : undefined) ??
+                      (viewer.uid ? placeProfiles[viewer.uid] : undefined))
+                    : placeProfiles[replier.id];
+                const fallbackName = isMine ? viewer.name : (names?.get(replier.id) ?? '');
+                const display = resolveDisplay(place, fallbackName, replier.thumbnail);
+                return {
+                    key: replier.id,
+                    name: display.name,
+                    thumbnail: display.thumbnail,
+                    colorSeed: isMine ? viewer.cloudUid || viewer.uid || replier.id : replier.id,
+                };
+            });
+            view.set(rootKey, { count: meta.count, lastReplyAt: meta.lastReplyAt, repliers });
+        }
+        return view;
+    }, [threadMeta, names, placeProfiles, viewer]);
 
     const maxChatNo = useMemo(() => messages.reduce((m, c) => Math.max(m, c.chatNo ?? 0), 0), [messages]);
 
@@ -224,7 +253,7 @@ export const MessageList = ({
                             group={row.group}
                             onRetry={onRetry}
                             onDiscard={onDiscard}
-                            threadMeta={threadMeta}
+                            threadMeta={threadMetaView}
                             onOpenThread={onOpenThread}
                         />
                     );

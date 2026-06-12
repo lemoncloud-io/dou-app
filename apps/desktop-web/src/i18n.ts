@@ -56,6 +56,8 @@ const resources = {
             'chat.thread.replyCount_other': '{{count}} replies',
             'chat.thread.openThread_one': 'Open thread · {{count}} reply',
             'chat.thread.openThread_other': 'Open thread · {{count}} replies',
+            'chat.thread.lastReplyAt': 'Last reply at {{time}}',
+            'chat.thread.view': 'View thread',
             'chat.thread.composerPlaceholder': 'Reply…',
             'chat.thread.unavailable': "This message isn't loaded yet — scroll up in the channel to load it.",
             'chat.newMessages': 'New messages',

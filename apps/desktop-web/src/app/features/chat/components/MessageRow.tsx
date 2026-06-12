@@ -1,15 +1,30 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Check, Copy, MessageSquare, Reply, Trash2 } from 'lucide-react';
+import { Check, ChevronRight, Copy, MessageSquare, Reply, Trash2 } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
-import { threadRootId, type MessageGroup, type ThreadMeta } from '../utils';
+import { threadRootId, type MessageGroup } from '../utils';
 import { Skeleton, UserProfilePopover, avatarStyle } from '../../../shared';
 import { RichText } from './RichText';
+
+/** A thread reply author, display-resolved (Place Profile / roster / viewer). */
+export interface ThreadReplierView {
+    key: string;
+    name: string;
+    thumbnail?: string;
+    colorSeed: string;
+}
+
+/** ThreadMeta with repliers resolved for rendering — built by MessageList. */
+export interface ThreadMetaView {
+    count: number;
+    lastReplyAt: number;
+    repliers: ThreadReplierView[];
+}
 
 interface MessageRowProps {
     group: MessageGroup;
@@ -17,7 +32,7 @@ interface MessageRowProps {
     /** Remove an unsent (failed / stuck-pending) message from the local cache. */
     onDiscard?: (message: DomainChat) => void;
     /** root id → loaded reply aggregate; a message with an entry shows a thread footer. */
-    threadMeta?: ReadonlyMap<string, ThreadMeta>;
+    threadMeta?: ReadonlyMap<string, ThreadMetaView>;
     /** Open the thread for a root id. Absent inside the thread panel (no nested replies). */
     onOpenThread?: (rootId: string) => void;
 }
@@ -153,57 +168,97 @@ export const MessageRow = memo(({ group, onRetry, onDiscard, threadMeta, onOpenT
                                     </span>
                                 )}
                                 {meta && onOpenThread && (
+                                    // Slack-style thread bar: replier avatars + count, with a
+                                    // bordered card + "View thread" + chevron surfacing on hover.
                                     <button
                                         type="button"
                                         onClick={() => onOpenThread(threadRootId(message))}
-                                        title={t('chat.thread.openThread', { count: meta.count })}
                                         aria-label={t('chat.thread.openThread', { count: meta.count })}
-                                        className="focus-ring tactile mt-1 inline-flex items-center gap-1.5 rounded-md py-0.5 pr-1 text-caption font-medium text-primary-ink transition-colors ease-tactile hover:underline"
+                                        className="group/thread focus-ring tactile -mx-1.5 mt-1 flex w-full max-w-md items-center gap-2 rounded-md border border-transparent px-1.5 py-1 text-left text-caption transition-colors ease-tactile hover:border-hairline hover:bg-elevated hover:shadow-raised"
                                     >
-                                        <MessageSquare size={13} aria-hidden />
-                                        <span className="tabular-nums">
+                                        {meta.repliers.length > 0 ? (
+                                            <span className="flex shrink-0 items-center gap-0.5">
+                                                {meta.repliers.map(replier => (
+                                                    <Avatar key={replier.key} className="h-5 w-5 rounded">
+                                                        {replier.thumbnail && (
+                                                            <AvatarImage src={replier.thumbnail} alt={replier.name} />
+                                                        )}
+                                                        <AvatarFallback
+                                                            className="rounded text-[9px] font-semibold"
+                                                            style={avatarStyle(replier.colorSeed)}
+                                                        >
+                                                            {replier.name.charAt(0).toUpperCase() || '?'}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                ))}
+                                            </span>
+                                        ) : (
+                                            <MessageSquare
+                                                size={14}
+                                                aria-hidden
+                                                className="shrink-0 text-primary-ink"
+                                            />
+                                        )}
+                                        <span className="shrink-0 font-semibold tabular-nums text-primary-ink group-hover/thread:underline">
                                             {t('chat.thread.replyCount', { count: meta.count })}
                                         </span>
                                         {meta.lastReplyAt > 0 && (
-                                            <span className="text-muted-foreground">
-                                                · {formatTime(meta.lastReplyAt)}
+                                            <span className="truncate text-muted-foreground group-hover/thread:hidden">
+                                                {t('chat.thread.lastReplyAt', {
+                                                    time: formatTime(meta.lastReplyAt),
+                                                })}
                                             </span>
                                         )}
+                                        <span className="hidden truncate text-muted-foreground group-hover/thread:inline">
+                                            {t('chat.thread.view')}
+                                        </span>
+                                        <ChevronRight
+                                            size={14}
+                                            aria-hidden
+                                            className="ml-auto hidden shrink-0 text-muted-foreground group-hover/thread:block"
+                                        />
                                     </button>
                                 )}
-                                <div className="absolute right-0 top-0 flex items-center gap-0.5">
-                                    {onOpenThread && message.id && !isPending && !isFailed && (
-                                        <button
-                                            type="button"
-                                            onClick={() => onOpenThread(threadRootId(message))}
-                                            title={t('chat.thread.replyAction')}
-                                            aria-label={t('chat.thread.replyAction')}
-                                            className="focus-ring tactile border-hairline flex h-7 w-7 items-center justify-center rounded border bg-elevated text-muted-foreground shadow-raised transition-opacity ease-tactile hover:bg-accent/40 hover:text-foreground opacity-100 focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:opacity-100"
-                                        >
-                                            <Reply size={12} />
-                                        </button>
-                                    )}
-                                    {content && (
-                                        <button
-                                            type="button"
-                                            onClick={() => copy(key, content)}
-                                            title={isCopied ? t('chat.copied') : t('chat.copy')}
-                                            aria-label={t('chat.copy')}
-                                            className={cn(
-                                                'focus-ring tactile border-hairline flex h-7 w-7 items-center justify-center rounded border bg-elevated text-muted-foreground shadow-raised transition-opacity ease-tactile hover:bg-accent/40 hover:text-foreground',
-                                                isCopied
-                                                    ? 'opacity-100'
-                                                    : 'opacity-100 focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:opacity-100'
-                                            )}
-                                        >
-                                            {isCopied ? (
-                                                <Check size={12} className="text-primary-ink" />
-                                            ) : (
-                                                <Copy size={12} />
-                                            )}
-                                        </button>
-                                    )}
-                                </div>
+                                {/* Slack-style action toolbar: one elevated pill floating over
+                                    the message's top-right corner, shown while the row is hovered
+                                    (or any action inside holds focus). */}
+                                {((onOpenThread && message.id && !isPending && !isFailed) || content) && (
+                                    <div
+                                        className={cn(
+                                            'absolute -top-3.5 right-0 z-10 flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-opacity ease-tactile',
+                                            isCopied
+                                                ? 'opacity-100'
+                                                : 'opacity-100 focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:opacity-100'
+                                        )}
+                                    >
+                                        {onOpenThread && message.id && !isPending && !isFailed && (
+                                            <button
+                                                type="button"
+                                                onClick={() => onOpenThread(threadRootId(message))}
+                                                title={t('chat.thread.replyAction')}
+                                                aria-label={t('chat.thread.replyAction')}
+                                                className="focus-ring tactile flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                                            >
+                                                <Reply size={15} />
+                                            </button>
+                                        )}
+                                        {content && (
+                                            <button
+                                                type="button"
+                                                onClick={() => copy(key, content)}
+                                                title={isCopied ? t('chat.copied') : t('chat.copy')}
+                                                aria-label={t('chat.copy')}
+                                                className="focus-ring tactile flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                                            >
+                                                {isCopied ? (
+                                                    <Check size={15} className="text-primary-ink" />
+                                                ) : (
+                                                    <Copy size={15} />
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         );
                     })}

@@ -33,11 +33,20 @@ const byChatNo = (a: DomainChat, b: DomainChat): number => {
     return (a.createdAt ?? 0) - (b.createdAt ?? 0);
 };
 
+export interface ThreadReplier {
+    /** Reply author (`ownerId`); replies without one are counted but not listed. */
+    id: string;
+    /** `owner$` thumbnail when embedded on a loaded reply (persisted only). */
+    thumbnail?: string;
+}
+
 export interface ThreadMeta {
     /** Replies currently loaded under this root. Can under-count old threads. */
     count: number;
     /** `createdAt` of the newest loaded reply. */
     lastReplyAt: number;
+    /** Unique reply authors in first-seen order — feeds the footer avatar stack. */
+    repliers: ThreadReplier[];
 }
 
 /**
@@ -60,12 +69,16 @@ export const buildThreadIndex = (messages: DomainChat[]): Map<string, ThreadMeta
         if (!parentId) continue;
         const key = idToChatNo.get(parentId) ?? parentId;
         const at = replyTime(message);
-        const prev = index.get(key);
-        if (prev) {
-            prev.count += 1;
-            if (at > prev.lastReplyAt) prev.lastReplyAt = at;
-        } else {
-            index.set(key, { count: 1, lastReplyAt: at });
+        const prev = index.get(key) ?? { count: 0, lastReplyAt: 0, repliers: [] };
+        if (prev.count === 0) index.set(key, prev);
+        prev.count += 1;
+        if (at > prev.lastReplyAt) prev.lastReplyAt = at;
+        if (message.ownerId) {
+            const seen = prev.repliers.find(r => r.id === message.ownerId);
+            const thumbnail = message.owner$?.thumbnail;
+            if (!seen) prev.repliers.push({ id: message.ownerId, thumbnail });
+            // Optimistic replies carry no owner$ — backfill once the persisted copy lands.
+            else if (!seen.thumbnail && thumbnail) seen.thumbnail = thumbnail;
         }
     }
     return index;
