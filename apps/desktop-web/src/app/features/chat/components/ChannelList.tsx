@@ -6,6 +6,7 @@ import { cn } from '@chatic/lib/utils';
 import { useTick } from '@chatic/shared';
 
 import { Skeleton, relativeTime } from '../../../shared';
+import { SearchDialog } from '../../search';
 import { QuickSwitcher } from './QuickSwitcher';
 
 interface ChannelListProps {
@@ -90,6 +91,7 @@ export const ChannelList = ({
         // channel list + select handler already are; it renders only when opened.
         <nav aria-label={t('sidebar.channels')} onKeyDown={onKeyDown} className="flex flex-col gap-0.5 p-2">
             <QuickSwitcher channels={channels} onSelect={onSelect} />
+            <SearchDialog channels={channels} onSelect={onSelect} />
             {filtered.map(channel => {
                 const id = channel.id ?? '';
                 const isActive = id === selectedChannelId;
