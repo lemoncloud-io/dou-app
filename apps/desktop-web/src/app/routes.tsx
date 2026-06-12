@@ -42,6 +42,8 @@ const WelcomePage = lazy(() => import('./features/auth').then(m => ({ default: m
 const InviteLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.InviteLoginPage })));
 const TokenLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.TokenLoginPage })));
 const DebugLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.DebugLoginPage })));
+const OAuthResponsePage = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthResponsePage })));
+const OAuthDeeplinkListener = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthDeeplinkListener })));
 const DebugStatePage = lazy(() => import('./features/debug').then(m => ({ default: m.DebugStatePage })));
 const DebugChatPage = lazy(() => import('./features/debug').then(m => ({ default: m.DebugChatPage })));
 const DebugBadgeCountPage = lazy(() => import('./features/debug').then(m => ({ default: m.DebugBadgeCountPage })));
@@ -53,6 +55,10 @@ export const AppRouter = () => {
         <Router>
             {isAuthenticated && <NotificationOpenListener />}
             <Suspense fallback={<AppShellSkeleton />}>
+                {/* Social Login deeplink (chatic://oauth) — pre-auth it signs in (router
+                    flips branches); in-app (guest linking from Profile) it swaps the
+                    session and reloads. */}
+                <OAuthDeeplinkListener />
                 <Routes>
                     {isAuthenticated ? (
                         <>
@@ -62,6 +68,10 @@ export const AppRouter = () => {
                             {import.meta.env.DEV && <Route path="/debug" element={<DebugStatePage />} />}
                             {import.meta.env.DEV && <Route path="/debug/chat" element={<DebugChatPage />} />}
                             {import.meta.env.DEV && <Route path="/debug/badge" element={<DebugBadgeCountPage />} />}
+                            {/* OAuth hand-off must work even with a (possibly stale) authenticated
+                                session in this browser — the relay return would otherwise bounce
+                                to home and lose the code before it reaches the shell. */}
+                            <Route path="/auth/oauth-response" element={<OAuthResponsePage />} />
                             {/* Once authenticated, leave the auth screens — fixes invite login not advancing. */}
                             <Route path="/auth/*" element={<Navigate to="/" replace />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
@@ -71,6 +81,7 @@ export const AppRouter = () => {
                             <Route path="/auth/token/:token" element={<TokenLoginPage />} />
                             <Route path="/auth/welcome" element={<WelcomePage />} />
                             <Route path="/auth/login" element={<InviteLoginPage />} />
+                            <Route path="/auth/oauth-response" element={<OAuthResponsePage />} />
                             {import.meta.env.DEV && <Route path="/auth/debug" element={<DebugLoginPage />} />}
                             <Route path="*" element={<Navigate to="/auth/welcome" replace />} />
                         </>

@@ -16,6 +16,7 @@ import {
     useSiteProfileMap,
     useSiteProfiles,
 } from '../../../shared';
+import { GoogleIcon, isSocialLoginEnabled, useSocialLogin } from '../../auth';
 import { EditPlaceProfileDialog, PlaceChip } from '../components';
 import { useEditPlaceProfileDialogStore } from '../stores';
 
@@ -61,6 +62,7 @@ export const ProfilePage = () => {
     const profile = useWebCoreStore(s => s.profile);
     const [copied, copy] = useCopyToClipboard();
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
+    const { start: startSocialLogin } = useSocialLogin();
 
     // Keep the display store fed on this route too — HomePage's subscription is
     // unmounted here, so without this the optimistic self-edit would not reflect
@@ -76,6 +78,10 @@ export const ProfilePage = () => {
     const name = user?.name ?? fallback;
     const email = user?.email || t('profile.notSet');
     const uid = profile?.uid ?? fallback;
+    // No email on the account ⇒ a Guest Session (Social Login backfills the
+    // email) — offer the in-app Google link (ADR 0009; replaces the session).
+    // Dev-only until the backend can restore joined clouds (see oauth.ts).
+    const showSocialLogin = !user?.email && isSocialLoginEnabled();
 
     // Effective display = my Place Profile when active, else the global identity.
     const globalName = isPlaceholderName(user?.name) ? '' : (user?.name ?? '');
@@ -108,13 +114,20 @@ export const ProfilePage = () => {
                     </div>
                     <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5">
                         <Avatar className="h-16 w-16 rounded-xl ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
-                            {displayPhoto && <AvatarImage src={displayPhoto} alt={displayName} className="rounded-xl" />}
-                            <AvatarFallback className="rounded-xl text-xl font-semibold" style={avatarStyle(profile?.uid || displayName)}>
+                            {displayPhoto && (
+                                <AvatarImage src={displayPhoto} alt={displayName} className="rounded-xl" />
+                            )}
+                            <AvatarFallback
+                                className="rounded-xl text-xl font-semibold"
+                                style={avatarStyle(profile?.uid || displayName)}
+                            >
                                 {initial}
                             </AvatarFallback>
                         </Avatar>
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <span className="truncate text-lg font-bold tracking-tight text-foreground">{displayName}</span>
+                            <span className="truncate text-lg font-bold tracking-tight text-foreground">
+                                {displayName}
+                            </span>
                             <span className="text-xs text-muted-foreground">
                                 {hasPlaceProfile
                                     ? t('profile.thisPlaceHint', { place: placeLabel })
@@ -145,6 +158,23 @@ export const ProfilePage = () => {
                             copiedLabel={t('profile.copied')}
                         />
                     </div>
+                    {showSocialLogin && (
+                        <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
+                            <div className="flex min-w-0 flex-col gap-0.5">
+                                <span className="text-sm font-medium text-foreground">{t('profile.signInGoogle')}</span>
+                                <span className="text-xs text-muted-foreground">{t('profile.signInGoogleHint')}</span>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="shrink-0 gap-2"
+                                onClick={() => startSocialLogin('google')}
+                            >
+                                <GoogleIcon />
+                                {t('auth.social.google')}
+                            </Button>
+                        </div>
+                    )}
                 </section>
             </div>
 

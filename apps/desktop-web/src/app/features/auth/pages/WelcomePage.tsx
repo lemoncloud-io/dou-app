@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
 
-import { AuthCard } from '../components';
+import { AuthCard, GoogleIcon } from '../components';
 import { useGuestLogin } from '../hooks/useGuestLogin';
+import { useSocialLogin } from '../hooks/useSocialLogin';
+import { isSocialLoginEnabled } from '../utils';
 
 /**
  * First-run landing. Offers a one-tap guest start (device-register into the
@@ -15,6 +17,7 @@ export const WelcomePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { submit, isSubmitting, isError } = useGuestLogin();
+    const { start: startSocialLogin } = useSocialLogin();
 
     return (
         <AuthCard title={t('welcome.title')} subtitle={t('welcome.subtitle')}>
@@ -32,6 +35,20 @@ export const WelcomePage = () => {
                 >
                     {isSubmitting ? t('welcome.starting') : isError ? t('welcome.retry') : t('welcome.start')}
                 </button>
+                {isSocialLoginEnabled() && (
+                    <button
+                        type="button"
+                        onClick={() => startSocialLogin('google')}
+                        disabled={isSubmitting}
+                        className={cn(
+                            'flex h-11 items-center justify-center gap-2 rounded-full border border-border text-sm font-medium text-foreground',
+                            'transition-colors hover:bg-accent disabled:opacity-50'
+                        )}
+                    >
+                        <GoogleIcon />
+                        {t('auth.social.google')}
+                    </button>
+                )}
                 <button
                     type="button"
                     onClick={() => navigate('/auth/login')}

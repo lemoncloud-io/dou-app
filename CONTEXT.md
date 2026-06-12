@@ -59,6 +59,14 @@ _Avoid_: join link, token
 
 ## People & Identity
 
+**Social Login**:
+Signing in with an external identity provider (e.g. Google) instead of a Guest Session or Invite Code. Produces a full account-backed session; a Social Login user and a Guest Session on the same device are distinct users with no data merge.
+_Avoid_: SNS login, OAuth login (ambiguous with the relay mechanics)
+
+**OAuth Relay**:
+The hosted service that fronts every identity provider for all clients (`oauth2.eureka.codes`). Clients never talk to Google/Kakao directly: they send the browser to the relay's authorize URL with a `redirect` back-address, and the relay returns a one-time `code` the client exchanges at the backend for tokens. Provider console registration lives with the relay, not with each client.
+_Avoid_: relay (alone — collides with the broker/socket relay), oauth server
+
 **Profile**:
 The signed-in user's own account view, rich with their own data (name, email, user id). Rendered as a full page. Editable scope is the user's own data only.
 _Avoid_: my page, account settings
