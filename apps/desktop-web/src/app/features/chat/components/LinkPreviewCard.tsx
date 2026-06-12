@@ -12,8 +12,18 @@ export interface UrlMetadata {
 
 // Module-level caches: previews are immutable per URL within a session, and a
 // failed unfurl is cached too (null) so scrolling never re-asks the shell.
+// Bounded: oldest entry evicted past the cap (long sessions with many links).
+const METADATA_CACHE_MAX = 500;
 const metadataCache = new Map<string, UrlMetadata | null>();
 const inFlight = new Map<string, Promise<UrlMetadata | null>>();
+
+const storeMetadata = (url: string, meta: UrlMetadata | null) => {
+    if (metadataCache.size >= METADATA_CACHE_MAX) {
+        const oldest = metadataCache.keys().next().value;
+        if (oldest !== undefined) metadataCache.delete(oldest);
+    }
+    metadataCache.set(url, meta);
+};
 
 const requestMetadata = (url: string): Promise<UrlMetadata | null> => {
     const cached = metadataCache.get(url);
@@ -35,7 +45,7 @@ const requestMetadata = (url: string): Promise<UrlMetadata | null> => {
         })
         .catch(() => null)
         .then(meta => {
-            metadataCache.set(url, meta);
+            storeMetadata(url, meta);
             inFlight.delete(url);
             return meta;
         });

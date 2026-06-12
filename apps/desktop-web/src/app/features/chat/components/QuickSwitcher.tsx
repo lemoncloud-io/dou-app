@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Hash, Search } from 'lucide-react';
@@ -35,7 +35,6 @@ export const QuickSwitcher = ({ channels, onSelect }: QuickSwitcherProps) => {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
-    const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
@@ -85,7 +84,6 @@ export const QuickSwitcher = ({ channels, onSelect }: QuickSwitcherProps) => {
                 <div className="flex items-center gap-2 border-b border-hairline px-2 pb-2">
                     <Search size={16} className="shrink-0 text-muted-foreground" aria-hidden />
                     <input
-                        ref={inputRef}
                         autoFocus
                         value={query}
                         onChange={e => {

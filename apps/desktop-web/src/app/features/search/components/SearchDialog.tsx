@@ -94,42 +94,42 @@ export const SearchDialog = ({ channels, onSelect }: SearchDialogProps) => {
                     <p className="px-3 py-4 text-center text-caption text-muted-foreground">{t('search.noResults')}</p>
                 ) : (
                     <div className="scrollbar-thin flex flex-col gap-2 overflow-y-auto">
-                        {results.map(result => (
-                            <section key={result.channel.id} className="flex flex-col">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        if (result.channel.id) onSelect(result.channel.id);
-                                        setOpen(false);
-                                    }}
-                                    className="focus-ring tactile flex items-center gap-1.5 rounded-md px-3 py-1.5 text-left text-caption font-semibold text-foreground transition-colors ease-tactile hover:bg-accent/60"
-                                >
-                                    <Hash size={12} className="shrink-0 text-muted-foreground" aria-hidden />
-                                    <span className="truncate">{result.channel.name ?? result.channel.id}</span>
-                                    <span className="ml-auto shrink-0 font-normal tabular-nums text-muted-foreground">
-                                        {t('search.matchCount', { count: result.matchCount })}
-                                    </span>
-                                </button>
-                                {result.matches.map(chat => (
+                        {results.map(result => {
+                            const pickChannel = () => {
+                                if (result.channel.id) onSelect(result.channel.id);
+                                setOpen(false);
+                            };
+                            return (
+                                <section key={result.channel.id} className="flex flex-col">
                                     <button
-                                        key={chat.id ?? chat.tempId ?? chat.chatNo}
                                         type="button"
-                                        onClick={() => {
-                                            if (result.channel.id) onSelect(result.channel.id);
-                                            setOpen(false);
-                                        }}
-                                        className="focus-ring tactile flex items-baseline gap-2 rounded-md py-1 pl-7 pr-3 text-left transition-colors ease-tactile hover:bg-accent/60"
+                                        onClick={pickChannel}
+                                        className="focus-ring tactile flex items-center gap-1.5 rounded-md px-3 py-1.5 text-left text-caption font-semibold text-foreground transition-colors ease-tactile hover:bg-accent/60"
                                     >
-                                        <span className="min-w-0 flex-1 truncate text-callout text-muted-foreground">
-                                            {highlight(chat.content ?? '', trimmed)}
-                                        </span>
-                                        <span className="shrink-0 text-micro tabular-nums text-muted-foreground">
-                                            {formatTime(chat.createdAt ?? chat.createdAtMs)}
+                                        <Hash size={12} className="shrink-0 text-muted-foreground" aria-hidden />
+                                        <span className="truncate">{result.channel.name ?? result.channel.id}</span>
+                                        <span className="ml-auto shrink-0 font-normal tabular-nums text-muted-foreground">
+                                            {t('search.matchCount', { count: result.matchCount })}
                                         </span>
                                     </button>
-                                ))}
-                            </section>
-                        ))}
+                                    {result.matches.map(chat => (
+                                        <button
+                                            key={chat.id ?? chat.tempId ?? chat.chatNo}
+                                            type="button"
+                                            onClick={pickChannel}
+                                            className="focus-ring tactile flex items-baseline gap-2 rounded-md py-1 pl-7 pr-3 text-left transition-colors ease-tactile hover:bg-accent/60"
+                                        >
+                                            <span className="min-w-0 flex-1 truncate text-callout text-muted-foreground">
+                                                {highlight(chat.content ?? '', trimmed)}
+                                            </span>
+                                            <span className="shrink-0 text-micro tabular-nums text-muted-foreground">
+                                                {formatTime(chat.createdAt ?? chat.createdAtMs)}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </section>
+                            );
+                        })}
                     </div>
                 )}
             </DialogContent>

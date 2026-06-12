@@ -47,7 +47,7 @@ const isViewing = (channelId: string): boolean =>
  * on channel events would drop the live stream after the first notification.
  */
 export const useDesktopNotifications = (): void => {
-    const { channel: channelRepository, chat: chatRepository } = useRepositories();
+    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
     const { places } = usePlaces();
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const myId = useWebCoreStore(s => s.profile?.id);
@@ -152,12 +152,24 @@ export const useDesktopNotifications = (): void => {
             }
         });
 
+        // Reverse-sync the per-channel notify mode: another device changing
+        // join.notify lands here as join:update — mirror it into the local
+        // prefs (which win at notify time) so devices don't drift. Guarded on
+        // change: read receipts also remap to join:update constantly.
+        const offJoinUpdated = joinRepository.onJoinUpdated(join => {
+            const notify = join.notify;
+            if (!join.channelId || (notify !== 'all' && notify !== 'mention' && notify !== 'none')) return;
+            const prefs = useNotificationPrefsStore.getState();
+            if (prefs.channelNotify[join.channelId] !== notify) prefs.setChannelNotify(join.channelId, notify);
+        });
+
         return () => {
             active = false;
             offCreated();
             offDeleted();
+            offJoinUpdated();
             chatSubs.current.forEach(fn => fn());
             chatSubs.current.clear();
         };
-    }, [channelRepository, chatRepository, isVerified, placeIds]);
+    }, [channelRepository, chatRepository, joinRepository, isVerified, placeIds]);
 };
