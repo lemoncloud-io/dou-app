@@ -41,15 +41,29 @@ export const chatHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEve
         return;
     }
 
+    /**
+     * - 서버가 거부한 요청(예: invite/update-join 권한 거부, parentId 미해결)은
+     *   에러 메시지가 벗겨진 data:null 프레임으로 돌아온다. null을 도메인 이벤트로
+     *   fan-out하면 리스너들이 일괄 크래시하고, 대기 중인 ref는 null로 "성공"
+     *   resolve된다 — 에러로 돌려 ref를 reject시키고 전파를 차단한다.
+     */
+    if (!payload) {
+        eventBus.emit('chat:error', {
+            ...detail,
+            payload: payload as ChatErrorPayload,
+            error: `Empty ${action} payload`,
+        });
+        return;
+    }
+
     switch (action) {
         // 채팅 메시지 전송 및 생성 처리
         case 'send': {
             const chatView = payload as ChatView;
-            // 서버가 거부한 전송(예: parentId 미해결 404)은 data:null 프레임으로
-            // 돌아온다. null을 chat:create로 fan-out하면 리스너들이 깨지고, ref가
-            // null로 "성공" resolve되어 낙관 메시지가 isPending에 고착된다 — 에러로
-            // 돌려 pending ref를 reject시키고(기존 isFailed+Retry 계약) 전파를 차단.
-            if (!chatView?.id) {
+            // id 없는 응답이 ref를 "성공" resolve하면 낙관행 교체가 조용히 no-op
+            // 되어 메시지가 isPending에 고착된다(null은 위에서 차단됨) — 에러로
+            // 돌려 기존 isFailed+Retry 계약을 태운다.
+            if (!chatView.id) {
                 eventBus.emit('chat:error', {
                     ...detail,
                     payload: payload as ChatErrorPayload,
