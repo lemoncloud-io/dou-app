@@ -1,5 +1,5 @@
 /** Group tokens that mention everyone in the channel (Slack convention). */
-const GROUP_MENTIONS = ['@channel', '@here', '@everyone'];
+export const GROUP_MENTIONS = ['@channel', '@here', '@everyone'];
 
 /**
  * Best-effort "does this message mention me" check, used by the

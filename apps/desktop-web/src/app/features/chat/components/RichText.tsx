@@ -1,12 +1,15 @@
 import { Fragment, type ReactNode } from 'react';
 
+import { cn } from '@chatic/lib/utils';
+
+import { GROUP_MENTIONS } from '../../../shared';
 import { LinkPreviewCard } from './LinkPreviewCard';
 
 // One pass over a non-code run: bold, italic, strikethrough, links, @mentions.
 // Bold is listed before italic so `**x**` matches as bold, not italic.
 const INLINE = /(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(~~[^~\n]+~~)|(https?:\/\/[^\s]+)|(@[\w.-]+)/g;
 
-const renderInline = (text: string, keyBase: string): ReactNode[] => {
+const renderInline = (text: string, keyBase: string, selfNames?: string[]): ReactNode[] => {
     const nodes: ReactNode[] = [];
     let last = 0;
     INLINE.lastIndex = 0;
@@ -38,8 +41,18 @@ const renderInline = (text: string, keyBase: string): ReactNode[] => {
                 </a>
             );
         } else {
+            // My own name (or @channel/@here) reads louder — Slack-style callout.
+            const isSelf =
+                !!selfNames?.length &&
+                (GROUP_MENTIONS.includes(mention.toLowerCase()) || selfNames.includes(mention.slice(1).toLowerCase()));
             nodes.push(
-                <span key={key} className="rounded bg-primary/10 px-1 font-medium text-primary-ink">
+                <span
+                    key={key}
+                    className={cn(
+                        'rounded px-1 font-medium',
+                        isSelf ? 'bg-warning/30 text-foreground' : 'bg-primary/10 text-primary-ink'
+                    )}
+                >
                     {mention}
                 </span>
             );
@@ -52,20 +65,20 @@ const renderInline = (text: string, keyBase: string): ReactNode[] => {
 
 // Backtick `code` spans split out first so markdown inside them stays literal —
 // odd split indices are the captured spans.
-const renderCodeRuns = (text: string, keyBase: string): ReactNode[] =>
+const renderCodeRuns = (text: string, keyBase: string, selfNames?: string[]): ReactNode[] =>
     text.split(/(`[^`\n]+`)/g).map((part, idx) =>
         idx % 2 === 1 ? (
             <code key={`${keyBase}-${idx}`} className="rounded bg-well px-1 py-0.5 font-mono text-[0.85em]">
                 {part.slice(1, -1)}
             </code>
         ) : (
-            <Fragment key={`${keyBase}-${idx}`}>{renderInline(part, `${keyBase}-${idx}`)}</Fragment>
+            <Fragment key={`${keyBase}-${idx}`}>{renderInline(part, `${keyBase}-${idx}`, selfNames)}</Fragment>
         )
     );
 
 // Group consecutive "> " lines into one quote block; other lines flow as-is
 // (the host preserves their newlines via whitespace-pre-wrap).
-const renderQuoteRuns = (text: string, keyBase: string): ReactNode[] => {
+const renderQuoteRuns = (text: string, keyBase: string, selfNames?: string[]): ReactNode[] => {
     const nodes: ReactNode[] = [];
     let plain: string[] = [];
     let quote: string[] = [];
@@ -74,7 +87,7 @@ const renderQuoteRuns = (text: string, keyBase: string): ReactNode[] => {
         if (!plain.length) return;
         nodes.push(
             <Fragment key={`${keyBase}-p${block++}`}>
-                {renderCodeRuns(plain.join('\n'), `${keyBase}-p${block}`)}
+                {renderCodeRuns(plain.join('\n'), `${keyBase}-p${block}`, selfNames)}
             </Fragment>
         );
         plain = [];
@@ -87,7 +100,7 @@ const renderQuoteRuns = (text: string, keyBase: string): ReactNode[] => {
                 key={`${keyBase}-q${block++}`}
                 className="my-0.5 block border-l-2 border-primary/40 pl-2 text-muted-foreground"
             >
-                {renderCodeRuns(quote.join('\n'), `${keyBase}-q${block}`)}
+                {renderCodeRuns(quote.join('\n'), `${keyBase}-q${block}`, selfNames)}
             </span>
         );
         quote = [];
@@ -109,6 +122,8 @@ const renderQuoteRuns = (text: string, keyBase: string): ReactNode[] => {
 
 interface RichTextProps {
     content: string;
+    /** Lowercased names that count as "me" — my mentions render highlighted. */
+    selfNames?: string[];
 }
 
 /**
@@ -119,7 +134,7 @@ interface RichTextProps {
  * @mentions). Block elements render as display:block <span>s because the host
  * wraps messages in a <p>.
  */
-export const RichText = ({ content }: RichTextProps): ReactNode => {
+export const RichText = ({ content, selfNames }: RichTextProps): ReactNode => {
     if (!content) return null;
     // Unfurl the first link only (Slack-style single card per message).
     const firstUrl = content.match(/https?:\/\/[^\s]+/)?.[0];
@@ -137,7 +152,7 @@ export const RichText = ({ content }: RichTextProps): ReactNode => {
                         </span>
                     );
                 }
-                return <Fragment key={idx}>{renderQuoteRuns(part, String(idx))}</Fragment>;
+                return <Fragment key={idx}>{renderQuoteRuns(part, String(idx), selfNames)}</Fragment>;
             })}
             {firstUrl && <LinkPreviewCard url={firstUrl} />}
         </>

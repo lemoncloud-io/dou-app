@@ -35,6 +35,8 @@ interface MessageRowProps {
     threadMeta?: ReadonlyMap<string, ThreadMetaView>;
     /** Open the thread for a root id. Absent inside the thread panel (no nested replies). */
     onOpenThread?: (rootId: string) => void;
+    /** Lowercased names that count as "me" — my mentions render highlighted. */
+    selfNames?: string[];
 }
 
 /**
@@ -51,236 +53,241 @@ const formatTime = (ms: number): string => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-export const MessageRow = memo(({ group, onRetry, onDiscard, threadMeta, onOpenThread }: MessageRowProps) => {
-    const { t } = useTranslation();
-    const [copiedKey, setCopiedKey] = useState<string | null>(null);
-    const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    // Blank the avatar initial while the name resolves so "U" (Unknown) never flashes.
-    const initial = group.namePending ? '' : group.ownerName.charAt(0).toUpperCase() || '?';
-    // Same identity for both popover triggers (avatar + name) — the card must
-    // mirror exactly what this row rendered.
-    const profileProps = {
-        userId: group.ownerId ?? '',
-        fallbackName: group.ownerName,
-        fallbackThumbnail: group.avatar,
-        colorSeed: group.colorSeed,
-    };
+export const MessageRow = memo(
+    ({ group, onRetry, onDiscard, threadMeta, onOpenThread, selfNames }: MessageRowProps) => {
+        const { t } = useTranslation();
+        const [copiedKey, setCopiedKey] = useState<string | null>(null);
+        const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+        // Blank the avatar initial while the name resolves so "U" (Unknown) never flashes.
+        const initial = group.namePending ? '' : group.ownerName.charAt(0).toUpperCase() || '?';
+        // Same identity for both popover triggers (avatar + name) — the card must
+        // mirror exactly what this row rendered.
+        const profileProps = {
+            userId: group.ownerId ?? '',
+            fallbackName: group.ownerName,
+            fallbackThumbnail: group.avatar,
+            colorSeed: group.colorSeed,
+        };
 
-    const copy = (key: string, content: string) => {
-        void navigator.clipboard?.writeText(content).then(() => {
-            setCopiedKey(key);
-            if (copyTimer.current) clearTimeout(copyTimer.current);
-            copyTimer.current = setTimeout(() => setCopiedKey(curr => (curr === key ? null : curr)), 1200);
-        });
-    };
+        const copy = (key: string, content: string) => {
+            void navigator.clipboard?.writeText(content).then(() => {
+                setCopiedKey(key);
+                if (copyTimer.current) clearTimeout(copyTimer.current);
+                copyTimer.current = setTimeout(() => setCopiedKey(curr => (curr === key ? null : curr)), 1200);
+            });
+        };
 
-    // Cancel a pending "copied" reset if this row unmounts mid-feedback.
-    useEffect(
-        () => () => {
-            if (copyTimer.current) clearTimeout(copyTimer.current);
-        },
-        []
-    );
+        // Cancel a pending "copied" reset if this row unmounts mid-feedback.
+        useEffect(
+            () => () => {
+                if (copyTimer.current) clearTimeout(copyTimer.current);
+            },
+            []
+        );
 
-    return (
-        // The full-width hover band is the toolbar's runway: it has to read in
-        // peripheral vision on wide windows, so it is stronger than a typical
-        // list hover.
-        <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 transition-colors ease-tactile hover:bg-accent/70">
-            <UserProfilePopover {...profileProps}>
-                <button type="button" className="focus-ring tactile h-9 w-9 shrink-0 rounded-md">
-                    <Avatar className="h-9 w-9 rounded-md">
-                        {group.avatar && <AvatarImage src={group.avatar} alt={group.ownerName} />}
-                        <AvatarFallback
-                            className="rounded-md text-sm font-semibold"
-                            style={avatarStyle(group.colorSeed)}
-                        >
-                            {initial}
-                        </AvatarFallback>
-                    </Avatar>
-                </button>
-            </UserProfilePopover>
-            <div className="flex min-w-0 flex-1 flex-col">
-                <div className="flex items-baseline gap-2">
-                    {group.namePending ? (
-                        <Skeleton className="h-3.5 w-24 rounded" />
-                    ) : (
-                        <UserProfilePopover {...profileProps}>
-                            <button
-                                type="button"
-                                className="focus-ring truncate rounded text-heading text-foreground hover:underline"
+        return (
+            // The full-width hover band is the toolbar's runway: it has to read in
+            // peripheral vision on wide windows, so it is stronger than a typical
+            // list hover.
+            <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 transition-colors ease-tactile hover:bg-accent/70">
+                <UserProfilePopover {...profileProps}>
+                    <button type="button" className="focus-ring tactile h-9 w-9 shrink-0 rounded-md">
+                        <Avatar className="h-9 w-9 rounded-md">
+                            {group.avatar && <AvatarImage src={group.avatar} alt={group.ownerName} />}
+                            <AvatarFallback
+                                className="rounded-md text-sm font-semibold"
+                                style={avatarStyle(group.colorSeed)}
                             >
-                                {group.ownerName}
-                            </button>
-                        </UserProfilePopover>
-                    )}
-                    <span className="text-caption tabular-nums text-muted-foreground">
-                        {formatTime(group.timestamp)}
-                    </span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                    {group.messages.map((message, i) => {
-                        // A long-pending row is an unsent artifact, not an in-flight
-                        // send — treat it as failed so Retry/Delete are offered.
-                        const isStuck =
-                            !!message.isPending &&
-                            Date.now() - (message.createdAt ?? message.createdAtMs ?? 0) > STUCK_PENDING_MS;
-                        const isPending = message.isPending && !isStuck;
-                        const isFailed = message.isFailed || isStuck;
-                        const key = String(message.id ?? message.tempId ?? message.chatNo);
-                        const content = message.content ?? '';
-                        const isCopied = copiedKey === key;
-                        const msgTime = formatTime(message.createdAt ?? message.createdAtMs);
-                        // A loaded thread hangs off this message → show a reply footer.
-                        // The index is keyed by the root's chatNo string (buildThreadIndex
-                        // normalises optimistic full-id parentIds onto it). threadMeta is only
-                        // supplied for the main feed; the thread panel passes none, so replies
-                        // never get a footer.
-                        const meta = message.chatNo != null ? threadMeta?.get(String(message.chatNo)) : undefined;
-                        return (
-                            // Reserve the toolbar slot: both actions in the main feed, copy
-                            // only in the (narrower) thread panel — a full 80px reserve there
-                            // wastes scarce width.
-                            <div key={key} className={cn('group/msg relative', onOpenThread ? 'pr-20' : 'pr-12')}>
-                                {i > 0 && msgTime && (
-                                    <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-[10px] tabular-nums text-muted-foreground/70 group-hover/msg:block">
-                                        {msgTime}
-                                    </span>
-                                )}
-                                <p
-                                    className={cn(
-                                        'whitespace-pre-wrap break-words text-body',
-                                        isFailed ? 'text-destructive' : 'text-foreground',
-                                        isPending && 'opacity-50'
-                                    )}
+                                {initial}
+                            </AvatarFallback>
+                        </Avatar>
+                    </button>
+                </UserProfilePopover>
+                <div className="flex min-w-0 flex-1 flex-col">
+                    <div className="flex items-baseline gap-2">
+                        {group.namePending ? (
+                            <Skeleton className="h-3.5 w-24 rounded" />
+                        ) : (
+                            <UserProfilePopover {...profileProps}>
+                                <button
+                                    type="button"
+                                    className="focus-ring truncate rounded text-heading text-foreground hover:underline"
                                 >
-                                    <RichText content={content} />
-                                </p>
-                                {/* Slack-style action toolbar: an elevated pill at a FIXED
+                                    {group.ownerName}
+                                </button>
+                            </UserProfilePopover>
+                        )}
+                        <span className="text-caption tabular-nums text-muted-foreground">
+                            {formatTime(group.timestamp)}
+                        </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                        {group.messages.map((message, i) => {
+                            // A long-pending row is an unsent artifact, not an in-flight
+                            // send — treat it as failed so Retry/Delete are offered.
+                            const isStuck =
+                                !!message.isPending &&
+                                Date.now() - (message.createdAt ?? message.createdAtMs ?? 0) > STUCK_PENDING_MS;
+                            const isPending = message.isPending && !isStuck;
+                            const isFailed = message.isFailed || isStuck;
+                            const key = String(message.id ?? message.tempId ?? message.chatNo);
+                            const content = message.content ?? '';
+                            const isCopied = copiedKey === key;
+                            const msgTime = formatTime(message.createdAt ?? message.createdAtMs);
+                            // A loaded thread hangs off this message → show a reply footer.
+                            // The index is keyed by the root's chatNo string (buildThreadIndex
+                            // normalises optimistic full-id parentIds onto it). threadMeta is only
+                            // supplied for the main feed; the thread panel passes none, so replies
+                            // never get a footer.
+                            const meta = message.chatNo != null ? threadMeta?.get(String(message.chatNo)) : undefined;
+                            return (
+                                // Reserve the toolbar slot: both actions in the main feed, copy
+                                // only in the (narrower) thread panel — a full 80px reserve there
+                                // wastes scarce width.
+                                <div key={key} className={cn('group/msg relative', onOpenThread ? 'pr-20' : 'pr-12')}>
+                                    {i > 0 && msgTime && (
+                                        <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-[10px] tabular-nums text-muted-foreground/70 group-hover/msg:block">
+                                            {msgTime}
+                                        </span>
+                                    )}
+                                    <p
+                                        className={cn(
+                                            'whitespace-pre-wrap break-words text-body',
+                                            isFailed ? 'text-destructive' : 'text-foreground',
+                                            isPending && 'opacity-50'
+                                        )}
+                                    >
+                                        <RichText content={content} selfNames={selfNames} />
+                                    </p>
+                                    {/* Slack-style action toolbar: an elevated pill at a FIXED
                                     far-right position (spatial muscle memory), aligned with the
                                     message's first line so it stays inside the hover band. It
                                     slides in on hover — peripheral vision picks up the motion
                                     onset where a static pill goes unnoticed on wide windows. */}
-                                {((onOpenThread && message.id && !isPending && !isFailed) || content) && (
-                                    <div
-                                        className={cn(
-                                            'absolute -top-1.5 right-0 z-10 flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
-                                            isCopied
-                                                ? 'translate-x-0 opacity-100'
-                                                : 'translate-x-0 opacity-100 focus-within:translate-x-0 focus-within:opacity-100 [@media(hover:hover)]:translate-x-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:translate-x-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:translate-x-0 [@media(hover:hover)]:focus-within:opacity-100'
-                                        )}
-                                    >
-                                        {onOpenThread && message.id && !isPending && !isFailed && (
-                                            <button
-                                                type="button"
-                                                onClick={() => onOpenThread(threadRootId(message))}
-                                                title={t('chat.thread.replyAction')}
-                                                aria-label={t('chat.thread.replyAction')}
-                                                className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                                            >
-                                                <Reply size={16} />
-                                            </button>
-                                        )}
-                                        {content && (
-                                            <button
-                                                type="button"
-                                                onClick={() => copy(key, content)}
-                                                title={isCopied ? t('chat.copied') : t('chat.copy')}
-                                                aria-label={t('chat.copy')}
-                                                className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                                            >
-                                                {isCopied ? (
-                                                    <Check size={16} className="text-primary-ink" />
-                                                ) : (
-                                                    <Copy size={16} />
-                                                )}
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                                {isFailed && (
-                                    <span className="mt-0.5 flex items-center gap-1.5 text-caption text-destructive">
-                                        {t('chat.failed')}
-                                        {onRetry && (
-                                            <button
-                                                type="button"
-                                                onClick={() => onRetry(message)}
-                                                className="focus-ring tactile inline-flex min-h-[36px] items-center font-semibold underline underline-offset-2 hover:opacity-80"
-                                            >
-                                                {t('chat.retry')}
-                                            </button>
-                                        )}
-                                        {onDiscard && (
-                                            <button
-                                                type="button"
-                                                onClick={() => onDiscard(message)}
-                                                className="focus-ring tactile inline-flex min-h-[36px] items-center gap-1 font-semibold text-muted-foreground underline underline-offset-2 hover:opacity-80"
-                                            >
-                                                <Trash2 size={12} aria-hidden />
-                                                {t('chat.deleteUnsent')}
-                                            </button>
-                                        )}
-                                    </span>
-                                )}
-                                {meta && onOpenThread && (
-                                    // Slack-style thread bar: replier avatars + count, with a
-                                    // bordered card + "View thread" + chevron surfacing on hover.
-                                    <button
-                                        type="button"
-                                        onClick={() => onOpenThread(threadRootId(message))}
-                                        aria-label={t('chat.thread.openThread', { count: meta.count })}
-                                        className="group/thread focus-ring tactile -mx-1.5 mt-1 flex w-full max-w-md items-center gap-2 rounded-md border border-transparent px-1.5 py-1 text-left text-caption transition-colors ease-tactile hover:border-hairline hover:bg-elevated hover:shadow-raised"
-                                    >
-                                        {meta.repliers.length > 0 ? (
-                                            <span className="flex shrink-0 items-center gap-0.5">
-                                                {meta.repliers.map(replier => (
-                                                    <Avatar key={replier.key} className="h-5 w-5 rounded">
-                                                        {replier.thumbnail && (
-                                                            <AvatarImage src={replier.thumbnail} alt={replier.name} />
-                                                        )}
-                                                        <AvatarFallback
-                                                            className="rounded text-[9px] font-semibold"
-                                                            style={avatarStyle(replier.colorSeed)}
-                                                        >
-                                                            {replier.name.charAt(0).toUpperCase() || '?'}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                ))}
+                                    {((onOpenThread && message.id && !isPending && !isFailed) || content) && (
+                                        <div
+                                            className={cn(
+                                                'absolute -top-1.5 right-0 z-10 flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
+                                                isCopied
+                                                    ? 'translate-x-0 opacity-100'
+                                                    : 'translate-x-0 opacity-100 focus-within:translate-x-0 focus-within:opacity-100 [@media(hover:hover)]:translate-x-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:translate-x-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:translate-x-0 [@media(hover:hover)]:focus-within:opacity-100'
+                                            )}
+                                        >
+                                            {onOpenThread && message.id && !isPending && !isFailed && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onOpenThread(threadRootId(message))}
+                                                    title={t('chat.thread.replyAction')}
+                                                    aria-label={t('chat.thread.replyAction')}
+                                                    className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                                                >
+                                                    <Reply size={16} />
+                                                </button>
+                                            )}
+                                            {content && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => copy(key, content)}
+                                                    title={isCopied ? t('chat.copied') : t('chat.copy')}
+                                                    aria-label={t('chat.copy')}
+                                                    className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                                                >
+                                                    {isCopied ? (
+                                                        <Check size={16} className="text-primary-ink" />
+                                                    ) : (
+                                                        <Copy size={16} />
+                                                    )}
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                    {isFailed && (
+                                        <span className="mt-0.5 flex items-center gap-1.5 text-caption text-destructive">
+                                            {t('chat.failed')}
+                                            {onRetry && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onRetry(message)}
+                                                    className="focus-ring tactile inline-flex min-h-[36px] items-center font-semibold underline underline-offset-2 hover:opacity-80"
+                                                >
+                                                    {t('chat.retry')}
+                                                </button>
+                                            )}
+                                            {onDiscard && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onDiscard(message)}
+                                                    className="focus-ring tactile inline-flex min-h-[36px] items-center gap-1 font-semibold text-muted-foreground underline underline-offset-2 hover:opacity-80"
+                                                >
+                                                    <Trash2 size={12} aria-hidden />
+                                                    {t('chat.deleteUnsent')}
+                                                </button>
+                                            )}
+                                        </span>
+                                    )}
+                                    {meta && onOpenThread && (
+                                        // Slack-style thread bar: replier avatars + count, with a
+                                        // bordered card + "View thread" + chevron surfacing on hover.
+                                        <button
+                                            type="button"
+                                            onClick={() => onOpenThread(threadRootId(message))}
+                                            aria-label={t('chat.thread.openThread', { count: meta.count })}
+                                            className="group/thread focus-ring tactile -mx-1.5 mt-1 flex w-full max-w-md items-center gap-2 rounded-md border border-transparent px-1.5 py-1 text-left text-caption transition-colors ease-tactile hover:border-hairline hover:bg-elevated hover:shadow-raised"
+                                        >
+                                            {meta.repliers.length > 0 ? (
+                                                <span className="flex shrink-0 items-center gap-0.5">
+                                                    {meta.repliers.map(replier => (
+                                                        <Avatar key={replier.key} className="h-5 w-5 rounded">
+                                                            {replier.thumbnail && (
+                                                                <AvatarImage
+                                                                    src={replier.thumbnail}
+                                                                    alt={replier.name}
+                                                                />
+                                                            )}
+                                                            <AvatarFallback
+                                                                className="rounded text-[9px] font-semibold"
+                                                                style={avatarStyle(replier.colorSeed)}
+                                                            >
+                                                                {replier.name.charAt(0).toUpperCase() || '?'}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                    ))}
+                                                </span>
+                                            ) : (
+                                                <MessageSquare
+                                                    size={14}
+                                                    aria-hidden
+                                                    className="shrink-0 text-primary-ink"
+                                                />
+                                            )}
+                                            <span className="shrink-0 font-semibold tabular-nums text-primary-ink group-hover/thread:underline">
+                                                {t('chat.thread.replyCount', { count: meta.count })}
                                             </span>
-                                        ) : (
-                                            <MessageSquare
+                                            {meta.lastReplyAt > 0 && (
+                                                <span className="truncate text-muted-foreground group-hover/thread:hidden">
+                                                    {t('chat.thread.lastReplyAt', {
+                                                        time: formatTime(meta.lastReplyAt),
+                                                    })}
+                                                </span>
+                                            )}
+                                            <span className="hidden truncate text-muted-foreground group-hover/thread:inline">
+                                                {t('chat.thread.view')}
+                                            </span>
+                                            <ChevronRight
                                                 size={14}
                                                 aria-hidden
-                                                className="shrink-0 text-primary-ink"
+                                                className="ml-auto hidden shrink-0 text-muted-foreground group-hover/thread:block"
                                             />
-                                        )}
-                                        <span className="shrink-0 font-semibold tabular-nums text-primary-ink group-hover/thread:underline">
-                                            {t('chat.thread.replyCount', { count: meta.count })}
-                                        </span>
-                                        {meta.lastReplyAt > 0 && (
-                                            <span className="truncate text-muted-foreground group-hover/thread:hidden">
-                                                {t('chat.thread.lastReplyAt', {
-                                                    time: formatTime(meta.lastReplyAt),
-                                                })}
-                                            </span>
-                                        )}
-                                        <span className="hidden truncate text-muted-foreground group-hover/thread:inline">
-                                            {t('chat.thread.view')}
-                                        </span>
-                                        <ChevronRight
-                                            size={14}
-                                            aria-hidden
-                                            className="ml-auto hidden shrink-0 text-muted-foreground group-hover/thread:block"
-                                        />
-                                    </button>
-                                )}
-                            </div>
-                        );
-                    })}
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
-        </div>
-    );
-});
+        );
+    }
+);
 
 MessageRow.displayName = 'MessageRow';

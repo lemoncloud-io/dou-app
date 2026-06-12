@@ -9,7 +9,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useAuthorNames, useChatMutations, useChats, usePanelWidth } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { buildMemberNames, buildThread } from '../utils';
-import { useMessageViewer } from '../hooks';
+import { useMentionables, useMessageViewer } from '../hooks';
 import { useThreadStore } from '../stores';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
@@ -44,6 +44,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
 
     // Same viewer the chat pane builds, so own/optimistic messages name correctly.
     const viewer = useMessageViewer(channel);
+    const mentionables = useMentionables(members);
 
     const { root, threadMessages } = useMemo(() => {
         const thread = buildThread(messages, rootId);
@@ -122,6 +123,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
                 onSend={handleReply}
                 channelId={`${channelId}::thread::${rootId}`}
                 placeholder={t('chat.thread.composerPlaceholder')}
+                mentionables={mentionables}
             />
         </aside>
     );

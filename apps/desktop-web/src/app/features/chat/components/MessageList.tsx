@@ -110,6 +110,17 @@ export const MessageList = ({
         return view;
     }, [threadMeta, names, placeProfiles, viewer]);
 
+    // Lowercased "me" names for self-mention highlighting (profile name +
+    // place nick under either of my ids — mirrors the notification filter).
+    const selfNames = useMemo(() => {
+        const names = [
+            viewer.name,
+            viewer.cloudUid ? placeProfiles[viewer.cloudUid]?.nick : undefined,
+            viewer.uid ? placeProfiles[viewer.uid]?.nick : undefined,
+        ];
+        return names.filter((n): n is string => !!n?.trim()).map(n => n.trim().toLowerCase());
+    }, [viewer, placeProfiles]);
+
     const maxChatNo = useMemo(() => messages.reduce((m, c) => Math.max(m, c.chatNo ?? 0), 0), [messages]);
 
     useLayoutEffect(() => {
@@ -255,6 +266,7 @@ export const MessageList = ({
                             onDiscard={onDiscard}
                             threadMeta={threadMetaView}
                             onOpenThread={onOpenThread}
+                            selfNames={selfNames}
                         />
                     );
                 })}
