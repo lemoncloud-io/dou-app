@@ -22,9 +22,6 @@
             "path": "./libs/web-core"
         },
         {
-            "path": "./libs/pouches"
-        },
-        {
             "path": "./libs/shared"
         },
         {
@@ -46,16 +43,10 @@
             "path": "./libs/auth"
         },
         {
-            "path": "./libs/channels"
-        },
-        {
             "path": "./libs/chats"
         },
         {
             "path": "./apps/landing"
-        },
-        {
-            "path": "./libs/places"
         },
         {
             "path": "./libs/i18n-mobile"
