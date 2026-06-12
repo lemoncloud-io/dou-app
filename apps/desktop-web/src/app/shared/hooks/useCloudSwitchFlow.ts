@@ -9,6 +9,7 @@ import { cloudCore, reportError, toError } from '@chatic/web-core';
 import type { DomainSite } from '@chatic/data';
 
 import { useCloudSession, useRepositories } from '@chatic/app-runtime';
+import { useSelectedChannelStore } from '../stores';
 import { authPlace, waitForVerified } from '../utils';
 
 interface UseCloudSwitchFlowOptions {
@@ -73,6 +74,11 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions = {}) => {
                 switchingRef.current = false;
                 return;
             }
+
+            // Drop the previous cloud's channel selection up front: channel ids are
+            // cloud-scoped, and any hook still keyed on the stale id would fire
+            // cross-cloud requests (e.g. channel.list-user → 403) at the new socket.
+            useSelectedChannelStore.getState().clearChannel();
 
             setIsLoading(true, t('cloud.switching'));
             try {

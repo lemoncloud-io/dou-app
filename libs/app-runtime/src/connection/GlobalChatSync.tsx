@@ -17,10 +17,14 @@ export const GlobalChatSync = () => {
     const { channel: channelRepository, chat: chatRepository } = useRepositories();
     const [channels, setChannels] = useState<DomainChannel[]>([]);
 
-    // place 전환 시 구독을 재생성하여 새 place의 채널도 sync 대상에 포함
-    // channelRepository.subscribeList()가 호출 시점의 DataContext(sid 포함)를 캡처하므로
-    // selectedPlaceId가 변경되면 구독을 재생성해야 새 place의 채널이 반환됨
+    // place/cloud 전환 시 구독을 재생성하여 새 스코프의 채널만 sync 대상에 포함
+    // channelRepository.subscribeList()가 호출 시점의 DataContext(cid/sid)를 캡처하므로
+    // selectedPlaceId가 변경되면 구독을 재생성해야 새 place의 채널이 반환됨.
+    // cloudId도 마찬가지 — 신·구 클라우드의 placeId가 우연히 같으면 재구독이 안
+    // 일어나 이전 클라우드 채널이 sync 타겟으로 남고, 새 소켓에 타 클라우드
+    // channelId로 catch-up feed를 쏘게 됨(relay 403 not-a-member).
     const selectedPlaceId = useWebSocketV2Store(s => s.selectedPlaceId);
+    const cloudId = useWebSocketV2Store(s => s.cloudId);
 
     useEffect(() => {
         setChannels([]);
@@ -30,7 +34,7 @@ export const GlobalChatSync = () => {
             }
         });
         return () => unsub();
-    }, [channelRepository, selectedPlaceId]);
+    }, [channelRepository, selectedPlaceId, cloudId]);
 
     // 서버에서 채널 목록을 가져와 channels state에 직접 반영하는 헬퍼
     // subscribeList 콜백에 의존하지 않고 결과를 직접 setChannels로 반영
