@@ -54,6 +54,14 @@ export const ShortcutsDialog = () => {
             ),
             label: t('shortcuts.send'),
         },
+        {
+            keys: (
+                <>
+                    <Kbd>{MOD} B</Kbd> <Kbd>{MOD} I</Kbd> <Kbd>{MOD} ⇧ X</Kbd> <Kbd>{MOD} ⇧ C</Kbd>
+                </>
+            ),
+            label: t('shortcuts.format'),
+        },
         { keys: <Kbd>Esc</Kbd>, label: t('shortcuts.closePanel') },
         { keys: <Kbd>?</Kbd>, label: t('shortcuts.help') },
     ];

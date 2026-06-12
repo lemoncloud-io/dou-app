@@ -7,6 +7,7 @@ import { cn } from '@chatic/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 
 import { useComposerDraftStore } from '../../../shared';
+import { EmojiPicker } from './EmojiPicker';
 
 interface ComposerProps {
     disabled: boolean;
@@ -18,34 +19,6 @@ interface ComposerProps {
 }
 
 const MAX_HEIGHT = 160;
-
-// Curated quick-pick set — a small, common spread, not a full emoji keyboard.
-const EMOJIS = [
-    '😀',
-    '😂',
-    '😊',
-    '😍',
-    '😎',
-    '🤔',
-    '😅',
-    '😭',
-    '👍',
-    '👎',
-    '🙏',
-    '👏',
-    '🙌',
-    '🔥',
-    '🎉',
-    '✨',
-    '❤️',
-    '💯',
-    '👀',
-    '✅',
-    '❌',
-    '⚡',
-    '🚀',
-    '😴',
-];
 
 export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerProps) => {
     const { t } = useTranslation();
@@ -91,11 +64,32 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
         });
     };
 
+    // Wrap the selection in a formatting marker (Slack-style ⌘B/⌘I/…). The
+    // selection is restored shifted by the opening marker, so repeating the
+    // shortcut keeps wrapping the same text.
+    const wrapSelection = (marker: string) => {
+        const el = textareaRef.current;
+        if (!el) return;
+        const { selectionStart: start, selectionEnd: end } = el;
+        handleChange(value.slice(0, start) + marker + value.slice(start, end) + marker + value.slice(end));
+        requestAnimationFrame(() => {
+            el.focus();
+            el.setSelectionRange(start + marker.length, end + marker.length);
+        });
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             submit();
+            return;
         }
+        if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+        const markers: Record<string, string> = e.shiftKey ? { x: '~~', c: '`' } : { b: '**', i: '*' };
+        const marker = markers[e.key.toLowerCase()];
+        if (!marker) return;
+        e.preventDefault();
+        wrapSelection(marker);
     };
 
     const insertEmoji = (emoji: string) => {
@@ -145,18 +139,7 @@ export const Composer = ({ disabled, onSend, channelId, placeholder }: ComposerP
                         </button>
                     </PopoverTrigger>
                     <PopoverContent align="end" side="top" className="w-auto p-2">
-                        <div className="grid grid-cols-8 gap-0.5">
-                            {EMOJIS.map(emoji => (
-                                <button
-                                    key={emoji}
-                                    type="button"
-                                    onClick={() => insertEmoji(emoji)}
-                                    className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-lg transition-colors ease-tactile hover:bg-accent"
-                                >
-                                    {emoji}
-                                </button>
-                            ))}
-                        </div>
+                        <EmojiPicker onPick={insertEmoji} />
                     </PopoverContent>
                 </Popover>
                 <button
