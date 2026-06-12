@@ -128,7 +128,14 @@ export const buildMessageRows = (
         if (!isSameDay(timestamp, lastTimestamp)) {
             flush();
             const dayMs = startOfDay(timestamp);
-            rows.push({ kind: 'date', key: `date:${dayMs}`, timestamp: dayMs });
+            // Suffix with the message key: chatNo-sorted rows can revisit a day
+            // (e.g. a pending optimistic row sorts last but keeps its old
+            // createdAt), so a bare day key would collide (React dup-key).
+            rows.push({
+                kind: 'date',
+                key: `date:${dayMs}:${message.id ?? message.tempId ?? message.chatNo}`,
+                timestamp: dayMs,
+            });
         }
 
         // Mark the first unread message from someone else (relative to where the
@@ -160,9 +167,9 @@ export const buildMessageRows = (
             // (server-rewritten ownerId / sync) or my account id (the optimistic
             // self-write uses the account uid) — try both. Others key by ownerId.
             const place = isMine
-                ? (viewer.cloudUid ? placeProfiles[viewer.cloudUid] : undefined) ??
+                ? ((viewer.cloudUid ? placeProfiles[viewer.cloudUid] : undefined) ??
                   (viewer.uid ? placeProfiles[viewer.uid] : undefined) ??
-                  (message.ownerId ? placeProfiles[message.ownerId] : undefined)
+                  (message.ownerId ? placeProfiles[message.ownerId] : undefined))
                 : message.ownerId
                   ? placeProfiles[message.ownerId]
                   : undefined;

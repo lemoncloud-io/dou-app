@@ -8,12 +8,18 @@ import type { DomainChat } from '@chatic/data';
  */
 
 /**
- * The thread-root key of a message. The backend stores a reply's `parentId` as
- * the parent's channel-local sequence (`chatNo`), not its full id — so the key a
- * reply points at, and the key we filter/send by, is the root's `chatNo` (as a
- * string). A root has no `parentId`, so its key is its own `chatNo`. Threads are
- * flat (root-only): replying to a reply normalises to the same root via its
- * `parentId`.
+ * The thread-root key of a message — the root's `chatNo` as a string.
+ *
+ * parentId encoding contract (server: socials-api getThreadRoot):
+ * - SEND takes the parent's FULL id `<channelId>:<chatNo>` (the server resolves
+ *   it and 404s on anything else — never send a bare chatNo).
+ * - STORED/broadcast records carry `parentId` normalised to the root's `chatNo`
+ *   string ("1"); the full id survives only in `parent$.id`.
+ * - An OPTIMISTIC reply carries the payload verbatim, i.e. the full id, until
+ *   the persisted swap replaces it.
+ * So matching accepts BOTH encodings (see buildThread/buildThreadIndex), while
+ * this key — used by the open-thread store and footer — stays the chatNo string.
+ * Threads are flat (root-only): the server folds reply-to-reply onto the root.
  */
 export const threadRootId = (chat: DomainChat): string =>
     chat.parentId ?? (chat.chatNo != null ? String(chat.chatNo) : (chat.id ?? ''));
@@ -36,20 +42,30 @@ export interface ThreadMeta {
 
 /**
  * Aggregate, per thread root, the replies present in the loaded message set.
- * Keyed by root id; only roots with ≥1 loaded reply appear.
+ * Keyed by the root's chatNo string; only roots with ≥1 loaded reply appear.
+ * A reply's parentId may be either encoding (persisted = chatNo, optimistic =
+ * full id) — full ids are normalised to the root's chatNo so a mixed-encoding
+ * thread collapses into ONE entry and the footer count stays exact through the
+ * optimistic→persisted round-trip. A full-id entry whose root is paged out
+ * can't normalise, but that root renders no row either, so it is inert.
  */
 export const buildThreadIndex = (messages: DomainChat[]): Map<string, ThreadMeta> => {
+    const idToChatNo = new Map<string, string>();
+    for (const m of messages) {
+        if (!m.parentId && m.id && m.chatNo != null) idToChatNo.set(m.id, String(m.chatNo));
+    }
     const index = new Map<string, ThreadMeta>();
     for (const message of messages) {
         const parentId = message.parentId;
         if (!parentId) continue;
+        const key = idToChatNo.get(parentId) ?? parentId;
         const at = replyTime(message);
-        const prev = index.get(parentId);
+        const prev = index.get(key);
         if (prev) {
             prev.count += 1;
             if (at > prev.lastReplyAt) prev.lastReplyAt = at;
         } else {
-            index.set(parentId, { count: 1, lastReplyAt: at });
+            index.set(key, { count: 1, lastReplyAt: at });
         }
     }
     return index;
@@ -64,15 +80,16 @@ export interface ThreadView {
 
 /**
  * Derive a single thread (root + its direct replies) from the loaded messages.
- * `rootId` is the root's `chatNo` as a string (see threadRootId) — that is what
- * a reply's `parentId` holds.
+ * `rootId` is the root's `chatNo` string (see threadRootId), but both it and a
+ * full id resolve; replies match by EITHER encoding (persisted parentId =
+ * chatNo, optimistic = full id). When the root is paged out (ADR 0008), the
+ * key set degrades to `rootId` alone — chatNo-encoded replies still match.
  */
 export const buildThread = (messages: DomainChat[], rootId: string): ThreadView => {
-    let root: DomainChat | undefined;
-    const replies: DomainChat[] = [];
-    for (const message of messages) {
-        if (message.chatNo != null && String(message.chatNo) === rootId) root = message;
-        else if (message.parentId === rootId) replies.push(message);
-    }
+    const root = messages.find(m => (m.chatNo != null && String(m.chatNo) === rootId) || (!!m.id && m.id === rootId));
+    const rootKeys = new Set<string>([rootId]);
+    if (root?.id) rootKeys.add(root.id);
+    if (root?.chatNo != null) rootKeys.add(String(root.chatNo));
+    const replies = messages.filter(m => m !== root && !!m.parentId && rootKeys.has(m.parentId));
     return { root, replies: replies.sort(byChatNo) };
 };

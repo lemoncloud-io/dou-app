@@ -93,9 +93,10 @@ export const MessageRow = memo(({ group, onRetry, threadMeta, onOpenThread }: Me
                         const isCopied = copiedKey === key;
                         const msgTime = formatTime(message.createdAt ?? message.createdAtMs);
                         // A loaded thread hangs off this message → show a reply footer.
-                        // Keyed by chatNo (a reply's parentId is the root's chatNo, not its
-                        // full id). threadMeta is only supplied for the main feed; the thread
-                        // panel passes none, so replies never get a footer.
+                        // The index is keyed by the root's chatNo string (buildThreadIndex
+                        // normalises optimistic full-id parentIds onto it). threadMeta is only
+                        // supplied for the main feed; the thread panel passes none, so replies
+                        // never get a footer.
                         const meta = message.chatNo != null ? threadMeta?.get(String(message.chatNo)) : undefined;
                         return (
                             <div key={key} className="group/msg relative pr-16">

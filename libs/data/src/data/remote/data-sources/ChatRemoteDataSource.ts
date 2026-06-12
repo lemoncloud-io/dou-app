@@ -52,7 +52,9 @@ export class ChatRemoteDataSource implements IChatRemoteDataSource {
         this.socketEventBus.on('chat:error', detail => {
             this.domainEventBus.emit('error', {
                 domain: 'chat',
-                message: detail.payload.error || 'Unknown Chat Error',
+                // payload 자체가 null인 에러 프레임도 reject 신호는 살려야 한다 —
+                // 여기서 throw하면 pending ref가 30s timeout까지 살아남는다.
+                message: detail.payload?.error || 'Unknown Chat Error',
                 ref: detail.ref,
             });
         });

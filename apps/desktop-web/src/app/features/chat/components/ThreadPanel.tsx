@@ -53,7 +53,11 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
     const names = useMemo(() => buildMemberNames(members, cachedNames), [members, cachedNames]);
 
     const handleReply = (content: string) => {
-        void sendMessage({ channelId, content, parentId: rootId }).catch(() =>
+        // The server takes the parent's FULL id and 404s on a bare chatNo (it
+        // normalises to chatNo itself on store) — so send root.id, not rootId.
+        // Unreachable when !root (Composer is disabled then); type guard only.
+        if (!root?.id) return;
+        void sendMessage({ channelId, content, parentId: root.id }).catch(() =>
             toast({ variant: 'destructive', description: t('toast.messageFailed') })
         );
     };

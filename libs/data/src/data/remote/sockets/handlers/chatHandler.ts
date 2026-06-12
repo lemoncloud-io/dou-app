@@ -45,6 +45,18 @@ export const chatHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEve
         // 채팅 메시지 전송 및 생성 처리
         case 'send': {
             const chatView = payload as ChatView;
+            // 서버가 거부한 전송(예: parentId 미해결 404)은 data:null 프레임으로
+            // 돌아온다. null을 chat:create로 fan-out하면 리스너들이 깨지고, ref가
+            // null로 "성공" resolve되어 낙관 메시지가 isPending에 고착된다 — 에러로
+            // 돌려 pending ref를 reject시키고(기존 isFailed+Retry 계약) 전파를 차단.
+            if (!chatView?.id) {
+                eventBus.emit('chat:error', {
+                    ...detail,
+                    payload: payload as ChatErrorPayload,
+                    error: 'Invalid chat:send payload',
+                });
+                break;
+            }
             eventBus.emit('chat:create', { ...detail, payload: chatView });
             // 채팅 전송 응답에 포함된 channel$ (lastChat$ 등이 갱신된 채널 정보)로 채널 캐시 즉시 업데이트
             if (chatView.channel$) {

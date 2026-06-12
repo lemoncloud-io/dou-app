@@ -102,6 +102,10 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
                 ref => this.chatRemoteDataSource.sendChat(payload, ref),
                 requestOptions
             );
+            // ref가 null/빈 응답으로 resolve되면 여기서 끊어 catch(isFailed+Retry)로
+            // 보낸다 — 그대로 진행하면 id '' upsert가 no-op이 되어 낙관 메시지가
+            // isPending에 영구 고착된다.
+            if (!chat?.id) throw new Error('chat:send returned an empty payload');
 
             const domainChat = toDomainChat(
                 {
