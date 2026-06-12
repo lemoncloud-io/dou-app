@@ -32,6 +32,7 @@ import {
     ChatPane,
     CloudRail,
     DesktopLayout,
+    OnboardingDialog,
     ShortcutsDialog,
     SidebarHeader,
     SwitchingOverlay,
@@ -249,6 +250,7 @@ export const HomePage = () => {
             <JoinWithInviteDialog />
             <EditPlaceProfileDialog />
             <ShortcutsDialog />
+            <OnboardingDialog enabled={isDefaultMode} isChannelReady={channels.length > 0} />
         </>
     );
 };

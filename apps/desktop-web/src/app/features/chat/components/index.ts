@@ -9,5 +9,6 @@ export * from './MessageRow';
 export * from './ThreadPanel';
 export * from './DateSeparator';
 export * from './Composer';
+export * from './OnboardingDialog';
 export * from './ShortcutsDialog';
 export * from './SwitchingOverlay';
