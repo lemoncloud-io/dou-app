@@ -13,8 +13,20 @@ import { useRepositories } from '@chatic/app-runtime';
 export const usePlaces = () => {
     const { site: siteRepository } = useRepositories();
     const isVerified = useWebSocketV2Store(s => s.isVerified);
+    const cloudId = useWebSocketV2Store(s => s.cloudId);
     const [places, setPlaces] = useState<DomainSite[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Render-phase reset on cloud switch (mirrors useChannels): drop the previous
+    // cloud's places at once. Otherwise the stale list lingers until the refetch
+    // resolves, and HomePage reads it as "the current cloud's places" — auto-selecting
+    // a place from the wrong cloud and thrashing the channel list during the switch.
+    const [prevCloudId, setPrevCloudId] = useState(cloudId);
+    if (cloudId !== prevCloudId) {
+        setPrevCloudId(cloudId);
+        setPlaces([]);
+        setIsLoading(true);
+    }
 
     useEffect(() => {
         if (!isVerified) return;
@@ -35,7 +47,7 @@ export const usePlaces = () => {
         return () => {
             active = false;
         };
-    }, [siteRepository, isVerified]);
+    }, [siteRepository, isVerified, cloudId]);
 
     return { places, isLoading };
 };

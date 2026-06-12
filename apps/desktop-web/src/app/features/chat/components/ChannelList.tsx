@@ -13,6 +13,8 @@ interface ChannelListProps {
     selectedChannelId: string | null;
     query: string;
     onSelect: (channelId: string) => void;
+    /** Default Cloud has no channel creation — the empty-state hint must not point at a "+". */
+    isDefaultMode: boolean;
 }
 
 /** The channel's last message text — no author prefix. */
@@ -29,7 +31,14 @@ const ChannelSkeleton = () => (
     </div>
 );
 
-export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onSelect }: ChannelListProps) => {
+export const ChannelList = ({
+    channels,
+    isLoading,
+    selectedChannelId,
+    query,
+    onSelect,
+    isDefaultMode,
+}: ChannelListProps) => {
     const { t } = useTranslation();
     // Tick once a minute so the relative "11m" preview times stay current.
     useTick(60_000);
@@ -54,7 +63,9 @@ export const ChannelList = ({ channels, isLoading, selectedChannelId, query, onS
                     #
                 </span>
                 <span className="text-callout text-foreground">{t('chat.noChannels')}</span>
-                <span className="text-caption text-muted-foreground">{t('chat.noChannelsHint')}</span>
+                <span className="text-caption text-muted-foreground">
+                    {t(isDefaultMode ? 'chat.noChannelsHintDefault' : 'chat.noChannelsHint')}
+                </span>
             </div>
         );
     }

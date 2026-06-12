@@ -110,6 +110,12 @@ export const HomePage = () => {
             if (selectedPlaceId !== 'default') selectPlace('default');
             return;
         }
+        // A cloud/place switch already owns place selection (useCloudSwitchFlow /
+        // useSelectPlace commit the target). Don't auto-correct while one is in
+        // flight: `places` and selectedPlaceId update on independent async timelines,
+        // so a transient mismatch here would fire switchPlace() against a stale /
+        // other-cloud place and thrash the channel list. Only act when idle.
+        if (isSwitching) return;
         const inList = !!selectedPlaceId && places.some(p => p.id === selectedPlaceId);
         if (!inList && places.length > 0) {
             const firstId = places[0]?.id;
@@ -119,7 +125,7 @@ export const HomePage = () => {
             // state after a cloud-account login.
             if (firstId) void switchPlace(firstId);
         }
-    }, [isDefaultMode, places, selectedPlaceId, selectPlace, switchPlace]);
+    }, [isDefaultMode, isSwitching, places, selectedPlaceId, selectPlace, switchPlace]);
 
     // The settings + thread panels belong to one channel — close both on switch.
     useEffect(() => {
@@ -213,6 +219,7 @@ export const HomePage = () => {
                                 selectedChannelId={selectedChannelId}
                                 query={query}
                                 onSelect={selectChannel}
+                                isDefaultMode={isDefaultMode}
                             />
                         </div>
                     </>

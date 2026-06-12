@@ -132,14 +132,17 @@ export const SidebarHeader = ({
 
             <div className="flex items-center justify-between px-2 pt-1">
                 <span className="text-overline text-muted-foreground">{t('sidebar.channels')}</span>
-                <button
-                    onClick={onCreateChannel}
-                    title={t('rail.addChannel')}
-                    aria-label={t('rail.addChannel')}
-                    className="focus-ring tactile -mr-1 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                >
-                    <Plus size={16} aria-hidden />
-                </button>
+                {/* Default Cloud (Self Channel only) does not support channel creation — hide the action. */}
+                {!isDefaultMode && (
+                    <button
+                        onClick={onCreateChannel}
+                        title={t('rail.addChannel')}
+                        aria-label={t('rail.addChannel')}
+                        className="focus-ring tactile -mr-1 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                    >
+                        <Plus size={16} aria-hidden />
+                    </button>
+                )}
             </div>
         </div>
     );

@@ -65,6 +65,7 @@ const resources = {
             'chat.emptyHint': 'Pick a channel from the sidebar, or create one to get the conversation going.',
             'chat.noChannels': 'No channels yet',
             'chat.noChannelsHint': 'Create one with the + above to get started.',
+            'chat.noChannelsHintDefault': 'Your messages will appear here.',
             'chat.loading': 'Loading...',
             'chat.connecting': 'Connecting…',
             'chat.today': 'Today',
