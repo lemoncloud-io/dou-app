@@ -170,7 +170,10 @@ export const MessageRow = memo(
                                     )}
                                     <p
                                         className={cn(
-                                            'whitespace-pre-wrap break-words text-body',
+                                            // Opt message text back into selection: the app body sets
+                                            // user-select:none for chrome (Slack/Discord-style), which
+                                            // otherwise blocks copying message content.
+                                            'select-text whitespace-pre-wrap break-words text-body',
                                             isFailed ? 'text-destructive' : 'text-foreground',
                                             isPending && 'opacity-50'
                                         )}
