@@ -83,21 +83,10 @@ export const useDesktopChannelMutations = () => {
         [channelRepository, run]
     );
 
-    const startDm = useCallback(
-        ({ userIds }: { userIds: string[] }): Promise<DomainChannel> => {
-            if (!userIds?.length) return Promise.reject(new Error('userIds is required'));
-            // The server's 'dm' stereo is typed but unverified in this backend —
-            // fall back to an unnamed private channel (visually the same 1:1,
-            // and isDmChannel treats that shape as a DM).
-            return run(() =>
-                channelRepository.createChannel({ stereo: 'dm', userIds }).catch(error => {
-                    console.warn('[startDm] dm stereo rejected; falling back to private', error);
-                    return channelRepository.createChannel({ stereo: 'private', userIds });
-                })
-            );
-        },
-        [channelRepository, run]
-    );
+    // DM creation was removed: the socket v2 `channel.create` contract drops
+    // `userIds`, so a dm-stereo start reaches the backend as owner-only and its
+    // derived channel id collides with existing channels (destroys their
+    // memberIds). Re-add only after the server accepts members at creation.
 
     const setChannelNotify = useCallback(
         ({
@@ -120,7 +109,6 @@ export const useDesktopChannelMutations = () => {
 
     return {
         createChannel,
-        startDm,
         updateChannel,
         deleteChannel,
         leaveChannel,

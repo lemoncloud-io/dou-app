@@ -1,15 +1,13 @@
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Check, Copy, MessageCircle } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useCopyToClipboard, useDesktopChannelMutations, useDisplayProfile, useUser } from '../hooks';
+import { useCopyToClipboard, useDisplayProfile, useUser } from '../hooks';
 import { useProfilePanelStore } from '../stores/useProfilePanelStore';
-import { useSelectedChannelStore } from '../stores/useSelectedChannelStore';
 import { avatarStyle, bannerStyle } from '../utils';
 
 interface UserProfilePopoverProps {
@@ -22,7 +20,7 @@ interface UserProfilePopoverProps {
     colorSeed?: string;
     /** Renders the Owner pill (member list passes member.isOwner). */
     isOwner?: boolean;
-    /** The signed-in user's own card — hides actions like "Message". */
+    /** The signed-in user's own card (kept by hosts for action gating). */
     isMe?: boolean;
     /** The trigger element (avatar/name) — rendered via Radix `asChild`. */
     children: ReactNode;
@@ -31,8 +29,6 @@ interface UserProfilePopoverProps {
 interface ProfileCardContentProps extends Omit<UserProfilePopoverProps, 'children'> {
     /** Renders a "View full profile" row that hands off to the trailing panel (popover only). */
     onExpand?: () => void;
-    /** Called after a navigation action (e.g. Message) — hosts close themselves. */
-    onNavigate?: () => void;
 }
 
 /**
@@ -48,28 +44,11 @@ export const ProfileCardContent = ({
     fallbackThumbnail,
     colorSeed,
     isOwner,
-    isMe,
     onExpand,
-    onNavigate,
 }: ProfileCardContentProps) => {
     const { t } = useTranslation();
     const user = useUser(userId || null);
     const [copied, copy] = useCopyToClipboard();
-    const { startDm, isMutating } = useDesktopChannelMutations();
-    const selectChannel = useSelectedChannelStore(s => s.selectChannel);
-    const closePanel = useProfilePanelStore(s => s.close);
-
-    // Start (or land in) a 1:1 with this user, then close whichever surface
-    // hosts the card. The server dedupes/creates; we just open what comes back.
-    const messageUser = () => {
-        void startDm({ userIds: [userId] })
-            .then(channel => {
-                if (channel.id) selectChannel(channel.id);
-                closePanel();
-                onNavigate?.();
-            })
-            .catch(() => toast({ variant: 'destructive', description: t('dm.startFailed') }));
-    };
 
     // The trigger's rendered identity wins over the global record: the Place
     // override may be keyed by a different uid than `userId` (own messages
@@ -107,18 +86,6 @@ export const ProfileCardContent = ({
                     <span className="mt-0.5 block text-xs text-muted-foreground">
                         {t('profile.channelCount', { count: channelCount })}
                     </span>
-                )}
-
-                {userId && !isMe && (
-                    <button
-                        type="button"
-                        disabled={isMutating}
-                        onClick={messageUser}
-                        className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                    >
-                        <MessageCircle size={14} aria-hidden />
-                        {t('profile.card.message')}
-                    </button>
                 )}
 
                 {userId && (
@@ -191,7 +158,6 @@ export const UserProfilePopover = ({
                     isOwner={isOwner}
                     isMe={isMe}
                     onExpand={expand}
-                    onNavigate={() => setOpen(false)}
                 />
             </PopoverContent>
         </Popover>

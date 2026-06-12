@@ -1,9 +1,6 @@
 import type { DomainChannel } from '@chatic/data';
 
-/**
- * A 1:1 conversation: stereo 'dm', or the fallback shape startDm creates when
- * the server rejects 'dm' (an unnamed 2-member private channel).
- */
+/** A 1:1 conversation: stereo 'dm', or an unnamed 2-member private channel. */
 export const isDmChannel = (channel: DomainChannel): boolean =>
     channel.stereo === 'dm' || (!channel.name && (channel.memberIds?.length ?? channel.memberNo ?? 0) === 2);
 
