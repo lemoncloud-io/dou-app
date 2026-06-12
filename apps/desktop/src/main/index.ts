@@ -20,6 +20,25 @@ import electronUpdater from 'electron-updater';
 import { startFcm, type FcmConfig } from './fcm';
 import { fetchUrlMetadata } from './unfurl';
 
+// `yarn desktop:start` runs this shell UNPACKAGED, where app.getName() resolves to
+// the package.json name ("@chatic/desktop") — the very name the packaged
+// production app also uses. Both then point at the same userData dir and share one
+// single-instance lock, so launching the installed app while the dev shell holds
+// that lock made it fail requestSingleInstanceLock() and quit silently. Give the
+// dev shell its own name + userData so the two can run side by side.
+// The dev-packaged app ("DoU Dev", build:dev) ships the same package.json name, so
+// without this it would collide with the installed production DoU the same way.
+const IS_DEV_CHANNEL = !app.isPackaged || import.meta.env.MAIN_VITE_CHANNEL === 'dev';
+if (IS_DEV_CHANNEL) {
+    app.setName('DoU Dev');
+    app.setPath('userData', join(app.getPath('appData'), 'chatic-desktop-dev'));
+}
+
+// Channel-scoped deeplink protocol: the OS routes a scheme to ONE app, so if the
+// dev channel also claimed `chatic:` every OAuth hand-off would (re)launch the
+// installed production DoU instead of the app under test.
+const PROTOCOL_SCHEME = IS_DEV_CHANNEL ? 'chatic-dev' : 'chatic';
+
 /**
  * Stable per-install device id, persisted under userData. Injected into the web as
  * window.CHATIC_APP_DEVICE_ID so the guest account is consistent across restarts
