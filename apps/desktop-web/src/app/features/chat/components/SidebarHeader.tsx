@@ -37,8 +37,9 @@ const placeName = (place: DomainSite | undefined): string => place?.name ?? plac
 
 /**
  * Sidebar top: the active place as a dropdown (workspace switcher within the
- * cloud), a channel search box, and the channel-section label with a create
- * action. Place rows carry unread badges sourced from usePlaceUnreadCounts.
+ * cloud) paired with the Saved-items action, a channel search box, and the
+ * channel-section label with a create action. Place rows carry unread badges
+ * sourced from usePlaceUnreadCounts.
  */
 export const SidebarHeader = ({
     places,
@@ -69,62 +70,75 @@ export const SidebarHeader = ({
 
     return (
         <div className="flex flex-col gap-2.5 border-b border-hairline px-3 pb-3 pt-3">
-            {isDefaultMode ? (
-                <span className="truncate px-2 py-1.5 text-title text-sidebar-foreground">{t('place.home')}</span>
-            ) : (
-                <DropdownMenu>
-                    <DropdownMenuTrigger
-                        className="focus-ring tactile flex min-h-9 items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors ease-tactile hover:bg-accent disabled:opacity-50"
-                        disabled={places.length === 0}
-                    >
-                        {showPlaceSkeleton ? (
-                            <Skeleton className="h-5 w-28" />
-                        ) : (
-                            <span className="flex min-w-0 items-center gap-2">
-                                <span className="truncate text-title text-sidebar-foreground">
-                                    {placeName(current) || t('place.none')}
-                                </span>
-                                {otherPlacesUnread > 0 && (
-                                    <span
-                                        className="shrink-0 rounded-full bg-badge-unread px-1.5 text-caption font-semibold tabular-nums text-badge-unread-foreground"
-                                        title={t('place.otherUnread')}
-                                    >
-                                        {otherPlacesUnread > 99 ? '99+' : otherPlacesUnread}
+            {/* Workspace switcher + Saved-items, paired as the place-level toolbar. */}
+            <div className="flex items-center gap-1">
+                {isDefaultMode ? (
+                    <span className="min-w-0 flex-1 truncate px-2 py-1.5 text-title text-sidebar-foreground">
+                        {t('place.home')}
+                    </span>
+                ) : (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger
+                            className="focus-ring tactile flex min-h-9 flex-1 items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors ease-tactile hover:bg-accent disabled:opacity-50"
+                            disabled={places.length === 0}
+                        >
+                            {showPlaceSkeleton ? (
+                                <Skeleton className="h-5 w-28" />
+                            ) : (
+                                <span className="flex min-w-0 items-center gap-2">
+                                    <span className="truncate text-title text-sidebar-foreground">
+                                        {placeName(current) || t('place.none')}
                                     </span>
-                                )}
-                            </span>
-                        )}
-                        <ChevronDown size={16} className="shrink-0 text-muted-foreground" aria-hidden />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="min-w-[220px]">
-                        {places.map(place => {
-                            const unread = unreadByPlace[place.id] ?? 0;
-                            const isActive = place.id === selectedPlaceId;
-                            return (
-                                <DropdownMenuItem
-                                    key={place.id}
-                                    onClick={() => onSelectPlace(place.id)}
-                                    className="flex items-center justify-between gap-3"
-                                >
-                                    <span className={cn('truncate', isActive && 'font-semibold')}>
-                                        {placeName(place)}
-                                    </span>
-                                    {unread > 0 && (
-                                        <span className="ml-auto rounded-full bg-badge-unread px-1.5 text-caption font-semibold tabular-nums text-badge-unread-foreground">
-                                            {unread > 99 ? '99+' : unread}
+                                    {otherPlacesUnread > 0 && (
+                                        <span
+                                            className="shrink-0 rounded-full bg-badge-unread px-1.5 text-caption font-semibold tabular-nums text-badge-unread-foreground"
+                                            title={t('place.otherUnread')}
+                                        >
+                                            {otherPlacesUnread > 99 ? '99+' : otherPlacesUnread}
                                         </span>
                                     )}
-                                </DropdownMenuItem>
-                            );
-                        })}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={onEditPlaceProfile} className="gap-2 text-muted-foreground">
-                            <UserPen size={15} aria-hidden />
-                            {t('sidebar.editMyProfile')}
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            )}
+                                </span>
+                            )}
+                            <ChevronDown size={16} className="shrink-0 text-muted-foreground" aria-hidden />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="min-w-[220px]">
+                            {places.map(place => {
+                                const unread = unreadByPlace[place.id] ?? 0;
+                                const isActive = place.id === selectedPlaceId;
+                                return (
+                                    <DropdownMenuItem
+                                        key={place.id}
+                                        onClick={() => onSelectPlace(place.id)}
+                                        className="flex items-center justify-between gap-3"
+                                    >
+                                        <span className={cn('truncate', isActive && 'font-semibold')}>
+                                            {placeName(place)}
+                                        </span>
+                                        {unread > 0 && (
+                                            <span className="ml-auto rounded-full bg-badge-unread px-1.5 text-caption font-semibold tabular-nums text-badge-unread-foreground">
+                                                {unread > 99 ? '99+' : unread}
+                                            </span>
+                                        )}
+                                    </DropdownMenuItem>
+                                );
+                            })}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={onEditPlaceProfile} className="gap-2 text-muted-foreground">
+                                <UserPen size={15} aria-hidden />
+                                {t('sidebar.editMyProfile')}
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
+                <button
+                    onClick={onOpenSaved}
+                    title={t('saved.title')}
+                    aria-label={t('saved.title')}
+                    className="focus-ring tactile flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                >
+                    <Bookmark size={16} aria-hidden />
+                </button>
+            </div>
 
             <div className="relative">
                 <Search
@@ -142,27 +156,17 @@ export const SidebarHeader = ({
 
             <div className="flex items-center justify-between px-2 pt-1">
                 <span className="text-overline text-muted-foreground">{t('sidebar.channels')}</span>
-                <span className="flex items-center">
+                {/* Default Cloud (Self Channel only) does not support channel creation — hide the action. */}
+                {!isDefaultMode && (
                     <button
-                        onClick={onOpenSaved}
-                        title={t('saved.title')}
-                        aria-label={t('saved.title')}
-                        className="focus-ring tactile flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                        onClick={onCreateChannel}
+                        title={t('rail.addChannel')}
+                        aria-label={t('rail.addChannel')}
+                        className="focus-ring tactile -mr-1 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
                     >
-                        <Bookmark size={15} aria-hidden />
+                        <Plus size={16} aria-hidden />
                     </button>
-                    {/* Default Cloud (Self Channel only) does not support channel creation — hide the action. */}
-                    {!isDefaultMode && (
-                        <button
-                            onClick={onCreateChannel}
-                            title={t('rail.addChannel')}
-                            aria-label={t('rail.addChannel')}
-                            className="focus-ring tactile -mr-1 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                        >
-                            <Plus size={16} aria-hidden />
-                        </button>
-                    )}
-                </span>
+                )}
             </div>
         </div>
     );
