@@ -1,4 +1,4 @@
-export default {
+module.exports = {
     testEnvironment: 'jsdom',
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud)/)'],
     moduleNameMapper: {
