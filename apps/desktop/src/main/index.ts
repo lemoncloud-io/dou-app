@@ -171,7 +171,7 @@ const activeNotifications = new Map<string, Notification>();
 const showOsNotification = (
     host: AppBridgeHost,
     win: BrowserWindow,
-    params: { title: string; body: string; deeplink?: string },
+    params: { title: string; body: string; deeplink?: string }
 ): void => {
     const { title, body, deeplink } = params;
     if (Notification.isSupported()) {
@@ -339,6 +339,8 @@ const buildAppMenu = (): Menu => {
     ];
     const template: MenuItemConstructorOptions[] = [
         ...(isMac ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
+        // Cmd/Ctrl+W: `close` fires the window 'close' handler, so close-to-tray hides instead of destroying.
+        { label: 'File', submenu: [{ role: 'close' }] },
         { role: 'editMenu' },
         { label: 'View', submenu: viewSubmenu },
         { role: 'windowMenu' },
@@ -396,7 +398,11 @@ const createWindow = (): BrowserWindow => {
     void startFcm(readFcmConfig(), {
         onToken: onFcmToken,
         onPush: push => {
-            showOsNotification(host, win, { title: push.title ?? 'DoU', body: push.body ?? '', deeplink: push.deeplink });
+            showOsNotification(host, win, {
+                title: push.title ?? 'DoU',
+                body: push.body ?? '',
+                deeplink: push.deeplink,
+            });
             // Also forward to the renderer for an in-app toast: macOS suppresses OS
             // banners from the focused app, so a cross-cloud push that lands while DoU
             // is active would otherwise be invisible.
