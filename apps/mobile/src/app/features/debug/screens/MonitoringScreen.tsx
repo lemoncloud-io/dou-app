@@ -107,7 +107,6 @@ export const MonitoringScreen = () => {
                 <Text style={[styles.title, { color: colors.text }]}>웹뷰 상태</Text>
                 {renderStatusRow('Current URL', webView.currentUrl)}
                 {renderStatusRow('Loading', webView.isLoading)}
-                {renderStatusRow('Ready', webView.isWebAppReady)}
                 {renderStatusRow('Can Go Back', webView.canGoBack)}
                 {renderStatusRow('Can Go Forward', webView.canGoForward)}
                 {renderStatusRow('Last Load Start', webView.lastLoadStartUrl)}

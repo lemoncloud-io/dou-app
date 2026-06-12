@@ -38,6 +38,8 @@ import type {
     OnOpenShareSheetPayload,
     OnOpenSubscriptionManagementPayload,
     OnOpenURLPayload,
+    OnNavigatePayload,
+    OnDismissResumeOverlayPayload,
     OnWebAppReadyPayload,
     OnShowLoaderPayload,
     OnHideLoaderPayload,
@@ -103,6 +105,8 @@ export type AppMessageDataMap = {
     OnOpenPhotoLibrary: OnOpenPhotoLibraryPayload;
     OnRequestPermission: OnRequestPermissionPayload;
     OnOpenURL: OnOpenURLPayload;
+    OnNavigate: OnNavigatePayload;
+    OnDismissResumeOverlay: OnDismissResumeOverlayPayload;
     OnSendSms: OnSendSmsPayload;
     OnFetchAppIcon: OnFetchAppIconPayload;
     OnFetchAppIconList: OnFetchAppIconListPayload;

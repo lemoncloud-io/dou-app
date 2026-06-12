@@ -3,7 +3,6 @@ import { create } from 'zustand';
 export interface DebugWebViewState {
     currentUrl: string;
     isLoading: boolean;
-    isWebAppReady: boolean;
     canGoBack: boolean;
     canGoForward: boolean;
     lastLoadStartUrl: string;
@@ -22,7 +21,6 @@ interface DebugRuntimeState {
 const initialWebViewState: DebugWebViewState = {
     currentUrl: '',
     isLoading: false,
-    isWebAppReady: false,
     canGoBack: false,
     canGoForward: false,
     lastLoadStartUrl: '',

@@ -1,11 +1,11 @@
-import React, { useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { WebView } from 'react-native-webview';
 import { Image, StyleSheet, View } from 'react-native';
 
 import { useWebViewDeepLink } from '../../../webview/hooks/useWebViewDeepLink';
 import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigation';
 import { AppWebView } from '../../../webview';
-import { DeepLinkErrorView } from '../../core/components';
+import { DeepLinkErrorView, ResumeOverlay } from '../../core/components';
 import type { MainScreenProps } from '../navigation';
 import { useAppBridge } from '../../../webview/hooks';
 import { logger } from '../../../services';
@@ -14,21 +14,50 @@ import { useDebugRuntimeStore, useDebugSettingsStore } from '../../../stores';
 
 export const MainScreen = ({ route }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
-    const { bridge, onMessage } = useAppBridge(webViewRef);
+    const [isWebAppReady, setIsWebAppReady] = useState(false);
+    const webAppReadyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const updateWebViewState = useDebugRuntimeStore(state => state.updateWebViewState);
+
+    const handleAppReady = useCallback(() => {
+        logger.info('WEBVIEW', 'WebAppReady received in MainScreen');
+        if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
+        setIsWebAppReady(true);
+    }, []);
+
+    const { bridge, onMessage } = useAppBridge(webViewRef, handleAppReady);
     const { isDark } = useResolvedTheme();
     const webViewBaseUrl = useDebugSettingsStore(state => state.getResolvedWebviewBaseUrl());
     const webViewReloadToken = useDebugRuntimeStore(state => state.webViewReloadToken);
-    const updateWebViewState = useDebugRuntimeStore(state => state.updateWebViewState);
 
     const { setNavCanGoBack } = useWebViewNavigation(bridge);
-    const { source, handleWebViewLoad, deepLinkError, deepLinkErrorReason, handleDismissError } = useWebViewDeepLink(
-        webViewRef,
-        route,
-        {
+    const { source, handleWebViewLoad, deepLinkError, deepLinkErrorReason, handleDismissError, isRedirecting } =
+        useWebViewDeepLink(route, {
             webViewBaseUrl,
             reloadToken: webViewReloadToken,
-        }
-    );
+            bridge,
+        });
+
+    const handleWebViewLoadStart = useCallback(() => {
+        // 이미 웹앱 준비 완료 상태인 경우(SPA 네비게이션 등), 상태를 다시 준비중(false)으로 되돌리지 않습니다.
+        if (isWebAppReady) return;
+
+        if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
+        webAppReadyTimeoutRef.current = setTimeout(() => {
+            logger.info('WEBVIEW', 'WebAppReady fallback timeout reached');
+            setIsWebAppReady(true);
+        }, 1000);
+    }, [isWebAppReady]);
+
+    useEffect(() => {
+        // 웹뷰 전체 새로고침(Reload Token 변경) 발생 시에만 준비 상태를 초기화합니다.
+        setIsWebAppReady(false);
+    }, [webViewReloadToken]);
+
+    useEffect(() => {
+        return () => {
+            if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
+        };
+    }, []);
 
     if (!source) {
         return (
@@ -56,9 +85,9 @@ export const MainScreen = ({ route }: MainScreenProps) => {
                 scrollEnabled={false}
                 onLoad={handleWebViewLoad}
                 onLoadStart={event => {
+                    handleWebViewLoadStart();
                     updateWebViewState({
                         isLoading: true,
-                        isWebAppReady: false,
                         currentUrl: event.nativeEvent.url,
                         lastLoadStartUrl: event.nativeEvent.url,
                     });
@@ -100,6 +129,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
                     });
                 }}
             />
+            {(!isWebAppReady || isRedirecting) && <ResumeOverlay isDark={isDark} />}
         </View>
     );
 };

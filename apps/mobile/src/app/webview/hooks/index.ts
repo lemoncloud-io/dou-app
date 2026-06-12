@@ -18,3 +18,4 @@ export * from './useLogHandler';
 export * from './useLogBufferHandler';
 export * from './useUploadHandler';
 export * from './useTestRecordHandler';
+export * from './useResumeOverlay';
