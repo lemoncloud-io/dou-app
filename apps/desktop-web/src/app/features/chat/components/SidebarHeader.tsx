@@ -56,6 +56,13 @@ export const SidebarHeader = ({
     const { t } = useTranslation();
     const current = places.find(p => p.id === selectedPlaceId);
     const showPlaceSkeleton = isLoading && !current;
+    // The active place's unread is already visible in the channel list below —
+    // surface only OTHER places' unread on the closed trigger, so a message in
+    // another place is noticeable without opening the dropdown.
+    const otherPlacesUnread = places.reduce(
+        (sum, place) => (place.id === selectedPlaceId ? sum : sum + (unreadByPlace[place.id] ?? 0)),
+        0
+    );
     // ⌘K now opens the QuickSwitcher (see QuickSwitcher.tsx); the inline filter
     // below stays click-to-use.
     const searchRef = useRef<HTMLInputElement>(null);
@@ -73,8 +80,18 @@ export const SidebarHeader = ({
                         {showPlaceSkeleton ? (
                             <Skeleton className="h-5 w-28" />
                         ) : (
-                            <span className="truncate text-title text-sidebar-foreground">
-                                {placeName(current) || t('place.none')}
+                            <span className="flex min-w-0 items-center gap-2">
+                                <span className="truncate text-title text-sidebar-foreground">
+                                    {placeName(current) || t('place.none')}
+                                </span>
+                                {otherPlacesUnread > 0 && (
+                                    <span
+                                        className="shrink-0 rounded-full bg-badge-unread px-1.5 text-caption font-semibold tabular-nums text-badge-unread-foreground"
+                                        title={t('place.otherUnread')}
+                                    >
+                                        {otherPlacesUnread > 99 ? '99+' : otherPlacesUnread}
+                                    </span>
+                                )}
                             </span>
                         )}
                         <ChevronDown size={16} className="shrink-0 text-muted-foreground" aria-hidden />
