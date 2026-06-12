@@ -24,7 +24,9 @@ const maxChatNo = (list: DomainChat[]): number => list.reduce((max, c) => Math.m
 // the one with the highest chatNo — not the last array element.
 const newestChat = (list: DomainChat[]): DomainChat =>
     list.reduce((newest, c) => ((c.chatNo ?? 0) > (newest.chatNo ?? 0) ? c : newest));
-const channelName = (channel: DomainChannel): string => channel.name ?? 'New message';
+// DMs have no channel name — title with the sender instead.
+const notificationTitle = (channel: DomainChannel, latest: DomainChat): string =>
+    channel.name ?? latest.owner$?.name ?? 'New message';
 const channelPlaceId = (channel: DomainChannel): string => channel.placeId ?? channel.sid ?? '';
 
 /** Suppress only when you're actively looking at that channel in a focused window. */
@@ -107,7 +109,7 @@ export const useDesktopNotifications = (): void => {
 
             void webClient
                 .request('ShowNotification', {
-                    title: channelName(channel),
+                    title: notificationTitle(channel, latest),
                     body: latest.content ?? '',
                     channelId: channel.id,
                     // Clicking the notification routes here (place + channel).

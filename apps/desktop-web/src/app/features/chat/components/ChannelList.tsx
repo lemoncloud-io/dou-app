@@ -1,11 +1,23 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { useTick } from '@chatic/shared';
+import { useWebCoreStore } from '@chatic/web-core';
+import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
-import { Skeleton, relativeTime } from '../../../shared';
+import {
+    Skeleton,
+    avatarStyle,
+    dmCounterpartId,
+    isDmChannel,
+    isSelfChannel,
+    relativeTime,
+    resolveDisplay,
+    useAuthorNames,
+    useSiteProfileMap,
+} from '../../../shared';
 import { SearchDialog } from '../../search';
 import { QuickSwitcher } from './QuickSwitcher';
 
@@ -42,6 +54,8 @@ export const ChannelList = ({
     isDefaultMode,
 }: ChannelListProps) => {
     const { t } = useTranslation();
+    const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
+    const placeProfiles = useSiteProfileMap();
     // Tick once a minute so the relative "11m" preview times stay current.
     useTick(60_000);
     // Keep the selected channel visible (e.g. when moved by keyboard nav).
@@ -50,11 +64,64 @@ export const ChannelList = ({
         activeRef.current?.scrollIntoView({ block: 'nearest' });
     }, [selectedChannelId]);
 
-    const filtered = useMemo(() => {
+    // Slack-style sections: named channels, then DMs (self channel included).
+    const { regular, dms } = useMemo(() => {
+        const split = { regular: [] as DomainChannel[], dms: [] as DomainChannel[] };
+        for (const channel of channels) {
+            (isDmChannel(channel) || isSelfChannel(channel) ? split.dms : split.regular).push(channel);
+        }
+        return split;
+    }, [channels]);
+
+    // DM rows label as the other party — resolve their name from the user cache
+    // (Place Profile nick wins, same as message authors).
+    const counterpartIds = useMemo(
+        () => dms.map(c => dmCounterpartId(c, myUid, c.$join?.userId)).filter((id): id is string => !!id),
+        [dms, myUid]
+    );
+    const counterpartNames = useAuthorNames(counterpartIds);
+
+    /** Display identity for a DM/self row: label + avatar in place of the # glyph. */
+    const dmIdentity = (channel: DomainChannel): { label: string; icon: ReactNode } => {
+        if (isSelfChannel(channel)) {
+            return {
+                label: t('dm.you'),
+                icon: (
+                    <Avatar className="h-5 w-5 shrink-0 rounded">
+                        <AvatarFallback className="rounded text-[9px] font-semibold" style={avatarStyle(myUid ?? 'me')}>
+                            {t('dm.you').charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                    </Avatar>
+                ),
+            };
+        }
+        const counterpartId = dmCounterpartId(channel, myUid, channel.$join?.userId) ?? '';
+        const display = resolveDisplay(
+            counterpartId ? placeProfiles[counterpartId] : undefined,
+            counterpartNames.get(counterpartId) ?? channel.name ?? counterpartId,
+            undefined
+        );
+        return {
+            label: display.name || (channel.name ?? channel.id ?? ''),
+            icon: (
+                <Avatar className="h-5 w-5 shrink-0 rounded">
+                    {display.thumbnail && <AvatarImage src={display.thumbnail} alt={display.name} />}
+                    <AvatarFallback
+                        className="rounded text-[9px] font-semibold"
+                        style={avatarStyle(counterpartId || display.name)}
+                    >
+                        {display.name.charAt(0).toUpperCase() || '?'}
+                    </AvatarFallback>
+                </Avatar>
+            ),
+        };
+    };
+
+    const matchesQuery = (channel: DomainChannel, label: string): boolean => {
         const q = query.trim().toLowerCase();
-        if (!q) return channels;
-        return channels.filter(c => (c.name ?? c.id ?? '').toLowerCase().includes(q));
-    }, [channels, query]);
+        if (!q) return true;
+        return label.toLowerCase().includes(q) || (channel.name ?? channel.id ?? '').toLowerCase().includes(q);
+    };
 
     if (isLoading) return <ChannelSkeleton />;
 
@@ -72,18 +139,93 @@ export const ChannelList = ({
         );
     }
 
-    if (filtered.length === 0) {
+    // Filter AFTER identity resolution so a DM matches its display name too.
+    const visibleRegular = regular.filter(c => matchesQuery(c, c.name ?? c.id ?? ''));
+    const dmRows = dms.map(channel => ({ channel, identity: dmIdentity(channel) }));
+    const visibleDms = dmRows.filter(row => matchesQuery(row.channel, row.identity.label));
+
+    if (visibleRegular.length + visibleDms.length === 0) {
         return <div className="px-4 py-8 text-center text-callout text-muted-foreground">{t('sidebar.noMatches')}</div>;
     }
 
+    // Keyboard nav walks the rendered order: channels first, then DMs.
+    const navOrder = [...visibleRegular, ...visibleDms.map(row => row.channel)];
     const onKeyDown = (e: React.KeyboardEvent) => {
         if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
         e.preventDefault();
-        const idx = filtered.findIndex(c => (c.id ?? '') === selectedChannelId);
+        const idx = navOrder.findIndex(c => (c.id ?? '') === selectedChannelId);
         const delta = e.key === 'ArrowDown' ? 1 : -1;
-        const nextIdx = idx < 0 ? 0 : Math.min(filtered.length - 1, Math.max(0, idx + delta));
-        const next = filtered[nextIdx]?.id;
+        const nextIdx = idx < 0 ? 0 : Math.min(navOrder.length - 1, Math.max(0, idx + delta));
+        const next = navOrder[nextIdx]?.id;
         if (next) onSelect(next);
+    };
+
+    const renderRow = (channel: DomainChannel, label: string, icon: ReactNode) => {
+        const id = channel.id ?? '';
+        const isActive = id === selectedChannelId;
+        const unread = channel.unreadCount ?? 0;
+        const hasUnread = unread > 0 && !isActive;
+        const preview = lastMessagePreview(channel);
+        const time = relativeTime(channel.lastChat$?.createdAt ?? channel.lastActivityAt);
+        return (
+            <button
+                key={id}
+                ref={isActive ? activeRef : undefined}
+                onClick={() => onSelect(id)}
+                title={label}
+                aria-current={isActive ? 'true' : undefined}
+                className={cn(
+                    'focus-ring relative flex min-h-9 min-w-0 flex-col justify-center gap-0.5 rounded-md px-3 py-1.5 text-left transition-colors duration-150 ease-tactile',
+                    isActive ? 'bg-primary/12' : 'hover:bg-accent/50'
+                )}
+            >
+                {isActive && (
+                    <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
+                )}
+                <span className="flex w-full items-center gap-2">
+                    <span className={cn('shrink-0', isActive ? 'text-primary-ink' : 'text-muted-foreground')}>
+                        {icon}
+                    </span>
+                    <span
+                        className={cn(
+                            'min-w-0 flex-1 truncate',
+                            isActive
+                                ? 'text-callout font-bold text-foreground'
+                                : hasUnread
+                                  ? 'text-callout font-semibold text-foreground'
+                                  : 'text-callout text-muted-foreground'
+                        )}
+                    >
+                        {label}
+                    </span>
+                    {time && (
+                        <span
+                            className={cn(
+                                'shrink-0 text-micro tabular-nums',
+                                isActive ? 'font-medium text-foreground' : 'text-muted-foreground'
+                            )}
+                        >
+                            {time}
+                        </span>
+                    )}
+                    {hasUnread && (
+                        <span className="shrink-0 rounded-full bg-badge-unread px-1.5 text-caption font-semibold tabular-nums text-badge-unread-foreground">
+                            {unread > 99 ? '99+' : unread}
+                        </span>
+                    )}
+                </span>
+                {preview && (
+                    <span
+                        className={cn(
+                            'w-full min-w-0 truncate pl-5 text-micro',
+                            isActive || hasUnread ? 'text-foreground' : 'text-muted-foreground'
+                        )}
+                    >
+                        {preview}
+                    </span>
+                )}
+            </button>
+        );
     };
 
     return (
@@ -92,73 +234,11 @@ export const ChannelList = ({
         <nav aria-label={t('sidebar.channels')} onKeyDown={onKeyDown} className="flex flex-col gap-0.5 p-2">
             <QuickSwitcher channels={channels} onSelect={onSelect} />
             <SearchDialog channels={channels} onSelect={onSelect} />
-            {filtered.map(channel => {
-                const id = channel.id ?? '';
-                const isActive = id === selectedChannelId;
-                const unread = channel.unreadCount ?? 0;
-                const hasUnread = unread > 0 && !isActive;
-                const preview = lastMessagePreview(channel);
-                const time = relativeTime(channel.lastChat$?.createdAt ?? channel.lastActivityAt);
-                return (
-                    <button
-                        key={id}
-                        ref={isActive ? activeRef : undefined}
-                        onClick={() => onSelect(id)}
-                        title={channel.name ?? id}
-                        aria-current={isActive ? 'true' : undefined}
-                        className={cn(
-                            'focus-ring relative flex min-h-9 min-w-0 flex-col justify-center gap-0.5 rounded-md px-3 py-1.5 text-left transition-colors duration-150 ease-tactile',
-                            isActive ? 'bg-primary/12' : 'hover:bg-accent/50'
-                        )}
-                    >
-                        {isActive && (
-                            <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
-                        )}
-                        <span className="flex w-full items-center gap-2">
-                            <span className={cn('shrink-0', isActive ? 'text-primary-ink' : 'text-muted-foreground')}>
-                                #
-                            </span>
-                            <span
-                                className={cn(
-                                    'min-w-0 flex-1 truncate',
-                                    isActive
-                                        ? 'text-callout font-bold text-foreground'
-                                        : hasUnread
-                                          ? 'text-callout font-semibold text-foreground'
-                                          : 'text-callout text-muted-foreground'
-                                )}
-                            >
-                                {channel.name ?? id}
-                            </span>
-                            {time && (
-                                <span
-                                    className={cn(
-                                        'shrink-0 text-micro tabular-nums',
-                                        isActive ? 'font-medium text-foreground' : 'text-muted-foreground'
-                                    )}
-                                >
-                                    {time}
-                                </span>
-                            )}
-                            {hasUnread && (
-                                <span className="shrink-0 rounded-full bg-badge-unread px-1.5 text-caption font-semibold tabular-nums text-badge-unread-foreground">
-                                    {unread > 99 ? '99+' : unread}
-                                </span>
-                            )}
-                        </span>
-                        {preview && (
-                            <span
-                                className={cn(
-                                    'w-full min-w-0 truncate pl-5 text-micro',
-                                    isActive || hasUnread ? 'text-foreground' : 'text-muted-foreground'
-                                )}
-                            >
-                                {preview}
-                            </span>
-                        )}
-                    </button>
-                );
-            })}
+            {visibleRegular.map(channel => renderRow(channel, channel.name ?? channel.id ?? '', '#'))}
+            {visibleDms.length > 0 && (
+                <h3 className="mb-1 mt-3 px-3 text-overline text-muted-foreground">{t('sidebar.dms')}</h3>
+            )}
+            {visibleDms.map(row => renderRow(row.channel, row.identity.label, row.identity.icon))}
         </nav>
     );
 };

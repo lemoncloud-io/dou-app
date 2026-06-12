@@ -36,6 +36,7 @@ export const MemberRow = ({ member, isMe, canKick, onKick }: MemberRowProps) => 
                 fallbackName={name}
                 fallbackThumbnail={thumbnail}
                 isOwner={member.isOwner}
+                isMe={isMe}
             >
                 <button
                     type="button"

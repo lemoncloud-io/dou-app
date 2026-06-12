@@ -7,7 +7,17 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useAuthorNames, useChatMutations, useChats, useReadCursorStore, useReadReceipts } from '../../../shared';
+import {
+    dmCounterpartId,
+    displayName,
+    isDmChannel,
+    isSelfChannel,
+    useAuthorNames,
+    useChatMutations,
+    useChats,
+    useReadCursorStore,
+    useReadReceipts,
+} from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { useChannelSettingsStore } from '../../channels';
 import { buildMemberNames, buildThreadIndex } from '../utils';
@@ -95,6 +105,15 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
 
     const memberCount = channel.memberNo ?? 0;
     const desc = channel.desc?.trim();
+    // DM headers carry the other party's name (roster is already loaded here);
+    // the self channel reads as "You".
+    let headerName = channel.name ?? channelId;
+    if (isSelfChannel(channel)) {
+        headerName = t('dm.you');
+    } else if (isDmChannel(channel)) {
+        const counterpart = members.find(m => m.id === dmCounterpartId(channel, viewer.uid, viewer.cloudUid));
+        if (counterpart) headerName = displayName(counterpart);
+    }
 
     return (
         <>
@@ -108,7 +127,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-heading text-primary-ink">
                         #
                     </span>
-                    <span className="truncate text-title text-foreground">{channel.name ?? channelId}</span>
+                    <span className="truncate text-title text-foreground">{headerName}</span>
                     {desc && <span className="truncate text-caption text-muted-foreground">{desc}</span>}
                     {memberCount > 0 && (
                         <span className="border-hairline shrink-0 border-l pl-2 text-caption tabular-nums text-muted-foreground">
@@ -150,7 +169,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 disabled={isSending}
                 onSend={handleSend}
                 channelId={channelId}
-                placeholder={t('chat.composer.placeholderChannel', { name: channel.name ?? channelId })}
+                placeholder={t('chat.composer.placeholderChannel', { name: headerName })}
                 mentionables={mentionables}
             />
         </>

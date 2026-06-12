@@ -7,6 +7,8 @@ export interface ProfilePanelTarget {
     fallbackThumbnail?: string;
     colorSeed?: string;
     isOwner?: boolean;
+    /** The signed-in user's own card — hides actions like "Message". */
+    isMe?: boolean;
 }
 
 interface ProfilePanelState {

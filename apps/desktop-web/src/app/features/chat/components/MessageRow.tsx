@@ -67,6 +67,7 @@ export const MessageRow = memo(
             fallbackName: group.ownerName,
             fallbackThumbnail: group.avatar,
             colorSeed: group.colorSeed,
+            isMe: group.isMine,
         };
 
         const copy = (key: string, content: string) => {
