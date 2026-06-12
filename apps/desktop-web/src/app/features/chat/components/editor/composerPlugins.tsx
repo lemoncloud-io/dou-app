@@ -59,7 +59,7 @@ export const SubmitPlugin = ({ onSubmit }: { onSubmit: () => void }) => {
     return null;
 };
 
-/** ⌘⇧X strike · ⌘⇧C inline code · ⌘⇧⌥C code block (⌘B/⌘I are built in). */
+/** ⌘B bold · ⌘I italic · ⌘⇧X strike · ⌘⇧C inline code · ⌘⇧⌥C code block. */
 export const FormatShortcutsPlugin = () => {
     const [editor] = useLexicalComposerContext();
 
@@ -69,7 +69,24 @@ export const FormatShortcutsPlugin = () => {
                 KEY_DOWN_COMMAND,
                 event => {
                     // e.code (not e.key): macOS Option remaps e.key.
-                    if (!(event.metaKey || event.ctrlKey) || !event.shiftKey) return false;
+                    if (!(event.metaKey || event.ctrlKey)) return false;
+                    // ⌘B / ⌘I — bound explicitly (preventDefault suppresses the
+                    // browser's own beforeinput) instead of relying on Lexical's
+                    // built-in, which the desktop shell doesn't fire reliably.
+                    if (!event.shiftKey && !event.altKey) {
+                        if (event.code === 'KeyB') {
+                            event.preventDefault();
+                            editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold');
+                            return true;
+                        }
+                        if (event.code === 'KeyI') {
+                            event.preventDefault();
+                            editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic');
+                            return true;
+                        }
+                        return false;
+                    }
+                    if (!event.shiftKey) return false;
                     if (event.code === 'KeyX' && !event.altKey) {
                         event.preventDefault();
                         editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough');
