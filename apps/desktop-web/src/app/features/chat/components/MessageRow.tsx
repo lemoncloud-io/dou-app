@@ -76,7 +76,10 @@ export const MessageRow = memo(({ group, onRetry, onDiscard, threadMeta, onOpenT
     );
 
     return (
-        <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 transition-colors ease-tactile hover:bg-accent/40">
+        // The full-width hover band is the toolbar's runway: it has to read in
+        // peripheral vision on wide windows, so it is stronger than a typical
+        // list hover.
+        <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 transition-colors ease-tactile hover:bg-accent/70">
             <UserProfilePopover userId={userId} fallbackName={group.ownerName}>
                 <button type="button" className="focus-ring tactile h-9 w-9 shrink-0 rounded-md">
                     <Avatar className="h-9 w-9 rounded-md">
@@ -128,7 +131,10 @@ export const MessageRow = memo(({ group, onRetry, onDiscard, threadMeta, onOpenT
                         // never get a footer.
                         const meta = message.chatNo != null ? threadMeta?.get(String(message.chatNo)) : undefined;
                         return (
-                            <div key={key} className="group/msg relative pr-16">
+                            // Reserve the toolbar slot: both actions in the main feed, copy
+                            // only in the (narrower) thread panel — a full 80px reserve there
+                            // wastes scarce width.
+                            <div key={key} className={cn('group/msg relative', onOpenThread ? 'pr-20' : 'pr-12')}>
                                 {i > 0 && msgTime && (
                                     <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-[10px] tabular-nums text-muted-foreground/70 group-hover/msg:block">
                                         {msgTime}
@@ -143,6 +149,48 @@ export const MessageRow = memo(({ group, onRetry, onDiscard, threadMeta, onOpenT
                                 >
                                     <RichText content={content} />
                                 </p>
+                                {/* Slack-style action toolbar: an elevated pill at a FIXED
+                                    far-right position (spatial muscle memory), aligned with the
+                                    message's first line so it stays inside the hover band. It
+                                    slides in on hover — peripheral vision picks up the motion
+                                    onset where a static pill goes unnoticed on wide windows. */}
+                                {((onOpenThread && message.id && !isPending && !isFailed) || content) && (
+                                    <div
+                                        className={cn(
+                                            'absolute -top-1.5 right-0 z-10 flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
+                                            isCopied
+                                                ? 'translate-x-0 opacity-100'
+                                                : 'translate-x-0 opacity-100 focus-within:translate-x-0 focus-within:opacity-100 [@media(hover:hover)]:translate-x-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:translate-x-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:translate-x-0 [@media(hover:hover)]:focus-within:opacity-100'
+                                        )}
+                                    >
+                                        {onOpenThread && message.id && !isPending && !isFailed && (
+                                            <button
+                                                type="button"
+                                                onClick={() => onOpenThread(threadRootId(message))}
+                                                title={t('chat.thread.replyAction')}
+                                                aria-label={t('chat.thread.replyAction')}
+                                                className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                                            >
+                                                <Reply size={16} />
+                                            </button>
+                                        )}
+                                        {content && (
+                                            <button
+                                                type="button"
+                                                onClick={() => copy(key, content)}
+                                                title={isCopied ? t('chat.copied') : t('chat.copy')}
+                                                aria-label={t('chat.copy')}
+                                                className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                                            >
+                                                {isCopied ? (
+                                                    <Check size={16} className="text-primary-ink" />
+                                                ) : (
+                                                    <Copy size={16} />
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                                 {isFailed && (
                                     <span className="mt-0.5 flex items-center gap-1.5 text-caption text-destructive">
                                         {t('chat.failed')}
@@ -218,46 +266,6 @@ export const MessageRow = memo(({ group, onRetry, onDiscard, threadMeta, onOpenT
                                             className="ml-auto hidden shrink-0 text-muted-foreground group-hover/thread:block"
                                         />
                                     </button>
-                                )}
-                                {/* Slack-style action toolbar: one elevated pill floating over
-                                    the message's top-right corner, shown while the row is hovered
-                                    (or any action inside holds focus). */}
-                                {((onOpenThread && message.id && !isPending && !isFailed) || content) && (
-                                    <div
-                                        className={cn(
-                                            'absolute -top-3.5 right-0 z-10 flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-opacity ease-tactile',
-                                            isCopied
-                                                ? 'opacity-100'
-                                                : 'opacity-100 focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:opacity-100'
-                                        )}
-                                    >
-                                        {onOpenThread && message.id && !isPending && !isFailed && (
-                                            <button
-                                                type="button"
-                                                onClick={() => onOpenThread(threadRootId(message))}
-                                                title={t('chat.thread.replyAction')}
-                                                aria-label={t('chat.thread.replyAction')}
-                                                className="focus-ring tactile flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                                            >
-                                                <Reply size={15} />
-                                            </button>
-                                        )}
-                                        {content && (
-                                            <button
-                                                type="button"
-                                                onClick={() => copy(key, content)}
-                                                title={isCopied ? t('chat.copied') : t('chat.copy')}
-                                                aria-label={t('chat.copy')}
-                                                className="focus-ring tactile flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                                            >
-                                                {isCopied ? (
-                                                    <Check size={15} className="text-primary-ink" />
-                                                ) : (
-                                                    <Copy size={15} />
-                                                )}
-                                            </button>
-                                        )}
-                                    </div>
                                 )}
                             </div>
                         );
