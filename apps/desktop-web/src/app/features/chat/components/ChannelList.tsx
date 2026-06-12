@@ -15,6 +15,7 @@ import {
     isSelfChannel,
     relativeTime,
     resolveDisplay,
+    stripMarkdown,
     useAuthorNames,
     useSiteProfileMap,
 } from '../../../shared';
@@ -31,8 +32,8 @@ interface ChannelListProps {
     isDefaultMode: boolean;
 }
 
-/** The channel's last message text — no author prefix. */
-const lastMessagePreview = (channel: DomainChannel): string => channel.lastChat$?.content?.trim() ?? '';
+/** The channel's last message text — no author prefix, markdown flattened. */
+const lastMessagePreview = (channel: DomainChannel): string => stripMarkdown(channel.lastChat$?.content?.trim() ?? '');
 
 const ChannelSkeleton = () => (
     <div role="status" aria-label="Loading channels" className="flex flex-col gap-0.5 p-2">

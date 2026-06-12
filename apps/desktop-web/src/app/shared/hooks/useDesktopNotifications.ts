@@ -7,7 +7,7 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import { useRepositories } from '@chatic/app-runtime';
 
 import { usePlaces } from './usePlaces';
-import { isMentioned } from '../utils';
+import { isMentioned, stripMarkdown } from '../utils';
 import {
     channelNotifyMode,
     useNotificationPrefsStore,
@@ -110,7 +110,7 @@ export const useDesktopNotifications = (): void => {
             void webClient
                 .request('ShowNotification', {
                     title: notificationTitle(channel, latest),
-                    body: latest.content ?? '',
+                    body: stripMarkdown(latest.content ?? ''),
                     channelId: channel.id,
                     // Clicking the notification routes here (place + channel).
                     deeplink: `chatic-open:${encodeURIComponent(placeId)}|${encodeURIComponent(channel.id)}`,
