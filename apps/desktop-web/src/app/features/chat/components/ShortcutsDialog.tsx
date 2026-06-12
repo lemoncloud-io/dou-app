@@ -58,7 +58,8 @@ export const ShortcutsDialog = () => {
         {
             keys: (
                 <>
-                    <Kbd>{MOD} B</Kbd> <Kbd>{MOD} I</Kbd> <Kbd>{MOD} ⇧ X</Kbd> <Kbd>{MOD} ⇧ C</Kbd>
+                    <Kbd>{MOD} B</Kbd> <Kbd>{MOD} I</Kbd> <Kbd>{MOD} ⇧ X</Kbd> <Kbd>{MOD} ⇧ C</Kbd>{' '}
+                    <Kbd>{MOD} ⇧ ⌥ C</Kbd>
                 </>
             ),
             label: t('shortcuts.format'),
