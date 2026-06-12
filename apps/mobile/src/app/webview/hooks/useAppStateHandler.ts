@@ -2,11 +2,13 @@ import { useCallback, useEffect } from 'react';
 import { useAppState } from '../../hooks';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { AppBackgroundStatus, WebMessageData } from '@chatic/app-messages';
+import { logger } from '../../services';
 
 /**
  * 앱의 상태(Foreground/Background)를 감지하고 웹뷰(Web)와 동기화하는 역할을 담당하는 훅입니다.
+ * 또한, 백그라운드 복귀 화면 오버레이 해제(DismissResumeOverlay) 처리도 수행합니다.
  */
-export const useAppStateHandler = (bridge: IAppBridgeHost | null) => {
+export const useAppStateHandler = (bridge: IAppBridgeHost | null, onDismissOverlay?: () => void) => {
     const { appState, isForeground, isBackground } = useAppState();
 
     const handleFetchBackgroundStatus = useCallback(
@@ -35,6 +37,19 @@ export const useAppStateHandler = (bridge: IAppBridgeHost | null) => {
         [appState, isForeground, isBackground]
     );
 
+    const handleDismissResumeOverlay = useCallback(
+        async (_message: WebMessageData<'DismissResumeOverlay'>) => {
+            logger.info('WEBVIEW', 'DismissResumeOverlay received from WebView repaint animation');
+            onDismissOverlay?.();
+            return {
+                type: 'OnDismissResumeOverlay' as const,
+                success: true,
+                data: {},
+            };
+        },
+        [onDismissOverlay]
+    );
+
     useEffect(() => {
         if (!bridge || appState === 'unknown') {
             return;
@@ -53,5 +68,6 @@ export const useAppStateHandler = (bridge: IAppBridgeHost | null) => {
 
     return {
         handleFetchBackgroundStatus,
+        handleDismissResumeOverlay,
     };
 };

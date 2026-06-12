@@ -16,6 +16,7 @@ import {
     useSubscriptionIapHandler,
     useUploadHandler,
     useTestRecordHandler,
+    useResumeOverlay,
 } from './index';
 
 import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
@@ -39,9 +40,11 @@ export interface UseWebMessageRouterProps {
  * @returns An object containing the message handler callback and IAP loading state.
  */
 export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
+    const { showResumeOverlay, dismissOverlay } = useResumeOverlay();
+
     // --- Domain-specific Handlers (memoized with useCallback) ---
     const { fetchSafeAreaInfo } = useSafeAreaHandler();
-    const { handleFetchBackgroundStatus } = useAppStateHandler(bridge);
+    const { handleFetchBackgroundStatus, handleDismissResumeOverlay } = useAppStateHandler(bridge, dismissOverlay);
     const { fetchFcmToken, handleFetchBadgeCount, handleSetBadgeCount } = useFcmHandler(bridge);
     const {
         fetchProducts,
@@ -112,6 +115,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleSetBadgeCount,
         fetchSafeAreaInfo,
         handleFetchBackgroundStatus,
+        handleDismissResumeOverlay,
         fetchProducts,
         fetchCurrentPurchases,
         handlePurchaseSubscription,
@@ -170,6 +174,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleSetBadgeCount,
             fetchSafeAreaInfo,
             handleFetchBackgroundStatus,
+            handleDismissResumeOverlay,
             fetchProducts,
             fetchCurrentPurchases,
             handlePurchaseSubscription,
@@ -281,6 +286,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             RecoverUpload: message => handlersRef.current.handleRecoverUpload(message),
             RetryUpload: message => handlersRef.current.handleRetryUpload(message),
             CreateDummyFile: message => handlersRef.current.handleCreateDummyFile(message),
+            DismissResumeOverlay: message => handlersRef.current.handleDismissResumeOverlay(message),
         };
 
         // Bridge에 핸들러 등록
@@ -299,5 +305,5 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         };
     }, [bridge]);
 
-    return { isIapLoading };
+    return { isIapLoading, showResumeOverlay };
 };
