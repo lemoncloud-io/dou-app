@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, MessageSquare } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
+import { cn } from '@chatic/lib/utils';
 
 import { Skeleton, resolveDisplay, useSiteProfileMap } from '../../../shared';
 import { buildMessageRows, isOwnMessage, type MessageViewer, type ThreadMeta } from '../utils';
@@ -45,6 +46,10 @@ const LOAD_OLDER_PX = 120;
 const MAX_JUMP_PAGES = 8;
 /** Slack-style thread footer shows at most this many replier avatars. */
 const MAX_FOOTER_REPLIERS = 3;
+/** Linger before the "New messages" divider clears, so the dismiss is seen first. */
+const DIVIDER_CLEAR_DELAY_MS = 1000;
+/** Fade-out duration once the linger elapses (matches the transition class below). */
+const DIVIDER_FADE_MS = 300;
 
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
@@ -160,6 +165,30 @@ export const MessageList = ({
     // would re-trigger the post-send snap animation).
     const maxChatNoRef = useRef(maxChatNo);
     maxChatNoRef.current = maxChatNo;
+    // Dismiss the divider on a short delay so it lingers long enough to register
+    // before vanishing. Coalesced (a new schedule resets the timer); leaving the
+    // bottom cancels it. Fires to the latest real chatNo at timeout.
+    const dividerClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [dividerFading, setDividerFading] = useState(false);
+    const scheduleDividerClear = () => {
+        if (dividerClearTimer.current) clearTimeout(dividerClearTimer.current);
+        // Linger, then fade out, then actually drop the row (advance the baseline).
+        dividerClearTimer.current = setTimeout(() => {
+            setDividerFading(true);
+            dividerClearTimer.current = setTimeout(() => {
+                setSeenUpTo(prev => Math.max(prev, maxChatNoRef.current));
+                setDividerFading(false);
+            }, DIVIDER_FADE_MS);
+        }, DIVIDER_CLEAR_DELAY_MS);
+    };
+    const cancelDividerClear = () => {
+        if (dividerClearTimer.current) {
+            clearTimeout(dividerClearTimer.current);
+            dividerClearTimer.current = null;
+        }
+        // Scrolled back up mid-fade — restore the divider (fades back in).
+        setDividerFading(false);
+    };
 
     // A late $join can raise the open-time baseline after mount — lift the
     // divider's floor to match so it anchors at the right place.
@@ -220,10 +249,9 @@ export const MessageList = ({
     useEffect(() => {
         if (!scrollSignal) return;
         setAtBottom(true);
-        // Sending means you're caught up — clear the "New messages" divider by
-        // advancing the baseline to the latest real message. Read via ref so
-        // maxChatNo stays out of this effect's deps.
-        setSeenUpTo(prev => Math.max(prev, maxChatNoRef.current));
+        // Sending means you're caught up — clear the "New messages" divider after
+        // a short linger (advances to the latest real chatNo at timeout).
+        scheduleDividerClear();
         // Pin to the bottom every frame for a short window: a single scroll lands
         // short because the list keeps reflowing after the send (optimistic message
         // render, optimistic→server swap, height change), each nudging the viewport
@@ -276,36 +304,36 @@ export const MessageList = ({
         }
     }, [jumpTarget, messages, hasMore, isLoadingOlder, onLoadOlder, onJumpConsumed]);
 
-    // Clear a pending flash timer on unmount.
-    useEffect(() => () => clearTimeout(highlightTimer.current ?? undefined), []);
+    // Clear pending flash / divider-dismiss timers on unmount.
+    useEffect(
+        () => () => {
+            clearTimeout(highlightTimer.current ?? undefined);
+            clearTimeout(dividerClearTimer.current ?? undefined);
+        },
+        []
+    );
 
-    // Re-focusing the window while parked at the bottom clears the divider for
-    // messages that landed while you were away (focus-gated, so they stay "new"
-    // until you actually look at them).
-    useEffect(() => {
-        const onActivity = () => {
-            const el = scrollRef.current;
-            if (!el || !isWindowActive()) return;
-            if (el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX) {
-                setSeenUpTo(prev => Math.max(prev, maxChatNo));
-            }
-        };
-        window.addEventListener('focus', onActivity);
-        document.addEventListener('visibilitychange', onActivity);
-        return () => {
-            window.removeEventListener('focus', onActivity);
-            document.removeEventListener('visibilitychange', onActivity);
-        };
-    }, [maxChatNo]);
+    // The "New messages" divider clears only when the reader actively scrolls
+    // DOWN into the bottom (a not-near-bottom → near-bottom transition). Focus,
+    // channel-open auto-scroll, and live-follow all land at the bottom too but
+    // must NOT dismiss an unseen divider — track the previous state for the edge.
+    const wasNearBottomRef = useRef(true);
 
     const onScroll = () => {
         const el = scrollRef.current;
         if (!el) return;
         const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
         setAtBottom(nearBottom);
-        // Reaching the bottom (focused) means you've read down to the latest —
-        // clear the divider.
-        if (nearBottom && isWindowActive()) setSeenUpTo(prev => Math.max(prev, maxChatNo));
+        // Clear the divider only on a genuine scroll DOWN into the bottom (was
+        // above it, now near it). Opening a channel or an auto-follow also reaches
+        // the bottom, but those keep the divider until the reader scrolls past it.
+        if (nearBottom && !wasNearBottomRef.current && isWindowActive()) {
+            scheduleDividerClear();
+        } else if (!nearBottom) {
+            // Scrolled back up before the linger elapsed — keep the divider.
+            cancelDividerClear();
+        }
+        wasNearBottomRef.current = nearBottom;
         if (el.scrollTop < LOAD_OLDER_PX && hasMore && !isLoadingOlder && onLoadOlder) {
             prependRef.current = { pending: true, prevHeight: el.scrollHeight, prevTop: el.scrollTop };
             onLoadOlder();
@@ -365,7 +393,14 @@ export const MessageList = ({
                     if (row.kind === 'date') return <DateSeparator key={row.key} timestamp={row.timestamp} />;
                     if (row.kind === 'unread') {
                         return (
-                            <div key={row.key} ref={unreadRef} className="my-1 flex items-center gap-2 px-2">
+                            <div
+                                key={row.key}
+                                ref={unreadRef}
+                                className={cn(
+                                    'my-1 flex items-center gap-2 px-2 transition-opacity duration-300 ease-tactile motion-reduce:transition-none',
+                                    dividerFading && 'opacity-0'
+                                )}
+                            >
                                 <span className="h-px flex-1 bg-badge-unread/40" />
                                 <span className="shrink-0 rounded-full bg-badge-unread px-2 py-0.5 text-overline text-badge-unread-foreground">
                                     {t('chat.newMessages')}
