@@ -6,13 +6,7 @@ import { useWebCoreStore } from '@chatic/web-core';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-import {
-    useChannels,
-    useClouds,
-    usePlaces,
-    useSelectedChannelStore,
-    useSelectedPlaceStore,
-} from '../../../shared';
+import { useChannels, useClouds, usePlaces, useSelectedChannelStore, useSelectedPlaceStore } from '../../../shared';
 
 const Row = ({ label, value }: { label: string; value: string | number | boolean | null | undefined }) => (
     <div className="flex flex-col gap-0.5 py-1.5">
@@ -85,6 +79,9 @@ export const DebugStatePage = () => {
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => navigate('/debug/badge')}>
                         {t('debug.badge')}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => navigate('/debug/sync')}>
+                        Sync Verify
                     </Button>
                 </div>
             </div>
