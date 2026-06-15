@@ -35,6 +35,9 @@ const RECONNECT_MS = 5_000;
 // silently dropped socket (network blip, NAT rebind, wifi roam) is otherwise
 // undetectable. Periodically force a fresh connect as a safety net.
 const WATCHDOG_MS = 10 * 60 * 1_000;
+// Min gap between focus-triggered reconnects so rapid window focus toggling doesn't
+// churn the socket (the watchdog/powerMonitor reconnects also refresh this clock).
+const FOCUS_RECONNECT_THROTTLE_MS = 30_000;
 const credsFile = (): string => join(app.getPath('userData'), 'chatic-fcm.json');
 
 const loadCreds = (): SavedCreds | null => {
@@ -104,6 +107,7 @@ export const startFcm = async (
 
     let client: Client | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastConnectAt = 0;
 
     const scheduleReconnect = (): void => {
         if (reconnectTimer) return;
@@ -114,6 +118,7 @@ export const startFcm = async (
     };
 
     const connect = (): void => {
+        lastConnectAt = Date.now();
         client?.destroy(); // tear down any prior (possibly half-open) socket + its retry timer
         const c = new Client(session.androidId, session.securityToken, session.persistentIds);
         client = c;
@@ -155,7 +160,15 @@ export const startFcm = async (
     powerMonitor.on('resume', connect);
     powerMonitor.on('unlock-screen', connect);
 
-    // Safety net for a half-open socket that fires no 'close'/'resume' event
+    // Bringing the app to the foreground is NOT a powerMonitor 'resume' (the system
+    // never slept), yet a long background stint is exactly when the socket may have
+    // silently died — reconnect on focus for instant recovery on return, throttled so
+    // routine focus changes don't churn the socket.
+    app.on('browser-window-focus', () => {
+        if (Date.now() - lastConnectAt >= FOCUS_RECONNECT_THROTTLE_MS) connect();
+    });
+
+    // Safety net for a half-open socket that fires no 'close'/'resume'/focus event
     // (silent network drop while the app stays awake). The server replays queued
     // pushes on the fresh login and persistentIds dedupe prevents doubles.
     setInterval(connect, WATCHDOG_MS);

@@ -11,6 +11,7 @@ import {
     type MenuItemConstructorOptions,
     nativeImage,
     Notification,
+    powerSaveBlocker,
     screen,
     shell,
     Tray,
@@ -551,6 +552,14 @@ if (!singleInstanceLock) {
     });
 
     app.whenReady().then(() => {
+        // Cross-cloud push lives on an in-process mtalk socket (push-receiver), not an
+        // OS push daemon, so it stops receiving the moment macOS App Nap suspends the
+        // app after a long stretch in the background — which also freezes the FCM
+        // reconnect watchdog. Hold a 'prevent-app-suspension' assertion so the socket
+        // and its watchdog keep running while backgrounded (allows display sleep; only
+        // stops the OS from napping the process).
+        powerSaveBlocker.start('prevent-app-suspension');
+
         Menu.setApplicationMenu(buildAppMenu());
         createWindow();
 
