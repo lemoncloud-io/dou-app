@@ -22,7 +22,8 @@ import {
 
 import { useJoinedCloudsStore } from '../../../shared';
 import { fetchInviteCodeInfo } from '../apis';
-import { parseInviteInput } from '../utils';
+import { extractServerErrorMessage, parseInviteInput } from '../utils';
+import type { InviteLoginError } from '../utils';
 
 /**
  * Invite-code auth flow — mirrors apps/web LoginPage (fetchInvite + handleAccept):
@@ -42,16 +43,20 @@ export const useInviteLogin = () => {
     const addJoinedCloud = useJoinedCloudsStore(s => s.addJoinedCloud);
     const queryClient = useQueryClient();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isError, setIsError] = useState(false);
+    const [error, setError] = useState<InviteLoginError | null>(null);
 
     const login = useCallback(
         async (input: string): Promise<boolean> => {
             const parsed = parseInviteInput(input);
-            if (!parsed) return false;
+            if (!parsed) {
+                // Unparseable paste — previously failed silently; tell the user why.
+                setError({ kind: 'format' });
+                return false;
+            }
             const { code, backend } = parsed;
 
             setIsSubmitting(true);
-            setIsError(false);
+            setError(null);
 
             try {
                 await startWebCoreInit();
@@ -123,7 +128,7 @@ export const useInviteLogin = () => {
                 const err = toError(error);
                 logger.error('AUTH', '[useInviteLogin] login failed', { error: err });
                 reportError(err);
-                setIsError(true);
+                setError({ kind: 'server', message: extractServerErrorMessage(err) });
                 return false;
             } finally {
                 setIsSubmitting(false);
@@ -132,5 +137,5 @@ export const useInviteLogin = () => {
         [deviceId, registerDevice, setProfile, setIsAuthenticated, addJoinedCloud, queryClient]
     );
 
-    return { login, isSubmitting, isError };
+    return { login, isSubmitting, error };
 };

@@ -7,12 +7,13 @@ import { useWebCoreStore } from '@chatic/web-core';
 
 import { AuthCard } from '../components';
 import { useInviteLogin } from '../hooks/useInviteLogin';
+import { inviteLoginErrorText } from '../utils';
 
 export const InviteLoginPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const isAuthenticated = useWebCoreStore(s => s.isAuthenticated);
-    const { login, isSubmitting, isError } = useInviteLogin();
+    const { login, isSubmitting, error } = useInviteLogin();
     const [code, setCode] = useState('');
 
     // Authenticated (in-app /join) → back to chat; unauthenticated (/auth/login)
@@ -49,7 +50,7 @@ export const InviteLoginPage = () => {
                         'border-input focus:border-focus-border disabled:opacity-50'
                     )}
                 />
-                {isError && <p className="-mt-2 text-sm text-destructive">{t('auth.invite.failed')}</p>}
+                {error && <p className="-mt-2 text-sm text-destructive">{inviteLoginErrorText(error, t)}</p>}
                 <button
                     type="submit"
                     disabled={isSubmitting || !code.trim()}

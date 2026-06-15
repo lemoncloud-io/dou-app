@@ -7,6 +7,7 @@ import { Input } from '@chatic/ui-kit/components/ui/input';
 
 import { useInviteLogin } from '../hooks/useInviteLogin';
 import { useJoinDialogStore } from '../stores';
+import { inviteLoginErrorText } from '../utils';
 
 /**
  * In-app "join a workspace" dialog for an already-authenticated (e.g. guest)
@@ -18,7 +19,7 @@ export const JoinWithInviteDialog = () => {
     const { t } = useTranslation();
     const isOpen = useJoinDialogStore(s => s.isOpen);
     const close = useJoinDialogStore(s => s.close);
-    const { login, isSubmitting, isError } = useInviteLogin();
+    const { login, isSubmitting, error } = useInviteLogin();
     const [code, setCode] = useState('');
 
     const reset = () => setCode('');
@@ -53,7 +54,7 @@ export const JoinWithInviteDialog = () => {
                         aria-label={t('auth.invite.placeholder')}
                         disabled={isSubmitting}
                     />
-                    {isError && <p className="-mt-1 text-sm text-destructive">{t('auth.invite.failed')}</p>}
+                    {error && <p className="-mt-1 text-sm text-destructive">{inviteLoginErrorText(error, t)}</p>}
                     <div className="flex justify-end gap-2 pt-1">
                         <Button
                             type="button"

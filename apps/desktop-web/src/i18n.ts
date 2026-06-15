@@ -14,7 +14,9 @@ const resources = {
             'auth.invite.placeholder': 'Paste invite link or invt:… code',
             'auth.invite.submit': 'Join',
             'auth.invite.preparing': 'Preparing...',
-            'auth.invite.failed': 'Login failed. Check the code and try again.',
+            'auth.invite.failed.format':
+                "That doesn't look like an invite. Paste the full https://app.chatic.io/s?code=… link or an invt:… code.",
+            'auth.invite.failed.generic': 'Login failed. Check the code and try again.',
             'auth.token.loggingIn': 'Signing in...',
             'auth.token.invalid': 'Invalid access link.',
             'auth.debug.title': 'Debug sign-in',
