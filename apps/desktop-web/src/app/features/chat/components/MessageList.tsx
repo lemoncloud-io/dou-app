@@ -21,6 +21,8 @@ interface MessageListProps {
     membersLoading?: boolean;
     /** Read position when the channel was opened — drives the "new messages" divider. */
     baselineReadNo?: number;
+    /** Thread panel only: total replies under the root — renders an "N replies" divider. */
+    threadReplyCount?: number;
     onRetry?: (message: DomainChat) => void;
     /** Remove an unsent (failed / stuck-pending) message from the local cache. */
     onDiscard?: (message: DomainChat) => void;
@@ -61,6 +63,7 @@ export const MessageList = ({
     names,
     membersLoading,
     baselineReadNo,
+    threadReplyCount,
     onRetry,
     onDiscard,
     onLoadOlder,
@@ -106,8 +109,8 @@ export const MessageList = ({
 
     const placeProfiles = useSiteProfileMap();
     const rows = useMemo(
-        () => buildMessageRows(messages, viewer, names, seenUpTo, membersLoading, placeProfiles),
-        [messages, viewer, names, seenUpTo, membersLoading, placeProfiles]
+        () => buildMessageRows(messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount),
+        [messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount]
     );
 
     // Resolve thread repliers for the footer avatar stack the same way message
@@ -409,6 +412,18 @@ export const MessageList = ({
                             </div>
                         );
                     }
+                    if (row.kind === 'replies') {
+                        // Slack-style thread divider: the reply count anchored left,
+                        // a hairline filling the rest of the row.
+                        return (
+                            <div key={row.key} className="my-2 flex items-center gap-3 px-1">
+                                <span className="shrink-0 text-caption font-semibold tabular-nums text-muted-foreground">
+                                    {t('chat.thread.replyCount', { count: row.count })}
+                                </span>
+                                <span className="h-px flex-1 bg-hairline" />
+                            </div>
+                        );
+                    }
                     return (
                         <MessageRow
                             key={row.group.key}
@@ -419,6 +434,7 @@ export const MessageList = ({
                             onOpenThread={onOpenThread}
                             selfNames={selfNames}
                             highlightChatNo={highlightChatNo ?? undefined}
+                            withDayInTime={threadReplyCount !== undefined}
                         />
                     );
                 })}

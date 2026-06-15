@@ -76,6 +76,7 @@ const resources = {
             'chat.thread.openThread_one': 'Open thread · {{count}} reply',
             'chat.thread.openThread_other': 'Open thread · {{count}} replies',
             'chat.thread.lastReplyAt': 'Last reply at {{time}}',
+            'chat.thread.headerTime': '{{day}} at {{time}}',
             'chat.thread.view': 'View thread',
             'chat.thread.composerPlaceholder': 'Reply…',
             'chat.thread.resize': 'Resize thread panel',

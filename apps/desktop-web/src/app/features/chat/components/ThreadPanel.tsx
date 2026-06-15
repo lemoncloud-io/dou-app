@@ -46,9 +46,13 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
     const viewer = useMessageViewer(channel);
     const mentionables = useMentionables(members);
 
-    const { root, threadMessages } = useMemo(() => {
+    const { root, threadMessages, replyCount } = useMemo(() => {
         const thread = buildThread(messages, rootId);
-        return { root: thread.root, threadMessages: thread.root ? [thread.root, ...thread.replies] : thread.replies };
+        return {
+            root: thread.root,
+            threadMessages: thread.root ? [thread.root, ...thread.replies] : thread.replies,
+            replyCount: thread.replies.length,
+        };
     }, [messages, rootId]);
 
     // Resolve author names the same way as the chat pane: cached author names
@@ -106,6 +110,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
                     viewer={viewer}
                     names={names}
                     membersLoading={membersLoading}
+                    threadReplyCount={replyCount}
                     onRetry={retryMessage}
                     onDiscard={message => void discardMessage(message)}
                 />

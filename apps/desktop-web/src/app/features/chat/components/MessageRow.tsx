@@ -40,6 +40,8 @@ interface MessageRowProps {
     selfNames?: string[];
     /** chatNo of a message to flash (saved-item / search jump landed on it). */
     highlightChatNo?: number;
+    /** Thread panel: qualify the header time with the day ("Today at 3:28 PM"). */
+    withDayInTime?: boolean;
 }
 
 /**
@@ -56,8 +58,44 @@ const formatTime = (ms: number): string => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+const isSameCalendarDay = (a: Date, b: Date): boolean =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+// Slack-style thread header time: prefix the day ("Today" / "Yesterday" / "Jun
+// 12", with the year only when it differs) so the thread reads without date
+// dividers. Falls back to the bare time on a bad timestamp.
+const formatDayTime = (ms: number, t: (key: string, opts?: Record<string, unknown>) => string): string => {
+    const time = formatTime(ms);
+    if (!time) return '';
+    const date = new Date(ms);
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    let day: string;
+    if (isSameCalendarDay(date, now)) day = t('chat.today');
+    else if (isSameCalendarDay(date, yesterday)) day = t('chat.yesterday');
+    else {
+        day = date.toLocaleDateString(
+            [],
+            date.getFullYear() === now.getFullYear()
+                ? { month: 'short', day: 'numeric' }
+                : { year: 'numeric', month: 'short', day: 'numeric' }
+        );
+    }
+    return t('chat.thread.headerTime', { day, time });
+};
+
 export const MessageRow = memo(
-    ({ group, onRetry, onDiscard, threadMeta, onOpenThread, selfNames, highlightChatNo }: MessageRowProps) => {
+    ({
+        group,
+        onRetry,
+        onDiscard,
+        threadMeta,
+        onOpenThread,
+        selfNames,
+        highlightChatNo,
+        withDayInTime,
+    }: MessageRowProps) => {
         const { t } = useTranslation();
         const [copiedKey, setCopiedKey] = useState<string | null>(null);
         const savedItems = useSavedItemsStore(s => s.items);
@@ -125,7 +163,7 @@ export const MessageRow = memo(
                             </UserProfilePopover>
                         )}
                         <span className="text-caption tabular-nums text-muted-foreground">
-                            {formatTime(group.timestamp)}
+                            {withDayInTime ? formatDayTime(group.timestamp, t) : formatTime(group.timestamp)}
                         </span>
                     </div>
                     <div className="flex flex-col gap-0.5">

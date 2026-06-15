@@ -27,10 +27,12 @@ export interface MessageGroup {
     messages: DomainChat[];
 }
 
-/** A row in the message pane: a day divider, the unread marker, or an author block. */
+/** A row in the message pane: a day divider, the unread marker, the thread
+ * "N replies" divider, or an author block. */
 export type MessageRowItem =
     | { kind: 'date'; key: string; timestamp: number }
     | { kind: 'unread'; key: string }
+    | { kind: 'replies'; key: string; count: number }
     | { kind: 'group'; group: MessageGroup };
 
 /** Identity of the signed-in user, used to name their own (and optimistic) messages. */
@@ -110,12 +112,19 @@ export const buildMessageRows = (
     baselineReadNo = 0,
     membersLoading = false,
     /** uid → active Place Profile for the current place; overrides nick/thumbnail. */
-    placeProfiles: Record<string, { nick?: string; thumbnail?: string }> = {}
+    placeProfiles: Record<string, { nick?: string; thumbnail?: string }> = {},
+    /**
+     * Thread-panel only: total replies under the open root. When set, a Slack-style
+     * "N replies" divider is dropped above the first reply (the first message with a
+     * `parentId`). Undefined in the main feed, where no such divider appears.
+     */
+    threadReplyCount?: number
 ): MessageRowItem[] => {
     const rows: MessageRowItem[] = [];
     let currentGroup: MessageGroup | null = null;
     let lastTimestamp = 0;
     let unreadInserted = false;
+    let repliesInserted = false;
 
     const flush = () => {
         if (currentGroup) rows.push({ kind: 'group', group: currentGroup });
@@ -125,7 +134,22 @@ export const buildMessageRows = (
     for (const message of messages) {
         const timestamp = getTimestamp(message);
 
-        if (!isSameDay(timestamp, lastTimestamp)) {
+        const isThread = threadReplyCount !== undefined;
+
+        // Thread view: a Slack-style "N replies" divider sits above the first reply
+        // (the first message carrying a parentId). Flush first so the root and an
+        // immediately-following same-author reply don't merge across the divider.
+        if (isThread && !repliesInserted && message.parentId) {
+            flush();
+            rows.push({ kind: 'replies', key: 'thread-replies', count: threadReplyCount });
+            repliesInserted = true;
+        }
+
+        // Only the main feed inserts day dividers. The thread panel shows none —
+        // each message header carries the day inline (Slack-style "Today at 3:28
+        // PM"), so the parent's date and a cross-day reply read without the divider
+        // soup of stacking "1 reply" + a date pill.
+        if (!isThread && !isSameDay(timestamp, lastTimestamp)) {
             flush();
             const dayMs = startOfDay(timestamp);
             // Suffix with the message key: chatNo-sorted rows can revisit a day
