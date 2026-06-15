@@ -19,6 +19,7 @@ import {
     useDesktopNotifications,
     useDeviceTokenRegistration,
     usePlaceUnreadCounts,
+    useRetainLeavingCloudBadge,
     useUnreadStore,
 } from './shared';
 
@@ -48,6 +49,8 @@ const ShellUnreadSync = () => {
     }, [byPlace, setByPlace]);
 
     const total = Object.values(byPlace).reduce((sum, n) => sum + n, 0);
+    // Keep a cloud's rail dot when switching away from it with unread still pending.
+    useRetainLeavingCloudBadge(total);
     useDesktopBadge(total);
     useEffect(() => {
         document.title = total > 0 ? `(${total > 99 ? '99+' : total}) DoU` : 'DoU';

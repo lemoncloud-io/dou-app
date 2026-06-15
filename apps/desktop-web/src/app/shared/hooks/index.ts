@@ -22,3 +22,4 @@ export * from './useCopyToClipboard';
 export * from './useDesktopBadge';
 export * from './usePanelWidth';
 export * from './useCrossCloudPushBadge';
+export * from './useRetainLeavingCloudBadge';
