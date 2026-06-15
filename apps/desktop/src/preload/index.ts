@@ -37,6 +37,15 @@ contextBridge.exposeInMainWorld('ChaticMessageHandler', {
     postMessage: (message: string) => ipcRenderer.send(TO_APP_CHANNEL, message),
 });
 
+/**
+ * Expose app version and platform information for the renderer process.
+ * Used by desktop-web to display version info in settings and debug pages.
+ */
+contextBridge.exposeInMainWorld('electronAPI', {
+    appVersion: process.env.npm_package_version ?? '0.0.1',
+    platform: process.platform,
+});
+
 // Inject the CHATIC_APP_* globals into the page's main world. Values come from env, so we
 // base64-encode the JSON (charset [A-Za-z0-9+/=], injection-safe) and decode it inside the
 // snippet — JSON.stringify alone would not escape </script>/U+2028/U+2029 in an env value.

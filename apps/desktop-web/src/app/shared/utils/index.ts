@@ -10,3 +10,4 @@ export * from './mentionMatch';
 export * from './stripMarkdown';
 export * from './dmDisplay';
 export * from './resolvePushCloudId';
+export * from './getAppVersion';

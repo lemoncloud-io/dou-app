@@ -4,6 +4,7 @@ import { Trash2 } from 'lucide-react';
 
 import type { DomainChannel, DomainChat, DomainListResult } from '@chatic/data';
 import { useRepositories } from '@chatic/app-runtime';
+import { Button } from '@chatic/ui-kit/components/ui/button';
 
 const makeId = (prefix: string): string => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 const nowLabel = (): string => new Date().toLocaleTimeString();
@@ -189,9 +190,30 @@ export const DebugChatPage = () => {
         setEditingChatContent('');
     }, [chatRepository, editingChatContent, editingChatId, pushChatLog]);
 
+    const clearAllDebug = useCallback(async () => {
+        const channels = channelSnapshot?.list ?? [];
+        const chats = chatSnapshot?.list ?? [];
+        await Promise.all([
+            ...chats.flatMap(c => (c.id ? [chatRepository.cacheDelete(c.id)] : [])),
+            ...channels.flatMap(c => (c.id ? [channelRepository.cacheDelete(c.id)] : [])),
+        ]);
+        pushChannelLog(`cleared ${channels.length} channels + ${chats.length} chats`);
+    }, [channelSnapshot, chatSnapshot, channelRepository, chatRepository, pushChannelLog]);
+
     return (
         <div className="p-6">
-            <h1 className="mb-4 text-base font-semibold text-foreground">Cache stream (channel + chat)</h1>
+            <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                    <h1 className="text-base font-semibold text-foreground">캐시 쓰기 실험 (채널 + 메시지)</h1>
+                    <p className="text-xs text-muted-foreground">
+                        레코드를 직접 만들고 지워서 낙관적 캐시 쓰기와 스트림 갱신을 눈으로 확인합니다. (실제 캐시에
+                        debug 레코드를 씁니다)
+                    </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => void clearAllDebug()}>
+                    전체 삭제
+                </Button>
+            </div>
             <section className="grid w-full grid-cols-1 gap-6 lg:grid-cols-2">
                 <article className="rounded-2xl border border-border bg-card p-4">
                     <h2 className="text-lg font-semibold">Channel</h2>

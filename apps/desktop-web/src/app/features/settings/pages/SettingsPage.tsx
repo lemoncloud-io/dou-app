@@ -8,7 +8,7 @@ import { type Theme, useTheme } from '@chatic/theme';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
-import { useNotificationPrefsStore } from '../../../shared';
+import { useNotificationPrefsStore, VersionInfo } from '../../../shared';
 
 const THEME_OPTIONS: Theme[] = ['light', 'dark', 'system'];
 const LANGUAGE_OPTIONS = ['en'] as const;
@@ -106,6 +106,16 @@ export const SettingsPage = () => {
                             onCheckedChange={setDesktopEnabled}
                             aria-label={t('settings.desktopNotifications')}
                         />
+                    </div>
+                </section>
+
+                <section className="mt-8 flex flex-col gap-4">
+                    <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {t('settings.about')}
+                    </h2>
+
+                    <div className="rounded-xl border border-border bg-card p-5">
+                        <VersionInfo />
                     </div>
                 </section>
             </div>
