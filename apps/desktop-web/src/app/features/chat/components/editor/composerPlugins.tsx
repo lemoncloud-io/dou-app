@@ -107,24 +107,6 @@ export const FormatShortcutsPlugin = () => {
     return null;
 };
 
-/** Mirror the host's disabled flag into the editor. */
-export const EditablePlugin = ({ disabled }: { disabled: boolean }) => {
-    const [editor] = useLexicalComposerContext();
-    const wasDisabled = useRef(disabled);
-    useEffect(() => {
-        editor.setEditable(!disabled);
-        // A send flips `disabled` true→false (isSending). The contentEditable is
-        // non-editable while sending, so it drops the caret — and focus() from the
-        // submit handler no-ops on a disabled element. Restore focus the moment the
-        // editor re-enables so the user keeps typing without re-clicking the input.
-        if (wasDisabled.current && !disabled) {
-            editor.focus(undefined, { defaultSelection: 'rootEnd' });
-        }
-        wasDisabled.current = disabled;
-    }, [editor, disabled]);
-    return null;
-};
-
 /**
  * Load the channel's saved draft (markdown, the store's existing format) on
  * switch, then focus with the caret at the end.

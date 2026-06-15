@@ -23,7 +23,6 @@ import {
     ChannelDraftPlugin,
     ComposerActions,
     ComposerToolbar,
-    EditablePlugin,
     FormatShortcutsPlugin,
     MentionsPlugin,
     SubmitPlugin,
@@ -137,7 +136,6 @@ const ComposerInner = ({ disabled, onSend, channelId, placeholder, mentionables 
             <MentionsPlugin mentionables={mentionables} />
             <SubmitPlugin onSubmit={submit} />
             <FormatShortcutsPlugin />
-            <EditablePlugin disabled={disabled} />
             <ChannelDraftPlugin channelId={channelId} />
         </div>
     );
@@ -155,7 +153,10 @@ export const Composer = (props: ComposerProps) => (
             namespace: 'chatic-composer',
             theme: COMPOSER_THEME,
             nodes: COMPOSER_NODES,
-            editable: !props.disabled,
+            // Always editable — sending never makes the input non-editable, so the
+            // caret stays put (Slack-style continuous focus). `disabled` (isSending)
+            // only gates the send button + submit, not the contentEditable.
+            editable: true,
             onError: (error: Error) => console.error('[composer]', error),
         }}
     >
