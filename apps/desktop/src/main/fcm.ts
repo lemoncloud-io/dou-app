@@ -31,6 +31,10 @@ interface SavedCreds {
 }
 
 const RECONNECT_MS = 5_000;
+// push-receiver has no app-level heartbeat and macOS TCP keepalive waits ~2h, so a
+// silently dropped socket (network blip, NAT rebind, wifi roam) is otherwise
+// undetectable. Periodically force a fresh connect as a safety net.
+const WATCHDOG_MS = 10 * 60 * 1_000;
 const credsFile = (): string => join(app.getPath('userData'), 'chatic-fcm.json');
 
 const loadCreds = (): SavedCreds | null => {
@@ -150,4 +154,9 @@ export const startFcm = async (
     // (persistentIds dedupe prevents double delivery).
     powerMonitor.on('resume', connect);
     powerMonitor.on('unlock-screen', connect);
+
+    // Safety net for a half-open socket that fires no 'close'/'resume' event
+    // (silent network drop while the app stays awake). The server replays queued
+    // pushes on the fresh login and persistentIds dedupe prevents doubles.
+    setInterval(connect, WATCHDOG_MS);
 };
