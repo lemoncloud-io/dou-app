@@ -38,6 +38,7 @@ import {
     CloudRail,
     DesktopLayout,
     OnboardingDialog,
+    PlaceRail,
     ShortcutsDialog,
     SidebarHeader,
     SwitchingOverlay,
@@ -233,6 +234,9 @@ export const HomePage = () => {
 
     const selectedChannel = channels.find(channel => channel.id === selectedChannelId);
     const settingsChannel = settingsChannelId ? channels.find(channel => channel.id === settingsChannelId) : undefined;
+    // The place rail owns switching; the sidebar header shows only the active name.
+    const selectedPlace = places.find(place => place.id === selectedPlaceId);
+    const placeName = selectedPlace?.name?.trim() || selectedPlace?.id || '';
     const totalUnread = Object.values(unreadByPlace).reduce((sum, count) => sum + count, 0);
     const cloudHasUnread = totalUnread > 0;
 
@@ -275,17 +279,24 @@ export const HomePage = () => {
                         isSwitching={isSwitching}
                     />
                 }
+                rail2={
+                    <PlaceRail
+                        places={places}
+                        selectedPlaceId={selectedPlaceId}
+                        unreadByPlace={unreadByPlace}
+                        isDefaultMode={isDefaultMode}
+                        isSwitching={isSwitching}
+                        onSelectPlace={placeId => void switchPlace(placeId)}
+                    />
+                }
                 sidebar={
                     <>
                         <SidebarHeader
-                            places={places}
-                            selectedPlaceId={selectedPlaceId}
-                            unreadByPlace={unreadByPlace}
+                            placeName={placeName}
                             isLoading={placesLoading}
                             isDefaultMode={isDefaultMode}
                             query={query}
                             onQueryChange={setQuery}
-                            onSelectPlace={placeId => void switchPlace(placeId)}
                             onCreateChannel={openCreateChannel}
                             onEditPlaceProfile={openEditPlaceProfile}
                             onOpenSaved={openSaved}

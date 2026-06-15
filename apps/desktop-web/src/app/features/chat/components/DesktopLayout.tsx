@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 
 interface DesktopLayoutProps {
     rail: ReactNode;
+    /** Optional second rail (places) between the cloud rail and the sidebar. */
+    rail2?: ReactNode;
     sidebar: ReactNode;
     main: ReactNode;
     /** Optional right-side panel (channel settings); collapses when null. */
@@ -12,11 +14,11 @@ interface DesktopLayoutProps {
 
 /**
  * Slack-style shell:
- *   [ cloud rail ] [ channel sidebar ] [ flexible main pane ] [ optional panel ]
- * The trailing panel is a collapsible 4th pane — rendered only when provided.
- * Colors come from theme tokens (--rail/--sidebar) so both light/dark hold up.
+ *   [ cloud rail ] [ place rail ] [ channel sidebar ] [ flexible main pane ] [ optional panel ]
+ * The place rail and trailing panel are collapsible — each rendered only when
+ * provided. Colors come from theme tokens (--rail/--sidebar) so light/dark hold up.
  */
-export const DesktopLayout = ({ rail, sidebar, main, panel, overlay }: DesktopLayoutProps) => (
+export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: DesktopLayoutProps) => (
     <div className="relative flex h-dvh bg-background">
         <nav
             aria-label="Cloud workspaces"
@@ -24,6 +26,14 @@ export const DesktopLayout = ({ rail, sidebar, main, panel, overlay }: DesktopLa
         >
             {rail}
         </nav>
+        {rail2 && (
+            <nav
+                aria-label="Places"
+                className="flex w-[64px] shrink-0 flex-col items-center border-l border-black/20 bg-gradient-to-b from-rail-elevated via-rail-elevated to-rail py-3 text-rail-foreground"
+            >
+                {rail2}
+            </nav>
+        )}
         <aside className="z-10 flex w-56 shrink-0 flex-col overflow-hidden border-r border-hairline bg-sidebar text-sidebar-foreground lg:w-64">
             {sidebar}
         </aside>

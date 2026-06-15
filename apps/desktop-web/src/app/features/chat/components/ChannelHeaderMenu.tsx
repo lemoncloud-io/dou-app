@@ -56,9 +56,6 @@ export const ChannelHeaderMenu = ({ channel, myUid }: ChannelHeaderMenuProps) =>
                             {t('channels.settings.rename')}
                         </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={() => openDialog('invite')} className="cursor-pointer py-2">
-                        {t('channels.settings.invite')}
-                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => openDialog('leave')} className="cursor-pointer py-2">
                         {t('channels.settings.leave')}

@@ -62,6 +62,7 @@ module.exports = {
                     DEFAULT: 'hsl(var(--rail))',
                     foreground: 'hsl(var(--rail-foreground))',
                     muted: 'hsl(var(--rail-muted))',
+                    elevated: 'hsl(var(--rail-elevated))',
                 },
                 sidebar: {
                     DEFAULT: 'hsl(var(--sidebar))',

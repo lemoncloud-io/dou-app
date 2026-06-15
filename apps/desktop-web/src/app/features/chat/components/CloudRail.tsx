@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 
 import { X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
-import { useWebCoreStore } from '@chatic/web-core';
 
-import { useJoinDialogStore } from '../../auth';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -18,16 +15,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@chatic/ui-kit/components/ui/alert-dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
 
-import { type RailCloud, isPlaceholderName, useDisplayProfile, useRemoveCloud } from '../../../shared';
+import { type RailCloud, useRemoveCloud } from '../../../shared';
 
 interface CloudRailProps {
     clouds: RailCloud[];
@@ -59,20 +48,6 @@ export const CloudRail = ({
     isSwitching,
 }: CloudRailProps) => {
     const { t } = useTranslation();
-    const navigate = useNavigate();
-    const openJoinDialog = useJoinDialogStore(s => s.open);
-    const profile = useWebCoreStore(s => s.profile);
-    const logout = useWebCoreStore(s => s.logout);
-
-    // Self Display Profile: show my Place nick/photo here when set for this place.
-    const rawName = profile?.$user?.name ?? '';
-    const globalName = isPlaceholderName(rawName) ? '' : rawName;
-    const { name: selfName, thumbnail: userPhoto } = useDisplayProfile(
-        profile?.uid ?? '',
-        globalName,
-        profile?.$user?.photo ?? undefined
-    );
-    const userInitial = selfName.charAt(0).toUpperCase() || '?';
 
     // Cloud removal: invited clouds are forgotten locally, owned clouds are
     // deleted on the backend — both gated behind a confirm dialog.
@@ -120,8 +95,10 @@ export const CloudRail = ({
                                 className={cn(
                                     'relative flex h-11 w-11 items-center justify-center text-callout font-semibold transition-all duration-150 ease-tactile tactile',
                                     'rounded-2xl hover:rounded-xl focus-ring',
+                                    // Slack-style selected workspace: brighter corners + a light
+                                    // ring offset from the rail, instead of a faint left bar.
                                     isActive
-                                        ? 'rounded-xl bg-primary text-primary-foreground shadow-raised'
+                                        ? 'rounded-xl bg-primary text-primary-foreground shadow-raised ring-2 ring-rail-foreground/80 ring-offset-2 ring-offset-rail'
                                         : 'bg-rail-muted text-rail-foreground hover:bg-rail-muted/70',
                                     isInactive && 'opacity-50',
                                     // Block a second switch mid-handshake; dim non-active icons for feedback.
@@ -129,20 +106,13 @@ export const CloudRail = ({
                                     isSwitching && !isActive && 'opacity-40'
                                 )}
                             >
-                                {/* active indicator pill (Slack-style left bar) */}
-                                <span
-                                    className={cn(
-                                        'absolute -left-3 w-1 rounded-r-full bg-primary transition-all duration-150 ease-tactile',
-                                        isActive ? 'h-6' : 'h-0 group-hover:h-2'
-                                    )}
-                                />
                                 {cloudInitial(cloud)}
                                 {/* Active tile: live socket unread. Other tiles: a pending
                                     cross-cloud push (the only unread signal available for them). */}
                                 {((isActive && hasUnread) || (!isActive && !!badgedClouds?.[cloud.id])) && (
                                     <span
                                         aria-hidden
-                                        className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail bg-badge-unread shadow-raised"
+                                        className="absolute right-0 top-0 h-3 w-3 rounded-full border-2 border-rail bg-badge-unread"
                                     />
                                 )}
                             </button>
@@ -162,32 +132,6 @@ export const CloudRail = ({
                     );
                 })}
             </div>
-
-            <div className="my-2 h-px w-8 shrink-0 bg-hairline" />
-
-            <DropdownMenu>
-                <DropdownMenuTrigger
-                    aria-label={selfName || t('rail.menu.profile')}
-                    className="flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-150 ease-tactile tactile focus-ring"
-                >
-                    <Avatar className="h-10 w-10 border border-rail-muted">
-                        {userPhoto && <AvatarImage src={userPhoto} alt={selfName} />}
-                        <AvatarFallback className="bg-rail-muted text-callout font-semibold text-rail-foreground">
-                            {userInitial}
-                        </AvatarFallback>
-                    </Avatar>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="right" align="end" sideOffset={6}>
-                    <DropdownMenuItem onClick={() => navigate('/profile')}>{t('rail.menu.profile')}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={openJoinDialog}>{t('rail.menu.join')}</DropdownMenuItem>
-                    {import.meta.env.DEV && (
-                        <DropdownMenuItem onClick={() => navigate('/debug')}>{t('rail.menu.debug')}</DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => void logout()}>{t('rail.menu.logout')}</DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
 
             <AlertDialog open={!!pendingRemove} onOpenChange={open => !open && !isDeleting && setPendingRemove(null)}>
                 <AlertDialogContent>
