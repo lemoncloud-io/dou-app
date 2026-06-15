@@ -64,6 +64,10 @@ export default defineConfig({
     cacheDir: '../../node_modules/.vite/apps/desktop-web',
 
     optimizeDeps: {
+        // Pre-bundle React once so lazy route chunks (React.lazy /settings, /profile,
+        // /debug) can never pick up a second optimizer instance — that mismatch surfaces
+        // as "Invalid hook call … more than one copy of React" inside Radix components.
+        include: ['react', 'react-dom', 'react/jsx-runtime'],
         exclude: ['react-native'],
     },
 
