@@ -7,6 +7,12 @@
 
 declare const __APP_VERSION__: string;
 
+declare global {
+    interface Window {
+        electronAPI?: { appVersion: string; platform: string };
+    }
+}
+
 interface AppVersionInfo {
     desktopWebVersion: string;
     desktopVersion: string | null;
@@ -16,28 +22,13 @@ interface AppVersionInfo {
 
 export const getAppVersionInfo = (): AppVersionInfo => {
     const desktopWebVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
-    const isElectron = typeof window !== 'undefined' && (window as any).electronAPI !== undefined;
-
-    let desktopVersion: string | null = null;
-    let platform: string | null = null;
-
-    if (isElectron && (window as any).electronAPI?.appVersion) {
-        desktopVersion = (window as any).electronAPI.appVersion;
-        platform = (window as any).electronAPI.platform || null;
-    }
+    const electronAPI = typeof window !== 'undefined' ? window.electronAPI : undefined;
+    const isElectron = electronAPI !== undefined;
 
     return {
         desktopWebVersion,
-        desktopVersion,
+        desktopVersion: electronAPI?.appVersion ?? null,
         isElectron,
-        platform,
+        platform: electronAPI?.platform ?? null,
     };
-};
-
-export const getVersionLabel = (): string => {
-    const info = getAppVersionInfo();
-    if (info.isElectron && info.desktopVersion) {
-        return `DoU ${info.desktopVersion} (desktop-web ${info.desktopWebVersion})`;
-    }
-    return `DoU ${info.desktopWebVersion} (web)`;
 };

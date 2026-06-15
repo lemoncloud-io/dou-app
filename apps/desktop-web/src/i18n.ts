@@ -161,6 +161,7 @@ const resources = {
             'settings.desktopNotifications': 'Desktop notifications',
             'settings.desktopNotificationsHint': 'Show an OS notification for new messages.',
             'settings.back': 'Back',
+            'settings.about': 'About',
             'connection.offline': 'You are offline — reconnecting…',
             'connection.reconnecting': 'Reconnecting…',
             'profile.title': 'My profile',
