@@ -10,7 +10,7 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
-import { $createParagraphNode, $getRoot, $getSelection, type EditorState } from 'lexical';
+import { $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, type EditorState } from 'lexical';
 
 import { cn } from '@chatic/lib/utils';
 
@@ -76,6 +76,9 @@ const ComposerInner = ({ disabled, onSend, channelId, placeholder, mentionables 
             root.clear();
             root.append($createParagraphNode());
             root.selectEnd();
+            // Drop carried-over bold/italic so the next message starts plain.
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) selection.setFormat(0);
         });
         editor.focus();
     }, [editor, disabled, onSend]);
