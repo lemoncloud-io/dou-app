@@ -143,7 +143,23 @@ export const MessageList = ({
         return names.filter((n): n is string => !!n?.trim()).map(n => n.trim().toLowerCase());
     }, [viewer, placeProfiles]);
 
-    const maxChatNo = useMemo(() => messages.reduce((m, c) => Math.max(m, c.chatNo ?? 0), 0), [messages]);
+    // Highest PERSISTED chatNo: exclude optimistic/pending rows (sentinel
+    // Number.MAX_SAFE_INTEGER) so a seenUpTo advance never jumps to MAX and
+    // suppresses every later divider for this mount (mirrors useReadReceipts).
+    const maxChatNo = useMemo(
+        () =>
+            messages.reduce(
+                (m, c) =>
+                    !c.isPending && c.chatNo && c.chatNo !== Number.MAX_SAFE_INTEGER && c.chatNo > m ? c.chatNo : m,
+                0
+            ),
+        [messages]
+    );
+    // Keep the latest max in a ref so the send effect can clear the divider
+    // without taking maxChatNo as a dep (it changes on every tail update, which
+    // would re-trigger the post-send snap animation).
+    const maxChatNoRef = useRef(maxChatNo);
+    maxChatNoRef.current = maxChatNo;
 
     // A late $join can raise the open-time baseline after mount — lift the
     // divider's floor to match so it anchors at the right place.
@@ -204,6 +220,10 @@ export const MessageList = ({
     useEffect(() => {
         if (!scrollSignal) return;
         setAtBottom(true);
+        // Sending means you're caught up — clear the "New messages" divider by
+        // advancing the baseline to the latest real message. Read via ref so
+        // maxChatNo stays out of this effect's deps.
+        setSeenUpTo(prev => Math.max(prev, maxChatNoRef.current));
         // Pin to the bottom every frame for a short window: a single scroll lands
         // short because the list keeps reflowing after the send (optimistic message
         // render, optimistic→server swap, height change), each nudging the viewport
