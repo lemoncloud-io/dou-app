@@ -66,12 +66,19 @@ export const issueCloudDelegationToken = async (target: string): Promise<CloudDe
     return throwIfApiError(data);
 };
 
-export const registerDeviceToken = async (body: RegisterDeviceTokenBody): Promise<RegisterDeviceResult> => {
+export const registerDeviceToken = async (
+    body: RegisterDeviceTokenBody,
+    opts?: { force?: boolean }
+): Promise<RegisterDeviceResult> => {
+    // `force` makes the broker (re)create + re-enable the SNS endpoint instead of
+    // trusting its cached device record — needed on desktop, whose push-receiver
+    // token churns and whose endpoint SNS disables on a single rejected delivery.
     const { data } = await webCore
         .buildSignedRequest({
             method: 'POST',
             baseURL: `${DOU_ENDPOINT}/users/0/reg-dev`,
         })
+        .setParams(opts?.force ? { force: 'true' } : {})
         .setBody(body)
         .execute<RegisterDeviceResult & { error?: string }>();
 

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { app } from 'electron';
+import { app, powerMonitor } from 'electron';
 
 import { AndroidFCM, Client, type PushReceiverMessage } from '@liamcottle/push-receiver';
 
@@ -72,7 +72,7 @@ const appDataToObject = (appData: PushReceiverMessage['appData'] = []): Record<s
  */
 export const startFcm = async (
     config: FcmConfig,
-    handlers: { onToken: (token: string) => void; onPush: (push: FcmPush) => void },
+    handlers: { onToken: (token: string) => void; onPush: (push: FcmPush) => void }
 ): Promise<void> => {
     if (!config.apiKey || !config.senderId || !config.appId) return; // not configured for this build
 
@@ -84,7 +84,7 @@ export const startFcm = async (
             config.senderId,
             config.appId,
             config.packageName,
-            '',
+            ''
         );
         creds = {
             androidId: registered.gcm.androidId,
@@ -98,12 +98,23 @@ export const startFcm = async (
 
     handlers.onToken(session.token);
 
+    let client: Client | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const connect = (): void => {
-        const client = new Client(session.androidId, session.securityToken, session.persistentIds);
+    const scheduleReconnect = (): void => {
+        if (reconnectTimer) return;
+        reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            connect();
+        }, RECONNECT_MS);
+    };
 
-        client.on('ON_DATA_RECEIVED', message => {
+    const connect = (): void => {
+        client?.destroy(); // tear down any prior (possibly half-open) socket + its retry timer
+        const c = new Client(session.androidId, session.securityToken, session.persistentIds);
+        client = c;
+
+        c.on('ON_DATA_RECEIVED', message => {
             if (message.persistentId) {
                 session.persistentIds.push(message.persistentId);
                 saveCreds(session);
@@ -120,17 +131,23 @@ export const startFcm = async (
             });
         });
 
-        client.on('disconnect', () => {
-            // push-receiver does not auto-reconnect; re-establish after a short delay.
-            if (reconnectTimer) return;
-            reconnectTimer = setTimeout(() => {
-                reconnectTimer = null;
-                connect();
-            }, RECONNECT_MS);
+        c.on('disconnect', () => {
+            // The library reconnects the same client on a clean socket close; stop
+            // that and run our single managed reconnect instead (no zombie sockets).
+            c.destroy();
+            scheduleReconnect();
         });
 
-        client.connect();
+        c.connect();
     };
 
     connect();
+
+    // Sleep/wake and screen unlock leave the mtalk socket half-open — no 'close'
+    // event fires, so neither the library nor the handler above reconnects, and
+    // pushes are silently lost until the OS TCP keepalive (~2h) finally notices.
+    // Force a fresh connect on resume so the server replays queued pushes
+    // (persistentIds dedupe prevents double delivery).
+    powerMonitor.on('resume', connect);
+    powerMonitor.on('unlock-screen', connect);
 };
