@@ -128,7 +128,13 @@ const toWSSEnvelope = (msg: SocketMessage): WSSEnvelope => {
     return {
         type: domain as WSSEventDomainType,
         action: action as WSSActionType,
-        payload: msg.data,
+        // v2 transport carries the error string at top-level `msg.error`, but every
+        // downstream reader (handlers, remote data sources) expects it on
+        // `payload.error` — the same shape as the HTTP-200 `{ error }` body. Bridge
+        // it here so error frames (data:null) surface the real backend message
+        // instead of degrading to a generic "Unknown … Error". `payload` is loosely
+        // typed in WSSEnvelope — this shape is safe by the handler `payload?.error` contract.
+        payload: msg.error ? { error: msg.error } : msg.data,
         mid: msg.mid,
         meta: rawMeta as unknown as WSSEnvelope['meta'],
     };

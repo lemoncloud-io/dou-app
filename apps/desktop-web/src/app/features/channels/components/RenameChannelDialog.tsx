@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { extractErrorMessage } from '@chatic/web-core';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
@@ -26,13 +27,13 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
     const { t } = useTranslation();
     const { updateChannel, isMutating } = useDesktopChannelMutations();
     const [name, setName] = useState(currentName);
-    const [isError, setIsError] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     // Re-seed the input each time the dialog opens for a (possibly different) channel.
     useEffect(() => {
         if (open) {
             setName(currentName);
-            setIsError(false);
+            setErrorMsg(null);
         }
     }, [open, currentName]);
 
@@ -42,12 +43,14 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!isValid || isMutating) return;
-        setIsError(false);
+        setErrorMsg(null);
         try {
             await updateChannel({ channelId, name: trimmed });
             onOpenChange(false);
-        } catch {
-            setIsError(true);
+        } catch (e) {
+            // Surface the real backend message (socket or HTTP), e.g.
+            // "403 NOT ALLOWED - action[update] is invalid @doPut(channels/U:1001095)".
+            setErrorMsg(extractErrorMessage(e));
         }
     };
 
@@ -71,7 +74,11 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
                         <p className="text-xs text-muted-foreground">{t('channels.rename.lengthHint')}</p>
                     </div>
 
-                    {isError && <p className="text-sm text-destructive">{t('channels.rename.failed')}</p>}
+                    {errorMsg && (
+                        <p className="text-sm text-destructive break-words" role="alert">
+                            {errorMsg}
+                        </p>
+                    )}
 
                     <div className="flex justify-end gap-2 pt-2">
                         <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isMutating}>

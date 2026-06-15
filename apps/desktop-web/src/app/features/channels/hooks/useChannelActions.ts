@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { extractErrorMessage } from '@chatic/web-core';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useDesktopChannelMutations } from '../../../shared';
@@ -44,9 +45,9 @@ export const useChannelActions = (channelId: string | null, { onRemoved }: UseCh
             closeDialog();
             onRemoved?.();
             toast({ description: t('toast.channelDeleted') });
-        } catch {
+        } catch (e) {
             closeDialog();
-            toast({ variant: 'destructive', description: t('toast.actionFailed') });
+            toast({ variant: 'destructive', description: extractErrorMessage(e) });
         }
     }, [channelId, deleteChannel, closeDialog, onRemoved, t]);
 
@@ -57,9 +58,9 @@ export const useChannelActions = (channelId: string | null, { onRemoved }: UseCh
             closeDialog();
             onRemoved?.();
             toast({ description: t('toast.channelLeft') });
-        } catch {
+        } catch (e) {
             closeDialog();
-            toast({ variant: 'destructive', description: t('toast.actionFailed') });
+            toast({ variant: 'destructive', description: extractErrorMessage(e) });
         }
     }, [channelId, leaveChannel, closeDialog, onRemoved, t]);
 
@@ -67,12 +68,12 @@ export const useChannelActions = (channelId: string | null, { onRemoved }: UseCh
         if (!channelId || !kickTarget) return;
         try {
             await leaveChannel({ channelId, userId: kickTarget });
-        } catch {
-            toast({ variant: 'destructive', description: t('toast.actionFailed') });
+        } catch (e) {
+            toast({ variant: 'destructive', description: extractErrorMessage(e) });
         } finally {
             closeDialog();
         }
-    }, [channelId, kickTarget, leaveChannel, closeDialog, t]);
+    }, [channelId, kickTarget, leaveChannel, closeDialog]);
 
     return { dialog, kickTarget, openDialog, openKick, closeDialog, onDelete, onLeave, onKick, isMutating };
 };
