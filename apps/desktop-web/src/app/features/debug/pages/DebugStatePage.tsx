@@ -1,10 +1,7 @@
 import type { ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 
 import { useWebCoreStore } from '@chatic/web-core';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { useChannels, useClouds, usePlaces, useSelectedChannelStore, useSelectedPlaceStore } from '../../../shared';
 
@@ -24,9 +21,6 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
 
 /** Dev-only session/state inspector (desktop equivalent of apps/web DebugStatePage). */
 export const DebugStatePage = () => {
-    const { t } = useTranslation();
-    const navigate = useNavigate();
-
     const profile = useWebCoreStore(s => s.profile);
     const isAuthenticated = useWebCoreStore(s => s.isAuthenticated);
     const { cloudId, selectedPlaceId, isConnected, isVerified, connectionStatus } = useWebSocketV2Store();
@@ -37,15 +31,9 @@ export const DebugStatePage = () => {
     const { channels } = useChannels(storePlaceId ?? undefined);
 
     return (
-        <div className="flex h-screen flex-col bg-background">
-            <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-6">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
-                    {t('settings.back')}
-                </Button>
-                <h1 className="text-base font-semibold text-foreground">{t('debug.title')}</h1>
-            </header>
-
-            <div className="scrollbar-thin mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 overflow-y-auto p-8">
+        <div className="mx-auto w-full max-w-4xl p-6">
+            <h1 className="mb-4 text-base font-semibold text-foreground">State</h1>
+            <div className="grid gap-4 lg:grid-cols-2">
                 <Section title="Session">
                     <Row label="Authenticated" value={isAuthenticated} />
                     <Row label="UID" value={profile?.uid} />
@@ -72,18 +60,6 @@ export const DebugStatePage = () => {
                     <Row label="Places" value={places.length} />
                     <Row label="Channels (place)" value={channels.length} />
                 </Section>
-
-                <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={() => navigate('/debug/chat')}>
-                        {t('debug.cacheStream')}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => navigate('/debug/badge')}>
-                        {t('debug.badge')}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => navigate('/debug/sync')}>
-                        Sync Verify
-                    </Button>
-                </div>
             </div>
         </div>
     );

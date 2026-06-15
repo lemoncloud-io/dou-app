@@ -48,6 +48,7 @@ const DebugStatePage = lazy(() => import('./features/debug').then(m => ({ defaul
 const DebugChatPage = lazy(() => import('./features/debug').then(m => ({ default: m.DebugChatPage })));
 const DebugBadgeCountPage = lazy(() => import('./features/debug').then(m => ({ default: m.DebugBadgeCountPage })));
 const DebugSyncPage = lazy(() => import('./features/debug').then(m => ({ default: m.DebugSyncPage })));
+const DebugLayout = lazy(() => import('./features/debug').then(m => ({ default: m.DebugLayout })));
 
 export const AppRouter = () => {
     const isAuthenticated = useWebCoreStore(s => s.isAuthenticated);
@@ -70,10 +71,14 @@ export const AppRouter = () => {
                             <Route path="/" element={<HomePage />} />
                             <Route path="/profile" element={<ProfilePage />} />
                             <Route path="/settings" element={<SettingsPage />} />
-                            {showDebug && <Route path="/debug" element={<DebugStatePage />} />}
-                            {showDebug && <Route path="/debug/chat" element={<DebugChatPage />} />}
-                            {showDebug && <Route path="/debug/badge" element={<DebugBadgeCountPage />} />}
-                            {showDebug && <Route path="/debug/sync" element={<DebugSyncPage />} />}
+                            {showDebug && (
+                                <Route path="/debug" element={<DebugLayout />}>
+                                    <Route index element={<DebugStatePage />} />
+                                    <Route path="sync" element={<DebugSyncPage />} />
+                                    <Route path="chat" element={<DebugChatPage />} />
+                                    <Route path="badge" element={<DebugBadgeCountPage />} />
+                                </Route>
+                            )}
                             {/* OAuth hand-off must work even with a (possibly stale) authenticated
                                 session in this browser — the relay return would otherwise bounce
                                 to home and lose the code before it reaches the shell. */}

@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 
 import { Trash2 } from 'lucide-react';
 
 import type { DomainChannel, DomainChat, DomainListResult } from '@chatic/data';
 import { useRepositories } from '@chatic/app-runtime';
-import { Button } from '@chatic/ui-kit/components/ui/button';
 
 const makeId = (prefix: string): string => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 const nowLabel = (): string => new Date().toLocaleTimeString();
@@ -17,8 +14,6 @@ const nowLabel = (): string => new Date().toLocaleTimeString();
  * watch optimistic IndexedDB writes + event broadcasts. Ported from apps/web.
  */
 export const DebugChatPage = () => {
-    const { t } = useTranslation();
-    const navigate = useNavigate();
     const { channel: channelRepository, chat: chatRepository } = useRepositories();
 
     const [placeId] = useState(() => makeId('debug-place'));
@@ -67,13 +62,16 @@ export const DebugChatPage = () => {
         if (!activePlaceId) return;
 
         channelUnsubRef.current?.();
-         
-        channelUnsubRef.current = channelRepository.subscribeList({ placeId: activePlaceId, page: 0, limit: 100 } as any, result => {
-            setChannelSnapshot(result);
-            const firstId = result?.list?.[0]?.id;
-            if (firstId) setSelectedChannelId(prev => prev || firstId);
-            pushChannelLog(`stream emit: ${result?.list?.length ?? 0} channels`);
-        });
+
+        channelUnsubRef.current = channelRepository.subscribeList(
+            { placeId: activePlaceId, page: 0, limit: 100 } as any,
+            result => {
+                setChannelSnapshot(result);
+                const firstId = result?.list?.[0]?.id;
+                if (firstId) setSelectedChannelId(prev => prev || firstId);
+                pushChannelLog(`stream emit: ${result?.list?.length ?? 0} channels`);
+            }
+        );
 
         setChannelSubscribed(true);
         pushChannelLog(`stream subscribed (placeId=${activePlaceId})`);
@@ -95,7 +93,6 @@ export const DebugChatPage = () => {
             name: `Debug Channel ${id.slice(-4)}`,
             updatedAt: Date.now(),
             createdAt: Date.now(),
-             
         } as any);
         setSelectedChannelId(id);
         pushChannelLog(`cacheCreate channel: ${id}`);
@@ -153,7 +150,6 @@ export const DebugChatPage = () => {
             chatNo,
             content: `Sample chat #${chatNo}`,
             createdAt: Date.now(),
-             
         } as any);
         pushChatLog(`cacheCreate chat: ${id} (chatNo=${chatNo})`);
     }, [chatRepository, nextAutoChatNo, pushChatLog, selectedChannelId]);
@@ -170,7 +166,7 @@ export const DebugChatPage = () => {
             content: `[sample] #${baseNo + index}`,
             createdAt: now + index,
         }));
-         
+
         await chatRepository.cacheBulkCreate(items as any);
         pushChatLog(`cacheBulkCreate chats: ${count} items (start chatNo=${baseNo})`);
     }, [chatRepository, nextAutoChatNo, pushChatLog, sampleCount, selectedChannelId]);
@@ -186,7 +182,7 @@ export const DebugChatPage = () => {
 
     const saveEditChat = useCallback(async () => {
         if (!editingChatId.trim()) return;
-         
+
         await chatRepository.cacheUpdate(editingChatId.trim(), { content: editingChatContent } as any);
         pushChatLog(`cacheUpdate content: ${editingChatId.trim()}`);
         setEditingChatId('');
@@ -194,191 +190,183 @@ export const DebugChatPage = () => {
     }, [chatRepository, editingChatContent, editingChatId, pushChatLog]);
 
     return (
-        <div className="flex h-screen flex-col bg-background text-foreground">
-            <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-6">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/debug')}>
-                    {t('settings.back')}
-                </Button>
-                <h1 className="text-base font-semibold">Cache stream (channel + chat)</h1>
-            </header>
-
-            <div className="scrollbar-thin flex-1 overflow-y-auto p-6">
-                <section className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2">
-                    <article className="rounded-2xl border border-border bg-card p-4">
-                        <h2 className="text-lg font-semibold">Channel</h2>
-                        <div className="mt-4 flex flex-col gap-3">
-                            <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
-                                <p>placeId: {placeId}</p>
-                                <p>stream: {channelSubscribed ? 'ON' : 'OFF'}</p>
-                                <p>count: {channelSnapshot?.list?.length ?? 0}</p>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                                <button
-                                    type="button"
-                                    onClick={subscribeChannels}
-                                    className="rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background"
-                                >
-                                    stream subscribe
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={unsubscribeChannels}
-                                    className="rounded-lg border border-border px-3 py-2 text-sm"
-                                >
-                                    stream unsubscribe
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => void createChannel()}
-                                    className="col-span-2 rounded-lg border border-border px-3 py-2 text-sm"
-                                >
-                                    channel create (auto)
-                                </button>
-                            </div>
-
-                            <ul className="max-h-64 overflow-y-auto rounded-lg border border-border bg-background p-3 text-xs">
-                                {(channelSnapshot?.list || []).map(item => (
-                                    <li
-                                        key={item.id}
-                                        className={`flex items-center justify-between border-b border-border/60 py-1 last:border-b-0 ${
-                                            selectedChannelId === item.id ? 'bg-muted/60' : ''
-                                        }`}
-                                    >
-                                        <button
-                                            type="button"
-                                            onClick={() => item.id && setSelectedChannelId(item.id)}
-                                            className="flex-1 text-left"
-                                        >
-                                            <p className="font-medium">{item.id}</p>
-                                            <p className="text-muted-foreground">{item.name || '-'}</p>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => void deleteChannel(item.id || '')}
-                                            className="rounded p-1 text-muted-foreground hover:bg-muted"
-                                            aria-label="Delete channel"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-
-                            <ul className="max-h-52 overflow-y-auto rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
-                                {channelLogs.map((line, index) => (
-                                    <li key={`${line}-${index}`}>{line}</li>
-                                ))}
-                            </ul>
+        <div className="p-6">
+            <h1 className="mb-4 text-base font-semibold text-foreground">Cache stream (channel + chat)</h1>
+            <section className="grid w-full grid-cols-1 gap-6 lg:grid-cols-2">
+                <article className="rounded-2xl border border-border bg-card p-4">
+                    <h2 className="text-lg font-semibold">Channel</h2>
+                    <div className="mt-4 flex flex-col gap-3">
+                        <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+                            <p>placeId: {placeId}</p>
+                            <p>stream: {channelSubscribed ? 'ON' : 'OFF'}</p>
+                            <p>count: {channelSnapshot?.list?.length ?? 0}</p>
                         </div>
-                    </article>
 
-                    <article className="rounded-2xl border border-border bg-card p-4">
-                        <h2 className="text-lg font-semibold">Chat</h2>
-                        <div className="mt-4 flex flex-col gap-3">
-                            <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
-                                <p>channelId: {selectedChannelId || '-'}</p>
-                                <p>stream: {chatSubscribed ? 'ON' : 'OFF'}</p>
-                                <p>count: {chatSnapshot?.list?.length ?? 0}</p>
-                                <p>next auto chatNo: {nextAutoChatNo}</p>
-                            </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={subscribeChannels}
+                                className="rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background"
+                            >
+                                stream subscribe
+                            </button>
+                            <button
+                                type="button"
+                                onClick={unsubscribeChannels}
+                                className="rounded-lg border border-border px-3 py-2 text-sm"
+                            >
+                                stream unsubscribe
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void createChannel()}
+                                className="col-span-2 rounded-lg border border-border px-3 py-2 text-sm"
+                            >
+                                channel create (auto)
+                            </button>
+                        </div>
 
-                            <div className="grid grid-cols-2 gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => void createChat()}
-                                    className="rounded-lg border border-border px-3 py-2 text-sm"
+                        <ul className="max-h-64 overflow-y-auto rounded-lg border border-border bg-background p-3 text-xs">
+                            {(channelSnapshot?.list || []).map(item => (
+                                <li
+                                    key={item.id}
+                                    className={`flex items-center justify-between border-b border-border/60 py-1 last:border-b-0 ${
+                                        selectedChannelId === item.id ? 'bg-muted/60' : ''
+                                    }`}
                                 >
-                                    create 1 message (auto)
-                                </button>
-                                <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2 py-2">
-                                    <span className="text-xs text-muted-foreground">count</span>
-                                    <input
-                                        value={sampleCount}
-                                        onChange={event => setSampleCount(event.target.value)}
-                                        className="w-full bg-transparent text-xs outline-none"
-                                        placeholder="20"
-                                    />
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => void createSampleChats()}
-                                    className="col-span-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm font-medium"
-                                >
-                                    bulk-create sample chats (auto chatNo)
-                                </button>
-                            </div>
-
-                            <ul className="max-h-64 overflow-y-auto rounded-lg border border-border bg-background p-3 text-xs">
-                                {(chatSnapshot?.list || []).map(item => (
-                                    <li
-                                        key={item.id}
-                                        className="flex items-start justify-between border-b border-border/60 py-1 last:border-b-0"
+                                    <button
+                                        type="button"
+                                        onClick={() => item.id && setSelectedChannelId(item.id)}
+                                        className="flex-1 text-left"
                                     >
-                                        <div className="min-w-0 flex-1 pr-2">
-                                            <p className="font-medium">{item.id}</p>
-                                            <p className="text-muted-foreground">chatNo: {item.chatNo}</p>
-                                            {editingChatId === item.id ? (
-                                                <div className="mt-1 flex items-center gap-1">
-                                                    <input
-                                                        value={editingChatContent}
-                                                        onChange={event => setEditingChatContent(event.target.value)}
-                                                        className="w-full rounded border border-border bg-background px-2 py-1 text-xs outline-none"
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => void saveEditChat()}
-                                                        className="rounded border border-border px-2 py-1 text-[11px]"
-                                                    >
-                                                        save
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setEditingChatId('');
-                                                            setEditingChatContent('');
-                                                        }}
-                                                        className="rounded border border-border px-2 py-1 text-[11px]"
-                                                    >
-                                                        cancel
-                                                    </button>
-                                                </div>
-                                            ) : (
+                                        <p className="font-medium">{item.id}</p>
+                                        <p className="text-muted-foreground">{item.name || '-'}</p>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => void deleteChannel(item.id || '')}
+                                        className="rounded p-1 text-muted-foreground hover:bg-muted"
+                                        aria-label="Delete channel"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+
+                        <ul className="max-h-52 overflow-y-auto rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+                            {channelLogs.map((line, index) => (
+                                <li key={`${line}-${index}`}>{line}</li>
+                            ))}
+                        </ul>
+                    </div>
+                </article>
+
+                <article className="rounded-2xl border border-border bg-card p-4">
+                    <h2 className="text-lg font-semibold">Chat</h2>
+                    <div className="mt-4 flex flex-col gap-3">
+                        <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+                            <p>channelId: {selectedChannelId || '-'}</p>
+                            <p>stream: {chatSubscribed ? 'ON' : 'OFF'}</p>
+                            <p>count: {chatSnapshot?.list?.length ?? 0}</p>
+                            <p>next auto chatNo: {nextAutoChatNo}</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => void createChat()}
+                                className="rounded-lg border border-border px-3 py-2 text-sm"
+                            >
+                                create 1 message (auto)
+                            </button>
+                            <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2 py-2">
+                                <span className="text-xs text-muted-foreground">count</span>
+                                <input
+                                    value={sampleCount}
+                                    onChange={event => setSampleCount(event.target.value)}
+                                    className="w-full bg-transparent text-xs outline-none"
+                                    placeholder="20"
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => void createSampleChats()}
+                                className="col-span-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm font-medium"
+                            >
+                                bulk-create sample chats (auto chatNo)
+                            </button>
+                        </div>
+
+                        <ul className="max-h-64 overflow-y-auto rounded-lg border border-border bg-background p-3 text-xs">
+                            {(chatSnapshot?.list || []).map(item => (
+                                <li
+                                    key={item.id}
+                                    className="flex items-start justify-between border-b border-border/60 py-1 last:border-b-0"
+                                >
+                                    <div className="min-w-0 flex-1 pr-2">
+                                        <p className="font-medium">{item.id}</p>
+                                        <p className="text-muted-foreground">chatNo: {item.chatNo}</p>
+                                        {editingChatId === item.id ? (
+                                            <div className="mt-1 flex items-center gap-1">
+                                                <input
+                                                    value={editingChatContent}
+                                                    onChange={event => setEditingChatContent(event.target.value)}
+                                                    className="w-full rounded border border-border bg-background px-2 py-1 text-xs outline-none"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void saveEditChat()}
+                                                    className="rounded border border-border px-2 py-1 text-[11px]"
+                                                >
+                                                    save
+                                                </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => {
-                                                        setEditingChatId(item.id || '');
-                                                        setEditingChatContent(item.content || '');
+                                                        setEditingChatId('');
+                                                        setEditingChatContent('');
                                                     }}
-                                                    className="mt-1 block w-full text-left text-muted-foreground underline underline-offset-2"
+                                                    className="rounded border border-border px-2 py-1 text-[11px]"
                                                 >
-                                                    {item.content || '(empty)'}
+                                                    cancel
                                                 </button>
-                                            )}
-                                        </div>
-                                        {editingChatId !== item.id && (
+                                            </div>
+                                        ) : (
                                             <button
                                                 type="button"
-                                                onClick={() => void deleteChat(item.id || '')}
-                                                className="rounded p-1 text-muted-foreground hover:bg-muted"
-                                                aria-label="Delete chat"
+                                                onClick={() => {
+                                                    setEditingChatId(item.id || '');
+                                                    setEditingChatContent(item.content || '');
+                                                }}
+                                                className="mt-1 block w-full text-left text-muted-foreground underline underline-offset-2"
                                             >
-                                                <Trash2 size={14} />
+                                                {item.content || '(empty)'}
                                             </button>
                                         )}
-                                    </li>
-                                ))}
-                            </ul>
+                                    </div>
+                                    {editingChatId !== item.id && (
+                                        <button
+                                            type="button"
+                                            onClick={() => void deleteChat(item.id || '')}
+                                            className="rounded p-1 text-muted-foreground hover:bg-muted"
+                                            aria-label="Delete chat"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
 
-                            <ul className="max-h-52 overflow-y-auto rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
-                                {chatLogs.map((line, index) => (
-                                    <li key={`${line}-${index}`}>{line}</li>
-                                ))}
-                            </ul>
-                        </div>
-                    </article>
-                </section>
-            </div>
+                        <ul className="max-h-52 overflow-y-auto rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+                            {chatLogs.map((line, index) => (
+                                <li key={`${line}-${index}`}>{line}</li>
+                            ))}
+                        </ul>
+                    </div>
+                </article>
+            </section>
         </div>
     );
 };

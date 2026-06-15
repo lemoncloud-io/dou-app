@@ -414,16 +414,13 @@ export const DebugSyncPage = () => {
     }, [baseline, snapshot]);
 
     return (
-        <div className="flex h-screen flex-col bg-background">
-            <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-6">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
-                    ← Home
-                </Button>
+        <div className="mx-auto w-full max-w-4xl p-6">
+            <div className="mb-4 flex items-baseline gap-3">
                 <h1 className="text-base font-semibold text-foreground">Socket / Cache Debug</h1>
-                <span className="ml-auto font-mono text-[10px] text-muted-foreground">{DB_NAME}</span>
-            </header>
+                <span className="font-mono text-[10px] text-muted-foreground">{DB_NAME}</span>
+            </div>
 
-            <div className="scrollbar-thin mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 overflow-y-auto p-8">
+            <div className="flex w-full flex-col gap-4">
                 <Section title="Socket / Selection">
                     <Row label="Verified" value={isVerified} />
                     <Row label="Connected" value={isConnected} />
