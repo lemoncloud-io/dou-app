@@ -84,6 +84,11 @@ export default defineConfig({
     },
 
     resolve: {
+        // Force every `react`/`react-dom` specifier — including the ones inside
+        // lazy route chunks and pre-bundled deps (Radix, react-native-web) — to the
+        // single root copy. Without this the dev optimizer can hand a lazy chunk a
+        // second React instance → "Invalid hook call … more than one copy of React".
+        dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
         alias: {
             '@chatic/assets': '/assets/src/index.ts',
             'react-native': 'react-native-web',
