@@ -123,13 +123,17 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
                     <p className="max-w-xs text-caption text-muted-foreground">{t('chat.thread.unavailable')}</p>
                 </div>
             )}
-            <Composer
-                disabled={isSending || !root}
-                onSend={handleReply}
-                channelId={`${channelId}::thread::${rootId}`}
-                placeholder={t('chat.thread.composerPlaceholder')}
-                mentionables={mentionables}
-            />
+            {/* No root → nothing to reply to: don't show a composer at all (the editor
+                is always editable, so a disabled-looking one would be typeable-but-dead). */}
+            {root && (
+                <Composer
+                    disabled={isSending}
+                    onSend={handleReply}
+                    channelId={`${channelId}::thread::${rootId}`}
+                    placeholder={t('chat.thread.composerPlaceholder')}
+                    mentionables={mentionables}
+                />
+            )}
         </aside>
     );
 };
