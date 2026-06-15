@@ -71,16 +71,22 @@ const ComposerInner = ({ disabled, onSend, channelId, placeholder, mentionables 
         if (!markdown || disabled) return;
         onSend(markdown);
         // Clearing the document fires handleChange, which drops the draft.
-        editor.update(() => {
-            const root = $getRoot();
-            root.clear();
-            root.append($createParagraphNode());
-            root.selectEnd();
-            // Drop carried-over bold/italic so the next message starts plain.
-            const selection = $getSelection();
-            if ($isRangeSelection(selection)) selection.setFormat(0);
-        });
-        editor.focus();
+        editor.update(
+            () => {
+                const root = $getRoot();
+                root.clear();
+                root.append($createParagraphNode());
+                root.selectEnd();
+                // Drop carried-over bold/italic so the next message starts plain.
+                const selection = $getSelection();
+                if ($isRangeSelection(selection)) selection.setFormat(0);
+            },
+            // Re-focus AFTER the cleared document commits to the DOM — calling
+            // focus() synchronously (before the reconcile) leaves the caret
+            // inactive. defaultSelection keeps the caret at the end so the user
+            // can keep typing without re-clicking the input.
+            { onUpdate: () => editor.focus(undefined, { defaultSelection: 'rootEnd' }) }
+        );
     }, [editor, disabled, onSend]);
 
     const insertEmoji = (emoji: string) => {
