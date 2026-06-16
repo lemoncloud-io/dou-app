@@ -1,6 +1,7 @@
 import type { ISocketClient } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 import type { ClientSocketV2, SocketMessage } from '@lemoncloud/chatic-sockets-lib';
+import { cloudCore, webCore } from '@chatic/web-core';
 
 import type { SocketCloudId } from './types';
 import type { SocketManager } from './SocketManager';
@@ -51,8 +52,120 @@ export class SocketClientAdapter implements ISocketClient {
      * Sends a request-response message over the active socket connection and returns a promise.
      */
     public request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> {
+        return this.requestWithRetry<T>(type, data, options, { auth: 0, conn: 0 });
+    }
+
+    /**
+     * Recursive helper to perform socket requests with retry capabilities for:
+     * 1. 401 UNAUTHORIZED (attempts token refresh and authentication update once)
+     * 2. 503 SOCKET NOT CONNECTED (waits up to 10 seconds for connection to restore once)
+     */
+    private async requestWithRetry<T>(
+        type: string,
+        data: unknown,
+        options?: { timeoutMs?: number },
+        retries: { auth: number; conn: number } = { auth: 0, conn: 0 }
+    ): Promise<T> {
         const client = this.requireClient(`request(${type})`);
-        return client.request(type as any, data as any, options) as Promise<T>;
+        try {
+            return await (client.request(type as any, data as any, options) as Promise<T>);
+        } catch (error: any) {
+            const errorMsg = String(error?.message || error || '');
+
+            // 1. Handle 401 UNAUTHORIZED retry
+            if (errorMsg.includes('401 UNAUTHORIZED')) {
+                if (type !== 'auth.update' && retries.auth < 1) {
+                    logger.info(
+                        'SOCKET',
+                        `[SocketClientAdapter] Request ${type} failed with 401 UNAUTHORIZED. Attempting token refresh and auth retry...`
+                    );
+                    try {
+                        const token = await this.refreshAuthToken();
+                        if (token) {
+                            await this.request('auth.update', { token });
+                            return await this.requestWithRetry<T>(type, data, options, {
+                                ...retries,
+                                auth: retries.auth + 1,
+                            });
+                        }
+                    } catch (authError) {
+                        logger.error('SOCKET', '[SocketClientAdapter] Failed to perform auth refresh/retry', {
+                            error: authError,
+                        });
+                    }
+                }
+            }
+
+            // 2. Handle 503 SOCKET NOT CONNECTED retry
+            if (errorMsg.includes('503 SOCKET NOT CONNECTED')) {
+                if (retries.conn < 1) {
+                    logger.info(
+                        'SOCKET',
+                        `[SocketClientAdapter] Request ${type} failed with 503 SOCKET NOT CONNECTED. Waiting for connection...`
+                    );
+                    const connected = await this.waitForConnection(10000);
+                    if (connected) {
+                        logger.info('SOCKET', `[SocketClientAdapter] Connection restored. Retrying ${type}...`);
+                        return await this.requestWithRetry<T>(type, data, options, {
+                            ...retries,
+                            conn: retries.conn + 1,
+                        });
+                    }
+                }
+            }
+
+            throw error;
+        }
+    }
+
+    /**
+     * Refreshes the authentication token based on current connection type.
+     */
+    private async refreshAuthToken(): Promise<string | null> {
+        const wssType = this.manager.getActiveConfig()?.wssType;
+        if (wssType === 'cloud') {
+            try {
+                await cloudCore.refreshToken();
+            } catch (e) {
+                logger.error('SOCKET', '[SocketClientAdapter] cloudCore.refreshToken failed', { error: e });
+            }
+            return (
+                cloudCore.getIdentityToken() ?? (await webCore.getTokenSignature()).originToken?.identityToken ?? null
+            );
+        } else {
+            return (await webCore.getTokenSignature()).originToken?.identityToken ?? null;
+        }
+    }
+
+    /**
+     * Returns a promise that resolves to true once connection is restored, or false on timeout.
+     */
+    private waitForConnection(timeoutMs: number): Promise<boolean> {
+        return new Promise<boolean>(resolve => {
+            if (this.currentClient?.state === 'connected') {
+                resolve(true);
+                return;
+            }
+
+            let resolved = false;
+
+            const cleanup = this.manager.subscribeActiveClientState(state => {
+                if (state === 'connected' && !resolved) {
+                    resolved = true;
+                    cleanup();
+                    clearTimeout(timeoutId);
+                    resolve(true);
+                }
+            });
+
+            const timeoutId = setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    cleanup();
+                    resolve(false);
+                }
+            }, timeoutMs);
+        });
     }
 
     /**
