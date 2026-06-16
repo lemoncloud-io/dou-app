@@ -1,67 +1,67 @@
-import { authHandler, chatHandler, modelHandler, syncHandler, systemHandler, userHandler } from '../handlers';
-import type { IEventBus } from '../../../events/eventBus';
-import type { SocketEventMap } from '../../../events/types';
-import type { WSSEnvelope, WSSEventDomainType } from '@lemoncloud/chatic-sockets-api';
-import { logger } from '@chatic/bridges';
+import type { ISocketClient } from '../clients/clients';
+import type { SocketMessage } from '@lemoncloud/chatic-sockets-lib';
+import type {
+    IChannelRemoteDataSource,
+    IChatRemoteDataSource,
+    IJoinRemoteDataSource,
+    ISiteRemoteDataSource,
+    IUserRemoteDataSource,
+} from '../../data-sources';
 
 export interface ISocketDispatcher {
-    dispatch(envelope: WSSEnvelope): void;
+    destroy(): void;
 }
 
 export class SocketDispatcher implements ISocketDispatcher {
-    /**
-     * @param eventBus 핸들러들이 이벤트를 방출할 때 사용할 공통 이벤트 버스
-     */
-    constructor(private readonly eventBus: IEventBus<SocketEventMap>) {}
+    private unsubs: Array<() => void> = [];
 
-    /**
-     * 수신된 소켓 Envelope) 타입을 분석하여 적절한 핸들러 함수를 호출합니다.
-     * @param envelope 서버로부터 수신된 원시 소켓 데이터
-     */
-    dispatch(envelope: WSSEnvelope) {
-        if (!envelope || !envelope.type) {
-            logger.warn('SOCKET_DISPATCHER', '[Socket Dispatcher] Invalid envelope received');
-            return;
+    constructor(
+        private readonly socketClient: ISocketClient,
+        private readonly channelRemoteDataSource: IChannelRemoteDataSource,
+        private readonly chatRemoteDataSource: IChatRemoteDataSource,
+        private readonly joinRemoteDataSource: IJoinRemoteDataSource,
+        private readonly siteRemoteDataSource: ISiteRemoteDataSource,
+        private readonly userRemoteDataSource: IUserRemoteDataSource
+    ) {
+        this.initialize();
+    }
+
+    private initialize() {
+        this.unsubs.push(this.socketClient.onType('model.create', msg => this.dispatchModelEvent('create', msg)));
+        this.unsubs.push(this.socketClient.onType('model.update', msg => this.dispatchModelEvent('update', msg)));
+        this.unsubs.push(this.socketClient.onType('model.delete', msg => this.dispatchModelEvent('delete', msg)));
+    }
+
+    private dispatchModelEvent(action: 'create' | 'update' | 'delete', msg: SocketMessage<any>) {
+        const data = msg.data;
+        if (!data) return;
+
+        const modelType = data.type; // e.g. 'chat', 'channel', 'join', 'user', 'site'
+        switch (modelType) {
+            case 'chat':
+                this.chatRemoteDataSource.handleModelEvent(action, data);
+                break;
+            case 'channel':
+                this.channelRemoteDataSource.handleModelEvent(action, data);
+                break;
+            case 'join':
+                this.joinRemoteDataSource.handleModelEvent(action, data);
+                break;
+            case 'user':
+                this.userRemoteDataSource.handleModelEvent(action, data);
+                break;
+            case 'site':
+                this.siteRemoteDataSource.handleModelEvent(action, data);
+                break;
+            default:
+                break;
         }
+    }
 
-        const domain: WSSEventDomainType = envelope.type;
-
-        if (domain) {
-            /**
-             * 도메인 타입에 따라 메시지 처리를 분기합니다.
-             * 각 핸들러는 데이터를 가공하여 최종적으로 이벤트 버스에 이벤트를 방출합니다.
-             */
-            switch (domain) {
-                case 'model': {
-                    modelHandler(envelope, this.eventBus);
-                    break;
-                }
-                case 'chat': {
-                    chatHandler(envelope, this.eventBus);
-                    break;
-                }
-                case 'auth': {
-                    authHandler(envelope, this.eventBus);
-                    break;
-                }
-                case 'sync': {
-                    syncHandler(envelope, this.eventBus);
-                    break;
-                }
-                case 'user': {
-                    userHandler(envelope, this.eventBus);
-                    break;
-                }
-                case 'system': {
-                    systemHandler(envelope, this.eventBus);
-                    break;
-                }
-                default: {
-                    logger.warn('SOCKET_DISPATCHER', `[Socket Dispatcher] Unhandled domain: ${domain}`);
-                }
-            }
-        } else {
-            logger.warn('SOCKET_DISPATCHER', `[Socket Dispatcher] No router found for domain: ${domain}`);
+    public destroy() {
+        for (const unsub of this.unsubs) {
+            unsub();
         }
+        this.unsubs = [];
     }
 }
