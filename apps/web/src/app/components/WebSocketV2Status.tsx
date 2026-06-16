@@ -1,7 +1,7 @@
-import { useWebSocketV2Store } from '@chatic/socket';
+import { useSocketState } from '../shared/socket';
 
 export const WebSocketV2Status = () => {
-    const { isConnected, connectionStatus, deviceId } = useWebSocketV2Store();
+    const { isConnected, connectionStatus, deviceId } = useSocketState(state => state);
 
     return (
         <div className="fixed bottom-4 right-4 rounded-lg border bg-background p-3 text-xs shadow-lg">

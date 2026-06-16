@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
-import { useWebSocketV2Store } from '@chatic/socket';
 
 import { useRepositories } from '../shared/data';
 import { useChatSync } from '../shared/hooks/useChatSync';
+import { useSocketState } from '../shared/socket';
 
 const MIN_HIDDEN_MS = 5_000;
 
@@ -20,7 +20,7 @@ export const GlobalChatSync = () => {
     // place 전환 시 구독을 재생성하여 새 place의 채널도 sync 대상에 포함
     // channelRepository.subscribeList()가 호출 시점의 DataContext(sid 포함)를 캡처하므로
     // selectedPlaceId가 변경되면 구독을 재생성해야 새 place의 채널이 반환됨
-    const selectedPlaceId = useWebSocketV2Store(s => s.selectedPlaceId);
+    const selectedPlaceId = useSocketState(s => s.selectedPlaceId);
 
     useEffect(() => {
         setChannels([]);
@@ -36,7 +36,7 @@ export const GlobalChatSync = () => {
     // subscribeList 콜백에 의존하지 않고 결과를 직접 setChannels로 반영
     const fetchAndApply = useCallback(
         async (cachePolicy: 'cache-only' | 'network-only') => {
-            const sid = useWebSocketV2Store.getState().selectedPlaceId || undefined;
+            const sid = selectedPlaceId || undefined;
             try {
                 const result = await channelRepository.fetchChannel({ sid }, { cachePolicy });
                 if (result?.list?.length) {
@@ -67,49 +67,13 @@ export const GlobalChatSync = () => {
 
             void fetchAndApply('cache-only');
 
-            const { isVerified } = useWebSocketV2Store.getState();
-            if (isVerified) {
+            if (selectedPlaceId) {
                 void fetchAndApply('network-only');
             }
         };
         document.addEventListener('visibilitychange', handler);
         return () => document.removeEventListener('visibilitychange', handler);
-    }, [fetchAndApply]);
-
-    // 소켓 재연결 완료 시 채널 목록 서버 refetch
-    // 포그라운드 복귀 시점에 소켓이 아직 미연결이면 visibilitychange가 커버하지 못하므로
-    // isVerified: false→true 전환을 직접 감지하여 누락된 메시지 gap을 해소
-    useEffect(() => {
-        let prevVerified = useWebSocketV2Store.getState().isVerified;
-        let hadDisconnection = false;
-
-        const unsubConnected = useWebSocketV2Store.subscribe(
-            s => s.isConnected,
-            isConnected => {
-                if (!isConnected) {
-                    hadDisconnection = true;
-                }
-            }
-        );
-
-        const unsubVerified = useWebSocketV2Store.subscribe(
-            s => s.isVerified,
-            isVerified => {
-                if (isVerified && !prevVerified && hadDisconnection) {
-                    void fetchAndApply('network-only');
-                }
-                if (isVerified) {
-                    hadDisconnection = false;
-                }
-                prevVerified = isVerified;
-            }
-        );
-
-        return () => {
-            unsubConnected();
-            unsubVerified();
-        };
-    }, [fetchAndApply]);
+    }, [fetchAndApply, selectedPlaceId]);
 
     useChatSync(channels);
 

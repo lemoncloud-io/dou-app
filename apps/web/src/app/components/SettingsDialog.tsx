@@ -6,7 +6,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { webCore, useOnboardingStore } from '@chatic/web-core';
-import { useWebSocketV2 } from '@chatic/socket';
+import { getSocketManager, useConnectionStatus } from '../shared/socket';
 
 interface SettingsDialogProps {
     open?: boolean;
@@ -17,7 +17,7 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
     const { t } = useTranslation();
     const [tokenInput, setTokenInput] = useState('');
     const [currentToken, setCurrentToken] = useState<string | null>(null);
-    const { connectionStatus, send, lastMessage } = useWebSocketV2();
+    const connectionStatus = useConnectionStatus();
     const { resetOnboarding } = useOnboardingStore();
 
     useEffect(() => {
@@ -32,15 +32,12 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
     const handleUpdateToken = () => {
         if (!tokenInput.trim()) return;
         void webCore.getTokenStorage().saveOAuthToken({ identityToken: tokenInput.trim() } as never);
-
-        send({
-            type: 'auth',
-            action: 'update',
-            payload: {
+        void getSocketManager()
+            .getActiveClient()
+            ?.request('auth.update' as any, {
                 token: tokenInput.trim(),
                 dryRun: false,
-            },
-        });
+            });
 
         setTokenInput('');
     };
@@ -85,18 +82,6 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
                                 <div className={`w-4 h-4 rounded-full ${getStatusColor()}`} />
                                 <span className="text-sm font-medium text-foreground">{connectionStatus}</span>
                             </div>
-                            {lastMessage && (
-                                <details className="group">
-                                    <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
-                                        {t('settingsDialog.viewLastMessage')}
-                                    </summary>
-                                    <div className="mt-2 text-xs text-muted-foreground break-all max-h-60 overflow-auto p-3 bg-muted rounded border border-border">
-                                        <pre className="whitespace-pre-wrap">
-                                            {JSON.stringify(lastMessage, null, 2)}
-                                        </pre>
-                                    </div>
-                                </details>
-                            )}
                         </div>
 
                         {/* Token Editor */}
