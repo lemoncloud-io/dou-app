@@ -5,6 +5,8 @@ import type {
     ChatFeedResult,
     ChatView,
     JoinView,
+    ProfileView,
+    SiteProfileSyncView,
     SiteView,
     UserView,
 } from '@lemoncloud/chatic-socials-api';
@@ -75,7 +77,17 @@ export interface DomainEventMap {
     'site:list': DomainPayload<ListResult<SiteView>>;
 
     // ------------------------------------------
-    // 6. Auth Domain (인증)
+    // 6. Profile Domain (플레이스별 표시 프로필)
+    // ------------------------------------------
+    /** 본인 플레이스 프로필 조회 결과 (get-site-profile) */
+    'profile:get': DomainPayload<ProfileView>;
+    /** 본인 플레이스 프로필 변경 결과 (set-site-profile) */
+    'profile:update': DomainPayload<ProfileView>;
+    /** 도달 가능한 사용자들의 플레이스 프로필 동기화 delta (sync-site-profile) */
+    'profile:sync': DomainPayload<SiteProfileSyncView>;
+
+    // ------------------------------------------
+    // 7. Auth Domain (인증)
     // ------------------------------------------
     /** 세션 갱신 등 인증 정보 업데이트 */
     'auth:update': DomainPayload<AuthPayload>;

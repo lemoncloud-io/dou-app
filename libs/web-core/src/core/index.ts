@@ -59,7 +59,16 @@ initEnvFromQueryParams();
 // RN WebView 환경이면 네이티브 스토리지 어댑터로 교체
 const isReactNativeWebView = (): boolean => !!(window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView;
 
-if (isReactNativeWebView()) {
+// Electron desktop shell injects window.ChaticMessageHandler via contextBridge
+// (apps/desktop/src/preload/index.ts), synchronously available before any renderer
+// module evaluates. Plain web browsers have neither global.
+const isDesktopShell = (): boolean => !!(window as Window & { ChaticMessageHandler?: unknown }).ChaticMessageHandler;
+
+// Persistent (localStorage) for RN WebView + desktop shell so OAuth credentials,
+// cloud token, and invite state survive app restart. Plain web keeps sessionStorage.
+const usePersistentStorage = isReactNativeWebView() || isDesktopShell();
+
+if (usePersistentStorage) {
     setStorageAdapter(localStorage);
 }
 
@@ -76,7 +85,7 @@ const clearTokensOnLogout = (): void => {
         const params = new URLSearchParams(window.location.search);
         if (params.get('logout') !== '1') return;
 
-        const storage = isReactNativeWebView() ? localStorage : sessionStorage;
+        const storage = usePersistentStorage ? localStorage : sessionStorage;
         // 로그아웃 후에도 유지해야 하는 키: 언어 설정, 초대 상태
         const languageKeySuffix = `.${LANGUAGE_KEY}`;
         const keysToRemove: string[] = [];
@@ -97,7 +106,7 @@ clearTokensOnLogout();
 // Get endpoint from storage (mobile: localStorage, web: sessionStorage)
 const getEndpointStorageItem = (key: string): string | null => {
     try {
-        const storage = isReactNativeWebView() ? localStorage : sessionStorage;
+        const storage = usePersistentStorage ? localStorage : sessionStorage;
         return storage.getItem(key);
     } catch {
         return null;
@@ -154,7 +163,7 @@ export const webCore = WebCoreFactory.create({
     project: ENV === 'local' ? `${PROJECT}_${ENV}` : PROJECT,
     oAuthEndpoint: OAUTH_ENDPOINT,
     region: REGION,
-    storage: isReactNativeWebView() ? localStorage : sessionStorage,
+    storage: usePersistentStorage ? localStorage : sessionStorage,
 });
 
 /**

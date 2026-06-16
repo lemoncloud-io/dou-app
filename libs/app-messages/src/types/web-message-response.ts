@@ -39,6 +39,8 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     FetchFcmToken: 'OnFetchFcmToken',
     FetchBadgeCount: 'OnFetchBadgeCount',
     SetBadgeCount: 'OnSetBadgeCount',
+    ShowNotification: 'OnShowNotification',
+    FetchUrlMetadata: 'OnFetchUrlMetadata',
     FetchProducts: 'OnFetchProducts',
     FetchCurrentPurchases: 'OnFetchCurrentPurchases',
     Purchase: 'OnPurchase',
@@ -73,6 +75,8 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     SaveTestRecord: 'OnSaveTestRecord',
     SaveAllTestRecords: 'OnSaveAllTestRecords',
     ClearTestRecords: 'OnClearTestRecords',
+    StartUpdateDownload: 'OnStartUpdateDownload',
+    RestartToUpdate: 'OnRestartToUpdate',
 } as const satisfies Record<WebMessageType, AppMessageType>;
 
 export type WebMessageResponseTypeMap = typeof WEB_MESSAGE_RESPONSE_TYPE;

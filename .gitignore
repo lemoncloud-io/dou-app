@@ -2,11 +2,19 @@
 /.claude
 CLAUDE.md
 .playwright-mcp
+.github/skills
+.impeccable
+PRODUCT.md
 
 # Environment variables
 .env
 .env.*
 !.env.example
+# Desktop shell per-mode build URLs are public (baked into the bundle), not secrets — track them.
+!apps/desktop/.env.dev
+!apps/desktop/.env.production
+# Signing-secrets template (placeholders only; the real .env.signing stays ignored).
+!apps/desktop/.env.signing.example
 scripts/.env.deploy
 
 # Firebase configuration
@@ -88,6 +96,9 @@ DerivedData
 # Android/IntelliJ
 #
 build/
+# Desktop shell electron-builder resources (icons, tray) live in build/ — track them.
+!apps/desktop/build/
+!apps/desktop/build/**
 .idea
 .gradle
 local.properties
@@ -131,6 +142,9 @@ yarn-error.log
 
 vite.config.*.timestamp*
 .amazonq/
+
+# Stray electron-vite output landing at the repo root (misplaced build artifact)
+/index.js
 
 AuthKey_*.p8
 *.p8

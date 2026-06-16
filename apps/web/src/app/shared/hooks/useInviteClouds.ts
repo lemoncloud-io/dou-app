@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 import type { DomainInviteCloud, DomainListResult } from '@chatic/data';
 import { isNative } from '@chatic/bridges';
 

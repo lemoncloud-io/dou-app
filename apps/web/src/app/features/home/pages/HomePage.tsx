@@ -22,7 +22,7 @@ import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
 import { usePlaces } from '../../../shared/hooks/usePlaces';
 import { usePlaceUnreadCounts } from '../../../shared/hooks/usePlaceUnreadCounts';
 import { useChannels } from '../../../shared/hooks/useChannels';
-import { useCloudSession } from '../../../shared/hooks/useCloudSession';
+import { useCloudSession } from '@chatic/app-runtime';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { CloudLogo } from '../../../shared/components/CloudLogo';
 import { LimitExceededDialog } from '../../../shared/components/LimitExceededDialog';
@@ -34,7 +34,6 @@ import { ChannelList } from '../components/ChannelList';
 import { CloudSessionSheet } from '../components/CloudSessionSheet';
 import { CreateChannelDialog } from '../components/CreateChannelDialog';
 import { CreatePlaceDialog } from '../components/CreatePlaceDialog';
-import { NameSetupDialog } from '../components/NameSetupDialog';
 import { PlaceList } from '../components/PlaceList';
 
 const IS_LOCAL = import.meta.env.VITE_ENV === 'LOCAL';
@@ -92,14 +91,6 @@ export const HomePage = () => {
     const [isReportIssueOpen, setIsReportIssueOpen] = useState(false);
     const [isDebugOpen, setIsDebugOpen] = useState(false);
     const [limitDialogType, setLimitDialogType] = useState<'place' | 'channel' | null>(null);
-    const [isNameSetupOpen, setIsNameSetupOpen] = useState(false);
-
-    // TODO: 이름 설정 다이얼로그 활성화 예정
-    // useEffect(() => {
-    //     if (consumeNameSetupFlag()) {
-    //         setIsNameSetupOpen(true);
-    //     }
-    // }, []);
 
     const handleLogout = () => {
         logout();
@@ -263,7 +254,6 @@ export const HomePage = () => {
             <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
             {isSearchOpen && <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />}
             <ReportIssueDialog open={isReportIssueOpen} onOpenChange={setIsReportIssueOpen} />
-            <NameSetupDialog open={isNameSetupOpen} onComplete={() => setIsNameSetupOpen(false)} />
             <LimitExceededDialog
                 open={limitDialogType !== null}
                 onOpenChange={open => !open && setLimitDialogType(null)}

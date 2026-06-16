@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DomainChannel, DomainChat, DomainListResult } from '@chatic/data';
 import { Trash2 } from 'lucide-react';
 
-import { useRepositories } from '../../../shared/data';
+import { useRepositories } from '@chatic/app-runtime';
 
 const makeId = (prefix: string): string => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 const nowLabel = (): string => new Date().toLocaleTimeString();

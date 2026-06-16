@@ -9,7 +9,7 @@ import type {
     ChatUpdateChannelPayload,
 } from '@lemoncloud/chatic-sockets-api';
 
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 
 type MutationAction = 'leave' | 'delete' | 'start' | 'update' | 'invite';
 

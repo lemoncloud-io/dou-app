@@ -3,7 +3,7 @@ import { logger } from '@chatic/bridges';
 import type { DomainChat, DomainListResult } from '@chatic/data';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
 import { useDynamicProfile } from '@chatic/web-core';
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 import type { ClientChatView } from '../types';
 
 const DEFAULT_CHAT_LIMIT = 50;

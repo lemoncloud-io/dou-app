@@ -7,7 +7,7 @@ import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulk
 import type ISyncRepository from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
-import type { IUserLocalDataSource } from '../local/data-sources';
+import type { IProfileLocalDataSource, IUserLocalDataSource } from '../local/data-sources';
 import { createDomainListResult, type DomainListResult, type DomainUser, toDomainUser } from '../domain';
 import type { UserView } from '@lemoncloud/chatic-socials-api';
 
@@ -60,7 +60,8 @@ export class UserRepository extends BaseRepository implements IUserRepository, I
         private readonly userLocalDataSource: IUserLocalDataSource,
         requestManager: ISocketRequestManager,
         contextProvider: DataContextProvider,
-        domainEventBus: IEventBus<DomainEventMap>
+        domainEventBus: IEventBus<DomainEventMap>,
+        private readonly profileLocalDataSource?: IProfileLocalDataSource
     ) {
         super(requestManager, contextProvider, domainEventBus);
         this.initializeInternalListeners();
@@ -197,6 +198,24 @@ export class UserRepository extends BaseRepository implements IUserRepository, I
         const currentCid = this.getRepositoryContext().cid;
         if (currentCid === requestContext.cid) {
             await this.userLocalDataSource.upsertMany(domainList, requestContext);
+            // 응답의 nick/thumbnail을 place-profile 캐시로 미러링 — 백엔드가
+            // channel.sync-site-profile delta를 아직 채워주지 않아(ADR 0007), 이
+            // 응답이 타인 프로필 변경이 캐시에 도달하는 유일한 경로입니다.
+            // 정식 profile sync가 구현되면 이 미러링은 제거합니다.
+            const profilePatches = domainList
+                .filter(user => user.id && (user.nick !== undefined || user.thumbnail !== undefined))
+                .map(user => ({
+                    id: `${requestScope.sid ?? ''}@${user.id}`,
+                    cid: requestScope.cid,
+                    sid: requestScope.sid,
+                    uid: user.id,
+                    ...(user.nick !== undefined ? { nick: user.nick } : {}),
+                    ...(user.thumbnail !== undefined ? { thumbnail: user.thumbnail } : {}),
+                    updatedAt: Date.now(),
+                }));
+            if (profilePatches.length > 0) {
+                await this.profileLocalDataSource?.upsertMany(profilePatches, requestContext);
+            }
         }
 
         return createDomainListResult(domainList, {

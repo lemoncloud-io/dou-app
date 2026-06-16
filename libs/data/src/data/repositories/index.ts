@@ -11,6 +11,8 @@ import type { IChatRepository } from './ChatRepository';
 import { ChatRepository } from './ChatRepository';
 import type { IJoinRepository } from './JoinRepository';
 import { JoinRepository } from './JoinRepository';
+import type { IProfileRepository } from './ProfileRepository';
+import { ProfileRepository } from './ProfileRepository';
 import type { IUserRepository } from './UserRepository';
 import { UserRepository } from './UserRepository';
 import type { ISiteRepository } from './SiteRepository';
@@ -24,6 +26,7 @@ export * from './ChannelRepository';
 export * from './ChatRepository';
 export * from './InviteCloudRepository';
 export * from './JoinRepository';
+export * from './ProfileRepository';
 export * from './SiteRepository';
 export * from './types';
 export type { default as ISyncRepository } from './types';
@@ -40,6 +43,7 @@ export interface DataRepositories {
     join: IJoinRepository;
     user: IUserRepository;
     site: ISiteRepository;
+    profile: IProfileRepository;
     inviteCloud: IInviteCloudRepository;
 }
 
@@ -71,6 +75,20 @@ export const createRepositories = ({
     chat: new ChatRepository(remoteDataSources.chat, localDataSources.chat, requestManager, context, domainEventBus),
     join: new JoinRepository(remoteDataSources.join, localDataSources.join, requestManager, context, domainEventBus),
     site: new SiteRepository(remoteDataSources.site, localDataSources.site, requestManager, context, domainEventBus),
-    user: new UserRepository(remoteDataSources.user, localDataSources.user, requestManager, context, domainEventBus),
+    profile: new ProfileRepository(
+        remoteDataSources.profile,
+        localDataSources.profile,
+        requestManager,
+        context,
+        domainEventBus
+    ),
+    user: new UserRepository(
+        remoteDataSources.user,
+        localDataSources.user,
+        requestManager,
+        context,
+        domainEventBus,
+        localDataSources.profile
+    ),
     inviteCloud: new InviteCloudRepository(localDataSources.inviteCloud, requestManager, context, domainEventBus),
 });

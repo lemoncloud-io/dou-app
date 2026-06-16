@@ -5,7 +5,7 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
 import { cloudCore, useDynamicProfile, useUserContext } from '@chatic/web-core';
 
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 import type { ClientChannelView } from '../types';
 
 import { useChannelSyncStore } from '../stores/useChannelSyncStore';

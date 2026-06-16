@@ -14,7 +14,7 @@ const ToastViewport = React.forwardRef<
     <ToastPrimitives.Viewport
         ref={ref}
         className={cn(
-            'fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse items-center p-4 pt-safe-top',
+            'pointer-events-none fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse items-center gap-2 p-4 pt-safe-top',
             className
         )}
         {...props}
@@ -23,12 +23,12 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
 const toastVariants = cva(
-    'group pointer-events-auto relative flex w-[343px] items-center gap-[9px] overflow-hidden rounded-lg bg-toast px-4 py-[14px] shadow-[0px_4px_8px_0px_rgba(0,0,0,0.15),0px_1px_3px_0px_rgba(0,0,0,0.3)] transition-all data-[swipe=cancel]:translate-y-0 data-[swipe=end]:translate-y-[var(--radix-toast-swipe-end-y)] data-[swipe=move]:translate-y-[var(--radix-toast-swipe-move-y)] data-[swipe=move]:transition-none data-[state=open]:animate-fade-in data-[state=open]:animate-slide-in-from-top data-[state=closed]:animate-fade-out data-[state=closed]:animate-slide-out-to-top',
+    'group pointer-events-auto relative flex w-full max-w-md items-start gap-3 overflow-hidden rounded-xl border-l-[3px] bg-toast px-4 py-3.5 text-toast-foreground shadow-[0_8px_28px_-8px_rgba(0,0,0,0.4),0_2px_8px_-3px_rgba(0,0,0,0.25)] ring-1 ring-white/5 transition-all data-[swipe=cancel]:translate-y-0 data-[swipe=end]:translate-y-[var(--radix-toast-swipe-end-y)] data-[swipe=move]:translate-y-[var(--radix-toast-swipe-move-y)] data-[swipe=move]:transition-none data-[state=open]:animate-fade-in data-[state=open]:animate-slide-in-from-top data-[state=closed]:animate-fade-out data-[state=closed]:animate-slide-out-to-top',
     {
         variants: {
             variant: {
-                default: '',
-                destructive: '',
+                default: 'border-l-main-accent',
+                destructive: 'border-l-destructive',
             },
         },
         defaultVariants: {

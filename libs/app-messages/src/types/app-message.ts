@@ -65,12 +65,17 @@ import type {
     OnSendLogPayload,
     OnSendSmsPayload,
     OnSetBadgeCountPayload,
+    OnShowNotificationPayload,
+    OnFetchUrlMetadataPayload,
     OnSetCanGoBackPayload,
     OnUpdateDeviceInfoPayload,
     OnUploadCompletePayload,
     OnUploadProgressPayload,
     PongPayload,
     OnCopyToClipboardPayload,
+    OnUpdateStatusPayload,
+    OnStartUpdateDownloadPayload,
+    OnRestartToUpdatePayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -118,6 +123,8 @@ export type AppMessageDataMap = {
     OnReceiveNotification: OnNotificationPayload;
     OnFetchBadgeCount: OnFetchBadgeCountPayload;
     OnSetBadgeCount: OnSetBadgeCountPayload;
+    OnShowNotification: OnShowNotificationPayload;
+    OnFetchUrlMetadata: OnFetchUrlMetadataPayload;
 
     // 3. IAP
     OnFetchCurrentPurchases: OnFetchCurrentPurchasesPayload;
@@ -166,6 +173,11 @@ export type AppMessageDataMap = {
     OnSaveTestRecord: OnSaveTestRecordPayload;
     OnSaveAllTestRecords: OnSaveAllTestRecordsPayload;
     OnClearTestRecords: OnClearTestRecordsPayload;
+
+    // 9. Auto Update (desktop)
+    OnUpdateStatus: OnUpdateStatusPayload;
+    OnStartUpdateDownload: OnStartUpdateDownloadPayload;
+    OnRestartToUpdate: OnRestartToUpdatePayload;
 };
 
 export type AppMessageType = keyof AppMessageDataMap;

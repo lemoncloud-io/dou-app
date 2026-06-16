@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>DoU Desktop</title>
+        <base href="/" />
+
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" id="theme-color-meta" content="#ffffff" />
+        <!-- Theme detection script - must run before any content renders -->
+        <script>
+            (function () {
+                var storageKey = 'vite-ui-theme';
+                var theme = localStorage.getItem(storageKey);
+                var isDark =
+                    theme === 'dark' ||
+                    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                    document.getElementById('theme-color-meta').content = '#121212';
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    document.getElementById('theme-color-meta').content = '#ffffff';
+                }
+            })();
+        </script>
+        <style>
+            html,
+            body {
+                background-color: #ffffff;
+                margin: 0;
+            }
+            html.dark,
+            html.dark body {
+                background-color: #121212;
+            }
+            #root {
+                height: 100vh;
+            }
+        </style>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link rel="stylesheet" href="/src/styles.css" />
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/src/main.tsx"></script>
+    </body>
+</html>

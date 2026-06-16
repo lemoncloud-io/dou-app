@@ -170,18 +170,23 @@ export class JoinRepository extends BaseRepository implements IJoinRepository, I
     // --- Internal Logic ---
     private initializeInternalListeners(): void {
         this.onDomainEvent('join:create', detail => {
+            if (!detail.data?.id) return;
             this.runInBackground(
                 () => this.joinLocalDataSource.upsert(detail.data, this.getRepositoryContext()),
                 'join:create'
             );
         });
         this.onDomainEvent('join:update', detail => {
+            // A failed/empty server response can surface a null payload — guard so the
+            // background upsert doesn't crash on `null.id`.
+            if (!detail.data?.id) return;
             this.runInBackground(
                 () => this.joinLocalDataSource.upsert(detail.data, this.getRepositoryContext()),
                 'join:update'
             );
         });
         this.onDomainEvent('join:delete', detail => {
+            if (!detail.data?.id) return;
             this.runInBackground(
                 () => this.joinLocalDataSource.remove(detail.data.id || '', this.getRepositoryContext()),
                 'join:delete'

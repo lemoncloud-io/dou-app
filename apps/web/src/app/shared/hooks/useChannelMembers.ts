@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { logger } from '@chatic/bridges';
 import { useInterval } from '@chatic/shared';
 import type { ChatUsersPayload } from '@lemoncloud/chatic-sockets-api';
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 import type { DomainUser, RepositoryCachePolicy } from '@chatic/data';
 
 const MEMBER_POLL_INTERVAL_MS = 10_000;

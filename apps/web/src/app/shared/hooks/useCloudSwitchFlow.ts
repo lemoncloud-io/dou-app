@@ -9,8 +9,8 @@ import { cloudCore, reportError, toError, useWebCoreStore } from '@chatic/web-co
 import type { DomainSite } from '@chatic/data';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
-import { useRepositories } from '../data';
-import { useCloudSession } from './useCloudSession';
+import { useRepositories } from '@chatic/app-runtime';
+import { useCloudSession } from '@chatic/app-runtime';
 import { waitForVerified } from '../utils/waitForVerified';
 import { setPlaceAuthDone } from '../../features/home/components/PlaceList';
 
@@ -73,7 +73,7 @@ interface UseCloudSwitchFlowOptions {
 }
 
 export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions) => {
-    const { selectCloud } = useCloudSession();
+    const { selectCloud, restoreInvitedCloud } = useCloudSession();
     const { site: siteRepository, channel: channelRepository } = useRepositories();
     const setIsLoading = useLoaderStore(s => s.setIsLoading);
     const { t } = useTranslation();
@@ -98,6 +98,11 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions) => {
                 cloudCore.saveSelectedCloudId('default');
                 useWebSocketV2Store.getState().setCloudId('default');
                 useWebSocketV2Store.getState().setIsVerified(false);
+            } else if (cloudCore.getInvitedCloud(previousCloudId)) {
+                // Invited clouds aren't broker-delegable — re-enter via the captured
+                // session (mirrors switchCloud) instead of selectCloud → delegate-cloud 404.
+                await restoreInvitedCloud(previousCloudId);
+                await waitForVerified(10_000);
             } else {
                 // 이전 cloud 재선택
                 await selectCloud(previousCloudId);
@@ -129,7 +134,13 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions) => {
                 // Step 1: Cloud 전환 — 토큰 발급 + 스토어 업데이트
                 logger.info('SESSION', '[CloudSwitchFlow] Step 1: selectCloud', { data: { cloudId } });
                 try {
-                    await selectCloud(cloudId);
+                    // Invite-joined clouds aren't broker-delegable (delegate-cloud
+                    // 404s); re-enter them by replaying the captured session instead.
+                    if (cloudCore.getInvitedCloud(cloudId)) {
+                        await restoreInvitedCloud(cloudId);
+                    } else {
+                        await selectCloud(cloudId);
+                    }
                 } catch (e) {
                     showError('switchFailed', e);
                     throw e;
@@ -200,7 +211,16 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions) => {
                 setIsLoading(false);
             }
         },
-        [selectCloud, siteRepository, channelRepository, setIsLoading, t, toast, options.onPlaceSelected]
+        [
+            selectCloud,
+            restoreInvitedCloud,
+            siteRepository,
+            channelRepository,
+            setIsLoading,
+            t,
+            toast,
+            options.onPlaceSelected,
+        ]
     );
 
     return { switchCloud };

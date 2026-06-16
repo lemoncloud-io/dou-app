@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { logger } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
 
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 import type { DomainSite } from '@chatic/data';
 
 // 초대 수락 직후 place 동기화가 필요함을 표시하는 일회성 키 (sessionStorage — 탭 종료 시 자동 소멸)

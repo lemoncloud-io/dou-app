@@ -29,7 +29,7 @@ import type {
 } from '@lemoncloud/chatic-backend-api';
 
 import { useRegisterDevice } from '@chatic/auth';
-import { useDynamicDeviceId } from '../../../shared/hooks/useDynamicDeviceId';
+import { useDynamicDeviceId } from '@chatic/app-runtime';
 import { useInviteMutations } from '../../../shared/hooks/useInviteMutations';
 import { markInvitePlaceSyncPending, markNameSetupPending } from '../../../shared/hooks/usePlaces';
 import { fetchInviteCodeInfo } from '../../chats/apis/invite-api';
@@ -212,6 +212,11 @@ export const LoginPage = (): JSX.Element => {
 
             // 4. Save cloud token + selected cloud ID
             cloudCore.saveCloudToken(data as unknown as UserTokenView);
+            // `data.cloudId` is the cloud's AWS account-no (SDK `UserTokenView.cloudId`); the
+            // invite deeplink carries no real cloud id, so it's the only identifier we have for
+            // this invited cloud and is used purely as its restore key (re-entry goes through
+            // restoreInvitedCloud, never delegate-cloud). issueCloudDelegationToken guards the
+            // delegate boundary so this account-no can never leak into a delegation 404.
             const effectiveCloudId = urlCloudId ?? data.cloudId;
             if (effectiveCloudId) {
                 cloudCore.saveSelectedCloudId(effectiveCloudId);
@@ -250,6 +255,10 @@ export const LoginPage = (): JSX.Element => {
                 cloudCore.saveSelectedSiteId(invitedSiteId);
                 useWebSocketV2Store.getState().setSelectedPlaceId(invitedSiteId);
             }
+
+            // Remember this invited cloud's full session so the cloud switcher can
+            // re-enter it later — invited clouds aren't broker-delegable.
+            if (effectiveCloudId) cloudCore.captureInvitedCloud(effectiveCloudId, urlCloudName ?? data.name);
 
             // 8. Authenticate — 풀 리로드로 홈 전환 (invite flow에서 SPA 전환이 불안정하여 리로드 사용)
             logger.info('AUTH', '[handleAccept] complete, navigating to home', {

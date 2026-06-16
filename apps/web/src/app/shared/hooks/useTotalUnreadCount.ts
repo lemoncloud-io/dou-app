@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainChannel, DomainListResult } from '@chatic/data';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 
 export const useTotalUnreadCount = () => {
     const sid = useWebSocketV2Store(s => s.selectedPlaceId) || 'default';

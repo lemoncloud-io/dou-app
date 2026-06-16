@@ -10,6 +10,8 @@ import type {
     ChatFeedResult,
     ChatView,
     JoinView,
+    ProfileView,
+    SiteProfileSyncView,
     SiteView,
     UserView,
 } from '@lemoncloud/chatic-socials-api';
@@ -86,7 +88,16 @@ export interface SocketEventMap {
     'site:error': SocketEventDetail<ChatErrorPayload>;
 
     // ------------------------------------------
-    // 6. Auth & System (인증 및 시스템 인프라)
+    // 6. Profile (플레이스별 표시 프로필)
+    // get/set-site-profile는 user 도메인, sync-site-profile은 channel 도메인을 타고 들어옵니다.
+    // ------------------------------------------
+    'profile:get': SocketEventDetail<ProfileView>;
+    'profile:update': SocketEventDetail<ProfileView>;
+    'profile:sync': SocketEventDetail<SiteProfileSyncView>;
+    'profile:error': SocketEventDetail<ChatErrorPayload>;
+
+    // ------------------------------------------
+    // 7. Auth & System (인증 및 시스템 인프라)
     // ------------------------------------------
     'auth:update': SocketEventDetail<AuthPayload>;
     'auth:error': SocketEventDetail<AuthPayload | ChatErrorPayload>;

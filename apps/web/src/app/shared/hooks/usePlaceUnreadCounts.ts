@@ -6,7 +6,7 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
 import { cloudCore } from '@chatic/web-core';
 
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 import { debounce } from '../utils/debounce';
 
 const POLL_INTERVAL_MS = 30_000;

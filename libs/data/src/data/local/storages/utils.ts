@@ -13,6 +13,7 @@ const CACHE_TTL_MS: Record<CacheType, number> = {
     join: 30 * MINUTE_MS,
     site: 30 * MINUTE_MS,
     user: 30 * MINUTE_MS,
+    profile: 30 * MINUTE_MS,
 };
 
 /** 어댑터 공통 스코프 표현입니다. */

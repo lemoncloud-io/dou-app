@@ -12,9 +12,7 @@ import type { CacheStorage, CacheStorageItem } from '../storages';
 import type { DomainChat, DomainListResult } from '../../domain';
 import { createDomainListResult, toDomainChat as toDomainChatBase } from '../../domain';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
-import { resolveScopedContext } from '../storages/utils';
 import type { CacheChatView, ChatQueryOptions } from '@chatic/app-messages';
-import { logger } from '@chatic/bridges';
 
 type ChatCache = CacheStorageItem<'chat'>;
 type ChatSortable = Partial<DomainChat> | ChatCache;
@@ -91,15 +89,17 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
         const cid = context.cid || this.getCid(contextOverride);
         const scope = { cid, sid: context.sid || '', uid: context.uid };
 
+        // Merge with the existing cached record per id (same contract as single
+        // upsert). List responses omit fields the detail view carries — most
+        // importantly `owner$` for other users — so a bulk overwrite would drop a
+        // previously-resolved author and flash "Unknown" on the next render.
+        const existing = await Promise.all(validChats.map(chat => this.cacheStorage.load(chat.id as string)));
         const normalized = validChats.map(
-            chat => toDomainChatBase({ ...(chat as Record<string, unknown>), cid }, scope) as ChatCache
-        );
-
-        // 🔍 DEBUG: trace scope used by saveAll
-        const debugSaveScope = resolveScopedContext('chat', this.contextProvider);
-        logger.info(
-            'CACHE',
-            `[ChatLocal:upsertMany] count=${normalized.length}, scope={cid:${debugSaveScope.cid}, uid:${debugSaveScope.uid}}`
+            (chat, i) =>
+                toDomainChatBase(
+                    { ...(existing[i] ?? {}), ...(chat as Record<string, unknown>), cid },
+                    scope
+                ) as ChatCache
         );
 
         // 단일 IndexedDB 트랜잭션으로 배치 저장 후 구독자에게 한 번만 알림
@@ -150,8 +150,6 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
             ...payload,
             limit,
         } as ChatQueryOptions);
-
-        logger.info('CACHE', `[ChatLocal:fetchList] channelId=${channelId}, loaded=${pageList.length}`);
 
         if (pageList.length === 0) {
             return createDomainListResult([], { total: 0, source: 'local' });

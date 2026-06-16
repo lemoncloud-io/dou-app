@@ -4,7 +4,7 @@ import { logger } from '@chatic/bridges';
 import type { ClientChannelView, DomainChannel } from '@chatic/data';
 import { useDynamicProfile } from '@chatic/web-core';
 
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 
 // toClientChannel에 joinCount(참여자 수)를 주입받을 수 있도록 파라미터 추가
 const toClientChannel = (channel: DomainChannel, userId?: string, joinCount?: number): ClientChannelView => {

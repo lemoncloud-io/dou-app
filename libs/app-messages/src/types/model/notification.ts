@@ -32,6 +32,12 @@ export type OnNotificationPayload = {
 /** [요청] 뱃지 카운트 설정 페이로드 */
 export type SetBadgeCountPayload = {
     count: number;
+    /**
+     * 선택. Windows 전용 — 태스크바 overlay 아이콘으로 쓸 PNG data URL.
+     * Windows에는 dock 뱃지가 없어 overlay 아이콘이 필요하고, Electron nativeImage는
+     * SVG를 못 그리므로 렌더러(canvas)에서 PNG로 그려 전달합니다. macOS/Linux는 무시.
+     */
+    overlayIconDataUrl?: string;
 };
 
 /** [응답] 뱃지 카운트 조회 결과 페이로드 */
@@ -41,5 +47,21 @@ export type OnFetchBadgeCountPayload = {
 
 /** [응답] 뱃지 카운트 설정 결과 페이로드 */
 export type OnSetBadgeCountPayload = {
+    success: boolean;
+};
+
+/**
+ * [요청] OS 알림 표시 페이로드 (web -> app).
+ * 데스크탑은 FCM이 없어 살아있는 WS가 새 메시지를 감지하면 셸에 OS 알림을 요청합니다.
+ */
+export type ShowNotificationPayload = {
+    title: string;
+    body: string;
+    channelId?: string;
+    deeplink?: string;
+};
+
+/** [응답] OS 알림 표시 결과 페이로드 */
+export type OnShowNotificationPayload = {
     success: boolean;
 };

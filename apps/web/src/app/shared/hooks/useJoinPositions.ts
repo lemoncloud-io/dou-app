@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
 
-import { useRepositories } from '../data';
+import { useRepositories } from '@chatic/app-runtime';
 
 interface JoinPosition {
     chatNo: number;

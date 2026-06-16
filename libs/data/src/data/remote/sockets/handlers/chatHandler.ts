@@ -1,5 +1,12 @@
 import type { ChatErrorPayload, WSSChatActionType, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
-import type { ChannelView, ChatFeedResult, ChatView, JoinView, UserView } from '@lemoncloud/chatic-socials-api';
+import type {
+    ChannelView,
+    ChatFeedResult,
+    ChatView,
+    JoinView,
+    SiteProfileSyncView,
+    UserView,
+} from '@lemoncloud/chatic-socials-api';
 import type { ChannelSyncView } from '../../events/common';
 import { logger } from '@chatic/bridges';
 import type { ListResult, SocketEventMap } from '../../../events/types';
@@ -34,10 +41,36 @@ export const chatHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEve
         return;
     }
 
+    /**
+     * - 서버가 거부한 요청(예: invite/update-join 권한 거부, parentId 미해결)은
+     *   에러 메시지가 벗겨진 data:null 프레임으로 돌아온다. null을 도메인 이벤트로
+     *   fan-out하면 리스너들이 일괄 크래시하고, 대기 중인 ref는 null로 "성공"
+     *   resolve된다 — 에러로 돌려 ref를 reject시키고 전파를 차단한다.
+     */
+    if (!payload) {
+        eventBus.emit('chat:error', {
+            ...detail,
+            payload: payload as ChatErrorPayload,
+            error: `Empty ${action} payload`,
+        });
+        return;
+    }
+
     switch (action) {
         // 채팅 메시지 전송 및 생성 처리
         case 'send': {
             const chatView = payload as ChatView;
+            // id 없는 응답이 ref를 "성공" resolve하면 낙관행 교체가 조용히 no-op
+            // 되어 메시지가 isPending에 고착된다(null은 위에서 차단됨) — 에러로
+            // 돌려 기존 isFailed+Retry 계약을 태운다.
+            if (!chatView.id) {
+                eventBus.emit('chat:error', {
+                    ...detail,
+                    payload: payload as ChatErrorPayload,
+                    error: 'Invalid chat:send payload',
+                });
+                break;
+            }
             eventBus.emit('chat:create', { ...detail, payload: chatView });
             // 채팅 전송 응답에 포함된 channel$ (lastChat$ 등이 갱신된 채널 정보)로 채널 캐시 즉시 업데이트
             if (chatView.channel$) {
@@ -91,6 +124,11 @@ export const chatHandler = (envelope: WSSEnvelope, eventBus: IEventBus<SocketEve
         // 채널 내 참여 사용자 목록 조회 결과 처리
         case 'users':
             eventBus.emit('user:read', { ...detail, payload: payload as ListResult<UserView> });
+            break;
+
+        // 도달 가능한 사용자들의 플레이스 프로필 동기화 delta 처리
+        case 'sync-site-profile':
+            eventBus.emit('profile:sync', { ...detail, payload: payload as SiteProfileSyncView });
             break;
 
         default:

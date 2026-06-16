@@ -12,7 +12,6 @@ import {
     type DeviceSocketRuntime,
     type ClientSocketState,
     type SocketMessage,
-    type DomainSyncPlan,
 } from '@lemoncloud/chatic-sockets-lib';
 import type { ConnectionStatus } from '../types';
 
@@ -22,7 +21,6 @@ export interface UseWebSocketV2Config {
     enabled?: boolean;
     logPrefix?: string;
     wssType?: 'relay' | 'cloud';
-    extraSyncPlans?: DomainSyncPlan<any>[];
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +88,9 @@ const INBOUND_TYPE_MAP: Record<string, { domain: string; action: string }> = {
     'channel.update-join': { domain: 'chat', action: 'update-join' },
     'channel.delete': { domain: 'chat', action: 'delete-channel' },
     'channel.join': { domain: 'chat', action: 'join' },
+    // Place-Profile sync rides the `channel` domain on the wire but is handled by
+    // chatHandler (the dispatcher has no raw `channel` case) — remap like the rest.
+    'channel.sync-site-profile': { domain: 'chat', action: 'sync-site-profile' },
 };
 
 /** Outbound: WSSEnvelope → SocketMessage (consumer → package) */
@@ -127,7 +128,13 @@ const toWSSEnvelope = (msg: SocketMessage): WSSEnvelope => {
     return {
         type: domain as WSSEventDomainType,
         action: action as WSSActionType,
-        payload: msg.data,
+        // v2 transport carries the error string at top-level `msg.error`, but every
+        // downstream reader (handlers, remote data sources) expects it on
+        // `payload.error` — the same shape as the HTTP-200 `{ error }` body. Bridge
+        // it here so error frames (data:null) surface the real backend message
+        // instead of degrading to a generic "Unknown … Error". `payload` is loosely
+        // typed in WSSEnvelope — this shape is safe by the handler `payload?.error` contract.
+        payload: msg.error ? { error: msg.error } : msg.data,
         mid: msg.mid,
         meta: rawMeta as unknown as WSSEnvelope['meta'],
     };
@@ -160,6 +167,80 @@ const mapState = (state: ClientSocketState): ConnectionStatus => {
 export const checkSocketHealth = (): Promise<'connected' | 'reconnecting'> => {
     if (!globalClientRef) return Promise.resolve('reconnecting');
     return Promise.resolve(globalClientRef.state === 'connected' ? 'connected' : 'reconnecting');
+};
+
+/**
+ * Force an immediate reconnect, short-circuiting the package's backoff timer.
+ * No-op when already connected. Use on network-restore ('online') and after OS
+ * sleep/resume, where the backoff would otherwise wait the full interval (up to
+ * 30s) before retrying. The reconnect's `connected` edge then drives chat
+ * catch-up (GlobalChatSync).
+ */
+export const forceReconnect = (): void => {
+    const client = globalClientRef;
+    const runtime = globalRuntimeRef;
+    if (!client || !runtime) return;
+    if (client.state === 'connected') return;
+    // The package's reconnect controller is the cheap path (kick the backoff to
+    // retry now), but it isn't populated on every lib build — in prod
+    // `runtime.reconnect` came back undefined, so `.restart()` threw and recovery
+    // died, leaving the socket stuck "reconnecting". Guard it and fall back to a
+    // full restart (stop + start), which reconnects reliably from any state.
+    const reconnect = runtime.reconnect as { restart?: () => Promise<void> } | undefined;
+    if (reconnect?.restart) {
+        void reconnect.restart();
+    } else {
+        void restartSocket();
+    }
+};
+
+/**
+ * Liveness probe: send a ping and wait for the pong. Resolves `false` when the
+ * socket is absent, not `connected`, or the ping times out. Use to detect a
+ * **zombie** socket — one the browser still reports as OPEN after OS sleep or a
+ * network change, so `state` stays `connected` and `forceReconnect` no-ops, yet
+ * no traffic flows. A failed probe is the signal to `restartSocket`.
+ */
+export const probeSocket = async (timeoutMs = 5000): Promise<boolean> => {
+    const client = globalClientRef;
+    if (!client || client.state !== 'connected') return false;
+    try {
+        await client.request('system.ping', null, { timeoutMs });
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+let restarting = false;
+
+/** True while a `restartSocket()` cycle is in flight — gate recovery on it. */
+export const isSocketRestarting = (): boolean => restarting;
+
+/**
+ * Hard restart of the socket: full `runtime.stop()` + `start()` cycle. Unlike
+ * `forceReconnect` (which no-ops on a `connected` socket and, in the package,
+ * fails to reconnect after disconnecting a live one), this tears the connection
+ * down and rebuilds it from any state — including a zombie `connected` socket or
+ * a wedged auth handshake — re-running device.save + auth.update so the store
+ * re-verifies. This is the in-place equivalent of a page refresh's reconnect.
+ */
+export const restartSocket = async (): Promise<void> => {
+    const runtime = globalRuntimeRef;
+    if (!runtime || restarting) return;
+    restarting = true;
+    try {
+        await runtime.stop();
+        // React may have torn the connection down mid-restart (cloud switch,
+        // logout → globals nulled + a fresh runtime started). Don't revive the
+        // orphaned one — that would leak a socket.
+        if (globalRuntimeRef !== runtime) return;
+        await runtime.start();
+    } catch (error) {
+        logger.error('SOCKET', '[WebSocketV2] restartSocket failed', { error });
+    } finally {
+        restarting = false;
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -196,7 +277,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
         };
     }
 
-    const { endpoint, connectParams, enabled = true, logPrefix = '[WebSocketV2]', wssType, extraSyncPlans } = config;
+    const { endpoint, connectParams, enabled = true, logPrefix = '[WebSocketV2]', wssType } = config;
 
     // -----------------------------------------------------------------------
     // connect
@@ -301,7 +382,6 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
                         if (view.connId) store.setConnectionId(view.connId);
                     },
                 },
-                extraSyncPlans,
             });
             runtimeRef.current = runtime;
             globalRuntimeRef = runtime;
@@ -311,7 +391,7 @@ export const useWebSocketV2 = (config?: UseWebSocketV2Config) => {
             logger.error('SOCKET', `${logPrefix} Failed to connect`, { error });
             store.setConnectionStatus('error');
         }
-    }, [endpoint, logPrefix, connectParams, store, wssType, extraSyncPlans]);
+    }, [endpoint, logPrefix, connectParams, store, wssType]);
 
     // -----------------------------------------------------------------------
     // disconnect
