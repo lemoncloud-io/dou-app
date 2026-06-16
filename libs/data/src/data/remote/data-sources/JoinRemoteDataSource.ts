@@ -22,15 +22,15 @@ export class JoinRemoteDataSource implements IJoinRemoteDataSource {
     ) {}
 
     public async readChat(payload: ChatReadInput): Promise<JoinView> {
-        return this.client.request('chat.read', payload);
+        return (await this.client.request('chat.read', payload)) as Promise<JoinView>;
     }
 
     public async updateJoin(payload: ChannelUpdateJoinInput): Promise<JoinView> {
-        return this.client.request('channel.update-join', payload);
+        return (await this.client.request('channel.update-join', payload)) as Promise<JoinView>;
     }
 
     public async joinChannel(payload: ChannelJoinInput): Promise<JoinView> {
-        return this.client.request('channel.join', payload);
+        return (await this.client.request('channel.join', payload)) as Promise<JoinView>;
     }
 
     public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {

@@ -23,15 +23,15 @@ export class SiteRemoteDataSource implements ISiteRemoteDataSource {
     ) {}
 
     public async fetchSite(payload?: UserMySiteInput): Promise<ListResult<MySiteView>> {
-        return this.client.request('user.my-site', payload ?? {});
+        return (await this.client.request('user.my-site', payload ?? {})) as Promise<ListResult<MySiteView>>;
     }
 
     public async createSite(payload: UserMakeSiteInput): Promise<MySiteView> {
-        return this.client.request('user.make-site', payload);
+        return (await this.client.request('user.make-site', payload)) as Promise<MySiteView>;
     }
 
     public async updateSite(payload: UserUpdateSiteInput): Promise<MySiteView> {
-        return this.client.request('user.update-site', payload);
+        return (await this.client.request('user.update-site', payload)) as Promise<MySiteView>;
     }
 
     public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {

@@ -10,6 +10,6 @@ export class SocketsRemoteDataSource implements ISocketsRemoteDataSource {
     constructor(private readonly client: ISocketClient) {}
 
     public async findConnection(payload: SocketsFindConnectionInput): Promise<ConnectionModel> {
-        return this.client.request('sockets.find-connection', payload);
+        return (await this.client.request('sockets.find-connection', payload)) as Promise<ConnectionModel>;
     }
 }

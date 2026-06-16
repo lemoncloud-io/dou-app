@@ -1,47 +1,23 @@
 import { AuthRemoteDataSource } from './AuthRemoteDataSource';
-import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap, SocketEventMap } from '../../events/types';
-import type { IWebSocketClient } from '../clients';
-import type { AuthPayload } from '@lemoncloud/chatic-sockets-api';
+import { MockSocketClient } from '../sockets/__mocks__/MockSocketClient';
+import type { AuthUpdateInput } from '@lemoncloud/chatic-sockets-api';
 
 describe('AuthRemoteDataSource', () => {
-    let mockSocketEventBus: jest.Mocked<IEventBus<SocketEventMap>>;
-    let mockDomainEventBus: jest.Mocked<IEventBus<DomainEventMap>>;
-    let mockWssClient: jest.Mocked<IWebSocketClient>;
+    let mockClient: MockSocketClient;
     let dataSource: AuthRemoteDataSource;
-    let socketCallbacks: Record<string, (data: any) => void> = {};
 
     beforeEach(() => {
-        socketCallbacks = {};
-        mockSocketEventBus = {
-            emit: jest.fn(),
-            on: jest.fn().mockImplementation((event, callback) => {
-                socketCallbacks[event as string] = callback;
-                return jest.fn();
-            }),
-            onAny: jest.fn(),
-        } as unknown as jest.Mocked<IEventBus<SocketEventMap>>;
-
-        mockDomainEventBus = { emit: jest.fn() } as unknown as jest.Mocked<IEventBus<DomainEventMap>>;
-        mockWssClient = { send: jest.fn() } as unknown as jest.Mocked<IWebSocketClient>;
-
-        dataSource = new AuthRemoteDataSource(mockSocketEventBus, mockDomainEventBus, mockWssClient);
+        mockClient = new MockSocketClient();
+        dataSource = new AuthRemoteDataSource(mockClient);
     });
 
-    it('auth:update 이벤트 수신 시 정제하여 emit 해야 한다', () => {
-        const mockDetail = { ref: 'r-1', payload: { token: 'abc' } };
-        socketCallbacks['auth:update'](mockDetail);
+    it('updateSocketAuth 호출 시 auth.update 액션으로 request가 전송되어야 한다', async () => {
+        const payload: AuthUpdateInput = { token: 'new-token' } as any;
+        mockClient.request.mockResolvedValue({ status: 'ok' });
 
-        expect(mockDomainEventBus.emit).toHaveBeenCalledWith('auth:update', {
-            data: mockDetail.payload,
-            ref: 'r-1',
-        });
-    });
+        const result = await dataSource.updateSocketAuth(payload);
 
-    it('updateSocketAuth 호출 시 올바른 액션으로 전송되어야 한다', () => {
-        const payload: AuthPayload = { token: 'new-token' } as any;
-        dataSource.updateSocketAuth(payload, 'ref-auth');
-
-        expect(mockWssClient.send).toHaveBeenCalledWith('auth', 'update', payload, 'ref-auth');
+        expect(mockClient.request).toHaveBeenCalledWith('auth.update', payload);
+        expect(result).toEqual({ status: 'ok' });
     });
 });

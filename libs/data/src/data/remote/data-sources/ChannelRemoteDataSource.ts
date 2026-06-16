@@ -48,39 +48,39 @@ export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
     ) {}
 
     public async fetchChannel(payload: ChannelMineInput): Promise<ListResult<ChannelView>> {
-        return this.client.request('channel.mine', payload);
+        return this.client.request('channel.mine', payload) as Promise<ListResult<ChannelView>>;
     }
 
     public async syncChannel(payload: ChannelSyncInput): Promise<ChannelSyncView> {
-        return this.client.request('channel.sync', payload);
+        return this.client.request('channel.sync', payload) as Promise<ChannelSyncView>;
     }
 
     public async updateChannel(payload: ChannelUpdateInput): Promise<ChannelView> {
-        return this.client.request('channel.update', payload);
+        return this.client.request('channel.update', payload) as Promise<ChannelView>;
     }
 
     public async deleteChannel(payload: ChannelDeleteInput): Promise<ChannelView> {
-        return this.client.request('channel.delete', payload);
+        return this.client.request('channel.delete', payload) as Promise<ChannelView>;
     }
 
     public async createChannel(payload: ChannelCreateInput): Promise<ChannelView> {
-        return this.client.request('channel.create', payload);
+        return this.client.request('channel.create', payload) as Promise<ChannelView>;
     }
 
     public async inviteChannel(payload: ChatInviteInput): Promise<ChannelView> {
-        return this.client.request('channel.invite', payload);
+        return this.client.request('channel.invite', payload) as Promise<ChannelView>;
     }
 
     public async leaveChannel(payload: ChatLeaveInput): Promise<ChannelView> {
-        return this.client.request('channel.leave', payload);
+        return this.client.request('channel.leave', payload) as Promise<ChannelView>;
     }
 
     public async getSelfChannel(payload: ChannelGetSelfInput): Promise<ChannelView> {
-        return this.client.request('channel.get-self', payload);
+        return this.client.request('channel.get-self', payload) as Promise<ChannelView>;
     }
 
     public async getUnreads(payload: ChannelUnreadsInput): Promise<UnreadsSummaryView> {
-        return this.client.request('channel.unreads', payload);
+        return this.client.request('channel.unreads', payload) as Promise<UnreadsSummaryView>;
     }
 
     public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {

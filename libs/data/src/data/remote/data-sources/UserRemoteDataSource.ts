@@ -4,13 +4,11 @@ import type { ISocketClient } from '../sockets/clients/clients';
 import type {
     ChannelSyncSiteProfileInput,
     ChannelSyncUsersInput,
-    UserGetSiteProfileInput,
     UserInviteBatchInput,
     UserInviteInput,
-    UserSetSiteProfileInput,
     UserUpdateProfileInput,
 } from '@lemoncloud/chatic-sockets-api';
-import type { ChannelUsersSyncView, ProfileView, SiteProfileSyncView, UserView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelUsersSyncView, SiteProfileSyncView, UserView } from '@lemoncloud/chatic-socials-api';
 import type { ChannelListUserInput } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
 import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
@@ -24,10 +22,6 @@ export interface IUserRemoteDataSource {
     requestInvite(payload: UserInviteInput): Promise<MyInviteView>;
     /** 여러 사용자를 일괄 초대합니다. */
     inviteBatch(payload: UserInviteBatchInput): Promise<ListResult<MyInviteView>>;
-    /** 사이트 프로필 조회를 요청합니다. */
-    getSiteProfile(payload: UserGetSiteProfileInput): Promise<ProfileView>;
-    /** 사이트 프로필 설정을 요청합니다. */
-    setSiteProfile(payload: UserSetSiteProfileInput): Promise<ProfileView>;
     /** 채널 멤버 동기화를 요청합니다. */
     syncChannelUsers(payload: ChannelSyncUsersInput): Promise<ChannelUsersSyncView>;
     /** 사이트 프로필 변경분 동기화를 요청합니다. */
@@ -43,35 +37,27 @@ export class UserRemoteDataSource implements IUserRemoteDataSource {
     ) {}
 
     public async fetchUsers(payload: ChannelListUserInput): Promise<ListResult<UserView>> {
-        return this.client.request('channel.list-user', payload);
+        return (await this.client.request('channel.list-user', payload)) as Promise<ListResult<UserView>>;
     }
 
     public async updateProfile(payload: UserUpdateProfileInput): Promise<UserView> {
-        return this.client.request('user.update-profile', payload);
+        return (await this.client.request('user.update-profile', payload)) as Promise<UserView>;
     }
 
     public async requestInvite(payload: UserInviteInput): Promise<MyInviteView> {
-        return this.client.request('user.invite', payload);
+        return (await this.client.request('user.invite', payload)) as Promise<MyInviteView>;
     }
 
     public async inviteBatch(payload: UserInviteBatchInput): Promise<ListResult<MyInviteView>> {
-        return this.client.request('user.invite-batch', payload);
-    }
-
-    public async getSiteProfile(payload: UserGetSiteProfileInput): Promise<ProfileView> {
-        return this.client.request('user.get-site-profile', payload);
-    }
-
-    public async setSiteProfile(payload: UserSetSiteProfileInput): Promise<ProfileView> {
-        return this.client.request('user.set-site-profile', payload);
+        return (await this.client.request('user.invite-batch', payload)) as Promise<ListResult<MyInviteView>>;
     }
 
     public async syncChannelUsers(payload: ChannelSyncUsersInput): Promise<ChannelUsersSyncView> {
-        return this.client.request('channel.sync-users', payload);
+        return (await this.client.request('channel.sync-users', payload)) as Promise<ChannelUsersSyncView>;
     }
 
     public async syncSiteProfile(payload: ChannelSyncSiteProfileInput): Promise<SiteProfileSyncView> {
-        return this.client.request('channel.sync-site-profile', payload);
+        return (await this.client.request('channel.sync-site-profile', payload)) as Promise<SiteProfileSyncView>;
     }
 
     public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {

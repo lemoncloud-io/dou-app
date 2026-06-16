@@ -20,11 +20,11 @@ export class ChatRemoteDataSource implements IChatRemoteDataSource {
     ) {}
 
     public async sendChat(payload: ChatSendInput): Promise<ChatView> {
-        return this.client.request('chat.send', payload);
+        return this.client.request('chat.send', payload) as Promise<ChatView>;
     }
 
     public async fetchChat(payload: ChatFeedInput): Promise<ChatFeedResult> {
-        return this.client.request('chat.feed', payload);
+        return this.client.request('chat.feed', payload) as Promise<ChatFeedResult>;
     }
 
     public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {

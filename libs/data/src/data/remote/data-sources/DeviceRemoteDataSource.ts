@@ -11,14 +11,14 @@ export class DeviceRemoteDataSource implements IDeviceRemoteDataSource {
     constructor(private readonly client: ISocketClient) {}
 
     public async saveDevice(payload: DeviceSaveInput): Promise<DeviceView> {
-        return this.client.request('device.save', payload);
+        return this.client.request('device.save', payload) as Promise<DeviceView>;
     }
 
     public async readDevice(payload: DeviceReadInput): Promise<DeviceView> {
-        return this.client.request('device.read', payload);
+        return this.client.request('device.read', payload) as Promise<DeviceView>;
     }
 
     public async syncDevice(payload: DeviceSyncInput): Promise<unknown> {
-        return this.client.send('device.sync', payload);
+        return this.client.request('device.sync', payload);
     }
 }
