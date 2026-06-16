@@ -16,7 +16,6 @@ import {
     webCore,
     withTimeout,
 } from '@chatic/web-core';
-import { useWebSocketV2Store } from '@chatic/socket';
 import { LoadingFallback } from '@chatic/shared';
 
 import { isNative, logger } from '@chatic/bridges';
@@ -32,12 +31,13 @@ import { useRegisterDevice } from '@chatic/auth';
 import { useDynamicDeviceId } from '../../../shared/hooks/useDynamicDeviceId';
 import { useInviteMutations } from '../../../shared/hooks/useInviteMutations';
 import { markInvitePlaceSyncPending, markNameSetupPending } from '../../../shared/hooks/usePlaces';
+
 import { fetchInviteCodeInfo } from '../../chats/apis/invite-api';
 
 export const LoginPage = (): JSX.Element => {
     const { t } = useTranslation();
     const location = useLocation();
-    const { setIsAuthenticated, setProfile, logout } = useWebCoreStore();
+    const { setIsAuthenticated, setProfile, logout, setSelectedPlaceId } = useWebCoreStore();
     const { toast } = useToast();
     const [isInviteLogin, setIsInviteLogin] = useState(false);
     const [siteInfo, setSiteInfo] = useState<{ id: string; name: string } | null>(null);
@@ -243,12 +243,11 @@ export const LoginPage = (): JSX.Element => {
             markNameSetupPending();
 
             // 7. Reset selected place, then pre-select the invited place
-            cloudCore.clearSelectedPlace();
-            useWebSocketV2Store.getState().setSelectedPlaceId(null);
             const invitedSiteId = urlParams.get('_siteId');
             if (invitedSiteId) {
-                cloudCore.saveSelectedSiteId(invitedSiteId);
-                useWebSocketV2Store.getState().setSelectedPlaceId(invitedSiteId);
+                setSelectedPlaceId(invitedSiteId);
+            } else {
+                setSelectedPlaceId(null);
             }
 
             // 8. Authenticate — 풀 리로드로 홈 전환 (invite flow에서 SPA 전환이 불안정하여 리로드 사용)

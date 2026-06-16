@@ -29,7 +29,7 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useAppChecker } from '@chatic/device-utils';
-import { useWebSocketV2Store } from '@chatic/socket';
+import { useSocketState } from '../../../shared/socket';
 
 import { InviteFriendsDialog } from '../components';
 import { MessageBubble } from '../components/MessageBubble';
@@ -69,7 +69,7 @@ export const ChatRoomPage = () => {
     const { userType, currentWSS } = useUserContext();
     const isDefaultCloud = currentWSS === 'relay';
     const { isIOS } = useAppChecker();
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    const isConnected = useSocketState(s => s.isConnected);
 
     // --- 데이터 패칭 Hooks ---
     const stableChannelId = useMemo(() => channelId || 'default', [channelId]);
@@ -127,7 +127,7 @@ export const ChatRoomPage = () => {
     // 1단계: 채널 진입 즉시 읽음 처리 — 메시지 로딩을 기다리지 않고 channel.chatNo로 바로 전송
     const channelChatNo = channel?.chatNo;
     useEffect(() => {
-        if (!stableChannelId || !channelChatNo || !isVerified || document.visibilityState === 'hidden') return;
+        if (!stableChannelId || !channelChatNo || !isConnected || document.visibilityState === 'hidden') return;
         if (lastReadChatNoRef.current !== null && channelChatNo <= lastReadChatNoRef.current) return;
 
         lastReadChatNoRef.current = channelChatNo;
@@ -138,14 +138,14 @@ export const ChatRoomPage = () => {
                 data: { channelId: stableChannelId, chatNo: channelChatNo },
             });
         });
-    }, [channelChatNo, stableChannelId, readMessage, isVerified]);
+    }, [channelChatNo, stableChannelId, readMessage, isConnected]);
 
     // 2단계: 메시지 로딩 후 더 높은 chatNo가 있으면 보정 + 포그라운드 복귀 대응
     const lastMessage = useMemo(() => (messages.length > 0 ? messages[messages.length - 1] : null), [messages]);
     const lastChatNo = lastMessage?.isPending || lastMessage?.isFailed ? undefined : lastMessage?.chatNo;
 
     useEffect(() => {
-        if (!stableChannelId || lastChatNo === undefined || !isVerified) return;
+        if (!stableChannelId || lastChatNo === undefined || !isConnected) return;
 
         const handleAutoRead = () => {
             if (document.visibilityState === 'hidden') return;
@@ -183,7 +183,7 @@ export const ChatRoomPage = () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener(FOREGROUND_RESYNC_EVENT_NAME, handleForegroundResync);
         };
-    }, [lastChatNo, stableChannelId, readMessage, isVerified]);
+    }, [lastChatNo, stableChannelId, readMessage, isConnected]);
 
     // loadMore 후 스크롤 위치 보정 — DOM 변경 직후, 브라우저 paint 전에 실행
     // flex-col-reverse: scrollTop=0이 하단, 음수가 상단 방향

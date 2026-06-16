@@ -5,7 +5,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { useDelegatorId, useDynamicProfile, useWebCoreStore, useUserContext, cloudCore } from '@chatic/web-core';
-import { useWebSocketV2Store } from '@chatic/socket';
+import { useSocketState } from '../../../shared/socket';
 import { useClouds, useRegisterDeviceToken } from '@chatic/users';
 import { usePlaces } from '../../../shared/hooks';
 
@@ -43,7 +43,10 @@ export const DebugStatePage = () => {
     const selectedCloudId = cloudCore.getSelectedCloudId() ?? 'default';
     const cloudToken = cloudCore.getCloudToken();
 
-    const { cloudId, wssType, isConnected, connectionStatus } = useWebSocketV2Store();
+    const cloudId = useSocketState(s => s.cloudId);
+    const wssType = useSocketState(s => s.wssType);
+    const isConnected = useSocketState(s => s.isConnected);
+    const connectionStatus = useSocketState(s => s.connectionStatus);
 
     const { data: cloudsData } = useClouds();
     const { places } = usePlaces();

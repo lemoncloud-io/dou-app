@@ -14,8 +14,8 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useOnboardingStore, useDynamicProfile, useUserContext, UserType, cloudCore } from '@chatic/web-core';
-import { useWebSocketV2Store } from '@chatic/socket';
 import { useLogout } from '@chatic/auth';
+import { useSocketState } from '../../../shared/socket';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
@@ -51,10 +51,10 @@ export const HomePage = () => {
 
     // === 데이터: 단일 소스 — usePlaces/useChannels를 한 번만 호출 ===
     const placesResult = usePlaces();
-    const selectedPlaceId = useWebSocketV2Store(s => s.selectedPlaceId);
-    const storeCloudId = useWebSocketV2Store(s => s.cloudId);
-    const wssType = useWebSocketV2Store(s => s.wssType);
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    const selectedPlaceId = useSocketState(s => s.selectedPlaceId);
+    const storeCloudId = useSocketState(s => s.cloudId);
+    const wssType = useSocketState(s => s.wssType);
+    const isConnected = useSocketState(s => s.isConnected);
     const channelsResult = useChannels({ sid: selectedPlaceId || '', detail: true });
     const placeUnreadCounts = usePlaceUnreadCounts();
 
@@ -307,11 +307,11 @@ export const HomePage = () => {
                                         <span className="font-semibold text-foreground">{wssType || '(null)'}</span>
                                     </div>
                                     <div>
-                                        isVerified:{' '}
+                                        isConnected:{' '}
                                         <span
-                                            className={`font-semibold ${isVerified ? 'text-foreground' : 'text-destructive'}`}
+                                            className={`font-semibold ${isConnected ? 'text-foreground' : 'text-destructive'}`}
                                         >
-                                            {String(isVerified)}
+                                            {String(isConnected)}
                                         </span>
                                     </div>
                                 </div>

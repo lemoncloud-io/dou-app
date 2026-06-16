@@ -1,14 +1,14 @@
 import { useState } from 'react';
 
-import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
-import type { UserUpdateProfilePayload, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
+import type { UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
+import { useRepositories } from '../../../shared/data';
 
 type UserView = UserProfile$['$user'];
 
 export const useUpdateMyProfile = () => {
-    const { emitAuthenticated } = useWebSocketV2();
+    const { user: userRepository } = useRepositories();
     const { userType } = useUserContext();
     const [isPending, setIsPending] = useState(false);
     const [isError, setIsError] = useState(false);
@@ -19,37 +19,10 @@ export const useUpdateMyProfile = () => {
         return new Promise((resolve, reject) => {
             setIsPending(true);
             setIsError(false);
-
-            const timeoutId = setTimeout(() => {
-                unsubscribe();
-                setIsPending(false);
-                setIsError(true);
-                reject(new Error('updateProfile timeout'));
-            }, 10000);
-
-            const unsubscribe = useWebSocketV2Store.subscribe(
-                s => s.lastMessage,
-                lastMessage => {
-                    const envelope = lastMessage as WSSEnvelope<UserView> | null;
-                    if (!envelope) return;
-                    if (envelope.type !== 'user') return;
-                    if (envelope.action !== 'update-profile' && envelope.action !== 'error') return;
-
-                    clearTimeout(timeoutId);
-                    unsubscribe();
+            userRepository
+                .updateProfile(payload)
+                .then(updated => {
                     setIsPending(false);
-
-                    if (envelope.action === 'error') {
-                        setIsError(true);
-                        reject(
-                            new Error(
-                                (envelope.payload as unknown as { error?: string })?.error ?? 'updateProfile failed'
-                            )
-                        );
-                        return;
-                    }
-
-                    const updated = envelope.payload;
                     if (updated) {
                         const currentProfile = useWebCoreStore.getState().profile;
                         if (currentProfile) {
@@ -59,11 +32,13 @@ export const useUpdateMyProfile = () => {
                             } as UserProfile$);
                         }
                     }
-                    resolve(updated);
-                }
-            );
-
-            emitAuthenticated({ type: 'user', action: 'update-profile', payload });
+                    resolve(updated as UserView);
+                })
+                .catch(error => {
+                    setIsPending(false);
+                    setIsError(true);
+                    reject(error);
+                });
         });
     };
 

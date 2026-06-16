@@ -4,23 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Check, Home, RefreshCw, Users } from 'lucide-react';
 
 import { logger } from '@chatic/bridges';
-import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { cn } from '@chatic/lib/utils';
 import { cloudCore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
 import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
+import { getSocketManager, useSocketState } from '../../../shared/socket';
 
-import { waitForDeviceRegistered, waitForVerified } from '../../../shared/utils/waitForVerified';
-
-const setStoreSelectedPlaceId = (placeId: string | null) => useWebSocketV2Store.getState().setSelectedPlaceId(placeId);
-
-// Module-level: 현재 WS 세션에서 place auth(refreshToken + auth:update)가 완료되었는지 추적
-// home → chatroom → home 재진입 시 불필요한 auth:update를 방지하여 stuck loading 예방
 let placeAuthDone = false;
-
-/** 외부(pipeline)에서 placeAuthDone 상태를 설정할 수 있도록 export */
-export const setPlaceAuthDone = (value: boolean) => {
-    placeAuthDone = value;
-};
 
 const DEFAULT_PLACE: MySiteView = { id: 'default', name: 'defaultPlace', stereo: 'work' } as MySiteView;
 
@@ -107,14 +96,12 @@ export const PlaceList = ({
     const { t } = useTranslation();
     const { userType } = useUserContext();
     const isInvited = userType === UserType.INVITED || userType === UserType.INVITED_WITH_CLOUD;
-    const { emit } = useWebSocketV2();
-    const wssType = useWebSocketV2Store(s => s.wssType);
-    const cloudId = useWebSocketV2Store(s => s.cloudId);
-    const selectedId = useWebSocketV2Store(s => s.selectedPlaceId);
+    const wssType = useSocketState(s => s.wssType);
+    const cloudId = useSocketState(s => s.cloudId);
+    const { selectedCloudId, selectedPlaceId, setSelectedPlaceId } = useWebCoreStore();
     const [isPending, setIsPending] = useState(false);
     const switchingRef = useRef(false);
 
-    const selectedCloudId = cloudCore.getSelectedCloudId();
     const isDefaultMode = selectedCloudId === 'default';
 
     // stereo가 'place'인 항목 제외 + 저장된 순서 적용
@@ -123,7 +110,7 @@ export const PlaceList = ({
         if (!selectedCloudId || isDefaultMode) return filtered;
         const savedOrder = cloudCore.getPlaceOrder(selectedCloudId);
         if (!savedOrder) return filtered;
-        const orderMap = new Map(savedOrder.map((id, idx) => [id, idx]));
+        const orderMap = new Map<string, number>(savedOrder.map((id: string, idx: number) => [id, idx]));
         return [...filtered].sort((a, b) => {
             const ai = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
             const bi = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
@@ -139,10 +126,9 @@ export const PlaceList = ({
         // NOTE: wssType === null (초기화 전)인 경우 cloud path로 폴백 —
         //       초대 직후 페이지 리로드 시 WebSocket connect가 setTimeout(0)으로 지연되어
         //       wssType이 아직 null인 상태에서 이 함수가 호출될 수 있음
-        const currentWssType = useWebSocketV2Store.getState().wssType;
-        if (currentWssType === 'relay') {
+        if (wssType === 'relay') {
             cloudCore.saveSelectedSiteId(placeId);
-            setStoreSelectedPlaceId(placeId);
+            setSelectedPlaceId(placeId);
             onPlaceSelected?.(placeId);
             return;
         }
@@ -152,7 +138,7 @@ export const PlaceList = ({
         if (!uid) {
             // cloud token 없음 → 단순 선택 fallback
             cloudCore.saveSelectedSiteId(placeId);
-            setStoreSelectedPlaceId(placeId);
+            setSelectedPlaceId(placeId);
             onPlaceSelected?.(placeId);
             return;
         }
@@ -168,25 +154,16 @@ export const PlaceList = ({
             const { Token: _token, ...cloudProfile } = refreshed;
             useWebCoreStore.getState().setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
 
-            // 1. device.save 완료 대기 — auth.update는 반드시 device.save 이후에 전송해야 함
-            await waitForDeviceRegistered(10_000);
-
-            // 2. 미인증 상태로 전환
-            useWebSocketV2Store.getState().setIsVerified(false);
-
-            // 3. place 전용 토큰으로 auth:update 직접 전송
-            // useCloudTokenRefresh effect 재실행에 의존하지 않음
-            // (isVerified가 이미 false였을 경우 Zustand가 변경을 감지하지 않아 effect가 재실행되지 않는 문제 방지)
+            // place 전용 토큰으로 현재 active client에 auth.update 적용
+            const client = getSocketManager().getActiveClient();
             const identityToken = cloudCore.getIdentityToken();
-            if (identityToken) {
-                emit({ type: 'auth', action: 'update', payload: { token: identityToken } });
+            if (!client || !identityToken) {
+                throw new Error('Socket client is not ready for place switch');
             }
-
-            // 3. auth:update 응답 대기 — isVerified가 true가 될 때까지
-            await waitForVerified(5000);
+            await client.request('auth.update' as any, { token: identityToken });
 
             placeAuthDone = true;
-            setStoreSelectedPlaceId(placeId);
+            setSelectedPlaceId(placeId);
             onPlaceSelected?.(placeId);
         } catch (e) {
             logger.error('PLACE', 'Failed to select place', { error: e, data: { placeId } });
@@ -206,19 +183,17 @@ export const PlaceList = ({
         if (isDefaultMode || userType === UserType.TEMP_ACCOUNT) {
             initialPlaceNotifiedRef.current = true;
             cloudCore.saveSelectedSiteId('default');
-            setStoreSelectedPlaceId('default');
+            setSelectedPlaceId('default');
             onPlaceSelected?.('default');
             return;
         }
 
         // store에 없으면 cloudCore(영속 스토리지)에서 복원 — WebSocketV2Connection이
         // 더 이상 premature하게 store에 placeId를 설정하지 않으므로 여기서 직접 읽음
-        const savedPlaceId = useWebSocketV2Store.getState().selectedPlaceId || cloudCore.getSelectedPlaceId();
+        const savedPlaceId = selectedPlaceId || cloudCore.getSelectedPlaceId();
         if (savedPlaceId) {
             initialPlaceNotifiedRef.current = true;
-            // 이미 인증 완료 + 현재 세션에서 place auth가 된 상태면 auth:update 스킵
-            // (home → chatroom → home 재진입 시 불필요한 setIsVerified(false) 방지)
-            if (useWebSocketV2Store.getState().isVerified && placeAuthDone) {
+            if (placeAuthDone) {
                 onPlaceSelected?.(savedPlaceId);
             } else {
                 void handleSelectPlace(savedPlaceId);
@@ -231,7 +206,7 @@ export const PlaceList = ({
     useEffect(() => {
         if (prevCloudIdRef.current && prevCloudIdRef.current !== cloudId) {
             placeAuthDone = false;
-            setStoreSelectedPlaceId(null);
+            setSelectedPlaceId(null);
             initialPlaceNotifiedRef.current = false;
             // 저장된 placeId 클리어 — store를 읽는 다른 hook이
             // 이전 cloud의 placeId로 chat:mine을 보내는 것을 방지
@@ -242,7 +217,7 @@ export const PlaceList = ({
             if (currentCloudId === 'default') {
                 initialPlaceNotifiedRef.current = true;
                 cloudCore.saveSelectedSiteId('default');
-                setStoreSelectedPlaceId('default');
+                setSelectedPlaceId('default');
                 onPlaceSelected?.('default');
             } else {
                 onPlaceSelected?.('');
@@ -255,10 +230,9 @@ export const PlaceList = ({
     useEffect(() => {
         if (isDefaultMode) return;
         if (places.length === 0) return;
-        const currentPlaceId = useWebSocketV2Store.getState().selectedPlaceId;
-        // Pipeline(useCloudSwitchFlow)이 이미 place를 선택한 경우 — store에서 확인
-        // (authPlace가 store 업데이트 완료 후 effect가 실행되면 hasSelected=true로
-        //  조기 return하여 selectedId가 null로 남는 경합 방지)
+        const currentPlaceId = selectedPlaceId;
+        // 이미 place가 선택된 경우 — store에서 확인
+        // (selectedId가 null로 남는 경합 방지)
         if (currentPlaceId && places.some(p => p.id === currentPlaceId)) {
             return;
         }
@@ -392,7 +366,7 @@ export const PlaceList = ({
                     <PlaceItem
                         key={place.id}
                         place={place}
-                        isSelected={selectedId === place.id}
+                        isSelected={selectedPlaceId === place.id}
                         isDisabled={isPending}
                         onSelectPlace={handleSelectPlace}
                         unreadCount={placeUnreadCounts?.[place.id]}

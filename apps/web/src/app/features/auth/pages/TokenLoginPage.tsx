@@ -4,10 +4,10 @@ import { useParams } from 'react-router-dom';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 
-import { useWebSocketV2 } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { webCore, useWebCoreStore } from '@chatic/web-core';
+import { getSocketManager } from '../../../shared/socket';
 
 const decodeJWT = (token: string) => {
     try {
@@ -35,7 +35,6 @@ export const TokenLoginPage = () => {
     const { t } = useTranslation();
     const { token } = useParams<{ token: string }>();
     const navigate = useNavigateWithTransition();
-    const { send } = useWebSocketV2();
     const { setProfile, setIsAuthenticated } = useWebCoreStore();
     const { toast } = useToast();
     const [isInvalid, setIsInvalid] = useState(false);
@@ -66,20 +65,18 @@ export const TokenLoginPage = () => {
                 setIsAuthenticated(true);
             }
 
-            send({
-                type: 'auth',
-                action: 'update',
-                payload: {
+            await getSocketManager()
+                .getActiveClient()
+                ?.request('auth.update' as any, {
                     token,
                     dryRun: true,
-                },
-            });
+                });
 
             toast({ title: t('auth.loginSuccess') });
         };
 
-        handleTokenLogin();
-    }, [token, send, setProfile, setIsAuthenticated, toast, navigate]);
+        void handleTokenLogin();
+    }, [token, setProfile, setIsAuthenticated, toast, navigate]);
 
     if (isInvalid) {
         return (
