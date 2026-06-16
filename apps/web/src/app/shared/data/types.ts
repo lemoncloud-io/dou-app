@@ -9,6 +9,7 @@ import type { ReactNode } from 'react';
 export interface DataProviderValue {
     repositories: DataRepositories;
     setDataContext(context: DataContext): void;
+    socketClient: any;
 }
 
 /**
