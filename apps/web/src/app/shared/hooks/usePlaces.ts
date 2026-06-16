@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { useWebSocketV2Store } from '@chatic/socket';
 
 import { useRepositories } from '../data';
 import type { DomainSite } from '@chatic/data';
+import { useSocketState } from '../socket';
 
 // 초대 수락 직후 place 동기화가 필요함을 표시하는 일회성 키 (sessionStorage — 탭 종료 시 자동 소멸)
 const INVITE_PLACE_SYNC_KEY = 'chatic-invite-place-sync';
@@ -71,8 +71,8 @@ let placesCacheCloudId: string | null = null;
  */
 export const usePlaces = () => {
     const { site: siteRepository } = useRepositories();
-    const cloudId = useWebSocketV2Store(s => s.cloudId);
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    const cloudId = useSocketState(s => s.cloudId);
+    const isConnected = useSocketState(s => s.isConnected);
     const prevCloudIdRef = useRef<string | undefined>(undefined);
     const requestSeqRef = useRef(0);
 
@@ -127,10 +127,17 @@ export const usePlaces = () => {
         [siteRepository]
     );
 
-    // isVerified 전이라도 IndexedDB 캐시에서 places를 즉시 읽기 (cache-only로 네트워크 요청 없음)
-    // useChannels와 동일하게 인증 대기 없이 로컬 캐시 우선 표시
+    const prevConnectedRef = useRef(isConnected);
     useEffect(() => {
-        if (!cloudId || isVerified) return;
+        if (isConnected && !prevConnectedRef.current) {
+            logger.info('PLACE', 'Socket connected, fetching/refreshing places');
+            void fetchPlaces({ forceNetwork: true });
+        }
+        prevConnectedRef.current = isConnected;
+    }, [isConnected, fetchPlaces]);
+
+    useEffect(() => {
+        if (!cloudId) return;
         // 모듈 캐시가 이미 현재 cloudId에 대해 유효하면 스킵
         if (placesCacheCloudId === cloudId && placesCache && placesCache.length > 0) return;
 
@@ -147,7 +154,7 @@ export const usePlaces = () => {
                     setIsLoading(false);
                 }
             } catch {
-                // 캐시 읽기 실패는 무시 — isVerified 후 정상 fetch에서 처리
+                // 캐시 읽기 실패는 무시 — 이후 정상 fetch에서 처리
             }
         };
         void loadCache();
@@ -155,13 +162,12 @@ export const usePlaces = () => {
         return () => {
             cancelled = true;
         };
-    }, [cloudId, isVerified, siteRepository]);
+    }, [cloudId, siteRepository]);
 
-    // cloudId가 변경되고 인증 완료 시 place 목록 재요청
-    // place auth로 인한 isVerified 토글(같은 cloud)에서는 재요청하지 않음
+    // cloudId가 변경되면 place 목록 재요청
     // places가 이미 있으면 (파이프라인이 먼저 가져온 경우) loading skeleton 표시 안 함
     useEffect(() => {
-        if (!cloudId || !isVerified) return;
+        if (!cloudId) return;
         if (prevCloudIdRef.current === cloudId) return;
         prevCloudIdRef.current = cloudId;
 
@@ -189,7 +195,7 @@ export const usePlaces = () => {
                 }
             }
         })();
-    }, [fetchPlaces, cloudId, isVerified]);
+    }, [fetchPlaces, cloudId]);
 
     useEffect(() => {
         // 이벤트로 갱신이 필요할 때는 명시적으로 네트워크를 통해 최신 데이터를 가져옴

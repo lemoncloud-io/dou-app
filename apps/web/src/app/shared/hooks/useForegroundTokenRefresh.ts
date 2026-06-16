@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { logger } from '@chatic/bridges';
 import { cloudCore, useWebCoreStore, webCore } from '@chatic/web-core';
-import { checkSocketHealth, getSocketSend, useWebSocketV2Store } from '@chatic/socket';
+import { getSocketManager, useSocketState } from '../socket';
 
 const DEBOUNCE_MS = 300;
 
 export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) => {
     const { isAuthenticated } = useWebCoreStore();
+    const wssType = useSocketState(state => state.wssType);
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
@@ -23,9 +24,10 @@ export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) 
         };
 
         const handleForegroundResume = async () => {
+            const client = getSocketManager().getActiveClient();
             // Socket health check and token refresh are independent — run in parallel
             const [socketStatus] = await Promise.all([
-                checkSocketHealth().catch(() => 'reconnecting' as const),
+                Promise.resolve(client?.state === 'connected' ? ('connected' as const) : ('reconnecting' as const)),
                 refreshToken().catch(() => false),
             ]);
 
@@ -40,18 +42,14 @@ export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) 
 
             // Re-send auth only if socket was alive (not reconnecting)
             if (socketStatus === 'connected') {
-                const send = getSocketSend();
-                if (send) {
-                    const { wssType } = useWebSocketV2Store.getState();
-                    let token: string | undefined;
-                    if (wssType === 'cloud') {
-                        token = cloudCore.getIdentityToken();
-                    } else {
-                        token = (await webCore.getTokenSignature()).originToken?.identityToken;
-                    }
-                    if (token) {
-                        send({ type: 'auth', action: 'update', payload: { token } });
-                    }
+                let token: string | undefined;
+                if (wssType === 'cloud') {
+                    token = cloudCore.getIdentityToken();
+                } else {
+                    token = (await webCore.getTokenSignature()).originToken?.identityToken;
+                }
+                if (client && token) {
+                    await client.request('auth.update' as any, { token });
                 }
             }
             // If reconnecting, useCloudTokenRefresh handles auth on isConnected change
@@ -62,5 +60,5 @@ export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) 
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             if (debounceTimer.current) clearTimeout(debounceTimer.current);
         };
-    }, [isAuthenticated, refreshToken]);
+    }, [isAuthenticated, refreshToken, wssType]);
 };

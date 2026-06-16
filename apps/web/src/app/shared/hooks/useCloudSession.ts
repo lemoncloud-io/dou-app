@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { logger } from '@chatic/bridges';
 import { useIssueCloudToken } from '@chatic/auth';
-import { useWebSocketV2Store } from '@chatic/socket';
 
 import { useClouds } from '@chatic/users';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
@@ -21,7 +20,7 @@ export const clearCloudSession = (): void => {
 
 export const useCloudSession = () => {
     const { mutateAsync: issueCloudToken, isPending } = useIssueCloudToken();
-    const { isAuthenticated, setProfile } = useWebCoreStore();
+    const { isAuthenticated, setProfile, setSelectedCloudId, setSelectedPlaceId } = useWebCoreStore();
     const { data, isError: isFetchError, isFetching, refetch } = useClouds({ limit: -1, enabled: isAuthenticated });
 
     const clouds = data?.list ?? [];
@@ -38,24 +37,18 @@ export const useCloudSession = () => {
             cloudCore.saveCloudToken(
                 existingToken ? ({ ...existingToken, ...userToken } as typeof userToken) : userToken
             );
-            cloudCore.saveSelectedCloudId(cloudId);
+            setSelectedCloudId(cloudId);
 
             // cloud가 변경된 경우에만 place 초기화 (같은 cloud 재선택 시 place 유지)
             if (previousCloudId !== cloudId) {
                 cloudCore.clearSelectedPlace();
                 cloudCore.clearPlaceOrder(cloudId);
+                setSelectedPlaceId(null);
             }
 
             const currentProfile = useWebCoreStore.getState().profile;
             const { Token: _Token, ...cloudProfile } = userToken;
             setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
-
-            // WebSocket store의 cloudId 업데이트 → usePlaces 등 데이터 훅이 재실행
-            useWebSocketV2Store.getState().setCloudId(cloudId);
-
-            // WebSocket에 새 cloud 인증 정보 전달
-            // useCloudTokenRefresh가 isVerified=false를 감지하여 auth:update 발송
-            useWebSocketV2Store.getState().setIsVerified(false);
         } catch (e) {
             logger.error('SESSION', '[useCloudSession] selectCloud failed', { error: e });
             throw e;
@@ -67,7 +60,7 @@ export const useCloudSession = () => {
 
 export const useAutoSelectCloud = () => {
     const { clouds, selectCloud, isFetchingClouds } = useCloudSession();
-    const { isAuthenticated, isInvited } = useWebCoreStore();
+    const { isAuthenticated, isInvited, setSelectedCloudId } = useWebCoreStore();
     const autoSelectedRef = useRef(false);
 
     useEffect(() => {
@@ -78,8 +71,7 @@ export const useAutoSelectCloud = () => {
         if (!isFetchingClouds && clouds.length === 0) {
             const currentCloudId = cloudCore.getSelectedCloudId();
             if (!currentCloudId) {
-                cloudCore.saveSelectedCloudId('default');
-                useWebSocketV2Store.getState().setCloudId('default');
+                setSelectedCloudId('default');
                 autoSelectedRef.current = true;
             }
             return;

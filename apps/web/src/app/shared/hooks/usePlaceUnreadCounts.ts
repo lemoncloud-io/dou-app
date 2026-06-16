@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { isNative, logger, webClient } from '@chatic/bridges';
 import { useInterval } from '@chatic/shared';
-import { useWebSocketV2Store } from '@chatic/socket';
+import { useSocketState } from '../socket';
 import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
-import { cloudCore } from '@chatic/web-core';
+import { useWebCoreStore } from '@chatic/web-core';
 
 import { useRepositories } from '../data';
 import { debounce } from '../utils/debounce';
@@ -24,16 +24,14 @@ const EVENT_DEBOUNCE_MS = 1_000;
  */
 export const usePlaceUnreadCounts = (): Record<string, number> => {
     const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
-    const storeCloudId = useWebSocketV2Store(s => s.cloudId);
-    const selectedPlaceId = useWebSocketV2Store(s => s.selectedPlaceId);
-    const cloudId = storeCloudId || cloudCore.getSelectedCloudId() || null;
+    const isConnected = useSocketState(s => s.isConnected);
+    const { selectedCloudId: cloudId, selectedPlaceId } = useWebCoreStore();
 
     const [counts, setCounts] = useState<Record<string, number>>({});
     const requestSeqRef = useRef(0);
     const lastNativeBadgeCountRef = useRef<number | null>(null);
-    const isVerifiedRef = useRef(isVerified);
-    isVerifiedRef.current = isVerified;
+    const isConnectedRef = useRef(isConnected);
+    isConnectedRef.current = isConnected;
     const cloudIdRef = useRef(cloudId);
     cloudIdRef.current = cloudId;
     const selectedPlaceIdRef = useRef(selectedPlaceId);
@@ -48,7 +46,7 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
     }, []);
 
     const fetchCounts = useCallback(async () => {
-        if (!isVerifiedRef.current || !cloudIdRef.current || !selectedPlaceIdRef.current) return;
+        if (!isConnectedRef.current || !cloudIdRef.current || !selectedPlaceIdRef.current) return;
 
         const requestSeq = ++requestSeqRef.current;
 
@@ -86,12 +84,12 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
         }
     }, [cloudId]);
 
-    // isVerified/place 전환 시 재조회 (counts 초기화 없이)
+    // connection/place 전환 시 재조회 (counts 초기화 없이)
     useEffect(() => {
-        if (isVerified && cloudId && selectedPlaceId) {
+        if (isConnected && cloudId && selectedPlaceId) {
             void fetchCounts();
         }
-    }, [fetchCounts, isVerified, cloudId, selectedPlaceId]);
+    }, [fetchCounts, isConnected, cloudId, selectedPlaceId]);
 
     // 채널/채팅/읽음 이벤트 구독 — debounce로 재조회
     useEffect(() => {
@@ -109,7 +107,7 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
     }, [channelRepository, chatRepository, joinRepository, fetchCounts]);
 
     // 폴링: 30초 간격 (place 선택 완료 후에만)
-    useInterval(() => void fetchCounts(), isVerified && cloudId && selectedPlaceId ? POLL_INTERVAL_MS : null);
+    useInterval(() => void fetchCounts(), isConnected && cloudId && selectedPlaceId ? POLL_INTERVAL_MS : null);
 
     return counts;
 };

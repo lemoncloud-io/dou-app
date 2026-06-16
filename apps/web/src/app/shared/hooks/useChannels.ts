@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
 import { cloudCore, useDynamicProfile, useUserContext } from '@chatic/web-core';
 
@@ -10,6 +9,7 @@ import type { ClientChannelView } from '../types';
 
 import { useChannelSyncStore } from '../stores/useChannelSyncStore';
 import { useConnectionRecoverySync } from './useConnectionRecoverySync';
+import { useSocketState } from '../socket';
 
 const DEFAULT_CHANNEL_LIMIT = 100;
 
@@ -17,15 +17,13 @@ export interface ChannelDebugInfo {
     fetchCount: number;
     lastFetchAt: string | null;
     lastFetchResultCount: number | null;
-    isVerified: boolean;
     isConnected: boolean;
     cloudId: string | null;
     targetPlaceId: string | undefined;
 }
 
-// 컴포넌트 재마운트와 실제 클라우드/place 전환을 구분하기 위한 모듈 레벨 변수
+// 컴포넌트 재마운트와 실제 클라우드 전환을 구분하기 위한 모듈 레벨 변수
 let lastFetchedCloudId: string | null | undefined;
-let lastFetchedPlaceId: string | undefined;
 
 const toClientChannel = (channel: DomainChannel, userId?: string): ClientChannelView => {
     const lastChatNo = channel.lastChat$?.chatNo ?? channel.chatNo ?? 0;
@@ -67,9 +65,8 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     const { currentWSS } = useUserContext();
     const userId = profile?.uid;
     const targetPlaceId = initialParams.sid;
-    const storeCloudId = useWebSocketV2Store(s => s.cloudId);
-    const isConnected = useWebSocketV2Store(s => s.isConnected);
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    const storeCloudId = useSocketState(s => s.cloudId);
+    const isConnected = useSocketState(s => s.isConnected);
     const cloudId = storeCloudId || cloudCore.getSelectedCloudId() || null;
 
     const currentParamsRef = useRef(initialParams);
@@ -189,8 +186,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     const syncFromServer = useCallback(async () => {
         // store/ref에서 직접 읽어 stale closure 방지
         const currentCloudId = cloudIdRef.current;
-        const { isVerified: currentIsVerified } = useWebSocketV2Store.getState();
-        if (!currentCloudId || !currentIsVerified) return;
+        if (!currentCloudId) return;
 
         const { getSyncedAt, setSyncedAt, setStatus } = useChannelSyncStore.getState();
         const since = getSyncedAt(currentCloudId);
@@ -223,9 +219,8 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         }
     }, [channelRepository, loadFromCache]);
 
-    // isVerified 전이라도 IndexedDB 캐시에서 채널을 즉시 읽기
     useEffect(() => {
-        if (!cloudId || !targetPlaceId || isVerified) return;
+        if (!cloudId || !targetPlaceId) return;
 
         const requestSeq = ++requestSeqRef.current;
         const doLoad = async () => {
@@ -237,26 +232,24 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
                     setIsLoading(false);
                 }
             } catch {
-                // 캐시 읽기 실패는 무시 — isVerified 후 정상 fetch에서 처리
+                // 캐시 읽기 실패는 무시 — 이후 정상 fetch에서 처리
             }
         };
         void doLoad();
-    }, [cloudId, targetPlaceId, isVerified, loadFromCache]);
+    }, [cloudId, targetPlaceId, loadFromCache]);
 
-    // cloudId/place가 변경되고 인증 완료 시 채널 목록 재요청
+    // cloudId/place가 변경되면 채널 목록 재요청
     const prevFetchKeyRef = useRef<string | undefined>(undefined);
 
     useEffect(() => {
-        if (!cloudId || !targetPlaceId || !isVerified) return;
+        if (!cloudId || !targetPlaceId) return;
         const fetchKey = `${cloudId}:${targetPlaceId}`;
         if (prevFetchKeyRef.current === fetchKey) return;
         prevFetchKeyRef.current = fetchKey;
 
         const isCloudSwitch = lastFetchedCloudId !== undefined && lastFetchedCloudId !== cloudId;
-        const isPlaceSwitch = lastFetchedPlaceId !== undefined && lastFetchedPlaceId !== targetPlaceId;
 
         lastFetchedCloudId = cloudId;
-        lastFetchedPlaceId = targetPlaceId;
         currentParamsRef.current = initialParams;
 
         if (isCloudSwitch) {
@@ -267,7 +260,7 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         void fetchChannels({ loading: channelsRef.current.length === 0 }).then(() => {
             void fetchChannels({ forceNetwork: true, silent: true });
         });
-    }, [fetchChannels, cloudId, targetPlaceId, isVerified]);
+    }, [fetchChannels, cloudId, targetPlaceId]);
 
     // 캐시(IndexedDB) 변경을 subscribeList로 자동 감지하여 UI 반영
     // channel:create/update/delete, chat:create, join:update 등 모든 캐시 기록이
@@ -306,6 +299,15 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
         void fetchChannels({ forceNetwork: true, silent: true });
     }, [fetchChannels]);
 
+    const prevConnectedRef = useRef(isConnected);
+    useEffect(() => {
+        if (isConnected && !prevConnectedRef.current) {
+            logger.info('CHANNEL', 'Socket connected, refreshing channels');
+            void fetchChannels({ forceNetwork: true, silent: true });
+        }
+        prevConnectedRef.current = isConnected;
+    }, [isConnected, fetchChannels]);
+
     useConnectionRecoverySync(syncFromLocal, triggerNetworkFetch);
 
     // 포그라운드 복귀 시 channel:mine으로 채널 리스트 최신화
@@ -329,7 +331,6 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
 
     const fullDebugInfo: ChannelDebugInfo = {
         ...debugInfo,
-        isVerified,
         isConnected,
         cloudId,
         targetPlaceId,

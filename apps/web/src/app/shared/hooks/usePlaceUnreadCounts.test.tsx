@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
 import { isNative, webClient } from '@chatic/bridges';
-import { useWebSocketV2Store } from '@chatic/socket';
+import { useSocketState } from '../socket';
 
 import { useRepositories } from '../data';
 import { usePlaceUnreadCounts } from './usePlaceUnreadCounts';
@@ -21,7 +21,7 @@ const joinRepositoryMock = {
 };
 
 const websocketState = {
-    isVerified: true,
+    isConnected: true,
     cloudId: 'cloud-1',
     selectedPlaceId: 'place-1',
 };
@@ -40,14 +40,18 @@ jest.mock('@chatic/shared', () => ({
     useInterval: jest.fn(),
 }));
 
-jest.mock('@chatic/socket', () => ({
-    useWebSocketV2Store: jest.fn(),
+jest.mock('../socket', () => ({
+    useSocketState: jest.fn(),
 }));
 
 jest.mock('@chatic/web-core', () => ({
     cloudCore: {
         getSelectedCloudId: jest.fn(),
     },
+    useWebCoreStore: jest.fn(() => ({
+        selectedCloudId: 'cloud-1',
+        selectedPlaceId: 'place-1',
+    })),
 }));
 
 jest.mock('../data', () => ({
@@ -58,16 +62,21 @@ describe('usePlaceUnreadCounts', () => {
     beforeEach(() => {
         jest.clearAllMocks();
 
-        websocketState.isVerified = true;
+        websocketState.isConnected = true;
         websocketState.cloudId = 'cloud-1';
         websocketState.selectedPlaceId = 'place-1';
 
         (isNative as jest.Mock).mockReturnValue(true);
         const webCoreMock = jest.requireMock('@chatic/web-core') as {
             cloudCore: { getSelectedCloudId: jest.Mock };
+            useWebCoreStore: jest.Mock;
         };
         webCoreMock.cloudCore.getSelectedCloudId.mockReturnValue('cloud-1');
-        (useWebSocketV2Store as unknown as jest.Mock).mockImplementation(selector => selector(websocketState));
+        webCoreMock.useWebCoreStore.mockImplementation(() => ({
+            selectedCloudId: websocketState.cloudId,
+            selectedPlaceId: websocketState.selectedPlaceId,
+        }));
+        (useSocketState as unknown as jest.Mock).mockImplementation(selector => selector(websocketState));
         (useRepositories as jest.Mock).mockReturnValue({
             channel: channelRepositoryMock,
             chat: chatRepositoryMock,

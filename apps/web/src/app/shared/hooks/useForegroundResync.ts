@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { useOnBackgroundStatusChanged } from './useHandleAppMessage';
-import { useWebSocketV2Store } from '@chatic/socket';
+import { getSocketManager } from '../socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import { FOREGROUND_RESYNC_EVENT_NAME } from '../types';
 
@@ -26,8 +26,7 @@ export const useForegroundResync = (refreshToken: () => Promise<boolean>) => {
             void cloudCore.refreshToken();
         }
 
-        const { isConnected, isVerified } = useWebSocketV2Store.getState();
-        if (isConnected && isVerified) {
+        if (getSocketManager().getActiveClient()?.state === 'connected') {
             window.dispatchEvent(new CustomEvent(FOREGROUND_RESYNC_EVENT_NAME));
         }
     };

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { useWebSocketV2Store } from '@chatic/socket';
+import { useSocketState } from '../socket';
 
 import { useRepositories } from '../data';
 import { ChatSyncScheduler } from '../sync/ChatSyncScheduler';
@@ -25,7 +25,7 @@ interface SyncableChannel {
  */
 export const useChatSync = (channels: SyncableChannel[]) => {
     const { chat: chatRepository } = useRepositories();
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    const isConnected = useSocketState(s => s.isConnected);
     const { setChannelState, reset } = useChatSyncStore();
     const schedulerRef = useRef<ChatSyncScheduler | null>(null);
 
@@ -44,22 +44,22 @@ export const useChatSync = (channels: SyncableChannel[]) => {
         };
     }, [chatRepository, setChannelState, reset]);
 
-    // isVerified가 false로 바뀌면 스케줄러 중지
+    // 연결이 끊기면 스케줄러 중지
     useEffect(() => {
-        if (!isVerified && schedulerRef.current?.running) {
-            logger.debug('SYNC', `[ChatSync] isVerified=false → stopping scheduler`);
+        if (!isConnected && schedulerRef.current?.running) {
+            logger.debug('SYNC', `[ChatSync] disconnected → stopping scheduler`);
             schedulerRef.current.stop();
         }
-    }, [isVerified]);
+    }, [isConnected]);
 
     // 채널 리스트 → 큐 등록 + 시작
     // cleanup에서 stop하지 않음 — channels ref가 바뀔 때마다 stop→restart하면
     // in-flight 요청이 중복 발사되고, abort로 인해 'synced' 상태 전환이 누락됨
     useEffect(() => {
         const scheduler = schedulerRef.current;
-        if (!scheduler || !isVerified || channels.length === 0) {
-            if (!isVerified) {
-                logger.debug('SYNC', `[ChatSync] waiting for isVerified (channels=${channels.length})`);
+        if (!scheduler || !isConnected || channels.length === 0) {
+            if (!isConnected) {
+                logger.debug('SYNC', `[ChatSync] waiting for connection (channels=${channels.length})`);
             }
             return;
         }
@@ -76,12 +76,12 @@ export const useChatSync = (channels: SyncableChannel[]) => {
             return;
         }
 
-        logger.info('SYNC', `[ChatSync] channels ready — targets=${targets.length}, isVerified=${isVerified}`);
+        logger.info('SYNC', `[ChatSync] channels ready — targets=${targets.length}, isConnected=${isConnected}`);
         scheduler.enqueue(targets);
         scheduler.start();
         // cleanup 없음 — enqueue()는 synced 채널 skip, start()는 isRunning이면 no-op
         // unmount 시 정리는 스케줄러 생성 effect의 cleanup에서 처리
-    }, [channels, isVerified]);
+    }, [channels, isConnected]);
 
     // 브라우저 가시성 처리
     useEffect(() => {
