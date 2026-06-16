@@ -60,6 +60,10 @@ export class SocketManager {
         return this.get(this.activeCloudId);
     }
 
+    public getActiveConfig(): SocketBindingConfig | null {
+        return this.records.get(this.activeCloudId)?.config ?? null;
+    }
+
     public remove(cloudId: SocketCloudId): void {
         const record = this.records.get(cloudId);
         if (!record) return;
@@ -86,6 +90,31 @@ export class SocketManager {
 
         return () => {
             this.activeClientListeners.delete(listener);
+        };
+    }
+
+    public subscribeActiveClientState(listener: (state: ClientSocketV2['state']) => void): () => void {
+        let unsubscribeState: (() => void) | null = null;
+
+        const bind = (client: ClientSocketV2 | null) => {
+            unsubscribeState?.();
+            unsubscribeState = null;
+
+            listener(client?.state ?? 'idle');
+
+            if (!client) return;
+            unsubscribeState = client.onState(event => {
+                listener(event.next);
+            });
+        };
+
+        const unsubscribeClient = this.subscribeActiveClient(client => {
+            bind(client);
+        });
+
+        return () => {
+            unsubscribeState?.();
+            unsubscribeClient();
         };
     }
 
