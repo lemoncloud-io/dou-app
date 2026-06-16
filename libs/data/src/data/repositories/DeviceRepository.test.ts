@@ -1,5 +1,5 @@
 import { DeviceRepository } from './DeviceRepository';
-import type { DeviceSaveInput, DeviceReadInput, DeviceSyncInput } from '@lemoncloud/chatic-sockets-api';
+import type { DeviceReadInput, DeviceSaveInput, DeviceSyncInput } from '@lemoncloud/chatic-sockets-api';
 
 describe('DeviceRepository', () => {
     const createRepository = () => {
@@ -14,15 +14,19 @@ describe('DeviceRepository', () => {
             setContext: () => undefined,
         };
 
+        const listeners = new Map<string, (...args: unknown[]) => void>();
         const domainEventBus = {
-            on: jest.fn(() => () => undefined),
+            on: jest.fn((event: string, cb: (...args: unknown[]) => void) => {
+                listeners.set(event, cb);
+                return () => listeners.delete(event);
+            }),
             emit: jest.fn(),
             onAny: jest.fn(() => () => undefined),
         };
 
         const repository = new DeviceRepository(remote as any, contextProvider, domainEventBus as any);
 
-        return { repository, remote };
+        return { repository, remote, domainEventBus, listeners };
     };
 
     it('saveDevice 호출 시 remoteDataSource.saveDevice를 호출해야 한다', async () => {
@@ -53,5 +57,41 @@ describe('DeviceRepository', () => {
 
         expect(remote.syncDevice).toHaveBeenCalledWith(payload);
         expect(result).toBeNull();
+    });
+
+    it('device:create 도메인 이벤트 수신 시 로그를 남겨야 한다', () => {
+        const { listeners } = createRepository();
+        const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+        const handler = listeners.get('device:create');
+        expect(handler).toBeDefined();
+        handler!({ data: { id: 'dev-1' } });
+
+        expect(logSpy).toHaveBeenCalledWith('[DeviceRepository] device:create', { id: 'dev-1' });
+        logSpy.mockRestore();
+    });
+
+    it('device:update 도메인 이벤트 수신 시 로그를 남겨야 한다', () => {
+        const { listeners } = createRepository();
+        const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+        const handler = listeners.get('device:update');
+        expect(handler).toBeDefined();
+        handler!({ data: { id: 'dev-1' } });
+
+        expect(logSpy).toHaveBeenCalledWith('[DeviceRepository] device:update', { id: 'dev-1' });
+        logSpy.mockRestore();
+    });
+
+    it('device:delete 도메인 이벤트 수신 시 로그를 남겨야 한다', () => {
+        const { listeners } = createRepository();
+        const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+        const handler = listeners.get('device:delete');
+        expect(handler).toBeDefined();
+        handler!({ data: { id: 'dev-1' } });
+
+        expect(logSpy).toHaveBeenCalledWith('[DeviceRepository] device:delete', { id: 'dev-1' });
+        logSpy.mockRestore();
     });
 });

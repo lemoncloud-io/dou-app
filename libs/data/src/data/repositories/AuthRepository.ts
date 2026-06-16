@@ -21,12 +21,15 @@ export interface IAuthRepository {
  * AuthRemoteDataSource를 감싸는 인증 Repository 구현체입니다.
  */
 export class AuthRepository extends BaseRepository implements IAuthRepository {
+    private static readonly TAG = 'AuthRepository';
+
     constructor(
         private readonly authRemoteDataSource: IAuthRemoteDataSource,
         contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
         super(contextProvider, domainEventBus);
+        this.initializeInternalListeners();
     }
 
     /**
@@ -39,5 +42,19 @@ export class AuthRepository extends BaseRepository implements IAuthRepository {
         const remotePayload = payload ?? {};
 
         return await this.authRemoteDataSource.updateSocketAuth(remotePayload);
+    }
+
+    private initializeInternalListeners(): void {
+        this.onDomainEvent('auth:create', detail => {
+            console.log(`[${AuthRepository.TAG}] auth:create`, detail.data);
+        });
+
+        this.onDomainEvent('auth:update', detail => {
+            console.log(`[${AuthRepository.TAG}] auth:update`, detail.data);
+        });
+
+        this.onDomainEvent('auth:delete', detail => {
+            console.log(`[${AuthRepository.TAG}] auth:delete`, detail.data);
+        });
     }
 }

@@ -12,12 +12,15 @@ export interface IDeviceRepository {
 }
 
 export class DeviceRepository extends BaseRepository implements IDeviceRepository {
+    private static readonly TAG = 'DeviceRepository';
+
     constructor(
         private readonly deviceRemoteDataSource: IDeviceRemoteDataSource,
         contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
         super(contextProvider, domainEventBus);
+        this.initializeInternalListeners();
     }
 
     public async saveDevice(payload: DeviceSaveInput, options?: RepositoryRequestOptions): Promise<DeviceView> {
@@ -32,5 +35,19 @@ export class DeviceRepository extends BaseRepository implements IDeviceRepositor
 
     public async syncDevice(payload: DeviceSyncInput, options?: RepositoryRequestOptions): Promise<unknown> {
         return this.deviceRemoteDataSource.syncDevice(payload);
+    }
+
+    private initializeInternalListeners(): void {
+        this.onDomainEvent('device:create', detail => {
+            console.log(`[${DeviceRepository.TAG}] device:create`, detail.data);
+        });
+
+        this.onDomainEvent('device:update', detail => {
+            console.log(`[${DeviceRepository.TAG}] device:update`, detail.data);
+        });
+
+        this.onDomainEvent('device:delete', detail => {
+            console.log(`[${DeviceRepository.TAG}] device:delete`, detail.data);
+        });
     }
 }

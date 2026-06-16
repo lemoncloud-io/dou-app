@@ -11,12 +11,15 @@ export interface ISocketsRepository {
 }
 
 export class SocketsRepository extends BaseRepository implements ISocketsRepository {
+    private static readonly TAG = 'SocketsRepository';
+
     constructor(
         private readonly socketsRemoteDataSource: ISocketsRemoteDataSource,
         contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
         super(contextProvider, domainEventBus);
+        this.initializeInternalListeners();
     }
 
     public async findConnection(
@@ -24,5 +27,31 @@ export class SocketsRepository extends BaseRepository implements ISocketsReposit
         options?: RepositoryRequestOptions
     ): Promise<ConnectionModel> {
         return this.socketsRemoteDataSource.findConnection(payload);
+    }
+
+    private initializeInternalListeners(): void {
+        this.onDomainEvent('socket:create', detail => {
+            console.log(`[${SocketsRepository.TAG}] socket:create`, detail.data);
+        });
+
+        this.onDomainEvent('socket:update', detail => {
+            console.log(`[${SocketsRepository.TAG}] socket:update`, detail.data);
+        });
+
+        this.onDomainEvent('socket:delete', detail => {
+            console.log(`[${SocketsRepository.TAG}] socket:delete`, detail.data);
+        });
+
+        this.onDomainEvent('connection:create', detail => {
+            console.log(`[${SocketsRepository.TAG}] connection:create`, detail.data);
+        });
+
+        this.onDomainEvent('connection:update', detail => {
+            console.log(`[${SocketsRepository.TAG}] connection:update`, detail.data);
+        });
+
+        this.onDomainEvent('connection:delete', detail => {
+            console.log(`[${SocketsRepository.TAG}] connection:delete`, detail.data);
+        });
     }
 }
