@@ -1,16 +1,19 @@
 import { useEffect } from 'react';
 
 import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
-import { cloudCore, useUserContext } from '@chatic/web-core';
+import { logger } from '@chatic/bridges';
+import { cloudCore, useUserContext, webCore } from '@chatic/web-core';
 
 import { useDynamicDeviceId } from '../shared/hooks/useDynamicDeviceId';
 import { useCloudTokenRefresh } from '../shared/hooks/useCloudTokenRefresh';
 import { useCloudSession } from '../shared/hooks/useCloudSession';
+import { getSocketManager } from '../shared/socket';
 
 export const WebSocketV2Connection = () => {
     const { deviceId } = useDynamicDeviceId();
     const { isPending } = useCloudSession();
     const { currentWSS, endpoints } = useUserContext();
+    const socketManager = getSocketManager();
     // cloudId 구독: cloud 토큰 만료 fallback 시 re-render 트리거 → currentWSS 재평가 → endpoint 변경
     useWebSocketV2Store(s => s.cloudId);
 
@@ -33,6 +36,47 @@ export const WebSocketV2Connection = () => {
             useWebSocketV2Store.getState().setSelectedPlaceId(persistedPlaceId);
         }
     }, [persistedPlaceId]);
+
+    useEffect(() => {
+        if (!deviceId || isPending || !endpoint) return;
+
+        socketManager.setActiveCloudId(selectedCloudId);
+        const client = socketManager.ensure(selectedCloudId, {
+            url: endpoint,
+            deviceId,
+            wssType: currentWSS,
+        });
+
+        const bootstrap = async () => {
+            try {
+                if (client.state === 'idle' || client.state === 'closed') {
+                    await client.connect();
+                }
+
+                await client.request('device.save' as any, {
+                    id: deviceId,
+                    platform: 'web',
+                });
+
+                const token =
+                    currentWSS === 'cloud'
+                        ? (cloudCore.getIdentityToken() ??
+                          (await webCore.getTokenSignature()).originToken?.identityToken)
+                        : (await webCore.getTokenSignature()).originToken?.identityToken;
+
+                if (token) {
+                    await client.request('auth.update' as any, { token });
+                }
+            } catch (error) {
+                logger.error('SOCKET', '[WebSocketV2Connection] Failed to bootstrap data socket client', {
+                    error,
+                    data: { cloudId: selectedCloudId, wssType: currentWSS },
+                });
+            }
+        };
+
+        void bootstrap();
+    }, [socketManager, selectedCloudId, deviceId, isPending, endpoint, currentWSS]);
 
     // NOTE: Socket connection runs entirely in the background. We never block the
     // UI on `connectionStatus` / `isVerified` — previous implementation toggled a
