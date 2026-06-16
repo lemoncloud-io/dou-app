@@ -26,4 +26,21 @@ export const en = {
         errorMessage: 'The link may have expired or is no longer valid.',
         goHome: 'Go to Home',
     },
+    notification: {
+        channel: {
+            chat: 'New Messages',
+            notice: 'Service Notices',
+            marketing: 'Events & Promotions',
+            cloud: 'Cloud',
+        },
+        chat: {
+            title: '{0}',
+            message: '{0}',
+        },
+        cloud: {
+            sync_complete: "Cloud '{0}' created successfully",
+        },
+    },
+    push_chat_message_title: '{0}',
+    push_chat_message_body: '{0}',
 } as const;

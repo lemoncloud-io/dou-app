@@ -5,7 +5,7 @@ import { useWebCoreStore } from '../stores/useWebCoreStore';
 
 interface UpdateProfileData {
     name?: string;
-    imageUrl?: string;
+    photo?: string;
 }
 
 export const useUpdateProfile = () => {

@@ -1,10 +1,22 @@
-import { ChevronLeft, ChevronRight, LogOut, Mail, XCircle } from 'lucide-react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    LogOut,
+    Mail,
+    MessageSquare,
+    Database,
+    FileText,
+    HardDrive,
+    XCircle,
+    Upload,
+    Bell,
+} from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useDeviceInfo } from '@chatic/device-utils';
-import { useLogout } from '@chatic/web-core';
+import { useLogout } from '@chatic/auth';
 
 import { DEBUG_STORAGE_KEY } from '../consts';
 
@@ -35,7 +47,7 @@ export const DebugPage = () => {
             </header>
 
             <div className="flex-1 overflow-y-auto overscroll-none px-4 pb-safe-bottom">
-                <div className="mt-6 mb-6">
+                <div className="mb-6 mt-6">
                     <h1 className="text-[20px] font-semibold leading-[1.35]">Debug Mode</h1>
                     <p className="mt-1 text-[13px] text-muted-foreground">v{versionInfo?.webVersion ?? '?'}</p>
                 </div>
@@ -55,7 +67,66 @@ export const DebugPage = () => {
                             </div>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
-                        <div className="mx-4 border-t border-border" />
+                        <button
+                            onClick={() => navigate('/mypage/debug/dashboard')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <MessageSquare size={18} className="text-muted-foreground" />
+                                <span className="text-[15px] font-medium text-foreground">Chat Test Dashboard</span>
+                            </div>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                        <button
+                            onClick={() => navigate('/mypage/debug/state')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Database size={18} className="text-muted-foreground" />
+                                <span className="text-[15px] font-medium text-foreground">State Info</span>
+                            </div>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                        <button
+                            onClick={() => navigate('/mypage/debug/log-buffer')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <FileText size={18} className="text-muted-foreground" />
+                                <span className="text-[15px] font-medium text-foreground">Log Buffer</span>
+                            </div>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                        <button
+                            onClick={() => navigate('/mypage/debug/cache-test')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <HardDrive size={18} className="text-muted-foreground" />
+                                <span className="text-[15px] font-medium text-foreground">Cache DB Test</span>
+                            </div>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                        <button
+                            onClick={() => navigate('/mypage/debug/upload-test')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Upload size={18} className="text-muted-foreground" />
+                                <span className="text-[15px] font-medium text-foreground">Chunk Upload Test</span>
+                            </div>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                        <button
+                            onClick={() => navigate('/mypage/debug/badge-count')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Bell size={18} className="text-muted-foreground" />
+                                <span className="text-[15px] font-medium text-foreground">Badge Count Test</span>
+                            </div>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
                         <button
                             onClick={() => logout()}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"

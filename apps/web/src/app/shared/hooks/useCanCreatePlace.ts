@@ -1,23 +1,27 @@
 import { cloudCore, useUserContext, useWebCoreStore } from '@chatic/web-core';
 
-import { useMyPlaces } from '../../features/home/hooks/useMyPlaces';
-import { useCloudSession } from './useCloudSession';
+import { useCloudSession } from '@chatic/app-runtime';
 import { MAX_PLACES } from '../consts/limits';
 
-export const useCanCreatePlace = () => {
+interface PlacesInfo {
+    count: number;
+    isLoading: boolean;
+}
+
+export const useCanCreatePlace = (placesInfo: PlacesInfo) => {
     const { permissions } = useUserContext();
-    const { places, isLoading } = useMyPlaces();
     const { clouds } = useCloudSession();
     const { profile } = useWebCoreStore();
 
     const selectedCloudId = cloudCore.getSelectedCloudId();
     const selectedCloud = clouds.find(c => c.id === selectedCloudId);
-    const myUserId = profile?.id;
+    const myUserId = profile?.uid;
 
     // Can only create place if the selected cloud is owned by me
     const isMyCloud = selectedCloud ? selectedCloud.ownerId === myUserId : false;
 
-    const currentCount = places.length;
+    const currentCount = placesInfo.count;
+    const isLoading = placesInfo.isLoading;
     const canCreate = permissions.canCreatePlace && !isLoading && currentCount < MAX_PLACES && isMyCloud;
     const isLimitReached = !isLoading && currentCount >= MAX_PLACES;
 

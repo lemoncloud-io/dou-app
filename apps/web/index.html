@@ -7,29 +7,45 @@
 
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="theme-color" id="theme-color-meta" content="#ffffff" />
+        <!-- Perf timing baseline -->
+        <script>
+            window.__T0 = Date.now();
+            console.log('[PERF] HTML_START ' + window.__T0);
+        </script>
         <!-- Theme detection script - must run before any content renders -->
         <script>
             (function () {
                 var storageKey = 'vite-ui-theme';
                 var theme = localStorage.getItem(storageKey);
-                // Match ThemeProvider logic: default to 'light' when no theme is stored
                 var isDark =
                     theme === 'dark' ||
                     (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
-                // Set CSS custom property for splash background
-                var bgColor = isDark ? '#121212' : '#ffffff';
-                document.documentElement.style.setProperty('--splash-bg', bgColor);
-
                 if (isDark) {
                     document.documentElement.classList.add('dark');
                     document.getElementById('theme-color-meta').content = '#121212';
+                    document.documentElement.style.setProperty('--splash-bg', '#121212');
                 } else {
                     document.documentElement.classList.remove('dark');
                     document.getElementById('theme-color-meta').content = '#ffffff';
+                    document.documentElement.style.setProperty('--splash-bg', '#ffffff');
                 }
             })();
         </script>
+        <!-- Prevent white flash on iOS WebView resume / repaint -->
+        <style>
+            html,
+            body {
+                background-color: #ffffff;
+            }
+            html.dark,
+            html.dark body {
+                background-color: #121212;
+            }
+        </style>
+        <!-- Preconnect: Google Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <!-- Favicon -->
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -40,79 +56,18 @@
     </head>
     <body>
         <div id="root">
-            <!-- Initial splash screen (shown before React loads) -->
             <div
-                id="initial-splash"
+                id="splash"
                 style="
-                    position: fixed;
-                    inset: 0;
-                    z-index: 9999;
                     display: flex;
-                    flex-direction: column;
-                    align-items: center;
                     justify-content: center;
-                    background-color: var(--splash-bg, #ffffff);
+                    align-items: center;
+                    height: 100dvh;
+                    background: var(--splash-bg, #ffffff);
                 "
             >
-                <img
-                    src="/logo.png"
-                    alt="DoU"
-                    style="width: 96px; height: 96px; object-fit: contain; animation: pulse 2s ease-in-out infinite"
-                />
-                <div style="margin-top: 32px; display: flex; align-items: center; gap: 4px">
-                    <div
-                        style="
-                            width: 8px;
-                            height: 8px;
-                            border-radius: 50%;
-                            background-color: #b0ea10;
-                            animation: bounce 1s ease-in-out infinite;
-                            animation-delay: -0.3s;
-                        "
-                    ></div>
-                    <div
-                        style="
-                            width: 8px;
-                            height: 8px;
-                            border-radius: 50%;
-                            background-color: #b0ea10;
-                            animation: bounce 1s ease-in-out infinite;
-                            animation-delay: -0.15s;
-                        "
-                    ></div>
-                    <div
-                        style="
-                            width: 8px;
-                            height: 8px;
-                            border-radius: 50%;
-                            background-color: #b0ea10;
-                            animation: bounce 1s ease-in-out infinite;
-                        "
-                    ></div>
-                </div>
+                <img src="/logo.png" alt="" width="96" height="96" />
             </div>
-            <style>
-                @keyframes pulse {
-                    0%,
-                    100% {
-                        opacity: 1;
-                        transform: scale(1);
-                    }
-                    50% {
-                        opacity: 0.8;
-                        transform: scale(0.95);
-                    }
-                }
-                @keyframes bounce {
-                    0%,
-                    100% {
-                        transform: translateY(0);
-                    }
-                    50% {
-                        transform: translateY(-6px);
-                    }
-                }
-            </style>
         </div>
         <script type="module" src="/src/main.tsx"></script>
     </body>

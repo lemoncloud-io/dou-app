@@ -76,7 +76,13 @@ export const WorkspaceSettingsPage = () => {
                             <div key={m.id} className="flex items-center gap-3 px-1 py-3">
                                 <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-muted">
                                     {m.avatar ? (
-                                        <img src={m.avatar} alt={m.name} className="h-full w-full object-cover" />
+                                        <img
+                                            src={m.avatar}
+                                            alt={m.name}
+                                            loading="lazy"
+                                            decoding="async"
+                                            className="h-full w-full object-cover"
+                                        />
                                     ) : (
                                         <span className="text-lg">👤</span>
                                     )}

@@ -1,5 +1,5 @@
 import type { ChatStorageAdapter } from './ChatStorageAdapter';
-import type { ClientChatView } from '@chatic/chats';
+import type { DomainChat } from '@chatic/chats';
 
 export const DB_NAME = 'ChatDB';
 export const DB_VERSION = 3;
@@ -8,7 +8,7 @@ export const CHANNELS_STORE_NAME = 'channels';
 export const BROADCAST_CHANNEL_NAME = 'chat-messages-update';
 export const CHANNELS_BROADCAST_CHANNEL_NAME = 'channel-update';
 
-interface StoredMessage extends Omit<ClientChatView, 'timestamp'> {
+interface StoredMessage extends Omit<DomainChat, 'timestamp'> {
     timestamp: string;
     chatKey: string;
     compositeKey: string;
@@ -107,7 +107,8 @@ export const IndexedDBStorageAdapter: ChatStorageAdapter = {
         return new Promise((resolve, reject) => {
             const request = index.getAll(getChatKey(userId, channelId));
             request.onerror = () => reject(request.error);
-            request.onsuccess = () => resolve(request.result.filter((m: StoredMessage) => m.isRead === false).length);
+            request.onsuccess = () =>
+                resolve(request.result.filter((m: StoredMessage) => m.isRead === false && m.ownerId !== userId).length);
         });
     },
 

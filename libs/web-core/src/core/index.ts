@@ -59,7 +59,16 @@ initEnvFromQueryParams();
 // RN WebView 환경이면 네이티브 스토리지 어댑터로 교체
 const isReactNativeWebView = (): boolean => !!(window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView;
 
-if (isReactNativeWebView()) {
+// Electron desktop shell injects window.ChaticMessageHandler via contextBridge
+// (apps/desktop/src/preload/index.ts), synchronously available before any renderer
+// module evaluates. Plain web browsers have neither global.
+const isDesktopShell = (): boolean => !!(window as Window & { ChaticMessageHandler?: unknown }).ChaticMessageHandler;
+
+// Persistent (localStorage) for RN WebView + desktop shell so OAuth credentials,
+// cloud token, and invite state survive app restart. Plain web keeps sessionStorage.
+const usePersistentStorage = isReactNativeWebView() || isDesktopShell();
+
+if (usePersistentStorage) {
     setStorageAdapter(localStorage);
 }
 
@@ -76,18 +85,18 @@ const clearTokensOnLogout = (): void => {
         const params = new URLSearchParams(window.location.search);
         if (params.get('logout') !== '1') return;
 
-        const storage = isReactNativeWebView() ? localStorage : sessionStorage;
+        const storage = usePersistentStorage ? localStorage : sessionStorage;
+        // 로그아웃 후에도 유지해야 하는 키: 언어 설정, 초대 상태
+        const languageKeySuffix = `.${LANGUAGE_KEY}`;
         const keysToRemove: string[] = [];
         for (let i = 0; i < storage.length; i++) {
             const key = storage.key(i);
-            if (key?.startsWith('@')) keysToRemove.push(key);
+            if (key?.startsWith('@') && !key.endsWith(languageKeySuffix)) keysToRemove.push(key);
         }
         keysToRemove.forEach(key => storage.removeItem(key));
         // Clear oauth provider from both storages to handle RN WebView case
         sessionStorage.removeItem('chatic-oauth-provider');
         localStorage.removeItem('chatic-oauth-provider');
-        sessionStorage.removeItem('chatic-is-invited');
-        localStorage.removeItem('chatic-is-invited');
     } catch {
         // Ignore errors
     }
@@ -97,7 +106,7 @@ clearTokensOnLogout();
 // Get endpoint from storage (mobile: localStorage, web: sessionStorage)
 const getEndpointStorageItem = (key: string): string | null => {
     try {
-        const storage = isReactNativeWebView() ? localStorage : sessionStorage;
+        const storage = usePersistentStorage ? localStorage : sessionStorage;
         return storage.getItem(key);
     } catch {
         return null;
@@ -154,5 +163,48 @@ export const webCore = WebCoreFactory.create({
     project: ENV === 'local' ? `${PROJECT}_${ENV}` : PROJECT,
     oAuthEndpoint: OAUTH_ENDPOINT,
     region: REGION,
-    storage: isReactNativeWebView() ? localStorage : sessionStorage,
+    storage: usePersistentStorage ? localStorage : sessionStorage,
+});
+
+/**
+ * Eagerly start webCore.init() at module load time.
+ * This overlaps the ~800ms init with React mounting instead of waiting
+ * for a useEffect callback.
+ *
+ * - On success: `_initDone = true`, subsequent calls resolve immediately.
+ * - On failure: retries in useWebCoreStore.initialize() call fresh init.
+ */
+let _pendingInit: Promise<void> | null = null;
+let _initDone = false;
+
+export const startWebCoreInit = (): Promise<void> => {
+    if (_initDone) return Promise.resolve();
+    if (_pendingInit) return _pendingInit;
+    _pendingInit = webCore
+        .init()
+        .then(() => {
+            _initDone = true;
+        })
+        .finally(() => {
+            _pendingInit = null;
+        });
+    return _pendingInit;
+};
+
+/**
+ * Reset init state so the next startWebCoreInit() call triggers a fresh webCore.init().
+ *
+ * Called during logout — on SPA navigation (especially mobile WebView) the module
+ * may NOT be re-evaluated, leaving _initDone = true while webCore is in a post-logout
+ * state. Without this reset, webCore.buildRequest() can hang because the internal
+ * HTTP client was torn down by webCore.logout().
+ */
+export const resetWebCoreInit = (): void => {
+    _initDone = false;
+    _pendingInit = null;
+};
+
+// Fire at module evaluation — before React mounts
+startWebCoreInit().catch(() => {
+    // intentionally empty — suppress unhandled rejection on module load
 });

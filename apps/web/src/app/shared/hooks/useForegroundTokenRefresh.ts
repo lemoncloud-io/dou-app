@@ -1,24 +1,66 @@
-import { useEffect } from 'react';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { useEffect, useRef } from 'react';
+import { logger } from '@chatic/bridges';
+import { cloudCore, useWebCoreStore, webCore } from '@chatic/web-core';
+import { checkSocketHealth, getSocketSend, useWebSocketV2Store } from '@chatic/socket';
+
+const DEBOUNCE_MS = 300;
 
 export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) => {
     const { isAuthenticated } = useWebCoreStore();
+    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
-        const handleVisibilityChange = async () => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') return;
             if (document.visibilityState !== 'visible') return;
             if (!isAuthenticated) return;
 
-            // 1. webCore 토큰 리프레시
-            await refreshToken();
+            // Debounce rapid visibility toggles
+            if (debounceTimer.current) clearTimeout(debounceTimer.current);
+            debounceTimer.current = setTimeout(() => {
+                void handleForegroundResume();
+            }, DEBOUNCE_MS);
+        };
 
-            // 2. cloud 토큰 리프레시 (delegation token이 있을 때만)
+        const handleForegroundResume = async () => {
+            // Socket health check and token refresh are independent — run in parallel
+            const [socketStatus] = await Promise.all([
+                checkSocketHealth().catch(() => 'reconnecting' as const),
+                refreshToken().catch(() => false),
+            ]);
+
+            // Cloud token refresh (only when delegation token exists)
             if (cloudCore.getSelectedCloudId() && cloudCore.getDelegationToken()) {
-                void cloudCore.refreshToken();
+                try {
+                    await cloudCore.refreshToken();
+                } catch (e) {
+                    logger.error('AUTH', '[ForegroundRefresh] Cloud token refresh failed', { error: e });
+                }
             }
+
+            // Re-send auth only if socket was alive (not reconnecting)
+            if (socketStatus === 'connected') {
+                const send = getSocketSend();
+                if (send) {
+                    const { wssType } = useWebSocketV2Store.getState();
+                    let token: string | undefined;
+                    if (wssType === 'cloud') {
+                        token = cloudCore.getIdentityToken();
+                    } else {
+                        token = (await webCore.getTokenSignature()).originToken?.identityToken;
+                    }
+                    if (token) {
+                        send({ type: 'auth', action: 'update', payload: { token } });
+                    }
+                }
+            }
+            // If reconnecting, useCloudTokenRefresh handles auth on isConnected change
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        };
     }, [isAuthenticated, refreshToken]);
 };

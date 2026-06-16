@@ -11,15 +11,14 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
-
-import type { MySiteView } from '@lemoncloud/chatic-backend-api';
+import type { DomainSite } from '@chatic/data';
 
 interface SortablePlaceItemProps {
-    place: MySiteView;
+    place: DomainSite;
     isOwner: boolean;
-    onSettings: (place: MySiteView) => void;
-    onDelete: (place: MySiteView) => void;
-    onLeave: (place: MySiteView) => void;
+    onSettings: (place: DomainSite) => void;
+    onDelete: (place: DomainSite) => void;
+    onLeave: (place: DomainSite) => void;
 }
 
 export const SortablePlaceItem = ({ place, isOwner, onSettings, onDelete, onLeave }: SortablePlaceItemProps) => {
@@ -58,7 +57,13 @@ export const SortablePlaceItem = ({ place, isOwner, onSettings, onDelete, onLeav
                     )}
                 >
                     {place.thumbnail ? (
-                        <img src={place.thumbnail} alt={place.name} className="h-full w-full object-cover" />
+                        <img
+                            src={place.thumbnail}
+                            alt={place.name}
+                            loading="lazy"
+                            decoding="async"
+                            className="h-full w-full object-cover"
+                        />
                     ) : (
                         <Users size={14} className={isOwner ? 'text-primary-foreground' : 'text-muted-foreground'} />
                     )}
@@ -79,22 +84,20 @@ export const SortablePlaceItem = ({ place, isOwner, onSettings, onDelete, onLeav
                     align="end"
                     className="w-[160px] rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.13)]"
                 >
-                    <DropdownMenuItem onClick={() => onSettings(place)} className="cursor-pointer px-[16px] py-[11px]">
-                        <span className="text-[16px]">{t('placeOrder.settings')}</span>
-                    </DropdownMenuItem>
-                    {isOwner ? (
+                    {isOwner && (
+                        <DropdownMenuItem
+                            onClick={() => onSettings(place)}
+                            className="cursor-pointer px-[16px] py-[11px]"
+                        >
+                            <span className="text-[16px]">{t('placeOrder.settings')}</span>
+                        </DropdownMenuItem>
+                    )}
+                    {isOwner && (
                         <DropdownMenuItem
                             onClick={() => onDelete(place)}
                             className="cursor-pointer px-[16px] py-[11px] text-destructive focus:text-destructive"
                         >
                             <span className="text-[16px]">{t('placeOrder.delete')}</span>
-                        </DropdownMenuItem>
-                    ) : (
-                        <DropdownMenuItem
-                            onClick={() => onLeave(place)}
-                            className="cursor-pointer px-[16px] py-[11px] text-destructive focus:text-destructive"
-                        >
-                            <span className="text-[16px]">{t('placeOrder.leave')}</span>
                         </DropdownMenuItem>
                     )}
                 </DropdownMenuContent>

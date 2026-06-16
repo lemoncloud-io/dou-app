@@ -3,8 +3,14 @@ import { Route, Routes } from 'react-router-dom';
 import {
     AccountInfoPage,
     AccountManagePage,
+    CloudProfileEditPage,
+    DebugBadgeCountPage,
+    DebugCacheTestPage,
     DebugLoginPage,
+    DebugLogBufferPage,
     DebugPage,
+    DebugStatePage,
+    DebugUploadPage,
     LicensesPage,
     LoginPage,
     MyPage,
@@ -16,6 +22,7 @@ import {
     TermsPage,
     WithdrawalPage,
 } from '../pages';
+import { DebugChatPage } from '../pages/DebugChatPage';
 
 export const MyPageRoutes = () => {
     return (
@@ -24,8 +31,15 @@ export const MyPageRoutes = () => {
             <Route path="account" element={<AccountInfoPage />} />
             <Route path="account-manage" element={<AccountManagePage />} />
             <Route path="edit" element={<ProfileEditPage />} />
+            <Route path="cloud-profile" element={<CloudProfileEditPage />} />
             <Route path="debug" element={<DebugPage />} />
             <Route path="debug/login" element={<DebugLoginPage />} />
+            <Route path="debug/dashboard" element={<DebugChatPage />} />
+            <Route path="debug/state" element={<DebugStatePage />} />
+            <Route path="debug/log-buffer" element={<DebugLogBufferPage />} />
+            <Route path="debug/cache-test" element={<DebugCacheTestPage />} />
+            <Route path="debug/upload-test" element={<DebugUploadPage />} />
+            <Route path="debug/badge-count" element={<DebugBadgeCountPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="policy" element={<PolicyListPage />} />
             <Route path="policy/terms" element={<TermsPage />} />

@@ -1,0 +1,11 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "outDir": "../../dist/out-tsc",
+        "module": "commonjs",
+        "jsx": "react-jsx",
+        "types": ["jest", "node"]
+    },
+    "files": ["../../node_modules/@nx/react-native/typings/svg.d.ts"],
+    "include": ["jest.config.js", "src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"]
+}

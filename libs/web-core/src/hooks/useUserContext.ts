@@ -20,11 +20,7 @@ const MAX_CHANNELS_PER_PLACE = 100;
  * 기존 isGuest, isInvited, isCloudUser를 UserType으로 변환합니다.
  */
 const getUserType = (profile: UserProfile$ | null, isInvited: boolean, hasCloudToken: boolean): UserType => {
-    if (!profile) {
-        return UserType.TEMP_ACCOUNT;
-    }
-
-    const userRole = (profile.$user as { userRole?: string })?.userRole;
+    const userRole = (profile?.$user as { userRole?: string })?.userRole;
 
     // 케이스 4: 초대 유저 (guest → INVITED, user → INVITED_WITH_CLOUD)
     if (isInvited) {

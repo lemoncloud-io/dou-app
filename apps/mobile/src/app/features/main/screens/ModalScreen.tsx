@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { type RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { AppWebView } from '../../../common';
-import type { ModalScreenParams } from '../../../navigation';
+import type { ModalScreenParams } from '../../core/navigation';
+import { SimpleWebView } from '../../../webview/SimpleWebView';
+import { useResolvedTheme } from '../../../hooks';
 
 type ModalScreenRouteProp = RouteProp<{ params: ModalScreenParams }, 'params'>;
 
@@ -11,6 +12,9 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 export const ModalScreen = () => {
     const navigation = useNavigation();
     const route = useRoute<ModalScreenRouteProp>();
+
+    const { isDark } = useResolvedTheme();
+    const bgColor = isDark ? '#1E1E1E' : '#ffffff';
 
     const { url, type, heightRatio, dragHandle } = route.params;
     const isSheet: boolean = type === 'sheet';
@@ -74,7 +78,7 @@ export const ModalScreen = () => {
             <Animated.View
                 style={[
                     styles.container,
-                    { transform: [{ translateY: panY }] },
+                    { transform: [{ translateY: panY }], backgroundColor: bgColor },
                     isSheet
                         ? {
                               height: sheetHeight,
@@ -94,7 +98,7 @@ export const ModalScreen = () => {
                 )}
 
                 <View style={styles.webviewContainer}>
-                    <AppWebView source={{ uri: url }} />
+                    <SimpleWebView source={{ uri: url }} />
                 </View>
             </Animated.View>
         </View>

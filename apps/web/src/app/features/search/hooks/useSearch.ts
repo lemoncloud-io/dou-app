@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { logger } from '@chatic/bridges';
+import { useWebSocketV2Store } from '@chatic/socket';
 import { useDynamicProfile } from '@chatic/web-core';
+import { usePlaces } from '../../../shared/hooks';
 
 import { IndexedDBChannelAdapter } from '../../chats/storages/IndexedDBChannelAdapter';
 import { IndexedDBStorageAdapter } from '../../chats/storages/IndexedDBStorageAdapter';
-import { useMyChannels } from '../../home/hooks/useMyChannels';
-import { useMyPlaces } from '../../home/hooks/useMyPlaces';
+import { useChannels } from '../../../shared/hooks/useChannels';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
@@ -26,8 +28,9 @@ export const useSearch = (query: string) => {
     const profile = useDynamicProfile();
     const userId = profile?.uid ?? '';
 
-    const { places: apiPlaces } = useMyPlaces();
-    const { channels: apiChannels } = useMyChannels();
+    const { places: apiPlaces } = usePlaces();
+    const searchPlaceId = useWebSocketV2Store(s => s.selectedPlaceId) || '';
+    const { channels: apiChannels } = useChannels({ sid: searchPlaceId, detail: true });
 
     const [results, setResults] = useState<SearchResults>({ places: [], chats: [] });
     const [isSearching, setIsSearching] = useState(false);
@@ -91,7 +94,7 @@ export const useSearch = (query: string) => {
                     chats: chatResults,
                 });
             } catch (error) {
-                console.error('Search error:', error);
+                logger.error('SEARCH', 'Search error', { error });
                 setResults({ places: [], chats: [] });
             } finally {
                 setIsSearching(false);

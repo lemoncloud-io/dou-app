@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { cn } from '@chatic/lib/utils';
 
+import type { DragEndEvent } from '@dnd-kit/core';
 import {
     closestCenter,
     DndContext,
@@ -17,28 +17,40 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { cloudCore } from '@chatic/web-core';
+import { usePlaceMutations, usePlaces } from '../../../shared/hooks';
 
 import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../../chats/components/ConfirmDialog';
-import { useMyPlaces } from '../../home/hooks/useMyPlaces';
 import { SortablePlaceItem } from '../components';
-
-import type { DragEndEvent } from '@dnd-kit/core';
-import type { MySiteView } from '@lemoncloud/chatic-backend-api';
+import type { DomainSite } from '@chatic/data';
+import { logger } from '@chatic/bridges';
 
 export const PlaceOrderPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const { places, setPlaces } = useMyPlaces();
+    const { places: serverPlaces } = usePlaces();
+    const { updatePlaceOrder } = usePlaceMutations();
+    const [places, setPlaces] = useState<DomainSite[]>(serverPlaces);
+
+    useEffect(() => {
+        if (serverPlaces.length === 0) return;
+        const savedOrder = selectedCloudId ? cloudCore.getPlaceOrder(selectedCloudId) : null;
+        if (savedOrder) {
+            const orderMap = new Map(savedOrder.map((id, idx) => [id, idx]));
+            const sorted = [...serverPlaces].sort((a, b) => {
+                const ai = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+                const bi = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+                return ai - bi;
+            });
+            setPlaces(sorted);
+        } else {
+            setPlaces(serverPlaces);
+        }
+    }, [serverPlaces]);
 
     const myId = cloudCore.getCloudToken()?.id;
-    const [deleteTarget, setDeleteTarget] = useState<MySiteView | null>(null);
-    const [leaveTarget, setLeaveTarget] = useState<MySiteView | null>(null);
-    const [activeTab, setActiveTab] = useState<'my' | 'friend'>('my');
-
-    const myPlaces = places.filter(p => p.ownerId === myId);
-    const friendPlaces = places.filter(p => p.ownerId !== myId);
-    const activePlaces = activeTab === 'my' ? myPlaces : friendPlaces;
+    const [deleteTarget, setDeleteTarget] = useState<DomainSite | null>(null);
+    const [leaveTarget, setLeaveTarget] = useState<DomainSite | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -55,22 +67,34 @@ export const PlaceOrderPage = () => {
         useSensor(KeyboardSensor)
     );
 
+    const selectedCloudId = cloudCore.getSelectedCloudId();
+
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (!over || active.id === over.id) return;
 
-        const oldIndex = activePlaces.findIndex(item => item.id === active.id);
-        const newIndex = activePlaces.findIndex(item => item.id === over.id);
-        const reordered = arrayMove(activePlaces, oldIndex, newIndex);
-        const otherPlaces = activeTab === 'my' ? friendPlaces : myPlaces;
-        setPlaces(() => (activeTab === 'my' ? [...reordered, ...otherPlaces] : [...otherPlaces, ...reordered]));
+        const oldIndex = places.findIndex(item => item.id === active.id);
+        const newIndex = places.findIndex(item => item.id === over.id);
+        const reordered = arrayMove(places, oldIndex, newIndex);
+        setPlaces(reordered);
+
+        if (selectedCloudId) {
+            cloudCore.savePlaceOrder(
+                selectedCloudId,
+                reordered.map(p => p.id)
+            );
+            // 플레이스 순서 변경 요청
+            updatePlaceOrder(reordered.map(p => p.id)).catch(error => {
+                logger.error('Failed to update place order:', error);
+            });
+        }
     };
 
-    const handleSettings = (place: MySiteView) => {
+    const handleSettings = (place: DomainSite) => {
         navigate(`/places/${place.id}`);
     };
 
-    const handleDelete = (place: MySiteView) => {
+    const handleDelete = (place: DomainSite) => {
         setDeleteTarget(place);
     };
 
@@ -80,7 +104,7 @@ export const PlaceOrderPage = () => {
         setDeleteTarget(null);
     };
 
-    const handleLeave = (place: MySiteView) => {
+    const handleLeave = (place: DomainSite) => {
         setLeaveTarget(place);
     };
 
@@ -96,44 +120,20 @@ export const PlaceOrderPage = () => {
 
             {/* Place List */}
             <div className="flex-1 overflow-y-auto pt-[14px]">
-                {/* Tab Header */}
-                <div className="flex items-center gap-[10px] px-4 pb-[10px] pr-3">
-                    <button onClick={() => setActiveTab('my')}>
-                        <span
-                            className={cn(
-                                'text-[18px] font-semibold leading-[1.334] tracking-[-0.003em]',
-                                activeTab === 'my' ? 'text-foreground' : 'text-muted-foreground/40'
-                            )}
-                        >
-                            {t('placeOrder.myPlaces')}
-                        </span>
-                    </button>
-                    <button onClick={() => setActiveTab('friend')}>
-                        <span
-                            className={cn(
-                                'text-[18px] font-semibold leading-[1.334] tracking-[-0.003em]',
-                                activeTab === 'friend' ? 'text-foreground' : 'text-muted-foreground/40'
-                            )}
-                        >
-                            {t('placeOrder.friendPlaces')}
-                        </span>
-                    </button>
-                </div>
-
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
                     modifiers={[restrictToVerticalAxis]}
                     onDragEnd={handleDragEnd}
                 >
-                    <SortableContext items={activePlaces.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                    <SortableContext items={places.map(p => p.id)} strategy={verticalListSortingStrategy}>
                         <div className="flex flex-col gap-[5px]">
-                            {activePlaces.length > 0 ? (
-                                activePlaces.map(place => (
+                            {places.length > 0 ? (
+                                places.map(place => (
                                     <SortablePlaceItem
                                         key={place.id}
                                         place={place}
-                                        isOwner={activeTab === 'my'}
+                                        isOwner={place.ownerId === myId}
                                         onSettings={handleSettings}
                                         onDelete={handleDelete}
                                         onLeave={handleLeave}

@@ -102,23 +102,18 @@ graph TB
 
     subgraph Features["Feature Libraries"]
         AUTH[auth]
-        CHANNELS[channels]
         CHATS[chats]
-        PLACES[places]
         SOCKET[socket]
         USERS[users]
-        POUCHES[pouches]
-        DEEPLINKS[deeplinks]
         APPMSG[app-messages]
         DEVICE[device-utils]
         I18N[i18n-mobile]
     end
 
     WEB --> WEBCORE & UIKIT & SHARED & THEME
-    WEB --> AUTH & CHANNELS & CHATS & PLACES & SOCKET & USERS & POUCHES
+    WEB --> AUTH & CHATS & SOCKET & USERS
     ADMIN --> WEBCORE & UIKIT & SHARED & THEME
-    MOBILE --> SHARED & THEME & DEEPLINKS & SOCKET & DEVICE & I18N & APPMSG
-    LANDING --> DEEPLINKS
+    MOBILE --> SHARED & THEME & SOCKET & DEVICE & I18N & APPMSG
 ```
 
 ### Project Structure
@@ -139,15 +134,11 @@ dou-app/
 │   ├── shared/              # Common utilities and hooks
 │   ├── theme/               # Theme provider (dark/light)
 │   ├── auth/                # Authentication logic
-│   ├── channels/            # Channel management
 │   ├── chats/               # Chat functionality
-│   ├── places/              # Location-based features
 │   ├── socket/              # WebSocket integration
-│   ├── pouches/             # API utilities and hooks
 │   ├── users/               # User management
 │   ├── app-messages/        # Messaging types and stores
 │   ├── device-utils/        # Device info and stores
-│   ├── deeplinks/           # Deep linking utilities
 │   └── i18n-mobile/         # Mobile i18n setup
 ├── assets/                  # Shared images, logos, icons
 ├── scripts/                 # Build and deployment scripts

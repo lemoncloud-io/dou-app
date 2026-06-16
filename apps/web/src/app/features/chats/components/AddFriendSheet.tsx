@@ -2,11 +2,12 @@ import { Loader2, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
+import { logger } from '@chatic/bridges';
+import { reportError, toError } from '@chatic/web-core';
 import { Sheet, SheetContent } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useCreateInvite } from '../hooks/useCreateInvite';
+import { useCreateInviteBatch } from '../hooks';
 
 interface AddFriendSheetProps {
     open: boolean;
@@ -66,7 +67,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
     const [name, setName] = useState('');
     const [phoneDigits, setPhoneDigits] = useState('');
     const [phoneError, setPhoneError] = useState('');
-    const { createInvite, isPending } = useCreateInvite();
+    const { createSingleInvite, isPending } = useCreateInviteBatch();
 
     const handlePhoneChange = (value: string) => {
         const digits = value.replace(/\D/g, '').slice(0, PHONE_DIGITS_MAX);
@@ -91,51 +92,28 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
         onOpenChange(false);
     };
 
-    const copyToClipboard = async (url: string) => {
-        try {
-            await navigator.clipboard.writeText(url);
-            toast({ title: t('inviteFriends.linkCopied') });
-        } catch {
-            toast({ title: t('inviteFriends.shareFailed'), variant: 'destructive' });
-        }
-    };
-
     const handleShare = async () => {
         if (!channelId || !name.trim() || !phoneDigits) return;
         if (!validatePhone()) return;
 
         try {
-            const { deeplinkUrl } = await createInvite({
+            await createSingleInvite({
                 channelId,
                 name: name.trim(),
                 phone: phoneDigits,
             });
 
-            const { isOnMobileApp } = getMobileAppInfo();
-
-            // Copy to clipboard first
-            await copyToClipboard(deeplinkUrl);
-
-            // Mobile app: also open native share sheet
-            if (isOnMobileApp) {
-                postMessage({
-                    type: 'OpenShareSheet',
-                    data: {
-                        title: t('inviteFriends.shareTitle'),
-                        message: `${t('inviteFriends.shareMessage')}\n${deeplinkUrl}`,
-                    },
-                });
-            }
-
+            toast({ title: t('inviteFriends.batchSuccess', { count: 1 }) });
             resetAndClose();
         } catch (error) {
-            console.error('Failed to create invite:', error);
+            logger.error('INVITE', 'Failed to create invite', { error, data: { channelId } });
+            reportError(toError(error));
             const message =
                 error instanceof Error
                     ? error.message
                     : typeof error === 'object' && error !== null && 'message' in error
                       ? String(error.message)
-                      : t('inviteFriends.shareFailed');
+                      : t('inviteFriends.batchFailed');
             toast({ title: message, variant: 'destructive' });
         }
     };
@@ -148,6 +126,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                 side="bottom"
                 className="rounded-t-[20px] p-0 border-0 bg-background max-h-[85dvh] flex flex-col"
                 hideClose
+                style={{ transform: 'translateY(calc(-1 * var(--keyboard-height, 0px)))' }}
             >
                 <div className="shrink-0 flex items-center justify-between px-4 py-[14px]">
                     <span className="text-[16px] font-medium leading-[1.5] tracking-[-0.02em] text-foreground">
@@ -217,7 +196,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                     </div>
                     <div
                         className="shrink-0 touch-none bg-background"
-                        style={{ height: 'calc(var(--safe-bottom, 0px) + var(--keyboard-height, 0px))' }}
+                        style={{ height: 'var(--safe-bottom, 0px)' }}
                         onTouchMove={e => e.preventDefault()}
                     />
                 </div>

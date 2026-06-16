@@ -1,262 +1,72 @@
-export type PageLanguage = 'ko' | 'en' | 'cn' | 'jp' | 'vn' | 'id' | 'th';
-export type Env = 'local' | 'stage' | 'prod';
+/** 지원 플랫폼 타입 */
 export type Platform = 'ios' | 'android' | 'windows' | 'macos' | 'web';
 
-/**
- * 앱 로그 레벨
- */
+/** 앱 로그 레벨 */
 export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-/**
- * 앱 버전 정보
- */
-export interface VersionInfo {
-    /** @deprecated Use appVersion instead */
-    currentVersion: string;
-    latestVersion: string;
-    shouldUpdate: boolean;
-    /** 네이티브 앱 버전 (iOS/Android) */
-    appVersion: string;
-    /** 웹 버전 (__APP_VERSION__) */
-    webVersion: string;
-}
+/** 앱 로그 정보 구조 */
+export type AppLogInfo = {
+    tag: string; // 로그 식별 태그
+    message?: string; // 로그 메시지
+    data?: unknown; // 첨부 데이터
+    timestamp?: number; // 발생 시각 (ms)
+    level?: AppLogLevel; // 로그 레벨
+    error?: unknown; // 에러 객체
+};
 
-/**
- * 디바이스 정보
- */
-export interface DeviceInfo {
-    stage: Env;
-    platform: Platform;
-    application: string;
-    deviceToken?: string;
-    deviceId?: string | null;
-    deviceModel?: string | null;
-    installId?: string | null;
-    lang?: PageLanguage;
-}
-
-/**
- * Safe Area 정보 (노치, 홈 인디케이터 등)
- */
-export interface SafeAreaInfo {
-    top: number;
-    bottom: number;
-    left: number;
-    right: number;
-}
-
-/**
- * FCM 토큰 정보
- */
-export interface FcmTokenInfo {
-    token: string;
-}
-
-/**
- * 알림 정보
- * TODO: notification 스펙에 맞게 확장 필요
- * @author dev@example.com
- */
-export interface NotificationInfo {
-    title?: string;
-    body?: string;
-    data?: Record<string, any>;
-}
-
-/**
- * 앱 로그 정보
- * TODO: 로그 메시지 구조 디자인 필요
- * @author dev@example.com
- */
-export interface AppLogInfo {
-    tag: string;
-    message?: string;
-    data?: any;
-    timestamp?: number;
+/** [요청] Web -> App 로그 전달 페이로드 */
+export type SendLogPayload = {
     level?: AppLogLevel;
-    error?: any;
-}
+    tag?: string;
+    message: string;
+    data?: unknown;
+    error?: unknown;
+};
 
-/**
- * 미디어 에셋 정보 (이미지, 비디오 등)
- */
-export interface MediaAsset {
-    uri?: string;
-    fileName?: string;
-    type?: string;
-    width?: number;
-    height?: number;
-    fileSize?: number;
-    base64?: string;
-}
+/** [응답] Web -> App 로그 전달 완료 페이로드 */
+export type OnSendLogPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
 
-/**
- * 이메일 주소 정보
- */
-export interface EmailAddress {
-    label: string;
-    email: string;
-}
+/** [요청] 로그 버퍼 조회 페이로드 */
+export type FetchAppLogBufferPayload = {
+    count?: number;
+};
 
-/**
- * 전화번호 정보
- */
-export interface PhoneNumber {
-    label: string;
-    number: string;
-}
+/** [요청] 로그 버퍼 poll(조회+제거) 페이로드 */
+export type PollAppLogBufferPayload = {
+    count?: number;
+};
 
-/**
- * 주소 정보
- */
-export interface PostalAddress {
-    label: string;
-    formattedAddress: string;
-    street: string;
-    pobox: string;
-    neighborhood: string;
-    city: string;
-    region: string;
-    state: string;
-    postCode: string;
-    country: string;
-}
+/** [요청] 로그 버퍼 비우기 페이로드 */
+export type ClearAppLogBufferPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
 
-/**
- * 생일 정보
- */
-export interface Birthday {
-    day: number;
-    month: number;
-    year: number;
-}
+/** [요청] 로그 버퍼 크기 조회 페이로드 */
+export type FetchAppLogBufferSizePayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
 
-/**
- * 메신저 주소 정보
- */
-export interface InstantMessageAddress {
-    username: string;
-    service: string;
-}
+/** [응답] 로그 버퍼 조회 페이로드 */
+export type OnFetchAppLogBufferPayload = {
+    logs: AppLogInfo[];
+    size: number;
+};
 
-/**
- * URL 주소 정보
- */
-export interface UrlAddress {
-    label: string;
-    url: string;
-}
+/** [응답] 로그 버퍼 poll(조회+제거) 페이로드 */
+export type OnPollAppLogBufferPayload = {
+    logs: AppLogInfo[];
+    size: number;
+};
 
-/**
- * 연락처 정보
- */
-export interface ContactInfo {
-    recordID: string;
-    backTitle: string;
-    company: string | null;
-    emailAddresses: EmailAddress[];
-    displayName: string;
-    familyName: string;
-    givenName: string;
-    middleName: string;
-    jobTitle: string;
-    phoneNumbers: PhoneNumber[];
-    hasThumbnail: boolean;
-    thumbnailPath: string;
-    isStarred: boolean;
-    postalAddresses: PostalAddress[];
-    prefix: string;
-    suffix: string;
-    department: string;
-    birthday?: Birthday;
-    imAddresses: InstantMessageAddress[];
-    urlAddresses: UrlAddress[];
-    note: string;
-}
+/** [응답] 로그 버퍼 전체 비우기 페이로드 */
+export type OnClearAppLogBufferPayload = {
+    success: boolean;
+    size: number;
+};
 
-/**
- * 문서 정보
- */
-export interface DocumentInfo {
-    uri: string;
-    name?: string | null;
-    type?: string | null;
-    size?: number | null;
-    base64?: string;
-}
-
-/**
- * 앱 권한 타입
- */
-export type AppPermissionType = 'CONTACTS' | 'NOTIFICATIONS' | 'CAMERA' | 'PHOTO_LIBRARY';
-
-/**
- * 권한 상태
- * - GRANTED: 허용됨
- * - DENIED: 거부됨 (다시 요청 가능)
- * - BLOCKED: 차단됨 (설정에서 변경 필요)
- * - UNAVAILABLE: 사용 불가 (하드웨어 미지원 등)
- */
-export type PermissionStatus = 'GRANTED' | 'DENIED' | 'BLOCKED' | 'UNAVAILABLE';
-
-/**
- * 공유 결과 정보
- */
-export interface ShareInfo {
-    /**
-     * -  공유 액션 결과
-     * - sharedAction: 공유됨 (Android 는 항상 해당 값 고정)
-     * - dismissedAction: 취소됨 - iOS 전용)
-     */
-    action: 'sharedAction' | 'dismissedAction';
-    /**
-     * - 공유 활동 유형 (iOS 전용, 예: com.apple.UIKit.activity.CopyToPasteboard)
-     */
-    activityType?: string | null;
-}
-
-/**
- * 로그인 제공자
- */
-export type OAuthLoginProvider = 'google' | 'apple';
-
-interface BaseTokenResult {
-    platform: Platform;
-    provider: OAuthLoginProvider;
-}
-
-export interface GoogleOAuthTokenResult extends BaseTokenResult {
-    provider: 'google';
-    idToken: string;
-    accessToken?: string;
-    accessTokenExpiredAt?: string;
-    serverAuthCode?: string;
-    refreshToken?: string;
-}
-
-export interface AppleOAuthTokenResult extends BaseTokenResult {
-    provider: 'apple';
-    identityToken: string;
-    nonce?: string;
-    user: string;
-    email?: string;
-    fullName?: {
-        givenName?: string | null;
-        familyName?: string | null;
-        namePrefix?: string | null;
-        nameSuffix?: string | null;
-        nickname?: string | null;
-        middleName?: string | null;
-    };
-    authorizationCode?: string;
-}
-
-export type OAuthTokenResult = GoogleOAuthTokenResult | AppleOAuthTokenResult;
-
-/**
- * 앱 백그라운드/포그라운드 상태
- * - active: 앱이 포그라운드에서 실행 중
- * - background: 앱이 백그라운드에 숨겨짐
- * - inactive: (iOS) 전화가 오거나 알림창을 내리는 등 전환 중인 상태
- */
-export type AppBackgroundStatus = 'active' | 'background' | 'inactive';
+/** [응답] 로그 버퍼 크기 조회 페이로드 */
+export type OnFetchAppLogBufferSizePayload = {
+    size: number;
+};

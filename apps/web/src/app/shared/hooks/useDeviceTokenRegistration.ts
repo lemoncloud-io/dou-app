@@ -1,10 +1,18 @@
 import { useEffect, useRef } from 'react';
 
-import { postMessage, useHandleAppMessage } from '@chatic/app-messages';
+import { webClient } from '@chatic/bridges';
+import { useOnFetchFcmToken } from './useHandleAppMessage';
 import { useWebCoreStore } from '@chatic/web-core';
 import { useRegisterDeviceToken } from '@chatic/users';
 
-import { useDynamicDeviceId } from './useDynamicDeviceId';
+import { useDynamicDeviceId } from '@chatic/app-runtime';
+
+// TODO: @chatic/bridges에서 임포트할 logger 변수 임시 사용 또는 console 대체
+const appLogger = {
+    info: (tag: string, msg: string, ...args: any[]) => console.log(`[${tag}] ${msg}`, ...args),
+    debug: (tag: string, msg: string, ...args: any[]) => console.debug(`[${tag}] ${msg}`, ...args),
+    error: (tag: string, msg: string, ...args: any[]) => console.error(`[${tag}] ${msg}`, ...args),
+};
 
 declare global {
     interface Window {
@@ -28,24 +36,28 @@ export const useDeviceTokenRegistration = () => {
         if (hasRegistered.current) return;
 
         isHandlerReady.current = true;
-        console.log('[DeviceToken] isAppEnv detected, requesting FetchFcmToken...');
-        postMessage({ type: 'FetchFcmToken' });
+        appLogger.info('DEVICE_TOKEN', '[DeviceToken] isAppEnv detected, requesting FetchFcmToken');
+        webClient.post({ type: 'FetchFcmToken', data: {} });
     }, [isAuthenticated]);
 
-    useHandleAppMessage('OnFetchFcmToken', async message => {
-        console.log('[DeviceToken] OnFetchFcmToken received:', message.data);
+    useOnFetchFcmToken(async message => {
+        appLogger.info('DEVICE_TOKEN', '[DeviceToken] OnFetchFcmToken received', { hasToken: !!message.data.token });
         if (!isAuthenticated) {
-            console.log('[DeviceToken] not authenticated, skip');
+            appLogger.info('DEVICE_TOKEN', '[DeviceToken] not authenticated, skip');
             return;
         }
         const newToken = message.data.token;
         if (!newToken) return;
 
         const storedToken = localStorage.getItem(DEVICE_TOKEN_STORAGE_KEY);
-        console.log('[DeviceToken] received token:', newToken, '/ stored:', storedToken);
+        appLogger.debug('DEVICE_TOKEN', '[DeviceToken] received token', {
+            hasNewToken: !!newToken,
+            hasStoredToken: !!storedToken,
+            isChanged: storedToken !== newToken,
+        });
 
         if (storedToken === newToken) {
-            console.log('[DeviceToken] token unchanged, skip register');
+            appLogger.info('DEVICE_TOKEN', '[DeviceToken] token unchanged, skip register');
             return;
         }
 
@@ -54,14 +66,14 @@ export const useDeviceTokenRegistration = () => {
                 deviceId,
                 deviceToken: newToken,
                 platform: window.CHATIC_APP_PLATFORM,
-                installId: window.CHATIC_APP_INSTALL_ID,
+                installId: window.CHATIC_APP_INSTALLATION_ID,
                 application: 'chatic',
             });
             localStorage.setItem(DEVICE_TOKEN_STORAGE_KEY, newToken);
             hasRegistered.current = true;
-            console.log('[DeviceToken] register success');
+            appLogger.info('DEVICE_TOKEN', '[DeviceToken] register success');
         } catch (error) {
-            console.error('[DeviceToken] register failed:', error);
+            appLogger.error('DEVICE_TOKEN', '[DeviceToken] register failed', { error });
         }
     });
 };

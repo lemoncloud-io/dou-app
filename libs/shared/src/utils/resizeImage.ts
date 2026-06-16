@@ -1,4 +1,4 @@
-export const resizeImageToBase64 = (file: File, size = 50): Promise<string> =>
+export const resizeImageToBase64 = (file: File, size = 150): Promise<string> =>
     new Promise((resolve, reject) => {
         const img = new Image();
         const url = URL.createObjectURL(file);

@@ -3,11 +3,13 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 
+import { useUserContext } from '@chatic/web-core';
 import { PageHeader } from '../../../shared/components';
 
 export const AccountInfoPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
+    const { permissions } = useUserContext();
 
     return (
         <div className="flex h-full flex-col bg-background pt-safe-top">
@@ -26,6 +28,17 @@ export const AccountInfoPage = () => {
                         </span>
                         <ChevronRight size={18} className="text-muted-foreground" />
                     </button>
+                    {permissions.useCloudProfile && (
+                        <button
+                            onClick={() => navigate('/mypage/cloud-profile')}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <span className="text-[15px] font-medium text-foreground">
+                                {t('mypage.accountInfo.cloudProfileEdit')}
+                            </span>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                    )}
                 </div>
 
                 {/* Withdrawal Card */}

@@ -1,16 +1,11 @@
-import { User, Users } from 'lucide-react';
+import { RefreshCw, User, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 
-import { useWebSocketV2Store } from '@chatic/socket';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { cloudCore, useDynamicProfile } from '@chatic/web-core';
-
-import { useUnreadCount } from '../../chats/hooks/useUnreadCount';
-import { useMyChannels } from '../hooks/useMyChannels';
-
-import type { ChannelView } from '@lemoncloud/chatic-socials-api';
+import { useAppPreferenceStore, useUserContext } from '@chatic/web-core';
+import type { DomainChannel } from '@chatic/data';
 
 const ChannelSkeleton = () => (
     <div className="flex items-start gap-2 rounded-[6px] px-[2px] py-2">
@@ -22,11 +17,12 @@ const ChannelSkeleton = () => (
     </div>
 );
 
-const ChannelItem = ({ channel }: { channel: ChannelView }) => {
+const ChannelItem = ({ channel }: { channel: DomainChannel }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const profile = useDynamicProfile();
-    const unreadCount = useUnreadCount(profile?.uid ?? null, channel.id ?? '');
+    const blurLastMessage = useAppPreferenceStore(s => s.blurLastMessage);
+    const { currentWSS } = useUserContext();
+    const unreadCount = channel.unreadCount ?? 0;
     const isSelf = channel.memberNo === 1;
 
     const formatTime = (dateValue?: string | number) => {
@@ -47,7 +43,9 @@ const ChannelItem = ({ channel }: { channel: ChannelView }) => {
             {/* Avatar */}
             <div className="relative flex-shrink-0">
                 <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                    {isSelf ? (
+                    {channel.thumbnail ? (
+                        <img src={channel.thumbnail} alt="" className="h-full w-full object-cover" />
+                    ) : isSelf ? (
                         <User size={20} className="text-muted-foreground" />
                     ) : (
                         <Users size={20} className="text-muted-foreground" />
@@ -64,16 +62,18 @@ const ChannelItem = ({ channel }: { channel: ChannelView }) => {
             <div className="flex min-w-0 flex-1 gap-2">
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-[6px]">
-                        {isSelf && (
+                        {currentWSS === 'relay' && isSelf && (
                             <span className="rounded-[3px] bg-[#102346] px-[5px] py-[3px] text-[11px] font-medium leading-none text-white">
                                 MY
                             </span>
                         )}
                         <span className="truncate text-[15px] font-semibold tracking-[-0.025em] text-foreground">
-                            {isSelf ? t('channelList.selfChannel') : channel.name || t('channelList.unnamedChannel')}
+                            {channel.name || (isSelf ? t('channelList.selfChannel') : t('channelList.unnamedChannel'))}
                         </span>
                     </div>
-                    <p className="mt-1 truncate text-[13.5px] leading-[1.2] tracking-[-0.025em] text-muted-foreground">
+                    <p
+                        className={`mt-1 truncate text-[13.5px] leading-[1.2] tracking-[-0.025em] text-muted-foreground${blurLastMessage ? ' select-none blur-[5px]' : ''}`}
+                    >
                         {channel.lastChat$?.content || channel.desc || t('channelList.noDescription')}
                     </p>
                 </div>
@@ -95,30 +95,44 @@ const ChannelItem = ({ channel }: { channel: ChannelView }) => {
 };
 
 interface ChannelListProps {
-    workspaceId?: string;
+    channels: DomainChannel[];
+    isLoading: boolean;
+    isSyncing: boolean;
+    isError: boolean;
+    errorMessage: string | null;
+    onRefreshChannels: () => void;
     showCreateButton?: boolean;
-    isChannelsLoading?: boolean;
     onCreateChannel?: () => void;
     channelLimit?: number;
 }
 
 export const ChannelList = ({
-    workspaceId: _workspaceId,
+    channels,
+    isLoading,
+    isSyncing,
+    isError,
+    errorMessage,
+    onRefreshChannels: refresh,
     showCreateButton,
-    isChannelsLoading: _isChannelsLoading,
     onCreateChannel,
     channelLimit,
 }: ChannelListProps) => {
     const { t } = useTranslation();
-    const { channels, isLoading, isError, retry } = useMyChannels();
-    const wssType = useWebSocketV2Store(s => s.wssType);
-    const hasSelectedPlace = wssType !== 'cloud' || !!cloudCore.getSelectedPlaceId();
-
-    if (!hasSelectedPlace) return null;
 
     const header = (
         <div className="mb-[18px] flex items-center justify-between">
-            <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">Chat</span>
+            <div className="flex items-center gap-2">
+                <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
+                    Chat
+                </span>
+                <button
+                    onClick={() => refresh()}
+                    disabled={isSyncing}
+                    className="flex h-[24px] w-[24px] items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                >
+                    <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+                </button>
+            </div>
             {showCreateButton && (
                 <div className="flex items-center gap-[6px]">
                     {channelLimit != null && (
@@ -150,25 +164,30 @@ export const ChannelList = ({
         </div>
     );
 
-    if (isLoading) {
+    if (isError) {
+        return (
+            <div className="flex flex-col items-center gap-2 py-8">
+                {header}
+                <p className="text-sm text-destructive">{t('channelList.errorLoading')}</p>
+                {errorMessage && (
+                    <p className="max-w-[280px] break-words text-center text-xs text-muted-foreground">
+                        {errorMessage}
+                    </p>
+                )}
+                <button onClick={() => refresh()} className="text-sm text-primary underline">
+                    {t('channelList.retry')}
+                </button>
+            </div>
+        );
+    }
+
+    if (!channels.length && (isLoading || isSyncing)) {
         return (
             <div className="space-y-0">
                 {header}
                 <ChannelSkeleton />
                 <ChannelSkeleton />
                 <ChannelSkeleton />
-            </div>
-        );
-    }
-
-    if (isError) {
-        return (
-            <div className="flex flex-col items-center gap-2 py-8">
-                {header}
-                <p className="text-sm text-destructive">{t('channelList.errorLoading')}</p>
-                <button onClick={retry} className="text-sm text-primary underline">
-                    {t('channelList.retry')}
-                </button>
             </div>
         );
     }
@@ -183,12 +202,14 @@ export const ChannelList = ({
     }
 
     return (
-        <div>
+        <div className="flex min-h-0 flex-1 flex-col">
             {header}
-            <div className="flex flex-col gap-[18px] px-1">
-                {channels.map(channel => (
-                    <ChannelItem key={channel.id} channel={channel} />
-                ))}
+            <div className="flex-1 overflow-y-auto">
+                <div className="flex flex-col gap-[18px] px-1">
+                    {channels.map((channel: DomainChannel) => (
+                        <ChannelItem key={channel.id} channel={channel} />
+                    ))}
+                </div>
             </div>
         </div>
     );

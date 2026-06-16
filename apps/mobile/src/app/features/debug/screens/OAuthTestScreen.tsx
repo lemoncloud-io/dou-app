@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -10,9 +10,9 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { oAuthService } from '../../../common';
-import { logger } from '../../../common';
 import type { OAuthLoginProvider, OAuthTokenResult } from '@chatic/app-messages';
+import { useServices } from '../../../hooks';
+import { useDebugTheme } from '../theme';
 
 type LogType = 'info' | 'error' | 'success' | 'warn';
 
@@ -21,16 +21,46 @@ interface LogItem {
     type: LogType;
     message: string;
     timestamp: string;
-    data?: any;
+    data?: any; // Using 'any' for debug screen flexibility, as data can be various types.
 }
 
 export const OAuthTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const colors = useDebugTheme();
+    const { oauthService: oAuthService, logService: logger } = useServices();
     const [result, setResult] = useState<OAuthTokenResult | null>(null);
     const [loading, setLoading] = useState<OAuthLoginProvider | 'logout' | null>(null);
     const [logs, setLogs] = useState<LogItem[]>([]);
     const [isExpanded, setIsExpanded] = useState(true);
     const flatListRef = useRef<FlatList>(null);
+
+    const addLog = useCallback(
+        (type: LogType, message: string, data?: any) => {
+            // Using 'any' for debug screen flexibility
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ko-KR', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+            });
+
+            const newLog: LogItem = {
+                id: Date.now().toString() + Math.random(),
+                type,
+                message,
+                timestamp: timeString,
+                data,
+            };
+
+            setLogs(prev => [...prev, newLog]);
+
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        },
+        [flatListRef]
+    );
 
     useEffect(() => {
         const unsubscribe = logger.subscribe((level, tag, message, data, error) => {
@@ -47,55 +77,37 @@ export const OAuthTestScreen = () => {
         return () => {
             unsubscribe();
         };
-    }, []);
+    }, [logger, addLog]); // `addLog` is now declared before this useEffect
 
-    const addLog = (type: LogType, message: string, data?: any) => {
-        const now = new Date();
-        const timeString = now.toLocaleTimeString('ko-KR', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-        });
-
-        const newLog: LogItem = {
-            id: Date.now().toString() + Math.random(),
-            type,
-            message,
-            timestamp: timeString,
-            data,
-        };
-
-        setLogs(prev => [...prev, newLog]);
-
-        setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-    };
-
-    const handleLogin = async (provider: OAuthLoginProvider) => {
-        setLoading(provider);
-        setResult(null);
-        try {
-            const tokenResult = await oAuthService.login(provider);
-            if (tokenResult) {
-                setResult(tokenResult);
-                addLog('success', `${provider} Login Result`, tokenResult);
-            }
-        } finally {
-            setLoading(null);
-        }
-    };
-
-    const handleLogout = async (provider: OAuthLoginProvider) => {
-        setLoading('logout');
-        try {
-            await oAuthService.logout(provider);
+    const handleLogin = useCallback(
+        async (provider: OAuthLoginProvider) => {
+            setLoading(provider);
             setResult(null);
-        } finally {
-            setLoading(null);
-        }
-    };
+            try {
+                const tokenResult = await oAuthService.login(provider);
+                if (tokenResult) {
+                    setResult(tokenResult);
+                    addLog('success', `${provider} Login Result`, tokenResult);
+                }
+            } finally {
+                setLoading(null);
+            }
+        },
+        [addLog, oAuthService, setLoading, setResult]
+    );
+
+    const handleLogout = useCallback(
+        async (provider: OAuthLoginProvider) => {
+            setLoading('logout');
+            try {
+                await oAuthService.logout(provider);
+                setResult(null);
+            } finally {
+                setLoading(null);
+            }
+        },
+        [oAuthService, setLoading, setResult]
+    );
 
     const togglePanel = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -110,33 +122,39 @@ export const OAuthTestScreen = () => {
 
         return (
             <View style={styles.logRow}>
-                <View style={styles.logHeader}>
+                <View style={[styles.logHeader, { backgroundColor: colors.surface }]}>
                     <Text style={styles.logTime}>[{item.timestamp}]</Text>
                     <Text style={[styles.logText, { color }]}>{item.message}</Text>
                 </View>
-                {item.data && <Text style={styles.logData}>{JSON.stringify(item.data, null, 2)}</Text>}
+                {item.data && (
+                    <Text style={[styles.logData, { color: colors.mutedText }]}>
+                        {JSON.stringify(item.data, null, 2)}
+                    </Text>
+                )}
             </View>
         );
     };
 
     return (
-        <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
+        <View style={[styles.screen, { paddingBottom: insets.bottom, backgroundColor: colors.background }]}>
             {/* 상단 컨트롤 패널 */}
-            <View style={styles.controlPanel}>
+            <View style={[styles.controlPanel, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                 <TouchableOpacity style={styles.panelHeader} onPress={togglePanel} activeOpacity={0.7}>
                     <View style={styles.statusRow}>
                         <View style={[styles.dot, { backgroundColor: result ? '#50E3C2' : '#888' }]} />
-                        <Text style={styles.statusText}>{result ? 'Authenticated' : 'Not Authenticated'}</Text>
+                        <Text style={[styles.statusText, { color: colors.text }]}>
+                            {result ? 'Authenticated' : 'Not Authenticated'}
+                        </Text>
                     </View>
-                    <Text style={styles.toggleIcon}>{isExpanded ? '▲' : '▼'}</Text>
+                    <Text style={[styles.toggleIcon, { color: colors.subtleText }]}>{isExpanded ? '▲' : '▼'}</Text>
                 </TouchableOpacity>
 
                 {isExpanded && result && (
                     <View style={styles.infoContainer}>
-                        <View style={styles.dividerHorizontal} />
+                        <View style={[styles.dividerHorizontal, { backgroundColor: colors.border }]} />
                         <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Provider:</Text>
-                            <Text style={styles.infoValue}>{result.provider}</Text>
+                            <Text style={[styles.infoLabel, { color: colors.mutedText }]}>Provider:</Text>
+                            <Text style={[styles.infoValue, { color: colors.text }]}>{result.provider}</Text>
                         </View>
                         <View style={styles.infoRow}>
                             <Text style={styles.infoLabel}>Platform:</Text>
@@ -182,13 +200,15 @@ export const OAuthTestScreen = () => {
                 data={logs}
                 keyExtractor={item => item.id}
                 renderItem={renderLogItem}
-                style={styles.logList}
+                style={[styles.logList, { backgroundColor: colors.logBackground }]}
                 contentContainerStyle={styles.logContent}
-                ListEmptyComponent={<Text style={styles.emptyText}>로그 대기 중...</Text>}
+                ListEmptyComponent={
+                    <Text style={[styles.emptyText, { color: colors.subtleText }]}>로그 대기 중...</Text>
+                }
             />
 
             {/* 하단 액션 버튼 */}
-            <View style={styles.bottomContainer}>
+            <View style={[styles.bottomContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                 <View style={styles.actionContainer}>
                     {/* Google */}
                     <TouchableOpacity

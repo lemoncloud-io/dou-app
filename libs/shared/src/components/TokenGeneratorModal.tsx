@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Check, Copy, Dices, Key, Loader2 } from 'lucide-react';
 
+import { logger } from '@chatic/bridges';
 import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
@@ -136,7 +137,7 @@ export const TokenGeneratorModal = ({
             const response = await generateToken(request);
             setGeneratedToken(response.token);
         } catch (error) {
-            console.error('[TokenGenerator] Failed to generate token:', error);
+            logger.error('TOKEN_GENERATOR', '[TokenGenerator] Failed to generate token', { error });
             setApiError(t('authTest.generateToken.error.failed'));
         } finally {
             setIsLoading(false);
@@ -151,7 +152,7 @@ export const TokenGeneratorModal = ({
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch (error) {
-            console.error('[TokenGenerator] Failed to copy:', error);
+            logger.error('TOKEN_GENERATOR', '[TokenGenerator] Failed to copy', { error });
         }
     }, [generatedToken]);
 

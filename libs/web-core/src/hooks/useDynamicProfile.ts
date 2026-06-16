@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import { cloudCore } from '../core';
 import { useWebCoreStore } from '../stores/useWebCoreStore';
 import { useUserContext } from './useUserContext';
@@ -11,13 +13,20 @@ export const useDynamicProfile = (): UserProfile$ | null => {
 
     const cloudToken = cloudCore.getCloudToken();
 
-    const isCloudProfile = userType !== UserType.TEMP_ACCOUNT;
-    if (!isCloudProfile || !cloudToken) return profile;
+    return useMemo(() => {
+        const isCloudProfile = userType !== UserType.TEMP_ACCOUNT;
+        if (!isCloudProfile || !cloudToken) return profile;
 
-    const { Token, ...cloudProfile } = cloudToken;
-    return {
-        ...cloudProfile,
-        uid: cloudProfile.uid ?? cloudProfile.id,
-        $user: (cloudProfile as unknown as UserProfile$).$user ?? profile?.$user,
-    } as unknown as UserProfile$;
+        const { Token, ...cloudProfile } = cloudToken;
+        const cloudThumbnail = (cloudProfile as Record<string, unknown>).photo as string | undefined;
+        return {
+            ...cloudProfile,
+            uid: cloudProfile.uid ?? cloudProfile.id,
+            $user: {
+                ...profile?.$user,
+                ...cloudProfile,
+                ...(cloudThumbnail ? { photo: cloudThumbnail } : { photo: '' }),
+            },
+        } as unknown as UserProfile$;
+    }, [profile, userType, cloudToken]);
 };

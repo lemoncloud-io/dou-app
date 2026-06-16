@@ -1,52 +1,41 @@
 import React from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import type { HomeScreenProps } from '../navigation';
+import { FEATURE_TEST_MENU_SECTION, type DebugOverlayScreenKey } from '../debugMenu';
+import { useDebugTheme } from '../theme';
 
-export const DebugHomeScreen = ({ navigation }: HomeScreenProps) => {
-    const renderMenuItem = (title: string, onPress: () => void) => (
-        <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
-            <Text style={styles.menuText}>{title}</Text>
-            <Text style={styles.menuArrow}>{'>'}</Text>
+interface DebugHomeScreenProps {
+    onSelect: (screen: DebugOverlayScreenKey) => void;
+}
+
+export const DebugHomeScreen = ({ onSelect }: DebugHomeScreenProps) => {
+    const colors = useDebugTheme();
+
+    const renderMenuItem = (key: string, title: string, onPress: () => void) => (
+        <TouchableOpacity
+            key={key}
+            style={[styles.menuItem, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
+            onPress={onPress}
+            activeOpacity={0.7}
+        >
+            <Text style={[styles.menuText, { color: colors.text }]}>{title}</Text>
+            <Text style={[styles.menuArrow, { color: colors.subtleText }]}>{'>'}</Text>
         </TouchableOpacity>
     );
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
-            <StatusBar barStyle="light-content" backgroundColor="#121212" />
-
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>테스트 메뉴</Text>
-
-                    {renderMenuItem('소켓 테스트', () => {
-                        navigation.navigate('SocketTest');
-                    })}
-                    {renderMenuItem('인앱결제 테스트', () => {
-                        navigation.navigate('InAppPurchaseTest');
-                    })}
-                    {renderMenuItem('알림 테스트', () => {
-                        navigation.navigate('NotificationTest');
-                    })}
-                    {renderMenuItem('딥링크 테스트', () => {
-                        navigation.navigate('DeeplinkTest');
-                    })}
-                    {renderMenuItem('디바이스 기능 테스트', () => {
-                        navigation.navigate('DeviceTest');
-                    })}
-                    {renderMenuItem('브릿지 테스트', () => {
-                        navigation.navigate('BridgeTest');
-                    })}
-                    {renderMenuItem('OAuth 테스트', () => {
-                        navigation.navigate('OAuthTest');
-                    })}
-                    {renderMenuItem('스토리지 테스트', () => {
-                        navigation.navigate('StorageTest');
-                    })}
+                    <Text style={[styles.sectionTitle, { color: colors.subtleText }]}>
+                        {FEATURE_TEST_MENU_SECTION.title}
+                    </Text>
+                    {FEATURE_TEST_MENU_SECTION.items.map(item =>
+                        renderMenuItem(item.key, item.title, () => onSelect(item.key))
+                    )}
                 </View>
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 };
 
@@ -75,8 +64,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingVertical: 16,
         paddingHorizontal: 16,
-        backgroundColor: '#1E1E1E',
-        marginBottom: 1,
+        borderBottomWidth: 1,
     },
     menuText: {
         color: '#FFFFFF',

@@ -3,23 +3,26 @@ import { useTranslation } from 'react-i18next';
 
 import { useQueryClient } from '@tanstack/react-query';
 
-import { AlertCircle, Check, Loader2, Plus, User, X } from 'lucide-react';
+import { AlertCircle, Check, Home, Loader2, Pencil, Plus, User, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { useInterval } from '@chatic/shared';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudCore, useLocalProfileStore, useWebCoreStore } from '@chatic/web-core';
+import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { useWebSocketV2Store } from '@chatic/socket';
 import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
 import { cloudsKeys } from '@chatic/users';
 
-import { useCloudSession } from '../../../shared/hooks/useCloudSession';
+import { useCloudSession } from '@chatic/app-runtime';
+import { useCloudSwitchFlow } from '../../../shared/hooks/useCloudSwitchFlow';
 import { useInviteClouds } from '../../../shared/hooks/useInviteClouds';
+import { CloudNameEditDialog } from './CloudNameEditDialog';
 import { SubscriptionSelectDialog } from './SubscriptionSelectDialog';
 import { SubscriptionRequiredDialog } from './SubscriptionRequiredDialog';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
-import type { InviteCloudView } from '@chatic/app-messages';
+import type { DomainInviteCloud } from '@chatic/data';
 
 // --- Shared Styles ---
 
@@ -30,22 +33,26 @@ const CLOUD_AVATAR_CLASS =
 // --- Profile Section ---
 
 const ProfileSection = () => {
-    const { profile } = useWebCoreStore();
-    const localProfile = useLocalProfileStore();
-    const name = profile?.name ?? localProfile.name ?? '';
-    const imageUrl = localProfile.imageData ?? profile?.imageUrl;
+    const profile = useWebCoreStore(s => s.profile);
+
+    const name = profile?.$user?.name;
     const email = profile?.$user?.email ?? '';
+    const photo = profile?.$user?.photo;
 
     return (
         <div className="flex flex-col items-center gap-[9px] py-4">
-            <div className="rounded-full bg-gradient-to-br from-[#A855F7] to-[#6366F1] p-[2px]">
-                <div className="flex h-[54px] w-[54px] items-center justify-center overflow-hidden rounded-full border-2 border-background bg-secondary">
-                    {imageUrl ? (
-                        <img src={imageUrl} alt="Profile" className="h-full w-full object-cover" />
-                    ) : (
-                        <User size={20} className="text-placeholder" />
-                    )}
-                </div>
+            <div className="flex h-[54px] w-[54px] items-center justify-center overflow-hidden rounded-full border border-background bg-secondary">
+                {photo ? (
+                    <img
+                        src={photo}
+                        alt={name}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-full w-full object-cover"
+                    />
+                ) : (
+                    <User size={20} className="text-placeholder" />
+                )}
             </div>
             <div className="flex flex-col items-center gap-[2px]">
                 <span className="text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-foreground">
@@ -95,9 +102,10 @@ interface CloudItemProps {
     isDisabled: boolean;
     onSelectCloud: (cloudId: string) => void;
     onErrorClick: () => void;
+    onEditCloud?: (cloud: CloudView) => void;
 }
 
-const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick }: CloudItemProps) => {
+const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick, onEditCloud }: CloudItemProps) => {
     const { t } = useTranslation();
     const isError = cloud.status === 'error';
     const isActive = cloud.status === 'active';
@@ -140,6 +148,18 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick 
                             <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
                                 {displayName}
                             </span>
+                            {isActive && onEditCloud && (
+                                <button
+                                    type="button"
+                                    onClick={e => {
+                                        e.stopPropagation();
+                                        onEditCloud(cloud);
+                                    }}
+                                    className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+                                >
+                                    <Pencil size={14} />
+                                </button>
+                            )}
                             <CloudStatusBadge status={cloud.status} />
                         </div>
                     ) : (
@@ -169,14 +189,27 @@ const CloudItem = ({ cloud, isSelected, isDisabled, onSelectCloud, onErrorClick 
 
 // --- Invite Cloud Item ---
 
-const InviteCloudItem = ({ inviteCloud, isSelected }: { inviteCloud: InviteCloudView; isSelected: boolean }) => {
+interface InviteCloudItemProps {
+    inviteCloud: DomainInviteCloud;
+    isSelected: boolean;
+    isDisabled: boolean;
+    onSelectCloud: (cloudId: string) => void;
+}
+
+const InviteCloudItem = ({ inviteCloud, isSelected, isDisabled, onSelectCloud }: InviteCloudItemProps) => {
     const displayName = inviteCloud.name ?? inviteCloud.id ?? '';
+    const disabled = isDisabled || isSelected;
 
     return (
-        <div
+        <button
+            onClick={() => {
+                if (!disabled && inviteCloud.id) onSelectCloud(inviteCloud.id);
+            }}
+            disabled={disabled}
             className={cn(
-                'flex items-center gap-[5px] rounded-xl px-2 py-2 transition-colors',
-                isSelected && SELECTED_HIGHLIGHT
+                'flex w-full items-center gap-[5px] rounded-xl px-2 py-2 transition-colors',
+                isSelected && SELECTED_HIGHLIGHT,
+                disabled && !isSelected && 'cursor-not-allowed opacity-60'
             )}
         >
             <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center">
@@ -195,7 +228,7 @@ const InviteCloudItem = ({ inviteCloud, isSelected }: { inviteCloud: InviteCloud
                     </span>
                 </div>
             </div>
-        </div>
+        </button>
     );
 };
 
@@ -254,14 +287,16 @@ const TabBar = ({ tab, onChange, inviteCount }: { tab: Tab; onChange: (t: Tab) =
 interface CloudSessionSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onCloudSwitchComplete?: (placeId: string) => void;
 }
 
-export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps) => {
+export const CloudSessionSheet = ({ open, onOpenChange, onCloudSwitchComplete }: CloudSessionSheetProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const queryClient = useQueryClient();
-    const { selectCloud, isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
+    const { isPending, clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSession();
     const { inviteClouds } = useInviteClouds();
+    const { switchCloud } = useCloudSwitchFlow({ onPlaceSelected: onCloudSwitchComplete });
 
     const { isAvailable: isSubscriptionAvailable } = useIsSubscriptionAvailable();
     const [selectedId, setSelectedId] = useState<string | null>(cloudCore.getSelectedCloudId());
@@ -269,6 +304,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const [isSubscriptionSelectOpen, setIsSubscriptionSelectOpen] = useState(false);
     const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
     const [tab, setTab] = useState<Tab>('my');
+    const [editingCloud, setEditingCloud] = useState<CloudView | null>(null);
 
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
     const prevCloudStatusesRef = useRef<Map<string, NonNullable<CloudView['status']>>>(new Map());
@@ -307,16 +343,26 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     };
 
     const handleSelectCloud = async (cloudId: string) => {
+        const previousCloudId = selectedId;
+        handleClose();
         try {
-            await selectCloud(cloudId);
+            await switchCloud(cloudId);
             setSelectedId(cloudId);
-            handleClose();
-        } catch (e) {
-            console.error('[CloudSessionSheet] selectCloud failed:', e);
-            toast({ title: t('cloudSessionSheet.switchFailed'), variant: 'destructive' });
+        } catch {
+            // 에러 로깅과 toast는 useCloudSwitchFlow 내부에서 처리됨
+            // 롤백 후 이전 cloud 선택 상태 복원
+            setSelectedId(previousCloudId);
         }
     };
 
+    const handleSwitchToDefault = () => {
+        cloudCore.clearDelegationToken();
+        useWebSocketV2Store.getState().setIsVerified(false);
+        setSelectedId('default');
+        handleClose();
+    };
+
+    const isDefaultSelected = !selectedId || selectedId === 'default';
     const isLoading = isFetchingClouds && clouds.length === 0;
 
     return (
@@ -339,8 +385,20 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                     {/* Profile */}
                     <ProfileSection />
 
+                    {/* Disconnect Cloud Link — 클라우드 연결 중일 때만 표시 */}
+                    {!isDefaultSelected && (
+                        <button
+                            onClick={handleSwitchToDefault}
+                            disabled={isPending}
+                            className="mx-auto mb-4 flex w-fit items-center gap-[6px] rounded-full border border-border bg-secondary px-4 py-[7px] text-[13px] font-medium text-foreground transition-colors active:bg-muted"
+                        >
+                            <Home size={14} />
+                            <span>{t('cloudSessionSheet.disconnectCloud')}</span>
+                        </button>
+                    )}
+
                     {/* Tabs */}
-                    <TabBar tab={tab} onChange={setTab} inviteCount={inviteClouds.length} />
+                    <TabBar tab={tab} onChange={setTab} inviteCount={inviteClouds?.meta.total ?? 0} />
 
                     {/* Content */}
                     <div className="max-h-[40vh] overflow-y-auto">
@@ -389,21 +447,24 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                                                         variant: 'destructive',
                                                     })
                                                 }
+                                                onEditCloud={setEditingCloud}
                                             />
                                         ))}
                                     </div>
                                 )
-                            ) : inviteClouds.length === 0 ? (
+                            ) : inviteClouds?.meta.total === 0 ? (
                                 <div className="flex items-center justify-center px-3 py-6 text-sm text-muted-foreground">
                                     {t('cloudSessionSheet.emptyInvited')}
                                 </div>
                             ) : (
                                 <div className="flex flex-col gap-1 px-2">
-                                    {inviteClouds.map(inviteCloud => (
+                                    {inviteClouds?.list.map(inviteCloud => (
                                         <InviteCloudItem
                                             key={inviteCloud.id}
                                             inviteCloud={inviteCloud}
                                             isSelected={selectedId === inviteCloud.id}
+                                            isDisabled={isPending}
+                                            onSelectCloud={handleSelectCloud}
                                         />
                                     ))}
                                 </div>
@@ -411,7 +472,9 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                         </div>
                     </div>
 
-                    {tab === 'my' && <AddAccountButton onClick={handleAddAccount} />}
+                    {tab === 'my' && !isDefaultSelected && clouds.length < 1 && (
+                        <AddAccountButton onClick={handleAddAccount} />
+                    )}
                 </SheetContent>
             </Sheet>
             <SubscriptionSelectDialog
@@ -430,6 +493,25 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                 open={isSubscriptionRequiredOpen}
                 onClose={() => setIsSubscriptionRequiredOpen(false)}
             />
+            {editingCloud?.id && (
+                <CloudNameEditDialog
+                    open={!!editingCloud}
+                    onOpenChange={open => !open && setEditingCloud(null)}
+                    currentName={getCloudDisplayName(editingCloud)}
+                    cloudId={editingCloud.id}
+                    onSuccess={newName => {
+                        queryClient.setQueriesData({ queryKey: cloudsKeys.lists() }, (old: any) => {
+                            if (!old?.list) return old;
+                            return {
+                                ...old,
+                                list: old.list.map((c: any) =>
+                                    c.id === editingCloud.id ? { ...c, name: newName } : c
+                                ),
+                            };
+                        });
+                    }}
+                />
+            )}
         </>
     );
 };

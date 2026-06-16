@@ -62,7 +62,30 @@ const htmlEnvInjectionPlugin = () => {
                 </script>
             `;
 
-            return html.replace(/<body>/, `${envScript}\n<body>`);
+            // Preconnect links for API endpoints
+            const preconnectKeys = ['VITE_OAUTH_ENDPOINT', 'VITE_DOU_ENDPOINT'];
+            const preconnectTags = preconnectKeys
+                .map(key => process.env[key])
+                .filter((url): url is string => !!url)
+                .map(url => {
+                    try {
+                        return new URL(url).origin;
+                    } catch {
+                        return null;
+                    }
+                })
+                .filter((origin): origin is string => !!origin)
+                .filter((origin, i, arr) => arr.indexOf(origin) === i)
+                .map(origin => `<link rel="preconnect" href="${origin}" crossorigin />`)
+                .join('\n');
+
+            html = html.replace(/<body>/, `${envScript}\n<body>`);
+
+            if (preconnectTags) {
+                html = html.replace(/<\/head>/, `${preconnectTags}\n</head>`);
+            }
+
+            return html;
         },
     };
 };
@@ -133,6 +156,25 @@ export default defineConfig({
             extensions: ['.js', '.cjs'],
             strictRequires: true,
             transformMixedEsModules: true,
+        },
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+                    'vendor-ui': [
+                        '@radix-ui/react-dialog',
+                        '@radix-ui/react-popover',
+                        '@radix-ui/react-accordion',
+                        '@radix-ui/react-tabs',
+                        '@radix-ui/react-toast',
+                        '@radix-ui/react-select',
+                        '@radix-ui/react-dropdown-menu',
+                        '@radix-ui/react-alert-dialog',
+                        '@radix-ui/react-tooltip',
+                    ],
+                    'vendor-utils': ['zustand', 'i18next', 'react-i18next', 'react-hook-form'],
+                },
+            },
         },
     },
 

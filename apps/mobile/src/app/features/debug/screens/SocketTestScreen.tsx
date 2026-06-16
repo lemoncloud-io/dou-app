@@ -14,6 +14,7 @@ import {
 import Config from 'react-native-config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWebSocket } from '../hooks';
+import { useDebugTheme } from '../theme';
 
 import type { ClientStatusType, ClientSyncPayload, WSSConnectParam, WSSEnvelope } from '@lemoncloud/chatic-sockets-api';
 import { getDeviceId } from 'react-native-device-info';
@@ -34,6 +35,7 @@ interface LogItem {
 const socketUrl: string = Config.VITE_WS_ENDPOINT ?? '';
 
 export const SocketTestScreen = () => {
+    const colors = useDebugTheme();
     const STATUS_ICONS: Record<ClientStatusType, string> = {
         green: '🟢',
         yellow: '🟡',
@@ -276,13 +278,15 @@ export const SocketTestScreen = () => {
     }, [lastMessage]);
 
     return (
-        <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
-            <View style={styles.controlPanel}>
+        <View style={[styles.screen, { paddingBottom: insets.bottom, backgroundColor: colors.background }]}>
+            <View style={[styles.controlPanel, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                 <View style={styles.panelHeader}>
                     <TouchableOpacity style={styles.statusIndicatorButton} onPress={togglePanel} activeOpacity={0.7}>
                         <View style={[styles.dot, { backgroundColor: isConnected ? '#50E3C2' : '#FF5A5F' }]} />
-                        <Text style={styles.statusText}>{isConnected ? 'Connected' : 'Disconnected'}</Text>
-                        <Text style={styles.toggleIcon}>{isExpanded ? '▲' : '▼'}</Text>
+                        <Text style={[styles.statusText, { color: colors.text }]}>
+                            {isConnected ? 'Connected' : 'Disconnected'}
+                        </Text>
+                        <Text style={[styles.toggleIcon, { color: colors.subtleText }]}>{isExpanded ? '▲' : '▼'}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -295,18 +299,18 @@ export const SocketTestScreen = () => {
 
                 {isExpanded && (
                     <View style={styles.infoContainer}>
-                        <View style={styles.dividerHorizontal} />
+                        <View style={[styles.dividerHorizontal, { backgroundColor: colors.border }]} />
 
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Client Status:</Text>
-                            <Text style={styles.deviceStatusValue}>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Client Status:</Text>
+                            <Text style={[styles.deviceStatusValue, { color: colors.text }]}>
                                 {statusIcon} {clientStatus}
                             </Text>
                         </View>
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Device ID:</Text>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Device ID:</Text>
                             <Text
-                                style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}
+                                style={[styles.deviceStatusValue, { fontSize: 10, color: colors.mutedText }]}
                                 numberOfLines={1}
                                 ellipsizeMode="middle"
                             >
@@ -314,23 +318,23 @@ export const SocketTestScreen = () => {
                             </Text>
                         </View>
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Sync Count:</Text>
-                            <Text style={styles.deviceStatusValue}>{pongCount}</Text>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Sync Count:</Text>
+                            <Text style={[styles.deviceStatusValue, { color: colors.text }]}>{pongCount}</Text>
                         </View>
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Uptime:</Text>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Uptime:</Text>
                             <Text style={[styles.deviceStatusValue, { color: '#50E3C2' }]}>
                                 {formatDuration(connectionDuration)}
                             </Text>
                         </View>
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Server Tick:</Text>
-                            <Text style={styles.deviceStatusValue}>#{tick}</Text>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Server Tick:</Text>
+                            <Text style={[styles.deviceStatusValue, { color: colors.text }]}>#{tick}</Text>
                         </View>
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Last Msg ID:</Text>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Last Msg ID:</Text>
                             <Text
-                                style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}
+                                style={[styles.deviceStatusValue, { fontSize: 10, color: colors.mutedText }]}
                                 numberOfLines={1}
                                 ellipsizeMode="tail"
                             >
@@ -346,12 +350,14 @@ export const SocketTestScreen = () => {
                 data={logs}
                 keyExtractor={item => item.id}
                 renderItem={renderLogItem}
-                style={styles.logList}
+                style={[styles.logList, { backgroundColor: colors.logBackground }]}
                 contentContainerStyle={styles.logContent}
-                ListEmptyComponent={<Text style={styles.emptyText}>로그가 비어있습니다.</Text>}
+                ListEmptyComponent={
+                    <Text style={[styles.emptyText, { color: colors.subtleText }]}>로그가 비어있습니다.</Text>
+                }
             />
 
-            <View style={styles.bottomContainer}>
+            <View style={[styles.bottomContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}

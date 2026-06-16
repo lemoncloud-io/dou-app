@@ -8,22 +8,24 @@ import { useNavigateWithTransition, resizeImageToBase64 } from '@chatic/shared';
 import { cn } from '@chatic/ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import { cloudCore } from '@chatic/web-core';
+
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';
-import { useMyPlaces } from '../../home/hooks/useMyPlaces';
+import { usePlaces } from '../../../shared/hooks';
 import { useUpdateMyPlace } from '../../home/hooks/useUpdateMyPlace';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 const MAX_NAME_LENGTH = 20;
-const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export const PlaceInfoPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { toast } = useToast();
     const { placeId } = useParams<{ placeId: string }>();
-    const { places } = useMyPlaces();
+    const { places } = usePlaces();
     const { updatePlace, isPending } = useUpdateMyPlace();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,6 +33,9 @@ export const PlaceInfoPage = () => {
     const [name, setName] = useState('');
     const [imageUrl, setImageUrl] = useState('');
     const [imageSizeError, setImageSizeError] = useState(false);
+
+    const myId = cloudCore.getCloudToken()?.id;
+    const isOwner = !!(place && myId && (place as MySiteView & { ownerId?: string }).ownerId === myId);
 
     const initialName = place?.name ?? '';
     const initialThumbnail = place?.thumbnail ?? '';
@@ -43,6 +48,13 @@ export const PlaceInfoPage = () => {
             setImageUrl(found?.thumbnail ?? '');
         }
     }, [placeId, places]);
+
+    // owner가 아니면 뒤로 이동
+    useEffect(() => {
+        if (place && myId && (place as MySiteView & { ownerId?: string }).ownerId !== myId) {
+            navigate(-1);
+        }
+    }, [place, myId, navigate]);
 
     const formatDate = useCallback(
         (timestamp?: number) => {
@@ -92,7 +104,7 @@ export const PlaceInfoPage = () => {
         setImageSizeError(false);
 
         try {
-            const base64 = await resizeImageToBase64(file, 50);
+            const base64 = await resizeImageToBase64(file, 150);
             setImageUrl(base64);
         } catch {
             setImageSizeError(true);

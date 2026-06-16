@@ -1,17 +1,17 @@
 import { Camera, User } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { resizeImageToBase64 } from '@chatic/shared';
 
 import { cn } from '@chatic/lib/utils';
 import { useWebCoreStore, useUpdateProfile } from '@chatic/web-core';
-
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';
 
-const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export const ProfileEditPage = () => {
     const navigate = useNavigateWithTransition();
@@ -20,15 +20,24 @@ export const ProfileEditPage = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
 
-    const initialName = profile?.$user.name || '';
-    const initialImageUrl = profile?.$user.photo || '';
-
-    const [name, setName] = useState(initialName);
-    const [imageUrl, setImageUrl] = useState(initialImageUrl);
+    const initialRef = useRef({ name: '', imageUrl: '', initialized: false });
+    const [name, setName] = useState((profile?.$user?.name || '').slice(0, 30));
+    const [imageUrl, setImageUrl] = useState(profile?.$user?.photo || '');
     const [imageSizeError, setImageSizeError] = useState(false);
 
-    const hasChanges = name !== initialName || imageUrl !== initialImageUrl;
-    const isValid = name.trim().length > 0 && name.length <= 20;
+    // profile 로드 시 초기값 고정 및 state 동기화
+    useEffect(() => {
+        if (profile?.$user && !initialRef.current.initialized) {
+            const initName = profile.$user.name || '';
+            const initImage = profile.$user.photo || '';
+            initialRef.current = { name: initName, imageUrl: initImage, initialized: true };
+            if (!name && initName) setName(initName.slice(0, 30));
+            if (!imageUrl && initImage) setImageUrl(initImage);
+        }
+    }, [profile]);
+
+    const hasChanges = name !== initialRef.current.name || imageUrl !== initialRef.current.imageUrl;
+    const isValid = name.trim().length > 0 && name.length <= 30;
 
     const handleSave = async () => {
         if (!isValid || !hasChanges) return;
@@ -36,12 +45,12 @@ export const ProfileEditPage = () => {
         try {
             await updateProfile({
                 name: name.trim(),
-                imageUrl: imageUrl !== initialImageUrl ? imageUrl : undefined,
+                photo: imageUrl !== initialRef.current.imageUrl ? imageUrl : undefined,
             });
 
             navigate(-1);
         } catch (error) {
-            console.error('Failed to update profile:', error);
+            logger.error('PROFILE', 'Failed to update profile', { error });
         }
     };
 
@@ -55,13 +64,14 @@ export const ProfileEditPage = () => {
 
         if (file.size > MAX_IMAGE_SIZE) {
             setImageSizeError(true);
+            event.target.value = '';
             return;
         }
 
         setImageSizeError(false);
 
         try {
-            const base64 = await resizeImageToBase64(file, 50);
+            const base64 = await resizeImageToBase64(file, 150);
             setImageUrl(base64);
         } catch {
             setImageSizeError(true);
@@ -105,18 +115,16 @@ export const ProfileEditPage = () => {
                     <label className="mb-2 block text-[14px] font-semibold text-foreground">
                         {t('profileEdit.nameLabel')}
                     </label>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={e => setName(e.target.value.slice(0, 20))}
-                            className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-[15px] text-foreground outline-none transition-colors focus:border-foreground"
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[14px] text-muted-foreground">
-                            {name.length}/20
-                        </span>
+                    <input
+                        type="text"
+                        value={name}
+                        onChange={e => setName(e.target.value.slice(0, 30))}
+                        className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-[15px] text-foreground outline-none transition-colors focus:border-foreground"
+                    />
+                    <div className="mt-2 flex justify-between">
+                        <span className="text-[14px] text-muted-foreground">{t('profileEdit.nameHint')}</span>
+                        <span className="text-[14px] text-muted-foreground">{name.length}/30</span>
                     </div>
-                    <p className="mt-2 text-[14px] text-muted-foreground">{t('profileEdit.nameHint')}</p>
                 </div>
 
                 <div>
@@ -127,13 +135,7 @@ export const ProfileEditPage = () => {
                     <div className="relative inline-block">
                         <div className="flex h-[82px] w-[82px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                             {imageUrl ? (
-                                <img
-                                    src={imageUrl}
-                                    alt="Profile"
-                                    loading="lazy"
-                                    decoding="async"
-                                    className="h-full w-full object-cover"
-                                />
+                                <img src={imageUrl} alt="Profile" className="h-full w-full object-cover" />
                             ) : (
                                 <User size={36} className="text-muted-foreground" />
                             )}

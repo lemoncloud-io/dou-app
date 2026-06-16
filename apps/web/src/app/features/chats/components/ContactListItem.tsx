@@ -1,4 +1,4 @@
-import { Loader2, User } from 'lucide-react';
+import { Check, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -6,11 +6,12 @@ import type { ContactInfo } from '@chatic/app-messages';
 
 interface ContactListItemProps {
     contact: ContactInfo;
-    onInvite: (contact: ContactInfo) => void;
-    isLoading?: boolean;
+    selected?: boolean;
+    onToggle?: (contact: ContactInfo) => void;
+    disabled?: boolean;
 }
 
-export const ContactListItem = ({ contact, onInvite, isLoading }: ContactListItemProps) => {
+export const ContactListItem = ({ contact, selected, onToggle, disabled }: ContactListItemProps) => {
     const { t } = useTranslation();
     const [imgError, setImgError] = useState(false);
 
@@ -18,7 +19,12 @@ export const ContactListItem = ({ contact, onInvite, isLoading }: ContactListIte
         contact.displayName || `${contact.givenName} ${contact.familyName}`.trim() || t('chat.room.unknown');
 
     return (
-        <div className="flex items-center gap-2">
+        <button
+            type="button"
+            onClick={() => !disabled && onToggle?.(contact)}
+            disabled={disabled}
+            className="flex w-full items-center gap-2 disabled:opacity-50"
+        >
             {/* Avatar */}
             <div className="size-10 rounded-full border border-border bg-muted flex items-center justify-center overflow-hidden shrink-0">
                 {contact.hasThumbnail && contact.thumbnailPath && !imgError ? (
@@ -35,19 +41,19 @@ export const ContactListItem = ({ contact, onInvite, isLoading }: ContactListIte
                 )}
             </div>
 
-            {/* Name & Invite */}
+            {/* Name & Check */}
             <div className="flex flex-1 items-center">
-                <span className="flex-1 text-[16px] font-medium leading-[22px] tracking-[0.08px] text-foreground">
+                <span className="flex-1 text-left text-[16px] font-medium leading-[22px] tracking-[0.08px] text-foreground">
                     {displayName}
                 </span>
-                <button
-                    onClick={() => onInvite(contact)}
-                    disabled={isLoading}
-                    className="text-[14px] font-semibold leading-[22px] tracking-[0.07px] text-primary underline disabled:opacity-50"
+                <div
+                    className={`size-6 rounded-full flex items-center justify-center shrink-0 ${
+                        selected ? 'bg-primary' : 'border border-border bg-background'
+                    }`}
                 >
-                    {isLoading ? <Loader2 className="size-4 animate-spin" /> : t('inviteFriends.invite')}
-                </button>
+                    {selected && <Check className="size-4 text-primary-foreground" />}
+                </div>
             </div>
-        </div>
+        </button>
     );
 };

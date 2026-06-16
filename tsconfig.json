@@ -22,9 +22,6 @@
             "path": "./libs/web-core"
         },
         {
-            "path": "./libs/pouches"
-        },
-        {
             "path": "./libs/shared"
         },
         {
@@ -46,19 +43,10 @@
             "path": "./libs/auth"
         },
         {
-            "path": "./libs/channels"
-        },
-        {
             "path": "./libs/chats"
         },
         {
-            "path": "./libs/deeplinks"
-        },
-        {
             "path": "./apps/landing"
-        },
-        {
-            "path": "./libs/places"
         },
         {
             "path": "./libs/i18n-mobile"
@@ -67,7 +55,16 @@
             "path": "./libs/policy-content"
         },
         {
-            "path": "./libs/socket-data"
+            "path": "./libs/data"
+        },
+        {
+            "path": "./libs/bridges"
+        },
+        {
+            "path": "./libs/app-runtime"
+        },
+        {
+            "path": "./apps/desktop-web"
         }
     ]
 }

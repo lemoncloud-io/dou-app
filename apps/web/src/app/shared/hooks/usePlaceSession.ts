@@ -1,5 +1,5 @@
 import { useIssueCloudToken } from '@chatic/auth';
-import { useGlobalLoader } from '@chatic/shared';
+import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 
 export const getPlaceSession = () => {
@@ -17,22 +17,19 @@ export const clearPlaceSession = (): void => {
 export const usePlaceSession = () => {
     const { mutateAsync: issueCloudToken, isPending } = useIssueCloudToken();
     const { setProfile } = useWebCoreStore();
-    const { setIsLoading } = useGlobalLoader();
 
     const selectPlace = async (placeId: string) => {
-        setIsLoading(true);
-        try {
-            const { cloudDelegationToken, userToken } = await issueCloudToken(placeId);
+        const { cloudDelegationToken, userToken } = await issueCloudToken(placeId);
 
-            cloudCore.saveDelegationToken(cloudDelegationToken);
-            cloudCore.saveCloudToken(userToken);
-            cloudCore.saveSelectedCloudId(placeId);
+        cloudCore.saveDelegationToken(cloudDelegationToken);
+        // 서버가 반환하지 않는 로컬 커스텀 필드(thumbnail 등)를 보존
+        const existing = cloudCore.getCloudToken();
+        cloudCore.saveCloudToken(existing ? ({ ...existing, ...userToken } as typeof userToken) : userToken);
+        cloudCore.saveSelectedSiteId(placeId);
+        useWebSocketV2Store.getState().setSelectedPlaceId(placeId);
 
-            const { Token, ...profile } = userToken;
-            setProfile(profile);
-        } finally {
-            setIsLoading(false);
-        }
+        const { Token, ...profile } = userToken;
+        setProfile(profile);
     };
 
     return { selectPlace, isPending };

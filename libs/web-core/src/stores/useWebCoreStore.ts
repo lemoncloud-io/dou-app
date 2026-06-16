@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 
-import { getMobileAppInfo, initializeMessageListener, postMessage, useAppMessageStore } from '@chatic/app-messages';
 import type { OAuthLoginProvider } from '@chatic/app-messages';
+import { isNative, logger, webClient } from '@chatic/bridges';
 
 import { updateProfile } from '../api';
-import { LANGUAGE_KEY, cloudCore, webCore, coreStorage } from '../core';
+import { cloudCore, coreStorage, LANGUAGE_KEY, resetWebCoreInit, startWebCoreInit, webCore } from '../core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 export type UserView = Partial<UserProfile$>;
@@ -16,13 +16,46 @@ interface UserViewExtended {
 
 const INVITED_SESSION_KEY = 'chatic-is-invited';
 const OAUTH_PROVIDER_KEY = 'chatic-oauth-provider';
+const PROFILE_CACHE_KEY = 'chatic-profile-cache';
+const DELEGATOR_ID_KEY = 'chatic-delegator-id';
 
-export const getIsInvited = (): boolean => coreStorage.get(INVITED_SESSION_KEY) === 'true';
+/**
+ * Read invited flag.
+ *
+ * Stored in both coreStorage (sessionStorage on web, localStorage on RN
+ * WebView) AND localStorage directly, so the flag survives tab close/reopen
+ * on web and matches the profile cache lifetime (localStorage). Reads either
+ * side and treats a 'true' on either as invited.
+ */
+export const getIsInvited = (): boolean => {
+    try {
+        if (localStorage.getItem(INVITED_SESSION_KEY) === 'true') return true;
+    } catch {
+        // ignore
+    }
+    return coreStorage.get(INVITED_SESSION_KEY) === 'true';
+};
+
+/**
+ * Write invited flag to both coreStorage (web: sessionStorage, RN WebView:
+ * localStorage) and localStorage directly. Matches `clearTokensOnLogout`
+ * which already clears both sides.
+ */
 export const setIsInvitedSession = (value: boolean): void => {
     if (value) {
         coreStorage.set(INVITED_SESSION_KEY, 'true');
+        try {
+            localStorage.setItem(INVITED_SESSION_KEY, 'true');
+        } catch {
+            // ignore
+        }
     } else {
         coreStorage.remove(INVITED_SESSION_KEY);
+        try {
+            localStorage.removeItem(INVITED_SESSION_KEY);
+        } catch {
+            // ignore
+        }
     }
 };
 
@@ -37,6 +70,18 @@ export const setOAuthProvider = (provider: OAuthLoginProvider | null): void => {
     }
 };
 
+export const getDelegatorId = (): string | null => {
+    return coreStorage.get(DELEGATOR_ID_KEY);
+};
+
+export const setDelegatorId = (value: string | null): void => {
+    if (value) {
+        coreStorage.set(DELEGATOR_ID_KEY, value);
+    } else {
+        coreStorage.remove(DELEGATOR_ID_KEY);
+    }
+};
+
 export interface WebCoreState {
     isInitialized: boolean;
     isAuthenticated: boolean;
@@ -44,6 +89,7 @@ export interface WebCoreState {
     isGuest: boolean;
     isInvited: boolean;
     isCloudUser: boolean;
+    delegatorId: string | null;
     error: Error | null;
     profile: UserProfile$ | null;
     userName: string;
@@ -71,18 +117,43 @@ const logoutCallbacks = new Set<() => void>();
 
 /**
  * Initial state configuration for the web core store
+ *
+ * Hydrates profile/isInvited and their derived flags from persisted storage
+ * so the first render matches the post-`setProfile` state. Without this,
+ * `useUserContext` briefly computes the wrong userType on app boot.
  */
-const initialState: Pick<WebCoreStore, keyof WebCoreState> = {
-    isInitialized: false,
-    isAuthenticated: false,
-    isOnMobileApp: false,
-    isGuest: false,
-    isInvited: false,
-    isCloudUser: false,
-    error: null,
-    profile: null,
-    userName: '',
-};
+const initialState: Pick<WebCoreStore, keyof WebCoreState> = (() => {
+    let profile: UserProfile$ | null = null;
+    try {
+        const cached = localStorage.getItem(PROFILE_CACHE_KEY);
+        profile = cached ? (JSON.parse(cached) as UserProfile$) : null;
+    } catch {
+        profile = null;
+    }
+
+    const isInvited = getIsInvited();
+    const userRole = (profile?.$user as UserViewExtended | undefined)?.userRole;
+    const isGuest = userRole === 'guest' && !isInvited;
+    const isCloudUser = isInvited || userRole === 'user';
+    const persisted = getDelegatorId();
+    const delegatorId = userRole === 'guest' && profile?.uid ? profile.uid : persisted;
+    if (userRole === 'guest' && profile?.uid) {
+        setDelegatorId(profile.uid);
+    }
+
+    return {
+        isInitialized: false,
+        isAuthenticated: !!profile,
+        isOnMobileApp: false,
+        isGuest,
+        isInvited,
+        isCloudUser,
+        delegatorId,
+        error: null,
+        profile,
+        userName: profile ? profile['$user']?.name || 'Unknown' : '',
+    };
+})();
 
 /**
  * Zustand store for managing web core state and actions
@@ -98,22 +169,22 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      */
     initialize: async () => {
         set({ isInitialized: false, error: null });
-        await webCore.init();
-        await webCore.setUseXLemonLanguage(true, LANGUAGE_KEY);
-        const isAuthenticated = await webCore.isAuthenticated();
+        logger.info('WEB_CORE', '[initialize] awaiting webCore.init (eager)');
+        await startWebCoreInit();
+        logger.info('WEB_CORE', '[initialize] webCore.init done, setting language + auth in parallel');
+        const [, isAuthenticated] = await Promise.all([
+            webCore.setUseXLemonLanguage(true, LANGUAGE_KEY),
+            webCore.isAuthenticated(),
+        ]);
+        logger.info('WEB_CORE', '[initialize] isAuthenticated resolved', {
+            data: { isAuthenticated },
+        });
 
-        const { isOnMobileApp } = getMobileAppInfo();
-        if (isOnMobileApp) {
-            initializeMessageListener();
-
-            // Add handler for mobile app token sync response
-            const appMessageStore = useAppMessageStore.getState();
-            appMessageStore.addHandler('OnSuccessSyncCredential', message => {
-                console.log('📱 Mobile token sync successful:', message);
-                // TODO: Process token data from mobile app
-            });
-        }
+        const isOnMobileApp = isNative();
         set({ isInitialized: true, isAuthenticated, isOnMobileApp });
+        logger.info('WEB_CORE', '[initialize] store updated', {
+            data: { isInitialized: true, isAuthenticated, isOnMobileApp },
+        });
     },
 
     /**
@@ -132,26 +203,38 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
             try {
                 callback();
             } catch (error) {
-                console.error('Logout callback error:', error);
+                logger.error('AUTH', 'Logout callback error', { error });
             }
         });
         logoutCallbacks.clear();
 
         // Revoke OAuth session on native side if applicable
         const oauthProvider = getOAuthProvider();
-        const { isOnMobileApp } = getMobileAppInfo();
+        const isOnMobileApp = isNative();
         if (oauthProvider && isOnMobileApp) {
-            postMessage({ type: 'OAuthLogout', data: { provider: oauthProvider } });
+            webClient.post({ type: 'OAuthLogout', data: { provider: oauthProvider } });
         }
         setOAuthProvider(null);
 
         await webCore.logout();
         cloudCore.clearSession();
-        setIsInvitedSession(false);
+        // SPA 내비게이션 시 모듈이 재평가되지 않아 _initDone이 true로 남을 수 있음
+        // → 다음 startWebCoreInit() 호출 시 webCore.init()이 실행되도록 리셋
+        resetWebCoreInit();
+        // isInvited는 유지 — 로그아웃 후 재로그인 시 초대 상태 복원에 필요
         localStorage.removeItem('chatic-device-token');
 
-        set({ isAuthenticated: false, profile: null, userName: '', isGuest: false, isInvited: false });
+        set({ isAuthenticated: false, profile: null, userName: '', isGuest: false });
+        try {
+            localStorage.removeItem(PROFILE_CACHE_KEY);
+        } catch {
+            /* ignore */
+        }
 
+        // history 전체 정리 후 login 페이지로 이동
+        // window.location.href는 history에 엔트리를 추가하므로, 로그아웃 후 스와이프 백으로
+        // 이전 페이지에 접근하는 것을 방지하기 위해 history를 전부 비운 뒤 replace 사용
+        let targetUrl = '/auth/login?logout=1';
         if (options?.preserveUrl) {
             const params = new URLSearchParams(searchBeforeCleanup);
             const loginUrl = new URL('/auth/login', window.location.origin);
@@ -160,9 +243,21 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
                 if (value) loginUrl.searchParams.set(key, value);
             }
             loginUrl.searchParams.set('logout', '1');
-            window.location.href = loginUrl.toString();
+            targetUrl = loginUrl.toString();
+        }
+
+        const stepsBack = window.history.length - 1;
+        if (stepsBack > 0) {
+            window.addEventListener(
+                'popstate',
+                () => {
+                    window.location.replace(targetUrl);
+                },
+                { once: true }
+            );
+            window.history.go(-stepsBack);
         } else {
-            window.location.href = '/auth/login?logout=1';
+            window.location.replace(targetUrl);
         }
     },
 
@@ -177,17 +272,31 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      * @param profile - User profile data
      */
     setProfile: (profile: UserProfile$) => {
+        try {
+            localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
+        } catch {
+            // ignore
+        }
         const userRoleGuest = (profile.$user as UserViewExtended)?.userRole === 'guest';
         const isInvited = getIsInvited();
 
         // Treat as guest if: role is guest, OR (not invited, no cloud, no active social login)
         const isGuest = userRoleGuest && !isInvited;
         const isCloudUser = isInvited || (profile.$user as UserViewExtended)?.userRole === 'user';
+
+        // Cache delegatorId: guest profile.uid is the stable delegator identity.
+        // On guest→invited transition, preserve the previously cached value.
+
+        if (userRoleGuest && profile.uid) {
+            setDelegatorId(profile.uid);
+        }
+
         return set({
             profile,
             isGuest,
             isInvited,
             isCloudUser,
+            delegatorId: userRoleGuest ? profile.uid : getDelegatorId(),
             userName: profile['$user']?.name || 'Unknown',
         });
     },
@@ -198,12 +307,6 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      */
     updateProfile: async (uid: string, user: Record<string, unknown>) => {
         await updateProfile(uid, user);
-        // TODO: set updated profile
-        // set(state => {
-        //     const profile = { ...state.profile, $user: user };
-        //     const userName = user['name'];
-        //     return { ...state, profile, userName };
-        // });
     },
 
     /**

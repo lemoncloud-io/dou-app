@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-05-12] - root@0.35.2, @chatic/web@0.32.2
+
+### Refactor
+
+- relocate web-specific types
+
 ## [2026-03-20] - root@0.35.1, @chatic/web@0.32.1
 
 ### Features

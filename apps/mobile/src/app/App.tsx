@@ -1,30 +1,61 @@
 import React, { useEffect, useState } from 'react';
-import { StatusBar, useColorScheme, View } from 'react-native';
+import { View } from 'react-native';
 import Config from 'react-native-config';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import type { LinkingOptions } from '@react-navigation/native';
 import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 
-import { FloatingMenu, useAppVersionCheck, useInitializeDeepLink, useThemeStore } from './common';
-import { getDeepLinkManager } from '@chatic/deeplinks';
-import type { RootStackParamList } from './navigation';
-import { RootNavigator } from './navigation';
-import { SplashScreen } from './features/main';
+import { getRouteStateFromDeepLinkPath } from './services/deeplinks/deeplinkUtils';
+import type { RootStackParamList } from './features/core/navigation';
+import { RootNavigator } from './features/core/navigation';
+import { useAppVersionCheck, useResolvedTheme } from './hooks';
+import { deeplinkService, logger, notificationService } from './services';
+import { FloatingMenu, SystemBars } from './features/core/components';
+import { DebugOverlay } from './features/debug';
+import type { DebugOverlayEntryKey } from './features/debug/debugMenu';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 const SHOW_DEBUG_MENU = __DEV__ || Config.VITE_ENV !== 'PROD';
 
+// React Navigation Linking Configuration
+const linking: LinkingOptions<any> = {
+    prefixes: [
+        'chatic://',
+        'chatic-dev://',
+        'https://app.chatic.io',
+        'https://app-dev.chatic.io',
+        'https://dou.chatic.io',
+        'https://dou-dev.chatic.io',
+    ],
+    async getInitialURL() {
+        return deeplinkService.getInitialUrl();
+    },
+    subscribe(listener: (url: string) => void) {
+        return deeplinkService.subscribe(listener);
+    },
+    getStateFromPath(path: string) {
+        logger.info('DEEPLINK', '[AppLinking] getStateFromPath called', { path });
+        const state = getRouteStateFromDeepLinkPath(path);
+        logger.info('DEEPLINK', '[AppLinking] getStateFromPath result', {
+            path,
+            rootRoute: state?.routes?.[0]?.name,
+            nestedRoute: state?.routes?.[0]?.state?.routes?.[0]?.name,
+            nestedParams: state?.routes?.[0]?.state?.routes?.[0]?.params,
+        });
+        return state;
+    },
+};
+
 export const App = () => {
-    const [isSplashVisible, setIsSplashVisible] = useState(true);
-
-    const systemColorScheme = useColorScheme();
-    const theme = useThemeStore(state => state.theme);
-    const isDarkMode = theme === 'dark' || (theme === 'system' && systemColorScheme === 'dark');
-
     const { hasUpdate, showUpdateAlert } = useAppVersionCheck(true);
+    const [isDebugOverlayVisible, setDebugOverlayVisible] = useState(false);
+    const [debugOverlayEntry, setDebugOverlayEntry] = useState<DebugOverlayEntryKey>('FeatureTests');
 
-    // Initialize deep link listeners early (captures URLs immediately)
-    useInitializeDeepLink();
+    // Signal that Firebase is ready for deep link processing immediately
+    useEffect(() => {
+        notificationService.createNotificationChannel();
+    }, []);
 
     // Show update alert when update is available
     useEffect(() => {
@@ -33,35 +64,25 @@ export const App = () => {
         }
     }, [hasUpdate, showUpdateAlert]);
 
-    const handleNavigate = (screenName: keyof RootStackParamList) => {
-        if (navigationRef.isReady()) {
-            navigationRef.navigate(screenName as any);
-        }
+    const openDebugOverlay = (entry: DebugOverlayEntryKey) => {
+        setDebugOverlayEntry(entry);
+        setDebugOverlayVisible(true);
     };
 
+    const { backgroundColor } = useResolvedTheme();
+
     return (
-        <SafeAreaProvider>
-            <StatusBar
-                barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-                backgroundColor="transparent"
-                translucent={true}
-            />
-            {isSplashVisible ? (
-                <SplashScreen
-                    onFinish={() => {
-                        setIsSplashVisible(false);
-                        // Signal that Firebase is ready for deep link processing
-                        getDeepLinkManager().setAppReady();
-                    }}
-                />
-            ) : (
-                <NavigationContainer ref={navigationRef}>
-                    <View style={{ flex: 1 }}>
-                        <RootNavigator />
-                        {SHOW_DEBUG_MENU && <FloatingMenu onNavigate={handleNavigate} />}
-                    </View>
-                </NavigationContainer>
-            )}
+        <SafeAreaProvider style={{ backgroundColor }}>
+            <SystemBars />
+            <NavigationContainer ref={navigationRef} linking={linking}>
+                <View style={{ flex: 1, backgroundColor }}>
+                    <RootNavigator />
+                    {SHOW_DEBUG_MENU && !isDebugOverlayVisible && <FloatingMenu onOpenDebug={openDebugOverlay} />}
+                    {SHOW_DEBUG_MENU && isDebugOverlayVisible && (
+                        <DebugOverlay initialEntry={debugOverlayEntry} onClose={() => setDebugOverlayVisible(false)} />
+                    )}
+                </View>
+            </NavigationContainer>
         </SafeAreaProvider>
     );
 };

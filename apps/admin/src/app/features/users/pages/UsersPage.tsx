@@ -19,6 +19,8 @@ import { useUsers } from '@chatic/users';
 
 import { RegisterUserDialog } from '../components';
 
+import { reportError, toError } from '@chatic/web-core';
+
 import type { JSX } from 'react';
 import { useIssueToken } from '@chatic/auth';
 import { useSearchParams } from 'react-router-dom';
@@ -64,6 +66,7 @@ export const UsersPage = (): JSX.Element => {
             toast.success(t('users.token.issued'));
         } catch (error) {
             console.error('Failed to issue token:', error);
+            reportError(toError(error));
             toast.error(t('users.token.issueFailed'));
         }
     };

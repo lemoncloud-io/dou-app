@@ -3,14 +3,15 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { webCore, useWebCoreStore, setOAuthProvider } from '@chatic/web-core';
+import { setOAuthProvider, useWebCoreStore, webCore } from '@chatic/web-core';
 
-import { getMobileAppInfo, postMessage, useHandleAppMessage } from '@chatic/app-messages';
+import { isNative, logger, webClient } from '@chatic/bridges';
 import type { OAuthTokenResult } from '@chatic/app-messages';
 import { useVerifyNativeAppToken } from '@chatic/users';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
 
 import { PageHeader } from '../../../shared/components';
+import { useOnOAuthLogin } from '../../../shared/hooks';
 
 const GoogleIcon = () => (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -46,16 +47,17 @@ export const LoginPage = () => {
     const [isOAuthPending, setIsOAuthPending] = useState(false);
     const [activeProvider, setActiveProvider] = useState<'google' | 'apple' | null>(null);
 
-    const { isOnMobileApp, isIOS } = getMobileAppInfo();
+    const isOnMobileApp = isNative();
+    const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
     const { mutateAsync: verifyNativeAppToken, isPending: isVerifyNativeAppTokenPending } = useVerifyNativeAppToken();
 
     const handleOAuthLogin = (provider: 'google' | 'apple') => {
         setIsOAuthPending(true);
         setActiveProvider(provider);
-        postMessage({ type: 'OAuthLogin', data: { provider } });
+        webClient.post({ type: 'OAuthLogin', data: { provider } });
     };
 
-    useHandleAppMessage('OnOAuthLogin', async message => {
+    useOnOAuthLogin(async message => {
         setIsOAuthPending(false);
         setActiveProvider(null);
         const result: OAuthTokenResult | null = message.data.result;
@@ -71,9 +73,24 @@ export const LoginPage = () => {
             setOAuthProvider(result.provider);
             setProfile(rest as Parameters<typeof setProfile>[0]);
             setIsAuthenticated(true);
-            window.location.href = '/';
+
+            // history 전체 정리: [/, /mypage, /mypage/login] → [/]
+            // 첫 엔트리까지 돌아간 뒤 replace하면 뒤로갈 history가 없음
+            const stepsBack = window.history.length - 1;
+            if (stepsBack > 0) {
+                window.addEventListener(
+                    'popstate',
+                    () => {
+                        window.location.replace('/');
+                    },
+                    { once: true }
+                );
+                window.history.go(-stepsBack);
+            } else {
+                window.location.replace('/');
+            }
         } catch (e) {
-            console.error('[LoginPage] OAuth login failed:', e);
+            logger.error('AUTH', '[LoginPage] OAuth login failed', { error: e });
             toast({
                 title: t('mypageLogin.error'),
                 description: t('mypageLogin.errorDescription'),

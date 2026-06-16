@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { logger } from '@chatic/bridges';
 import { useWebCoreStore } from '../stores';
+import { reportError } from '../api';
 
 type InitState = 'idle' | 'initializing' | 'completed';
 
@@ -15,21 +17,30 @@ export const useInitWebCore = () => {
 
     const runInitialization = useCallback(async () => {
         try {
+            logger.info('WEB_CORE', 'Starting initialization attempt', {
+                data: { retry: retryCountRef.current },
+            });
             await initialize();
+            logger.info('WEB_CORE', 'Initialization completed successfully');
             setLocalInitState('completed');
             retryCountRef.current = 0;
         } catch (error) {
-            console.error('❌ WebCore initialization failed:', error);
+            logger.error('WEB_CORE', 'WebCore initialization failed', { error });
+            reportError(error instanceof Error ? error : new Error(String(error)));
 
             if (retryCountRef.current < MAX_INIT_RETRIES) {
                 retryCountRef.current++;
-                console.log(`🔄 Retrying initialization (${retryCountRef.current}/${MAX_INIT_RETRIES})...`);
+                logger.info('WEB_CORE', 'Retrying initialization', {
+                    data: { retryCount: retryCountRef.current, maxRetries: MAX_INIT_RETRIES },
+                });
                 setTimeout(() => {
                     void runInitialization();
                 }, RETRY_DELAY_MS * retryCountRef.current);
             } else {
-                // All retries exhausted — allow app to render so user can interact (logout, etc.)
-                console.error('❌ WebCore initialization failed after all retries, proceeding with error state');
+                // All retries exhausted — force isInitialized so Router can render
+                // and user can interact (logout, retry, etc.)
+                logger.error('WEB_CORE', 'WebCore initialization failed after all retries, forcing app render');
+                useWebCoreStore.setState({ isInitialized: true });
                 setLocalInitState('completed');
             }
         }

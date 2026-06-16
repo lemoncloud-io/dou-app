@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
 
+import { logger } from '@chatic/bridges';
 import { parsePointerWebSocketMessage, useWebSocketStore, useWebSocketWorker } from '@chatic/socket';
 import { webCore } from '@chatic/web-core';
 
@@ -33,7 +34,7 @@ export const useInitPointerWebSocket = (sessionId?: string): UseInitPointerWebSo
             const tokenData = await webCore.getTokenSignature();
             return tokenData?.originToken?.identityToken ?? null;
         } catch (error) {
-            console.error('[PointerSocket] Failed to get token:', error);
+            logger.error('SOCKET', '[PointerSocket] Failed to get token', { error });
             return null;
         }
     }, []);

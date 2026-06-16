@@ -11,11 +11,13 @@ const CONFIG = {
         web: 'apps/web/package.json',
         admin: 'apps/admin/package.json',
         landing: 'apps/landing/package.json',
+        'desktop-web': 'apps/desktop-web/package.json',
     },
     scopeMap: {
         web: 'web',
         admin: 'admin',
         landing: 'landing',
+        'desktop-web': 'desktop-web',
     },
 };
 

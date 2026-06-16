@@ -27,7 +27,9 @@
         "settings": "Settings",
         "logout": "Logout",
         "logoutInvited": "Logout Invited Account",
-        "logoutFailed": "Logout failed"
+        "logoutFailed": "Logout failed",
+        "notifications": "Notifications",
+        "reportIssue": "Report Issue"
     },
     "profile": {
         "editTitle": "Edit Profile",
@@ -145,7 +147,14 @@
         "loginPrompt": "Sign in",
         "loginDescription": "Sign in to safely manage your conversations.",
         "darkMode": "Dark Mode",
+        "messagePreview": "Message Preview",
         "languageSettings": "Language",
+        "appIconSettings": "App Icon Settings",
+        "appIcon": {
+            "title": "App Icon Settings",
+            "default": "Default",
+            "WhiteIcon": "White"
+        },
         "viewOnboarding": "View Onboarding Again",
         "logout": "Logout",
         "appVersion": "Version",
@@ -158,6 +167,7 @@
         "accountInfo": {
             "title": "My Info",
             "profileEdit": "Edit Profile",
+            "cloudProfileEdit": "Edit Cloud Profile",
             "withdrawal": "Delete Account"
         },
         "subscription": {
@@ -260,8 +270,9 @@
     "homePage": {
         "places": "Places",
         "roomCreated": "Chat room created",
-        "cannotCreatePlace": "Can't create place in this cloud",
-        "noCloudsError": "No clouds available to configure"
+        "noCloudsError": "No clouds available to configure",
+        "selectCloud": "Select a cloud",
+        "cannotCreatePlace": "Can't create place in this cloud"
     },
     "cloudSessionSheet": {
         "title": "Select Cloud",
@@ -281,7 +292,14 @@
         "tabInvited": "Invited",
         "emptyInvited": "No invited clouds",
         "statusReservedDescription": "Setting up your cloud. This may take up to 10 minutes.",
-        "cloudReady": "Your cloud is ready!"
+        "cloudReady": "Your cloud is ready!",
+        "disconnectCloud": "Disconnect Cloud",
+        "disconnectCloudDesc": "Disconnect from cloud",
+        "authTimeout": "Cloud authentication timed out",
+        "placeLoadFailed": "Failed to load places",
+        "placeAuthFailed": "Failed to authenticate place",
+        "channelLoadFailed": "Failed to load channels",
+        "cloudSessionExpired": "Cloud session expired. Switched to default mode."
     },
     "placeList": {
         "defaultPlace": "Default",
@@ -367,10 +385,14 @@
                 "saturday": "Saturday"
             },
             "dateFormat": "{{month}}/{{day}}/{{year}} {{weekday}}",
+            "today": "Today",
+            "yesterday": "Yesterday",
             "emptyState": {
                 "line1": "Invite friends to",
                 "line2": "start chatting.",
-                "inviteButton": "Invite Friends"
+                "inviteButton": "Invite Friends",
+                "selfLine1": "Your personal space.",
+                "selfLine2": "Save notes, links, or ideas."
             },
             "read": "Read",
             "unread": "Unread",
@@ -378,9 +400,20 @@
             "unreadCount": "Unread {{count}}",
             "viewAll": "View All",
             "messageDetail": "Full Message",
+            "messageActions": "Message Actions",
+            "messageActionsDescription": "Choose an action for the selected message.",
+            "copyMessage": "Copy Message",
+            "messageCopied": "Message copied.",
+            "copyFailed": "Failed to copy message",
             "sending": "Sending...",
             "sendFailed": "Failed to send message",
-            "tapToRetry": "Tap to retry"
+            "tapToRetry": "Tap to retry",
+            "newMessages": "{{count}} new messages",
+            "retry": "Retry",
+            "delete": "Delete",
+            "failed": "Failed",
+            "syncing": "Syncing...",
+            "syncingProgress": "Syncing... ({{fetched}}/{{total}})"
         },
         "settings": {
             "title": "Room Settings",
@@ -453,7 +486,7 @@
         "nameDescription": "Please enter up to 20 characters.",
         "photoLabel": "Photo",
         "photoOptional": "[Optional]",
-        "imageSizeError": "Image size exceeds 2MB",
+        "imageSizeError": "Image size exceeds 10MB",
         "changeImage": "Change photo"
     },
     "workspace": {
@@ -546,7 +579,14 @@
         "photoLabel": "Profile Photo",
         "photoOptional": "[Optional]",
         "save": "Done",
-        "imageSizeError": "Image must be less than 2MB"
+        "imageSizeError": "Image must be less than 10MB",
+        "tabBasic": "Basic Profile",
+        "tabCloud": "Cloud Profile",
+        "cloudDescription1": "Set your name and photo",
+        "cloudDescription2": "for Cloud",
+        "thumbnailLabel": "Profile Image",
+        "cloudSaveSuccess": "Cloud profile updated.",
+        "cloudSaveError": "Failed to update Cloud profile."
     },
     "mypageLogin": {
         "title": "Sign In",
@@ -652,6 +692,9 @@
         "shareFailed": "Failed to share.",
         "shareTitle": "Join my chat",
         "shareMessage": "Click this link to join the chat!",
+        "batchSuccess": "Invitation sent to {{count}} people",
+        "inviteSelected": "Invite ({{count}})",
+        "batchFailed": "Failed to send invitations",
         "permissionDenied": {
             "title": "Contacts access is turned off",
             "description": "To quickly find friends and start chatting, contacts permission is required. Your contact information is only used for friend recommendations and invitations, and is kept secure."
@@ -725,7 +768,8 @@
         "goToLogin": "Go to Login",
         "loggingIn": "Logging in...",
         "loginSuccess": "Logged in successfully",
-        "loginFailed": "Login failed"
+        "loginFailed": "Login failed",
+        "logout": "Log out"
     },
     "inviteAccept": {
         "title": "You've been invited to chat",
@@ -734,8 +778,13 @@
         "accepting": "Accepting...",
         "failed": "Failed to accept invitation",
         "invalidLink": "Invalid invite link",
+        "missingServerInfo": "Server information is missing from the invite link",
+        "missingDelegator": "Device authentication not found.\nPlease log out and try again.",
         "goBack": "Go Back",
-        "decline": "Decline"
+        "decline": "Decline",
+        "timeout": "Server response timed out. Please try again.",
+        "networkError": "Please check your network connection and try again.",
+        "authVerifyFailed": "Authentication failed. Please try again."
     },
     "subscriptionRequired": {
         "title": "A subscription is required to use this service",
@@ -779,5 +828,54 @@
         "limitExceeded": "You can add up to 1 account",
         "subscriptionRequired": "You can only add an account on your subscribed platform",
         "cloudUserRequired": "Only cloud users can add an account"
+    },
+    "nameSetup": {
+        "title": "Set Your Name",
+        "description": "Enter the name you'd like to use in chat",
+        "placeholder": "Enter your name",
+        "save": "Save",
+        "skip": "Later",
+        "validation": {
+            "required": "Name is required",
+            "tooShort": "Name must be at least 2 characters"
+        }
+    },
+    "profileNameEdit": {
+        "title": "Change Name",
+        "description": "Change the name you use in chat",
+        "myName": "My name:",
+        "nameLabel": "Name",
+        "placeholder": "Enter your name",
+        "save": "Save",
+        "success": "Name has been changed",
+        "error": "Failed to change name",
+        "validation": {
+            "required": "Name is required",
+            "tooShort": "Name must be at least 2 characters"
+        }
+    },
+    "cloudNameEdit": {
+        "title": "Change Cloud Name",
+        "description": "Change the display name of your cloud.",
+        "nameLabel": "Cloud Name",
+        "placeholder": "Enter a name",
+        "save": "Save",
+        "success": "Cloud name has been changed.",
+        "error": "Failed to change the name.",
+        "validation": {
+            "required": "Please enter a name.",
+            "tooShort": "Must be at least 2 characters."
+        }
+    },
+    "reportIssue": {
+        "title": "Report Issue",
+        "description": "Having a problem? Describe it and we'll look into it.",
+        "titleLabel": "Title",
+        "titlePlaceholder": "Enter the issue title",
+        "messageLabel": "Details",
+        "messagePlaceholder": "Describe what happened in detail",
+        "submit": "Submit",
+        "success": "Issue reported. Thank you!",
+        "failed": "Failed to report issue. Please try again."
     }
 }

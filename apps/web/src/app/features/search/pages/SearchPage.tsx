@@ -4,16 +4,19 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 
-import { useMyChannels } from '../../home/hooks/useMyChannels';
-import { useMyPlaces } from '../../home/hooks/useMyPlaces';
+import { useWebSocketV2Store } from '@chatic/socket';
+import { usePlaces } from '../../../shared/hooks';
+
+import { useChannels } from '../../../shared/hooks/useChannels';
 
 export const SearchPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const [query, setQuery] = useState('');
 
-    const { places } = useMyPlaces();
-    const { channels } = useMyChannels();
+    const { places } = usePlaces();
+    const sid = useWebSocketV2Store(s => s.selectedPlaceId) || '';
+    const { channels } = useChannels({ sid, detail: true });
 
     const lowerQuery = query.toLowerCase();
     const filteredPlaces = places.filter(p => p.name?.toLowerCase().includes(lowerQuery));

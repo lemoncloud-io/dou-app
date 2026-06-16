@@ -6,6 +6,21 @@ import type {
     StatusCallback,
     WebSocketServiceConfig,
 } from '../types';
+import { logger } from '@chatic/bridges';
+
+const getMessageMeta = (data: unknown) => {
+    if (typeof data !== 'object' || data === null) {
+        return { dataType: typeof data };
+    }
+
+    const message = data as Record<string, unknown>;
+    return {
+        type: message.type,
+        action: message.action,
+        id: message.id,
+        mid: message.mid,
+    };
+};
 /**
  * Generic WebSocket service class
  * Handles connection lifecycle, ping/pong, and message routing
@@ -83,17 +98,17 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
     connect(): void {
         // Prevent duplicate connections (important for React StrictMode)
         if (this.ws?.readyState === WebSocket.OPEN) {
-            console.warn(`${this.config.logPrefix} Already connected`);
+            logger.warn('SOCKET', `${this.config.logPrefix} Already connected`);
             return;
         }
 
         if (this.ws?.readyState === WebSocket.CONNECTING) {
-            console.warn(`${this.config.logPrefix} Connection already in progress`);
+            logger.warn('SOCKET', `${this.config.logPrefix} Connection already in progress`);
             return;
         }
 
         if (!this.config.endpoint) {
-            console.error(`${this.config.logPrefix} Endpoint not configured`);
+            logger.error('SOCKET', `${this.config.logPrefix} Endpoint not configured`);
             return;
         }
 
@@ -111,9 +126,10 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
             wsUrl += `&deviceId=${this.config.sessionId}`;
         }
 
-        console.log(`${this.config.logPrefix} Connecting to:`, this.config.endpoint);
-        console.log(`${this.config.logPrefix} Session ID:`, this.config.sessionId);
-        console.log(`${this.config.logPrefix} Full URL:`, wsUrl);
+        logger.info('SOCKET', `${this.config.logPrefix} Connecting`, {
+            endpoint: this.config.endpoint,
+            hasSessionId: !!this.config.sessionId,
+        });
 
         try {
             this.statusCallback?.('connecting');
@@ -124,7 +140,7 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
             this.ws.onclose = this.handleClose.bind(this);
             this.ws.onerror = this.handleError.bind(this);
         } catch (error) {
-            console.error(`${this.config.logPrefix} Connection failed:`, error);
+            logger.error('SOCKET', `${this.config.logPrefix} Connection failed`, { error });
             this.hasError = true;
             this.statusCallback?.('error');
             this.errorCallback?.(error as Error);
@@ -226,16 +242,16 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
     send(data: unknown): void {
         if (this.ws?.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(data));
-            console.log(`${this.config.logPrefix} Sent:`, data);
+            logger.debug('SOCKET', `${this.config.logPrefix} Sent`, getMessageMeta(data));
         } else {
-            console.warn(`${this.config.logPrefix} Cannot send - not connected`);
+            logger.warn('SOCKET', `${this.config.logPrefix} Cannot send - not connected`);
         }
     }
 
     // Private methods
 
     private handleOpen(): void {
-        console.log(`${this.config.logPrefix} Connected`);
+        logger.info('SOCKET', `${this.config.logPrefix} Connected`);
         this.statusCallback?.('connected');
 
         if (this.config.requestConnectionId) {
@@ -256,8 +272,10 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
                     const id = infoData.id as string;
                     const connId = typeof infoData.connectionId === 'string' ? infoData.connectionId : null;
                     this.connectionId = connId;
-                    console.log(`${this.config.logPrefix} ID:`, id);
-                    console.log(`${this.config.logPrefix} Connection ID:`, this.connectionId);
+                    logger.info('SOCKET', `${this.config.logPrefix} Connection info`, {
+                        id,
+                        connectionId: this.connectionId,
+                    });
                     this.connectionIdCallback?.(id, connId);
                     return;
                 }
@@ -265,13 +283,13 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
 
             // Handle ping/pong
             if (data.action === 'ping') {
-                console.log(`${this.config.logPrefix} Received ping, sending pong`);
+                logger.debug('SOCKET', `${this.config.logPrefix} Received ping, sending pong`);
                 this.sendPong();
                 return;
             }
 
             if (data.action === 'pong') {
-                console.log(`${this.config.logPrefix} Received pong`);
+                logger.debug('SOCKET', `${this.config.logPrefix} Received pong`);
                 // Ignore pong response
                 return;
             }
@@ -280,7 +298,7 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
             if (this.messageParser) {
                 const parsedMessage = this.messageParser(data);
                 if (parsedMessage) {
-                    console.log(`${this.config.logPrefix} Message:`, parsedMessage);
+                    logger.debug('SOCKET', `${this.config.logPrefix} Message`, getMessageMeta(parsedMessage));
                     this.messageCallback?.(parsedMessage);
                 }
                 return;
@@ -289,13 +307,16 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
             // Fallback: pass raw data as BaseWebSocketMessage
             this.messageCallback?.(data as TMessage);
         } catch (error) {
-            console.error(`${this.config.logPrefix} Failed to parse message:`, error);
+            logger.error('SOCKET', `${this.config.logPrefix} Failed to parse message`, { error });
             this.errorCallback?.(new Error('Invalid message format'));
         }
     }
 
     private handleClose(event: CloseEvent): void {
-        console.log(`${this.config.logPrefix} Disconnected`, event.code, event.reason);
+        logger.info('SOCKET', `${this.config.logPrefix} Disconnected`, {
+            code: event.code,
+            reason: event.reason,
+        });
         this.stopPingPong();
 
         // Only change status to 'disconnected' if there was no error
@@ -314,7 +335,7 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
     }
 
     private handleError(event: Event): void {
-        console.error(`${this.config.logPrefix} Error:`, event);
+        logger.error('SOCKET', `${this.config.logPrefix} Error`, { error: event });
         this.hasError = true;
         this.statusCallback?.('error');
         this.errorCallback?.(new Error('WebSocket error'));
@@ -332,11 +353,13 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
     }
 
     private startPingPong(): void {
-        console.log(`${this.config.logPrefix} Starting ping/pong with interval:`, this.config.pingInterval);
+        logger.debug('SOCKET', `${this.config.logPrefix} Starting ping/pong`, {
+            interval: this.config.pingInterval,
+        });
         // Send ping at configured interval
         this.pingInterval = setInterval(() => {
             if (this.ws?.readyState === WebSocket.OPEN) {
-                console.log(`${this.config.logPrefix} Sending ping`);
+                logger.debug('SOCKET', `${this.config.logPrefix} Sending ping`);
                 this.ws.send(
                     JSON.stringify({
                         action: 'ping',
@@ -356,7 +379,7 @@ export class WebSocketService<TMessage extends BaseWebSocketMessage = BaseWebSoc
 
     private sendPong(): void {
         if (this.ws?.readyState === WebSocket.OPEN) {
-            console.log(`${this.config.logPrefix} Sending pong`);
+            logger.debug('SOCKET', `${this.config.logPrefix} Sending pong`);
             this.ws.send(
                 JSON.stringify({
                     action: 'pong',

@@ -4,12 +4,13 @@ import { NavLink, useLocation } from 'react-router-dom';
 
 import { toast } from 'sonner';
 
+import { logger } from '@chatic/bridges';
 import { useTheme } from '@chatic/theme';
 
 import { CloudLogo } from './CloudLogo';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@chatic/ui-kit/components/ui/tooltip';
-import { useLogout } from '@chatic/web-core';
+import { useLogout } from '@chatic/auth';
 
 import type { JSX, ReactNode } from 'react';
 
@@ -33,7 +34,7 @@ export const Sidebar = (): JSX.Element => {
     const { theme, setTheme } = useTheme();
 
     const { mutate: logout, isPending: isLoggingOut } = useLogout(undefined, error => {
-        console.error('Logout failed:', error);
+        logger.error('AUTH', 'Logout failed', { error });
         toast.error(t('home.logoutFailed', 'Logout failed'));
     });
 

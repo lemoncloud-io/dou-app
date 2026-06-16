@@ -6,6 +6,11 @@ import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
+import io.chatic.dou.bridge.AppIconManagerPackage
+import io.chatic.dou.bridge.BackNavigationPackage
+import io.chatic.dou.bridge.FileManagerPackage
+import io.chatic.dou.bridge.SystemBarsPackage
+import io.chatic.dou.bridge.UploadManagerPackage
 
 class MainApplication : Application(), ReactApplication {
 
@@ -14,8 +19,11 @@ class MainApplication : Application(), ReactApplication {
       context = applicationContext,
       packageList =
         PackageList(this).packages.apply {
-          // Packages that cannot be autolinked yet can be added manually here, for example:
-          // add(MyReactNativePackage())
+            add(AppIconManagerPackage())
+            add(BackNavigationPackage())
+            add(FileManagerPackage())
+            add(SystemBarsPackage())
+            add(UploadManagerPackage())
         },
       jsMainModulePath = "src/main",
     )

@@ -2,38 +2,113 @@ import { ChevronRight, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useNavigateWithTransition } from '@chatic/shared';
+import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 
-import { getMobileAppInfo, postMessage } from '@chatic/app-messages';
+import { isNative, webClient } from '@chatic/bridges';
 import { useDeviceInfo } from '@chatic/device-utils';
-import { getStoreUrl } from '@chatic/shared';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
-import { useLogout, useOnboardingStore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
+import {
+    cloudCore,
+    useAppPreferenceStore,
+    useDynamicProfile,
+    useOnboardingStore,
+    UserType,
+    useUserContext,
+    useWebCoreStore,
+} from '@chatic/web-core';
+import { useLogout } from '@chatic/auth';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
-import { LanguageSelectSheet, LogoutDialog } from '../components';
+import { useTotalUnreadCount } from '../../../shared/hooks/useTotalUnreadCount';
+import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
 import { DEBUG_STORAGE_KEY } from '../consts';
+import { useCacheMutations } from '../../../shared/hooks/useCacheMutations';
+import type { AppIconOption } from '@chatic/app-messages';
 
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
     const { userType } = useUserContext();
+    const profile = useDynamicProfile();
+    const selectedCloudId = cloudCore.getSelectedCloudId() ?? 'default';
 
-    const profile = useWebCoreStore(s => s.profile);
     const { mutate: logout } = useLogout();
     const registerLogoutCallback = useWebCoreStore(s => s.registerLogoutCallback);
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();
     const { resetOnboarding } = useOnboardingStore();
+    const { blurLastMessage, setBlurLastMessage } = useAppPreferenceStore();
+    const { clearAllCache } = useCacheMutations();
+    const totalUnread = useTotalUnreadCount();
 
-    const displayName = profile?.$user.name;
-    const displayImageUrl = profile?.$user.photo;
+    const displayName = profile?.$user?.name;
+    const displayImageUrl = profile?.$user?.photo;
     const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
     const [isDebugMode, setIsDebugMode] = useState(() => sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true');
     const tapCountRef = useRef(0);
     const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const [isIconChangeSupported, setIsIconChangeSupported] = useState(false);
+    const [currentIcon, setCurrentIcon] = useState<string | null>('default');
+    const [availableIcons, setAvailableIcons] = useState<AppIconOption[]>([]);
+    const [isAppIconSheetOpen, setIsAppIconSheetOpen] = useState(false);
+
+    useEffect(() => {
+        if (isNative()) {
+            webClient
+                .request({ type: 'FetchAppIcon', data: {} })
+                .then(res => {
+                    if (res.success && res.data) {
+                        setIsIconChangeSupported(res.data.supported);
+                        setCurrentIcon(res.data.iconName);
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to fetch app icon status:', err);
+                });
+
+            webClient
+                .request({ type: 'FetchAppIconList', data: {} })
+                .then(res => {
+                    if (res.success && res.data) {
+                        setAvailableIcons(res.data.availableIcons);
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to fetch app icon list:', err);
+                });
+        }
+    }, []);
+
+    const handleIconSelect = async (iconId: string | null) => {
+        try {
+            const res = await webClient.request({
+                type: 'ChangeAppIcon',
+                data: { iconName: iconId },
+            });
+            if (res.success && res.data?.success) {
+                setCurrentIcon(res.data.iconName ?? 'default');
+                return true;
+            }
+        } catch (err) {
+            console.error('Failed to change app icon:', err);
+        }
+        return false;
+    };
+
+    const currentIconLabel = (() => {
+        const isDefault = currentIcon === null || currentIcon === 'default';
+        if (isDefault) return t('mypage.appIcon.default');
+
+        const found = availableIcons.find(icon => icon.id === currentIcon);
+        if (!found) return t('mypage.appIcon.default');
+
+        const translationKey = `mypage.appIcon.${found.id}`;
+        const translated = t(translationKey);
+        return translated !== translationKey ? translated : found.label;
+    })();
 
     useEffect(() => {
         return registerLogoutCallback(() => sessionStorage.removeItem(DEBUG_STORAGE_KEY));
@@ -48,12 +123,13 @@ export const MyPage = () => {
     const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
 
     const handleLogout = () => {
+        void clearAllCache();
         logout();
     };
 
+    const isDefaultCloud = !selectedCloudId || selectedCloudId === 'default';
     const handleProfileClick = () => {
-        // Profile dropdown - for now, just navigate to edit
-        navigate('/mypage/edit');
+        navigate(isDefaultCloud ? '/mypage/edit' : '/mypage/cloud-profile');
     };
 
     const handleThemeToggle = () => {
@@ -78,16 +154,16 @@ export const MyPage = () => {
         const storeUrl = getStoreUrl(deviceInfo?.platform);
         if (!storeUrl) return;
 
-        const { isOnMobileApp } = getMobileAppInfo();
+        const isOnMobileApp = isNative();
         if (isOnMobileApp) {
-            postMessage({ type: 'OpenURL', data: { url: storeUrl } });
+            webClient.post({ type: 'OpenURL', data: { url: storeUrl } });
         } else {
             window.open(storeUrl, '_blank');
         }
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pb-32 pt-4">
+        <div className="flex min-h-screen flex-col bg-background pb-32 pt-4 overflow-y-auto">
             {/* Profile Section */}
             <div className="px-5 pb-3 pt-safe-top">
                 {userType === UserType.TEMP_ACCOUNT || userType === UserType.INVITED ? (
@@ -100,17 +176,27 @@ export const MyPage = () => {
                         </div>
                         <p className="text-[14px] text-muted-foreground">{t('mypage.loginDescription')}</p>
                     </button>
+                ) : isDefaultCloud ? (
+                    <div className="flex items-center gap-[9px]">
+                        <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                            {displayImageUrl ? (
+                                <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
+                            ) : (
+                                <User size={20} className="text-muted-foreground" />
+                            )}
+                        </div>
+                        <div className="flex flex-col items-start gap-0.5">
+                            <h2 className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
+                                {displayName}
+                            </h2>
+                            <p className="text-[14px] text-muted-foreground">{profile?.$user?.email}</p>
+                        </div>
+                    </div>
                 ) : (
                     <button onClick={handleProfileClick} className="flex items-center gap-[9px]">
                         <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                             {displayImageUrl ? (
-                                <img
-                                    src={displayImageUrl}
-                                    alt="Profile"
-                                    loading="lazy"
-                                    decoding="async"
-                                    className="h-full w-full object-cover"
-                                />
+                                <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
                             ) : (
                                 <User size={20} className="text-muted-foreground" />
                             )}
@@ -127,8 +213,10 @@ export const MyPage = () => {
 
             {/* Menu Cards Container */}
             <div className="flex flex-col gap-[18px] px-4 pt-4">
-                {/* My Info Card - Cloud user only */}
-                {(userType === UserType.SOCIAL_WITH_CLOUD || userType === UserType.INVITED_WITH_CLOUD) && (
+                {/* My Info Card */}
+                {(userType === UserType.SOCIAL_WITH_CLOUD ||
+                    userType === UserType.INVITED_WITH_CLOUD ||
+                    userType === UserType.SOCIAL_NO_CLOUD) && (
                     <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => navigate('/mypage/account')}
@@ -143,7 +231,9 @@ export const MyPage = () => {
                 )}
 
                 {/* Subscription & Account Management Card - Cloud user only */}
-                {(userType === UserType.SOCIAL_WITH_CLOUD || userType === UserType.INVITED_WITH_CLOUD) && (
+                {(userType === UserType.SOCIAL_WITH_CLOUD ||
+                    userType === UserType.INVITED_WITH_CLOUD ||
+                    userType === UserType.SOCIAL_NO_CLOUD) && (
                     <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => navigate('/mypage/subscription')}
@@ -154,16 +244,20 @@ export const MyPage = () => {
                             </span>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
-                        <div className="h-2" />
-                        <button
-                            onClick={() => navigate('/mypage/account-manage')}
-                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                        >
-                            <span className="text-[15px] font-medium text-foreground">
-                                {t('mypage.accountManage.title')}
-                            </span>
-                            <ChevronRight size={18} className="text-muted-foreground" />
-                        </button>
+                        {(userType === UserType.SOCIAL_WITH_CLOUD || userType === UserType.INVITED_WITH_CLOUD) && (
+                            <>
+                                <div className="h-2" />
+                                <button
+                                    onClick={() => navigate('/mypage/account-manage')}
+                                    className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                                >
+                                    <span className="text-[15px] font-medium text-foreground">
+                                        {t('mypage.accountManage.title')}
+                                    </span>
+                                    <ChevronRight size={18} className="text-muted-foreground" />
+                                </button>
+                            </>
+                        )}
                     </div>
                 )}
 
@@ -172,6 +266,10 @@ export const MyPage = () => {
                     <div className="flex items-center justify-between py-3 pl-4 pr-3">
                         <span className="text-[15px] font-medium text-foreground">{t('mypage.darkMode')}</span>
                         <Switch checked={isDarkTheme} onCheckedChange={handleThemeToggle} />
+                    </div>
+                    <div className="flex items-center justify-between py-3 pl-4 pr-3">
+                        <span className="text-[15px] font-medium text-foreground">{t('mypage.messagePreview')}</span>
+                        <Switch checked={!blurLastMessage} onCheckedChange={v => setBlurLastMessage(!v)} />
                     </div>
                     <button
                         onClick={() => setIsLanguageSheetOpen(true)}
@@ -183,6 +281,20 @@ export const MyPage = () => {
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </div>
                     </button>
+                    {isNative() && isIconChangeSupported && (
+                        <button
+                            onClick={() => setIsAppIconSheetOpen(true)}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <span className="text-[15px] font-medium text-foreground">
+                                {t('mypage.appIconSettings')}
+                            </span>
+                            <div className="flex items-center gap-1">
+                                <span className="text-[14px] text-muted-foreground">{currentIconLabel}</span>
+                                <ChevronRight size={18} className="text-muted-foreground" />
+                            </div>
+                        </button>
+                    )}
                     <button
                         onClick={() => {
                             resetOnboarding();
@@ -204,70 +316,62 @@ export const MyPage = () => {
                         <span className="text-[15px] font-medium text-foreground">{t('mypage.policy.title')}</span>
                         <ChevronRight size={18} className="text-muted-foreground" />
                     </button>
-                    {versionInfo?.shouldUpdate &&
-                    (deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android') ? (
-                        <button
-                            onClick={handleUpdateClick}
-                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                        >
-                            <div className="flex flex-col items-start gap-0.5">
-                                <span className="text-[15px] font-medium text-foreground">
-                                    {t('mypage.appVersion')}
-                                </span>
-                                <span className="text-[13px] text-muted-foreground">
-                                    {`v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <span className="text-[14px] font-medium text-primary">
-                                    {t('mypage.updateAvailable')}
-                                </span>
-                                <ChevronRight size={18} className="text-primary" />
-                            </div>
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleVersionTap}
-                            className="flex w-full items-center justify-between py-3 pl-4 pr-3 text-left"
-                        >
-                            <div className="flex flex-col items-start gap-0.5">
-                                <span className="text-[15px] font-medium text-foreground">
-                                    {t('mypage.appVersion')}
-                                </span>
-                                <span className="text-[13px] text-muted-foreground">
-                                    {deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android'
-                                        ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
-                                        : `v${versionInfo?.webVersion}`}
-                                </span>
-                            </div>
-                        </button>
-                    )}
+                    <button
+                        onClick={handleVersionTap}
+                        className="flex w-full items-center justify-between py-3 pl-4 pr-3 text-left"
+                    >
+                        <div className="flex flex-col items-start gap-0.5">
+                            <span className="text-[15px] font-medium text-foreground">{t('mypage.appVersion')}</span>
+                            <span className="text-[13px] text-muted-foreground">
+                                {deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android'
+                                    ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
+                                    : `v${versionInfo?.webVersion}`}
+                            </span>
+                        </div>
+                        {versionInfo?.shouldUpdate &&
+                            (deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android') && (
+                                <div
+                                    role="button"
+                                    onClick={e => {
+                                        e.stopPropagation();
+                                        handleUpdateClick();
+                                    }}
+                                    className="flex items-center gap-1"
+                                >
+                                    <span className="text-[14px] font-medium text-primary">
+                                        {t('mypage.updateAvailable')}
+                                    </span>
+                                    <ChevronRight size={18} className="text-primary" />
+                                </div>
+                            )}
+                    </button>
                     {isDebugMode && (
-                        <button
-                            onClick={() => navigate('/mypage/debug')}
-                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                        >
-                            <span className="text-[15px] font-medium text-destructive">Debug Mode</span>
-                            <ChevronRight size={18} className="text-destructive" />
-                        </button>
+                        <>
+                            <button
+                                onClick={() => navigate('/mypage/debug')}
+                                className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                            >
+                                <span className="text-[15px] font-medium text-destructive">Debug Mode</span>
+                                <ChevronRight size={18} className="text-destructive" />
+                            </button>
+                        </>
                     )}
                 </div>
 
-                {/* Logout Card - Social login without cloud only */}
-                {userType === UserType.SOCIAL_NO_CLOUD && (
-                    <div className="rounded-[18px] bg-card px-0.5 py-1.5 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
+                {/* Logout */}
+                {userType !== UserType.TEMP_ACCOUNT && userType !== UserType.INVITED && (
+                    <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => setIsLogoutDialogOpen(true)}
-                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                            className="flex w-full items-center py-3 pl-4 pr-3"
                         >
-                            <span className="text-[15px] font-medium text-foreground">{t('mypage.logout')}</span>
-                            <ChevronRight size={18} className="text-muted-foreground" />
+                            <span className="text-[15px] font-medium text-destructive">{t('mypage.logout')}</span>
                         </button>
                     </div>
                 )}
             </div>
 
-            <BottomNavigation />
+            <BottomNavigation totalUnread={totalUnread} />
 
             {/* Logout Dialog */}
             <LogoutDialog
@@ -278,6 +382,15 @@ export const MyPage = () => {
 
             {/* Language Select Sheet */}
             <LanguageSelectSheet isOpen={isLanguageSheetOpen} onClose={() => setIsLanguageSheetOpen(false)} />
+
+            {/* App Icon Select Sheet */}
+            <AppIconSelectSheet
+                isOpen={isAppIconSheetOpen}
+                onClose={() => setIsAppIconSheetOpen(false)}
+                currentIcon={currentIcon}
+                availableIcons={availableIcons}
+                onSelectIcon={handleIconSelect}
+            />
         </div>
     );
 };

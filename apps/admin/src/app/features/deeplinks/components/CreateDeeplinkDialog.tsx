@@ -23,6 +23,8 @@ import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@chatic/ui-kit/components/ui/select';
 
+import { reportError, toError } from '@chatic/web-core';
+
 import { useInviteAndCreateDeeplink } from '../hooks';
 import { firebaseService } from '../services';
 
@@ -66,6 +68,7 @@ export const CreateDeeplinkDialog = ({ open, onOpenChange, onSuccess }: CreateDe
             onOpenChange(false);
             onSuccess?.();
         } catch (error) {
+            reportError(toError(error));
             const message = error instanceof Error ? error.message : 'Failed to create deeplink';
             toast.error(message);
         }

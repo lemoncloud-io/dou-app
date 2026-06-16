@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
+import { logger } from '@chatic/bridges';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
@@ -12,6 +13,8 @@ import {
     OAUTH_ENDPOINT,
     WS_ENDPOINT,
     loginWithInviteCode,
+    reportError,
+    toError,
     webCore,
     useWebCoreStore,
 } from '@chatic/web-core';
@@ -92,7 +95,8 @@ export const TokenTestLoginPage = (): JSX.Element => {
                         throw new Error('No identityToken in response');
                     }
                 } catch (error) {
-                    console.error('[LoginPage] Invite login failed:', error);
+                    logger.error('AUTH', '[LoginPage] Invite login failed', { error });
+                    reportError(toError(error));
                     toast({ title: t('tokenLogin.inviteLoginFailed'), variant: 'destructive' });
                     setIsInviteLogin(false);
                 }

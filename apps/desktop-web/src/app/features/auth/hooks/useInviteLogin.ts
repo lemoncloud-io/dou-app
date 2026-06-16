@@ -1,0 +1,146 @@
+import { useCallback, useState } from 'react';
+
+import { useQueryClient } from '@tanstack/react-query';
+
+import type { CloudDelegationTokenView, MyInviteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
+
+import { logger } from '@chatic/bridges';
+import { useRegisterDevice } from '@chatic/auth';
+import { cloudsKeys } from '@chatic/users';
+import { useWebSocketV2Store } from '@chatic/socket';
+import { useDynamicDeviceId } from '@chatic/app-runtime';
+import {
+    cloudCore,
+    loginWithInviteCode,
+    reportError,
+    setIsInvitedSession,
+    startWebCoreInit,
+    toError,
+    useWebCoreStore,
+    webCore,
+} from '@chatic/web-core';
+
+import { useJoinedCloudsStore } from '../../../shared';
+import { fetchInviteCodeInfo } from '../apis';
+import { extractServerErrorMessage, parseInviteInput } from '../utils';
+import type { InviteLoginError } from '../utils';
+
+/**
+ * Invite-code auth flow — mirrors apps/web LoginPage (fetchInvite + handleAccept):
+ * 1. parse a full invite link OR a bare `invt:<id>:<code>` (link yields a backend override)
+ * 2. register device (yields delegatorId / profile)
+ * 3. resolve $envs.wss / cloudId / siteId from the target backend (best-effort)
+ * 4. save delegation (backend + wss) so the socket/api target the invite's deployment
+ * 5. exchange the code -> cloud token against that backend, persist cloud + selected place
+ *
+ * Works across deployments: the invite link carries its own backend, so the desktop
+ * client doesn't need its .env to point at the same deployment that issued the invite.
+ */
+export const useInviteLogin = () => {
+    const { deviceId } = useDynamicDeviceId();
+    const { mutateAsync: registerDevice } = useRegisterDevice();
+    const { setProfile, setIsAuthenticated } = useWebCoreStore();
+    const addJoinedCloud = useJoinedCloudsStore(s => s.addJoinedCloud);
+    const queryClient = useQueryClient();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<InviteLoginError | null>(null);
+
+    const login = useCallback(
+        async (input: string): Promise<boolean> => {
+            const parsed = parseInviteInput(input);
+            if (!parsed) {
+                // Unparseable paste — previously failed silently; tell the user why.
+                setError({ kind: 'format' });
+                return false;
+            }
+            const { code, backend } = parsed;
+
+            setIsSubmitting(true);
+            setError(null);
+
+            try {
+                await startWebCoreInit();
+                const { Token, ...rest } = await registerDevice(deviceId);
+                if (!Token.identityToken) throw new Error('No identityToken in device registration');
+                await webCore.buildCredentialsByToken(Token);
+                setProfile(rest as unknown as UserProfile$);
+
+                const delegatorId =
+                    useWebCoreStore.getState().delegatorId ??
+                    (rest as unknown as UserProfile$)?.uid ??
+                    ((rest as Record<string, unknown>)?.id as string | undefined);
+                if (!delegatorId) throw new Error('delegatorId unavailable after device registration');
+
+                // Resolve the invite's deployment env (wss/cloud/site) when a backend is known.
+                let info: MyInviteView | null = null;
+                if (backend) {
+                    info = await fetchInviteCodeInfo(code, backend).catch(error => {
+                        logger.warn('AUTH', '[useInviteLogin] invite-code lookup failed; continuing', {
+                            error: toError(error),
+                        });
+                        return null;
+                    });
+                }
+
+                const wss = info?.$envs?.wss;
+                if (backend && wss) {
+                    cloudCore.saveDelegationToken({ backend, wss } as CloudDelegationTokenView);
+                }
+
+                const tokenView = await loginWithInviteCode(code, delegatorId, backend);
+                if (!tokenView.Token?.identityToken) throw new Error('No identityToken from invite code');
+
+                cloudCore.saveCloudToken(tokenView);
+                // `tokenView.cloudId` is the cloud's AWS account-no (SDK `UserTokenView.cloudId`);
+                // the invite carries no real cloud id, so it's the only identifier for this
+                // invited cloud and is used purely as its restore key (re-entry goes through
+                // restoreInvitedCloud, never delegate-cloud). The delegate-cloud boundary guards
+                // against an account-no target, so this can never cause a 404.
+                const cloudId = info?.cloudId ?? tokenView.cloudId;
+                if (cloudId) {
+                    cloudCore.saveSelectedCloudId(cloudId);
+                    // Remember the joined cloud so the rail shows it immediately —
+                    // the broker cloud list is eventually consistent and may omit it.
+                    addJoinedCloud({ id: cloudId, name: info?.cloudName ?? undefined });
+                    // Repoint the socket at the invited cloud + force re-auth, so an
+                    // already-authenticated (guest) session reconnects to the new
+                    // cloud's wss instead of staying on relay (mirrors selectCloud).
+                    const wsStore = useWebSocketV2Store.getState();
+                    wsStore.setCloudId(cloudId);
+                    wsStore.setIsVerified(false);
+                }
+
+                // Pre-select the invited place so the socket connects to it (mirrors web handleAccept).
+                cloudCore.clearSelectedPlace();
+                useWebSocketV2Store.getState().setSelectedPlaceId(null);
+                const siteId = info?.siteId;
+                if (siteId) {
+                    cloudCore.saveSelectedSiteId(siteId);
+                    useWebSocketV2Store.getState().setSelectedPlaceId(siteId);
+                }
+
+                // Remember this invited cloud's full session so the rail can
+                // re-enter it later — the broker can't delegate invited clouds.
+                if (cloudId) cloudCore.captureInvitedCloud(cloudId, info?.cloudName ?? undefined);
+
+                setIsInvitedSession(true);
+                setIsAuthenticated(true);
+                // The broker cloud list is eventually consistent — refetch so the
+                // just-joined cloud appears in the rail alongside the Default Cloud.
+                void queryClient.invalidateQueries({ queryKey: cloudsKeys.all });
+                return true;
+            } catch (error) {
+                const err = toError(error);
+                logger.error('AUTH', '[useInviteLogin] login failed', { error: err });
+                reportError(err);
+                setError({ kind: 'server', message: extractServerErrorMessage(err) });
+                return false;
+            } finally {
+                setIsSubmitting(false);
+            }
+        },
+        [deviceId, registerDevice, setProfile, setIsAuthenticated, addJoinedCloud, queryClient]
+    );
+
+    return { login, isSubmitting, error };
+};

@@ -1,14 +1,35 @@
-import { useEffect } from 'react';
-import { getMobileAppInfo } from '@chatic/app-messages';
-import { useInviteClouds as useBaseInviteClouds } from '@chatic/socket-data';
+import { useEffect, useState } from 'react';
+import { useRepositories } from '@chatic/app-runtime';
+import type { DomainInviteCloud, DomainListResult } from '@chatic/data';
+import { isNative } from '@chatic/bridges';
 
 export const useInviteClouds = () => {
-    const { isOnMobileApp } = getMobileAppInfo();
-    const { inviteClouds, isLoading } = useBaseInviteClouds();
+    const [inviteClouds, setInviteClouds] = useState<DomainListResult<DomainInviteCloud>>();
+    const [isLoading, setIsLoading] = useState(false);
+
+    const isOnMobileApp = isNative();
+    const { inviteCloud: inviteCloudRepository } = useRepositories();
 
     useEffect(() => {
         if (!isOnMobileApp) return;
-    }, [isOnMobileApp]);
 
-    return { inviteClouds, isLoading };
+        setIsLoading(true);
+
+        const unsubscribe = inviteCloudRepository.subscribeList(result => {
+            if (result === null) return;
+
+            setInviteClouds(result);
+            setIsLoading(false);
+        });
+
+        return () => {
+            unsubscribe();
+        };
+    }, [isOnMobileApp, inviteCloudRepository]);
+
+    return {
+        inviteClouds,
+        isLoading: isLoading || !inviteClouds,
+        isEmpty: inviteClouds && inviteClouds.list.length === 0,
+    };
 };

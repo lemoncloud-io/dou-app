@@ -1,15 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { logger } from '@chatic/bridges';
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
 import { useWebCoreStore } from '@chatic/web-core';
 
-import { fetchClouds, fetchUsers, registerDeviceToken, verifyNativeAppToken, verifyEmail } from '../apis';
+import { fetchClouds, fetchUsers, registerDeviceToken, updateCloud, verifyNativeAppToken, verifyEmail } from '../apis';
 
 import type { Params } from '@lemoncloud/lemon-web-core';
 import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
 import type {
+    CloudBody,
     CloudVerifyEmailBody,
     CloudVerifyEmailView,
+    CloudView,
     RegisterDeviceTokenBody,
     UserTokenView,
 } from '@lemoncloud/chatic-backend-api';
@@ -24,7 +27,7 @@ export const useClouds = (params: Params = {}) => {
         queryKey: cloudsKeys.list(params),
         queryFn: async () => {
             const result = await fetchClouds(params);
-            console.log('[useClouds] result:', result);
+            logger.debug('USERS', '[useClouds] result', result);
             return result;
         },
         enabled: isAuthenticated,
@@ -41,8 +44,13 @@ export const useUsers = (params: Params = {}) =>
         refetchOnWindowFocus: false,
     });
 
+export const useUpdateCloud = () =>
+    useCustomMutation<CloudView, string, { id: string; body: CloudBody }>(({ id, body }) => updateCloud(id, body));
+
 export const useRegisterDeviceToken = () =>
-    useCustomMutation<RegisterDeviceResult, string, RegisterDeviceTokenBody>(body => registerDeviceToken(body));
+    useCustomMutation<RegisterDeviceResult, string, RegisterDeviceTokenBody & { force?: boolean }>(
+        ({ force, ...body }) => registerDeviceToken(body, { force })
+    );
 
 export const useVerifyNativeAppToken = () =>
     useCustomMutation<UserTokenView, string, VerifyNativeTokenBody>(body => verifyNativeAppToken(body));

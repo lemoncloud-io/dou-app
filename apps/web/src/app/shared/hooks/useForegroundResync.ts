@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 
-import { useHandleAppMessage } from '@chatic/app-messages';
+import { useOnBackgroundStatusChanged } from './useHandleAppMessage';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { FOREGROUND_RESYNC_EVENT_NAME } from '../types';
 
 const MIN_HIDDEN_MS = 5_000;
 
@@ -27,12 +28,12 @@ export const useForegroundResync = (refreshToken: () => Promise<boolean>) => {
 
         const { isConnected, isVerified } = useWebSocketV2Store.getState();
         if (isConnected && isVerified) {
-            window.dispatchEvent(new CustomEvent('foreground-resync'));
+            window.dispatchEvent(new CustomEvent(FOREGROUND_RESYNC_EVENT_NAME));
         }
     };
 
     // Native AppState: receive OnBackgroundStatusChanged from mobile shell (PR #186)
-    useHandleAppMessage('OnBackgroundStatusChanged', message => {
+    useOnBackgroundStatusChanged(message => {
         if (!isAuthenticated) return;
         const { isForeground } = message.data;
         if (isForeground && hiddenAtRef.current) {

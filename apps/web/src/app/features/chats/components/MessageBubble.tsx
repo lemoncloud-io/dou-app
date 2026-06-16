@@ -1,4 +1,5 @@
-import { ChevronRight, Loader2, RotateCcw } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
+import { useRef, type MouseEvent, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const MAX_MESSAGE_LENGTH = 200;
@@ -10,18 +11,19 @@ const BUBBLE_OTHER_SHAPE = 'rounded-bl-[14px] rounded-br-[14px] rounded-tr-[14px
 interface MessageBubbleProps {
     content: string;
     isMine: boolean;
-    onViewAll?: () => void;
+    onAction?: () => void;
+    onLongPress?: () => void;
     status?: 'pending' | 'failed';
 }
 
-export const MessageBubble = ({ content, isMine, onViewAll, status }: MessageBubbleProps) => {
+const LONG_PRESS_DELAY_MS = 450;
+
+export const MessageBubble = ({ content, isMine, onAction, onLongPress, status }: MessageBubbleProps) => {
     const { t } = useTranslation();
+    const longPressTimerRef = useRef<number | null>(null);
     const isLongMessage = !status && content.length > MAX_MESSAGE_LENGTH;
 
     const bubbleClassName = (() => {
-        if (status === 'pending') {
-            return `${BUBBLE_BASE} ${BUBBLE_MINE_SHAPE} bg-bubble-mine text-bubble-mine-foreground opacity-50`;
-        }
         if (status === 'failed') {
             return `${BUBBLE_BASE} ${BUBBLE_MINE_SHAPE} border border-destructive/30 bg-destructive/10 text-destructive`;
         }
@@ -32,13 +34,46 @@ export const MessageBubble = ({ content, isMine, onViewAll, status }: MessageBub
         }`;
     })();
 
+    const clearLongPressTimer = () => {
+        if (longPressTimerRef.current !== null) {
+            window.clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    };
+
+    const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+        if (!onLongPress || !content) return;
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+        clearLongPressTimer();
+        longPressTimerRef.current = window.setTimeout(() => {
+            longPressTimerRef.current = null;
+            onLongPress();
+        }, LONG_PRESS_DELAY_MS);
+    };
+
+    const handleContextMenu = (event: MouseEvent<HTMLDivElement>) => {
+        if (!onLongPress || !content) return;
+        event.preventDefault();
+        clearLongPressTimer();
+        onLongPress();
+    };
+
     return (
-        <div className={bubbleClassName}>
+        <div
+            className={bubbleClassName}
+            onPointerDown={handlePointerDown}
+            onPointerUp={clearLongPressTimer}
+            onPointerCancel={clearLongPressTimer}
+            onPointerLeave={clearLongPressTimer}
+            onContextMenu={handleContextMenu}
+        >
             {isLongMessage ? (
                 <>
                     {content.slice(0, MAX_MESSAGE_LENGTH)}...
                     <button
-                        onClick={onViewAll}
+                        onPointerDown={event => event.stopPropagation()}
+                        onClick={onAction}
                         className={`ml-auto mt-1 flex items-center gap-0.5 text-[14px] font-medium ${
                             isMine ? 'text-bubble-mine-foreground/80' : 'text-muted-foreground'
                         }`}
@@ -49,18 +84,6 @@ export const MessageBubble = ({ content, isMine, onViewAll, status }: MessageBub
                 </>
             ) : (
                 content
-            )}
-            {status === 'pending' && (
-                <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Loader2 size={12} className="animate-spin" />
-                    <span>{t('chat.room.sending')}</span>
-                </div>
-            )}
-            {status === 'failed' && (
-                <button onClick={onViewAll} className="mt-1 flex items-center gap-1 text-[11px] text-destructive">
-                    <RotateCcw size={12} />
-                    <span>{t('chat.room.tapToRetry')}</span>
-                </button>
             )}
         </div>
     );

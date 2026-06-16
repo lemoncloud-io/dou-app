@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+import { logger } from '@chatic/bridges';
+
 const LOCAL_PROFILE_KEY = 'chatic-local-profile';
 
 interface LocalProfileState {
@@ -23,7 +25,7 @@ const loadFromLocalStorage = (): LocalProfileState => {
         const item = window.localStorage.getItem(LOCAL_PROFILE_KEY);
         return item ? JSON.parse(item) : {};
     } catch (error) {
-        console.log('Error reading local profile from localStorage:', error);
+        logger.error('PROFILE', 'Error reading local profile from localStorage', { error });
         return {};
     }
 };
@@ -32,7 +34,7 @@ const saveToLocalStorage = (state: LocalProfileState) => {
     try {
         window.localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(state));
     } catch (error) {
-        console.log('Error saving local profile to localStorage:', error);
+        logger.error('PROFILE', 'Error saving local profile to localStorage', { error });
     }
 };
 
@@ -63,7 +65,7 @@ export const useLocalProfileStore = create<LocalProfileStore>((set, get) => ({
         try {
             window.localStorage.removeItem(LOCAL_PROFILE_KEY);
         } catch (error) {
-            console.log('Error clearing local profile:', error);
+            logger.error('PROFILE', 'Error clearing local profile', { error });
         }
         set({ name: undefined, imageData: undefined, updatedAt: undefined });
     },

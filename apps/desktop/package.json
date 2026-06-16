@@ -1,0 +1,82 @@
+{
+    "name": "@chatic/desktop",
+    "version": "0.0.2",
+    "private": true,
+    "description": "Chatic desktop shell (Electron)",
+    "author": "lemoncloud",
+    "main": "out/main/index.js",
+    "scripts": {
+        "dev": "electron-vite dev",
+        "build": "electron-vite build",
+        "start": "electron-vite preview",
+        "typecheck": "tsc -b tsconfig.json",
+        "build:dev": "electron-vite build --mode dev",
+        "build:prod": "electron-vite build --mode production",
+        "package:mac:dev": "yarn build:dev && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac -c.appId=io.chatic.desktop.dev -c.productName=\"DoU Dev\" -c.mac.icon=build/icon-dev.png -c.protocols.0.name=\"DoU Dev Protocol\" -c.protocols.0.schemes.0=chatic-dev",
+        "package:mac:prod": "yarn build:prod && electron-builder --mac",
+        "package:mac:prod:signed": "yarn build:prod && dotenv -e .env.signing -- electron-builder --mac -c.mac.notarize=true",
+        "package:win:dev": "yarn build:dev && electron-builder --win -c.appId=io.chatic.desktop.dev -c.productName=\"DoU Dev\" -c.win.icon=build/icon-dev.png -c.protocols.0.name=\"DoU Dev Protocol\" -c.protocols.0.schemes.0=chatic-dev",
+        "package:win:prod": "yarn build:prod && electron-builder --win"
+    },
+    "dependencies": {
+        "@liamcottle/push-receiver": "^0.0.4",
+        "electron-updater": "^6.3.9"
+    },
+    "devDependencies": {
+        "electron": "33.4.11",
+        "electron-builder": "^25.1.8",
+        "electron-vite": "^5.0.0"
+    },
+    "build": {
+        "appId": "io.chatic.desktop",
+        "productName": "DoU",
+        "directories": {
+            "output": "release"
+        },
+        "afterPack": "build/afterPack.cjs",
+        "afterAllArtifactBuild": "build/afterAllArtifactBuild.cjs",
+        "files": [
+            "out/**/*"
+        ],
+        "extraResources": [
+            {
+                "from": "build/tray.png",
+                "to": "tray.png"
+            },
+            {
+                "from": "build/tray@2x.png",
+                "to": "tray@2x.png"
+            }
+        ],
+        "protocols": [
+            {
+                "name": "DoU Protocol",
+                "schemes": [
+                    "chatic"
+                ]
+            }
+        ],
+        "mac": {
+            "target": [
+                "dmg",
+                "zip"
+            ],
+            "category": "public.app-category.social-networking",
+            "hardenedRuntime": true,
+            "gatekeeperAssess": false,
+            "entitlements": "build/entitlements.mac.plist",
+            "entitlementsInherit": "build/entitlements.mac.plist"
+        },
+        "win": {
+            "target": [
+                "nsis"
+            ]
+        },
+        "publish": [
+            {
+                "provider": "generic",
+                "url": "https://desktop.dou.chatic.io/updates"
+            }
+        ]
+    }
+}

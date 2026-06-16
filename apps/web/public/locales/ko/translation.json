@@ -27,7 +27,9 @@
         "settings": "설정",
         "logout": "로그아웃",
         "logoutInvited": "초대 계정 로그아웃",
-        "logoutFailed": "로그아웃 실패"
+        "logoutFailed": "로그아웃 실패",
+        "notifications": "알림",
+        "reportIssue": "문제 신고"
     },
     "profile": {
         "editTitle": "프로필 수정",
@@ -145,7 +147,14 @@
         "loginPrompt": "로그인하기",
         "loginDescription": "로그인 하고, 대화내용을 안전하게 관리하세요.",
         "darkMode": "다크 모드",
+        "messagePreview": "메시지 미리보기",
         "languageSettings": "언어 설정",
+        "appIconSettings": "앱 아이콘 설정",
+        "appIcon": {
+            "title": "앱 아이콘 설정",
+            "default": "기본",
+            "WhiteIcon": "화이트"
+        },
         "viewOnboarding": "온보딩 다시보기",
         "logout": "로그아웃",
         "appVersion": "버전",
@@ -158,6 +167,7 @@
         "accountInfo": {
             "title": "내 정보",
             "profileEdit": "프로필 수정",
+            "cloudProfileEdit": "Cloud 프로필 수정",
             "withdrawal": "탈퇴"
         },
         "subscription": {
@@ -260,8 +270,9 @@
     "homePage": {
         "places": "플레이스",
         "roomCreated": "채팅방이 생성되었습니다",
-        "cannotCreatePlace": "이 클라우드에서는 플레이스를 만들 수 없어요",
-        "noCloudsError": "설정할 수 있는 클라우드가 없어요"
+        "noCloudsError": "설정할 수 있는 클라우드가 없어요",
+        "selectCloud": "클라우드 선택하기",
+        "cannotCreatePlace": "이 클라우드에서는 플레이스를 만들 수 없어요"
     },
     "cloudSessionSheet": {
         "title": "클라우드 선택",
@@ -281,7 +292,14 @@
         "tabInvited": "초대된 클라우드",
         "emptyInvited": "초대된 클라우드가 없어요",
         "statusReservedDescription": "클라우드 설정 중이에요. 최대 10분이 소요될 수 있어요.",
-        "cloudReady": "클라우드가 준비되었어요!"
+        "cloudReady": "클라우드가 준비되었어요!",
+        "disconnectCloud": "클라우드 해제",
+        "disconnectCloudDesc": "클라우드 연결을 해제합니다",
+        "authTimeout": "클라우드 인증 시간이 초과되었어요",
+        "placeLoadFailed": "플레이스 목록을 불러오지 못했어요",
+        "placeAuthFailed": "플레이스 인증에 실패했어요",
+        "channelLoadFailed": "채널 목록을 불러오지 못했어요",
+        "cloudSessionExpired": "클라우드 세션이 만료되어 기본 모드로 전환되었어요"
     },
     "placeList": {
         "defaultPlace": "기본",
@@ -367,10 +385,14 @@
                 "saturday": "토요일"
             },
             "dateFormat": "{{year}}년 {{month}}월 {{day}}일 {{weekday}}",
+            "today": "오늘",
+            "yesterday": "어제",
             "emptyState": {
                 "line1": "친구를 초대하여",
                 "line2": "채팅을 시작해 보세요.",
-                "inviteButton": "친구초대하기"
+                "inviteButton": "친구초대하기",
+                "selfLine1": "나만의 공간이에요.",
+                "selfLine2": "메모, 링크, 아이디어를 저장해 보세요."
             },
             "read": "읽음",
             "unread": "안읽음",
@@ -378,9 +400,20 @@
             "unreadCount": "안읽음 {{count}}",
             "viewAll": "전체보기",
             "messageDetail": "메시지 전체보기",
+            "messageActions": "메시지 작업",
+            "messageActionsDescription": "선택한 메시지에 적용할 작업을 선택합니다",
+            "copyMessage": "메시지 복사",
+            "messageCopied": "메시지가 복사되었습니다",
+            "copyFailed": "메시지 복사에 실패했습니다",
             "sending": "전송 중...",
             "sendFailed": "메시지 전송에 실패했습니다",
-            "tapToRetry": "탭하여 다시 보내기"
+            "tapToRetry": "탭하여 다시 보내기",
+            "newMessages": "새 메시지 {{count}}개",
+            "retry": "재전송",
+            "delete": "삭제",
+            "failed": "전송 실패",
+            "syncing": "동기화 중...",
+            "syncingProgress": "동기화 중... ({{fetched}}/{{total}})"
         },
         "settings": {
             "title": "방 설정",
@@ -453,7 +486,7 @@
         "nameDescription": "20글자 이내로 입력해 주세요.",
         "photoLabel": "사진",
         "photoOptional": "[선택]",
-        "imageSizeError": "이미지 크기가 2MB를 초과합니다",
+        "imageSizeError": "이미지 크기가 10MB를 초과합니다",
         "changeImage": "사진 변경"
     },
     "workspace": {
@@ -546,7 +579,14 @@
         "photoLabel": "프로필 사진",
         "photoOptional": "[선택]",
         "save": "완료",
-        "imageSizeError": "이미지는 2MB 이하여야 합니다"
+        "imageSizeError": "이미지는 10MB 이하여야 합니다",
+        "tabBasic": "기본 프로필",
+        "tabCloud": "Cloud 프로필",
+        "cloudDescription1": "Cloud에서 사용할 이름과",
+        "cloudDescription2": "사진을 설정해 주세요",
+        "thumbnailLabel": "프로필 이미지",
+        "cloudSaveSuccess": "Cloud 프로필이 수정되었습니다.",
+        "cloudSaveError": "Cloud 프로필 수정에 실패했습니다."
     },
     "mypageLogin": {
         "title": "로그인하기",
@@ -652,6 +692,9 @@
         "shareFailed": "공유에 실패했습니다.",
         "shareTitle": "채팅에 초대합니다",
         "shareMessage": "이 링크를 통해 채팅에 참여하세요!",
+        "batchSuccess": "{{count}}명에게 초대를 보냈습니다",
+        "inviteSelected": "초대하기 ({{count}}명)",
+        "batchFailed": "초대 전송에 실패했습니다",
         "permissionDenied": {
             "title": "연락처 접근 허용이 꺼져 있어요",
             "description": "친구를 빠르게 찾고 대화를 시작하려면 연락처 접근 권한이 필요합니다. 연락처 정보는 친구 추천 및 초대에만 사용되며 안전하게 보호됩니다."
@@ -725,7 +768,8 @@
         "goToLogin": "로그인하러 가기",
         "loggingIn": "로그인 중...",
         "loginSuccess": "로그인 되었습니다",
-        "loginFailed": "로그인 실패"
+        "loginFailed": "로그인 실패",
+        "logout": "로그아웃"
     },
     "inviteAccept": {
         "title": "채팅에 초대되었습니다",
@@ -734,8 +778,13 @@
         "accepting": "수락 중...",
         "failed": "초대 수락에 실패했습니다",
         "invalidLink": "유효하지 않은 초대 링크입니다",
+        "missingServerInfo": "초대 링크에 서버 정보가 누락되었습니다",
+        "missingDelegator": "기기 인증 정보를 찾을 수 없습니다.\n로그아웃 후 다시 시도해 주세요.",
         "goBack": "돌아가기",
-        "decline": "거절하기"
+        "decline": "거절하기",
+        "timeout": "서버 응답 시간이 초과되었습니다. 다시 시도해 주세요.",
+        "networkError": "네트워크 연결을 확인한 후 다시 시도해 주세요.",
+        "authVerifyFailed": "인증에 실패했습니다. 다시 시도해 주세요."
     },
     "subscriptionRequired": {
         "title": "해당 서비스를 이용하시려면\n구독이 필요해요",
@@ -779,5 +828,54 @@
         "limitExceeded": "계정은 최대 1개까지 추가할 수 있어요",
         "subscriptionRequired": "구독 중인 플랫폼에서만 계정을 추가할 수 있어요",
         "cloudUserRequired": "클라우드 사용자만 계정을 추가할 수 있어요"
+    },
+    "nameSetup": {
+        "title": "이름 설정",
+        "description": "채팅에서 사용할 이름을 입력해주세요",
+        "placeholder": "이름을 입력하세요",
+        "save": "저장",
+        "skip": "나중에",
+        "validation": {
+            "required": "이름을 입력해주세요",
+            "tooShort": "이름은 2자 이상이어야 합니다"
+        }
+    },
+    "profileNameEdit": {
+        "title": "이름 변경",
+        "description": "채팅에서 사용할 이름을 변경해주세요",
+        "myName": "내 이름:",
+        "nameLabel": "이름",
+        "placeholder": "이름을 입력하세요",
+        "save": "저장",
+        "success": "이름이 변경되었습니다",
+        "error": "이름 변경에 실패했습니다",
+        "validation": {
+            "required": "이름을 입력해주세요",
+            "tooShort": "이름은 2자 이상이어야 합니다"
+        }
+    },
+    "cloudNameEdit": {
+        "title": "클라우드 이름 변경",
+        "description": "클라우드의 표시 이름을 변경합니다.",
+        "nameLabel": "클라우드 이름",
+        "placeholder": "이름을 입력하세요",
+        "save": "저장",
+        "success": "클라우드 이름이 변경되었습니다.",
+        "error": "이름 변경에 실패했습니다.",
+        "validation": {
+            "required": "이름을 입력해주세요.",
+            "tooShort": "2자 이상 입력해주세요."
+        }
+    },
+    "reportIssue": {
+        "title": "이슈 보고",
+        "description": "문제가 발생했나요? 내용을 적어주시면 확인 후 개선하겠습니다.",
+        "titleLabel": "제목",
+        "titlePlaceholder": "이슈 제목을 입력해주세요",
+        "messageLabel": "상세 내용",
+        "messagePlaceholder": "어떤 문제가 발생했는지 자세히 적어주세요",
+        "submit": "보내기",
+        "success": "이슈가 보고되었습니다. 감사합니다!",
+        "failed": "이슈 보고에 실패했습니다. 다시 시도해주세요."
     }
 }

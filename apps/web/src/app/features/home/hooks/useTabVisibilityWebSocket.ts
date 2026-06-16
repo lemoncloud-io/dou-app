@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 
+import { logger } from '@chatic/bridges';
+
 export const useTabVisibilityWebSocket = (
     isTabVisible: boolean,
     connect: () => Promise<void>,
@@ -7,10 +9,10 @@ export const useTabVisibilityWebSocket = (
 ) => {
     useEffect(() => {
         if (isTabVisible) {
-            console.log('[TabVisibilityWebSocket] Tab foreground - connecting');
+            logger.info('SOCKET', '[TabVisibilityWebSocket] Tab foreground - connecting');
             void connect();
         } else {
-            console.log('[TabVisibilityWebSocket] Tab background - disconnecting');
+            logger.info('SOCKET', '[TabVisibilityWebSocket] Tab background - disconnecting');
             disconnect();
         }
     }, [isTabVisible, connect, disconnect]);

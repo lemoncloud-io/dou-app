@@ -4,32 +4,48 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { HelmetProvider } from 'react-helmet-async';
 import { I18nextProvider } from 'react-i18next';
 
-import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster as SonnerToaster } from 'sonner';
 
 import { ErrorFallback, GlobalLoader, LoadingFallback, useVersionCheck, VersionUpdateBanner } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
-import { initializeMessageListener } from '@chatic/app-messages';
-
-import { ServiceUnavailableOverlay, WebSocketV2Connection } from './components';
+import { DataProvider, GlobalChatSync, WebSocketV2Connection } from '@chatic/app-runtime';
+import { ServiceUnavailableOverlay } from './components';
 import { Router } from './routes';
 import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
-import { useAutoSelectCloud } from './shared/hooks/useCloudSession';
+
 import { useForegroundTokenRefresh } from './shared/hooks/useForegroundTokenRefresh';
 import { useForegroundResync } from './shared/hooks/useForegroundResync';
 import i18n from '../i18n';
-import { useDataSync } from '@chatic/socket-data';
+import { logger, webClient } from '@chatic/bridges';
+import { useDeviceInfoStore } from '@chatic/device-utils';
+
+if (typeof window !== 'undefined') {
+    window.addEventListener('error', event => {
+        reportError(event.error ?? new Error(event.message));
+    });
+    window.addEventListener('unhandledrejection', event => {
+        const error = event.reason instanceof Error ? event.reason : new Error(String(event.reason));
+        reportError(error);
+    });
+}
+
+const queryCache = new QueryCache({
+    onError: (error: Error): void => {
+        reportError(error);
+    },
+});
 
 const mutationCache = new MutationCache({
     onError: (error: Error): void => {
-        const userId = useWebCoreStore.getState().profile?.uid;
-        reportError(error, {}, 'web', userId);
+        reportError(error);
     },
 });
 
 const queryClient = new QueryClient({
+    queryCache,
     mutationCache,
     defaultOptions: {
         queries: {
@@ -38,11 +54,6 @@ const queryClient = new QueryClient({
         },
     },
 });
-
-const AutoSelectCloud = () => {
-    useAutoSelectCloud();
-    return null;
-};
 
 const ForegroundTokenRefresh = ({ refreshToken }: { refreshToken: () => Promise<boolean> }) => {
     useForegroundTokenRefresh(refreshToken);
@@ -53,61 +64,74 @@ export function App() {
     const isWebCoreReady = useInitWebCore();
     const { isAuthenticated, profile } = useWebCoreStore();
     const { isInitialized: isTokenInitialized, initStatus, refreshToken } = useTokenRefresh(isWebCoreReady);
+
+    const minTimeElapsed = true;
+
+    // Fast path: cached profile in localStorage → render app immediately.
+    // webCore.init() and token refresh continue in the background.
+    // If session turns out to be expired, isAuthenticated flips to false → redirect to login.
     const canRenderApp =
-        isWebCoreReady && (!isAuthenticated || (isTokenInitialized && (!!profile || initStatus === 'failed')));
+        (isWebCoreReady && (!isAuthenticated || !!profile || (isTokenInitialized && initStatus === 'failed'))) ||
+        !!profile;
+    const showSplash = !canRenderApp || !minTimeElapsed;
+
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
-    useDataSync();
     useForegroundResync(refreshToken);
 
+    // 네이티브 APP LOADER 해제 — 웹 마운트 즉시 전송
     useEffect(() => {
-        const cleanup = initializeMessageListener();
-        return () => {
-            cleanup?.();
-        };
+        webClient.post({ type: 'WebAppReady', data: {} });
     }, []);
 
-    const handleError = useCallback(
-        (error: Error, info: ErrorInfo): void => {
-            console.error('Application Error:', error, info);
-            reportError(error, { componentStack: info.componentStack ?? undefined }, 'web', profile?.uid);
-        },
-        [profile?.uid]
-    );
+    // 네이티브에서 버전 정보 업데이트 이벤트 구독
+    useEffect(() => {
+        return webClient.onEvent('OnUpdateDeviceInfo', message => {
+            useDeviceInfoStore.getState().updateVersionInfo(message.data.latestVersion, message.data.shouldUpdate);
+        });
+    }, []);
 
-    if (!canRenderApp) {
-        return <LoadingFallback />;
-    }
+    const handleError = useCallback((error: Error, info: ErrorInfo): void => {
+        logger.error('APP', 'Application Error', { error, data: info });
+        reportError(error, { componentStack: info.componentStack ?? undefined });
+    }, []);
 
     return (
-        <I18nextProvider i18n={i18n}>
-            <VersionUpdateBanner
-                isVisible={hasUpdate}
-                currentVersion={currentVersion}
-                latestVersion={latestVersion}
-                onDismiss={dismissUpdate}
-            />
-            <Suspense fallback={<LoadingFallback />}>
-                <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
-                    <HelmetProvider>
-                        <QueryClientProvider client={queryClient}>
-                            <ThemeProvider>
-                                <AutoSelectCloud />
-                                <ForegroundTokenRefresh refreshToken={refreshToken} />
-                                {isAuthenticated && <WebSocketV2Connection />}
-                                <ServiceUnavailableOverlay />
-                                <DeviceTokenRegistration />
-                                <Router />
-                                <GlobalLoader />
-                                <SonnerToaster />
-                                <Toaster />
-                            </ThemeProvider>
-                            {/*{process.env.NODE_ENV !== 'prod' && <ReactQueryDevtools buttonPosition="bottom-left" />}*/}
-                        </QueryClientProvider>
-                    </HelmetProvider>
-                </ErrorBoundary>
-            </Suspense>
-        </I18nextProvider>
+        <>
+            {showSplash && <LoadingFallback />}
+            {canRenderApp && (
+                <I18nextProvider i18n={i18n}>
+                    <VersionUpdateBanner
+                        isVisible={hasUpdate}
+                        currentVersion={currentVersion}
+                        latestVersion={latestVersion}
+                        onDismiss={dismissUpdate}
+                    />
+                    <Suspense fallback={<LoadingFallback />}>
+                        <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
+                            <HelmetProvider>
+                                <QueryClientProvider client={queryClient}>
+                                    <ThemeProvider>
+                                        <DataProvider>
+                                            <ForegroundTokenRefresh refreshToken={refreshToken} />
+                                            {isAuthenticated && isWebCoreReady && <WebSocketV2Connection />}
+                                            {isAuthenticated && isWebCoreReady && <GlobalChatSync />}
+                                            <ServiceUnavailableOverlay />
+                                            <DeviceTokenRegistration />
+                                            <Router />
+                                            <GlobalLoader />
+                                            <SonnerToaster />
+                                            <Toaster />
+                                        </DataProvider>
+                                    </ThemeProvider>
+                                    {/*{process.env.NODE_ENV !== 'prod' && <ReactQueryDevtools buttonPosition="bottom-left" />}*/}
+                                </QueryClientProvider>
+                            </HelmetProvider>
+                        </ErrorBoundary>
+                    </Suspense>
+                </I18nextProvider>
+            )}
+        </>
     );
 }
 

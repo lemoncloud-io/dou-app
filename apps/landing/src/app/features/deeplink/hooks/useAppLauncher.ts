@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 
 import { APP_CONFIG, DEEPLINK_CONFIG } from '../constants';
-import { storeDeferredDeepLink } from '../utils';
 
 import type { DeviceType, DeepLinkState, DeepLinkInfo, DialogType } from '../types';
 
@@ -47,10 +46,7 @@ export const useAppLauncher = ({ deviceType, deepLinkInfo }: UseAppLauncherProps
         setDialogType(null);
         setState('launching');
 
-        // Store deferred link BEFORE launching app.
-        // iOS custom scheme may open the app without passing the URL path,
-        // so the app needs a fallback to retrieve the invite from Firestore.
-        await storeDeferredDeepLink(deepLinkInfo.deepLinkUrl);
+        // Launch app directly.
 
         const pathWithoutLeadingSlash = deepLinkInfo.fullPath.replace(/^\//, '');
 

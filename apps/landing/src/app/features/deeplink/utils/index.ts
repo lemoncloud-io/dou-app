@@ -1,2 +1,2 @@
-export { generateFingerprint } from './fingerprint';
-export { storeDeferredDeepLink, fetchShortLink } from './firebase';
+// No shared utilities remaining after Firestore removal
+export {};

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ChevronLeft, HelpCircle, Loader2, X, XCircle } from 'lucide-react';
@@ -130,6 +130,12 @@ export const AddAccountDialog = ({ open, onOpenChange }: AddAccountDialogProps) 
         }
     };
 
+    useEffect(() => {
+        if (isCodeComplete && loadingState === 'idle' && timeLeft > 0) {
+            handleVerifyCode();
+        }
+    }, [isCodeComplete]);  
+
     const handleVerifyCode = async () => {
         setLoadingState('verifying');
         setVerifyError(false);
@@ -137,7 +143,19 @@ export const AddAccountDialog = ({ open, onOpenChange }: AddAccountDialogProps) 
             await verifyEmail.mutateAsync({ email, step: 'check', code });
             const result = await verifyEmail.mutateAsync({ email, step: 'confirm' });
             if (result.$cloud) {
-                await queryClient.invalidateQueries({ queryKey: cloudsKeys.all });
+                // Optimistic insert — the just-created cloud is in `result`, and a refetch
+                // would be eventually-consistent (the new cloud may be missing). See CLAUDE.md.
+                // setQueriesData over every clouds list cache: readers key by varying params
+                // (e.g. { limit: -1, enabled }), so target the prefix instead of one exact key.
+                const newCloud = result.$cloud;
+                queryClient.setQueriesData<{ total?: number; list?: { id?: string }[] }>(
+                    { predicate: q => q.queryKey[0] === 'clouds' },
+                    old => {
+                        const list = old?.list ?? [];
+                        if (!old || list.some(c => c?.id === newCloud.id)) return old;
+                        return { ...old, total: (old.total ?? list.length) + 1, list: [newCloud, ...list] };
+                    }
+                );
                 toast({ title: t('addAccount.success') });
                 handleClose();
             }

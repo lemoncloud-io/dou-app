@@ -3,7 +3,8 @@
     "version": "0.0.1",
     "private": true,
     "scripts": {
-        "test": "jest"
+        "test": "jest --config ./jest.config.js",
+        "upload:server": "node ../../scripts/upload-test-server.js"
     },
     "dependencies": {
         "@nx/eslint-plugin": "*",
@@ -70,11 +71,9 @@
         "@react-native-documents/picker": "*",
         "react-native-contacts": "*",
         "react-native-permissions": "*",
-        "react-native-fs": "*",
         "@radix-ui/react-tabs": "*",
         "@react-native-google-signin/google-signin": "*",
         "@invertase/react-native-apple-authentication": "*",
-        "lottie-react-native": "*",
         "@aws-crypto/sha256-js": "*",
         "@smithy/protocol-http": "*",
         "@smithy/signature-v4": "*",
@@ -88,7 +87,13 @@
         "@react-native-firebase/app": "*",
         "@react-native-firebase/installations": "*",
         "@react-native-firebase/messaging": "*",
-        "@react-native-firebase/auth": "*"
+        "@react-native-firebase/auth": "*",
+        "@testing-library/react": "*",
+        "@notifee/react-native": "*",
+        "@react-native-community/push-notification-ios": "*",
+        "ts-jest": "*"
     },
-    "devDependencies": {}
+    "devDependencies": {
+        "better-sqlite3": "*"
+    }
 }

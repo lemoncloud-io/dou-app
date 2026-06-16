@@ -103,6 +103,10 @@ module.exports = {
                     '0%': { transform: 'translateX(0)' },
                     '100%': { transform: 'translateX(100%)' },
                 },
+                'slide-out-to-top': {
+                    '0%': { transform: 'translateY(0)' },
+                    '100%': { transform: 'translateY(-100%)' },
+                },
                 'fade-in': {
                     '0%': { opacity: '0' },
                     '100%': { opacity: '1' },
@@ -124,6 +128,7 @@ module.exports = {
                 'slide-in-from-top': 'slide-in-from-top 0.3s ease-out',
                 'slide-in-from-bottom': 'slide-in-from-bottom 0.3s ease-out',
                 'slide-out-to-right': 'slide-out-to-right 0.3s ease-in',
+                'slide-out-to-top': 'slide-out-to-top 0.3s ease-in',
                 'fade-in': 'fade-in 0.2s ease-out',
                 'fade-out': 'fade-out 0.2s ease-in',
                 'cloud-bounce': 'cloud-bounce 600ms ease-out',

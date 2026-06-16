@@ -1,0 +1,24 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "composite": false,
+        "declaration": false,
+        "declarationMap": false,
+        "emitDeclarationOnly": false,
+        "noEmit": true,
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "target": "es2022",
+        "lib": ["es2022", "dom"],
+        "types": ["node"],
+        "strict": true,
+        "skipLibCheck": true
+    },
+    "include": ["src/main/**/*.ts", "src/preload/**/*.ts", "electron.vite.config.ts"],
+    "exclude": ["node_modules", "out", "dist"],
+    "references": [
+        {
+            "path": "../../libs/bridges"
+        }
+    ]
+}

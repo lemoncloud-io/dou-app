@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Alert,
     FlatList,
@@ -14,8 +14,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { AuthorizationStatus } from '@react-native-firebase/messaging';
-import { notificationService } from '../../../common';
-import { firebaseInstallationService } from '../../../common/services/firebase/firebaseInstallationService';
+import { useServices } from '../../../hooks';
+import { useDebugTheme } from '../theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -32,12 +32,16 @@ interface LogItem {
 
 export const NotificationTestScreen = () => {
     const insets = useSafeAreaInsets();
+    const colors = useDebugTheme();
+    const { notificationService, firebaseInstallationService } = useServices();
     const [logs, setLogs] = useState<LogItem[]>([]);
     const [token, setToken] = useState<string>('');
-
     const [installId, setInstallId] = useState<string>('');
     const [permissionStatus, setPermissionStatus] = useState<string>('Checking...');
     const [isExpanded, setIsExpanded] = useState(true);
+
+    // 수신된 Data 페이로드를 화면에 표시하기 위한 상태
+    const [receivedData, setReceivedData] = useState<any>(null);
 
     const flatListRef = useRef<FlatList>(null);
 
@@ -49,33 +53,36 @@ export const NotificationTestScreen = () => {
     /**
      * 로그 추가하기
      */
-    const addLog = (type: LogType, message: string) => {
-        const now = new Date();
-        const timeString = now.toLocaleTimeString('ko-KR', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-        });
+    const addLog = useCallback(
+        (type: LogType, message: string) => {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ko-KR', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+            });
 
-        const newLog: LogItem = {
-            id: Date.now().toString() + Math.random(),
-            type,
-            message,
-            timestamp: timeString,
-        };
+            const newLog: LogItem = {
+                id: Date.now().toString() + Math.random(),
+                type,
+                message,
+                timestamp: timeString,
+            };
 
-        setLogs(prev => [...prev, newLog]);
+            setLogs(prev => [...prev, newLog]);
 
-        setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-    };
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        },
+        [setLogs]
+    );
 
     /**
      * 권한 상태 확인
      */
-    const checkPermission = async () => {
+    const checkPermission = useCallback(async () => {
         try {
             const authStatus = await notificationService.hasPermission();
             let statusStr = '';
@@ -104,12 +111,12 @@ export const NotificationTestScreen = () => {
         } catch (error: any) {
             addLog('error', `Check Permission Failed: ${error.message}`);
         }
-    };
+    }, [addLog, notificationService, setPermissionStatus]);
 
     /**
      * 권한 요청
      */
-    const handleRequestPermission = async () => {
+    const handleRequestPermission = useCallback(async () => {
         try {
             addLog('info', 'Requesting permission...');
             const enabled = await notificationService.requestPermission();
@@ -118,12 +125,12 @@ export const NotificationTestScreen = () => {
         } catch (error: any) {
             addLog('error', `Request Permission Error: ${error.message}`);
         }
-    };
+    }, [addLog, checkPermission, notificationService]);
 
     /**
      * Device Token 가져오기
      */
-    const handleGetToken = async () => {
+    const handleGetToken = useCallback(async () => {
         try {
             addLog('info', `Fetching ${Platform.OS === 'ios' ? 'APNs' : 'FCM'} Token...`);
 
@@ -139,7 +146,6 @@ export const NotificationTestScreen = () => {
             if (token) {
                 setToken(token);
                 addLog('success', `${Platform.OS === 'ios' ? 'APNs' : 'FCM'} Token Received`);
-                console.log(`${Platform.OS === 'ios' ? 'APNs' : 'FCM'} Token:`, token);
             } else {
                 addLog(
                     'error',
@@ -149,12 +155,12 @@ export const NotificationTestScreen = () => {
         } catch (error: any) {
             addLog('error', `Get Token Error: ${error.message}`);
         }
-    };
+    }, [addLog, notificationService, setToken]);
 
     /**
      * Firebase Installation ID 가져오기
      */
-    const handleGetInstallId = async () => {
+    const handleGetInstallId = useCallback(async () => {
         try {
             addLog('info', 'Fetching Firebase Installation ID...');
             const id = await firebaseInstallationService.getFirebaseId();
@@ -162,19 +168,18 @@ export const NotificationTestScreen = () => {
             if (id) {
                 setInstallId(id);
                 addLog('success', 'Installation ID Received');
-                console.log('Installation ID:', id);
             } else {
                 addLog('error', 'Failed to get Installation ID (null)');
             }
         } catch (error: any) {
             addLog('error', `Get Install ID Error: ${error.message}`);
         }
-    };
+    }, [addLog, firebaseInstallationService, setInstallId]);
 
     /**
      * iOS APNs 기기 등록 (수동)
      */
-    const handleRegisterDevice = async () => {
+    const handleRegisterDevice = useCallback(async () => {
         if (Platform.OS !== 'ios') {
             Alert.alert('Info', 'iOS Only');
             return;
@@ -186,12 +191,12 @@ export const NotificationTestScreen = () => {
         } catch (error: any) {
             addLog('error', `APNs Register Error: ${error.message}`);
         }
-    };
+    }, [addLog, notificationService]);
 
     /**
      * 토큰 삭제 (Refresh 테스트용)
      */
-    const handleDeleteToken = async () => {
+    const handleDeleteToken = useCallback(async () => {
         try {
             await notificationService.deleteToken();
             setToken('');
@@ -199,8 +204,27 @@ export const NotificationTestScreen = () => {
         } catch (error: any) {
             addLog('error', `Delete Token Error: ${error.message}`);
         }
-    };
+    }, [addLog, notificationService, setToken]);
 
+    /**
+     * 알림 데이터 파싱 헬퍼
+     */
+    const handleRemoteMessage = useCallback(
+        (tag: string, remoteMessage: any) => {
+            addLog('event', `[${tag}] RAW: ${JSON.stringify(remoteMessage)}`);
+
+            const notification = remoteMessage?.notification ? JSON.stringify(remoteMessage.notification) : 'none';
+            const data = remoteMessage?.data ? JSON.stringify(remoteMessage.data) : 'none';
+
+            addLog('event', `[${tag}] Notification: ${notification}`);
+            addLog('event', `[${tag}] Data: ${data}`);
+
+            if (remoteMessage?.data) {
+                setReceivedData(remoteMessage.data);
+            }
+        },
+        [addLog, setReceivedData]
+    );
     /**
      * 초기화 및 리스너 등록
      */
@@ -209,16 +233,17 @@ export const NotificationTestScreen = () => {
         checkPermission();
 
         const unsubscribeOnMessage = notificationService.onMessage(async remoteMessage => {
-            addLog('event', `[Foreground] ${JSON.stringify(remoteMessage.notification || remoteMessage.data)}`);
+            console.log(`TEST // ${remoteMessage}`);
+            handleRemoteMessage('OpenedApp', remoteMessage);
         });
 
         const unsubscribeOnNotificationOpenedApp = notificationService.onNotificationOpenedApp(remoteMessage => {
-            addLog('event', `[OpenedApp] ${JSON.stringify(remoteMessage.notification || remoteMessage.data)}`);
+            handleRemoteMessage('OpenedApp', remoteMessage);
         });
 
         const unsubscribeOnTokenRefresh = notificationService.onTokenRefresh(newToken => {
             setToken(newToken);
-            addLog('event', `[TokenRefresh] New Token: ${newToken.substring(0, 10)}...`);
+            addLog('event', `[TokenRefresh] New Token...`);
         });
 
         return () => {
@@ -226,7 +251,66 @@ export const NotificationTestScreen = () => {
             unsubscribeOnNotificationOpenedApp();
             unsubscribeOnTokenRefresh();
         };
-    }, []);
+    }, [addLog, checkPermission, handleRemoteMessage, notificationService, setToken]);
+
+    /**
+     * 뱃지 조회
+     */
+    const handleGetBadge = useCallback(async () => {
+        try {
+            addLog('info', 'Fetching native badge count...');
+            const count = await notificationService.getBadgeCount();
+            addLog('success', `Current Badge Count: ${count}`);
+        } catch (error: any) {
+            addLog('error', `Get Badge Error: ${error.message}`);
+        }
+    }, [addLog, notificationService]);
+
+    /**
+     * 뱃지 설정 (+1)
+     */
+    const handleIncrementBadge = useCallback(async () => {
+        try {
+            const current = await notificationService.getBadgeCount();
+            const next = current + 1;
+            addLog('info', `Setting native badge count to: ${next}`);
+            await notificationService.setBadgeCount(next);
+            addLog('success', `Badge set successfully to: ${next}`);
+        } catch (error: any) {
+            addLog('error', `Set Badge Error: ${error.message}`);
+        }
+    }, [addLog, notificationService]);
+
+    /**
+     * 뱃지 클리어
+     */
+    const handleClearBadge = useCallback(async () => {
+        try {
+            addLog('info', 'Clearing native badge count...');
+            await notificationService.clearBadge();
+            addLog('success', 'Badge cleared successfully (0)');
+        } catch (error: any) {
+            addLog('error', `Clear Badge Error: ${error.message}`);
+        }
+    }, [addLog, notificationService]);
+
+    /**
+     * 모의 알림 클릭 딥링크 라우팅 테스트
+     */
+    const handleMockNotificationClick = useCallback(async () => {
+        try {
+            const mockClickData = {
+                deeplink: 'chatic://s?code=invt:910001:3f9a8b&api=vjgudphpo4&stage=dev',
+                type: 'chat',
+            };
+            addLog('info', `Simulating notification click for payload: ${JSON.stringify(mockClickData)}`);
+            const { deeplinkService } = require('../../../services');
+            await deeplinkService.handleUrl(mockClickData.deeplink);
+            addLog('success', `Notification click routed successfully via deeplinkService: ${mockClickData.deeplink}`);
+        } catch (error: any) {
+            addLog('error', `Routing Error: ${error.message}`);
+        }
+    }, [addLog]);
 
     const renderLogItem = ({ item }: { item: LogItem }) => {
         let color = '#888';
@@ -244,8 +328,8 @@ export const NotificationTestScreen = () => {
     };
 
     return (
-        <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
-            <View style={styles.controlPanel}>
+        <View style={[styles.screen, { paddingBottom: insets.bottom, backgroundColor: colors.background }]}>
+            <View style={[styles.controlPanel, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                 <View style={styles.panelHeader}>
                     <TouchableOpacity style={styles.statusIndicatorButton} onPress={togglePanel} activeOpacity={0.7}>
                         <View
@@ -259,8 +343,8 @@ export const NotificationTestScreen = () => {
                                 },
                             ]}
                         />
-                        <Text style={styles.statusText}>Device Token Debugger</Text>
-                        <Text style={styles.toggleIcon}>{isExpanded ? '▲' : '▼'}</Text>
+                        <Text style={[styles.statusText, { color: colors.text }]}>Device Token Debugger</Text>
+                        <Text style={[styles.toggleIcon, { color: colors.subtleText }]}>{isExpanded ? '▲' : '▼'}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.refreshButton} onPress={checkPermission}>
@@ -270,23 +354,22 @@ export const NotificationTestScreen = () => {
 
                 {isExpanded && (
                     <View style={styles.infoContainer}>
-                        <View style={styles.dividerHorizontal} />
+                        <View style={[styles.dividerHorizontal, { backgroundColor: colors.border }]} />
 
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Permission:</Text>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Permission:</Text>
                             <Text style={[styles.deviceStatusValue, { color: '#F5A623' }]}>{permissionStatus}</Text>
                         </View>
 
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Device Token:</Text>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Device Token:</Text>
                             <Text
-                                style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}
+                                style={[styles.deviceStatusValue, { fontSize: 10, color: colors.mutedText }]}
                                 numberOfLines={2}
                                 ellipsizeMode="middle"
                                 onPress={() => {
                                     if (token) {
                                         Clipboard.setString(token);
-                                        console.log('Full Token:', token);
                                         Alert.alert('Copied', 'Token copied to clipboard');
                                         addLog('info', 'Token copied to clipboard');
                                     }
@@ -296,17 +379,15 @@ export const NotificationTestScreen = () => {
                             </Text>
                         </View>
 
-                        {/* 3. Install ID 표시 영역 추가 */}
                         <View style={styles.deviceStatusRow}>
-                            <Text style={styles.deviceStatusLabel}>Install ID:</Text>
+                            <Text style={[styles.deviceStatusLabel, { color: colors.mutedText }]}>Install ID:</Text>
                             <Text
-                                style={[styles.deviceStatusValue, { fontSize: 10, color: '#AAA' }]}
+                                style={[styles.deviceStatusValue, { fontSize: 10, color: colors.mutedText }]}
                                 numberOfLines={2}
                                 ellipsizeMode="middle"
                                 onPress={() => {
                                     if (installId) {
                                         Clipboard.setString(installId);
-                                        console.log('Full Install ID:', installId);
                                         Alert.alert('Copied', 'Install ID copied to clipboard');
                                         addLog('info', 'Install ID copied to clipboard');
                                     }
@@ -315,6 +396,19 @@ export const NotificationTestScreen = () => {
                                 {installId || '(Not Fetched)'}
                             </Text>
                         </View>
+
+                        {/* 가장 최근에 받은 Data 페이로드 표시 영역 */}
+                        {receivedData && (
+                            <View style={[styles.deviceStatusRow, { alignItems: 'flex-start', marginTop: 8 }]}>
+                                <Text style={[styles.deviceStatusLabel, { color: '#50E3C2' }]}>Last Data:</Text>
+                                <Text
+                                    style={[styles.deviceStatusValue, { fontSize: 10, color: '#50E3C2' }]}
+                                    numberOfLines={5}
+                                >
+                                    {JSON.stringify(receivedData, null, 2)}
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 )}
             </View>
@@ -324,12 +418,14 @@ export const NotificationTestScreen = () => {
                 data={logs}
                 keyExtractor={item => item.id}
                 renderItem={renderLogItem}
-                style={styles.logList}
+                style={[styles.logList, { backgroundColor: colors.logBackground }]}
                 contentContainerStyle={styles.logContent}
-                ListEmptyComponent={<Text style={styles.emptyText}>로그가 비어있습니다.</Text>}
+                ListEmptyComponent={
+                    <Text style={[styles.emptyText, { color: colors.subtleText }]}>로그가 비어있습니다.</Text>
+                }
             />
 
-            <View style={styles.bottomContainer}>
+            <View style={[styles.bottomContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -358,7 +454,6 @@ export const NotificationTestScreen = () => {
                         <Text style={styles.buttonText}>Get Token</Text>
                     </TouchableOpacity>
 
-                    {/* 4. Get FID 버튼 추가 */}
                     <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: '#F39C12' }]}
                         onPress={handleGetInstallId}
@@ -371,6 +466,34 @@ export const NotificationTestScreen = () => {
                         onPress={handleDeleteToken}
                     >
                         <Text style={styles.buttonText}>Del Token</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#2ECC71' }]}
+                        onPress={handleGetBadge}
+                    >
+                        <Text style={styles.buttonText}>Get Badge</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#E74C3C' }]}
+                        onPress={handleIncrementBadge}
+                    >
+                        <Text style={styles.buttonText}>Badge +1</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#95A5A6' }]}
+                        onPress={handleClearBadge}
+                    >
+                        <Text style={styles.buttonText}>Clr Badge</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#9B59B6' }]}
+                        onPress={handleMockNotificationClick}
+                    >
+                        <Text style={styles.buttonText}>Mock Click</Text>
                     </TouchableOpacity>
                 </ScrollView>
             </View>
@@ -392,7 +515,7 @@ const styles = StyleSheet.create({
     dot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
     statusText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
     toggleIcon: { color: '#888', fontSize: 12, marginLeft: 8 },
-    infoContainer: { marginTop: 4, gap: 8 }, // gap 살짝 늘려 가독성 확보
+    infoContainer: { marginTop: 4, gap: 8 },
     dividerHorizontal: { height: 1, backgroundColor: '#333', marginVertical: 8 },
     deviceStatusRow: { flexDirection: 'row', alignItems: 'center' },
     deviceStatusLabel: { color: '#888', fontSize: 11, width: 85 },

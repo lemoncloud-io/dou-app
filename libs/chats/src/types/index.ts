@@ -30,6 +30,7 @@ export interface ClientChatView extends ChatView {
     chatNo?: number;
     isRead?: boolean;
     isSystem?: boolean;
+    status?: 'pending' | 'failed';
 }
 
 export const toClientChatView = (chat: ChatView): ClientChatView => {
@@ -37,7 +38,7 @@ export const toClientChatView = (chat: ChatView): ClientChatView => {
         ...chat,
         id: chat.id || '',
         content: chat.content || '',
-        timestamp: chat?.createdAt ? new Date(chat.createdAt) : new Date(),
+        timestamp: new Date(chat?.createdAt ?? Date.now()),
         ownerId: chat.ownerId || '',
         ownerName: chat.owner$?.name || '알 수 없음',
         chatNo: chat.chatNo,
