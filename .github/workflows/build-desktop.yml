@@ -138,13 +138,20 @@ jobs:
                   MAIN_VITE_FCM_PACKAGE: ${{ env.BUILD_ENV == 'prod' && 'io.chatic.dou' || 'io.chatic.dou.dev' }}
               run: |
                   set -e
-                  EXTRA=""
+                  # Build version = package.json major.minor + the workflow run number, so every
+                  # build is a unique, monotonically increasing semver (electron-updater compares
+                  # versions to offer updates). Bump major/minor in apps/desktop/package.json by
+                  # hand; the patch auto-advances per run. Override electron-builder's baked version.
+                  BASE=$(node -p "require('./apps/desktop/package.json').version.split('.').slice(0,2).join('.')")
+                  VERSION="${BASE}.${{ github.run_number }}"
+                  echo "desktop build version: $VERSION"
+                  EXTRA="-c.extraMetadata.version=$VERSION"
                   if [ "${{ matrix.platform }}" = "mac" ] && [ "${{ env.BUILD_ENV }}" = "prod" ] \
                      && security find-identity -v -p codesigning | grep -q "Developer ID Application" \
                      && [ -n "$APPLE_API_KEY_B64" ]; then
                     echo "$APPLE_API_KEY_B64" | base64 --decode > "$RUNNER_TEMP/apple_api_key.p8"
                     export APPLE_API_KEY="$RUNNER_TEMP/apple_api_key.p8"
-                    EXTRA="-c.mac.notarize=true"
+                    EXTRA="$EXTRA -c.mac.notarize=true"
                     echo "macOS prod: Developer ID signing + notarization enabled"
                   fi
                   yarn workspace @chatic/desktop package:${{ matrix.platform }}:${{ env.BUILD_ENV }} $EXTRA
@@ -185,7 +192,10 @@ jobs:
                   TAG: desktop-${{ env.BUILD_ENV }}
               run: |
                   set -e
-                  VERSION=$(node -p "require('./apps/desktop/package.json').version")
+                  # Same scheme as the build job (run number is constant across the run), so the
+                  # release title matches the version baked into the installers.
+                  BASE=$(node -p "require('./apps/desktop/package.json').version.split('.').slice(0,2).join('.')")
+                  VERSION="${BASE}.${{ github.run_number }}"
                   TITLE="Chatic Desktop (${{ env.BUILD_ENV }}) v${VERSION}"
                   PRERELEASE=""
                   [ "${{ env.BUILD_ENV }}" = "dev" ] && PRERELEASE="--prerelease"

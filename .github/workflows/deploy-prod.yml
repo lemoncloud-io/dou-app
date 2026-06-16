@@ -93,6 +93,7 @@ jobs:
             web-version: ${{ steps.get-web-version.outputs.web-version }}
             admin-version: ${{ steps.get-admin-version.outputs.admin-version }}
             landing-version: ${{ steps.get-landing-version.outputs.landing-version }}
+            desktopweb-version: ${{ steps.get-desktopweb-version.outputs.desktopweb-version }}
         steps:
             - name: Check out a copy of the repo
               uses: actions/checkout@v4
@@ -171,6 +172,17 @@ jobs:
                     exit 1
                   fi
                   echo "landing-version=${LANDING_VERSION}" >> $GITHUB_OUTPUT
+
+            - name: Get DesktopWeb Version
+              if: ${{ needs.changes.outputs.desktopweb == 'true' }}
+              id: get-desktopweb-version
+              run: |
+                  DESKTOPWEB_VERSION=$(node -p "require('./apps/desktop-web/package.json').version")
+                  if ! echo "$DESKTOPWEB_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+                    echo "Error: Invalid desktop-web version format: $DESKTOPWEB_VERSION"
+                    exit 1
+                  fi
+                  echo "desktopweb-version=${DESKTOPWEB_VERSION}" >> $GITHUB_OUTPUT
 
     build-and-deploy:
         needs: [changes, get-version]
@@ -323,7 +335,7 @@ jobs:
                   fi
 
                   if [[ "${{ needs.changes.outputs.desktopweb }}" == "true" ]]; then
-                      DEPLOY_MESSAGES+=("• *데스크톱* <https://desktop.dou.chatic.io/|PROD 서버>")
+                      DEPLOY_MESSAGES+=("• *데스크톱웹* <https://desktop.dou.chatic.io/|PROD 서버> \`v${{ needs.get-version.outputs.desktopweb-version }}\`")
                   fi
 
                   if [ ${#DEPLOY_MESSAGES[@]} -eq 0 ]; then

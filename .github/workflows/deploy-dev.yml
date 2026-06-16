@@ -93,6 +93,7 @@ jobs:
             admin-version: ${{ steps.version-update.outputs.admin-version }}
             web-version: ${{ steps.version-update.outputs.web-version }}
             landing-version: ${{ steps.version-update.outputs.landing-version }}
+            desktopweb-version: ${{ steps.version-update.outputs.desktopweb-version }}
         steps:
             - name: Check out repository
               uses: actions/checkout@v4
@@ -139,12 +140,10 @@ jobs:
                   [[ "${{ needs.changes.outputs.web }}" == "true" ]] && PROJECTS+=("web")
                   [[ "${{ needs.changes.outputs.admin }}" == "true" ]] && PROJECTS+=("admin")
                   [[ "${{ needs.changes.outputs.landing }}" == "true" ]] && PROJECTS+=("landing")
+                  [[ "${{ needs.changes.outputs.desktopweb }}" == "true" ]] && PROJECTS+=("desktop-web")
 
                   if [ ${#PROJECTS[@]} -eq 0 ]; then
                     echo "No projects to update"
-                  elif [ ${#PROJECTS[@]} -eq 3 ]; then
-                    echo "All projects changed - updating all projects"
-                    node scripts/version-update.js
                   else
                     echo "Updating projects: ${PROJECTS[*]}"
                     node scripts/version-update.js "${PROJECTS[@]}"
@@ -162,6 +161,9 @@ jobs:
 
                   LANDING_VERSION=$(node -p "require('./apps/landing/package.json').version")
                   echo "landing-version=${LANDING_VERSION}" >> $GITHUB_OUTPUT
+
+                  DESKTOPWEB_VERSION=$(node -p "require('./apps/desktop-web/package.json').version")
+                  echo "desktopweb-version=${DESKTOPWEB_VERSION}" >> $GITHUB_OUTPUT
 
             - name: Commit and push changes
               env:
